@@ -21,6 +21,7 @@ def _get_csr_data(csv_file):
 
 
 def get_remote_csr_regions(offset, csv_file):
+    busword = 32
     regions = []
     for region_name, csrs_info in _get_csr_data(csv_file).items():
         csrs_info = sorted(csrs_info, key=itemgetter(1))
@@ -30,11 +31,12 @@ def get_remote_csr_regions(offset, csv_file):
         for csr_name, address, length, ro in csrs_info:
             if address != next_address:
                 raise ValueError("CSRs are not contiguous")
-            next_address += 4*length
+            nr = (length + busword - 1)//busword
+            next_address += nr*busword//8
             if ro:
-                csr = CSRStatus(32*length, name=csr_name)
+                csr = CSRStatus(length, name=csr_name)
             else:
-                csr = CSRStorage(32*length, name=csr_name)
+                csr = CSRStorage(length, name=csr_name)
             csrs.append(csr)
-        regions.append((region_name, offset + origin, 32, csrs))
+        regions.append((region_name, offset + origin, busword, csrs))
     return regions
