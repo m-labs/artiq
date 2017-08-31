@@ -4,12 +4,12 @@ use board::csr;
 use ::send;
 use kernel_proto::*;
 
-pub const RTIO_O_STATUS_WAIT:           u32 = 1;
-pub const RTIO_O_STATUS_UNDERFLOW:      u32 = 2;
-pub const RTIO_O_STATUS_SEQUENCE_ERROR: u32 = 4;
-pub const RTIO_I_STATUS_WAIT_EVENT:     u32 = 1;
-pub const RTIO_I_STATUS_OVERFLOW:       u32 = 2;
-pub const RTIO_I_STATUS_WAIT_STATUS:    u32 = 4;
+pub const RTIO_O_STATUS_WAIT:           u8 = 1;
+pub const RTIO_O_STATUS_UNDERFLOW:      u8 = 2;
+pub const RTIO_O_STATUS_SEQUENCE_ERROR: u8 = 4;
+pub const RTIO_I_STATUS_WAIT_EVENT:     u8 = 1;
+pub const RTIO_I_STATUS_OVERFLOW:       u8 = 2;
+pub const RTIO_I_STATUS_WAIT_STATUS:    u8 = 4;
 
 pub extern fn init() {
     send(&RtioInitRequest);
@@ -36,7 +36,7 @@ pub unsafe fn rtio_i_data_read(offset: usize) -> u32 {
 }
 
 #[inline(never)]
-unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) {
+unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u8) {
     if status & RTIO_O_STATUS_WAIT != 0 {
         while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
     }
@@ -54,11 +54,11 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u32) 
 
 pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
     unsafe {
-        csr::rtio::chan_sel_write(channel as u32);
+        csr::rtio::chan_sel_write(channel as _);
         // writing timestamp clears o_data
         csr::rtio::timestamp_write(timestamp as u64);
-        csr::rtio::o_address_write(addr as u32);
-        rtio_o_data_write(0, data as u32);
+        csr::rtio::o_address_write(addr as _);
+        rtio_o_data_write(0, data as _);
         csr::rtio::o_we_write(1);
         let status = csr::rtio::o_status_read();
         if status != 0 {
@@ -69,12 +69,12 @@ pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
 
 pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<i32>) {
     unsafe {
-        csr::rtio::chan_sel_write(channel as u32);
+        csr::rtio::chan_sel_write(channel as _);
         // writing timestamp clears o_data
         csr::rtio::timestamp_write(timestamp as u64);
-        csr::rtio::o_address_write(addr as u32);
+        csr::rtio::o_address_write(addr as _);
         for i in 0..data.len() {
-            rtio_o_data_write(i, data[i] as u32)
+            rtio_o_data_write(i, data[i] as _)
         }
         csr::rtio::o_we_write(1);
         let status = csr::rtio::o_status_read();
@@ -86,7 +86,7 @@ pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<
 
 pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
     unsafe {
-        csr::rtio::chan_sel_write(channel as u32);
+        csr::rtio::chan_sel_write(channel as _);
         csr::rtio::timestamp_write(timeout as u64);
         csr::rtio::i_request_write(1);
 
@@ -110,7 +110,7 @@ pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
 
 pub extern fn input_data(channel: i32) -> i32 {
     unsafe {
-        csr::rtio::chan_sel_write(channel as u32);
+        csr::rtio::chan_sel_write(channel as _);
         csr::rtio::timestamp_write(0xffffffff_ffffffff);
         csr::rtio::i_request_write(1);
 
