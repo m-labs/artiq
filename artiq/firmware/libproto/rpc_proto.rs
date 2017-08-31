@@ -8,9 +8,9 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
                      alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let ptr = (*data) as *mut $ty;
-            *data = ptr.offset(1) as *mut ();
-            (|$ptr: *mut $ty| $map)(ptr)
+            let $ptr = (*data) as *mut $ty;
+            *data = $ptr.offset(1) as *mut ();
+            $map
         })
     }
 
@@ -87,9 +87,9 @@ pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
 unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::Result<()> {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let ptr = (*data) as *const $ty;
-            *data = ptr.offset(1) as *const ();
-            (|$ptr: *const $ty| $map)(ptr)
+            let $ptr = (*data) as *const $ty;
+            *data = $ptr.offset(1) as *const ();
+            $map
         })
     }
 
