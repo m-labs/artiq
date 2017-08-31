@@ -192,12 +192,14 @@ class Phaser(MiniSoC, AMPSoC):
         self.comb += ad9154_spi.en.eq(1)
         self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
         self.csr_devices.append("converter_spi")
-        self.config["CONVERTER_SPI_DAC_CS"] = 0
-        self.config["CONVERTER_SPI_CLK_CS"] = 1
         self.config["HAS_AD9516"] = None
+        self.config["CONVERTER_SPI_AD9516_CS"] = 1
+        self.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 0
 
-        self.submodules.ad9154 = AD9154(platform)
-        self.csr_devices.append("ad9154")
+        self.submodules.ad9154_0 = AD9154(platform)
+        self.csr_devices.append("ad9154_0")
+        self.config["HAS_AD9154"] = None
+        self.add_csr_group("ad9154", ["ad9154_0"])
 
         rtio_channels = []
 
@@ -218,7 +220,7 @@ class Phaser(MiniSoC, AMPSoC):
 
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
         rtio_channels.extend(rtio.Channel.from_phy(phy)
-                             for sawg in self.ad9154.sawgs
+                             for sawg in self.ad9154_0.sawgs
                              for phy in sawg.phys)
 
         self.config["HAS_RTIO_LOG"] = None
@@ -226,7 +228,7 @@ class Phaser(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.LogChannel())
 
         self.submodules.rtio_crg = _PhaserCRG(
-            platform, self.ad9154.jesd.cd_jesd.clk)
+            platform, self.ad9154_0.jesd.cd_jesd.clk)
         self.csr_devices.append("rtio_crg")
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
@@ -248,8 +250,8 @@ class Phaser(MiniSoC, AMPSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.rtio_crg.cd_rtio.clk)
         platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.ad9154.jesd.cd_jesd.clk)
-        for phy in self.ad9154.jesd.phys:
+            self.crg.cd_sys.clk, self.ad9154_0.jesd.cd_jesd.clk)
+        for phy in self.ad9154_0.jesd.phys:
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, phy.transmitter.cd_tx.clk)
 
