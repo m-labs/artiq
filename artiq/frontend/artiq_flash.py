@@ -82,7 +82,7 @@ class Programmer:
             "-s", scripts_path()
         ]
         if self.target_file is not None:
-            cmdline += ["-f", target_file]
+            cmdline += ["-f", self.target_file]
         cmdline += ["-c", "; ".join(self.prog)]
         subprocess.check_call(cmdline)
 
