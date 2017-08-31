@@ -57,9 +57,6 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         ]
 
         # AMC/RTM serwb
-        # TODO: cleanup (same comments as in sayma_rtm.py)
-
-        # serwb SERDES
         serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=1)
         self.comb += serwb_pll.refclk.eq(self.crg.cd_sys.clk)
         self.submodules += serwb_pll
@@ -80,7 +77,6 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             serwb_phy.serdes.cd_serwb_serdes.clk,
             serwb_phy.serdes.cd_serwb_serdes_5x.clk)
 
-        # serwb slave
         serwb_core = serwb.core.SERWBCore(serwb_phy, int(self.clk_freq), mode="slave")
         self.submodules += serwb_core
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)

@@ -69,7 +69,6 @@ CSR_RANGE_SIZE = 0x800
 
 
 class SaymaRTM(Module):
-
     def __init__(self, platform):
         csr_devices = []
 
@@ -98,10 +97,7 @@ class SaymaRTM(Module):
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
 
-        # TODO: avoid having a "serdes" clock domain at the top level, rename to "serwb_serdes" or similar.
-        # TODO: the above also applies to sayma_amc_standalone.py.
-
-        # serwb SERDES
+        # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=1)
         self.submodules += serwb_pll
 
@@ -121,7 +117,6 @@ class SaymaRTM(Module):
             serwb_phy.serdes.cd_serwb_serdes.clk,
             serwb_phy.serdes.cd_serwb_serdes_5x.clk)
 
-        # serwb master
         serwb_core = serwb.core.SERWBCore(serwb_phy, int(clk_freq), mode="master")
         self.submodules += serwb_core
 
