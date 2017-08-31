@@ -93,7 +93,10 @@ class SaymaRTM(Module):
             platform.request("ad9154_txen", 1).eq(0b11)
         ]
 
-        self.submodules.converter_spi = spi.SPIMaster(platform.request("hmc_spi"))
+        self.submodules.converter_spi = spi.SPIMaster([
+            platform.request("hmc_spi"),
+            platform.request("ad9154_spi", 0),
+            platform.request("ad9154_spi", 1)])
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
 
