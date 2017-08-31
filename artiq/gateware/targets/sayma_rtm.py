@@ -88,7 +88,7 @@ class SaymaRTM(Module):
         ]
 
         self.comb += [
-            platform.request("ad9154_rst_n").eq(0),
+            platform.request("ad9154_rst_n").eq(1),
             platform.request("ad9154_txen", 0).eq(0b11),
             platform.request("ad9154_txen", 1).eq(0b11)
         ]
