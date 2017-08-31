@@ -140,6 +140,11 @@ def main():
         args.rtm_csr_csv)
     for name, origin, busword, csrs in remote_csr_regions:
         soc.add_csr_region(name, origin, busword, csrs)
+    # Configuration for RTM peripherals. Keep in sync with sayma_rtm.py!
+    soc.config["HAS_HMC830_7043"] = None
+    soc.config["CONVERTER_SPI_HMC830_CS"] = 0
+    soc.config["CONVERTER_SPI_HMC7043_CS"] = 1
+    soc.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
 
     build_artiq_soc(soc, builder_argdict(args))
 
