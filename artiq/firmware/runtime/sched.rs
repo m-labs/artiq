@@ -528,8 +528,12 @@ impl<'a> Write for TcpStream<'a> {
     }
 
     fn flush(&mut self) -> Result<()> {
-        // smoltcp always sends all available data when it's possible; nothing to do
-        Ok(())
+        until!(self, TcpSocketLower, |s|  s.send_queue() == 0 || !s.may_send())?;
+        if self.as_lower().send_queue() == 0 {
+            Ok(())
+        } else {
+            Err(Error::new(ErrorKind::ConnectionAborted, "connection aborted"))
+        }
     }
 }
 

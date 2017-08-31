@@ -1,4 +1,5 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
+use log::LogLevelFilter;
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
@@ -43,10 +44,25 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                     io.until(|| BufferLogger::with(|logger| !logger.is_empty()))?;
 
                     BufferLogger::with(|logger| {
-                        match logger.extract(|log| stream.write_string(log)) {
-                            Ok(()) => Ok(logger.clear()),
-                            Err(e) => Err(e)
-                        }
+                        let log_level = logger.max_log_level();
+                        logger.extract(|log| {
+                            stream.write_string(log)?;
+
+                            if log_level == LogLevelFilter::Trace {
+                                // Hold exclusive access over the logger until we get positive
+                                // acknowledgement; otherwise we get an infinite loop of network
+                                // trace messages being transmitted and causing more network
+                                // trace messages to be emitted.
+                                //
+                                // Any messages unrelated to this management socket that arrive
+                                // while it is flushed are lost, but such is life.
+                                stream.flush()
+                            } else {
+                                Ok(())
+                            }
+                        })?;
+
+                        Ok(logger.clear()) as io::Result<()>
                     })?;
                 }
             },
