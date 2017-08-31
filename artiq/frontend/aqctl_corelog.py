@@ -38,15 +38,16 @@ async def get_logs(host):
 
         for line in log.decode("utf-8").splitlines():
             m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
-            if m.group(1) == 'TRACE':
-                continue
-            elif m.group(1) == 'DEBUG':
+            levelname = m.group(1)
+            if levelname == 'TRACE':
+                level = logging.TRACE
+            elif levelname == 'DEBUG':
                 level = logging.DEBUG
-            elif m.group(1) == ' INFO':
+            elif levelname == ' INFO':
                 level = logging.INFO
-            elif m.group(1) == ' WARN':
+            elif levelname == ' WARN':
                 level = logging.WARN
-            elif m.group(1) == 'ERROR':
+            elif levelname == 'ERROR':
                 level = logging.ERROR
             name = 'firmware.' + m.group(2).replace('::', '.')
             text = m.group(3)
@@ -63,7 +64,7 @@ def main():
             server = Server({"corelog": PingTarget()}, None, True)
             loop.run_until_complete(server.start(bind_address_from_args(args), args.port))
             try:
-                multiline_log_config(logging.DEBUG)
+                multiline_log_config(logging.TRACE)
                 loop.run_until_complete(server.wait_terminate())
             finally:
                 loop.run_until_complete(server.stop())

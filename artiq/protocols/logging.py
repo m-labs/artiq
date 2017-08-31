@@ -7,6 +7,10 @@ from artiq.protocols.asyncio_server import AsyncioServer
 from artiq.tools import TaskObject, MultilineFormatter
 
 
+logging.TRACE = 5
+logging.addLevelName(logging.TRACE, 'TRACE')
+
+
 logger = logging.getLogger(__name__)
 _fwd_logger = logging.getLogger("fwd")
 
@@ -23,6 +27,7 @@ _name_to_level = {
     "WARNING": logging.WARNING,
     "INFO": logging.INFO,
     "DEBUG": logging.DEBUG,
+    "TRACE": logging.TRACE,
 }
 
 
