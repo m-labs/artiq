@@ -59,7 +59,7 @@ class Master(MiniSoC, AMPSoC):
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
         self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
-        self.config["has_drtio"] = None
+        self.config["HAS_DRTIO"] = None
         self.add_csr_group("drtio", ["drtio0"])
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
