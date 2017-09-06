@@ -57,12 +57,12 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         ]
 
         # AMC/RTM serwb
-        serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=1)
+        serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=2)
         self.comb += serwb_pll.refclk.eq(self.crg.cd_sys.clk)
         self.submodules += serwb_pll
 
         serwb_pads = platform.request("amc_rtm_serwb")
-        serwb_phy = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="slave")
+        serwb_phy = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="master")
         self.submodules.serwb_phy = serwb_phy
         self.csr_devices.append("serwb_phy")
 
