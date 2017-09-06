@@ -195,6 +195,9 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
+    #[cfg(has_serwb_phy)]
+    board::serwb::wait_init();
+
     #[cfg(has_ad9516)]
     board::ad9516::init().expect("cannot initialize AD9516");
     #[cfg(has_hmc830_7043)]

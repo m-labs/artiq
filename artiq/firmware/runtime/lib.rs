@@ -63,6 +63,9 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
+    #[cfg(has_serwb_phy)]
+    board::serwb::wait_init();
+
     let t = board::clock::get_ms();
     info!("press 'e' to erase startup and idle kernels...");
     while board::clock::get_ms() < t + 1000 {
