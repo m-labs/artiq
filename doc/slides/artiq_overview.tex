@@ -32,7 +32,7 @@
 \title{The ARTIQ experiment control system}
 \author[S]{{\bf S\'ebastien~Bourdeauducq}}
 \institute[S]{
-  M-Labs Ltd, Hong Kong -- \url{http://m-labs.hk}
+  M-Labs Ltd, Hong Kong -- \url{https://m-labs.hk}
 }
 
 \begin{document}
@@ -96,7 +96,7 @@ for i in range(3):
     delay(5*us)
     dds.pulse(900*MHz, 7*us)  # first pulse 5 µs after trigger
 # re-reference time-line
-at(start + seconds_to_mu(1*ms))
+at_mu(start + seconds_to_mu(1*ms))
 dds.pulse(200*MHz, 11*us)     # exactly 1 ms after trigger
   \end{minted}
 
@@ -245,13 +245,13 @@ class Experiment:
 
 
 \begin{frame}
-  \frametitle{Short-term hardware support}
+  \frametitle{Third-party hardware support}
   \footnotesize
   \begin{itemize}
-  \item Core device: Papilio Pro, Pipistrello, KC705
-  \item High speed DDS with AD9858 and AD9914 \\
+  \item Core device: KC705
+  \item High speed DDS with AD9914 \\
   	(direct core device, $ < 25$ channels)
-  \item Waveform generation: PDQ (NIST), PXI6733
+  \item Waveform generation: PDQ (NIST)
   \item Lab Brick Digital Attenuators
   \item Novatech 409B DDS
   \item Thorlabs motor controllers
@@ -261,7 +261,7 @@ class Experiment:
 \begin{frame}
   \begin{center}
   \includegraphics[width=3cm]{../../logo/artiq.pdf} \\
-  \url{http://m-labs.hk/artiq}
+  \url{https://m-labs.hk/artiq}
   \end{center}
 
   \footnotesize
