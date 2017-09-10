@@ -71,6 +71,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* libm */
     api!(sqrt),
     api!(round),
+    api!(floor),
 
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
