@@ -18,8 +18,9 @@
 #include "dds.h"
 #include "i2c.h"
 
-double round(double x);
 double sqrt(double x);
+double round(double x);
+double floor(double x);
 
 void ksupport_abort(void);
 static void attribute_writeback(void *);
@@ -88,8 +89,9 @@ static const struct symbol runtime_exports[] = {
     {"__powidf2", &__powidf2},
 
     /* libm */
-    {"round", &round},
     {"sqrt", &sqrt},
+    {"round", &round},
+    {"floor", &floor},
 
     /* exceptions */
     {"_Unwind_Resume", &_Unwind_Resume},
