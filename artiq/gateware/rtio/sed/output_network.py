@@ -68,8 +68,10 @@ class OutputNetwork(Module):
                            for _ in range(lane_count)]
 
             for node1, node2 in step:
+                k1 = Cat(step_input[node1].payload.channel, ~step_input[node1].valid)
+                k2 = Cat(step_input[node2].payload.channel, ~step_input[node2].valid)
                 self.sync += [
-                    If(step_input[node1].payload.channel == step_input[node2].payload.channel,
+                    If(k1 == k2,
                         If(cmp_wrap(step_input[node1].seqn, step_input[node2].seqn),
                             step_output[node1].eq(step_input[node2]),
                             step_output[node2].eq(step_input[node1])
@@ -77,11 +79,9 @@ class OutputNetwork(Module):
                             step_output[node1].eq(step_input[node1]),
                             step_output[node2].eq(step_input[node2])
                         ),
-                        If(step_input[node1].valid & step_input[node2].valid,
-                            step_output[node1].replace_occured.eq(1),
-                            step_output[node2].valid.eq(0)
-                        )
-                    ).Elif(step_input[node1].payload.channel < step_input[node2].payload.channel,
+                        step_output[node1].replace_occured.eq(1),
+                        step_output[node2].valid.eq(0),
+                    ).Elif(k1 < k2,
                         step_output[node1].eq(step_input[node1]),
                         step_output[node2].eq(step_input[node2])
                     ).Else(
