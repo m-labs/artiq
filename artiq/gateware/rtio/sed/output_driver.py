@@ -96,6 +96,10 @@ class OutputDriver(Module):
                 self.sync += oif.data.eq(reduce(or_, onehot_data))
 
         # detect busy errors, at lane level to reduce muxing
+        self.sync += [
+            self.busy.eq(0),
+            self.busy_channel.eq(0)
+        ]
         for lane_data in lane_datas:
             stb_r = Signal()
             channel_r = Signal(max=len(channels))
@@ -103,8 +107,6 @@ class OutputDriver(Module):
                 stb_r.eq(lane_data.valid & ~lane_data.collision),
                 channel_r.eq(lane_data.payload.channel),
 
-                self.busy.eq(0),
-                self.busy_channel.eq(0),
                 If(stb_r & Array(channel.interface.o.busy for channel in channels)[channel_r],
                     self.busy.eq(1),
                     self.busy_channel.eq(channel_r)
