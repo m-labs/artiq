@@ -9,7 +9,13 @@ LANE_COUNT = 8
 
 
 def simulate(input_events):
-    dut = output_network.OutputNetwork(LANE_COUNT, LANE_COUNT*4, 3)
+    layout_payload = [
+        ("channel", 8),
+        ("fine_ts", 3),
+        ("address", 16),
+        ("data", 512),
+    ]
+    dut = output_network.OutputNetwork(LANE_COUNT, LANE_COUNT*4, layout_payload)
     output = []
     def gen():
         yield
@@ -21,7 +27,7 @@ def simulate(input_events):
         yield
         for n in range(len(input_events)):
             yield dut.input[n].valid.eq(0)
-        for i in range(6):
+        for i in range(output_network.latency(LANE_COUNT)):
             yield
             for x in range(LANE_COUNT):
                 if (yield dut.output[x].valid):

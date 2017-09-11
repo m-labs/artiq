@@ -1,6 +1,9 @@
 from migen import *
 
 
+__all__ = ["latency", "OutputNetwork"]
+
+
 # Based on: https://github.com/Bekbolatov/SortingNetworks/blob/master/src/main/js/gr.js
 def boms_get_partner(n, l, p):
     if p == 1:
@@ -34,21 +37,17 @@ def boms_steps_pairs(lane_count):
     return steps
 
 
-def layout_rtio_payload(fine_ts_width):
-    return [
-        ("channel", 24),
-        ("fine_ts", fine_ts_width),
-        ("address", 16),
-        ("data", 512),
-    ]
+def latency(lane_count):
+    d = log2_int(lane_count)
+    return sum(l for l in range(1, d+1))
 
 
-def layout_node_data(seqn_width, fine_ts_width):
+def layout_node_data(seqn_width, layout_payload):
     return [
         ("valid", 1),
         ("seqn", seqn_width),
         ("replace_occured", 1),
-        ("payload", layout_rtio_payload(fine_ts_width))
+        ("payload", layout_payload)
     ]
 
 
@@ -57,14 +56,14 @@ def cmp_wrap(a, b):
 
 
 class OutputNetwork(Module):
-    def __init__(self, lane_count, seqn_width, fine_ts_width):
-        self.input = [Record(layout_node_data(seqn_width, fine_ts_width))
+    def __init__(self, lane_count, seqn_width, layout_payload):
+        self.input = [Record(layout_node_data(seqn_width, layout_payload))
                       for _ in range(lane_count)]
         self.output = None
 
         step_input = self.input
         for step in boms_steps_pairs(lane_count):
-            step_output = [Record(layout_node_data(seqn_width, fine_ts_width))
+            step_output = [Record(layout_node_data(seqn_width, layout_payload))
                            for _ in range(lane_count)]
 
             for node1, node2 in step:
