@@ -18,7 +18,6 @@ def simulate(input_events):
     dut = output_network.OutputNetwork(LANE_COUNT, LANE_COUNT*4, layout_payload)
     output = []
     def gen():
-        yield
         for n, input_event in enumerate(input_events):
             yield dut.input[n].valid.eq(1)
             yield dut.input[n].seqn.eq(n)
