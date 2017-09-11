@@ -82,7 +82,7 @@ def simulate(input_events):
             yield
 
     run_simulation(dut, {"sys": [gen(), monitor()]},
-                   {"sys": 5, "rio": 5, "rio_phy": 5}, vcd_name="foo.vcd")
+                   {"sys": 5, "rio": 5, "rio_phy": 5})
     return output
 
 
