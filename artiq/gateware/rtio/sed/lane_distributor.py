@@ -21,7 +21,7 @@ def layout_lane_io(seqn_width, layout_payload):
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, fifo_size, layout_payload, fine_ts_width, enable_spread=False):
+    def __init__(self, lane_count, fifo_size, layout_payload, fine_ts_width, enable_spread=True):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
@@ -67,6 +67,7 @@ class LaneDistributor(Module):
         timestamp_above_min = Signal()
         timestamp_above_laneA_min = Signal()
         timestamp_above_laneB_min = Signal()
+        force_laneB = Signal()
         use_laneB = Signal()
         use_lanen = Signal(max=lane_count)
         current_lane_plus_one = Signal(max=lane_count)
@@ -75,7 +76,7 @@ class LaneDistributor(Module):
             timestamp_above_min.eq(coarse_timestamp > self.minimum_coarse_timestamp),
             timestamp_above_laneA_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane]),
             timestamp_above_laneB_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane_plus_one]),
-            If(coarse_timestamp <= last_coarse_timestamp,
+            If(force_laneB | (coarse_timestamp <= last_coarse_timestamp),
                 use_lanen.eq(current_lane + 1),
                 use_laneB.eq(1)
             ).Else(
@@ -118,10 +119,13 @@ class LaneDistributor(Module):
 
         # current lane has been full, spread events by switching to the next.
         if enable_spread:
-            current_lane_writable_r = Signal()
+            current_lane_writable_r = Signal(reset=1)
             self.sync += [
                 current_lane_writable_r.eq(current_lane_writable),
                 If(~current_lane_writable_r & current_lane_writable,
-                    current_lane.eq(current_lane + 1)
+                    force_laneB.eq(1)
+                ),
+                If(do_write,
+                    force_laneB.eq(0)
                 )
             ]

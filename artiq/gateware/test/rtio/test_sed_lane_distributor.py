@@ -9,7 +9,7 @@ from artiq.gateware.rtio.sed import lane_distributor
 LANE_COUNT = 8
 
 
-def simulate(input_events):
+def simulate(input_events, wait=True):
     dut = lane_distributor.LaneDistributor(LANE_COUNT, 16, [("channel", 8), ("timestamp", 32)], 3)
 
     output = []
@@ -59,12 +59,13 @@ def simulate(input_events):
 
     generators = [gen()]
     for n, lio in enumerate(dut.lane_io):
-        if n == 6:
-            wait_time = 1
-        elif n == 7:
-            wait_time = 4
-        else:
-            wait_time = 0
+        lio.writable.reset = 1
+        wait_time = 0
+        if wait:
+            if n == 6:
+                wait_time = 1
+            elif n == 7:
+                wait_time = 4
         generators.append(monitor_lane(n, lio, wait_time))
     run_simulation(dut, generators)
 
@@ -89,7 +90,7 @@ class TestLaneDistributor(unittest.TestCase):
 
     def test_lane_switch(self):
         N = 32
-        output, access_results = simulate([(42+n, n+8) for n in range(N)])
+        output, access_results = simulate([(42+n, n+8) for n in range(N)], wait=False)
         self.assertEqual(output, [((n-n//8) % LANE_COUNT, n, 42+n, n+8) for n in range(N)])
         self.assertEqual([ar[0] for ar in access_results], ["ok"]*N)
 
@@ -112,3 +113,12 @@ class TestLaneDistributor(unittest.TestCase):
         self.assertEqual(access_results[N-2][0], "underflow")
         self.assertEqual(output[N-2], (0, N-2, 42+N-2, N*8))
         self.assertEqual(access_results[N-1][0], "ok")
+
+    def test_spread(self):
+        # get to lane 6
+        input_events = [(42+n, 8) for n in range(7)]
+        input_events.append((100, 16))
+        input_events.append((100, 32))
+        output, access_results = simulate(input_events)
+        self.assertEqual([o[0] for o in output], [x % LANE_COUNT for x in range(9)])
+        self.assertEqual([ar[0] for ar in access_results], ["ok"]*9)
