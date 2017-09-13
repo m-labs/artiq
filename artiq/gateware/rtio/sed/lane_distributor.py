@@ -25,7 +25,9 @@ class LaneDistributor(Module):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
-        seqn_width = 4*bits_for(lane_count*fifo_size-1)
+        # There must be a unique sequence number for every possible event in every FIFO.
+        # Plus 2 bits to detect and handle wraparounds.
+        seqn_width = bits_for(lane_count*fifo_size-1) + 2
 
         self.cri = cri.Interface()
         self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
