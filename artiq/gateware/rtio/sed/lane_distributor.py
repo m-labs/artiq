@@ -3,6 +3,9 @@ from migen import *
 from artiq.gateware.rtio import cri
 
 
+__all__ = ["LaneDistributor"]
+
+
 def layout_lane_io(seqn_width, layout_payload):
     return [
         ("we", 1, DIR_M_TO_S),

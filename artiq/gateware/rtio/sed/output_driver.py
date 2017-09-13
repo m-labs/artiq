@@ -7,6 +7,9 @@ from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.sed.output_network import OutputNetwork
 
 
+__all__ = ["OutputDriver"]
+
+
 class OutputDriver(Module):
     def __init__(self, channels, lane_count, seqn_width):
         self.collision = Signal()
