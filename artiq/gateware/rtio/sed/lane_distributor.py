@@ -8,7 +8,7 @@ def layout_lane_io(seqn_width, layout_payload):
         ("we", 1, DIR_M_TO_S),
         ("writable", 1, DIR_S_TO_M),
         ("seqn", seqn_width, DIR_M_TO_S),
-        ("payload", layout_payload, DIR_M_TO_S)
+        ("payload", [(a, b, DIR_M_TO_S) for a, b in layout_payload])
     ]
 
 
@@ -18,11 +18,11 @@ def layout_lane_io(seqn_width, layout_payload):
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, fifo_size, layout_payload, fine_ts_width):
+    def __init__(self, lane_count, fifo_size, layout_payload, fine_ts_width, enable_spread=False):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
-        seqn_width = 4*bits_for(fifo_size-1)*lane_count
+        seqn_width = 4*bits_for(lane_count*fifo_size-1)
 
         self.cri = cri.Interface()
         self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
@@ -45,7 +45,7 @@ class LaneDistributor(Module):
         seqn = Signal(seqn_width)
 
         # distribute data to lanes
-        for lio in lane_io:
+        for lio in self.lane_io:
             self.comb += [
                 lio.seqn.eq(seqn),
                 lio.payload.channel.eq(self.cri.chan_sel[:16]),
@@ -57,16 +57,19 @@ class LaneDistributor(Module):
                 self.comb += lio.payload.data.eq(self.cri.data)
 
         # when timestamp arrives in cycle #1, prepare computations
-        coarse_timestamp = self.cri.timestamp[fine_ts_width:]
+        coarse_timestamp = Signal(64-fine_ts_width)
+        self.comb += coarse_timestamp.eq(self.cri.timestamp[fine_ts_width:])
         timestamp_above_min = Signal()
         timestamp_above_laneA_min = Signal()
         timestamp_above_laneB_min = Signal()
         use_laneB = Signal()
         use_lanen = Signal(max=lane_count)
+        current_lane_plus_one = Signal(max=lane_count)
+        self.comb += current_lane_plus_one.eq(current_lane + 1)
         self.sync += [
             timestamp_above_min.eq(coarse_timestamp > self.minimum_coarse_timestamp),
             timestamp_above_laneA_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane]),
-            timestamp_above_laneB_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane + 1]),
+            timestamp_above_laneB_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane_plus_one]),
             If(coarse_timestamp <= last_coarse_timestamp,
                 use_lanen.eq(current_lane + 1),
                 use_laneB.eq(1)
@@ -85,12 +88,12 @@ class LaneDistributor(Module):
             timestamp_above_lane_min.eq(Mux(use_laneB, timestamp_above_laneB_min, timestamp_above_laneA_min)),
             do_write.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & timestamp_above_lane_min),
             do_underflow.eq((self.cri.cmd == cri.commands["write"]) & ~timestamp_above_min),
-            do_sequence_error((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & ~timestamp_above_lane_min),
-            Array(lio.we for lio in lane_io)[use_lanen].eq(do_write)
+            do_sequence_error.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & ~timestamp_above_lane_min),
+            Array(lio.we for lio in self.lane_io)[use_lanen].eq(do_write)
         ]
         self.sync += [
             If(do_write,
-                current_lane.eq(current_lane + 1),
+                If(use_laneB, current_lane.eq(current_lane + 1)),
                 last_coarse_timestamp.eq(coarse_timestamp),
                 last_lane_coarse_timestamps[use_lanen].eq(coarse_timestamp),
                 seqn.eq(seqn + 1),
@@ -100,19 +103,20 @@ class LaneDistributor(Module):
         # cycle #3, read status
         current_lane_writable = Signal()
         self.comb += [
-            current_lane_writable.eq((lio.writable for lio in lane_io)[current_lane]),
+            current_lane_writable.eq(Array(lio.writable for lio in self.lane_io)[current_lane]),
             o_status_wait.eq(~current_lane_writable)
         ]
         self.sync += [
             o_status_underflow.eq(do_underflow),
-            o_status_sequence_error(do_sequence_error)
+            o_status_sequence_error.eq(do_sequence_error)
         ]
 
         # current lane has been full, spread events by switching to the next.
-        current_lane_writable_r = Signal()
-        self.sync += [
-            current_lane_writable_r.eq(current_lane_writable),
-            If(~current_lane_writable_r & current_lane_writable,
-                current_lane.eq(current_lane + 1)
-            )
-        ]
+        if enable_spread:
+            current_lane_writable_r = Signal()
+            self.sync += [
+                current_lane_writable_r.eq(current_lane_writable),
+                If(~current_lane_writable_r & current_lane_writable,
+                    current_lane.eq(current_lane + 1)
+                )
+            ]
