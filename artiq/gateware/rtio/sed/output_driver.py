@@ -3,7 +3,7 @@ from operator import or_
 
 from migen import *
 
-from artiq.gateware.rtio import rtlink
+from artiq.gateware.rtio.sed import layouts
 from artiq.gateware.rtio.sed.output_network import OutputNetwork
 
 
@@ -17,21 +17,8 @@ class OutputDriver(Module):
         self.busy = Signal()
         self.busy_channel = Signal(max=len(channels))
 
-        fine_ts_width = max(rtlink.get_fine_ts_width(channel.interface)
-                            for channel in channels)
-        address_width = max(rtlink.get_address_width(channel.interface)
-                            for channel in channels)
-        data_width = max(rtlink.get_data_width(channel.interface)
-                         for channel in channels)
-
         # output network
-        layout_on_payload = [("channel", bits_for(len(channels)-1))]
-        if fine_ts_width:
-            layout_on_payload.append(("fine_ts", fine_ts_width))
-        if address_width:
-            layout_on_payload.append(("address", address_width))
-        if data_width:
-            layout_on_payload.append(("data", data_width))
+        layout_on_payload = layouts.output_network_payload(channels)
         output_network = OutputNetwork(lane_count, seqn_width, layout_on_payload)
         self.submodules += output_network
         self.input = output_network.input

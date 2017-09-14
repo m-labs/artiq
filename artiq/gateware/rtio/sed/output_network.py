@@ -1,5 +1,7 @@
 from migen import *
 
+from artiq.gateware.rtio.sed import layouts
+
 
 __all__ = ["latency", "OutputNetwork"]
 
@@ -42,28 +44,19 @@ def latency(lane_count):
     return sum(l for l in range(1, d+1))
 
 
-def layout_node_data(seqn_width, layout_payload):
-    return [
-        ("valid", 1),
-        ("seqn", seqn_width),
-        ("replace_occured", 1),
-        ("payload", layout_payload)
-    ]
-
-
 def cmp_wrap(a, b):
     return Mux(a[-2:] == ~b[-2:], a[0], a[:-2] < b[:-2])
 
 
 class OutputNetwork(Module):
     def __init__(self, lane_count, seqn_width, layout_payload):
-        self.input = [Record(layout_node_data(seqn_width, layout_payload))
+        self.input = [Record(layouts.output_network_node(seqn_width, layout_payload))
                       for _ in range(lane_count)]
         self.output = None
 
         step_input = self.input
         for step in boms_steps_pairs(lane_count):
-            step_output = [Record(layout_node_data(seqn_width, layout_payload))
+            step_output = [Record(layouts.output_network_node(seqn_width, layout_payload))
                            for _ in range(lane_count)]
 
             for node1, node2 in step:

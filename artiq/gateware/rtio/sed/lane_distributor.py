@@ -1,18 +1,11 @@
 from migen import *
 
 from artiq.gateware.rtio import cri
+from artiq.gateware.rtio.sed import layouts
 
 
 __all__ = ["LaneDistributor"]
 
-
-def layout_lane_io(seqn_width, layout_payload):
-    return [
-        ("we", 1, DIR_M_TO_S),
-        ("writable", 1, DIR_S_TO_M),
-        ("seqn", seqn_width, DIR_M_TO_S),
-        ("payload", [(a, b, DIR_M_TO_S) for a, b in layout_payload])
-    ]
 
 
 # CRI write happens in 3 cycles:
@@ -31,7 +24,7 @@ class LaneDistributor(Module):
 
         self.cri = cri.Interface()
         self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
-        self.lane_io = [Record(layout_lane_io(seqn_width, layout_payload))
+        self.lane_io = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                         for _ in range(lane_count)]
 
         # # #
