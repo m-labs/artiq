@@ -6,7 +6,6 @@ from artiq.gateware.rtio.sed import layouts
 __all__ = ["TSCGate"]
 
 
-
 class TSCGate(Module):
     def __init__(self, lane_count, seqn_width, layout_fifo_payload, layout_output_network_payload):
         self.input = [Record(layouts.fifo_egress(seqn_width, layout_fifo_payload))
