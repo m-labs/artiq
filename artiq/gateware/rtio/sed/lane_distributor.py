@@ -102,8 +102,16 @@ class LaneDistributor(Module):
             o_status_wait.eq(~current_lane_writable)
         ]
         self.sync += [
-            o_status_underflow.eq(do_underflow),
-            o_status_sequence_error.eq(do_sequence_error)
+            If(self.cri.cmd == cri.commands["write"],
+                o_status_underflow.eq(0),
+                o_status_sequence_error.eq(0)
+            ),
+            If(do_underflow,
+                o_status_underflow.eq(1)
+            ),
+            If(do_sequence_error,
+                o_status_sequence_error.eq(1)
+            )
         ]
 
         # current lane has been full, spread events by switching to the next.
