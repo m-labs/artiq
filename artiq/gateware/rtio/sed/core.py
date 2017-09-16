@@ -12,7 +12,8 @@ __all__ = ["SED"]
 
 
 class SED(Module):
-    def __init__(self, channels, mode, enable_spread=True, lane_count=8, fifo_depth=128, interface=None):
+    def __init__(self, channels, mode, lane_count=8, fifo_depth=128, enable_spread=True,
+                 quash_channels=[], interface=None):
         if mode == "sync":
             lane_dist_cdr = lambda x: x
             fifos_cdr = lambda x: x
@@ -34,6 +35,7 @@ class SED(Module):
             LaneDistributor(lane_count, seqn_width,
                             layouts.fifo_payload(channels), fine_ts_width,
                             enable_spread=enable_spread,
+                            quash_channels=quash_channels,
                             interface=interface))
         self.submodules.fifos = fifos_cdr(
             FIFOs(lane_count, fifo_depth,

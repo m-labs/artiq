@@ -222,7 +222,9 @@ class Core(Module, AutoCSR):
         self.submodules += inputs
 
         # Outputs
-        outputs = SED(channels, "async", interface=self.cri)
+        outputs = SED(channels, "async",
+            quash_channels=[n for n, c in enumerate(channels) if isinstance(c, LogChannel)],
+            interface=self.cri)
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(coarse_ts)
         self.sync += outputs.minimum_coarse_timestamp.eq(coarse_ts + 16)

@@ -8,13 +8,13 @@ __all__ = ["LaneDistributor"]
 
 
 # CRI write happens in 3 cycles:
-# 1. set timestamp
+# 1. set timestamp and channel
 # 2. set other payload elements and issue write command
 # 3. check status
 
 class LaneDistributor(Module):
     def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width,
-                 enable_spread=True, interface=None):
+                 enable_spread=True, quash_channels=[], interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
@@ -52,7 +52,7 @@ class LaneDistributor(Module):
             if hasattr(lio.payload, "data"):
                 self.comb += lio.payload.data.eq(self.cri.o_data)
 
-        # when timestamp arrives in cycle #1, prepare computations
+        # when timestamp and channel arrive in cycle #1, prepare computations
         coarse_timestamp = Signal(64-fine_ts_width)
         self.comb += coarse_timestamp.eq(self.cri.timestamp[fine_ts_width:])
         timestamp_above_min = Signal()
@@ -76,6 +76,11 @@ class LaneDistributor(Module):
             )
         ]
 
+        quash = Signal()
+        self.sync += quash.eq(0)
+        for channel in quash_channels:
+            self.sync += If(self.cri.chan_sel[:16] == channel, quash.eq(1))
+
         # cycle #2, write
         timestamp_above_lane_min = Signal()
         do_write = Signal()
@@ -83,9 +88,11 @@ class LaneDistributor(Module):
         do_sequence_error = Signal()
         self.comb += [
             timestamp_above_lane_min.eq(Mux(use_laneB, timestamp_above_laneB_min, timestamp_above_laneA_min)),
-            do_write.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & timestamp_above_lane_min),
-            do_underflow.eq((self.cri.cmd == cri.commands["write"]) & ~timestamp_above_min),
-            do_sequence_error.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & ~timestamp_above_lane_min),
+            If(~quash,
+                do_write.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & timestamp_above_lane_min),
+                do_underflow.eq((self.cri.cmd == cri.commands["write"]) & ~timestamp_above_min),
+                do_sequence_error.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & ~timestamp_above_lane_min),
+            ),
             Array(lio.we for lio in self.output)[use_lanen].eq(do_write)
         ]
         self.sync += [
