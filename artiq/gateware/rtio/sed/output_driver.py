@@ -61,6 +61,8 @@ class OutputDriver(Module):
 
         # demultiplex channels (adds one pipeline stage)
         for n, channel in enumerate(channels):
+            oif = channel.interface.o
+
             onehot_stb = []
             onehot_fine_ts = []
             onehot_address = []
@@ -69,14 +71,14 @@ class OutputDriver(Module):
                 selected = Signal()
                 self.comb += selected.eq(lane_data.valid & ~lane_data.collision & (lane_data.payload.channel == n))
                 onehot_stb.append(selected)
-                if hasattr(lane_data.payload, "fine_ts"):
-                    onehot_fine_ts.append(Mux(selected, lane_data.payload.fine_ts, 0))
+                if hasattr(lane_data.payload, "fine_ts") and hasattr(oif, "fine_ts"):
+                    ts_shift = len(lane_data.payload.fine_ts) - len(oif.fine_ts)
+                    onehot_fine_ts.append(Mux(selected, lane_data.payload.fine_ts[ts_shift:], 0))
                 if hasattr(lane_data.payload, "address"):
                     onehot_address.append(Mux(selected, lane_data.payload.address, 0))
                 if hasattr(lane_data.payload, "data"):
                     onehot_data.append(Mux(selected, lane_data.payload.data, 0))
 
-            oif = channel.interface.o
             self.sync += oif.stb.eq(reduce(or_, onehot_stb))
             if hasattr(oif, "fine_ts"):
                 self.sync += oif.fine_ts.eq(reduce(or_, onehot_fine_ts))
