@@ -48,7 +48,7 @@ class LaneDistributor(Module):
                 lio.payload.timestamp.eq(self.cri.timestamp),
             ]
             if hasattr(lio.payload, "address"):
-                self.comb += lio.payload.address.eq(self.cri.address)
+                self.comb += lio.payload.address.eq(self.cri.o_address)
             if hasattr(lio.payload, "data"):
                 self.comb += lio.payload.data.eq(self.cri.o_data)
 
