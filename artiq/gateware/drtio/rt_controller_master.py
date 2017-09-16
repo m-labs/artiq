@@ -7,7 +7,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio.cdc import RTIOCounter
 from artiq.gateware.rtio import cri
 
 
@@ -31,6 +30,24 @@ class _CSRs(AutoCSR):
         self.o_dbg_fifo_space_req_cnt = CSRStatus(32)
         self.o_reset_channel_status = CSR()
         self.o_wait = CSRStatus()
+
+
+class RTIOCounter(Module):
+    def __init__(self, width):
+        self.width = width
+        # Timestamp counter in RTIO domain
+        self.value_rtio = Signal(width)
+        # Timestamp counter resynchronized to sys domain
+        # Lags behind value_rtio, monotonic and glitch-free
+        self.value_sys = Signal(width)
+
+        # # #
+
+        # note: counter is in rtio domain and never affected by the reset CSRs
+        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
+        gt = GrayCodeTransfer(width)
+        self.submodules += gt
+        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
 
 
 class RTController(Module):

@@ -2,7 +2,7 @@ from migen import *
 from migen.genlib.cdc import *
 
 
-__all__ = ["GrayCodeTransfer", "RTIOCounter", "BlindTransfer"]
+__all__ = ["GrayCodeTransfer", "BlindTransfer"]
 
 
 # note: transfer is in rtio/sys domains and not affected by the reset CSRs
@@ -26,24 +26,6 @@ class GrayCodeTransfer(Module):
         for i in reversed(range(width-1)):
             self.comb += value_sys[i].eq(value_sys[i+1] ^ value_gray_sys[i])
         self.sync += self.o.eq(value_sys)
-
-
-class RTIOCounter(Module):
-    def __init__(self, width):
-        self.width = width
-        # Timestamp counter in RTIO domain
-        self.value_rtio = Signal(width)
-        # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rtio, monotonic and glitch-free
-        self.value_sys = Signal(width)
-
-        # # #
-
-        # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
-        gt = GrayCodeTransfer(width)
-        self.submodules += gt
-        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
 
 
 class BlindTransfer(Module):
