@@ -7,18 +7,19 @@ from artiq.gateware.rtio.sed import layouts
 __all__ = ["LaneDistributor"]
 
 
-
 # CRI write happens in 3 cycles:
 # 1. set timestamp
 # 2. set other payload elements and issue write command
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width, enable_spread=True):
+    def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width, enable_spread=True, interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
-        self.cri = cri.Interface()
+        if interface is None:
+            interface = cri.Interface()
+        self.cri = interface
         self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
         self.lane_io = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                         for _ in range(lane_count)]
