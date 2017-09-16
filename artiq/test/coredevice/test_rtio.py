@@ -258,10 +258,10 @@ class SequenceError(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        t = now_mu()
-        self.ttl_out.pulse(25*us)
-        at_mu(t)
-        self.ttl_out.pulse(25*us)
+        delay(55*256*us)
+        for _ in range(256):
+            self.ttl_out.pulse(25*us)
+            delay(-75*us)
 
 
 class Collision(EnvExperiment):
