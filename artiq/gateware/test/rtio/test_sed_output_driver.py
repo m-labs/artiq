@@ -30,10 +30,10 @@ class DUT(Module):
         self.submodules.phy3 = BusyPHY()
 
         rtio_channels = [
-            rtio.Channel.from_phy(self.phy0, ofifo_depth=4),
-            rtio.Channel.from_phy(self.phy1, ofifo_depth=4),
-            rtio.Channel.from_phy(self.phy2, ofifo_depth=4),
-            rtio.Channel.from_phy(self.phy3, ofifo_depth=4),
+            rtio.Channel.from_phy(self.phy0),
+            rtio.Channel.from_phy(self.phy1),
+            rtio.Channel.from_phy(self.phy2),
+            rtio.Channel.from_phy(self.phy3),
         ]
 
         self.submodules.output_driver = output_driver.OutputDriver(
