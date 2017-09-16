@@ -7,6 +7,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
+from artiq.gateware.rtio.cdc import GrayCodeTransfer
 from artiq.gateware.rtio import cri
 
 
