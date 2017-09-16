@@ -29,7 +29,10 @@ class Gates(Module):
                 else:
                     self.sync += getattr(output.payload, field).eq(getattr(input.payload, field))
             self.sync += output.seqn.eq(input.seqn)
-            self.comb += output.replace_occured.eq(0)
+            self.comb += [
+                output.replace_occured.eq(0),
+                output.nondata_replace_occured.eq(0)
+            ]
 
             self.comb += input.re.eq(input.payload.timestamp[fine_ts_width:] == self.coarse_timestamp)
             self.sync += output.valid.eq(input.re & input.readable)

@@ -69,5 +69,6 @@ def output_network_node(seqn_width, layout_payload):
         ("valid", 1),
         ("seqn", seqn_width),
         ("replace_occured", 1),
+        ("nondata_replace_occured", 1),
         ("payload", layout_payload)
     ]

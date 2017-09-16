@@ -60,6 +60,13 @@ class OutputNetwork(Module):
                            for _ in range(lane_count)]
 
             for node1, node2 in step:
+                nondata_difference = Signal()
+                for field, _ in layout_payload:
+                    if field != "data":
+                        f1 = getattr(step_input[node1].payload, field)
+                        f2 = getattr(step_input[node2].payload, field)
+                        self.comb += If(f1 != f2, nondata_difference.eq(1))
+
                 k1 = Cat(step_input[node1].payload.channel, ~step_input[node1].valid)
                 k2 = Cat(step_input[node2].payload.channel, ~step_input[node2].valid)
                 self.sync += [
@@ -72,6 +79,7 @@ class OutputNetwork(Module):
                             step_output[node2].eq(step_input[node2])
                         ),
                         step_output[node1].replace_occured.eq(1),
+                        step_output[node1].nondata_replace_occured.eq(nondata_difference),
                         step_output[node2].valid.eq(0),
                     ).Elif(k1 < k2,
                         step_output[node1].eq(step_input[node1]),
