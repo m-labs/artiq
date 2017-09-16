@@ -21,10 +21,10 @@ def fifo_payload(channels):
     return layout
 
 
-def seqn_width(lane_count, fifo_width):
+def seqn_width(lane_count, fifo_depth):
     # There must be a unique sequence number for every possible event in every FIFO.
     # Plus 2 bits to detect and handle wraparounds.
-    return bits_for(lane_count*fifo_size-1) + 2
+    return bits_for(lane_count*fifo_depth-1) + 2
 
 
 def fifo_ingress(seqn_width, layout_payload):
