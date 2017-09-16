@@ -13,8 +13,8 @@ class Gates(Module):
         self.output = [Record(layouts.output_network_node(seqn_width, layout_output_network_payload))
                        for _ in range(lane_count)]
 
-        if hasattr(self.output[0], "fine_ts"):
-            fine_ts_width = len(self.output[0].fine_ts)
+        if hasattr(self.output[0].payload, "fine_ts"):
+            fine_ts_width = len(self.output[0].payload.fine_ts)
         else:
             fine_ts_width = 0
 
