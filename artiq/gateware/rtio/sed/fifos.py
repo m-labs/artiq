@@ -4,21 +4,21 @@ from migen.genlib.fifo import *
 from artiq.gateware.rtio.sed import layouts
 
 
-__all__ = ["FIFO"]
+__all__ = ["FIFOs"]
 
 
-class FIFO(Module):
-    def __init__(self, lane_count, mode, fifo_depth, layout_payload):
-        seqn_width = layouts.seqn_width(lane_count, fifo_width)
-        self.input = [layouts.fifo_ingress(seqn_width, layout_payload)
+class FIFOs(Module):
+    def __init__(self, lane_count, fifo_depth, layout_payload, mode):
+        seqn_width = layouts.seqn_width(lane_count, fifo_depth)
+        self.input = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                       for _ in range(lane_count)]
-        self.output = [layouts.fifo_egress(seqn_width, layout_payload)
+        self.output = [Record(layouts.fifo_egress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
 
         if mode == "sync":
-            fifo_cls = fifo.SyncFIFOBuffered
+            fifo_cls = SyncFIFOBuffered
         elif mode == "async":
-            fifo_cls = fifo.AsyncFIFO
+            fifo_cls = AsyncFIFO
         else:
             raise ValueError
 
