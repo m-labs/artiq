@@ -13,7 +13,8 @@ __all__ = ["LaneDistributor"]
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width, enable_spread=True, interface=None):
+    def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width,
+                 enable_spread=True, interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
 
@@ -21,8 +22,8 @@ class LaneDistributor(Module):
             interface = cri.Interface()
         self.cri = interface
         self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
-        self.lane_io = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
-                        for _ in range(lane_count)]
+        self.output = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
+                       for _ in range(lane_count)]
 
         # # #
 
@@ -40,7 +41,7 @@ class LaneDistributor(Module):
         seqn = Signal(seqn_width)
 
         # distribute data to lanes
-        for lio in self.lane_io:
+        for lio in self.output:
             self.comb += [
                 lio.seqn.eq(seqn),
                 lio.payload.channel.eq(self.cri.chan_sel[:16]),
@@ -49,7 +50,7 @@ class LaneDistributor(Module):
             if hasattr(lio.payload, "address"):
                 self.comb += lio.payload.address.eq(self.cri.address)
             if hasattr(lio.payload, "data"):
-                self.comb += lio.payload.data.eq(self.cri.data)
+                self.comb += lio.payload.data.eq(self.cri.o_data)
 
         # when timestamp arrives in cycle #1, prepare computations
         coarse_timestamp = Signal(64-fine_ts_width)
@@ -85,7 +86,7 @@ class LaneDistributor(Module):
             do_write.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & timestamp_above_lane_min),
             do_underflow.eq((self.cri.cmd == cri.commands["write"]) & ~timestamp_above_min),
             do_sequence_error.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & ~timestamp_above_lane_min),
-            Array(lio.we for lio in self.lane_io)[use_lanen].eq(do_write)
+            Array(lio.we for lio in self.output)[use_lanen].eq(do_write)
         ]
         self.sync += [
             If(do_write,
@@ -99,7 +100,7 @@ class LaneDistributor(Module):
         # cycle #3, read status
         current_lane_writable = Signal()
         self.comb += [
-            current_lane_writable.eq(Array(lio.writable for lio in self.lane_io)[current_lane]),
+            current_lane_writable.eq(Array(lio.writable for lio in self.output)[current_lane]),
             o_status_wait.eq(~current_lane_writable)
         ]
         self.sync += [

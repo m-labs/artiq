@@ -58,7 +58,7 @@ def simulate(input_events, wait=True):
             yield
 
     generators = [gen()]
-    for n, lio in enumerate(dut.lane_io):
+    for n, lio in enumerate(dut.output):
         lio.writable.reset = 1
         wait_time = 0
         if wait:
