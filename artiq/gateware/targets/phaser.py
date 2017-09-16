@@ -213,8 +213,7 @@ class Phaser(MiniSoC, AMPSoC):
         sysref_pads = platform.request("ad9154_sysref")
         phy = ttl_serdes_7series.Input_8X(sysref_pads.p, sysref_pads.n)
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32,
-                                                   ofifo_depth=2))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=32))
 
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
         rtio_channels.extend(rtio.Channel.from_phy(phy)

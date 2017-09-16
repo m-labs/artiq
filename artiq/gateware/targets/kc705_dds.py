@@ -224,24 +224,22 @@ class NIST_CLOCK(_NIST_Ions):
         phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=4, ififo_depth=4))
+            phy, ififo_depth=4))
 
         for i in range(3):
             phy = spi.SPIMaster(self.platform.request("spi", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
-                phy, ofifo_depth=128, ififo_depth=128))
-            
+                phy, ififo_depth=128))
+
         phy = spi.SPIMaster(platform.request("sdcard_spi_33", 0))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=4, ififo_depth=4))
-        
+            phy, ififo_depth=4))
+
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                   ofifo_depth=512,
-                                                   ififo_depth=4))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
@@ -299,21 +297,19 @@ class NIST_QC2(_NIST_Ions):
         phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=4, ififo_depth=4))
+            phy, ififo_depth=4))
 
         for i in range(4):
             phy = spi.SPIMaster(self.platform.request("spi", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
-                phy, ofifo_depth=128, ififo_depth=128))
+                phy, ififo_depth=128))
 
         for backplane_offset in range(2):
             phy = dds.AD9914(
                 platform.request("dds", backplane_offset), 12, onehot=True)
             self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy,
-                                                       ofifo_depth=512,
-                                                       ififo_depth=4))
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
