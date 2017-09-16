@@ -276,6 +276,8 @@ class Collision(EnvExperiment):
         for i in range(16):
             self.ttl_out_serdes.pulse_mu(1)
             delay_mu(1)
+        while self.core.get_rtio_counter_mu() < now_mu():
+            pass
 
 
 class AddressCollision(EnvExperiment):
@@ -288,6 +290,8 @@ class AddressCollision(EnvExperiment):
         self.core.reset()
         self.loop_in.input()
         self.loop_in.pulse(10*us)
+        while self.core.get_rtio_counter_mu() < now_mu():
+            pass
 
 
 class TimeKeepsRunning(EnvExperiment):
