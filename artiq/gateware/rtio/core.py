@@ -190,8 +190,10 @@ class Core(Module, AutoCSR):
         self.specials += AsyncResetSynchronizer(self.cd_rio_phy, cmd_reset_phy)
 
         # TSC
-        fine_ts_width = max(rtlink.get_fine_ts_width(channel.interface)
-                            for channel in channels)
+        fine_ts_width = max(max(rtlink.get_fine_ts_width(channel.interface.o)
+                                for channel in channels),
+                            max(rtlink.get_fine_ts_width(channel.interface.i)
+                                for channel in channels))
         coarse_ts = Signal(64-fine_ts_width)
         self.sync.rtio += coarse_ts.eq(coarse_ts + 1)
         coarse_ts_cdc = GrayCodeTransfer(len(coarse_ts))

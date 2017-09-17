@@ -4,9 +4,9 @@ from artiq.gateware.rtio import rtlink
 
 
 def fifo_payload(channels):
-    address_width = max(rtlink.get_address_width(channel.interface)
+    address_width = max(rtlink.get_address_width(channel.interface.o)
                         for channel in channels)
-    data_width = max(rtlink.get_data_width(channel.interface)
+    data_width = max(rtlink.get_data_width(channel.interface.o)
                      for channel in channels)
 
     layout = [
@@ -46,11 +46,11 @@ def fifo_egress(seqn_width, layout_payload):
 
 
 def output_network_payload(channels):
-    fine_ts_width = max(rtlink.get_fine_ts_width(channel.interface)
+    fine_ts_width = max(rtlink.get_fine_ts_width(channel.interface.o)
                         for channel in channels)
-    address_width = max(rtlink.get_address_width(channel.interface)
+    address_width = max(rtlink.get_address_width(channel.interface.o)
                         for channel in channels)
-    data_width = max(rtlink.get_data_width(channel.interface)
+    data_width = max(rtlink.get_data_width(channel.interface.o)
                      for channel in channels)
 
     layout = [("channel", bits_for(len(channels)-1))]

@@ -27,7 +27,7 @@ class SED(Module):
         else:
             raise ValueError
 
-        fine_ts_width = max(rtlink.get_fine_ts_width(c.interface)
+        fine_ts_width = max(rtlink.get_fine_ts_width(c.interface.o)
                             for c in channels)
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
 

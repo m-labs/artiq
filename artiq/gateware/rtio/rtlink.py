@@ -69,14 +69,13 @@ class Interface:
 
 
 def _get_or_zero(interface, attr):
-    if isinstance(interface, Interface):
-        return max(_get_or_zero(interface.i, attr),
-                   _get_or_zero(interface.o, attr))
+    if interface is None:
+        return 0
+    assert isinstance(interface, (OInterface, IInterface))
+    if hasattr(interface, attr):
+        return len(getattr(interface, attr))
     else:
-        if hasattr(interface, attr):
-            return len(getattr(interface, attr))
-        else:
-            return 0
+        return 0
 
 
 def get_data_width(interface):
