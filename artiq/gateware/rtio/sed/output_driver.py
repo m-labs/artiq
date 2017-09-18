@@ -11,14 +11,14 @@ __all__ = ["OutputDriver"]
 
 
 class OutputDriver(Module):
-    def __init__(self, channels, lane_count, seqn_width):
+    def __init__(self, channels, glbl_fine_ts_width, lane_count, seqn_width):
         self.collision = Signal()
         self.collision_channel = Signal(max=len(channels))
         self.busy = Signal()
         self.busy_channel = Signal(max=len(channels))
 
         # output network
-        layout_on_payload = layouts.output_network_payload(channels)
+        layout_on_payload = layouts.output_network_payload(channels, glbl_fine_ts_width)
         output_network = OutputNetwork(lane_count, seqn_width, layout_on_payload)
         self.submodules += output_network
         self.input = output_network.input

@@ -1,6 +1,5 @@
 from migen import *
 
-from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.sed import layouts
 from artiq.gateware.rtio.sed.lane_distributor import *
 from artiq.gateware.rtio.sed.fifos import *
@@ -12,7 +11,8 @@ __all__ = ["SED"]
 
 
 class SED(Module):
-    def __init__(self, channels, mode, lane_count=8, fifo_depth=128, enable_spread=True,
+    def __init__(self, channels, glbl_fine_ts_width, mode,
+                 lane_count=8, fifo_depth=128, enable_spread=True,
                  quash_channels=[], interface=None):
         if mode == "sync":
             lane_dist_cdr = lambda x: x
@@ -27,13 +27,11 @@ class SED(Module):
         else:
             raise ValueError
 
-        fine_ts_width = max(rtlink.get_fine_ts_width(c.interface.o)
-                            for c in channels)
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
 
         self.submodules.lane_dist = lane_dist_cdr(
             LaneDistributor(lane_count, seqn_width,
-                            layouts.fifo_payload(channels), fine_ts_width,
+                            layouts.fifo_payload(channels), glbl_fine_ts_width,
                             enable_spread=enable_spread,
                             quash_channels=quash_channels,
                             interface=interface))
@@ -43,9 +41,9 @@ class SED(Module):
         self.submodules.gates = gates_cdr(
             Gates(lane_count, seqn_width,
                   layouts.fifo_payload(channels),
-                  layouts.output_network_payload(channels)))
+                  layouts.output_network_payload(channels, glbl_fine_ts_width)))
         self.submodules.output_driver = output_driver_cdr(
-            OutputDriver(channels, lane_count, seqn_width))
+            OutputDriver(channels, glbl_fine_ts_width, lane_count, seqn_width))
 
         for o, i in zip(self.lane_dist.output, self.fifos.input):
             self.comb += o.connect(i)

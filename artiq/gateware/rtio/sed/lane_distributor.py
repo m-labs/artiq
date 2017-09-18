@@ -13,7 +13,7 @@ __all__ = ["LaneDistributor"]
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, seqn_width, layout_payload, fine_ts_width,
+    def __init__(self, lane_count, seqn_width, layout_payload, glbl_fine_ts_width,
                  enable_spread=True, quash_channels=[], interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
@@ -21,7 +21,7 @@ class LaneDistributor(Module):
         if interface is None:
             interface = cri.Interface()
         self.cri = interface
-        self.minimum_coarse_timestamp = Signal(64-fine_ts_width)
+        self.minimum_coarse_timestamp = Signal(64-glbl_fine_ts_width)
         self.output = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
 
@@ -35,8 +35,8 @@ class LaneDistributor(Module):
 
         # internal state
         current_lane = Signal(max=lane_count)
-        last_coarse_timestamp = Signal(64-fine_ts_width)
-        last_lane_coarse_timestamps = Array(Signal(64-fine_ts_width)
+        last_coarse_timestamp = Signal(64-glbl_fine_ts_width)
+        last_lane_coarse_timestamps = Array(Signal(64-glbl_fine_ts_width)
                                             for _ in range(lane_count))
         seqn = Signal(seqn_width)
 
@@ -53,8 +53,8 @@ class LaneDistributor(Module):
                 self.comb += lio.payload.data.eq(self.cri.o_data)
 
         # when timestamp and channel arrive in cycle #1, prepare computations
-        coarse_timestamp = Signal(64-fine_ts_width)
-        self.comb += coarse_timestamp.eq(self.cri.timestamp[fine_ts_width:])
+        coarse_timestamp = Signal(64-glbl_fine_ts_width)
+        self.comb += coarse_timestamp.eq(self.cri.timestamp[glbl_fine_ts_width:])
         timestamp_above_min = Signal()
         timestamp_above_laneA_min = Signal()
         timestamp_above_laneB_min = Signal()

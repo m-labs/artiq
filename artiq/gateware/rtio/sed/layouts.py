@@ -45,17 +45,20 @@ def fifo_egress(seqn_width, layout_payload):
     ]
 
 
-def output_network_payload(channels):
-    fine_ts_width = max(rtlink.get_fine_ts_width(channel.interface.o)
-                        for channel in channels)
+# We use glbl_fine_ts_width in the output network so that collisions due
+# to insufficiently increasing timestamps are always reliably detected.
+# We can still have undetected collisions on the address by making it wrap
+# around, but those are more rare and easier to debug, and addresses are
+# not normally exposed directly to the ARTIQ user.
+def output_network_payload(channels, glbl_fine_ts_width):
     address_width = max(rtlink.get_address_width(channel.interface.o)
                         for channel in channels)
     data_width = max(rtlink.get_data_width(channel.interface.o)
                      for channel in channels)
 
     layout = [("channel", bits_for(len(channels)-1))]
-    if fine_ts_width:
-        layout.append(("fine_ts", fine_ts_width))
+    if glbl_fine_ts_width:
+        layout.append(("fine_ts", glbl_fine_ts_width))
     if address_width:
         layout.append(("address", address_width))
     if data_width:

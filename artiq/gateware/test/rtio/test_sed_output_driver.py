@@ -37,7 +37,7 @@ class DUT(Module):
         ]
 
         self.submodules.output_driver = output_driver.OutputDriver(
-            rtio_channels, LANE_COUNT, 4*LANE_COUNT)
+            rtio_channels, 0, LANE_COUNT, 4*LANE_COUNT)
 
 
 def simulate(input_events):
