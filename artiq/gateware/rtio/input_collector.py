@@ -4,6 +4,7 @@ from migen.genlib.fifo import *
 
 from artiq.gateware.rtio import cri
 from artiq.gateware.rtio import rtlink
+from artiq.gateware.rtio.cdc import *
 
 
 __all__ = ["InputCollector"]
