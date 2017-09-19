@@ -35,6 +35,9 @@ layout = [
     # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 3, DIR_S_TO_M),
 
+    # value of the timestamp counter transferred into the CRI clock domain.
+    # monotonic, may lag behind the counter in the IO clock domain, but
+    # not be ahead of it.
     ("counter", 64, DIR_S_TO_M)
 ]
 
