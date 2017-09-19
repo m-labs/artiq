@@ -29,8 +29,6 @@ class RTPacketSatellite(Module):
         self.write_channel = Signal(16)
         self.write_address = Signal(16)
         self.write_data = Signal(512)
-        self.write_overflow = Signal()
-        self.write_underflow = Signal()
 
         self.read_channel = Signal(16)
         self.read_readable = Signal()
