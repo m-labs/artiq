@@ -102,3 +102,4 @@ class Core(Module, AutoCSR):
             quash_channels=quash_channels,
             interface=self.cri)
         self.submodules += inputs
+        self.comb += inputs.coarse_timestamp.eq(coarse_ts)
