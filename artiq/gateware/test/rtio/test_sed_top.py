@@ -28,6 +28,7 @@ class DUT(Module):
             self.sed.minimum_coarse_timestamp.eq(self.sed.coarse_timestamp + 16)
         ]
 
+
 def simulate(input_events):
     dut = DUT()
 
