@@ -27,6 +27,9 @@ layout = [
     # o_status bits:
     # <0:wait> <1:underflow> <2:sequence_error>
     ("o_status", 3, DIR_S_TO_M),
+    # targets may optionally report a pessimistic estimate of the number
+    # of outputs events that can be written without waiting.
+    ("o_buffer_space", 16, DIR_S_TO_M),
 
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
