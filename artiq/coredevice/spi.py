@@ -155,6 +155,8 @@ class SPIMaster:
           by one RTIO clock cycle.
         :param read_div: Ditto for the read clock.
         """
+        if write_div > 257 or write_div < 2 or read_div > 257 or read_div < 2:
+            raise ValueError('Divider values out of range')
         rtio_output(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
                     ((write_div - 2) << 16) | ((read_div - 2) << 24))
         self.write_period_mu = int(write_div*self.ref_period_mu)
