@@ -11,15 +11,15 @@ __all__ = ["FIFOs"]
 
 
 class FIFOs(Module):
-    def __init__(self, lane_count, fifo_depth, layout_payload, mode, report_min_space=False):
+    def __init__(self, lane_count, fifo_depth, layout_payload, mode, report_buffer_space=False):
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
         self.input = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                       for _ in range(lane_count)]
         self.output = [Record(layouts.fifo_egress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
 
-        if report_min_space:
-            self.min_space = Signal(max=fifo_depth+1)
+        if report_buffer_space:
+            self.buffer_space = Signal(max=fifo_depth+1)
 
         # # #
 
@@ -46,7 +46,7 @@ class FIFOs(Module):
                 fifo.re.eq(output.re)
             ]
 
-        if report_min_space:
+        if report_buffer_space:
             if mode != "sync":
                 raise NotImplementedError
 
@@ -81,4 +81,4 @@ class FIFOs(Module):
                     max_level_valid_counter.eq(max_level_valid_counter - 1)
                 )
             ]
-            self.comb += If(max_level_valid, self.min_space.eq(fifo_depth - max_level))
+            self.comb += If(max_level_valid, self.buffer_space.eq(fifo_depth - max_level))

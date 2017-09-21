@@ -13,7 +13,7 @@ __all__ = ["SED"]
 class SED(Module):
     def __init__(self, channels, glbl_fine_ts_width, mode,
                  lane_count=8, fifo_depth=128, enable_spread=True,
-                 quash_channels=[], interface=None, report_min_space=False):
+                 quash_channels=[], interface=None, report_buffer_space=False):
         if mode == "sync":
             lane_dist_cdr = lambda x: x
             fifos_cdr = lambda x: x
@@ -37,7 +37,7 @@ class SED(Module):
                             interface=interface))
         self.submodules.fifos = fifos_cdr(
             FIFOs(lane_count, fifo_depth,
-                  layouts.fifo_payload(channels), mode, report_min_space))
+                  layouts.fifo_payload(channels), mode, report_buffer_space))
         self.submodules.gates = gates_cdr(
             Gates(lane_count, seqn_width,
                   layouts.fifo_payload(channels),
@@ -52,8 +52,8 @@ class SED(Module):
         for o, i in zip(self.gates.output, self.output_driver.input):
             self.comb += i.eq(o)
 
-        if report_min_space:
-            self.comb += self.cri.o_buffer_space.eq(self.fifos.min_space)
+        if report_buffer_space:
+            self.comb += self.cri.o_buffer_space.eq(self.fifos.buffer_space)
 
     @property
     def cri(self):
