@@ -3,7 +3,6 @@ from operator import and_
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import PulseSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import cri
@@ -68,8 +67,8 @@ class Core(Module, AutoCSR):
         ]
 
         # Asychronous output errors
-        o_collision_sync = PulseSynchronizer("rtio", "rsys")
-        o_busy_sync = PulseSynchronizer("rtio", "rsys")
+        o_collision_sync = BlindTransfer()
+        o_busy_sync = BlindTransfer()
         self.submodules += o_collision_sync, o_busy_sync
         o_collision = Signal()
         o_busy = Signal()
