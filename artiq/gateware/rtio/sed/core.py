@@ -13,7 +13,7 @@ __all__ = ["SED"]
 class SED(Module):
     def __init__(self, channels, glbl_fine_ts_width, mode,
                  lane_count=8, fifo_depth=128, enable_spread=True,
-                 quash_channels=[], interface=None, report_buffer_space=False):
+                 quash_channels=[], report_buffer_space=False, interface=None):
         if mode == "sync":
             lane_dist_cdr = lambda x: x
             fifos_cdr = lambda x: x

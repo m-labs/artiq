@@ -89,6 +89,7 @@ class Core(Module, AutoCSR):
 
         outputs = SED(channels, glbl_fine_ts_width, "async",
             quash_channels=quash_channels,
+            lane_count=lane_count, fifo_depth=fifo_depth,
             interface=self.cri)
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(coarse_ts)
