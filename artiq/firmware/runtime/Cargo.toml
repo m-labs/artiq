@@ -32,6 +32,6 @@ features = ["mem"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "7e2dc1a"
+rev = "64369d9"
 default-features = false
 features = ["alloc", "collections", "log"]#, "verbose"]
