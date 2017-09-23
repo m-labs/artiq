@@ -162,9 +162,8 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
             $ cd ~/artiq-dev
             $ wget https://raw.githubusercontent.com/jordens/bscan_spi_bitstreams/single-tap/bscan_spi_xc7k325t.bit
-            $ wget https://raw.githubusercontent.com/jordens/bscan_spi_bitstreams/single-tap/bscan_spi_xc6slx45.bit
 
-        Then move both files ``~/artiq-dev/bscan_spi_xc6slx45.bit`` and ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen``, or ``/usr/share/migen``.
+        Then move ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen``, or ``/usr/share/migen``.
 
 * :ref:`Download and install OpenOCD <install-openocd>`.
 
