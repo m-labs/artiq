@@ -14,7 +14,8 @@ from artiq.gateware.rtio.input_collector import *
 
 
 class Core(Module, AutoCSR):
-    def __init__(self, channels, lane_count=8, fifo_depth=128):
+    def __init__(self, channels, lane_count=8, fifo_depth=128,
+                 glbl_fine_ts_width=None):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
@@ -53,10 +54,14 @@ class Core(Module, AutoCSR):
         self.specials += AsyncResetSynchronizer(self.cd_rio_phy, cmd_reset_phy)
 
         # TSC
-        glbl_fine_ts_width = max(max(rtlink.get_fine_ts_width(channel.interface.o)
+        chan_fine_ts_width = max(max(rtlink.get_fine_ts_width(channel.interface.o)
                                      for channel in channels),
                                  max(rtlink.get_fine_ts_width(channel.interface.i)
                                      for channel in channels))
+        if glbl_fine_ts_width is None:
+            glbl_fine_ts_width = chan_fine_ts_width
+        assert glbl_fine_ts_width >= chan_fine_ts_width
+
         coarse_ts = Signal(64-glbl_fine_ts_width)
         self.sync.rtio += coarse_ts.eq(coarse_ts + 1)
         coarse_ts_cdc = GrayCodeTransfer(len(coarse_ts))

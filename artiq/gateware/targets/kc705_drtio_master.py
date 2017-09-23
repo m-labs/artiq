@@ -94,7 +94,7 @@ class Master(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(rtio_channels, 3)
+        self.submodules.rtio_core = rtio.Core(rtio_channels, glbl_fine_ts_width=3)
         self.csr_devices.append("rtio_core")
 
         self.submodules.rtio = rtio.KernelInitiator()
