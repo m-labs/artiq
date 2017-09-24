@@ -1,6 +1,5 @@
 #![no_std]
-#![feature(compiler_builtins_lib, alloc, oom, repr_simd, lang_items, const_fn,
-           closure_to_fn_coercion)]
+#![feature(compiler_builtins_lib, alloc, repr_simd, lang_items, const_fn, global_allocator)]
 
 extern crate compiler_builtins;
 extern crate alloc;
@@ -11,7 +10,7 @@ extern crate byteorder;
 extern crate fringe;
 extern crate smoltcp;
 
-extern crate alloc_artiq;
+extern crate alloc_list;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate logger_artiq;
@@ -164,6 +163,10 @@ fn startup() {
     }
 }
 
+#[global_allocator]
+static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
+static mut LOG_BUFFER: [u8; 1<<17] = [0; 1<<17];
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     unsafe {
@@ -171,16 +174,10 @@ pub extern fn main() -> i32 {
             static mut _fheap: u8;
             static mut _eheap: u8;
         }
-        alloc_artiq::seed(&mut _fheap as *mut u8,
-                          &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
+        ALLOC.add_range(&mut _fheap, &mut _eheap);
 
-        alloc::oom::set_oom_handler(|| {
-            alloc_artiq::debug_dump(&mut board::uart_console::Console).unwrap();
-            panic!("out of memory");
-        });
-
-        static mut LOG_BUFFER: [u8; 1<<17] = [0; 1<<17];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+
         0
     }
 }

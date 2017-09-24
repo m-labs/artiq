@@ -255,9 +255,9 @@ use core::marker::Sized;
 use core::option::Option::{self, Some, None};
 use core::result::Result::{Ok, Err};
 use core::result;
- use collections::string::String;
- use collections::vec::Vec;
- use collections::str;
+ use alloc::string::String;
+ use alloc::vec::Vec;
+ use alloc::str;
 mod memchr;
 
  pub use self::buffered::{BufReader, BufWriter, LineWriter};

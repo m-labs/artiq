@@ -13,7 +13,7 @@ path = "lib.rs"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
-alloc_artiq = { path = "../liballoc_artiq" }
+alloc_list = { path = "../liballoc_list" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 board = { path = "../libboard", features = ["uart_console"] }

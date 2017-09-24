@@ -14,8 +14,8 @@ use io::{self, SeekFrom, Read, Write, Seek, Error, ErrorKind};
  use io::BufRead;
 use core::fmt;
 use core::mem;
- use collections::string::String;
- use collections::vec::Vec;
+ use alloc::string::String;
+ use alloc::vec::Vec;
 
 // =============================================================================
 // Forwarding implementations

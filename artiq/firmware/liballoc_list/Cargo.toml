@@ -1,8 +1,8 @@
 [package]
 authors = ["M-Labs"]
-name = "alloc_artiq"
+name = "alloc_list"
 version = "0.0.0"
 
 [lib]
-name = "alloc_artiq"
+name = "alloc_list"
 path = "lib.rs"

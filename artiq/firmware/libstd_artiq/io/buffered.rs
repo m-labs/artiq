@@ -18,7 +18,7 @@ use core::fmt;
 use io::{self, DEFAULT_BUF_SIZE, Error, ErrorKind, SeekFrom};
 use io::memchr;
 use alloc::boxed::Box;
-use collections::vec::Vec;
+use alloc::vec::Vec;
 
 /// The `BufReader` struct adds buffering to any reader.
 ///

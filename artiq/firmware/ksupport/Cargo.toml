@@ -15,7 +15,7 @@ build_artiq = { path = "../libbuild_artiq" }
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
-alloc_none = { path = "../liballoc_none" }
+alloc_stub = { path = "../liballoc_stub" }
 std_artiq = { path = "../libstd_artiq" }
 dyld = { path = "../libdyld" }
 board = { path = "../libboard" }

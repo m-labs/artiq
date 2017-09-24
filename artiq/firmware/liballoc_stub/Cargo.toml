@@ -1,8 +1,8 @@
 [package]
 authors = ["M-Labs"]
-name = "alloc_none"
+name = "alloc_stub"
 version = "0.0.0"
 
 [lib]
-name = "alloc_none"
+name = "alloc_stub"
 path = "lib.rs"
