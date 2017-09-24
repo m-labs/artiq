@@ -73,21 +73,11 @@ pub mod drtio {
         unsafe {
             (csr::DRTIO[linkidx].reset_write)(1);
             while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
-        }
-        // TODO: determine actual number of remote FIFOs
-        for channel in 0..16 {
-            unsafe {
-                (csr::DRTIO[linkidx].chan_sel_override_write)(channel);
-                (csr::DRTIO[linkidx].chan_sel_override_en_write)(1);
 
-                (csr::DRTIO[linkidx].o_reset_channel_status_write)(1);
-                (csr::DRTIO[linkidx].o_get_fifo_space_write)(1);
-                while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
-                info!("[LINK#{}] FIFO space on channel {} is {}",
-                    linkno, channel, (csr::DRTIO[linkidx].o_dbg_fifo_space_read)());
-
-                (csr::DRTIO[linkidx].chan_sel_override_en_write)(0);
-            }
+            (csr::DRTIO[linkidx].o_get_buffer_space_write)(1);
+            while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
+            info!("[LINK#{}] buffer space is {}",
+                linkno, (csr::DRTIO[linkidx].o_dbg_buffer_space_read)());
         }
     }
 
@@ -130,7 +120,7 @@ pub mod drtio {
                 error!("[LINK#{}] received truncated packet", linkno);
             }
             if errors & 4 != 0 {
-                error!("[LINK#{}] timeout attempting to get remote FIFO space", linkno);
+                error!("[LINK#{}] timeout attempting to get remote buffer space", linkno);
             }
         }
     }
@@ -139,6 +129,8 @@ pub mod drtio {
         drtioaux::hw::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
         match drtioaux::hw::recv_timeout_link(linkno, None) {
             Ok(drtioaux::Packet::RtioNoErrorReply) => (),
+            Ok(drtioaux::Packet::RtioErrorSequenceErrorReply) =>
+                error!("[LINK#{}] RTIO sequence error", linkno),
             Ok(drtioaux::Packet::RtioErrorCollisionReply) =>
                 error!("[LINK#{}] RTIO collision", linkno),
             Ok(drtioaux::Packet::RtioErrorBusyReply) =>
@@ -251,42 +243,6 @@ pub fn init_core() {
 pub mod drtio_dbg {
     use board::csr;
 
-    // TODO: routing
-    pub fn get_channel_state(channel: u32) -> (u16, u64) {
-        let linkno = ((channel >> 16) - 1) as usize;
-        let node_channel = channel as u16;
-        unsafe {
-            (csr::DRTIO[linkno].chan_sel_override_write)(node_channel as u16);
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(1);
-            let fifo_space = (csr::DRTIO[linkno].o_dbg_fifo_space_read)();
-            let last_timestamp = (csr::DRTIO[linkno].o_dbg_last_timestamp_read)();
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(0);
-            (fifo_space, last_timestamp)
-        }
-    }
-
-    pub fn reset_channel_state(channel: u32) {
-        let linkno = ((channel >> 16) - 1) as usize;
-        let node_channel = channel as u16;
-        unsafe {
-            (csr::DRTIO[linkno].chan_sel_override_write)(node_channel);
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(1);
-            (csr::DRTIO[linkno].o_reset_channel_status_write)(1);
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(0);
-        }
-    }
-
-    pub fn get_fifo_space(channel: u32) {
-        let linkno = ((channel >> 16) - 1) as usize;
-        let node_channel = channel as u16;
-        unsafe {
-            (csr::DRTIO[linkno].chan_sel_override_write)(node_channel);
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(1);
-            (csr::DRTIO[linkno].o_get_fifo_space_write)(1);
-            (csr::DRTIO[linkno].chan_sel_override_en_write)(0);
-        }
-    }
-
     pub fn get_packet_counts(linkno: u8) -> (u32, u32) {
         let linkno = linkno as usize;
         unsafe {
@@ -296,23 +252,17 @@ pub mod drtio_dbg {
         }
     }
 
-    pub fn get_fifo_space_req_count(linkno: u8) -> u32 {
+    pub fn get_buffer_space_req_count(linkno: u8) -> u32 {
         let linkno = linkno as usize;
         unsafe {
-            (csr::DRTIO[linkno].o_dbg_fifo_space_req_cnt_read)()
+            (csr::DRTIO[linkno].o_dbg_buffer_space_req_cnt_read)()
         }
     }
 }
 
 #[cfg(not(has_drtio))]
 pub mod drtio_dbg {
-    pub fn get_channel_state(_channel: u32) -> (u16, u64) { (0, 0) }
-
-    pub fn reset_channel_state(_channel: u32) {}
-
-    pub fn get_fifo_space(_channel: u32) {}
-
     pub fn get_packet_counts(_linkno: u8) -> (u32, u32) { (0, 0) }
 
-    pub fn get_fifo_space_req_count(_linkno: u8) -> u32 { 0 }
+    pub fn get_buffer_space_req_count(_linkno: u8) -> u32 { 0 }
 }

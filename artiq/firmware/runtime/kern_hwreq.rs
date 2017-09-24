@@ -323,26 +323,13 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
             kern_acknowledge()
         }
 
-        &kern::DrtioChannelStateRequest { channel } => {
-            let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
-            kern_send(io, &kern::DrtioChannelStateReply { fifo_space: fifo_space,
-                                                          last_timestamp: last_timestamp })
-        }
-        &kern::DrtioResetChannelStateRequest { channel } => {
-            rtio_mgt::drtio_dbg::reset_channel_state(channel);
-            kern_acknowledge()
-        }
-        &kern::DrtioGetFifoSpaceRequest { channel } => {
-            rtio_mgt::drtio_dbg::get_fifo_space(channel);
-            kern_acknowledge()
-        }
         &kern::DrtioPacketCountRequest { linkno } => {
             let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
             kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
         }
-        &kern::DrtioFifoSpaceReqCountRequest { linkno } => {
-            let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count(linkno);
-            kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })
+        &kern::DrtioBufferSpaceReqCountRequest { linkno } => {
+            let cnt = rtio_mgt::drtio_dbg::get_buffer_space_req_count(linkno);
+            kern_send(io, &kern::DrtioBufferSpaceReqCountReply { cnt: cnt })
         }
 
         &kern::I2cStartRequest { busno } => {

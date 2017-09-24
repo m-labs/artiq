@@ -26,13 +26,19 @@ fn process_aux_packet(p: &drtioaux::Packet) {
                 unsafe {
                     (board::csr::DRTIO[0].rtio_error_write)(1);
                 }
-                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorSequenceErrorReply).unwrap();
             } else if errors & 2 != 0 {
                 unsafe {
                     (board::csr::DRTIO[0].rtio_error_write)(2);
                 }
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+            } else if errors & 4 != 0 {
+                unsafe {
+                    (board::csr::DRTIO[0].rtio_error_write)(4);
+                }
                 drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorBusyReply).unwrap();
-            } else {
+            }
+            else {
                 drtioaux::hw::send_link(0, &drtioaux::Packet::RtioNoErrorReply).unwrap();
             }
         }
@@ -152,9 +158,6 @@ fn process_errors() {
     }
     if errors & 8 != 0 {
         error!("write overflow");
-    }
-    if errors & 16 != 0 {
-        error!("write sequence error");
     }
 }
 

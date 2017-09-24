@@ -21,6 +21,7 @@ pub enum Packet {
 
     RtioErrorRequest,
     RtioNoErrorReply,
+    RtioErrorSequenceErrorReply,
     RtioErrorCollisionReply,
     RtioErrorBusyReply,
 
@@ -55,8 +56,9 @@ impl Packet {
 
             0x20 => Packet::RtioErrorRequest,
             0x21 => Packet::RtioNoErrorReply,
-            0x22 => Packet::RtioErrorCollisionReply,
-            0x23 => Packet::RtioErrorBusyReply,
+            0x22 => Packet::RtioErrorSequenceErrorReply,
+            0x23 => Packet::RtioErrorCollisionReply,
+            0x24 => Packet::RtioErrorBusyReply,
 
             0x40 => Packet::MonitorRequest {
                 channel: read_u16(reader)?,
@@ -145,8 +147,9 @@ impl Packet {
 
             Packet::RtioErrorRequest => write_u8(writer, 0x20)?,
             Packet::RtioNoErrorReply => write_u8(writer, 0x21)?,
-            Packet::RtioErrorCollisionReply => write_u8(writer, 0x22)?,
-            Packet::RtioErrorBusyReply => write_u8(writer, 0x23)?,
+            Packet::RtioErrorSequenceErrorReply => write_u8(writer, 0x22)?,
+            Packet::RtioErrorCollisionReply => write_u8(writer, 0x23)?,
+            Packet::RtioErrorBusyReply => write_u8(writer, 0x24)?,
 
             Packet::MonitorRequest { channel, probe } => {
                 write_u8(writer, 0x40)?;
@@ -278,7 +281,7 @@ pub mod hw {
         unsafe {
             if (board::csr::DRTIO[linkidx].aux_rx_present_read)() == 1 {
                 let length = (board::csr::DRTIO[linkidx].aux_rx_length_read)();
-                let base = board::mem::DRTIO_AUX[linkidx].base + board::mem::DRTIO_AUX[linkidx].size/2; 
+                let base = board::mem::DRTIO_AUX[linkidx].base + board::mem::DRTIO_AUX[linkidx].size/2;
                 let sl = slice::from_raw_parts(base as *mut u8, length as usize);
                 Some(RxBuffer(linkno, sl))
             } else {

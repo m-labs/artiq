@@ -3,10 +3,12 @@ from types import SimpleNamespace
 from migen import *
 from migen.genlib.cdc import ElasticBuffer
 
+from artiq.gateware.rtio.sed.core import *
+from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer, aux_controller,
-                                  rt_packet_satellite, rt_ios_satellite,
+                                  rt_packet_satellite, rt_iobuffer_satellite,
                                   rt_errors_satellite,
-                                  rt_packet_master, rt_controller_master) 
+                                  rt_packet_master, rt_controller_master)
 
 
 class ChannelInterface:
@@ -49,7 +51,8 @@ class GenericRXSynchronizer(Module):
 
 
 class DRTIOSatellite(Module):
-    def __init__(self, chanif, channels, rx_synchronizer=None, fine_ts_width=3, full_ts_width=63):
+    def __init__(self, chanif, channels, rx_synchronizer=None, fine_ts_width=3,
+                 lane_count=8, fifo_depth=128):
         if rx_synchronizer is None:
             rx_synchronizer = GenericRXSynchronizer()
             self.submodules += rx_synchronizer
@@ -77,11 +80,29 @@ class DRTIOSatellite(Module):
         self.submodules.rt_packet = ClockDomainsRenamer("rtio")(
             rt_packet_satellite.RTPacketSatellite(link_layer_sync))
 
-        self.submodules.ios = rt_ios_satellite.IOS(
-            self.rt_packet, channels, fine_ts_width, full_ts_width)
+        coarse_ts = Signal(64 - fine_ts_width)
+        self.sync.rtio += \
+            If(self.rt_packet.tsc_load,
+                coarse_ts.eq(self.rt_packet.tsc_load_value)
+            ).Else(
+                coarse_ts.eq(coarse_ts + 1)
+            )
+        self.comb += self.rt_packet.cri.counter.eq(coarse_ts << fine_ts_width)
+
+        self.submodules.outputs = ClockDomainsRenamer("rio")(
+            SED(channels, fine_ts_width, "sync",
+                lane_count=lane_count, fifo_depth=fifo_depth,
+                report_buffer_space=True, interface=self.rt_packet.cri))
+        self.comb += self.outputs.coarse_timestamp.eq(coarse_ts)
+        self.sync += self.outputs.minimum_coarse_timestamp.eq(coarse_ts + 16)
+
+        self.submodules.inputs = ClockDomainsRenamer("rio")(
+            InputCollector(channels, fine_ts_width, "sync",
+                           interface=self.rt_packet.cri))
+        self.comb += self.inputs.coarse_timestamp.eq(coarse_ts)
 
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
-            self.rt_packet, self.ios)
+            self.rt_packet, self.outputs)
 
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()

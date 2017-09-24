@@ -66,12 +66,12 @@ class RTPacketMaster(Module):
 
         # standard request interface
         #
-        # notwrite=1 address=0  FIFO space request <channel>
+        # notwrite=1 address=0  buffer space request
         # notwrite=1 address=1  read request <channel, timestamp>
         #
         # optimized for write throughput
         # requests are performed on the DRTIO link preserving their order of issue
-        # this is important for FIFO space requests, which have to be ordered
+        # this is important for buffer space requests, which have to be ordered
         # wrt writes.
         self.sr_stb = Signal()
         self.sr_ack = Signal()
@@ -81,10 +81,10 @@ class RTPacketMaster(Module):
         self.sr_address = Signal(16)
         self.sr_data = Signal(512)
 
-        # fifo space reply interface
-        self.fifo_space_not = Signal()
-        self.fifo_space_not_ack = Signal()
-        self.fifo_space = Signal(16)
+        # buffer space reply interface
+        self.buffer_space_not = Signal()
+        self.buffer_space_not_ack = Signal()
+        self.buffer_space = Signal(16)
 
         # read reply interface
         self.read_not = Signal()
@@ -209,11 +209,11 @@ class RTPacketMaster(Module):
             )
 
         # CDC
-        fifo_space_not = Signal()
-        fifo_space = Signal(16)
+        buffer_space_not = Signal()
+        buffer_space = Signal(16)
         self.submodules += _CrossDomainNotification("rtio_rx",
-            fifo_space_not, fifo_space,
-            self.fifo_space_not, self.fifo_space_not_ack, self.fifo_space)
+            buffer_space_not, buffer_space,
+            self.buffer_space_not, self.buffer_space_not_ack, self.buffer_space)
 
         set_time_stb = Signal()
         set_time_ack = Signal()
@@ -274,7 +274,7 @@ class RTPacketMaster(Module):
             If(sr_buf_readable,
                 If(sr_notwrite,
                     Case(sr_address[0], {
-                        0: NextState("FIFO_SPACE"),
+                        0: NextState("BUFFER_SPACE"),
                         1: NextState("READ")
                     }),
                 ).Else(
@@ -316,8 +316,8 @@ class RTPacketMaster(Module):
                 NextState("IDLE")
             )
         )
-        tx_fsm.act("FIFO_SPACE",
-            tx_dp.send("fifo_space_request", channel=sr_channel),
+        tx_fsm.act("BUFFER_SPACE",
+            tx_dp.send("buffer_space_request"),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")
@@ -369,7 +369,7 @@ class RTPacketMaster(Module):
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
                         rx_plm.types["echo_reply"]: echo_received_now.eq(1),
-                        rx_plm.types["fifo_space_reply"]: NextState("FIFO_SPACE"),
+                        rx_plm.types["buffer_space_reply"]: NextState("BUFFER_SPACE"),
                         rx_plm.types["read_reply"]: NextState("READ_REPLY"),
                         rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),
                         "default": err_unknown_packet_type.i.eq(1)
@@ -382,9 +382,9 @@ class RTPacketMaster(Module):
                 err_packet_truncated.i.eq(1)
             )
         )
-        rx_fsm.act("FIFO_SPACE",
-            fifo_space_not.eq(1),
-            fifo_space.eq(rx_dp.packet_as["fifo_space_reply"].space),
+        rx_fsm.act("BUFFER_SPACE",
+            buffer_space_not.eq(1),
+            buffer_space.eq(rx_dp.packet_as["buffer_space_reply"].space),
             NextState("INPUT")
         )
         rx_fsm.act("READ_REPLY",

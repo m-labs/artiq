@@ -161,24 +161,6 @@ pub mod drtio_dbg {
     use ::recv;
     use kernel_proto::*;
 
-
-    #[repr(C)]
-    pub struct ChannelState(i32, i64);
-
-    pub extern fn get_channel_state(channel: i32) -> ChannelState {
-        send(&DrtioChannelStateRequest { channel: channel as u32 });
-        recv!(&DrtioChannelStateReply { fifo_space, last_timestamp }
-              => ChannelState(fifo_space as i32, last_timestamp as i64))
-    }
-
-    pub extern fn reset_channel_state(channel: i32) {
-        send(&DrtioResetChannelStateRequest { channel: channel as u32 })
-    }
-
-    pub extern fn get_fifo_space(channel: i32) {
-        send(&DrtioGetFifoSpaceRequest { channel: channel as u32 })
-    }
-
     #[repr(C)]
     pub struct PacketCounts(i32, i32);
 
@@ -188,9 +170,9 @@ pub mod drtio_dbg {
               => PacketCounts(tx_cnt as i32, rx_cnt as i32))
     }
 
-    pub extern fn get_fifo_space_req_count(linkno: i32) -> i32 {
-        send(&DrtioFifoSpaceReqCountRequest { linkno: linkno as u8 });
-        recv!(&DrtioFifoSpaceReqCountReply { cnt }
+    pub extern fn get_buffer_space_req_count(linkno: i32) -> i32 {
+        send(&DrtioBufferSpaceReqCountRequest { linkno: linkno as u8 });
+        recv!(&DrtioBufferSpaceReqCountReply { cnt }
               => cnt as i32)
     }
 }
