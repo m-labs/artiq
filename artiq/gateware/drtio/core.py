@@ -6,8 +6,7 @@ from migen.genlib.cdc import ElasticBuffer
 from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer, aux_controller,
-                                  rt_packet_satellite, rt_iobuffer_satellite,
-                                  rt_errors_satellite,
+                                  rt_packet_satellite, rt_errors_satellite,
                                   rt_packet_master, rt_controller_master)
 
 
