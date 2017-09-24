@@ -634,6 +634,9 @@ pub fn thread(io: Io) {
     loop {
         if listener.can_accept() {
             let mut stream = listener.accept().expect("session: cannot accept");
+            stream.set_timeout(Some(1000));
+            stream.set_keep_alive(Some(500));
+
             match check_magic(&mut stream) {
                 Ok(()) => (),
                 Err(_) => {

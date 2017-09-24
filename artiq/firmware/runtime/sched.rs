@@ -470,6 +470,22 @@ impl<'a> TcpStream<'a> {
         self.as_lower().remote_endpoint()
     }
 
+    pub fn timeout(&self) -> Option<u64> {
+        self.as_lower().timeout()
+    }
+
+    pub fn set_timeout(&self, value: Option<u64>) {
+        self.as_lower().set_timeout(value)
+    }
+
+    pub fn keep_alive(&self) -> Option<u64> {
+        self.as_lower().keep_alive()
+    }
+
+    pub fn set_keep_alive(&self, value: Option<u64>) {
+        self.as_lower().set_keep_alive(value)
+    }
+
     pub fn close(&self) -> Result<()> {
         self.as_lower().close();
         until!(self, TcpSocketLower, |s| !s.is_open())?;
