@@ -81,7 +81,8 @@ class LaneDistributor(Module):
         self.comb += latency_compensation_port.adr.eq(self.cri.chan_sel[:16]) 
 
         # cycle #2, write
-        compensation = latency_compensation_port.dat_r
+        compensation = Signal((14, True))
+        self.comb += compensation.eq(latency_compensation_port.dat_r)
         timestamp_above_min = Signal()
         timestamp_above_laneA_min = Signal()
         timestamp_above_laneB_min = Signal()
