@@ -91,7 +91,8 @@ class DRTIOSatellite(Module):
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, fine_ts_width, "sync",
                 lane_count=lane_count, fifo_depth=fifo_depth,
-                report_buffer_space=True, interface=self.rt_packet.cri))
+                enable_spread=False, report_buffer_space=True,
+                interface=self.rt_packet.cri))
         self.comb += self.outputs.coarse_timestamp.eq(coarse_ts)
         self.sync += self.outputs.minimum_coarse_timestamp.eq(coarse_ts + 16)
 
