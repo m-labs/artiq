@@ -31,7 +31,9 @@ class SED(Module):
 
         self.submodules.lane_dist = lane_dist_cdr(
             LaneDistributor(lane_count, seqn_width,
-                            layouts.fifo_payload(channels), glbl_fine_ts_width,
+                            layouts.fifo_payload(channels),
+                            [channel.interface.o.delay for channel in channels],
+                            glbl_fine_ts_width,
                             enable_spread=enable_spread,
                             quash_channels=quash_channels,
                             interface=interface))

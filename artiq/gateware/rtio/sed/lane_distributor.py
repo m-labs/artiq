@@ -13,7 +13,8 @@ __all__ = ["LaneDistributor"]
 # 3. check status
 
 class LaneDistributor(Module):
-    def __init__(self, lane_count, seqn_width, layout_payload, glbl_fine_ts_width,
+    def __init__(self, lane_count, seqn_width, layout_payload,
+                 compensation, glbl_fine_ts_width,
                  enable_spread=True, quash_channels=[], interface=None):
         if lane_count & (lane_count - 1):
             raise NotImplementedError("lane count must be a power of 2")
@@ -53,27 +54,20 @@ class LaneDistributor(Module):
                 self.comb += lio.payload.data.eq(self.cri.o_data)
 
         # when timestamp and channel arrive in cycle #1, prepare computations
-        coarse_timestamp = Signal(64-glbl_fine_ts_width)
+        us_timestamp_width = 64 - glbl_fine_ts_width
+        coarse_timestamp = Signal(us_timestamp_width)
         self.comb += coarse_timestamp.eq(self.cri.timestamp[glbl_fine_ts_width:])
-        timestamp_above_min = Signal()
-        timestamp_above_laneA_min = Signal()
-        timestamp_above_laneB_min = Signal()
-        force_laneB = Signal()
-        use_laneB = Signal()
-        use_lanen = Signal(max=lane_count)
+        min_minus_timestamp = Signal((us_timestamp_width + 1, True))
+        laneAmin_minus_timestamp = Signal((us_timestamp_width + 1, True))
+        laneBmin_minus_timestamp = Signal((us_timestamp_width + 1, True))
+        last_minus_timestamp = Signal((us_timestamp_width + 1, True))
         current_lane_plus_one = Signal(max=lane_count)
         self.comb += current_lane_plus_one.eq(current_lane + 1)
         self.sync += [
-            timestamp_above_min.eq(coarse_timestamp > self.minimum_coarse_timestamp),
-            timestamp_above_laneA_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane]),
-            timestamp_above_laneB_min.eq(coarse_timestamp > last_lane_coarse_timestamps[current_lane_plus_one]),
-            If(force_laneB | (coarse_timestamp <= last_coarse_timestamp),
-                use_lanen.eq(current_lane + 1),
-                use_laneB.eq(1)
-            ).Else(
-                use_lanen.eq(current_lane),
-                use_laneB.eq(0)
-            )
+            min_minus_timestamp.eq(self.minimum_coarse_timestamp - coarse_timestamp),
+            laneAmin_minus_timestamp.eq(last_lane_coarse_timestamps[current_lane] - coarse_timestamp),
+            laneBmin_minus_timestamp.eq(last_lane_coarse_timestamps[current_lane_plus_one] - coarse_timestamp),
+            last_minus_timestamp.eq(last_coarse_timestamp - coarse_timestamp)
         ]
 
         quash = Signal()
@@ -81,12 +75,36 @@ class LaneDistributor(Module):
         for channel in quash_channels:
             self.sync += If(self.cri.chan_sel[:16] == channel, quash.eq(1))
 
+        latency_compensation = Memory(14, len(compensation), init=compensation)
+        latency_compensation_port = latency_compensation.get_port()
+        self.specials += latency_compensation, latency_compensation_port 
+        self.comb += latency_compensation_port.adr.eq(self.cri.chan_sel[:16]) 
+
         # cycle #2, write
+        compensation = latency_compensation_port.dat_r
+        timestamp_above_min = Signal()
+        timestamp_above_laneA_min = Signal()
+        timestamp_above_laneB_min = Signal()
         timestamp_above_lane_min = Signal()
+        force_laneB = Signal()
+        use_laneB = Signal()
+        use_lanen = Signal(max=lane_count)
+
         do_write = Signal()
         do_underflow = Signal()
         do_sequence_error = Signal()
         self.comb += [
+            timestamp_above_min.eq(min_minus_timestamp - compensation < 0),
+            timestamp_above_laneA_min.eq(laneAmin_minus_timestamp - compensation < 0),
+            timestamp_above_laneB_min.eq(laneBmin_minus_timestamp - compensation < 0),
+            If(force_laneB | (last_minus_timestamp - compensation >= 0),
+                use_lanen.eq(current_lane + 1),
+                use_laneB.eq(1)
+            ).Else(
+                use_lanen.eq(current_lane),
+                use_laneB.eq(0)
+            ),
+
             timestamp_above_lane_min.eq(Mux(use_laneB, timestamp_above_laneB_min, timestamp_above_laneA_min)),
             If(~quash,
                 do_write.eq((self.cri.cmd == cri.commands["write"]) & timestamp_above_min & timestamp_above_lane_min),
@@ -95,14 +113,18 @@ class LaneDistributor(Module):
             ),
             Array(lio.we for lio in self.output)[use_lanen].eq(do_write)
         ]
+        compensated_timestamp = Signal(64)
+        self.comb += compensated_timestamp.eq(self.cri.timestamp + (compensation << glbl_fine_ts_width))
         self.sync += [
             If(do_write,
                 If(use_laneB, current_lane.eq(current_lane + 1)),
-                last_coarse_timestamp.eq(coarse_timestamp),
-                last_lane_coarse_timestamps[use_lanen].eq(coarse_timestamp),
+                last_coarse_timestamp.eq(compensated_timestamp[glbl_fine_ts_width:]),
+                last_lane_coarse_timestamps[use_lanen].eq(compensated_timestamp[glbl_fine_ts_width:]),
                 seqn.eq(seqn + 1),
             )
         ]
+        for lio in self.output:
+            self.comb += lio.payload.timestamp.eq(compensated_timestamp)
 
         # cycle #3, read status
         current_lane_writable = Signal()

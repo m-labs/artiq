@@ -10,7 +10,8 @@ LANE_COUNT = 8
 
 
 def simulate(input_events, wait=True):
-    dut = lane_distributor.LaneDistributor(LANE_COUNT, 8, [("channel", 8), ("timestamp", 32)], 3)
+    dut = lane_distributor.LaneDistributor(LANE_COUNT, 8, [("channel", 8), ("timestamp", 32)], 
+                                           [0]*256, 3)
 
     output = []
     access_results = []
