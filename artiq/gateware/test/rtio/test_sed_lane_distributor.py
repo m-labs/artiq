@@ -75,9 +75,8 @@ def simulate(input_events, wait=True):
 
 class TestLaneDistributor(unittest.TestCase):
     def test_regular(self):
-        # Assumes lane 0 does not have wait time.
         N = 16
-        output, access_results = simulate([(42+n, (n+1)*8) for n in range(N)])
+        output, access_results = simulate([(42+n, (n+1)*8) for n in range(N)], wait=False)
         self.assertEqual(output, [(0, n, 42+n, (n+1)*8) for n in range(N)])
         self.assertEqual(access_results, [("ok", 0)]*N)
 
