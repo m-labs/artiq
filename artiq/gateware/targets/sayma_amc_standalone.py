@@ -2,21 +2,124 @@
 
 import argparse
 import os
+from collections import namedtuple
 
 from migen import *
+from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect import stream
+from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import MiniSoC
+
+from jesd204b.common import (JESD204BTransportSettings,
+                             JESD204BPhysicalSettings,
+                             JESD204BSettings)
+from jesd204b.phy.gth import GTHQuadPLL as JESD204BGTHQuadPLL
+from jesd204b.phy import JESD204BPhyTX
+from jesd204b.core import JESD204BCoreTX
+from jesd204b.core import JESD204BCoreTXControl
 
 from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import serwb
 from artiq.gateware import remote_csr
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_simple
+from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq import __version__ as artiq_version
+
+
+PhyPads = namedtuple("PhyPads", "txp txn")
+to_jesd = ClockDomainsRenamer("jesd")
+
+
+class AD9154JESD(Module, AutoCSR):
+    def __init__(self, platform):
+        self.jreset = CSRStorage(reset=1)
+
+        ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
+        settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+        linerate = 10e9
+        refclk_freq = 250e6
+        fabric_freq = 125*1000*1000
+
+        self.refclk = Signal()
+        refclk2 = Signal()
+        self.clock_domains.cd_jesd = ClockDomain()
+        refclk_pads = platform.request("dac_refclk")
+
+        self.specials += [
+            Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b00,
+                     i_I=refclk_pads.p, i_IB=refclk_pads.n,
+                     o_O=self.refclk, o_ODIV2=refclk2),
+            Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk),
+            AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
+        ]
+        self.cd_jesd.clk.attr.add("keep")
+        platform.add_period_constraint(self.cd_jesd.clk, 1e9/refclk_freq)
+
+        self.phys = []
+        for dac in range(2):
+            jesd_pads = platform.request("dac_jesd", dac)
+            phys = []
+            self.phys.append(phys)
+            for i in range(len(jesd_pads.txp)):
+                if i % 4 == 0:
+                    qpll = JESD204BGTHQuadPLL(
+                            self.refclk, refclk_freq, linerate)
+                    self.submodules += qpll
+                    print(qpll)  # FIXME
+                phy = JESD204BPhyTX(
+                        qpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
+                        fabric_freq, transceiver="gth")
+                phy.transmitter.cd_tx.clk.attr.add("keep")
+                platform.add_period_constraint(phy.transmitter.cd_tx.clk,
+                        40*1e9/linerate)
+                platform.add_false_path_constraints(
+                #    self.crg.cd_sys.clk,  FIXME?
+                    self.cd_jesd.clk,
+                    phy.transmitter.cd_tx.clk)
+                phys.append(phy)
+
+            core = to_jesd(JESD204BCoreTX(
+                phys, settings, converter_data_width=64))
+            setattr(self.submodules, "core{}".format(dac), core)
+            control = to_jesd(JESD204BCoreTXControl(core))
+            setattr(self.submodules, "control{}".format(dac), control)
+            core.register_jsync(platform.request("dac_sync", dac))
+
+        # self.comb += platform.request("user_led", 3).eq(self.core0.jsync)
+
+        # blinking leds for transceiver reset status
+        #for i in range(4):
+        #    counter = Signal(max=fabric_freq)
+        #    self.comb += platform.request("user_led", 4 + i).eq(counter[-1])
+        #    sync = getattr(self.sync, "phy{}_tx".format(i))
+        #    sync += [
+        #        counter.eq(counter - 1),
+        #        If(counter == 0,
+        #            counter.eq(fabric_freq - 1)
+        #        )
+        #    ]
+
+
+class AD9154(Module, AutoCSR):
+    def __init__(self, platform):
+        self.submodules.jesd = AD9154JESD(platform)
+
+        self.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(8)]
+        self.submodules += self.sawgs
+
+        # for i in range(len(self.sawgs)):
+        #    self.sawgs[i].connect_y(self.sawgs[i ^ 1])
+
+        for conv, ch in zip(
+                self.jesd.core0.sink.flatten() +
+                self.jesd.core1.sink.flatten(),
+                self.sawgs):
+            self.sync.jesd += conv.eq(Cat(ch.o))
 
 
 class SaymaAMCStandalone(MiniSoC, AMPSoC):
@@ -25,11 +128,12 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         "rtio":          0x11000000,
         "rtio_dma":      0x12000000,
         "serwb":         0x13000000,
+        "ad9154":        0x14000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cpu_type="or1k", **kwargs):
+    def __init__(self, cpu_type="or1k", with_sawg=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type=cpu_type,
                          sdram_controller_type="minicon",
@@ -95,6 +199,16 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        if with_sawg:
+            self.submodules.ad9154_0 = AD9154(platform)
+            self.csr_devices.append("ad9154_0")
+            self.config["HAS_AD9154"] = None
+            self.add_csr_group("ad9154", ["ad9154_0"])
+            self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+            rtio_channels.extend(rtio.Channel.from_phy(phy)
+                                for sawg in self.ad9154_0.sawgs
+                                for phy in sawg.phys)
+
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
@@ -131,9 +245,13 @@ def main():
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma_rtm", "sayma_rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
+    parser.add_argument("--with-sawg",
+        default=False, action="store_true",
+        help="add JESD204B and SAWG channels (default: %(default)s)")
     args = parser.parse_args()
 
-    soc = SaymaAMCStandalone(**soc_sdram_argdict(args))
+    soc = SaymaAMCStandalone(with_sawg=args.with_sawg,
+            **soc_sdram_argdict(args))
 
     remote_csr_regions = remote_csr.get_remote_csr_regions(
         soc.mem_map["serwb"] | soc.shadow_base,
