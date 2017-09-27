@@ -146,6 +146,7 @@ def main():
     build_dir = "artiq_sayma_rtm"
     platform = sayma_rtm.Platform()
     top = SaymaRTM(platform)
+    os.makedirs(build_dir, exist_ok=True)
     with open(os.path.join(build_dir, "sayma_rtm_csr.csv"), "w") as f:
         f.write(get_csr_csv(top.csr_regions))
     platform.build(top, build_dir=build_dir)
