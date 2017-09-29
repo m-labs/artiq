@@ -13,7 +13,7 @@ fn spi_setup() {
         csr::converter_spi::clk_div_read_write(16);
         csr::converter_spi::xfer_len_write_write(24);
         csr::converter_spi::xfer_len_read_write(0);
-        csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_CLK_CS);
+        csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_AD9516_CS);
         csr::converter_spi::offline_write(0);
     }
 }

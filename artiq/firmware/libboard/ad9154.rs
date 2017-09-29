@@ -2,7 +2,7 @@ use csr;
 use clock;
 use ad9154_reg;
 
-fn spi_setup() {
+fn spi_setup(dacno: u8) {
     unsafe {
         csr::converter_spi::offline_write(1);
         csr::converter_spi::cs_polarity_write(0);
@@ -14,7 +14,7 @@ fn spi_setup() {
         csr::converter_spi::clk_div_read_write(16);
         csr::converter_spi::xfer_len_write_write(24);
         csr::converter_spi::xfer_len_read_write(0);
-        csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_DAC_CS);
+        csr::converter_spi::cs_write(1 << (csr::CONFIG_CONVERTER_SPI_FIRST_AD9154_CS + dacno as u32));
         csr::converter_spi::offline_write(0);
     }
 }
@@ -35,39 +35,39 @@ fn read(addr: u16) -> u8 {
     }
 }
 
-fn jesd_reset(rst: bool) {
+fn jesd_reset(dacno: u8, rst: bool) {
     unsafe {
-        csr::ad9154::jesd_jreset_write(if rst {1} else {0})
+        (csr::AD9154[dacno as usize].jesd_jreset_write)(if rst {1} else {0})
     }
 }
 
-fn jesd_enable(en: bool) {
+fn jesd_enable(dacno: u8, en: bool) {
     unsafe {
-        csr::ad9154::jesd_control_enable_write(if en {1} else {0})
+        (csr::AD9154[dacno as usize].jesd_control_enable_write)(if en {1} else {0})
     }
 }
 
-fn jesd_ready() -> bool {
+fn jesd_ready(dacno: u8) -> bool {
     unsafe {
-        csr::ad9154::jesd_control_ready_read() != 0
+        (csr::AD9154[dacno as usize].jesd_control_ready_read)() != 0
     }
 }
 
-fn jesd_prbs(en: bool) {
+fn jesd_prbs(dacno: u8, en: bool) {
     unsafe {
-        csr::ad9154::jesd_control_prbs_config_write(if en {1} else {0})
+        (csr::AD9154[dacno as usize].jesd_control_prbs_config_write)(if en {1} else {0})
     }
 }
 
-fn jesd_stpl(en: bool) {
+fn jesd_stpl(dacno: u8, en: bool) {
     unsafe {
-        csr::ad9154::jesd_control_stpl_enable_write(if en {1} else {0})
+        (csr::AD9154[dacno as usize].jesd_control_stpl_enable_write)(if en {1} else {0})
     }
 }
 
-fn jesd_jsync() -> bool {
+fn jesd_jsync(dacno: u8) -> bool {
     unsafe {
-        csr::ad9154::jesd_control_jsync_read() != 0
+        (csr::AD9154[dacno as usize].jesd_control_jsync_read)() != 0
     }
 }
 
@@ -421,19 +421,24 @@ fn monitor() {
     write(ad9154_reg::IRQ_STATUS3, 0x00);
 }
 
-fn cfg() -> Result<(), &'static str> {
-    jesd_enable(false);
-    jesd_prbs(false);
-    jesd_stpl(false);
+fn cfg(dacno: u8) -> Result<(), &'static str> {
+    spi_setup(dacno);
+    // Release the JESD clock domain reset late, as we need to
+    // set up clock chips before.
+    jesd_reset(dacno, false);
+
+    jesd_enable(dacno, false);
+    jesd_prbs(dacno, false);
+    jesd_stpl(dacno, false);
     clock::spin_us(10000);
-    jesd_enable(true);
+    jesd_enable(dacno, true);
     dac_setup()?;
-    jesd_enable(false);
+    jesd_enable(dacno, false);
     clock::spin_us(10000);
-    jesd_enable(true);
+    jesd_enable(dacno, true);
     monitor();
     let t = clock::get_ms();
-    while !jesd_ready() {
+    while !jesd_ready(dacno) {
         if clock::get_ms() > t + 200 {
             return Err("JESD ready timeout");
         }
@@ -442,7 +447,7 @@ fn cfg() -> Result<(), &'static str> {
     if read(ad9154_reg::CODEGRPSYNCFLG) != 0x0f {
         return Err("bad CODEGRPSYNCFLG")
     }
-    if !jesd_jsync() {
+    if !jesd_jsync(dacno) {
         return Err("bad SYNC")
     }
     if read(ad9154_reg::FRAMESYNCFLG) != 0x0f {
@@ -458,18 +463,10 @@ fn cfg() -> Result<(), &'static str> {
 }
 
 pub fn init() -> Result<(), &'static str> {
-    spi_setup();
-
-    // Release the JESD clock domain reset late, as we need to 
-    // set up clock chips before.
-    jesd_reset(false);
-
-    for i in 0..99 {
-        let outcome = cfg();
-        match outcome {
-            Ok(_) => return outcome,
-            Err(e) => warn!("config attempt #{} failed ({}), retrying", i, e)
-        }
+    for dacno in 0..csr::AD9154.len() {
+        let dacno = dacno as u8;
+        debug!("setting up DAC #{}", dacno);
+        cfg(dacno)?;
     }
-    cfg()
+    Ok(())
 }

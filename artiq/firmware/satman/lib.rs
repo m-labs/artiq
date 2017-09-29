@@ -195,10 +195,15 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
+    #[cfg(has_serwb_phy)]
+    board::serwb::wait_init();
+
     #[cfg(has_ad9516)]
-    board::ad9516::init().expect("cannot initialize ad9516");
+    board::ad9516::init().expect("cannot initialize AD9516");
+    #[cfg(has_hmc830_7043)]
+    board::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     board::i2c::init();
-    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize si5324");
+    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
 
     loop {
         while !drtio_link_is_up() {

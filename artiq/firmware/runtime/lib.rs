@@ -62,6 +62,9 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
+    #[cfg(has_serwb_phy)]
+    board::serwb::wait_init();
+
     let t = board::clock::get_ms();
     info!("press 'e' to erase startup and idle kernels...");
     while board::clock::get_ms() < t + 1000 {
@@ -77,9 +80,11 @@ fn startup() {
     #[cfg(has_i2c)]
     board::i2c::init();
     #[cfg(has_ad9516)]
-    board::ad9516::init().expect("cannot initialize ad9516");
+    board::ad9516::init().expect("cannot initialize AD9516");
+    #[cfg(has_hmc830_7043)]
+    board::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board::ad9154::init().expect("cannot initialize ad9154");
+    board::ad9154::init().expect("cannot initialize AD9154");
 
     let hardware_addr;
     match config::read_str("mac", |r| r?.parse()) {

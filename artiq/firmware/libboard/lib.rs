@@ -25,11 +25,15 @@ pub mod spi;
 #[cfg(has_si5324)]
 pub mod si5324;
 
+#[cfg(has_serwb_phy)]
+pub mod serwb;
 #[cfg(has_ad9516)]
 #[allow(dead_code)]
 mod ad9516_reg;
 #[cfg(has_ad9516)]
 pub mod ad9516;
+#[cfg(has_hmc830_7043)]
+pub mod hmc830_7043;
 #[cfg(has_ad9154)]
 #[allow(dead_code)]
 mod ad9154_reg;
