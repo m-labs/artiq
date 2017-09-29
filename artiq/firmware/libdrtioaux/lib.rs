@@ -21,9 +21,9 @@ pub enum Packet {
 
     RtioErrorRequest,
     RtioNoErrorReply,
-    RtioErrorSequenceErrorReply,
-    RtioErrorCollisionReply,
-    RtioErrorBusyReply,
+    RtioErrorSequenceErrorReply { channel: u16 },
+    RtioErrorCollisionReply { channel: u16 },
+    RtioErrorBusyReply { channel: u16 },
 
     MonitorRequest { channel: u16, probe: u8 },
     MonitorReply { value: u32 },
@@ -56,9 +56,15 @@ impl Packet {
 
             0x20 => Packet::RtioErrorRequest,
             0x21 => Packet::RtioNoErrorReply,
-            0x22 => Packet::RtioErrorSequenceErrorReply,
-            0x23 => Packet::RtioErrorCollisionReply,
-            0x24 => Packet::RtioErrorBusyReply,
+            0x22 => Packet::RtioErrorSequenceErrorReply {
+                channel: read_u16(reader)?
+            },
+            0x23 => Packet::RtioErrorCollisionReply {
+                channel: read_u16(reader)?
+            },
+            0x24 => Packet::RtioErrorBusyReply {
+                channel: read_u16(reader)?
+            },
 
             0x40 => Packet::MonitorRequest {
                 channel: read_u16(reader)?,
@@ -147,9 +153,18 @@ impl Packet {
 
             Packet::RtioErrorRequest => write_u8(writer, 0x20)?,
             Packet::RtioNoErrorReply => write_u8(writer, 0x21)?,
-            Packet::RtioErrorSequenceErrorReply => write_u8(writer, 0x22)?,
-            Packet::RtioErrorCollisionReply => write_u8(writer, 0x23)?,
-            Packet::RtioErrorBusyReply => write_u8(writer, 0x24)?,
+            Packet::RtioErrorSequenceErrorReply { channel } => {
+                write_u8(writer, 0x22)?;
+                write_u16(writer, channel)?;
+            },
+            Packet::RtioErrorCollisionReply { channel } => {
+                write_u8(writer, 0x23)?;
+                write_u16(writer, channel)?;
+            },
+            Packet::RtioErrorBusyReply { channel } => {
+                write_u8(writer, 0x24)?;
+                write_u16(writer, channel)?;
+            },
 
             Packet::MonitorRequest { channel, probe } => {
                 write_u8(writer, 0x40)?;

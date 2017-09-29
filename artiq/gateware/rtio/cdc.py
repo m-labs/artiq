@@ -29,9 +29,14 @@ class GrayCodeTransfer(Module):
 
 
 class BlindTransfer(Module):
-    def __init__(self, idomain="rio", odomain="rsys"):
+    def __init__(self, idomain="rio", odomain="rsys", data_width=0):
         self.i = Signal()
         self.o = Signal()
+        if data_width:
+            self.data_i = Signal(data_width)
+            self.data_o = Signal(data_width)
+
+        # # #
 
         ps = PulseSynchronizer(idomain, odomain)
         ps_ack = PulseSynchronizer(odomain, idomain)
@@ -47,3 +52,10 @@ class BlindTransfer(Module):
             ps_ack.i.eq(ps.o),
             self.o.eq(ps.o)
         ]
+
+        if data_width:
+            bxfer_data = Signal(data_width)
+            isync += If(ps.i, bxfer_data.eq(self.data_i))
+            bxfer_data.attr.add("no_retiming")
+            self.specials += MultiReg(bxfer_data, self.data_o,
+                                      odomain=odomain)

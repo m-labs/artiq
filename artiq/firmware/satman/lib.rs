@@ -23,20 +23,26 @@ fn process_aux_packet(p: &drtioaux::Packet) {
                 errors = (board::csr::DRTIO[0].rtio_error_read)();
             }
             if errors & 1 != 0 {
+                let channel;
                 unsafe {
+                    channel = (board::csr::DRTIO[0].sequence_error_channel_read)();
                     (board::csr::DRTIO[0].rtio_error_write)(1);
                 }
-                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorSequenceErrorReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorSequenceErrorReply { channel: channel }).unwrap();
             } else if errors & 2 != 0 {
+                let channel;
                 unsafe {
+                    channel = (board::csr::DRTIO[0].collision_channel_read)();
                     (board::csr::DRTIO[0].rtio_error_write)(2);
                 }
-                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorCollisionReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorCollisionReply { channel: channel }).unwrap();
             } else if errors & 4 != 0 {
+                let channel;
                 unsafe {
+                    channel = (board::csr::DRTIO[0].busy_channel_read)();
                     (board::csr::DRTIO[0].rtio_error_write)(4);
                 }
-                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorBusyReply).unwrap();
+                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioErrorBusyReply { channel: channel }).unwrap();
             }
             else {
                 drtioaux::hw::send_link(0, &drtioaux::Packet::RtioNoErrorReply).unwrap();

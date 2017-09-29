@@ -129,12 +129,12 @@ pub mod drtio {
         drtioaux::hw::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
         match drtioaux::hw::recv_timeout_link(linkno, None) {
             Ok(drtioaux::Packet::RtioNoErrorReply) => (),
-            Ok(drtioaux::Packet::RtioErrorSequenceErrorReply) =>
-                error!("[LINK#{}] RTIO sequence error", linkno),
-            Ok(drtioaux::Packet::RtioErrorCollisionReply) =>
-                error!("[LINK#{}] RTIO collision", linkno),
-            Ok(drtioaux::Packet::RtioErrorBusyReply) =>
-                error!("[LINK#{}] RTIO busy", linkno),
+            Ok(drtioaux::Packet::RtioErrorSequenceErrorReply { channel }) =>
+                error!("[LINK#{}] RTIO sequence error involving channel {}", linkno, channel),
+            Ok(drtioaux::Packet::RtioErrorCollisionReply { channel }) =>
+                error!("[LINK#{}] RTIO collision involving channel {}", linkno, channel),
+            Ok(drtioaux::Packet::RtioErrorBusyReply { channel }) =>
+                error!("[LINK#{}] RTIO busy error involving channel {}", linkno, channel),
             Ok(_) => error!("[LINK#{}] received unexpected aux packet", linkno),
             Err(e) => error!("[LINK#{}] aux packet error ({})", linkno, e)
         }
@@ -190,13 +190,16 @@ fn async_error_thread(io: Io) {
             io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
             let errors = csr::rtio_core::async_error_read();
             if errors & 1 != 0 {
-                error!("RTIO collision");
+                error!("RTIO collision involving channel {}",
+                       csr::rtio_core::collision_channel_read());
             }
             if errors & 2 != 0 {
-                error!("RTIO busy");
+                error!("RTIO busy error involving channel {}",
+                       csr::rtio_core::busy_channel_read());
             }
             if errors & 4 != 0 {
-                error!("RTIO sequence error");
+                error!("RTIO sequence error involving channel {}",
+                       csr::rtio_core::sequence_error_channel_read());
             }
             csr::rtio_core::async_error_write(errors);
         }
