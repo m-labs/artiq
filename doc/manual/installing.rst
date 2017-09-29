@@ -13,8 +13,8 @@ The conda package contains pre-built binaries that you can directly flash to you
 
 
 .. warning::
-    Conda packages are supported for Linux (64-bit) and Windows (32- and 64-bit).
-    Users of other operating systems (32-bit Linux, BSD, OSX ...) should and can :ref:`install from source <install-from-source>`.
+    Conda packages are supported for Linux (64-bit) and Windows (64-bit).
+    Users of other operating systems (32-bit Linux or Windows, BSD, OSX ...) should and can :ref:`install from source <install-from-source>`.
 
 .. _install-anaconda:
 
