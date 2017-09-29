@@ -111,8 +111,6 @@ class OutputsTestbench:
             status = yield from kcsrs.o_status.read()
             if status & 2:
                 raise RTIOUnderflow
-            if status & 4:
-                raise RTIOSequenceError
             yield
             wlen += 1
         return wlen

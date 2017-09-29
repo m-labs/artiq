@@ -19,7 +19,7 @@ class Core(Module, AutoCSR):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
-        self.async_error = CSR(2)
+        self.async_error = CSR(3)
 
         # Clocking/Reset
         # Create rsys, rio and rio_phy domains based on sys and rtio
@@ -75,18 +75,21 @@ class Core(Module, AutoCSR):
         o_collision_sync = BlindTransfer()
         o_busy_sync = BlindTransfer()
         self.submodules += o_collision_sync, o_busy_sync
+        o_sequence_error_trig = Signal()
         o_collision = Signal()
         o_busy = Signal()
+        o_sequence_error = Signal()
         self.sync += [
             If(self.async_error.re,
                 If(self.async_error.r[0], o_collision.eq(0)),
                 If(self.async_error.r[1], o_busy.eq(0)),
+                If(self.async_error.r[2], o_sequence_error.eq(0)),
             ),
             If(o_collision_sync.o, o_collision.eq(1)),
-            If(o_busy_sync.o, o_busy.eq(1))
+            If(o_busy_sync.o, o_busy.eq(1)),
+            If(o_sequence_error_trig, o_sequence_error.eq(1))
         ]
-        self.comb += self.async_error.w.eq(Cat(o_collision, o_busy))
-
+        self.comb += self.async_error.w.eq(Cat(o_collision, o_busy, o_sequence_error))
 
         # Outputs/Inputs
         quash_channels = [n for n, c in enumerate(channels) if isinstance(c, LogChannel)]
@@ -100,7 +103,8 @@ class Core(Module, AutoCSR):
         self.sync += outputs.minimum_coarse_timestamp.eq(coarse_ts + 16)
         self.comb += [
             o_collision_sync.i.eq(outputs.collision),
-            o_busy_sync.i.eq(outputs.busy)
+            o_busy_sync.i.eq(outputs.busy),
+            o_sequence_error_trig.eq(outputs.sequence_error)
         ]
 
         inputs = InputCollector(channels, glbl_fine_ts_width, "async",

@@ -401,27 +401,23 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
 
+    def execute_and_test_in_log(self, experiment, string):
+        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
+        mgmt = CommMgmt(core_addr)
+        mgmt.clear_log()
+        self.execute(experiment)
+        log = mgmt.get_log()
+        self.assertIn(string, log)
+        mgmt.close()
+
     def test_sequence_error(self):
-        with self.assertRaises(RTIOSequenceError):
-            self.execute(SequenceError)
+        self.execute_and_test_in_log(SequenceError, "RTIO sequence error")
 
     def test_collision(self):
-        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(Collision)
-        log = mgmt.get_log()
-        self.assertIn("RTIO collision", log)
-        mgmt.close()
+        self.execute_and_test_in_log(Collision, "RTIO collision")
 
     def test_address_collision(self):
-        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(AddressCollision)
-        log = mgmt.get_log()
-        self.assertIn("RTIO collision", log)
-        mgmt.close()
+        self.execute_and_test_in_log(AddressCollision, "RTIO collision")
 
     def test_watchdog(self):
         # watchdog only works on the device

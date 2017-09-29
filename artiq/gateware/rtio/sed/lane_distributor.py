@@ -22,6 +22,8 @@ class LaneDistributor(Module):
         if interface is None:
             interface = cri.Interface()
         self.cri = interface
+        self.sequence_error = Signal()
+        self.sequence_error_channel = Signal(16)
         self.minimum_coarse_timestamp = Signal(64-glbl_fine_ts_width)
         self.output = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
@@ -30,9 +32,7 @@ class LaneDistributor(Module):
 
         o_status_wait = Signal()
         o_status_underflow = Signal()
-        o_status_sequence_error = Signal()
-        self.comb += self.cri.o_status.eq(Cat(o_status_wait, o_status_underflow,
-                                              o_status_sequence_error))
+        self.comb += self.cri.o_status.eq(Cat(o_status_wait, o_status_underflow))
 
         # internal state
         current_lane = Signal(max=lane_count)
@@ -135,15 +135,13 @@ class LaneDistributor(Module):
         ]
         self.sync += [
             If(self.cri.cmd == cri.commands["write"],
-                o_status_underflow.eq(0),
-                o_status_sequence_error.eq(0)
+                o_status_underflow.eq(0)
             ),
             If(do_underflow,
                 o_status_underflow.eq(1)
             ),
-            If(do_sequence_error,
-                o_status_sequence_error.eq(1)
-            )
+            self.sequence_error.eq(do_sequence_error),
+            self.sequence_error_channel.eq(self.cri.chan_sel[:16])
         ]
 
         # current lane has been full, spread events by switching to the next.

@@ -380,22 +380,13 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
 
-        let status = csr::rtio_dma::error_status_read();
-        if status != 0 {
+        if csr::rtio_dma::underflow_read() != 0 {
             let timestamp = csr::rtio_dma::error_timestamp_read();
             let channel = csr::rtio_dma::error_channel_read();
-            if status & rtio::RTIO_O_STATUS_UNDERFLOW != 0 {
-                csr::rtio_dma::error_underflow_reset_write(1);
-                raise!("RTIOUnderflow",
-                    "RTIO underflow at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0)
-            }
-            if status & rtio::RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
-                csr::rtio_dma::error_sequence_error_reset_write(1);
-                raise!("RTIOSequenceError",
-                    "RTIO sequence error at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0)
-            }
+            csr::rtio_dma::underflow_write(1);
+            raise!("RTIOUnderflow",
+                "RTIO underflow at {0} mu, channel {1}",
+                timestamp as i64, channel as i64, 0)
         }
     }
 }

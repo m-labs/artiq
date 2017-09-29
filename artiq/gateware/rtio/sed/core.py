@@ -61,26 +61,42 @@ class SED(Module):
     def cri(self):
         return self.lane_dist.cri
 
+    # in CRI clock domain
     @property
     def minimum_coarse_timestamp(self):
         return self.lane_dist.minimum_coarse_timestamp
 
+    # in I/O clock domain
     @property
     def coarse_timestamp(self):
         return self.gates.coarse_timestamp
 
+    # in CRI clock domain
+    @property
+    def sequence_error(self):
+        return self.lane_dist.sequence_error
+
+    # in CRI clock domain
+    @property
+    def sequence_error_channel(self):
+        return self.lane_dist.sequence_error_channel
+
+    # in I/O clock domain
     @property
     def collision(self):
         return self.output_driver.collision
 
+    # in I/O clock domain
     @property
     def collision_channel(self):
         return self.output_driver.collision_channel
 
+    # in I/O clock domain
     @property
     def busy(self):
         return self.output_driver.busy
 
+    # in I/O clock domain
     @property
     def busy_channel(self):
         return self.output_driver.busy_channel

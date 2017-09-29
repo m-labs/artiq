@@ -38,7 +38,7 @@ def simulate(input_events, compensation=None, wait=True):
             access_status = "ok"
             if status & 0x02:
                 access_status = "underflow"
-            if status & 0x04:
+            if (yield dut.sequence_error):
                 access_status = "sequence_error"
 
             access_results.append((access_status, access_time))

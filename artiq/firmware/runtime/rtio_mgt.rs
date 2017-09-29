@@ -195,6 +195,9 @@ fn async_error_thread(io: Io) {
             if errors & 2 != 0 {
                 error!("RTIO busy");
             }
+            if errors & 4 != 0 {
+                error!("RTIO sequence error");
+            }
             csr::rtio_core::async_error_write(errors);
         }
     }

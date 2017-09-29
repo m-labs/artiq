@@ -35,11 +35,9 @@ class RTErrorsSatellite(Module, AutoCSR):
         # internal ARTIQ bugs.
         underflow = Signal()
         overflow = Signal()
-        sequence_error = Signal()
         self.comb += [
             underflow.eq(outputs.cri.o_status[1]),
-            overflow.eq(outputs.cri.o_status[0]),
-            sequence_error.eq(outputs.cri.o_status[2])
+            overflow.eq(outputs.cri.o_status[0])
         ]
         error_csr(self.protocol_error,
                   (rt_packet.unknown_packet_type, False),
@@ -48,7 +46,7 @@ class RTErrorsSatellite(Module, AutoCSR):
                   (overflow, True)
         )
         error_csr(self.rtio_error,
-                  (sequence_error, True),
+                  (outputs.sequence_error, False),
                   (outputs.collision, False),
                   (outputs.busy, False)
         )

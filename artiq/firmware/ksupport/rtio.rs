@@ -6,7 +6,6 @@ use kernel_proto::*;
 
 pub const RTIO_O_STATUS_WAIT:           u8 = 1;
 pub const RTIO_O_STATUS_UNDERFLOW:      u8 = 2;
-pub const RTIO_O_STATUS_SEQUENCE_ERROR: u8 = 4;
 pub const RTIO_I_STATUS_WAIT_EVENT:     u8 = 1;
 pub const RTIO_I_STATUS_OVERFLOW:       u8 = 2;
 pub const RTIO_I_STATUS_WAIT_STATUS:    u8 = 4;
@@ -44,11 +43,6 @@ unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u8) {
         raise!("RTIOUnderflow",
             "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
             timestamp, channel as i64, timestamp - get_counter())
-    }
-    if status & RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
-        raise!("RTIOSequenceError",
-            "RTIO sequence error at {0} mu, channel {1}",
-            timestamp, channel as i64, 0)
     }
 }
 
