@@ -6,10 +6,10 @@ Release notes
 3.0
 ---
 
-* The --embed option of applets is replaced with the environment variable
+* The ``--embed`` option of applets is replaced with the environment variable
   ``ARTIQ_APPLET_EMBED``. The GUI sets this enviroment variable itself and the
   user simply needs to remove the ``--embed`` argument.
-* EnvExperiment's prepare calls prepare for all its children.
+* ``EnvExperiment``'s ``prepare`` calls ``prepare`` for all its children.
 * Dynamic ``__getattr__``'s returning RPC target methods are not supported anymore.
   Controller driver classes must define all their methods intended for RPC as
   members.
@@ -22,7 +22,7 @@ Release notes
 * The DDS class names and setup options have changed, this requires an update of
   the device database.
 * ``int(a, width=b)`` has been removed. Use ``int32(a)`` and ``int64(a)``.
-* The kc705 gateware target has been renamed kc705_dds.
+* The KC705 gateware target has been renamed ``kc705_dds``.
 * ``artiq.coredevice.comm_tcp`` has been renamed ``artiq.coredevice.comm_kernel``,
   and ``Comm`` has been renamed ``CommKernel``.
 * The "collision" and "busy" RTIO errors are reported through the log instead of
@@ -38,8 +38,8 @@ Release notes
   identifiers (``true``, ``null``, ...) with their Python equivalents
   (``True``, ``None`` ...).
 * Controllers are now named ``aqctl_XXX`` instead of ``XXX_controller``.
-* In the device database, the "comm" device has been folded into the "core" device.
-  Move the "host" argument into the "core" device, and remove the "comm" device.
+* In the device database, the ``comm`` device has been folded into the ``core`` device.
+  Move the "host" argument into the ``core`` device, and remove the ``comm`` device.
 * The core device log now contains important information about events such as
   RTIO collisions. A new controller ``aqctl_corelog`` must be running to forward
   those logs to the master. See the example device databases to see how to
@@ -52,7 +52,7 @@ Release notes
   at https://github.com/m-labs/pdq. All SPI/USB driver layers, Mediator,
   CompoundPDQ and examples/documentation has been moved.
 * The master now rotates log files at midnight, rather than based on log size.
-* The results keys start_time and run_time are now stored as doubles of UNIX time,
+* The results keys ``start_time`` and ``run_time`` are now stored as doubles of UNIX time,
   rather than ints. The file names are still based on local time.
 * Packages are no longer available for 32-bit Windows.
 
