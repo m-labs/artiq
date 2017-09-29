@@ -164,7 +164,7 @@ Installation
 These installation instructions are a short form of those in the ARTIQ manual.
 * See the chapter on setting up a :ref:`development environment <develop-from-conda>`.
 * When compiling the binaries, use the ``phaser`` target:::
-  $ python -m artiq.gateware.targets.phaser
+  $ python -m artiq.gateware.targets.kc705_phaser
 * From time to time and on request there may be pre-built binaries in the
   ``artiq-kc705-phaser`` package on the M-Labs conda package label.
 
