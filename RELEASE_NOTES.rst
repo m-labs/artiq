@@ -3,8 +3,8 @@
 Release notes
 =============
 
-3.0 (unreleased)
-----------------
+3.0
+---
 
 * The --embed option of applets is replaced with the environment variable
   ``ARTIQ_APPLET_EMBED``. The GUI sets this enviroment variable itself and the
