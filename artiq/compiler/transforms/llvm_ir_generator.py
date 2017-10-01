@@ -406,8 +406,7 @@ class LLVMIRGenerator:
                  */
                 if (xmody && ((y ^ xmody) < 0) /* i.e. and signs differ */) {
                     xmody += y;
-                    --xdivy;
-                    assert(xmody && ((y ^ xmody) >= 0));
+                    // ...
                 }
             """
             llx, lly = llfun.args
@@ -423,7 +422,45 @@ class LLVMIRGenerator:
                 llbuilder.ret(llbuilder.add(llxremy, lly))
             llbuilder.ret(llxremy)
         elif name == "__py_moddf4":
-            assert False
+            """
+            Reference Objects/floatobject.c
+                mod = fmod(vx, wx);
+                /* fmod is typically exact, so vx-mod is *mathematically* an
+                   exact multiple of wx.  But this is fp arithmetic, and fp
+                   vx - mod is an approximation; the result is that div may
+                   not be an exact integral value after the division, although
+                   it will always be very close to one.
+                */
+                // ...
+                if (mod) {
+                    /* ensure the remainder has the same sign as the denominator */
+                    if ((wx < 0) != (mod < 0)) {
+                        mod += wx;
+                        // ...
+                    }
+                }
+                else {
+                    /* the remainder is zero, and in the presence of signed zeroes
+                       fmod returns different results across platforms; ensure
+                       it has the same sign as the denominator; we'd like to do
+                       "mod = wx * 0.0", but that may get optimized away */
+                    mod *= mod;  /* hide "mod = +0" from optimizer */
+                    if (wx < 0.0)
+                        mod = -mod;
+                }
+            """
+            llv, llw = llfun.args
+            llrem = llbuilder.frem(llv, llw)
+
+            llremnonzero = llbuilder.fcmp_unordered('!=', llrem, ll.Constant(lldouble, 0.0))
+            llwltzero = llbuilder.fcmp_ordered('<', llw, ll.Constant(lldouble, 0.0))
+            llremltzero = llbuilder.fcmp_ordered('<', llrem, ll.Constant(lldouble, 0.0))
+            lldiffsign = llbuilder.icmp_unsigned('!=', llwltzero, llremltzero)
+
+            llcond = llbuilder.and_(llremnonzero, lldiffsign)
+            with llbuilder.if_then(llcond):
+                llbuilder.ret(llbuilder.fadd(llrem, llw))
+            llbuilder.ret(llrem)
 
     def get_function(self, typ, name):
         llfun = self.llmodule.get_global(name)
