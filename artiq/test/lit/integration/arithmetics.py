@@ -26,10 +26,10 @@ assert -1 % 8 == 7
 #ARTIQ#assert int64(3) % -2 == -1
 #ARTIQ#assert int64(-3) % -2 == -1
 assert -1 % 8 == 7
-# assert 3.0 % 2.0 == 1.0
-# assert -3.0 % 2.0 == 1.0
-# assert 3.0 % -2.0 == -1.0
-# assert -3.0 % -2.0 == -1.0
+assert 3.0 % 2.0 == 1.0
+assert -3.0 % 2.0 == 1.0
+assert 3.0 % -2.0 == -1.0
+assert -3.0 % -2.0 == -1.0
 assert 3 ** 2 == 9
 assert 3.0 ** 2.0 == 9.0
 assert 9.0 ** 0.5 == 3.0
