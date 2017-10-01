@@ -334,11 +334,11 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llptr, [])
         elif name == "llvm.stackrestore":
             llty = ll.FunctionType(llvoid, [llptr])
-        elif name == "__py_modsi4":
+        elif name == "__py_modsi3":
             llty = ll.FunctionType(lli32, [lli32, lli32])
-        elif name == "__py_moddi4":
+        elif name == "__py_moddi3":
             llty = ll.FunctionType(lli64, [lli64, lli64])
-        elif name == "__py_moddf4":
+        elif name == "__py_moddf3":
             llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == self.target.print_function:
             llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
@@ -387,10 +387,10 @@ class LLVMIRGenerator:
         llbuilder = ll.IRBuilder()
         llbuilder.position_at_end(llfun.append_basic_block("entry"))
 
-        if name == "__py_modsi4" or name == "__py_moddi4":
-            if name == "__py_modsi4":
+        if name == "__py_modsi3" or name == "__py_moddi3":
+            if name == "__py_modsi3":
                 llty = lli32
-            elif name == "__py_moddi4":
+            elif name == "__py_moddi3":
                 llty = lli64
             else:
                 assert False
@@ -413,15 +413,14 @@ class LLVMIRGenerator:
             llxdivy = llbuilder.sdiv(llx, lly)
             llxremy = llbuilder.srem(llx, lly)
 
-            llxmodynonzero = llbuilder.icmp_signed('!=', llxremy,
-                                                   ll.Constant(llty, 0))
-            lldiffsign = llbuilder.icmp_signed('<', llbuilder.xor(lly, llxremy),
-                                               ll.Constant(llty, 0))
+            llxmodynonzero = llbuilder.icmp_signed('!=', llxremy, ll.Constant(llty, 0))
+            lldiffsign = llbuilder.icmp_signed('<', llbuilder.xor(llx, lly), ll.Constant(llty, 0))
+
             llcond = llbuilder.and_(llxmodynonzero, lldiffsign)
             with llbuilder.if_then(llcond):
                 llbuilder.ret(llbuilder.add(llxremy, lly))
             llbuilder.ret(llxremy)
-        elif name == "__py_moddf4":
+        elif name == "__py_moddf3":
             """
             Reference Objects/floatobject.c
                 mod = fmod(vx, wx);
@@ -461,6 +460,8 @@ class LLVMIRGenerator:
             with llbuilder.if_then(llcond):
                 llbuilder.ret(llbuilder.fadd(llrem, llw))
             llbuilder.ret(llrem)
+        else:
+            assert False
 
     def get_function(self, typ, name):
         llfun = self.llmodule.get_global(name)
@@ -1012,11 +1013,11 @@ class LLVMIRGenerator:
         elif isinstance(insn.op, ast.Mod):
             lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
             if builtins.is_float(insn.type):
-                intrinsic = "__py_moddf4"
+                intrinsic = "__py_moddf3"
             elif builtins.is_int32(insn.type):
-                intrinsic = "__py_modsi4"
+                intrinsic = "__py_modsi3"
             elif builtins.is_int64(insn.type):
-                intrinsic = "__py_moddi4"
+                intrinsic = "__py_moddi3"
             return self.llbuilder.call(self.llbuiltin(intrinsic), [lllhs, llrhs],
                                        name=insn.name)
         elif isinstance(insn.op, ast.Pow):
