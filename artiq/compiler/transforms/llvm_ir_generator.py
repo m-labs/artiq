@@ -326,6 +326,12 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llptr, [])
         elif name == "llvm.stackrestore":
             llty = ll.FunctionType(llvoid, [llptr])
+        elif name == "__py_modsi4":
+            llty = ll.FunctionType(lli32, [lli32, lli32])
+        elif name == "__py_moddi4":
+            llty = ll.FunctionType(lli64, [lli64, lli64])
+        elif name == "__py_moddf4":
+            llty = ll.FunctionType(lldouble, [lldouble, lldouble])
         elif name == self.target.print_function:
             llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "rtio_log":
@@ -363,10 +369,55 @@ class LLVMIRGenerator:
                         "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
+            if name.find("__py_") == 0:
+                llglobal.linkage = 'linkonce_odr'
+                self.emit_intrinsic(name, llglobal)
         else:
             llglobal = ll.GlobalVariable(self.llmodule, llty, name)
 
         return llglobal
+
+    def emit_intrinsic(self, name, llfun):
+        llbuilder = ll.IRBuilder()
+        llbuilder.position_at_end(llfun.append_basic_block("entry"))
+
+        if name == "__py_modsi4" or name == "__py_moddi4":
+            if name == "__py_modsi4":
+                llty = lli32
+            elif name == "__py_moddi4":
+                llty = lli64
+            else:
+                assert False
+
+            """
+            Reference Objects/intobject.c
+                xdivy = x / y;
+                xmody = (long)(x - (unsigned long)xdivy * y);
+                /* If the signs of x and y differ, and the remainder is non-0,
+                 * C89 doesn't define whether xdivy is now the floor or the
+                 * ceiling of the infinitely precise quotient.  We want the floor,
+                 * and we have it iff the remainder's sign matches y's.
+                 */
+                if (xmody && ((y ^ xmody) < 0) /* i.e. and signs differ */) {
+                    xmody += y;
+                    --xdivy;
+                    assert(xmody && ((y ^ xmody) >= 0));
+                }
+            """
+            llx, lly = llfun.args
+            llxdivy = llbuilder.sdiv(llx, lly)
+            llxremy = llbuilder.srem(llx, lly)
+
+            llxmodynonzero = llbuilder.icmp_signed('!=', llxremy,
+                                                   ll.Constant(llty, 0))
+            lldiffsign = llbuilder.icmp_signed('<', llbuilder.xor(lly, llxremy),
+                                               ll.Constant(llty, 0))
+            llcond = llbuilder.and_(llxmodynonzero, lldiffsign)
+            with llbuilder.if_then(llcond):
+                llbuilder.ret(llbuilder.add(llxremy, lly))
+            llbuilder.ret(llxremy)
+        elif name == "__py_moddf4":
+            assert False
 
     def get_function(self, typ, name):
         llfun = self.llmodule.get_global(name)
@@ -905,22 +956,15 @@ class LLVMIRGenerator:
                 return self.llbuilder.sdiv(self.map(insn.lhs()), self.map(insn.rhs()),
                                            name=insn.name)
         elif isinstance(insn.op, ast.Mod):
-            # Python only has the modulo operator, LLVM only has the remainder
+            lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
             if builtins.is_float(insn.type):
-                llvalue = self.llbuilder.frem(self.map(insn.lhs()), self.map(insn.rhs()))
-                self.add_fast_math_flags(llvalue)
-                return self.llbuilder.call(self.llbuiltin("llvm.copysign.f64"),
-                                           [llvalue, self.map(insn.rhs())],
-                                           name=insn.name)
-            else:
-                lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
-                llxorsign = self.llbuilder.and_(self.llbuilder.xor(lllhs, llrhs),
-                                                ll.Constant(lllhs.type, 1 << lllhs.type.width - 1))
-                llnegate = self.llbuilder.icmp_unsigned('!=',
-                                                        llxorsign, ll.Constant(llxorsign.type, 0))
-                llvalue = self.llbuilder.srem(lllhs, llrhs)
-                llnegvalue = self.llbuilder.sub(ll.Constant(llvalue.type, 0), llvalue)
-                return self.llbuilder.select(llnegate, llnegvalue, llvalue)
+                intrinsic = "__py_moddf4"
+            elif builtins.is_int32(insn.type):
+                intrinsic = "__py_modsi4"
+            elif builtins.is_int64(insn.type):
+                intrinsic = "__py_moddi4"
+            return self.llbuilder.call(self.llbuiltin(intrinsic), [lllhs, llrhs],
+                                       name=insn.name)
         elif isinstance(insn.op, ast.Pow):
             if builtins.is_float(insn.type):
                 return self.llbuilder.call(self.llbuiltin("llvm.pow.f64"),
