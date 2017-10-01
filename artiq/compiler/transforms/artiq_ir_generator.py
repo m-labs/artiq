@@ -1289,6 +1289,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return self.append(ir.Select(cond,
                         ir.Constant(False, builtins.TBool()),
                         ir.Constant(True,  builtins.TBool())))
+        elif isinstance(node.op, ast.Invert):
+            operand = self.visit(node.operand)
+            return self.append(ir.Arith(ast.BitXor(loc=None),
+                                        ir.Constant(-1, operand.type), operand))
         elif isinstance(node.op, ast.USub):
             operand = self.visit(node.operand)
             return self.append(ir.Arith(ast.Sub(loc=None),
