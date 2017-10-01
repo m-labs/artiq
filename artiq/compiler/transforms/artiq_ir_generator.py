@@ -1319,7 +1319,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     lambda: self.alloc_exn(builtins.TException("ValueError"),
                         ir.Constant("shift amount must be nonnegative", builtins.TStr())),
                     loc=node.right.loc)
-            elif isinstance(node.op, (ast.Div, ast.FloorDiv)):
+            elif isinstance(node.op, (ast.Div, ast.FloorDiv, ast.Mod)):
                 self._make_check(
                     self.append(ir.Compare(ast.NotEq(loc=None), rhs, ir.Constant(0, rhs.type))),
                     lambda: self.alloc_exn(builtins.TException("ZeroDivisionError"),
