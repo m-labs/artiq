@@ -63,11 +63,16 @@ No further notes.
 * Packages are no longer available for 32-bit Windows.
 
 
-2.4
+2.5
 ---
 
 No further notes.
 
+
+2.4
+---
+
+No further notes.
 
 
 2.3
