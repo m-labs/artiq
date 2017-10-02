@@ -34,7 +34,7 @@ fn send(request: &Message) {
 
 fn recv<R, F: FnOnce(&Message) -> R>(f: F) -> R {
     while mailbox::receive() == 0 {}
-    let result = f(unsafe { mem::transmute::<usize, &Message>(mailbox::receive()) });
+    let result = f(unsafe { &*(mailbox::receive() as *const Message) });
     mailbox::acknowledge();
     result
 }

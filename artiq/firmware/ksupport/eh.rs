@@ -409,7 +409,7 @@ static mut INFLIGHT: ExceptionInfo = ExceptionInfo {
 #[export_name="__artiq_raise"]
 #[unwind]
 pub unsafe extern fn raise(exception: *const Exception) -> ! {
-    // Zing! The Exception<'a> as Exception<'static> cast is not really sound in case
+    // Zing! The Exception<'a> to Exception<'static> transmute is not really sound in case
     // the exception is ever captured. Fortunately, they currently aren't, and we save
     // on the hassle of having to allocate exceptions somewhere except on stack.
     INFLIGHT.exception = Some(mem::transmute::<Exception, Exception<'static>>(*exception));

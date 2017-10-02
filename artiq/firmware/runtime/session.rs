@@ -150,7 +150,7 @@ fn kern_recv_notrace<R, F>(io: &Io, f: F) -> io::Result<R>
         return Err(io::Error::new(io::ErrorKind::InvalidData, message))
     }
 
-    f(unsafe { mem::transmute::<usize, &kern::Message>(mailbox::receive()) })
+    f(unsafe { &*(mailbox::receive() as *const kern::Message) })
 }
 
 fn kern_recv_dotrace(reply: &kern::Message) {
@@ -445,6 +445,8 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
                 kern_send(io, &kern::CacheGetReply {
+                    // Zing! This transmute is only safe because we dynamically track
+                    // whether the kernel has borrowed any values from the cache.
                     value: unsafe { mem::transmute::<*const [i32], &'static [i32]>(value) }
                 })
             }

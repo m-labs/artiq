@@ -4,7 +4,6 @@ extern crate log;
 extern crate log_buffer;
 extern crate board;
 
-use core::{mem, ptr};
 use core::cell::{Cell, RefCell};
 use core::fmt::Write;
 use log::{Log, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
@@ -43,12 +42,12 @@ impl BufferLogger {
         f();
         log::shutdown_logger_raw().unwrap();
         unsafe {
-            LOGGER = ptr::null();
+            LOGGER = 0 as *const _;
         }
     }
 
     pub fn with<R, F: FnOnce(&BufferLogger) -> R>(f: F) -> R {
-        f(unsafe { mem::transmute::<*const BufferLogger, &BufferLogger>(LOGGER) })
+        f(unsafe { &*LOGGER })
     }
 
     pub fn clear(&self) {
