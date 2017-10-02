@@ -35,10 +35,7 @@ macro_rules! borrow_mut {
     })
 }
 
-#[cfg(has_spiflash)]
 mod config;
-#[cfg(not(has_spiflash))]
-#[path="config_dummy.rs"] mod config;
 mod ethmac;
 mod rtio_mgt;
 
