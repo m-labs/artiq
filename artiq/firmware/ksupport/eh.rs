@@ -53,15 +53,6 @@ struct DwarfReader {
     pub ptr: *const u8,
 }
 
-#[repr(C,packed)]
-#[derive(Clone, Copy)]
-struct Unaligned<T>(T);
-
-// This contortion is required due to https://github.com/rust-lang/rust/issues/27060.
-impl<T> Unaligned<T> {
-    fn get(self) -> T { self.0 }
-}
-
 impl DwarfReader {
     fn new(ptr: *const u8) -> DwarfReader {
         DwarfReader { ptr: ptr }
@@ -72,9 +63,9 @@ impl DwarfReader {
     // alignment requirements. By wrapping data in a "packed" struct, we are
     // telling the backend to generate "misalignment-safe" code.
     unsafe fn read<T: Copy>(&mut self) -> T {
-        let result = *(self.ptr as *const Unaligned<T>);
+        let result = ptr::read_unaligned(self.ptr as *const T);
         self.ptr = self.ptr.offset(mem::size_of::<T>() as isize);
-        result.get()
+        result
     }
 
     // ULEB128 and SLEB128 encodings are defined in Section 7.6 - "Variable
