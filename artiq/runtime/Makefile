@@ -49,10 +49,11 @@ ksupport.elf: $(OBJECTS_KSUPPORT)
 		../libbase/crt0-$(CPU).o \
 		$^ \
 		-L../libbase \
+		-L../libm \
 		-L../libcompiler-rt \
 		-L../libunwind \
 		-L../libdyld \
-		-lbase-nofloat -lcompiler-rt -ldyld -lunwind
+		-lbase-nofloat -lm -lcompiler-rt -ldyld -lunwind
 	@chmod -x $@
 
 ksupport_data.o: ksupport.elf
