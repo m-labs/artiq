@@ -104,18 +104,16 @@ unsafe impl<'a> Alloc for &'a ListAlloc {
     }
 
     fn oom(&mut self, err: AllocErr) -> ! {
-        panic!("cannot allocate: {:?}", err)
+        panic!("heap view: {}\ncannot allocate: {:?}", self, err)
     }
 }
 
-impl ListAlloc {
-    pub fn debug_dump(&self, f: &mut fmt::Write) -> fmt::Result {
+impl fmt::Display for ListAlloc {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         unsafe {
             let mut total_busy = 0;
             let mut total_idle = 0;
             let mut total_meta = 0;
-
-            write!(f, "Heap view:\n")?;
 
             let mut curr = self.root;
             while !curr.is_null() {

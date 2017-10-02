@@ -21,6 +21,7 @@ dependencies = [
 name = "board"
 version = "0.0.0"
 dependencies = [
+ "build_artiq 0.0.0",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
