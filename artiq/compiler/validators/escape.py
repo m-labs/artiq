@@ -330,7 +330,7 @@ class EscapeValidator(algorithm.Visitor):
             self.visit_assignment(target, node.value)
 
     def visit_AugAssign(self, node):
-        if builtins.is_allocated(node.target.type):
+        if builtins.is_list(node.target.type):
             note = diagnostic.Diagnostic("note",
                 "try using `{lhs} = {lhs} {op} {rhs}` instead",
                 {"lhs": node.target.loc.source(),
@@ -338,7 +338,7 @@ class EscapeValidator(algorithm.Visitor):
                  "op": node.op.loc.source()[:-1]},
                 node.loc)
             diag = diagnostic.Diagnostic("error",
-                "values cannot be mutated in-place", {},
+                "lists cannot be mutated in-place", {},
                 node.op.loc, [node.target.loc],
                 notes=[note])
             self.engine.process(diag)
