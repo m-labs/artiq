@@ -298,8 +298,8 @@ class EscapeValidator(algorithm.Visitor):
     # and exceptions can only refer to strings, so we don't actually check
     # this property. But we will need to, if string operations are ever added.
 
-    def visit_assignment(self, target, value, is_aug_assign=False):
-        value_region  = self._region_of(value) if not is_aug_assign else self.youngest_region
+    def visit_assignment(self, target, value):
+        value_region  = self._region_of(value)
 
         # If this is a variable, we might need to contract the live range.
         if isinstance(value_region, Region):
@@ -316,19 +316,11 @@ class EscapeValidator(algorithm.Visitor):
         target_regions = [self._region_of(name) for name in target_names]
         for target_region in target_regions:
             if not Region.outlives(value_region, target_region):
-                if is_aug_assign:
-                    target_desc = "the assignment target, allocated here,"
-                else:
-                    target_desc = "the assignment target"
-                note = diagnostic.Diagnostic("note",
-                    "this expression has type {type}",
-                    {"type": types.TypePrinter().name(value.type)},
-                    value.loc)
                 diag = diagnostic.Diagnostic("error",
                     "the assigned value does not outlive the assignment target", {},
                     value.loc, [target.loc],
                     notes=self._diagnostics_for(target_region, target.loc,
-                                                target_desc) +
+                                                "the assignment target") +
                           self._diagnostics_for(value_region, value.loc,
                                                 "the assigned value"))
                 self.engine.process(diag)
@@ -339,9 +331,19 @@ class EscapeValidator(algorithm.Visitor):
 
     def visit_AugAssign(self, node):
         if builtins.is_allocated(node.target.type):
-            # If the target is mutable, op-assignment will allocate
-            # in the youngest region.
-            self.visit_assignment(node.target, node.value, is_aug_assign=True)
+            note = diagnostic.Diagnostic("note",
+                "try using `{lhs} = {lhs} {op} {rhs}` instead",
+                {"lhs": node.target.loc.source(),
+                 "rhs": node.value.loc.source(),
+                 "op": node.op.loc.source()[:-1]},
+                node.loc)
+            diag = diagnostic.Diagnostic("error",
+                "values cannot be mutated in-place", {},
+                node.op.loc, [node.target.loc],
+                notes=[note])
+            self.engine.process(diag)
+
+        self.visit_assignment(node.target, node.value)
 
     def visit_Return(self, node):
         region = self._region_of(node.value)
