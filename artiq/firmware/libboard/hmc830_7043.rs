@@ -10,6 +10,8 @@
  * sysref clock: 15.625MHz (div=64)
  */
 
+use clock;
+
 mod hmc830 {
     use csr;
 
@@ -74,7 +76,7 @@ mod hmc830 {
 
     pub fn init() -> Result<(), &'static str> {
         spi_setup();
-        let id = read(0);
+        let id = read(0x00);
         if id != 0xa7975 {
             error!("invalid HMC830 ID: 0x{:08x}", id);
             return Err("invalid HMC830 identification");
@@ -82,6 +84,14 @@ mod hmc830 {
         for &(addr, data) in HMC830_WRITES.iter() {
             write(addr, data);
         }
+
+        let t = clock::get_ms();
+        while read(0x12) & 0x02 == 0 {
+            if clock::get_ms() > t + 2000 {
+                return Err("HMC830 lock timeout");
+            }
+        }
+
         Ok(())
     }
 }
