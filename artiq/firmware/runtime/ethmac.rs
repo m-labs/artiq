@@ -3,19 +3,19 @@ use board::{csr, mem};
 use smoltcp::Error;
 use smoltcp::phy::{DeviceLimits, Device};
 
-const RX0_BASE: usize = mem::ETHMAC_BASE + 0x0000;
-const RX1_BASE: usize = mem::ETHMAC_BASE + 0x0800;
-const RX2_BASE: usize = mem::ETHMAC_BASE + 0x1000;
-const RX3_BASE: usize = mem::ETHMAC_BASE + 0x1800;
-const TX0_BASE: usize = mem::ETHMAC_BASE + 0x2000;
-const TX1_BASE: usize = mem::ETHMAC_BASE + 0x2800;
-const TX2_BASE: usize = mem::ETHMAC_BASE + 0x3000;
-const TX3_BASE: usize = mem::ETHMAC_BASE + 0x3800;
+const RX_SLOTS: usize = csr::ETHMAC_RX_SLOTS as usize;
+const TX_SLOTS: usize = csr::ETHMAC_TX_SLOTS as usize;
+const SLOT_SIZE: usize = csr::ETHMAC_SLOT_SIZE as usize;
 
-const RX_BUFFERS: [*mut u8; 4] = [RX0_BASE as *mut u8, RX1_BASE as *mut u8,
-                                  RX2_BASE as *mut u8, RX3_BASE as *mut u8];
-const TX_BUFFERS: [*mut u8; 4] = [TX0_BASE as *mut u8, TX1_BASE as *mut u8,
-                                  TX2_BASE as *mut u8, TX3_BASE as *mut u8];
+fn rx_buffer(slot: usize) -> *const u8 {
+    debug_assert!(slot < RX_SLOTS);
+    (mem::ETHMAC_BASE + SLOT_SIZE * slot) as _
+}
+
+fn tx_buffer(slot: usize) -> *mut u8 {
+    debug_assert!(slot < TX_SLOTS);
+    (mem::ETHMAC_BASE + SLOT_SIZE * (RX_SLOTS + slot)) as _
+}
 
 pub struct EthernetDevice;
 
@@ -26,35 +26,33 @@ impl Device for EthernetDevice {
     fn limits(&self) -> DeviceLimits {
         let mut limits = DeviceLimits::default();
         limits.max_transmission_unit = 1514;
-        limits.max_burst_size = Some(RX_BUFFERS.len());
+        limits.max_burst_size = Some(RX_SLOTS);
         limits
     }
 
     fn receive(&mut self, _timestamp: u64) -> Result<Self::RxBuffer, Error> {
         unsafe {
-            if csr::ethmac::sram_writer_ev_pending_read() != 0 {
-                let slot   = csr::ethmac::sram_writer_slot_read();
-                let length = csr::ethmac::sram_writer_length_read();
-                Ok(RxBuffer(slice::from_raw_parts(RX_BUFFERS[slot as usize],
-                                                  length as usize)))
-            } else {
-                Err(Error::Exhausted)
+            if csr::ethmac::sram_writer_ev_pending_read() == 0 {
+                return Err(Error::Exhausted)
             }
+
+            let slot = csr::ethmac::sram_writer_slot_read() as usize;
+            let length = csr::ethmac::sram_writer_length_read() as usize;
+            Ok(RxBuffer(slice::from_raw_parts(rx_buffer(slot), length)))
         }
     }
 
     fn transmit(&mut self, _timestamp: u64, length: usize) -> Result<Self::TxBuffer, Error> {
         unsafe {
-            if csr::ethmac::sram_reader_ready_read() != 0 {
-                let slot  = csr::ethmac::sram_reader_slot_read();
-                let slot  = (slot + 1) % (TX_BUFFERS.len() as u8);
-                csr::ethmac::sram_reader_slot_write(slot);
-                csr::ethmac::sram_reader_length_write(length as u16);
-                Ok(TxBuffer(slice::from_raw_parts_mut(TX_BUFFERS[slot as usize],
-                                                      length as usize)))
-            } else {
-                Err(Error::Exhausted)
+            if csr::ethmac::sram_reader_ready_read() == 0 {
+                return Err(Error::Exhausted)
             }
+
+            let slot = csr::ethmac::sram_reader_slot_read() as usize;
+            let slot = (slot + 1) % TX_SLOTS;
+            csr::ethmac::sram_reader_slot_write(slot as u8);
+            csr::ethmac::sram_reader_length_write(length as u16);
+            Ok(TxBuffer(slice::from_raw_parts_mut(tx_buffer(slot), length)))
         }
     }
 }
