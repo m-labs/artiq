@@ -254,7 +254,7 @@ class CRIMaster(Module, AutoCSR):
 
         # # #
 
-        underflow_trigger = Signal(2)
+        underflow_trigger = Signal()
         self.sync += [
             If(underflow_trigger,
                 self.underflow.w.eq(1),
