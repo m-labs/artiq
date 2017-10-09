@@ -5,6 +5,7 @@ import itertools
 from migen import *
 from misoc.interconnect import wishbone
 
+from artiq.coredevice.exceptions import RTIOUnderflow
 from artiq.gateware import rtio
 from artiq.gateware.rtio import dma, cri
 from artiq.gateware.rtio.phy import ttl_simple
@@ -56,6 +57,8 @@ def do_dma(dut, address):
     yield
     while ((yield from dut.enable.read())):
         yield
+    if (yield from dut.cri_master.underflow.read()):
+        raise RTIOUnderflow
 
 
 test_writes1 = [
