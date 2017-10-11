@@ -223,7 +223,7 @@ class ScanWidget(QtWidgets.QWidget):
             self._zoom(self.zoomFactor**y, ev.x())
 
     def resizeEvent(self, ev):
-        if not ev.oldSize().isValid():
+        if not ev.oldSize().isValid() or not ev.oldSize().width():
             self.viewRange()
             return
         self.ticker.min_ticks = max(
