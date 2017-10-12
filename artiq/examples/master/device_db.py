@@ -145,32 +145,89 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
-    "dac0": {
-        "type": "local",
-        "module": "artiq.coredevice.ad5360",
-        "class": "AD5360",
-        "arguments": {"spi_device": "spi0", "ldac_device": "ttl0"}
-    },
+	"latch_config": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 27}
+	},
+	
+	"clk_config": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 28}
+	},
+	
+	"ser_config": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 29}
+	},
+	
+	"rclk": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 30}
+	},
+	
+	"srclk": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 31}
+	},
+	
+	"ser_in": {
+	    "type": "local",
+		"module": "artiq.coredevice.ttl",
+		"class": "TTLOut",
+		"arguments": {"channel": 32}
+	},
+	
+	# "spi_zotino": {
+	    # "type": "local",
+		# "module": "artiq.coredevice.spi",
+		# "class": "SPIMaster",
+		# "arguments": {"channel": 33}
+	# },
+	
+	# "ldac_zotino": {
+	    # "type": "local",
+		# "module": "artiq.coredevice.ttl",
+		# "class": "TTLOut",
+		# "arguments": {"channel": 34}
+	# },
+	
+    # "dac1": {
+        # "type": "local",
+        # "module": "artiq.coredevice.ad5360",
+        # "class": "AD5360",
+        # "arguments": {"spi_device": "spi_zotino", "ldac_device": "ldac_zotino"}
+    # },
 
-    "dds0": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 0},
-        "comment": "Comments work in DDS panel as well"
-    },
-    "dds1": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 1}
-    },
-    "dds2": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 2}
-    },
+	
+    # "dds0": {
+        # "type": "local",
+        # "module": "artiq.coredevice.dds",
+        # "class": "DDSChannelAD9914",
+        # "arguments": {"bus_channel": 27, "channel": 0},
+        # "comment": "Comments work in DDS panel as well"
+    # },
+    # "dds1": {
+        # "type": "local",
+        # "module": "artiq.coredevice.dds",
+        # "class": "DDSChannelAD9914",
+        # "arguments": {"bus_channel": 27, "channel": 1}
+    # },
+    # "dds2": {
+        # "type": "local",
+        # "module": "artiq.coredevice.dds",
+        # "class": "DDSChannelAD9914",
+        # "arguments": {"bus_channel": 27, "channel": 2}
+    # },
 
     "lda": {
         "type": "controller",
