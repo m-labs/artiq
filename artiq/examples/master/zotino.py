@@ -16,7 +16,7 @@ class ZotinoTestDAC(EnvExperiment):
         srclk.off()
         rclk.off()
         delay(dt)
-        for i in range(n):
+        for i in range(n-1):  
             if data & 1 == 0:
                 ser.off()
             else:
