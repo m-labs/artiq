@@ -109,35 +109,35 @@ _sdcard_spi_33 = [
 
 _io_config = [
     ("io_config", 0,
-	    Subsignal("latch", Pins("HPC:LA32_P")),
-		Subsignal("clk", Pins("HPC:LA32_N")),
-		Subsignal("ser", Pins("HPC:LA33_P")),
-		IOStandard("LVCMOS33")
-	)
+        Subsignal("latch", Pins("HPC:LA32_P")),
+        Subsignal("clk", Pins("HPC:LA32_N")),
+	Subsignal("ser", Pins("HPC:LA33_P")),
+	IOStandard("LVCMOS33")
+    )
 ]
 
 _rclk = [
     ("rclk", 0,
-	    Subsignal("p", Pins("HPC:LA04_P")),
-		Subsignal("n", Pins("HPC:LA04_N")),
-		IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
-		)
+	Subsignal("p", Pins("HPC:LA04_P")),
+	Subsignal("n", Pins("HPC:LA04_N")),
+	IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
+    )
 ]
 
 _srclk = [
     ("srclk", 0,
         Subsignal("p", Pins("HPC:LA00_CC_P")),
-		Subsignal("n", Pins("HPC:LA00_CC_N")),
-		IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
-		)
+	Subsignal("n", Pins("HPC:LA00_CC_N")),
+	IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
+    )
 ]
 
 _ser_in = [
     ("ser_in", 0,
-	    Subsignal("p", Pins("HPC:LA08_P")),
-		Subsignal("n", Pins("HPC:LA08_N")),
-		IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
-		)
+	Subsignal("p", Pins("HPC:LA08_P")),
+	Subsignal("n", Pins("HPC:LA08_N")),
+	IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
+   )
 ]
 
 _zotino_spi = [
@@ -151,7 +151,7 @@ _zotino_spi = [
         Subsignal("cs_n_p", Pins("HPC:LA03_P")),
         Subsignal("cs_n_n", Pins("HPC:LA03_N")),
         IOStandard("LVDS_25")
-		)
+     )
 ]
 
 _zotino_ldac = [
@@ -196,12 +196,12 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
         self.platform.add_extension(_sdcard_spi_33)
-		self.platform.add_extension(_io_config)
-		self.platform.add_extension(_rclk)
-		self.platform.add_extension(_srclk)
-		self.platform.add_extension(_ser_in)
-		# self.platform.add_extension(_zotino_spi)
-		# self.platform.add_extension(_zotino_ldac)
+	self.platform.add_extension(_io_config)
+	self.platform.add_extension(_rclk)
+	self.platform.add_extension(_srclk)
+	self.platform.add_extension(_ser_in)
+	# self.platform.add_extension(_zotino_spi)
+	# self.platform.add_extension(_zotino_ldac)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -298,19 +298,19 @@ class NIST_CLOCK(_NIST_Ions):
             phy, ofifo_depth=4, ififo_depth=4))
 			
         ##io_config
-		io = self.platform.request("io_config", 0)
-		phy = ttl_simple.Output(io.latch)
-		self.submodules += phy
-		rtio_channels.append(rtio.Channel.from_phy(phy))
-		phy = ttl_simple.Output(io.clk)
-		self.submodules += phy
-		rtio_channels.append(rtio.Channel.from_phy(phy))
-		phy = ttl_simple.Output(io.ser)
-		self.submodules += phy
-		rtio_channels.append(rtio.Channel.from_phy(phy))
+	io = self.platform.request("io_config", 0)
+	phy = ttl_simple.Output(io.latch)
+	self.submodules += phy
+	rtio_channels.append(rtio.Channel.from_phy(phy))
+	phy = ttl_simple.Output(io.clk)
+	self.submodules += phy
+	rtio_channels.append(rtio.Channel.from_phy(phy))
+	phy = ttl_simple.Output(io.ser)
+	self.submodules += phy
+	rtio_channels.append(rtio.Channel.from_phy(phy))
 		
-		##led
-		pads = platform.request("rclk")
+	##led
+	pads = platform.request("rclk")
         phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
