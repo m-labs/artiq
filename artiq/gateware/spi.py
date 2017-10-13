@@ -249,7 +249,7 @@ class SPIMaster(Module):
         ]
 
         # I/O
-		if hasattr(iface, "cs_n_t"):
+	if hasattr(iface, "cs_n_t"):
             self.comb += [
                 iface.cs_n_t.oe.eq(~config.offline),
                 iface.cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
