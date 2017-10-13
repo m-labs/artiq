@@ -7,9 +7,9 @@ class ZotinoTestLED(EnvExperiment):
         self.setattr_device("latch_config")
         self.setattr_device("clk_config")
         self.setattr_device("ser_config")
-		self.setattr_device("rclk")
-		self.setattr_device("srclk")
-		self.setattr_device("ser_in")
+	self.setattr_device("rclk")
+	self.setattr_device("srclk")
+	self.setattr_device("ser_in")
 
     @kernel
     def put_data(self, rclk, srclk, ser, data, n): ## dir config or led control
@@ -18,7 +18,7 @@ class ZotinoTestLED(EnvExperiment):
         srclk.off()
         rclk.off()
         delay(dt)
-        for i in range(n):
+        for i in range(n-1):
             if data & 1 == 0:
                 ser.off()
             else:
@@ -29,19 +29,18 @@ class ZotinoTestLED(EnvExperiment):
             delay(dt)
             data = data >> 1
         srclk.off()
-        rclk.off()
-        delay(dt)
         rclk.on()
         delay(dt)
         rclk.off()
+        delay(dt)
 
 
     @kernel
     def run(self):
         self.core.reset()
         delay(1*ms)
-		self.put_data(latch_config, clk_config, ser_config, 0x0042, 32)   # 0000 0000 0100 0010
-		self.put_data(rclk, srclk, ser_in, 0xAA, 8)
+	self.put_data(latch_config, clk_config, ser_config, 0x0042, 32)   # 0000 0000 0100 0010
+	self.put_data(rclk, srclk, ser_in, 0xAA, 8)
 		
 		
         # while True:
