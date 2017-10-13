@@ -10,9 +10,9 @@
  * sysref clock: 15.625MHz (div=64)
  */
 
-use clock;
 
 mod hmc830 {
+    use clock;
     use csr;
 
     const HMC830_WRITES: [(u8, u32); 16] = [
