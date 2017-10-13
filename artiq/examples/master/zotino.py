@@ -36,14 +36,15 @@ class ZotinoTestDAC(EnvExperiment):
     def run(self):
         self.core.reset()
         delay(1*ms)
-		put_data(latch_config, clk_config, ser_config, 0x0042, 32)  # set direction on fmc
-		## first falling !(sync) start writing mode
-		## !(sync) high after 24 clock edges
-		## !(sync) low again for next transfer
-		
+	put_data(latch_config, clk_config, ser_config, 0x0042, 32)  # set direction on fmc
+	## first falling !(sync) start writing mode
+	## !(sync) high after 24 clock edges
+	## !(sync) low again for next transfer
+	
+	### mode bit == 00 to choose whether to write to X1A or X1B?, then write data to register?
         self.dac1.setup_bus(write_div=30, read_div=40)  #50MHz for write frequency, 20MHz for read frequency
         self.dac1.write_offsets()
-		self.dac1.set([0x00ff for i in range(32)])
+	self.dac1.set([0x00ff for i in range(32)])
         # self.zotino_dac.set([i << 10 for i in range(40)])
         # while(True):
             # self.zotino_dac.set([0x7fff for i in range(40)])
