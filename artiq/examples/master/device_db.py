@@ -145,61 +145,61 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
-	"latch_config": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 27}
-	},
+    "latch_config": {
+        "type": "local",
+	"module": "artiq.coredevice.ttl",
+	"class": "TTLOut",
+	"arguments": {"channel": 27}
+    },
 	
-	"clk_config": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 28}
-	},
+    "clk_config": {
+	"type": "local",
+        "module": "artiq.coredevice.ttl",
+	"class": "TTLOut",
+	"arguments": {"channel": 28}
+    },
 	
-	"ser_config": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 29}
-	},
+    "ser_config": {
+	"type": "local",
+	"module": "artiq.coredevice.ttl",
+	"class": "TTLOut",
+	"arguments": {"channel": 29}
+    },
 	
-	"rclk": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 30}
-	},
+    "rclk": {
+	"type": "local",
+        "module": "artiq.coredevice.ttl",
+	"class": "TTLOut",
+	"arguments": {"channel": 30}
+    },
 	
-	"srclk": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 31}
-	},
+    "srclk": {
+	"type": "local",
+	"module": "artiq.coredevice.ttl",
+	"class": "TTLOut",
+	"arguments": {"channel": 31}
+    },
 	
-	"ser_in": {
-	    "type": "local",
-		"module": "artiq.coredevice.ttl",
-		"class": "TTLOut",
-		"arguments": {"channel": 32}
-	},
+    "ser_in": {
+         "type": "local",
+         "module": "artiq.coredevice.ttl",
+	 "class": "TTLOut",
+	 "arguments": {"channel": 32}
+    },
 	
-	# "spi_zotino": {
-	    # "type": "local",
-		# "module": "artiq.coredevice.spi",
-		# "class": "SPIMaster",
-		# "arguments": {"channel": 33}
-	# },
+  # "spi_zotino": {
+       # "type": "local",
+       # "module": "artiq.coredevice.spi",
+       # "class": "SPIMaster",
+       # "arguments": {"channel": 33}
+  # },
 	
-	# "ldac_zotino": {
-	    # "type": "local",
-		# "module": "artiq.coredevice.ttl",
-		# "class": "TTLOut",
-		# "arguments": {"channel": 34}
-	# },
+  # "ldac_zotino": {
+       # "type": "local",
+       # "module": "artiq.coredevice.ttl",
+       # "class": "TTLOut",
+       # "arguments": {"channel": 34}
+  # },
 	
     # "dac1": {
         # "type": "local",
