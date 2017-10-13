@@ -150,7 +150,7 @@ class SPIMaster(Module):
             # bus = wishbone.Interface(data_width=32)
         # self.bus = bus
 		
-	def __init__(self, pads, bus=None, differential=False):
+    def __init__(self, pads, bus=None, differential=False):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
         self.bus = bus
