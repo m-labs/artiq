@@ -3,6 +3,8 @@
 
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate bitflags;
 
 use core::{cmp, ptr, str};
 
@@ -11,6 +13,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
 pub mod spr;
 pub mod irq;
 pub mod cache;
+pub mod pcr;
 pub mod clock;
 pub mod uart;
 #[cfg(feature = "uart_console")]
