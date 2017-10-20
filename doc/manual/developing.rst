@@ -161,7 +161,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
         ::
 
             $ cd ~/artiq-dev
-            $ wget https://raw.githubusercontent.com/jordens/bscan_spi_bitstreams/single-tap/bscan_spi_xc7k325t.bit
+            $ wget https://raw.githubusercontent.com/jordens/bscan_spi_bitstreams/master/bscan_spi_xc7k325t.bit
 
         Then move ``~/artiq-dev/bscan_spi_xc7k325t.bit`` to ``~/.migen``, ``/usr/local/share/migen``, or ``/usr/share/migen``.
 
