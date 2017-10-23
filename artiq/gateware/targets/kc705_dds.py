@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
-                                     dds, spi)
+                                     dds, spi, ad5360_monitor)
 from artiq import __version__ as artiq_version
 
 
@@ -259,15 +259,19 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
-        phy = spi.SPIMaster(self.platform.request("zotino_spi_p", 0),
-                            self.platform.request("zotino_spi_n", 0))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+        sdac_phy = spi.SPIMaster(self.platform.request("zotino_spi_p", 0),
+                                 self.platform.request("zotino_spi_n", 0))
+        self.submodules += sdac_phy
+        rtio_channels.append(rtio.Channel.from_phy(sdac_phy, ififo_depth=4))
 
         pads = platform.request("zotino_ldac")
-        phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        ldac_phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+        self.submodules += ldac_phy
+        rtio_channels.append(rtio.Channel.from_phy(ldac_phy))
+
+        dac_monitor = ad5360_monitor.AD5360Monitor(sdac_phy.rtlink, ldac_phy.rtlink)
+        self.submodules += dac_monitor
+        sdac_phy.probes.extend(dac_monitor.probes)
 
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
