@@ -104,7 +104,7 @@ class SPIMaster(Module):
     data (address 0):
         M write/read data (reset=0)
     """
-    def __init__(self, pads, bus=None):
+    def __init__(self, pads, pads_n=None, bus=None):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
         self.bus = bus
@@ -197,31 +197,63 @@ class SPIMaster(Module):
         ]
 
         # I/O
-        if hasattr(pads, "cs_n"):
-            cs_n_t = TSTriple(len(pads.cs_n))
-            self.specials += cs_n_t.get_tristate(pads.cs_n)
+        mosi_oe = Signal()
+        clk = Signal()
+        self.comb += [
+            mosi_oe.eq(
+                ~config.offline & spi.cs &
+                (spi.oe | ~config.half_duplex)),
+            clk.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity)
+        ]
+
+        if pads_n is None:
+            if hasattr(pads, "cs_n"):
+                cs_n_t = TSTriple(len(pads.cs_n))
+                self.specials += cs_n_t.get_tristate(pads.cs_n)
+                self.comb += [
+                    cs_n_t.oe.eq(~config.offline),
+                    cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
+                                Replicate(~config.cs_polarity, len(cs))),
+                ]
+
+            clk_t = TSTriple()
+            self.specials += clk_t.get_tristate(pads.clk)
             self.comb += [
-                cs_n_t.oe.eq(~config.offline),
-                cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
-                            Replicate(~config.cs_polarity, len(cs))),
+                clk_t.oe.eq(~config.offline),
+                clk_t.o.eq(clk),
             ]
 
-        clk_t = TSTriple()
-        self.specials += clk_t.get_tristate(pads.clk)
-        self.comb += [
-            clk_t.oe.eq(~config.offline),
-            clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
-        ]
+            mosi_t = TSTriple()
+            self.specials += mosi_t.get_tristate(pads.mosi)
+            self.comb += [
+                mosi_t.oe.eq(mosi_oe),
+                mosi_t.o.eq(spi.reg.o),
+                spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
+                                 getattr(pads, "miso", mosi_t.i))),
+            ]
+        else:
+            if hasattr(pads, "cs_n"):
+                for i in range(len(pads.cs_n)):
+                    self.specials += Instance("IOBUFDS",
+                        i_I=(cs[i] & spi.cs) ^ ~config.cs_polarity,
+                        i_T=config.offline,
+                        io_IO=pads.cs_n[i], io_IOB=pads_n.cs_n[i])
 
-        mosi_t = TSTriple()
-        self.specials += mosi_t.get_tristate(pads.mosi)
-        self.comb += [
-            mosi_t.oe.eq(~config.offline & spi.cs &
-                         (spi.oe | ~config.half_duplex)),
-            mosi_t.o.eq(spi.reg.o),
-            spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
-                             getattr(pads, "miso", mosi_t.i))),
-        ]
+            self.specials += Instance("IOBUFDS",
+                i_I=clk, i_T=config.offline,
+                io_IO=pads.clk, io_IOB=pads_n.clk)
+
+            mosi = Signal()
+            self.specials += Instance("IOBUFDS",
+                o_O=mosi, i_I=spi.reg.o, i_T=~mosi_oe,
+                io_IO=pads.mosi, io_IOB=pads_n.mosi)
+            if hasattr(pads, "miso"):
+                miso = Signal()
+                self.specials += Instance("IBUFDS",
+                    o_O=miso, i_I=pads.miso, i_IB=pads_n.miso)
+            else:
+                miso = mosi
+            self.comb += spi.reg.i.eq(Mux(config.half_duplex, mosi, miso))
 
 
 SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
