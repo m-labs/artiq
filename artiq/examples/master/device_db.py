@@ -45,58 +45,6 @@ device_db = {
         "class": "PCA9548"
     },
 
-    "ttl0": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 0},
-        "comment": "This is a fairly long comment, shown as tooltip."
-    },
-    "ttl1": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 1},
-        "comment": "Hello World"
-    },
-    "ttl2": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 2}
-    },
-    "ttl3": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLInOut",
-        "arguments": {"channel": 3}
-    },
-
-    "ttl4": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 4}
-    },
-    "ttl5": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 5}
-    },
-    "ttl6": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 6}
-    },
-    "ttl7": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLInOut",
-        "arguments": {"channel": 7}
-    },
-
 
     "ttl_sma": {
         "type": "local",
@@ -147,66 +95,66 @@ device_db = {
 
     "latch_config": {
         "type": "local",
-	"module": "artiq.coredevice.ttl",
-	"class": "TTLOut",
-	"arguments": {"channel": 27}
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 27}
     },
 	
     "clk_config": {
-	"type": "local",
+        "type": "local",
         "module": "artiq.coredevice.ttl",
-	"class": "TTLOut",
-	"arguments": {"channel": 28}
+        "class": "TTLOut",
+        "arguments": {"channel": 28}
     },
 	
     "ser_config": {
-	"type": "local",
-	"module": "artiq.coredevice.ttl",
-	"class": "TTLOut",
-	"arguments": {"channel": 29}
-    },
-	
-    "rclk": {
-	"type": "local",
+        "type": "local",
         "module": "artiq.coredevice.ttl",
-	"class": "TTLOut",
-	"arguments": {"channel": 30}
+        "class": "TTLOut",
+        "arguments": {"channel": 29}
     },
 	
-    "srclk": {
-	"type": "local",
-	"module": "artiq.coredevice.ttl",
-	"class": "TTLOut",
-	"arguments": {"channel": 31}
-    },
-	
-    "ser_in": {
-         "type": "local",
-         "module": "artiq.coredevice.ttl",
-	 "class": "TTLOut",
-	 "arguments": {"channel": 32}
-    },
-	
-  # "spi_zotino": {
-       # "type": "local",
-       # "module": "artiq.coredevice.spi",
-       # "class": "SPIMaster",
-       # "arguments": {"channel": 33}
-  # },
-	
-  # "ldac_zotino": {
-       # "type": "local",
-       # "module": "artiq.coredevice.ttl",
-       # "class": "TTLOut",
-       # "arguments": {"channel": 34}
-  # },
-	
-    # "dac1": {
+    # "rclk_config": {
         # "type": "local",
-        # "module": "artiq.coredevice.ad5360",
-        # "class": "AD5360",
-        # "arguments": {"spi_device": "spi_zotino", "ldac_device": "ldac_zotino"}
+        # "module": "artiq.coredevice.ttl",
+        # "class": "TTLOut",
+        # "arguments": {"channel": 30}
     # },
+	
+    # "srclk_config": {
+        # "type": "local",
+        # "module": "artiq.coredevice.ttl",
+        # "class": "TTLOut",
+        # "arguments": {"channel": 31}
+    # },
+	
+    # "ser_in_config": {
+        # "type": "local",
+        # "module": "artiq.coredevice.ttl",
+        # "class": "TTLOut",
+        # "arguments": {"channel": 32}
+    # },
+	
+  "spi_zotino": {
+       "type": "local",
+       "module": "artiq.coredevice.spi",
+       "class": "SPIMaster",
+       "arguments": {"channel": 30}
+  },
+	
+  "ldac_zotino": {
+       "type": "local",
+       "module": "artiq.coredevice.ttl",
+       "class": "TTLOut",
+       "arguments": {"channel": 31}
+  },
+	
+  "dac1": {
+       "type": "local",
+       "module": "artiq.coredevice.ad5360",
+       "class": "AD5360",
+       "arguments": {"spi_device": "spi_zotino", "ldac_device": "ldac_zotino"}
+   },
 
 	
     # "dds0": {
