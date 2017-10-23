@@ -58,6 +58,14 @@ def scripts_path():
     return p
 
 
+def proxy_path():
+    p = ["share", "bscan-spi-bitstreams"]
+    p = os.path.abspath(os.path.join(
+        os.path.dirname(shutil.which("openocd")),
+        "..", *p))
+    return p
+
+
 class Programmer:
     def __init__(self, target_file):
         self.target_file = target_file
@@ -218,7 +226,7 @@ def main():
     for action in opts.action:
         if action == "proxy":
             proxy_found = False
-            for p in [bin_dir, os.path.expanduser("~/.migen"),
+            for p in [bin_dir, proxy_path(), os.path.expanduser("~/.migen"),
                       "/usr/local/share/migen", "/usr/share/migen"]:
                 proxy_bitfile = os.path.join(p, config["proxy_bitfile"])
                 if os.access(proxy_bitfile, os.R_OK):
