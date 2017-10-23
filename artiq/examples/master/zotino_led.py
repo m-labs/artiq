@@ -2,7 +2,6 @@ from artiq.experiment import *
 
 class ZotinoTestLED(EnvExperiment):
     def build(self):
-        print(self.__doc__)
         self.setattr_device("core")
         self.setattr_device("latch_config")
         self.setattr_device("clk_config")
@@ -47,9 +46,3 @@ class ZotinoTestLED(EnvExperiment):
         self.put_data(self.latch_config, self.clk_config, self.ser_config, 0x0042, 32)   # 0000 0000 0100 0010
         self.put_data(self.rclk, self.srclk, self.ser_in, 0xAA, 8)
 		
-		
-        # while True:
-            # self.SN74LV595A_putData(self.lpc_eem0_0, self.lpc_eem0_4, self.lpc_eem0_1, 0xAA)
-            # delay(500*ms)
-            # self.SN74LV595A_putData(self.lpc_eem0_0, self.lpc_eem0_4, self.lpc_eem0_1, 0x55)
-            # delay(500*ms)

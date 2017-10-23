@@ -135,27 +135,26 @@ device_db = {
         # "arguments": {"channel": 32}
     # },
 	
-  "spi_zotino": {
+    "spi_zotino": {
        "type": "local",
        "module": "artiq.coredevice.spi",
        "class": "SPIMaster",
        "arguments": {"channel": 30}
-  },
+    },
 	
-  "ldac_zotino": {
+    "ldac_zotino": {
        "type": "local",
        "module": "artiq.coredevice.ttl",
        "class": "TTLOut",
        "arguments": {"channel": 31}
-  },
+    },
 	
-  "dac1": {
+    "dac1": {
        "type": "local",
        "module": "artiq.coredevice.ad5360",
        "class": "AD5360",
        "arguments": {"spi_device": "spi_zotino", "ldac_device": "ldac_zotino"}
-   },
-
+     },
 	
     # "dds0": {
         # "type": "local",

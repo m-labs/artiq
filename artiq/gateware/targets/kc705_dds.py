@@ -113,7 +113,7 @@ _io_config = [
         Subsignal("clk", Pins("HPC:LA32_N")),
 	    Subsignal("ser", Pins("HPC:LA33_P")),
 	    IOStandard("LVCMOS33")
-    )
+        )
 ]
 
 _rclk = [
@@ -142,22 +142,22 @@ _ser_in = [
 
 _zotino_spi = [
     ("zotino_spi", 0,
-        Subsignal("clk_p", Pins("HPC:LA00_CC_P")),
-        Subsignal("clk_n", Pins("HPC:LA00_CC_N")),
-        Subsignal("miso_p", Pins("HPC:LA02_P")),
-        Subsignal("miso_n", Pins("HPC:LA02_N")),
-        Subsignal("mosi_p", Pins("HPC:LA08_P")),
-        Subsignal("mosi_n", Pins("HPC:LA08_N")),
-        Subsignal("cs_n_p", Pins("HPC:LA03_P")),
-        Subsignal("cs_n_n", Pins("HPC:LA03_N")),
+        Subsignal("clk_p", Pins("HPC:LA08_P")),
+        Subsignal("clk_n", Pins("HPC:LA08_N")),
+        Subsignal("mosi_p", Pins("HPC:LA09_P")),
+        Subsignal("mosi_n", Pins("HPC:LA09_N")),
+        Subsignal("miso_p", Pins("HPC:LA10_P")),
+        Subsignal("miso_n", Pins("HPC:LA10_N")),
+        Subsignal("cs_n_p", Pins("HPC:LA11_P")),
+        Subsignal("cs_n_n", Pins("HPC:LA11_N")),
         IOStandard("LVDS_25")
      )
 ]
 
 _zotino_ldac = [
     ("zotino_ldac", 0,
-        Subsignal("p", Pins("HPC:LA05_P")),
-        Subsignal("n", Pins("HPC:LA05_N")),
+        Subsignal("p", Pins("HPC:LA13_P")),
+        Subsignal("n", Pins("HPC:LA13_N")),
         IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
      )
 ]
@@ -197,11 +197,11 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.platform.add_extension(_ams101_dac)
         self.platform.add_extension(_sdcard_spi_33)
         self.platform.add_extension(_io_config)
-        self.platform.add_extension(_rclk)
-        self.platform.add_extension(_srclk)
-        self.platform.add_extension(_ser_in)
-        # self.platform.add_extension(_zotino_spi)
-        # self.platform.add_extension(_zotino_ldac)
+        # self.platform.add_extension(_rclk)
+        # self.platform.add_extension(_srclk)
+        # self.platform.add_extension(_ser_in)
+        self.platform.add_extension(_zotino_spi)
+        self.platform.add_extension(_zotino_ldac)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -313,30 +313,30 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 		
 	##led
-        pads = platform.request("rclk")
-        phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
-        
-        pads = platform.request("srclk")
-        phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
-        
-        pads = platform.request("ser_in")
-        phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
-		
-        # phy = spi.SPIMaster(self.platform.request("zotino_spi", 0), differential=True)
-        # self.submodules += phy
-        # rtio_channels.append(rtio.Channel.from_phy(
-            # phy, ofifo_depth=128, ififo_depth=128))
-			
-        # pads = platform.request("zotino_ldac")
+        # pads = platform.request("rclk")
         # phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
         # self.submodules += phy
         # rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
+        
+        # pads = platform.request("srclk")
+        # phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+        # self.submodules += phy
+        # rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
+        
+        # pads = platform.request("ser_in")
+        # phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+        # self.submodules += phy
+        # rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
+		
+        phy = spi.SPIMaster(self.platform.request("zotino_spi", 0), differential=True)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ofifo_depth=128, ififo_depth=128))
+			
+        pads = platform.request("zotino_ldac")
+        phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=64))
 
         
         # phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
