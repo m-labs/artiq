@@ -68,6 +68,8 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 21                 | LA32_P                | Clock        |
 +--------------------+-----------------------+--------------+
+| 28                 | ZOTINO_LDAC           | Output       |
++--------------------+-----------------------+--------------+
 
 The board has RTIO SPI buses mapped as follows:
 
@@ -84,8 +86,10 @@ The board has RTIO SPI buses mapped as follows:
 +--------------+--------------+--------------+--------------+------------+
 | 26           | MMC_SPI_CS_N | MMC_SPI_MOSI | MMC_SPI_MISO | MMC_SPI_CLK|
 +--------------+--------------+--------------+--------------+------------+
+| 27           | ZOTINO_CS_N  | ZOTINO_MOSI  | ZOTINO_MISO  | ZOTINO_CLK |
++--------------+--------------+--------------+--------------+------------+
 
-The DDS bus is on channel 27.
+The DDS bus is on channel 29.
 
 
 NIST QC2

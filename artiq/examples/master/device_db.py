@@ -33,7 +33,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 26,
+            "first_dds_bus_channel": 29,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
@@ -156,20 +156,20 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 0},
+        "arguments": {"bus_channel": 29, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 1}
+        "arguments": {"bus_channel": 29, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 27, "channel": 2}
+        "arguments": {"bus_channel": 29, "channel": 2}
     },
 
     "lda": {
