@@ -174,8 +174,8 @@ class AD5360:
                                self.bus.ref_period_mu) -
                  3*self.bus.ref_period_mu -
                  self.core.seconds_to_mu(1.5*us))
-        for i, value in enumerate(values):
-            self.write_channel(i, value, op)
+        for i in range(len(values)):
+            self.write_channel(i, values[i], op)
         delay_mu(3*self.bus.ref_period_mu +  # latency alignment ttl to spi
                  self.core.seconds_to_mu(1.5*us))  # t10 max busy low for one channel
         self.load()
