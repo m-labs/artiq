@@ -33,7 +33,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 26,
+            "first_dds_bus_channel": 27,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
