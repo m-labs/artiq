@@ -1,7 +1,7 @@
 use core::slice;
 use board::{csr, mem};
 use smoltcp::Error;
-use smoltcp::phy::{DeviceLimits, Device};
+use smoltcp::phy::{DeviceCapabilities, Device};
 
 const RX0_BASE: usize = mem::ETHMAC_BASE + 0x0000;
 const RX1_BASE: usize = mem::ETHMAC_BASE + 0x0800;
@@ -23,11 +23,11 @@ impl Device for EthernetDevice {
     type RxBuffer = RxBuffer;
     type TxBuffer = TxBuffer;
 
-    fn limits(&self) -> DeviceLimits {
-        let mut limits = DeviceLimits::default();
-        limits.max_transmission_unit = 1514;
-        limits.max_burst_size = Some(RX_BUFFERS.len());
-        limits
+    fn capabilities(&self) -> DeviceCapabilities {
+        let mut caps = DeviceCapabilities::default();
+        caps.max_transmission_unit = 1514;
+        caps.max_burst_size = Some(RX_BUFFERS.len());
+        caps
     }
 
     fn receive(&mut self, _timestamp: u64) -> Result<Self::RxBuffer, Error> {
