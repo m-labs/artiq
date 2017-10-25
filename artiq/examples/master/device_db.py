@@ -5,6 +5,7 @@
 core_addr = "kc705.lab.m-labs.hk"
 
 device_db = {
+    # Core device
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
@@ -45,6 +46,7 @@ device_db = {
         "class": "PCA9548"
     },
 
+    # Generic TTL
     "ttl0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -96,8 +98,6 @@ device_db = {
         "class": "TTLInOut",
         "arguments": {"channel": 7}
     },
-
-
     "ttl_sma": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -110,13 +110,6 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 19}
     },
-
-    "ttl_ams101_ldac": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 20}
-    },
     "ttl_clock_la32_p": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -124,20 +117,13 @@ device_db = {
         "arguments": {"channel": 21}
     },
 
-    "spi_ams101": {
-        "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
-        "arguments": {"channel": 22}
-    },
-
+    # Generic SPI
     "spi0": {
         "type": "local",
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
-    
     "spi_mmc": { 
         "type": "local",
         "module": "artiq.coredevice.spi",
@@ -145,13 +131,39 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
-    "dac0": {
+    # DAC
+    "spi_ams101": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 22}
+    },
+    "ttl_ams101_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 20}
+    },
+    "spi_zotino": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 27}
+    },
+    "ttl_zotino_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 28}
+    },
+    "dac_zotino": {
         "type": "local",
         "module": "artiq.coredevice.ad5360",
         "class": "AD5360",
-        "arguments": {"spi_device": "spi0", "ldac_device": "ttl0"}
+        "arguments": {"spi_device": "spi_zotino", "ldac_device": "ttl_zotino_ldac"}
     },
 
+    # AD9914 DDS
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
@@ -172,6 +184,7 @@ device_db = {
         "arguments": {"bus_channel": 29, "channel": 2}
     },
 
+    # Controllers
     "lda": {
         "type": "controller",
         "best_effort": True,
@@ -193,7 +206,7 @@ device_db = {
         "target_name": "camera_sim_rexec"
     },
 
-
+    # Aliases
     "ttl_out": "ttl0",
     "ttl_out_serdes": "ttl0",
 
