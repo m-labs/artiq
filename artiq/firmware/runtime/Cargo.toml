@@ -39,4 +39,4 @@ features = ["alloc"]
 git = "https://github.com/m-labs/smoltcp"
 rev = "f64a99a"
 default-features = false
-features = ["alloc", "log", "proto-udp", "proto-tcp"]
+features = ["alloc", "log", "proto-tcp"]
