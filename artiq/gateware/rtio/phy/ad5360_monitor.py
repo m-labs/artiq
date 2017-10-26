@@ -39,7 +39,7 @@ class AD5360Monitor(Module):
                 )
             ]
 
-        writes = {_AD5360_CMD_DATA | _AD5360_WRITE_CHANNEL(i): t.eq(spi_oif.data[8:24])
+        writes = {(_AD5360_CMD_DATA | _AD5360_WRITE_CHANNEL(i)) >> 16: t.eq(spi_oif.data[8:24])
                   for i, t in enumerate(write_targets)}
         self.sync.rio_phy += [
             If(spi_oif.stb & (spi_oif.address == SPI_DATA_ADDR),
