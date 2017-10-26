@@ -4,7 +4,7 @@ from artiq.experiment import *
 class AD5360Test(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.dac = self.get_device("dac0")
+        self.dac = self.get_device("dac_zotino")
         self.setattr_device("led")
 
     @kernel
@@ -15,4 +15,4 @@ class AD5360Test(EnvExperiment):
         self.led.on()
         delay(400*us)
         self.led.off()
-        self.dac.set([i << 10 for i in range(40)])
+        self.dac.set([i << 10 for i in range(32)])
