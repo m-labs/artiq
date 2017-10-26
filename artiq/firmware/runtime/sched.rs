@@ -1,18 +1,19 @@
 #![allow(dead_code)]
 
 use std::mem;
-use std::cell::{Cell, RefCell, RefMut};
+use std::cell::{Cell, RefCell};
 use std::vec::Vec;
 use std::io::{Read, Write, Result, Error, ErrorKind};
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 
 use smoltcp::wire::IpEndpoint;
-use smoltcp::socket::{AsSocket, SocketHandle};
-type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
+use smoltcp::socket::{SocketHandle, SocketRef};
 
 use board;
 use urc::Urc;
+
+type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
 #[derive(Debug)]
 struct WaitRequest {
@@ -241,85 +242,16 @@ macro_rules! until {
         let (sockets, handle) = ($socket.io.sockets.clone(), $socket.handle);
         $socket.io.until(move || {
             let mut sockets = borrow_mut!(sockets);
-            let $var: &mut $ty = sockets.get_mut(handle).as_socket();
+            let $var = sockets.get::<$ty>(handle);
             $cond
         })
     })
 }
 
+
 use ::smoltcp::Error as ErrorLower;
 // https://github.com/rust-lang/rust/issues/44057
 // type ErrorLower = ::smoltcp::Error;
-
-type UdpPacketBuffer = ::smoltcp::socket::UdpPacketBuffer<'static>;
-type UdpSocketBuffer = ::smoltcp::socket::UdpSocketBuffer<'static, 'static>;
-type UdpSocketLower  = ::smoltcp::socket::UdpSocket<'static, 'static>;
-
-pub struct UdpSocket<'a> {
-    io:     &'a Io<'a>,
-    handle: SocketHandle
-}
-
-impl<'a> UdpSocket<'a> {
-    pub fn new(io: &'a Io<'a>, buffer_depth: usize, buffer_width: usize) -> UdpSocket<'a> {
-        let mut rx_buffer = vec![];
-        let mut tx_buffer = vec![];
-        for _ in 0..buffer_depth {
-            rx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
-            tx_buffer.push(UdpPacketBuffer::new(vec![0; buffer_width]));
-        }
-        let handle = borrow_mut!(io.sockets)
-                        .add(UdpSocketLower::new(
-                                UdpSocketBuffer::new(rx_buffer),
-                                UdpSocketBuffer::new(tx_buffer)));
-        UdpSocket {
-            io:     io,
-            handle: handle
-        }
-    }
-
-    fn as_lower<'b>(&'b self) -> RefMut<'b, UdpSocketLower> {
-        RefMut::map(borrow_mut!(self.io.sockets),
-                    |sockets| sockets.get_mut(self.handle).as_socket())
-    }
-
-    pub fn bind<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
-        match self.as_lower().bind(endpoint) {
-            Ok(()) => Ok(()),
-            Err(ErrorLower::Illegal) =>
-                Err(Error::new(ErrorKind::Other, "already listening")),
-            Err(ErrorLower::Unaddressable) =>
-                Err(Error::new(ErrorKind::AddrNotAvailable, "port cannot be zero")),
-            _ => unreachable!()
-        }
-    }
-
-    pub fn recv_from(&self, buf: &mut [u8]) -> Result<(usize, IpEndpoint)> {
-        until!(self, UdpSocketLower, |s| s.can_recv())?;
-        match self.as_lower().recv_slice(buf) {
-            Ok(result) => Ok(result),
-            Err(_) => unreachable!()
-        }
-    }
-
-    pub fn send_to(&self, buf: &[u8], addr: IpEndpoint) -> Result<()> {
-        until!(self, UdpSocketLower, |s| s.can_send())?;
-        match self.as_lower().send_slice(buf, addr) {
-            Ok(()) => Ok(()),
-            Err(ErrorLower::Unaddressable) =>
-                Err(Error::new(ErrorKind::AddrNotAvailable, "unaddressable destination")),
-            Err(ErrorLower::Truncated) =>
-                Err(Error::new(ErrorKind::Other, "packet does not fit in buffer")),
-            Err(_) => unreachable!()
-        }
-    }
-}
-
-impl<'a> Drop for UdpSocket<'a> {
-    fn drop(&mut self) {
-        borrow_mut!(self.io.sockets).release(self.handle)
-    }
-}
 
 type TcpSocketBuffer = ::smoltcp::socket::TcpSocketBuffer<'static>;
 type TcpSocketLower  = ::smoltcp::socket::TcpSocket<'static>;
@@ -352,35 +284,41 @@ impl<'a> TcpListener<'a> {
         }
     }
 
-    fn as_lower<'b>(&'b self) -> RefMut<'b, TcpSocketLower> {
-        RefMut::map(borrow_mut!(self.io.sockets),
-                    |sockets| sockets.get_mut(self.handle.get()).as_socket())
+    fn with_lower<F, R>(&self, f: F) -> R
+            where F: FnOnce(SocketRef<TcpSocketLower>) -> R {
+        let mut sockets = borrow_mut!(self.io.sockets);
+        let result = f(sockets.get(self.handle.get()));
+        result
     }
 
     pub fn is_open(&self) -> bool {
-        self.as_lower().is_open()
+        self.with_lower(|s| s.is_open())
     }
 
     pub fn can_accept(&self) -> bool {
-        self.as_lower().is_active()
+        self.with_lower(|s| s.is_active())
     }
 
     pub fn local_endpoint(&self) -> IpEndpoint {
-        self.as_lower().local_endpoint()
+        self.with_lower(|s| s.local_endpoint())
     }
 
     pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
         let endpoint = endpoint.into();
-        match self.as_lower().listen(endpoint) {
-            Ok(()) => Ok(()),
-            Err(ErrorLower::Illegal) =>
-                Err(Error::new(ErrorKind::Other, "already listening")),
-            Err(ErrorLower::Unaddressable) =>
-                Err(Error::new(ErrorKind::InvalidInput, "port cannot be zero")),
-            _ => unreachable!()
-        }?;
-        self.endpoint.set(endpoint);
-        Ok(())
+        self.with_lower(|mut s| s.listen(endpoint))
+            .map(|()| {
+                self.endpoint.set(endpoint);
+                ()
+            })
+            .map_err(|err| {
+                match err {
+                    ErrorLower::Illegal =>
+                        Error::new(ErrorKind::Other, "already listening"),
+                    ErrorLower::Unaddressable =>
+                        Error::new(ErrorKind::InvalidInput, "port cannot be zero"),
+                    _ => unreachable!()
+                }
+            })
     }
 
     pub fn accept(&self) -> Result<TcpStream<'a>> {
@@ -390,7 +328,7 @@ impl<'a> TcpListener<'a> {
         let (sockets, handle) = (self.io.sockets.clone(), self.handle.get());
         self.io.until(move || {
             let mut sockets = borrow_mut!(sockets);
-            let socket: &mut TcpSocketLower = sockets.get_mut(handle).as_socket();
+            let socket = sockets.get::<TcpSocketLower>(handle);
             socket.may_send() || socket.may_recv()
         })?;
 
@@ -407,13 +345,13 @@ impl<'a> TcpListener<'a> {
     }
 
     pub fn close(&self) {
-        self.as_lower().close()
+        self.with_lower(|mut s| s.close())
     }
 }
 
 impl<'a> Drop for TcpListener<'a> {
     fn drop(&mut self) {
-        self.as_lower().close();
+        self.with_lower(|mut s| s.close());
         borrow_mut!(self.io.sockets).release(self.handle.get())
     }
 }
@@ -437,57 +375,59 @@ impl<'a> TcpStream<'a> {
         }
     }
 
-    fn as_lower<'b>(&'b self) -> RefMut<'b, TcpSocketLower> {
-        RefMut::map(borrow_mut!(self.io.sockets),
-                    |sockets| sockets.get_mut(self.handle).as_socket())
+    fn with_lower<F, R>(&self, f: F) -> R
+            where F: FnOnce(SocketRef<TcpSocketLower>) -> R {
+        let mut sockets = borrow_mut!(self.io.sockets);
+        let result = f(sockets.get(self.handle));
+        result
     }
 
     pub fn is_open(&self) -> bool {
-        self.as_lower().is_open()
+        self.with_lower(|s| s.is_open())
     }
 
     pub fn may_send(&self) -> bool {
-        self.as_lower().may_send()
+        self.with_lower(|s| s.may_send())
     }
 
     pub fn may_recv(&self) -> bool {
-        self.as_lower().may_recv()
+        self.with_lower(|s| s.may_recv())
     }
 
     pub fn can_send(&self) -> bool {
-        self.as_lower().can_send()
+        self.with_lower(|s| s.can_send())
     }
 
     pub fn can_recv(&self) -> bool {
-        self.as_lower().can_recv()
+        self.with_lower(|s| s.can_recv())
     }
 
     pub fn local_endpoint(&self) -> IpEndpoint {
-        self.as_lower().local_endpoint()
+        self.with_lower(|s| s.local_endpoint())
     }
 
     pub fn remote_endpoint(&self) -> IpEndpoint {
-        self.as_lower().remote_endpoint()
+        self.with_lower(|s| s.remote_endpoint())
     }
 
     pub fn timeout(&self) -> Option<u64> {
-        self.as_lower().timeout()
+        self.with_lower(|s| s.timeout())
     }
 
     pub fn set_timeout(&self, value: Option<u64>) {
-        self.as_lower().set_timeout(value)
+        self.with_lower(|mut s| s.set_timeout(value))
     }
 
     pub fn keep_alive(&self) -> Option<u64> {
-        self.as_lower().keep_alive()
+        self.with_lower(|s| s.keep_alive())
     }
 
     pub fn set_keep_alive(&self, value: Option<u64>) {
-        self.as_lower().set_keep_alive(value)
+        self.with_lower(|mut s| s.set_keep_alive(value))
     }
 
     pub fn close(&self) -> Result<()> {
-        self.as_lower().close();
+        self.with_lower(|mut s| s.close());
         until!(self, TcpSocketLower, |s| !s.is_open())?;
         // right now the socket may be in TIME-WAIT state. if we don't give it a chance to send
         // a packet, and the user code executes a loop { s.listen(); s.read(); s.close(); }
@@ -499,12 +439,12 @@ impl<'a> TcpStream<'a> {
 impl<'a> Read for TcpStream<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         // Only borrow the underlying socket for the span of the next statement.
-        let result = self.as_lower().recv_slice(buf);
+        let result = self.with_lower(|mut s| s.recv_slice(buf));
         match result {
             // Slow path: we need to block until buffer is non-empty.
             Ok(0) => {
                 until!(self, TcpSocketLower, |s| s.can_recv() || !s.may_recv())?;
-                match self.as_lower().recv_slice(buf) {
+                match self.with_lower(|mut s| s.recv_slice(buf)) {
                     Ok(length) => Ok(length),
                     Err(ErrorLower::Illegal) => Ok(0),
                     _ => unreachable!()
@@ -523,12 +463,12 @@ impl<'a> Read for TcpStream<'a> {
 impl<'a> Write for TcpStream<'a> {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         // Only borrow the underlying socket for the span of the next statement.
-        let result = self.as_lower().send_slice(buf);
+        let result = self.with_lower(|mut s| s.send_slice(buf));
         match result {
             // Slow path: we need to block until buffer is non-full.
             Ok(0) => {
                 until!(self, TcpSocketLower, |s| s.can_send() || !s.may_send())?;
-                match self.as_lower().send_slice(buf) {
+                match self.with_lower(|mut s| s.send_slice(buf)) {
                     Ok(length) => Ok(length),
                     Err(ErrorLower::Illegal) => Ok(0),
                     _ => unreachable!()
@@ -545,7 +485,7 @@ impl<'a> Write for TcpStream<'a> {
 
     fn flush(&mut self) -> Result<()> {
         until!(self, TcpSocketLower, |s|  s.send_queue() == 0 || !s.may_send())?;
-        if self.as_lower().send_queue() == 0 {
+        if self.with_lower(|s| s.send_queue()) == 0 {
             Ok(())
         } else {
             Err(Error::new(ErrorKind::ConnectionAborted, "connection aborted"))
@@ -555,7 +495,7 @@ impl<'a> Write for TcpStream<'a> {
 
 impl<'a> Drop for TcpStream<'a> {
     fn drop(&mut self) {
-        self.as_lower().close();
+        self.with_lower(|mut s| s.close());
         borrow_mut!(self.io.sockets).release(self.handle)
     }
 }

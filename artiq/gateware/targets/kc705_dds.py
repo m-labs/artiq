@@ -107,6 +107,7 @@ _sdcard_spi_33 = [
   )
 ]
 
+
 _io_config = [
     ("io_config", 0,
         Subsignal("latch", Pins("HPC:LA32_P")),
@@ -115,6 +116,7 @@ _io_config = [
 	    IOStandard("LVCMOS33")
         )
 ]
+
 
 _zotino = [
     ("zotino_spi_p", 0,

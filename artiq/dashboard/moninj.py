@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
@@ -13,11 +14,11 @@ logger = logging.getLogger(__name__)
 
 
 class _TTLWidget(QtWidgets.QFrame):
-    def __init__(self, channel, set_mode, force_out, title):
+    def __init__(self, dm, channel, force_out, title):
         QtWidgets.QFrame.__init__(self)
 
         self.channel = channel
-        self.set_mode = set_mode
+        self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
 
         self.setFrameShape(QtWidgets.QFrame.Box)
@@ -130,12 +131,9 @@ class _TTLWidget(QtWidgets.QFrame):
         return self.channel
 
 
-class _DDSWidget(QtWidgets.QFrame):
-    def __init__(self, bus_channel, channel, title):
+class _SimpleDisplayWidget(QtWidgets.QFrame):
+    def __init__(self, title):
         QtWidgets.QFrame.__init__(self)
-
-        self.bus_channel = bus_channel
-        self.channel = channel
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -147,8 +145,6 @@ class _DDSWidget(QtWidgets.QFrame):
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                    QtWidgets.QSizePolicy.Preferred)
         grid.addWidget(label, 1, 1)
 
         self.value = QtWidgets.QLabel()
@@ -159,8 +155,21 @@ class _DDSWidget(QtWidgets.QFrame):
         grid.setRowStretch(2, 0)
         grid.setRowStretch(3, 1)
 
-        self.cur_frequency = 0
         self.refresh_display()
+
+    def refresh_display(self):
+        raise NotImplementedError
+
+    def sort_key(self):
+        raise NotImplementedError
+
+
+class _DDSWidget(_SimpleDisplayWidget):
+    def __init__(self, dm, bus_channel, channel, title):
+        self.bus_channel = bus_channel
+        self.channel = channel
+        self.cur_frequency = 0
+        _SimpleDisplayWidget.__init__(self, title)
 
     def refresh_display(self):
         self.value.setText("<font size=\"4\">{:.7f}</font><font size=\"2\"> MHz</font>"
@@ -170,81 +179,146 @@ class _DDSWidget(QtWidgets.QFrame):
         return (self.bus_channel, self.channel)
 
 
+class _DACWidget(_SimpleDisplayWidget):
+    def __init__(self, dm, spi_channel, channel, title):
+        self.spi_channel = spi_channel
+        self.channel = channel
+        self.cur_value = 0
+        _SimpleDisplayWidget.__init__(self, "{} ch{}".format(title, channel))
+
+    def refresh_display(self):
+        self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
+                           .format(self.cur_value*100/2**16))
+
+    def sort_key(self):
+        return (self.spi_channel, self.channel)
+
+
+_WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
+
+
+def setup_from_ddb(ddb):
+    core_addr = None
+    dds_sysclk = None
+    description = set()
+
+    for k, v in ddb.items():
+        comment = None
+        if "comment" in v:
+            comment = v["comment"]
+        try:
+            if isinstance(v, dict) and v["type"] == "local":
+                if k == "core":
+                    core_addr = v["arguments"]["host"]
+                elif v["module"] == "artiq.coredevice.ttl":
+                    channel = v["arguments"]["channel"]
+                    force_out = v["class"] == "TTLOut"
+                    widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
+                    description.add(widget)
+                elif (v["module"] == "artiq.coredevice.dds"
+                        and v["class"] == "DDSGroupAD9914"):
+                    dds_sysclk = v["arguments"]["sysclk"]
+                elif (v["module"] == "artiq.coredevice.dds"
+                        and v["class"] == "DDSChannelAD9914"):
+                    bus_channel = v["arguments"]["bus_channel"]
+                    channel = v["arguments"]["channel"]
+                    widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
+                    description.add(widget)
+                elif (v["module"] == "artiq.coredevice.ad5360"
+                        and v["class"] == "AD5360"):
+                    spi_device = v["arguments"]["spi_device"]
+                    spi_device = ddb[spi_device]
+                    while isinstance(spi_device, str):
+                        spi_device = ddb[spi_device]
+                    spi_channel = spi_device["arguments"]["channel"]
+                    for channel in range(32):
+                        widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+                        description.add(widget)
+        except KeyError:
+            pass
+    return core_addr, dds_sysclk, description
+
+
 class _DeviceManager:
-    def __init__(self, init):
+    def __init__(self):
         self.core_addr = None
         self.new_core_addr = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
 
+        self.ddb = dict()
+        self.description = set()
+        self.widgets_by_uid = dict()
+
         self.dds_sysclk = 0
         self.ttl_cb = lambda: None
         self.ttl_widgets = dict()
-        self.ttl_widgets_by_channel = dict()
         self.dds_cb = lambda: None
         self.dds_widgets = dict()
-        self.dds_widgets_by_channel = dict()
-        for k, v in init.items():
-            self[k] = v
+        self.dac_cb = lambda: None
+        self.dac_widgets = dict()
 
-    def __setitem__(self, k, v):
-        if k in self.ttl_widgets:
-            del self[k]
-        if k in self.dds_widgets:
-            del self[k]
-        if not isinstance(v, dict):
-            return
-        try:
-            if v["type"] == "local":
-                widget = None
-                if k == "core":
-                    self.core_addr = v["arguments"]["host"]
-                    self.new_core_addr.set()
-                elif v["module"] == "artiq.coredevice.ttl":
-                    channel = v["arguments"]["channel"]
-                    force_out = v["class"] == "TTLOut"
-                    widget = _TTLWidget(
-                        channel, self.ttl_set_mode, force_out, k)
-                    self.ttl_widgets[k] = widget
-                    self.ttl_widgets_by_channel[channel] = widget
-                    self.ttl_cb()
-                    self.setup_ttl_monitoring(True, channel)
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSGroupAD9914"):
-                    self.dds_sysclk = v["arguments"]["sysclk"]
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSChannelAD9914"):
-                    bus_channel = v["arguments"]["bus_channel"]
-                    channel = v["arguments"]["channel"]
-                    widget = _DDSWidget(bus_channel, channel, k)
-                    self.dds_widgets[k] = widget
-                    self.dds_widgets_by_channel[(bus_channel, channel)] = widget
-                    self.dds_cb()
-                    self.setup_dds_monitoring(True, bus_channel, channel)
-                if widget is not None and "comment" in v:
-                    widget.setToolTip(v["comment"])
-        except KeyError:
-            pass
+    def init_ddb(self, ddb):
+        self.ddb = ddb
+        return ddb
 
-    def __delitem__(self, k):
-        if k in self.ttl_widgets:
-            widget = self.ttl_widgets[k]
-            self.setup_ttl_monitoring(False, widget.channel)
-            widget.deleteLater()
-            del self.ttl_widgets_by_channel[widget.channel]
-            del self.ttl_widgets[k]
-            self.ttl_cb()
-        if k in self.dds_widgets:
-            widget = self.dds_widgets[k]
-            self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
-            widget.deleteLater()
-            del self.dds_widgets_by_channel[(widget.bus_channel, widget.channel)]
-            del self.dds_widgets[k]
-            self.dds_cb()
+    def notify(self, mod):
+        core_addr, dds_sysclk, description = setup_from_ddb(self.ddb)
+
+        if core_addr != self.core_addr:
+            self.core_addr = core_addr
+            self.new_core_addr.set()
+
+        self.dds_sysclk = dds_sysclk
+
+        for to_remove in self.description - description:
+            widget = self.widgets_by_uid[to_remove.uid]
+            del self.widgets_by_uid[to_remove.uid]
+
+            if isinstance(widget, _TTLWidget):
+                self.setup_ttl_monitoring(False, widget.channel)
+                widget.deleteLater()
+                del self.ttl_widgets[widget.channel]
+                self.ttl_cb()
+            elif isinstance(widget, _DDSWidget):
+                self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
+                widget.deleteLater()
+                del self.dds_widgets[(widget.bus_channel, widget.channel)]
+                self.dds_cb()
+            elif isinstance(widget, _DACWidget):
+                self.setup_dac_monitoring(False, widget.spi_channel, widget.channel)
+                widget.deleteLater()
+                del self.dac_widgets[(widget.spi_channel, widget.channel)]
+                self.dac_cb()     
+            else:
+                raise ValueError
+
+        for to_add in description - self.description:
+            widget = to_add.cls(self, *to_add.arguments)
+            if to_add.comment is not None:
+                widget.setToolTip(to_add.comment)
+            self.widgets_by_uid[to_add.uid] = widget
+
+            if isinstance(widget, _TTLWidget):
+                self.ttl_widgets[widget.channel] = widget
+                self.ttl_cb()
+                self.setup_ttl_monitoring(True, widget.channel)
+            elif isinstance(widget, _DDSWidget):
+                self.dds_widgets[(widget.bus_channel, widget.channel)] = widget
+                self.dds_cb()
+                self.setup_dds_monitoring(True, widget.bus_channel, widget.channel)
+            elif isinstance(widget, _DACWidget):
+                self.dac_widgets[(widget.spi_channel, widget.channel)] = widget
+                self.dac_cb()
+                self.setup_dac_monitoring(True, widget.spi_channel, widget.channel)
+            else:
+                raise ValueError
+
+        self.description = description
 
     def ttl_set_mode(self, channel, mode):
         if self.core_connection is not None:
-            widget = self.ttl_widgets_by_channel[channel]
+            widget = self.ttl_widgets[channel]
             if mode == "0":
                 widget.cur_override = True
                 widget.cur_level = False
@@ -276,22 +350,30 @@ class _DeviceManager:
         if self.core_connection is not None:
             self.core_connection.monitor(enable, bus_channel, channel)
 
+    def setup_dac_monitoring(self, enable, spi_channel, channel):
+        if self.core_connection is not None:
+            self.core_connection.monitor(enable, spi_channel, channel)
+
     def monitor_cb(self, channel, probe, value):
-        if channel in self.ttl_widgets_by_channel:
-            widget = self.ttl_widgets_by_channel[channel]
+        if channel in self.ttl_widgets:
+            widget = self.ttl_widgets[channel]
             if probe == TTLProbe.level.value:
                 widget.cur_level = bool(value)
             elif probe == TTLProbe.oe.value:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
-        if (channel, probe) in self.dds_widgets_by_channel:
-            widget = self.dds_widgets_by_channel[(channel, probe)]
+        if (channel, probe) in self.dds_widgets:
+            widget = self.dds_widgets[(channel, probe)]
             widget.cur_frequency = value*self.dds_sysclk/2**32
+            widget.refresh_display()
+        if (channel, probe) in self.dac_widgets:
+            widget = self.dac_widgets[(channel, probe)]
+            widget.cur_value = value
             widget.refresh_display()
 
     def injection_status_cb(self, channel, override, value):
-        if channel in self.ttl_widgets_by_channel:
-            self.ttl_widgets_by_channel[channel].cur_override = bool(value)
+        if channel in self.ttl_widgets:
+            self.ttl_widgets[channel].cur_override = bool(value)
 
     async def core_connector(self):
         while True:
@@ -308,10 +390,12 @@ class _DeviceManager:
                 logger.error("failed to connect to core device moninj", exc_info=True)
             else:
                 self.core_connection = new_core_connection
-                for ttl_channel in self.ttl_widgets_by_channel.keys():
+                for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
-                for bus_channel, channel in self.dds_widgets_by_channel.keys():
+                for bus_channel, channel in self.dds_widgets.keys():
                     self.setup_dds_monitoring(True, bus_channel, channel)
+                for spi_channel, channel in self.dac_widgets.keys():
+                    self.setup_dac_monitoring(True, spi_channel, channel)
 
     async def close(self):
         self.core_connector_task.cancel()
@@ -330,7 +414,6 @@ class _MonInjDock(QtWidgets.QDockWidget):
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
-
     def layout_widgets(self, widgets):
         scroll_area = QtWidgets.QScrollArea()
         self.setWidget(scroll_area)
@@ -339,8 +422,8 @@ class _MonInjDock(QtWidgets.QDockWidget):
         grid_widget = QtWidgets.QWidget()
         grid_widget.setLayout(grid)
 
-        for _, w in sorted(widgets, key=lambda i: i[1].sort_key()):
-            grid.addWidget(w)
+        for widget in sorted(widgets, key=lambda w: w.sort_key()):
+            grid.addWidget(widget)
 
         scroll_area.setWidgetResizable(True)
         scroll_area.setWidget(grid_widget)
@@ -350,9 +433,17 @@ class MonInj:
     def __init__(self):
         self.ttl_dock = _MonInjDock("TTL")
         self.dds_dock = _MonInjDock("DDS")
+        self.dac_dock = _MonInjDock("DAC")
 
-        self.subscriber = Subscriber("devices", self.init_devices)
-        self.dm = None
+        self.dm = _DeviceManager()
+        self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
+                            self.dm.ttl_widgets.values())
+        self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
+                            self.dm.dds_widgets.values())
+        self.dm.dac_cb = lambda: self.dac_dock.layout_widgets(
+                            self.dm.dac_widgets.values())
+
+        self.subscriber = Subscriber("devices", self.dm.init_ddb, self.dm.notify)
 
     async def start(self, server, port):
         await self.subscriber.connect(server, port)
@@ -361,13 +452,3 @@ class MonInj:
         await self.subscriber.close()
         if self.dm is not None:
             await self.dm.close()
-
-    def init_devices(self, d):
-        self.dm = _DeviceManager(d)
-        self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
-                            self.dm.ttl_widgets.items())
-        self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
-                            self.dm.dds_widgets.items())
-        self.dm.ttl_cb()
-        self.dm.dds_cb()
-        return self.dm

@@ -37,6 +37,6 @@ features = ["alloc"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "6f5ae33"
+rev = "f64a99a"
 default-features = false
-features = ["alloc", "log"]
+features = ["alloc", "log", "proto-tcp"]

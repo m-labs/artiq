@@ -3,10 +3,10 @@
 Release notes
 =============
 
-4.0
----
+4.0 (unreleased)
+----------------
 
-No further notes.
+* The DDS channel number for the NIST CLOCK target has changed.
 
 
 3.0
