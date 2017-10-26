@@ -145,8 +145,6 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
         self.setLayout(grid)
         label = QtWidgets.QLabel(title)
         label.setAlignment(QtCore.Qt.AlignCenter)
-        label.setSizePolicy(QtWidgets.QSizePolicy.Ignored,
-                    QtWidgets.QSizePolicy.Preferred)
         grid.addWidget(label, 1, 1)
 
         self.value = QtWidgets.QLabel()
