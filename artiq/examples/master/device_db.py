@@ -5,6 +5,7 @@
 core_addr = "kc705.lab.m-labs.hk"
 
 device_db = {
+    # Core device
     "core": {
         "type": "local",
         "module": "artiq.coredevice.core",
@@ -33,7 +34,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 26,
+            "first_dds_bus_channel": 29,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
@@ -45,7 +46,58 @@ device_db = {
         "class": "PCA9548"
     },
 
+    # Generic TTL
+    "ttl0": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 0},
+        "comment": "This is a fairly long comment, shown as tooltip."
+    },
+    "ttl1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 1},
+        "comment": "Hello World"
+    },
+    "ttl2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 2}
+    },
+    "ttl3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 3}
+    },
 
+    "ttl4": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 4}
+    },
+    "ttl5": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5}
+    },
+    "ttl6": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 6}
+    },
+    "ttl7": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 7}
+    },
     "ttl_sma": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -58,13 +110,6 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 19}
     },
-
-    "ttl_ams101_ldac": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 20}
-    },
     "ttl_clock_la32_p": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -72,20 +117,13 @@ device_db = {
         "arguments": {"channel": 21}
     },
 
-    "spi_ams101": {
-        "type": "local",
-        "module": "artiq.coredevice.spi",
-        "class": "SPIMaster",
-        "arguments": {"channel": 22}
-    },
-
+    # Generic SPI
     "spi0": {
         "type": "local",
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
-    
     "spi_mmc": { 
         "type": "local",
         "module": "artiq.coredevice.spi",
@@ -93,6 +131,19 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
+    # DAC
+    "spi_ams101": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 22}
+    },
+    "ttl_ams101_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 20}
+    },
     "latch_config": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -113,69 +164,47 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 29}
     },
-	
-    # "rclk_config": {
-        # "type": "local",
-        # "module": "artiq.coredevice.ttl",
-        # "class": "TTLOut",
-        # "arguments": {"channel": 30}
-    # },
-	
-    # "srclk_config": {
-        # "type": "local",
-        # "module": "artiq.coredevice.ttl",
-        # "class": "TTLOut",
-        # "arguments": {"channel": 31}
-    # },
-	
-    # "ser_in_config": {
-        # "type": "local",
-        # "module": "artiq.coredevice.ttl",
-        # "class": "TTLOut",
-        # "arguments": {"channel": 32}
-    # },
-	
     "spi_zotino": {
-       "type": "local",
-       "module": "artiq.coredevice.spi",
-       "class": "SPIMaster",
-       "arguments": {"channel": 30}
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 30}
     },
-	
-    "ldac_zotino": {
-       "type": "local",
-       "module": "artiq.coredevice.ttl",
-       "class": "TTLOut",
-       "arguments": {"channel": 31}
+    "ttl_zotino_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 31}
     },
-	
-    "dac1": {
-       "type": "local",
-       "module": "artiq.coredevice.ad5360",
-       "class": "AD5360",
-       "arguments": {"spi_device": "spi_zotino", "ldac_device": "ldac_zotino"}
-     },
-	
-    # "dds0": {
-        # "type": "local",
-        # "module": "artiq.coredevice.dds",
-        # "class": "DDSChannelAD9914",
-        # "arguments": {"bus_channel": 27, "channel": 0},
-        # "comment": "Comments work in DDS panel as well"
-    # },
-    # "dds1": {
-        # "type": "local",
-        # "module": "artiq.coredevice.dds",
-        # "class": "DDSChannelAD9914",
-        # "arguments": {"bus_channel": 27, "channel": 1}
-    # },
-    # "dds2": {
-        # "type": "local",
-        # "module": "artiq.coredevice.dds",
-        # "class": "DDSChannelAD9914",
-        # "arguments": {"bus_channel": 27, "channel": 2}
-    # },
+    "dac_zotino": {
+        "type": "local",
+        "module": "artiq.coredevice.ad5360",
+        "class": "AD5360",
+        "arguments": {"spi_device": "spi_zotino", "ldac_device": "ttl_zotino_ldac"}
+    },
 
+    # AD9914 DDS
+    "dds0": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "DDSChannelAD9914",
+        "arguments": {"bus_channel": 32, "channel": 0},
+        "comment": "Comments work in DDS panel as well"
+    },
+    "dds1": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "DDSChannelAD9914",
+        "arguments": {"bus_channel": 32, "channel": 1}
+    },
+    "dds2": {
+        "type": "local",
+        "module": "artiq.coredevice.dds",
+        "class": "DDSChannelAD9914",
+        "arguments": {"bus_channel": 32, "channel": 2}
+    },
+
+    # Controllers
     "lda": {
         "type": "controller",
         "best_effort": True,
@@ -197,7 +226,7 @@ device_db = {
         "target_name": "camera_sim_rexec"
     },
 
-
+    # Aliases
     "ttl_out": "ttl0",
     "ttl_out_serdes": "ttl0",
 

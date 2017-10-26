@@ -1,54 +1,12 @@
 from itertools import product
 
 from migen import *
-from migen.genlib.io import DifferentialInput
 from misoc.interconnect import wishbone
 from misoc.cores.spi import SPIMachine
 
-class DifferentialTristate(TSTriple):
-    # HACK : This only works for single-bit signals
-    def get_tristate(self, pad, pad_n):
-        return Instance("IOBUFDS",
-                        i_I=self.i, o_O=self.o, i_T=self.oe,
-                        io_IO=pad, io_IOB=pad_n)
 
-
-class SingleEndedInterface(Module):
-    def __init__(self, pads):
-        self.mosi_t = TSTriple()
-        self.specials += self.mosi_t.get_tristate(pads.mosi)
-
-        self.clk_t = TSTriple()
-        self.specials += self.clk_t.get_tristate(pads.clk)
-
-        if hasattr(pads, "cs_n"):
-            self.cs_n_t = TSTriple(len(pads.cs_n))
-            self.specials += self.cs_n_t.get_tristate(pads.cs_n)
-
-        if hasattr(pads, "miso"):
-            self.miso = pads.miso
-
-
-class DifferentialInterface(Module):
-    def __init__(self, pads):
-        self.mosi_t = DifferentialTristate()
-        self.specials += self.mosi_t.get_tristate(pads.mosi_p, pads.mosi_n)
-
-        self.clk_t = DifferentialTristate()
-        self.specials += self.clk_t.get_tristate(pads.clk_p, pads.clk_n)
-
-        if hasattr(pads, "cs_n_p"):
-            # HACK : this only works when cs is a single-bit signal
-            self.cs_n_t = DifferentialTristate()
-            self.specials += self.cs_n_t.get_tristate(pads.cs_n_p, pads.cs_n_n)
-
-        if hasattr(pads, "miso_p"):
-            self.miso = Signal()
-            self.specials += DifferentialInput(pads.miso_p, pads.miso_n, self.miso)
-			
 class SPIMaster(Module):
     """SPI Master.
-
     Notes:
         * M = 32 is the data width (width of the data register,
           maximum write bits, maximum read bits)
@@ -100,7 +58,6 @@ class SPIMaster(Module):
           Writes take two cycles unless the write is to the data register
           and another chained transfer is pending and the transfer being
           executed is not complete. Reads always finish in two cycles.
-
     Transaction Sequence:
         * If desired, write the config register to set up the core.
         * If desired, write the xfer register to change lengths and cs_n.
@@ -111,9 +68,7 @@ class SPIMaster(Module):
           completed transfer.
         * If desired, change xfer register for the next transfer.
         * If desired, write data queuing the next (possibly chained) transfer.
-
     Register address and bit map:
-
     config (address 2):
         1 offline: all pins high-z (reset=1)
         1 active: cs/transfer active (read-only)
@@ -134,32 +89,19 @@ class SPIMaster(Module):
             to generate the SPI write clk (reset=0)
             f_clk/f_spi_write == div_write + 2
         8 div_read: ditto for the read clock
-
     xfer (address 1):
         16 cs: active high bit mask of chip selects to assert (reset=0)
         6 write_len: 0-M bits (reset=0)
         2 undefined
         6 read_len: 0-M bits (reset=0)
         2 undefined
-
     data (address 0):
         M write/read data (reset=0)
     """
-    # def __init__(self, pads, bus=None):
-        # if bus is None:
-            # bus = wishbone.Interface(data_width=32)
-        # self.bus = bus
-		
-    def __init__(self, pads, bus=None, differential=False):
+    def __init__(self, pads, pads_n=None, bus=None):
         if bus is None:
             bus = wishbone.Interface(data_width=32)
         self.bus = bus
- 
-        if differential:
-            iface = DifferentialInterface(pads)
-        else:
-            iface = SingleEndedInterface(pads)
-        self.submodules.interface = iface
 
         ###
 
@@ -249,51 +191,63 @@ class SPIMaster(Module):
         ]
 
         # I/O
-        if hasattr(iface, "cs_n_t"):
+        mosi_oe = Signal()
+        clk = Signal()
+        self.comb += [
+            mosi_oe.eq(
+                ~config.offline & spi.cs &
+                (spi.oe | ~config.half_duplex)),
+            clk.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity)
+        ]
+
+        if pads_n is None:
+            if hasattr(pads, "cs_n"):
+                cs_n_t = TSTriple(len(pads.cs_n))
+                self.specials += cs_n_t.get_tristate(pads.cs_n)
+                self.comb += [
+                    cs_n_t.oe.eq(~config.offline),
+                    cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
+                                Replicate(~config.cs_polarity, len(cs))),
+                ]
+
+            clk_t = TSTriple()
+            self.specials += clk_t.get_tristate(pads.clk)
             self.comb += [
-                iface.cs_n_t.oe.eq(~config.offline),
-                iface.cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
-                             Replicate(~config.cs_polarity, len(cs))),
+                clk_t.oe.eq(~config.offline),
+                clk_t.o.eq(clk),
             ]
- 
 
-        self.comb += [
-            iface.clk_t.oe.eq(~config.offline),
-            iface.clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
-        ]
- 
-        self.comb += [
-            iface.mosi_t.oe.eq(~config.offline & spi.cs &
-                          (spi.oe | ~config.half_duplex)),
-            iface.mosi_t.o.eq(spi.reg.o),
-            spi.reg.i.eq(Mux(config.half_duplex, iface.mosi_t.i,
-                             getattr(iface, "miso", iface.mosi_t.i))),
-        ]
-        # if hasattr(pads, "cs_n"):
-            # cs_n_t = TSTriple(len(pads.cs_n))
-            # self.specials += cs_n_t.get_tristate(pads.cs_n)
-            # self.comb += [
-                # cs_n_t.oe.eq(~config.offline),
-                # cs_n_t.o.eq((cs & Replicate(spi.cs, len(cs))) ^
-                            # Replicate(~config.cs_polarity, len(cs))),
-            # ]
+            mosi_t = TSTriple()
+            self.specials += mosi_t.get_tristate(pads.mosi)
+            self.comb += [
+                mosi_t.oe.eq(mosi_oe),
+                mosi_t.o.eq(spi.reg.o),
+                spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
+                                 getattr(pads, "miso", mosi_t.i))),
+            ]
+        else:
+            if hasattr(pads, "cs_n"):
+                for i in range(len(pads.cs_n)):
+                    self.specials += Instance("IOBUFDS",
+                        i_I=(cs[i] & spi.cs) ^ ~config.cs_polarity,
+                        i_T=config.offline,
+                        io_IO=pads.cs_n[i], io_IOB=pads_n.cs_n[i])
 
-        # clk_t = TSTriple()
-        # self.specials += clk_t.get_tristate(pads.clk)
-        # self.comb += [
-            # clk_t.oe.eq(~config.offline),
-            # clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
-        # ]
+            self.specials += Instance("IOBUFDS",
+                i_I=clk, i_T=config.offline,
+                io_IO=pads.clk, io_IOB=pads_n.clk)
 
-        # mosi_t = TSTriple()
-        # self.specials += mosi_t.get_tristate(pads.mosi)
-        # self.comb += [
-            # mosi_t.oe.eq(~config.offline & spi.cs &
-                         # (spi.oe | ~config.half_duplex)),
-            # mosi_t.o.eq(spi.reg.o),
-            # spi.reg.i.eq(Mux(config.half_duplex, mosi_t.i,
-                             # getattr(pads, "miso", mosi_t.i))),
-        # ]
+            mosi = Signal()
+            self.specials += Instance("IOBUFDS",
+                o_O=mosi, i_I=spi.reg.o, i_T=~mosi_oe,
+                io_IO=pads.mosi, io_IOB=pads_n.mosi)
+            if hasattr(pads, "miso"):
+                miso = Signal()
+                self.specials += Instance("IBUFDS",
+                    o_O=miso, i_I=pads.miso, i_IB=pads_n.miso)
+            else:
+                miso = mosi
+            self.comb += spi.reg.i.eq(Mux(config.half_duplex, mosi, miso))
 
 
 SPI_DATA_ADDR, SPI_XFER_ADDR, SPI_CONFIG_ADDR = range(3)
