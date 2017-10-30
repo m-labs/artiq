@@ -628,11 +628,11 @@ class DMATest(ExperimentCase):
     def test_dma_playback_time(self):
         exp = self.create(_DMA)
         count = 20000
-        exp.record()
+        exp.record_many(40)
         exp.playback_many(count)
         dt = self.dataset_mgr.get("dma_playback_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 3*us)
+        self.assertLess(dt/count, 4.5*us)
 
     def test_handle_invalidation(self):
         exp = self.create(_DMA)
