@@ -15,7 +15,7 @@ To lock the KC705 for the duration of the execution of a shell:
 ::
   flock /run/boards/kc705 bash
 
-If the board is already locked by another user, the ``flock`` command above will wait for the lock to be released.
+If the board is already locked by another user, the ``flock`` commands above will wait for the lock to be released.
 
 To determine which user is locking a board, use:
 ::
