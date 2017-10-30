@@ -153,6 +153,7 @@ fn startup() {
         }
     }
 
+    let mut net_stats = ethmac::EthernetStatistics::new();
     loop {
         scheduler.run();
 
@@ -161,6 +162,10 @@ fn startup() {
             Ok(_poll_at) => (),
             Err(smoltcp::Error::Unrecognized) => (),
             Err(err) => warn!("network error: {}", err)
+        }
+
+        if let Some(net_stats_diff) = net_stats.update() {
+            warn!("ethernet mac:{}", net_stats_diff); // mac:{} (sic)
         }
     }
 }

@@ -1,7 +1,8 @@
-use core::slice;
-use board::{csr, mem};
+use core::{slice, fmt};
 use smoltcp::Error;
 use smoltcp::phy::{DeviceCapabilities, Device};
+
+use board::{csr, mem};
 
 const RX_SLOTS: usize = csr::ETHMAC_RX_SLOTS as usize;
 const TX_SLOTS: usize = csr::ETHMAC_TX_SLOTS as usize;
@@ -82,5 +83,49 @@ impl AsMut<[u8]> for TxBuffer {
 impl Drop for TxBuffer {
     fn drop(&mut self) {
         unsafe { csr::ethmac::sram_reader_start_write(1) }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct EthernetStatistics {
+    rx_errors:  u32,
+    rx_dropped: u32,
+}
+
+impl EthernetStatistics {
+    pub fn new() -> Self {
+        unsafe {
+            EthernetStatistics {
+                rx_errors:  csr::ethmac::crc_errors_read(),
+                rx_dropped: csr::ethmac::sram_writer_errors_read(),
+            }
+        }
+    }
+
+    pub fn update(&mut self) -> Option<Self> {
+        let old = self.clone();
+        *self = Self::new();
+
+        let diff = EthernetStatistics {
+            rx_errors:  self.rx_errors.wrapping_sub(old.rx_errors),
+            rx_dropped: self.rx_dropped.wrapping_sub(old.rx_dropped),
+        };
+        if diff == EthernetStatistics::default() {
+            None
+        } else {
+            Some(diff)
+        }
+    }
+}
+
+impl fmt::Display for EthernetStatistics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.rx_errors > 0 {
+            write!(f, " rx crc errors: {}", self.rx_errors)?
+        }
+        if self.rx_dropped > 0 {
+            write!(f, " rx dropped: {}", self.rx_dropped)?
+        }
+        Ok(())
     }
 }
