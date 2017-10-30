@@ -634,6 +634,12 @@ class DMATest(ExperimentCase):
         print("dt={}, dt/count={}".format(dt, dt/count))
         self.assertLess(dt/count, 4.5*us)
 
+    def test_dma_underflow(self):
+        exp = self.create(_DMA)
+        exp.record()
+        with self.assertRaises(RTIOUnderflow):
+            exp.playback_many(20000)
+
     def test_handle_invalidation(self):
         exp = self.create(_DMA)
         for mode in [0, 1]:
