@@ -491,7 +491,7 @@ class RPCTest(ExperimentCase):
 
 
 class _DMA(EnvExperiment):
-    def build(self, trace_name="foobar"):
+    def build(self, trace_name="test_rtio"):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("ttl1")
@@ -499,8 +499,12 @@ class _DMA(EnvExperiment):
         self.delta = np.int64(0)
 
     @kernel
-    def record(self):
+    def record(self, for_handle=True):
         with self.core_dma.record(self.trace_name):
+            # When not using the handle, retrieving the DMA trace
+            # in dma.playback() can be slow. Allow some time.
+            if not for_handle:
+                delay(1*ms)
             delay(100*ns)
             self.ttl1.on()
             delay(100*ns)
@@ -519,20 +523,22 @@ class _DMA(EnvExperiment):
         self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
 
     @kernel
-    def playback(self, use_handle=False):
-        self.core.break_realtime()
-        start = now_mu()
+    def playback(self, use_handle=True):
         if use_handle:
             handle = self.core_dma.get_handle(self.trace_name)
+            self.core.break_realtime()
+            start = now_mu()
             self.core_dma.playback_handle(handle)
         else:
+            self.core.break_realtime()
+            start = now_mu()
             self.core_dma.playback(self.trace_name)
         self.delta = now_mu() - start
 
     @kernel
     def playback_many(self, n):
-        self.core.break_realtime()
         handle = self.core_dma.get_handle(self.trace_name)
+        self.core.break_realtime()
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.core_dma.playback_handle(handle)
@@ -579,9 +585,9 @@ class DMATest(ExperimentCase):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(_DMA)
-        exp.record()
 
         for use_handle in [False, True]:
+            exp.record(use_handle)
             get_analyzer_dump(core_host)  # clear analyzer buffer
             exp.playback(use_handle)
 
@@ -603,9 +609,13 @@ class DMATest(ExperimentCase):
         exp = self.create(_DMA)
         exp.record()
 
-        for use_handle in [False, True]:
-            exp.playback(use_handle)
-            self.assertEqual(exp.delta, 200)
+        exp.record(False)
+        exp.playback(False)
+        self.assertEqual(exp.delta, 1000200)
+
+        exp.record(True)
+        exp.playback(True)
+        self.assertEqual(exp.delta, 200)
 
     def test_dma_record_time(self):
         exp = self.create(_DMA)
