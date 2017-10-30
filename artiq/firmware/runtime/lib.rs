@@ -95,15 +95,15 @@ fn startup() {
         }
     }
 
-    let protocol_cidr;
+    let protocol_addr;
     match config::read_str("ip", |r| r?.parse()) {
         Err(()) => {
-            protocol_cidr = IpCidr::new(IpAddress::v4(192, 168, 1, 50), 24);
-            info!("using default IP address {}", protocol_cidr);
+            protocol_addr = IpAddress::v4(192, 168, 1, 50);
+            info!("using default IP address {}", protocol_addr);
         }
-        Ok(cidr) => {
-            protocol_cidr = cidr;
-            info!("using IP address {}", protocol_cidr);
+        Ok(addr) => {
+            protocol_addr = addr;
+            info!("using IP address {}", protocol_addr);
         }
     }
 
@@ -119,7 +119,7 @@ fn startup() {
     let arp_cache  = smoltcp::iface::SliceArpCache::new([Default::default(); 8]);
     let mut interface  = smoltcp::iface::EthernetInterface::new(
         Box::new(net_device), Box::new(arp_cache) as Box<smoltcp::iface::ArpCache>,
-        hardware_addr, [protocol_cidr], None);
+        hardware_addr, [IpCidr::new(protocol_addr, 0)], None);
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
