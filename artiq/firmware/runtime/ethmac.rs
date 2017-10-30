@@ -96,8 +96,8 @@ impl EthernetStatistics {
     pub fn new() -> Self {
         unsafe {
             EthernetStatistics {
-                rx_errors:  csr::ethmac::crc_errors_read(),
-                rx_dropped: csr::ethmac::sram_writer_errors_read(),
+                rx_errors:  0,/*csr::ethmac::crc_errors_read()*/,
+                rx_dropped: 0,/*csr::ethmac::sram_writer_errors_read()*/,
             }
         }
     }
