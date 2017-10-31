@@ -15,7 +15,7 @@ requirements:
     - python >=3.5.3,<3.6
     - setuptools 33.1.1
     - migen 0.5
-    - misoc 0.7.dev py35_0+git5764e23f
+    - misoc 0.7.dev py35_7+git72faa2c7
     - jesd204b 0.4
     - binutils-or1k-linux >=2.27
     - llvm-or1k
