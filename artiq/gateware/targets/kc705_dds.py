@@ -98,35 +98,41 @@ _ams101_dac = [
 ]
 
 _sdcard_spi_33 = [
-  ("sdcard_spi_33", 0,
+    ("sdcard_spi_33", 0,
         Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
         Subsignal("clk", Pins("AB23")),
         Subsignal("mosi", Pins("AB22")),
         Subsignal("cs_n", Pins("AC21")),
         IOStandard("LVCMOS33")
-  )
+    )
 ]
 
 _zotino = [
+    ("fmcdio_dirctl", 0,
+        Subsignal("clk", Pins("HPC:LA32_N")),
+        Subsignal("ser", Pins("HPC:LA33_P")),
+        Subsignal("latch", Pins("HPC:LA32_P")),
+        IOStandard("LVCMOS33")
+    ),
     ("zotino_spi_p", 0,
         Subsignal("clk", Pins("HPC:LA08_P")),
         Subsignal("mosi", Pins("HPC:LA09_P")),
         Subsignal("miso", Pins("HPC:LA10_P")),
         Subsignal("cs_n", Pins("HPC:LA11_P")),
         IOStandard("LVDS_25")
-     ),
+    ),
     ("zotino_spi_n", 0,
         Subsignal("clk", Pins("HPC:LA08_N")),
         Subsignal("mosi", Pins("HPC:LA09_N")),
         Subsignal("miso", Pins("HPC:LA10_N")),
         Subsignal("cs_n", Pins("HPC:LA11_N")),
         IOStandard("LVDS_25")
-     ),
+    ),
     ("zotino_ldac", 0,
         Subsignal("p", Pins("HPC:LA13_P")),
         Subsignal("n", Pins("HPC:LA13_N")),
         IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
-     )
+    )
 ]
 
 class _NIST_Ions(MiniSoC, AMPSoC):
@@ -254,13 +260,19 @@ class NIST_CLOCK(_NIST_Ions):
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ofifo_depth=128, ififo_depth=128))
             
-        phy = spi.SPIMaster(platform.request("sdcard_spi_33", 0))
+        phy = spi.SPIMaster(platform.request("sdcard_spi_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
-        sdac_phy = spi.SPIMaster(self.platform.request("zotino_spi_p", 0),
-                                 self.platform.request("zotino_spi_n", 0))
+        fmcdio_dirctl = self.platform.request("fmcdio_dirctl")
+        for s in fmcdio_dirctl.clk, fmcdio_dirctl.ser, fmcdio_dirctl.latch:
+            phy = ttl_simple.Output(s)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        sdac_phy = spi.SPIMaster(self.platform.request("zotino_spi_p"),
+                                 self.platform.request("zotino_spi_n"))
         self.submodules += sdac_phy
         rtio_channels.append(rtio.Channel.from_phy(sdac_phy, ififo_depth=4))
 

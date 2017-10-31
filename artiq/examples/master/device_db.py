@@ -34,7 +34,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 29,
+            "first_dds_bus_channel": 32,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
@@ -131,6 +131,34 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
+    # FMC DIO used to connect to Zotino
+    "fmcdio_dirctl_clk": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 27}
+    },
+    "fmcdio_dirctl_ser": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 28}
+    },
+    "fmcdio_dirctl_latch": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 29}
+    },
+    "fmcdio_dirctl": {
+        "type": "local",
+        "module": "artiq.coredevice.shiftreg",
+        "class": "ShiftReg",
+        "arguments": {"clk": "fmcdio_dirctl_clk",
+                      "ser": "fmcdio_dirctl_ser",
+                      "latch": "fmcdio_dirctl_latch"}
+    },
+
     # DAC
     "spi_ams101": {
         "type": "local",
@@ -148,13 +176,13 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
-        "arguments": {"channel": 27}
+        "arguments": {"channel": 30}
     },
     "ttl_zotino_ldac": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 28}
+        "arguments": {"channel": 31}
     },
     "dac_zotino": {
         "type": "local",
@@ -168,20 +196,20 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 29, "channel": 0},
+        "arguments": {"bus_channel": 32, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 29, "channel": 1}
+        "arguments": {"bus_channel": 32, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 29, "channel": 2}
+        "arguments": {"bus_channel": 32, "channel": 2}
     },
 
     # Controllers

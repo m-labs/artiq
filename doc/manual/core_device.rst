@@ -68,7 +68,13 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 21                 | LA32_P                | Clock        |
 +--------------------+-----------------------+--------------+
-| 28                 | ZOTINO_LDAC           | Output       |
+| 27                 | FMCDIO_DIRCTL_CLK     | Output       |
++--------------------+-----------------------+--------------+
+| 28                 | FMCDIO_DIRCTL_SER     | Output       |
++--------------------+-----------------------+--------------+
+| 29                 | FMCDIO_DIRCTL_LATCH   | Output       |
++--------------------+-----------------------+--------------+
+| 31                 | ZOTINO_LDAC           | Output       |
 +--------------------+-----------------------+--------------+
 
 The board has RTIO SPI buses mapped as follows:
@@ -86,11 +92,14 @@ The board has RTIO SPI buses mapped as follows:
 +--------------+--------------+--------------+--------------+------------+
 | 26           | MMC_SPI_CS_N | MMC_SPI_MOSI | MMC_SPI_MISO | MMC_SPI_CLK|
 +--------------+--------------+--------------+--------------+------------+
-| 27           | ZOTINO_CS_N  | ZOTINO_MOSI  | ZOTINO_MISO  | ZOTINO_CLK |
+| 30           | ZOTINO_CS_N  | ZOTINO_MOSI  | ZOTINO_MISO  | ZOTINO_CLK |
 +--------------+--------------+--------------+--------------+------------+
 
-The DDS bus is on channel 29.
+The DDS bus is on channel 32.
 
+This configuration supports a Zotino connected to the KC705 FMC HPC through a FMC DIO 32ch LVDS v1.2 and a VHDCI breakout board rev 1.0.
+
+The shift registers on the FMC card should be configured to set the directions of its LVDS buffers, using :mod:`artiq.coredevice.shiftreg`.
 
 NIST QC2
 ++++++++
