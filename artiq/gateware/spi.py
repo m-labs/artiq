@@ -7,6 +7,7 @@ from misoc.cores.spi import SPIMachine
 
 class SPIMaster(Module):
     """SPI Master.
+
     Notes:
         * M = 32 is the data width (width of the data register,
           maximum write bits, maximum read bits)
@@ -58,6 +59,7 @@ class SPIMaster(Module):
           Writes take two cycles unless the write is to the data register
           and another chained transfer is pending and the transfer being
           executed is not complete. Reads always finish in two cycles.
+
     Transaction Sequence:
         * If desired, write the config register to set up the core.
         * If desired, write the xfer register to change lengths and cs_n.
@@ -68,7 +70,9 @@ class SPIMaster(Module):
           completed transfer.
         * If desired, change xfer register for the next transfer.
         * If desired, write data queuing the next (possibly chained) transfer.
+
     Register address and bit map:
+
     config (address 2):
         1 offline: all pins high-z (reset=1)
         1 active: cs/transfer active (read-only)
@@ -89,12 +93,14 @@ class SPIMaster(Module):
             to generate the SPI write clk (reset=0)
             f_clk/f_spi_write == div_write + 2
         8 div_read: ditto for the read clock
+
     xfer (address 1):
         16 cs: active high bit mask of chip selects to assert (reset=0)
         6 write_len: 0-M bits (reset=0)
         2 undefined
         6 read_len: 0-M bits (reset=0)
         2 undefined
+
     data (address 0):
         M write/read data (reset=0)
     """

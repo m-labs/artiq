@@ -107,17 +107,6 @@ _sdcard_spi_33 = [
   )
 ]
 
-
-_io_config = [
-    ("io_config", 0,
-        Subsignal("latch", Pins("HPC:LA32_P")),
-        Subsignal("clk", Pins("HPC:LA32_N")),
-	    Subsignal("ser", Pins("HPC:LA33_P")),
-	    IOStandard("LVCMOS33")
-        )
-]
-
-
 _zotino = [
     ("zotino_spi_p", 0,
         Subsignal("clk", Pins("HPC:LA08_P")),
@@ -174,7 +163,6 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
         self.platform.add_extension(_sdcard_spi_33)
-        self.platform.add_extension(_io_config)
         self.platform.add_extension(_zotino)
 
         i2c = self.platform.request("i2c")
@@ -271,19 +259,6 @@ class NIST_CLOCK(_NIST_Ions):
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ofifo_depth=4, ififo_depth=4))
 
-        io = self.platform.request("io_config", 0)
-        phy = ttl_simple.Output(io.latch)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        
-        phy = ttl_simple.Output(io.clk)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        
-        phy = ttl_simple.Output(io.ser)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        
         sdac_phy = spi.SPIMaster(self.platform.request("zotino_spi_p", 0),
                                  self.platform.request("zotino_spi_n", 0))
         self.submodules += sdac_phy

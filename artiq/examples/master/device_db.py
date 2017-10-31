@@ -144,25 +144,31 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 20}
     },
-    "latch_config": {
+    "io_config_latch": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 27}
     },
-	
-    "clk_config": {
+    "io_config_clk": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 28}
     },
-	
-    "ser_config": {
+    "io_config_ser": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 29}
+    },
+    "shift_reg": {
+        "type": "local",
+        "module": "artiq.coredevice.shiftreg",
+        "class": "ShiftReg",
+        "arguments": {"clk": "io_config_clk", 
+                      "ser": "io_config_ser", 
+                      "latch": "io_config_latch"}
     },
     "spi_zotino": {
         "type": "local",
@@ -182,6 +188,7 @@ device_db = {
         "class": "AD5360",
         "arguments": {"spi_device": "spi_zotino", "ldac_device": "ttl_zotino_ldac"}
     },
+    
 
     # AD9914 DDS
     "dds0": {
