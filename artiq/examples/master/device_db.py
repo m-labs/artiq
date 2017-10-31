@@ -144,19 +144,19 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 20}
     },
-    "io_config_latch": {
+    "shift_reg_latch": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 27}
     },
-    "io_config_clk": {
+    "shift_reg_clk": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 28}
     },
-    "io_config_ser": {
+    "shift_reg_ser": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
@@ -166,9 +166,9 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.shiftreg",
         "class": "ShiftReg",
-        "arguments": {"clk": "io_config_clk", 
-                      "ser": "io_config_ser", 
-                      "latch": "io_config_latch"}
+        "arguments": {"clk": "shift_reg_clk", 
+                      "ser": "shift_reg_ser", 
+                      "latch": "shift_reg_latch"}
     },
     "spi_zotino": {
         "type": "local",

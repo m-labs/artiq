@@ -3,7 +3,7 @@ from artiq.language.units import us
 
 class ShiftReg:
     kernel_invariants = {"dt"}
-
+    
     def __init__(self, dmgr, clk, ser, latch, n=32, dt=10*us):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(latch)
@@ -13,7 +13,7 @@ class ShiftReg:
         self.dt = dt
 
     @kernel
-    def fmc_io_config(self, data):
+    def shiftreg_config(self, data):
         self.srclk.off()
         self.bus.off()
         delay(self.dt)
