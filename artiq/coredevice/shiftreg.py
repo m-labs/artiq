@@ -5,7 +5,7 @@ from artiq.language.units import us
 class ShiftReg:
     """Driver for shift registers/latch combos connected to TTLs"""
     kernel_invariants = {"dt", "n"}
-    
+
     def __init__(self, dmgr, clk, ser, latch, n=32, dt=10*us):
         self.core = dmgr.get("core")
         self.clk = dmgr.get(clk)

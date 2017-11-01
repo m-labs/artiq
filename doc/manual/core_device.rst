@@ -97,7 +97,9 @@ The board has RTIO SPI buses mapped as follows:
 
 The DDS bus is on channel 32.
 
+
 This configuration supports a Zotino connected to the KC705 FMC HPC through a FMC DIO 32ch LVDS v1.2 and a VHDCI breakout board rev 1.0.
+The KC705 FMC HPC should be connected to J44A and the Zotino should be connected to J41 of the VHDCI breakout board. 
 
 The shift registers on the FMC card should be configured to set the directions of its LVDS buffers, using :mod:`artiq.coredevice.shiftreg`.
 
