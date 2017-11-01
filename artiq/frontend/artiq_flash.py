@@ -138,25 +138,21 @@ class ProgrammerSayma(Programmer):
             # EN_USB_JTAG on ADBUS7: out, high
             # nTRST on ADBUS4: out, high, but R46 is DNP
             "ftdi_layout_init 0x0098 0x008b",
-            "ftdi_tdo_sample_edge falling",
-            "ftdi_layout_signal nSRST -data 0x0080",
-            "reset_config srst_only srst_pulls_trst srst_gates_jtag srst_push_pull",
+            "reset_config none",
 
-            "adapter_khz 25000",
-
+            "adapter_khz 5000",
             "transport select jtag",
 
-            "jtag newtap amc_xcu tap -irlen 6 -ignore-version -expected-id 0x03822093",
-
-            "pld device virtex2 amc_xcu.tap 1",
+            "source [find cpld/xilinx-xc7.cfg]",
+            "set CHIP XCKU040",
+            "source [find cpld/xilinx-xcu.cfg]",
 
             "set XILINX_USER1 0x02",
             "set XILINX_USER2 0x03",
-            "set AMC_DR_LEN 1",
-
-            "target create amc_xcu.proxy testee -chain-position amc_xcu.tap",
-            "flash bank amc_xcu.spi0 jtagspi 0 0 0 0 amc_xcu.proxy $XILINX_USER1 $AMC_DR_LEN",
-            "flash bank amc_xcu.spi1 jtagspi 0 0 0 0 amc_xcu.proxy $XILINX_USER2 $AMC_DR_LEN",
+            "set JTAGSPI_IR $XILINX_USER1",
+            "source [find cpld/jtagspi.cfg]",
+            "flash bank xcu.spi0 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER1",
+            "flash bank xcu.spi1 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER2"
         ]
         self.init()
 
@@ -171,8 +167,8 @@ class ProgrammerSayma(Programmer):
 
     def flash_binary(self, flashno, address, filename):
         self.prog += [
-            "flash probe amc_xcu.spi{}".format(flashno),
-            "irscan amc_xcu.tap $XILINX_USER{}".format(flashno+1),
+            "flash probe xcu.spi{}".format(flashno),
+            "irscan xcu.tap $XILINX_USER{}".format(flashno+1),
             "flash write_bank {} {} 0x{:x}".format(flashno, filename, address)
         ]
 
