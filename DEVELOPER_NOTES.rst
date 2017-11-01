@@ -30,7 +30,8 @@ To determine which user is locking a board, use:
 Selecting a development board with artiq_flash
 ==============================================
 
-::
+Use the ``bus:port`` notation::
+
   artiq_flash --preinit-command "ftdi_location 5:2"   # Sayma 1
   artiq_flash --preinit-command "ftdi_location 3:10"  # Sayma 2
   artiq_flash --preinit-command "ftdi_location 5:1"   # Sayma 3
