@@ -68,11 +68,11 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 21                 | LA32_P                | Clock        |
 +--------------------+-----------------------+--------------+
-| 27                 | SHIFT_REG_LATCH       | Latch        |
+| 27                 | FMCDIO_DIRCTL_CLK     | Output       |
 +--------------------+-----------------------+--------------+
-| 28                 | SHIFT_REG_CLK         | Clock        |
+| 28                 | FMCDIO_DIRCTL_SER     | Output       |
 +--------------------+-----------------------+--------------+
-| 29                 | SHIFT_REG_SER         | Input        |
+| 29                 | FMCDIO_DIRCTL_LATCH   | Output       |
 +--------------------+-----------------------+--------------+
 | 31                 | ZOTINO_LDAC           | Output       |
 +--------------------+-----------------------+--------------+
@@ -97,12 +97,11 @@ The board has RTIO SPI buses mapped as follows:
 
 The DDS bus is on channel 32.
 
-The Zotino(3U DAC rev1.0) is connected to kc705 FMC HPC ports using VHDCI board(VHDCI breakout rev1.0) to FMC card(FMC DIO ch32 lvds a v1.2).
-On the VHDCI board, J44A is connected to J41 since LVDS2 is now chosen to be connected to J37 on the zotino.
-Shift registers on the FMC card should be configured to set the lvds buffer directionality between the FMC card and the VHDCI board, through
-:mod:`artiq.coredevice.shiftreg`.
 
+This configuration supports a Zotino connected to the KC705 FMC HPC through a FMC DIO 32ch LVDS v1.2 and a VHDCI breakout board rev 1.0.
+The KC705 FMC HPC should be connected to J44A and the Zotino should be connected to J41 of the VHDCI breadout board. 
 
+The shift registers on the FMC card should be configured to set the directions of its LVDS buffers, using :mod:`artiq.coredevice.shiftreg`.
 
 NIST QC2
 ++++++++

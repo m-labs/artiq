@@ -34,7 +34,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 29,
+            "first_dds_bus_channel": 32,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
@@ -129,6 +129,34 @@ device_db = {
         "module": "artiq.coredevice.spi",
         "class": "SPIMaster",
         "arguments": {"channel": 26}
+    },
+
+    # FMC DIO used to connect to Zotino
+    "fmcdio_dirctl_clk": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 27}
+    },
+    "fmcdio_dirctl_ser": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 28}
+    },
+    "fmcdio_dirctl_latch": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 29}
+    },
+    "fmcdio_dirctl": {
+        "type": "local",
+        "module": "artiq.coredevice.shiftreg",
+        "class": "ShiftReg",
+        "arguments": {"clk": "fmcdio_dirctl_clk",
+                      "ser": "fmcdio_dirctl_ser",
+                      "latch": "fmcdio_dirctl_latch"}
     },
 
     # DAC
