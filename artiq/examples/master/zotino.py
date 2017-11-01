@@ -9,7 +9,7 @@ class ZotinoTestDAC(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.shift_reg.shiftreg_config(self, 0x00008800) ## set lvds direction on fmc
+        self.shift_reg.shiftreg_config(0x00008800) ## set lvds direction on fmc
         self.dac_zotino.setup_bus(write_div=30, read_div=40)
         self.dac_zotino.write_offsets()
         delay(400*us)
