@@ -190,7 +190,7 @@ def main():
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
-            "proxy_bitfile": "bscan_spi_xcku040_sayma.bit",
+            "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
             "adapters": [],
             "gateware": (0, 0x000000),
             "bios":     (1, 0x000000),
