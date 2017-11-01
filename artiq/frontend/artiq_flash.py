@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import shutil
+from functools import partial
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.frontend.bit2bin import bit2bin
@@ -38,8 +39,10 @@ Prerequisites:
                         help="target board, default: %(default)s")
     parser.add_argument("-m", "--adapter", default=None,
                         help="target adapter, default: board-dependent")
-    parser.add_argument("--target-file", default=None,
-                        help="use alternative OpenOCD target file")
+    parser.add_argument("--preinit-command", default=[], action="append",
+                        help="add a pre-initialization OpenOCD command. "
+                             "Useful for selecting a development board " 
+                             "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
     parser.add_argument("action", metavar="ACTION", nargs="*",
@@ -67,9 +70,14 @@ def proxy_path():
 
 
 class Programmer:
-    def __init__(self, target_file):
+    def __init__(self, target_file, preinit_commands):
         self.target_file = target_file
+        self.preinit_commands = preinit_commands
         self.prog = []
+
+    def init(self):
+        self.prog.extend(self.preinit_commands)
+        self.prog.append("init")
 
     def load(self, bitfile):
         raise NotImplementedError
@@ -96,9 +104,10 @@ class Programmer:
 
 
 class ProgrammerJtagSpi7(Programmer):
-    def __init__(self, target_file):
-        Programmer.__init__(self, target_file)
-        self.prog.append("init")
+    def __init__(self, target, preinit_commands):
+        Programmer.__init__(self, os.path.join("board", target + ".cfg"),
+                            preinit_commands)
+        self.init()
 
     def load(self, bitfile):
         self.prog.append("pld load 0 " + bitfile)
@@ -117,10 +126,9 @@ class ProgrammerJtagSpi7(Programmer):
 
 
 class ProgrammerSayma(Programmer):
-    def __init__(self, target_file):
-        # TODO: use target_file
+    def __init__(self, preinit_commands):
         # TODO: support Sayma RTM
-        Programmer.__init__(self, None)
+        Programmer.__init__(self, None, preinit_commands)
         self.proxy_loaded = False
         self.prog += [
             "interface ftdi",
@@ -149,9 +157,8 @@ class ProgrammerSayma(Programmer):
             "target create amc_xcu.proxy testee -chain-position amc_xcu.tap",
             "flash bank amc_xcu.spi0 jtagspi 0 0 0 0 amc_xcu.proxy $XILINX_USER1 $AMC_DR_LEN",
             "flash bank amc_xcu.spi1 jtagspi 0 0 0 0 amc_xcu.proxy $XILINX_USER2 $AMC_DR_LEN",
-
-            "init"
         ]
+        self.init()
 
     def load(self, bitfile):
         self.prog.append("pld load 0 " + bitfile)
@@ -180,7 +187,7 @@ def main():
 
     config = {
         "kc705": {
-            "programmer_factory": ProgrammerJtagSpi7,
+            "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
             "proxy_bitfile": "bscan_spi_xc7k325t.bit",
             "adapters": ["nist_clock", "nist_qc2"],
             "gateware": (0, 0x000000),
@@ -190,7 +197,7 @@ def main():
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
-            "proxy_bitfile": "bscan_spi_xcku040_sayma.bit",
+            "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
             "adapters": [],
             "gateware": (0, 0x000000),
             "bios":     (1, 0x000000),
@@ -216,11 +223,7 @@ def main():
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))
 
-    if opts.target_file is None:
-        target_file = os.path.join("board", opts.target + ".cfg")
-    else:
-        target_file = opts.target_file
-    programmer = config["programmer_factory"](target_file)
+    programmer = config["programmer_factory"](opts.preinit_command)
 
     conv = False
     for action in opts.action:
