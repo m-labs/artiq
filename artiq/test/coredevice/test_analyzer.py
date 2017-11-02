@@ -74,4 +74,4 @@ class AnalyzerTest(ExperimentCase):
         log  = "".join([_extract_log_chars(msg.data)
                         for msg in dump.messages
                         if isinstance(msg, OutputMessage) and msg.channel == dump.log_channel])
-        self.assertEqual(log, "foo\x1E32\n\x1D")
+        self.assertEqual(log, "foo\x1E32\x1D")
