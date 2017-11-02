@@ -140,7 +140,7 @@ pub fn log(timestamp: i64, data: &[u8]) {
         for i in 0..data.len() {
             word <<= 8;
             word |= data[i] as u32;
-            if i % 4 == 0 {
+            if i != 0 && i % 4 == 0 {
                 rtio_o_data_write(0, word);
                 csr::rtio::o_we_write(1);
                 word = 0;
