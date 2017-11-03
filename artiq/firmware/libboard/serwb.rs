@@ -3,7 +3,7 @@ use csr;
 pub fn wait_init() {
     info!("waiting for AMC/RTM serwb bridge to be ready...");
     unsafe {
-        while csr::serwb_phy::control_ready_read() != 0 {}
+        while csr::serwb_phy::control_ready_read() == 0 {}
     }
     info!("done.");
 
