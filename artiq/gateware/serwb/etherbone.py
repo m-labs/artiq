@@ -503,7 +503,8 @@ class _EtherboneRecordSender(Module):
 
         # # #
 
-        pbuffer = stream.SyncFIFO(etherbone_mmap_description(32), buffer_depth)
+        pbuffer = stream.SyncFIFO(etherbone_mmap_description(32), buffer_depth,
+                                  buffered=True)
         self.submodules += pbuffer
         self.comb += sink.connect(pbuffer.sink)
 

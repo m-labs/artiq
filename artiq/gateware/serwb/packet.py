@@ -1,12 +1,9 @@
 from math import ceil
-from copy import copy
-from collections import OrderedDict
 
 from migen import *
 from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect import stream
-from misoc.interconnect.stream import EndpointDescription
 
 
 def reverse_bytes(signal):
