@@ -36,6 +36,7 @@ macro_rules! borrow_mut {
 }
 
 mod config;
+#[cfg(has_ethmac)]
 mod ethmac;
 #[cfg(has_rtio_core)]
 mod rtio_mgt;
@@ -84,6 +85,17 @@ fn startup() {
     #[cfg(has_ad9154)]
     board::ad9154::init().expect("cannot initialize AD9154");
 
+    #[cfg(has_ethmac)]
+    startup_ethernet();
+    #[cfg(not(has_ethmac))]
+    {
+        info!("done");
+        loop {}
+    }
+}
+
+#[cfg(has_ethmac)]
+fn startup_ethernet() {
     let hardware_addr;
     match config::read_str("mac", |r| r?.parse()) {
         Err(()) => {
