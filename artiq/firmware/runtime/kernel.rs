@@ -5,6 +5,7 @@ use rpc_queue;
 
 use kernel_proto::{KERNELCPU_EXEC_ADDRESS, KERNELCPU_LAST_ADDRESS, KSUPPORT_HEADER_SIZE};
 
+#[cfg(has_kernel_cpu)]
 pub unsafe fn start() {
     if csr::kernel_cpu::reset_read() == 0 {
         panic!("attempted to start kernel CPU when it is already running")
@@ -27,7 +28,13 @@ pub unsafe fn start() {
     rpc_queue::init();
 }
 
+#[cfg(not(has_kernel_cpu))]
+pub unsafe fn start() {
+    unimplemented!("not(has_kernel_cpu)")
+}
+
 pub unsafe fn stop() {
+    #[cfg(has_kernel_cpu)]
     csr::kernel_cpu::reset_write(1);
 
     mailbox::acknowledge();
