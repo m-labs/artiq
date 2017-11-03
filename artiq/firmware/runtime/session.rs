@@ -10,11 +10,10 @@ use sched::{ThreadHandle, Io};
 use sched::{TcpListener, TcpStream};
 use board;
 use {config, mailbox, rpc_queue, kernel};
-#[cfg(has_rtio)]
+#[cfg(has_rtio_core)]
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
-#[cfg(has_rtio)]
 use kern_hwreq;
 
 use rpc_proto as rpc;
@@ -272,7 +271,7 @@ fn process_host_message(io: &Io,
                 unexpected!("attempted to switch RTIO clock while a kernel was running")
             }
 
-            #[cfg(has_rtio)]
+            #[cfg(has_rtio_core)]
             {
                 if rtio_mgt::crg::switch_clock(clk) {
                     host_write(stream, host::Reply::ClockSwitchCompleted)
@@ -281,7 +280,7 @@ fn process_host_message(io: &Io,
                 }
             }
 
-            #[cfg(not(has_rtio))]
+            #[cfg(not(has_rtio_core))]
             host_write(stream, host::Reply::ClockSwitchFailed)
         }
 
@@ -376,11 +375,8 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 
         kern_recv_dotrace(request);
 
-        #[cfg(has_rtio)]
-        {
-            if kern_hwreq::process_kern_hwreq(io, request)? {
-                return Ok(false)
-            }
+        if kern_hwreq::process_kern_hwreq(io, request)? {
+            return Ok(false)
         }
 
         match request {
@@ -556,7 +552,7 @@ fn host_kernel_worker(io: &Io,
                 return Err(io_error("watchdog expired"))
             }
 
-            #[cfg(has_rtio)]
+            #[cfg(has_rtio_core)]
             {
                 if !rtio_mgt::crg::check() {
                     host_write(stream, host::Reply::ClockFailure)?;
@@ -601,7 +597,7 @@ fn flash_kernel_worker(io: &Io,
             return Err(io_error("watchdog expired"))
         }
 
-        #[cfg(has_rtio)]
+        #[cfg(has_rtio_core)]
         {
             if !rtio_mgt::crg::check() {
                 return Err(io_error("RTIO clock failure"))
