@@ -303,16 +303,3 @@ pub mod drtio_dbg {
         }
     }
 }
-
-#[cfg(not(has_drtio))]
-pub mod drtio_dbg {
-    pub fn get_channel_state(_channel: u32) -> (u16, u64) { (0, 0) }
-
-    pub fn reset_channel_state(_channel: u32) {}
-
-    pub fn get_fifo_space(_channel: u32) {}
-
-    pub fn get_packet_counts(_linkno: u8) -> (u32, u32) { (0, 0) }
-
-    pub fn get_fifo_space_req_count(_linkno: u8) -> u32 { 0 }
-}

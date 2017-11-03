@@ -1,8 +1,9 @@
-use session::{kern_acknowledge, kern_send};
-use rtio_mgt;
-use kernel_proto as kern;
 use std::io;
+use kernel_proto as kern;
 use sched::Io;
+use session::{kern_acknowledge, kern_send};
+#[cfg(has_rtio)]
+use rtio_mgt;
 
 #[cfg(has_drtio)]
 mod drtio_i2c {
@@ -317,29 +318,35 @@ mod spi {
 
 pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> {
     match request {
+        #[cfg(has_rtio)]
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
             rtio_mgt::init_core();
             kern_acknowledge()
         }
 
+        #[cfg(has_rtio)]
         &kern::DrtioChannelStateRequest { channel } => {
             let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
             kern_send(io, &kern::DrtioChannelStateReply { fifo_space: fifo_space,
                                                           last_timestamp: last_timestamp })
         }
+        #[cfg(has_rtio)]
         &kern::DrtioResetChannelStateRequest { channel } => {
             rtio_mgt::drtio_dbg::reset_channel_state(channel);
             kern_acknowledge()
         }
+        #[cfg(has_rtio)]
         &kern::DrtioGetFifoSpaceRequest { channel } => {
             rtio_mgt::drtio_dbg::get_fifo_space(channel);
             kern_acknowledge()
         }
+        #[cfg(has_rtio)]
         &kern::DrtioPacketCountRequest { linkno } => {
             let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
             kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
         }
+        #[cfg(has_rtio)]
         &kern::DrtioFifoSpaceReqCountRequest { linkno } => {
             let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count(linkno);
             kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })

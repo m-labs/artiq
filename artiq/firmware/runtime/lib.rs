@@ -37,6 +37,7 @@ macro_rules! borrow_mut {
 
 mod config;
 mod ethmac;
+#[cfg(has_rtio)]
 mod rtio_mgt;
 
 mod urc;
@@ -123,6 +124,7 @@ fn startup() {
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
+    #[cfg(has_rtio)]
     rtio_mgt::startup(&io);
     io.spawn(4096, mgmt::thread);
     io.spawn(16384, session::thread);

@@ -372,6 +372,7 @@ extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     })
 }
 
+#[cfg(has_rtio)]
 extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
@@ -402,6 +403,11 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             }
         }
     }
+}
+
+#[cfg(not(has_rtio))]
+extern fn dma_playback(timestamp: i64, ptr: i32) {
+    unimplemented!("not(has_rtio)")
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
