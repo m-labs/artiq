@@ -28,7 +28,7 @@ pub mod spi;
 #[cfg(has_si5324)]
 pub mod si5324;
 
-#[cfg(has_serwb_phy)]
+#[cfg(has_serwb_phy_amc)]
 pub mod serwb;
 #[cfg(has_ad9516)]
 #[allow(dead_code)]

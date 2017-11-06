@@ -37,7 +37,7 @@ mod hmc830 {
     fn spi_setup() {
         unsafe {
             csr::converter_spi::offline_write(1);
-            csr::converter_spi::cs_polarity_write(0);
+            csr::converter_spi::cs_polarity_write(0b0001);
             csr::converter_spi::clk_polarity_write(0);
             csr::converter_spi::clk_phase_write(0);
             csr::converter_spi::lsb_first_write(0);
@@ -70,7 +70,7 @@ mod hmc830 {
             csr::converter_spi::data_write_write(val << (32-31));
             while csr::converter_spi::pending_read() != 0 {}
             while csr::converter_spi::active_read() != 0 {}
-            csr::converter_spi::data_read_read()
+            csr::converter_spi::data_read_read() & 0xffffff
         }
     }
 
@@ -80,17 +80,21 @@ mod hmc830 {
         if id != 0xa7975 {
             error!("invalid HMC830 ID: 0x{:08x}", id);
             return Err("invalid HMC830 identification");
+        } else {
+            info!("HMC830 found");
         }
+        info!("HMC830 configuration...");
         for &(addr, data) in HMC830_WRITES.iter() {
             write(addr, data);
         }
 
         let t = clock::get_ms();
-        while read(0x12) & 0x02 == 0 {
-            if clock::get_ms() > t + 2000 {
-                return Err("HMC830 lock timeout");
-            }
-        }
+        info!("HMC830 waiting for lock...");
+        //while read(0x12) & 0x02 == 0 {
+        //    if clock::get_ms() > t + 2000 {
+        //        return Err("HMC830 lock timeout");
+        //    }
+        //}
 
         Ok(())
     }
@@ -104,7 +108,7 @@ mod hmc7043 {
     fn spi_setup() {
         unsafe {
             csr::converter_spi::offline_write(1);
-            csr::converter_spi::cs_polarity_write(0);
+            csr::converter_spi::cs_polarity_write(0b0001);
             csr::converter_spi::clk_polarity_write(0);
             csr::converter_spi::clk_phase_write(0);
             csr::converter_spi::lsb_first_write(0);
@@ -129,7 +133,7 @@ mod hmc7043 {
     }
 
     fn read(addr: u16) -> u8 {
-        let cmd = (0 << 15) | addr;
+        let cmd = (1 << 15) | addr;
         let val = (cmd as u32) << 8;
         unsafe {
             csr::converter_spi::xfer_len_write_write(16);
@@ -147,7 +151,10 @@ mod hmc7043 {
         if id != 0xf17904 {
             error!("invalid HMC7043 ID: 0x{:08x}", id);
             return Err("invalid HMC7043 identification");
+        } else {
+            info!("HMC7043 found");
         }
+        info!("HMC7043 configuration...");
         for &(addr, data) in HMC7043_WRITES.iter() {
             write(addr, data);
         }
