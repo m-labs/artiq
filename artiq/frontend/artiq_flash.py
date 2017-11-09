@@ -254,7 +254,8 @@ def main():
             raise ValueError("invalid action", action)
 
     if conv:
-        bit2bin(bit, bin_handle)
+        with open(bit, "rb") as f, open(bin_handle, "wb") as g:
+            bit2bin(f, g)
     try:
         programmer.do()
     finally:
