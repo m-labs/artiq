@@ -17,7 +17,7 @@ from misoc.targets.sayma_amc import MiniSoC
 from jesd204b.common import (JESD204BTransportSettings,
                              JESD204BPhysicalSettings,
                              JESD204BSettings)
-from jesd204b.phy.gth import GTHQuadPLL as JESD204BGTHQuadPLL
+from jesd204b.phy.gth import GTHChannelPLL as JESD204BGTHChannelPLL
 from jesd204b.phy import JESD204BPhyTX
 from jesd204b.core import JESD204BCoreTX
 from jesd204b.core import JESD204BCoreTXControl
@@ -34,21 +34,17 @@ PhyPads = namedtuple("PhyPads", "txp txn")
 to_jesd = ClockDomainsRenamer("jesd")
 
 
-class AD9154JESD(Module, AutoCSR):
+class AD9154CRG(Module, AutoCSR):
+    linerate = int(6e9)
+    refclk_freq = int(150e6)
+    fabric_freq = int(125e6)
     def __init__(self, platform):
         self.jreset = CSRStorage(reset=1)
-
-        ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
-        ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
-        settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-        linerate = 10e9
-        refclk_freq = 250e6
-        fabric_freq = 125*1000*1000
 
         self.refclk = Signal()
         refclk2 = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
-        refclk_pads = platform.request("dac_refclk")
+        refclk_pads = platform.request("dac_refclk", 0)
 
         self.specials += [
             Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b00,
@@ -58,56 +54,43 @@ class AD9154JESD(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
         ]
         self.cd_jesd.clk.attr.add("keep")
-        platform.add_period_constraint(self.cd_jesd.clk, 1e9/refclk_freq)
+        platform.add_period_constraint(self.cd_jesd.clk, 1e9/self.refclk_freq)
 
-        self.phys = []
-        for dac in range(2):
-            jesd_pads = platform.request("dac_jesd", dac)
-            phys = []
-            self.phys.append(phys)
-            for i in range(len(jesd_pads.txp)):
-                if i % 4 == 0:
-                    qpll = JESD204BGTHQuadPLL(
-                            self.refclk, refclk_freq, linerate)
-                    self.submodules += qpll
-                    print(qpll)  # FIXME
-                phy = JESD204BPhyTX(
-                        qpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
-                        fabric_freq, transceiver="gth")
-                phy.transmitter.cd_tx.clk.attr.add("keep")
-                platform.add_period_constraint(phy.transmitter.cd_tx.clk,
-                        40*1e9/linerate)
-                platform.add_false_path_constraints(
-                #    self.crg.cd_sys.clk,  FIXME?
-                    self.cd_jesd.clk,
-                    phy.transmitter.cd_tx.clk)
-                phys.append(phy)
 
-            core = to_jesd(JESD204BCoreTX(
-                phys, settings, converter_data_width=64))
-            setattr(self.submodules, "core{}".format(dac), core)
-            control = to_jesd(JESD204BCoreTXControl(core))
-            setattr(self.submodules, "control{}".format(dac), control)
-            core.register_jsync(platform.request("dac_sync", dac))
+class AD9154JESD(Module, AutoCSR):
+    def __init__(self, platform, sys_crg, jesd_crg, dac):
+        ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
+        ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
+        settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
+      
+        jesd_pads = platform.request("dac_jesd", dac)
+        phys = []
+        for i in range(len(jesd_pads.txp)):
+            cpll = JESD204BGTHChannelPLL(
+                    jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate)
+            self.submodules += cpll
+            #print(cpll)
+            phy = JESD204BPhyTX(
+                    cpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
+                    jesd_crg.fabric_freq, transceiver="gth")
+            phy.transmitter.cd_tx.clk.attr.add("keep")
+            platform.add_period_constraint(phy.transmitter.cd_tx.clk,
+                    40*1e9/jesd_crg.linerate)
+            platform.add_false_path_constraints(
+                sys_crg.cd_sys.clk,
+                jesd_crg.cd_jesd.clk,
+                phy.transmitter.cd_tx.clk)
+            phys.append(phy)
 
-        # self.comb += platform.request("user_led", 3).eq(self.core0.jsync)
-
-        # blinking leds for transceiver reset status
-        #for i in range(4):
-        #    counter = Signal(max=fabric_freq)
-        #    self.comb += platform.request("user_led", 4 + i).eq(counter[-1])
-        #    sync = getattr(self.sync, "phy{}_tx".format(i))
-        #    sync += [
-        #        counter.eq(counter - 1),
-        #        If(counter == 0,
-        #            counter.eq(fabric_freq - 1)
-        #        )
-        #    ]
+        self.submodules.core = core = to_jesd(JESD204BCoreTX(
+            phys, settings, converter_data_width=64))
+        self.submodules.control = control = to_jesd(JESD204BCoreTXControl(core))
+        core.register_jsync(platform.request("dac_sync", dac))
 
 
 class AD9154(Module, AutoCSR):
-    def __init__(self, platform):
-        self.submodules.jesd = AD9154JESD(platform)
+    def __init__(self, platform, sys_crg, jesd_crg, dac):
+        self.submodules.jesd = AD9154JESD(platform, sys_crg, jesd_crg, dac)
 
         self.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(8)]
         self.submodules += self.sawgs
@@ -173,9 +156,9 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         serwb_phy_amc.serdes.cd_serwb_serdes.clk.attr.add("keep")
         serwb_phy_amc.serdes.cd_serwb_serdes_20x.clk.attr.add("keep")
         serwb_phy_amc.serdes.cd_serwb_serdes_5x.clk.attr.add("keep")
-        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes.clk, 32.0),
-        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes_20x.clk, 1.6),
-        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes_5x.clk, 6.4)
+        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes.clk, 40*1e9/serwb_pll.linerate),
+        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes_20x.clk, 2*1e9/serwb_pll.linerate),
+        platform.add_period_constraint(serwb_phy_amc.serdes.cd_serwb_serdes_5x.clk, 8*1e9/serwb_pll.linerate)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             serwb_phy_amc.serdes.cd_serwb_serdes.clk,
@@ -200,10 +183,14 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
         if with_sawg:
-            self.submodules.ad9154_0 = AD9154(platform)
+            self.submodules.ad9154_crg = AD9154CRG(platform)
+            self.submodules.ad9154_0 = AD9154(platform, self.crg, self.ad9154_crg, 0)
+            self.submodules.ad9154_1 = AD9154(platform, self.crg, self.ad9154_crg, 1)
+            self.csr_devices.append("ad9154_crg")
             self.csr_devices.append("ad9154_0")
+            self.csr_devices.append("ad9154_1")
             self.config["HAS_AD9154"] = None
-            self.add_csr_group("ad9154", ["ad9154_0"])
+            self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
             self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
             rtio_channels.extend(rtio.Channel.from_phy(phy)
                                 for sawg in self.ad9154_0.sawgs
