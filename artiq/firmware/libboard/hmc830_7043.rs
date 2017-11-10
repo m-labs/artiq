@@ -1,15 +1,32 @@
 /*
  * HMC830 config:
- * 100MHz input, 1GHz output
+ * 100MHz input, 1.2GHz output
  * fvco = (refclk / r_divider) * n_divider
  * fout = fvco/2
  *
  * HMC7043 config:
- * dac clock: 1GHz (div=1)
- * fpga clock: 250MHz (div=4)
- * sysref clock: 15.625MHz (div=64)
+ * dac clock: 600MHz (div=1)
+ * fpga clock: 150MHz (div=4)
+ * sysref clock: 9.375MHz (div=64)
  */
 
+mod clock_mux {
+    use csr;
+
+    const CLK_SRC_EXT_SEL : u8 = 1 << 0;
+    const REF_CLK_SRC_SEL : u8 = 1 << 1;
+    const DAC_CLK_SRC_SEL : u8 = 1 << 2;
+
+    pub fn init() -> Result<(), &'static str> {
+        unsafe {
+            csr::clock_mux::out_write(
+                1*CLK_SRC_EXT_SEL |  // use ext clk from sma
+                1*REF_CLK_SRC_SEL |  //
+                0*DAC_CLK_SRC_SEL);  // use clk from dac_clk // FIXME (should use hmc830 output)
+        }
+        Ok(())
+    }
+}
 
 mod hmc830 {
     use clock;
@@ -31,7 +48,7 @@ mod hmc830 {
         (0xa, 0x2046),
         (0xb, 0x7c061),
         (0xf, 0x81),
-        (0x3, 0x28), // n_divider
+        (0x3, 0x30), // n_divider
     ];
 
     fn spi_setup() {
@@ -90,11 +107,11 @@ mod hmc830 {
 
         let t = clock::get_ms();
         info!("HMC830 waiting for lock...");
-        //while read(0x12) & 0x02 == 0 {
-        //    if clock::get_ms() > t + 2000 {
-        //        return Err("HMC830 lock timeout");
-        //    }
-        //}
+        while read(0x12) & 0x02 == 0 {
+            if clock::get_ms() > t + 2000 {
+                return Err("HMC830 lock timeout");
+            }
+        }
 
         Ok(())
     }
@@ -163,6 +180,7 @@ mod hmc7043 {
 }
 
 pub fn init() -> Result<(), &'static str> {
+    clock_mux::init();
     hmc830::init()?;
     hmc7043::init()
 }

@@ -315,14 +315,14 @@ dut.write(0xED, 0x0)
 # clkgrp2_div2_cfg2_mutesel[7:6] = 0x0
 dut.write(0xEE, 0x9)
 
-# clkgrp3_div1_cfg1_en[0:0] = 0x0
+# clkgrp3_div1_cfg1_en[0:0] = 0x1
 # clkgrp3_div1_cfg1_phdelta_mslip[1:1] = 0x1
 # clkgrp3_div1_cfg2_startmode[3:2] = 0x0
 # clkgrp3_div1_cfg1_rev[4:4] = 0x1
 # clkgrp3_div1_cfg1_slipmask[5:5] = 0x1
 # clkgrp3_div1_cfg1_reseedmask[6:6] = 0x1
 # clkgrp3_div1_cfg1_hi_perf[7:7] = 0x0
-dut.write(0xF0, 0x72)
+dut.write(0xF0, 0x73)
 
 # clkgrp3_div1_cfg12_divrat_lsb[7:0] = 0x2
 dut.write(0xF1, 0x2)
@@ -694,4 +694,3 @@ dut.write(0x151, 0x0)
 # clkgrp7_div2_cfg_outbuf_dyn[5:5] = 0x0
 # clkgrp7_div2_cfg2_mutesel[7:6] = 0x0
 dut.write(0x152, 0xB)
-

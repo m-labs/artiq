@@ -8,12 +8,12 @@ use std::process::Command;
 
 fn gen_hmc7043_writes() {
     println!("cargo:rerun-if-changed=hmc7043_gen_writes.py");
-    println!("cargo:rerun-if-changed=hmc7043_guiexport_10gbps.py");
+    println!("cargo:rerun-if-changed=hmc7043_guiexport_6gbps.py");
 
     let hmc7043_writes =
         Command::new("python3")
                 .arg("hmc7043_gen_writes.py")
-                .arg("hmc7043_guiexport_10gbps.py")
+                .arg("hmc7043_guiexport_6gbps.py")
                 .output()
                 .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())
