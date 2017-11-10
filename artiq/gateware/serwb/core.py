@@ -12,10 +12,10 @@ class SERWBCore(Module):
         depacketizer = Depacketizer(clk_freq)
         packetizer = Packetizer()
         self.submodules += depacketizer, packetizer
-        tx_cdc = stream.AsyncFIFO([("data", 32)], 8)
+        tx_cdc = stream.AsyncFIFO([("data", 32)], 32)
         tx_cdc = ClockDomainsRenamer({"write": "sys", "read": "serwb_serdes"})(tx_cdc)
         self.submodules += tx_cdc
-        rx_cdc = stream.AsyncFIFO([("data", 32)], 8)
+        rx_cdc = stream.AsyncFIFO([("data", 32)], 32)
         rx_cdc = ClockDomainsRenamer({"write": "serwb_serdes", "read": "sys"})(rx_cdc)
         self.submodules += rx_cdc
         self.comb += [
@@ -25,10 +25,12 @@ class SERWBCore(Module):
 
             # core --> serdes
             packetizer.source.connect(tx_cdc.sink),
-            If(tx_cdc.source.stb & phy.init.ready,
-                phy.serdes.tx_data.eq(tx_cdc.source.data)
+            If(phy.init.ready,
+                If(tx_cdc.source.stb,
+                    phy.serdes.tx_data.eq(tx_cdc.source.data)
+                ),
+                tx_cdc.source.ack.eq(1)
             ),
-            tx_cdc.source.ack.eq(phy.init.ready),
 
             # serdes --> core
             rx_cdc.sink.stb.eq(phy.init.ready),
