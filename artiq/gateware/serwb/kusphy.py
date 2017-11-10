@@ -195,12 +195,15 @@ class KUSSerdes(Module):
                 i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed
             ),
             Instance("ISERDESE3",
+                p_IS_CLK_INVERTED=0,
+                p_IS_CLK_B_INVERTED=1,
                 p_DATA_WIDTH=8,
 
                 i_D=serdes_i_delayed,
                 i_RST=ResetSignal("serwb_serdes"),
                 i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
-                i_CLK=ClockSignal("serwb_serdes_20x"), i_CLK_B=~ClockSignal("serwb_serdes_20x"),
+                i_CLK=ClockSignal("serwb_serdes_20x"),
+                i_CLK_B=ClockSignal("serwb_serdes_20x"), # locally inverted
                 i_CLKDIV=ClockSignal("serwb_serdes_5x"),
                 o_Q=serdes_q
             )
