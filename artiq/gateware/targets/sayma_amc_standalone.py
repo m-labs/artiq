@@ -95,14 +95,15 @@ class AD9154(Module, AutoCSR):
         self.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(8)]
         self.submodules += self.sawgs
 
-        # for i in range(len(self.sawgs)):
-        #    self.sawgs[i].connect_y(self.sawgs[i ^ 1])
+        for i in range(len(self.sawgs)):
+            self.sawgs[i].connect_y(self.sawgs[i ^ 1])
 
-        for conv, ch in zip(
-                self.jesd.core0.sink.flatten() +
-                self.jesd.core1.sink.flatten(),
-                self.sawgs):
-            self.sync.jesd += conv.eq(Cat(ch.o))
+        # FIXME
+        #for conv, ch in zip(
+        #        self.jesd.core0.sink.flatten() +
+        #        self.jesd.core1.sink.flatten(),
+        #        self.sawgs):
+        #    self.sync.jesd += conv.eq(Cat(ch.o))
 
 
 class SaymaAMCStandalone(MiniSoC, AMPSoC):
@@ -166,7 +167,7 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
 
         serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave")
         self.submodules += serwb_core
-        self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
+        self.register_mem("serwb", self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
         # RTIO
         rtio_channels = []
