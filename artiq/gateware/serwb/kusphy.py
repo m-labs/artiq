@@ -46,7 +46,7 @@ class KUSSerdes(Module):
             self.cd_serwb_serdes_20x.clk.eq(pll.serwb_serdes_20x_clk)
         ]
         self.specials += AsyncResetSynchronizer(self.cd_serwb_serdes, ~pll.lock)
-        self.comb += self.cd_serwb_serdes_5x.rst.eq(self.cd_serwb_serdes.rst)
+        self.specials += AsyncResetSynchronizer(self.cd_serwb_serdes_5x, ~pll.lock)
 
         # control/status cdc
         tx_idle = Signal()
