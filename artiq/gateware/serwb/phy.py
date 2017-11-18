@@ -37,6 +37,8 @@ class _SerdesMasterInit(Module):
         self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         self.comb += self.fsm.reset.eq(self.reset)
 
+        self.comb += serdes.rx_delay_inc.eq(1)
+
         fsm.act("IDLE",
             NextValue(delay, 0),
             NextValue(delay_min, 0),
@@ -107,7 +109,6 @@ class _SerdesMasterInit(Module):
                 serdes.rx_delay_rst.eq(1)
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1),
                 serdes.rx_delay_ce.eq(1)
             ),
             serdes.tx_comma.eq(1)
@@ -171,6 +172,8 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
         self.comb += self.reset.eq(serdes.rx_idle)
 
+        self.comb += serdes.rx_delay_inc.eq(1)
+
         self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
         fsm.act("IDLE",
             NextValue(delay, 0),
@@ -228,7 +231,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
                 serdes.rx_delay_rst.eq(1)
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1),
                 serdes.rx_delay_ce.eq(1)
             ),
             serdes.tx_idle.eq(1)
