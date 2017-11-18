@@ -17,14 +17,13 @@ mod clock_mux {
     const REF_CLK_SRC_SEL : u8 = 1 << 1;
     const DAC_CLK_SRC_SEL : u8 = 1 << 2;
 
-    pub fn init() -> Result<(), &'static str> {
+    pub fn init() {
         unsafe {
             csr::clock_mux::out_write(
                 1*CLK_SRC_EXT_SEL |  // use ext clk from sma
                 1*REF_CLK_SRC_SEL |  //
                 0*DAC_CLK_SRC_SEL);  // use clk from dac_clk // FIXME (should use hmc830 output)
         }
-        Ok(())
     }
 }
 
@@ -181,6 +180,6 @@ mod hmc7043 {
 
 pub fn init() -> Result<(), &'static str> {
     clock_mux::init();
-    hmc830::init()?;
+    //hmc830::init()?; // FIXME
     hmc7043::init()
 }
