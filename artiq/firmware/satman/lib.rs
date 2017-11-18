@@ -195,7 +195,7 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident(&mut [0; 64]));
 
-    #[cfg(has_serwb_phy)]
+    #[cfg(has_serwb_phy_amc)]
     board::serwb::wait_init();
 
     #[cfg(has_ad9516)]
