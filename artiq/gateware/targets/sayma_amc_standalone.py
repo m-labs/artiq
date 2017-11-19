@@ -92,18 +92,11 @@ class AD9154(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = AD9154JESD(platform, sys_crg, jesd_crg, dac)
 
-        self.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(8)]
+        self.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
         self.submodules += self.sawgs
 
-        for i in range(len(self.sawgs)):
-            self.sawgs[i].connect_y(self.sawgs[i ^ 1])
-
-        # FIXME
-        #for conv, ch in zip(
-        #        self.jesd.core0.sink.flatten() +
-        #        self.jesd.core1.sink.flatten(),
-        #        self.sawgs):
-        #    self.sync.jesd += conv.eq(Cat(ch.o))
+        for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
+            self.sync.jesd += conv.eq(Cat(ch.o))
 
 
 class SaymaAMCStandalone(MiniSoC, AMPSoC):
