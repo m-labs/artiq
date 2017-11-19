@@ -62,7 +62,7 @@ class AD9154JESD(Module, AutoCSR):
         ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
         settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-      
+
         jesd_pads = platform.request("dac_jesd", dac)
         phys = []
         for i in range(len(jesd_pads.txp)):
@@ -187,7 +187,8 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
             self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
             rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                for sawg in self.ad9154_0.sawgs
+                                for sawg in self.ad9154_0.sawgs +
+                                    self.ad9154_1.sawgs
                                 for phy in sawg.phys)
 
         self.config["HAS_RTIO_LOG"] = None
