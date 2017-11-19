@@ -167,7 +167,7 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
 
         serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave")
         self.submodules += serwb_core
-        self.register_mem("serwb", self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
+        self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
         # RTIO
         rtio_channels = []
