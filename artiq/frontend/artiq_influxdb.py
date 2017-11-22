@@ -94,26 +94,26 @@ class DBWriter(TaskObject):
                            "too many pending updates", k)
 
     async def _do(self):
-        while True:
-            k, v, t = await self._queue.get()
-            url = self.base_url + "/write"
-            params = {"u": self.user, "p": self.password, "db": self.database,
-                      "precision": "ms"}
-            data = "{},dataset={} {} {}".format(
-                self.table, k, format_influxdb(v), round(t*1e3))
-            try:
-                response = await aiohttp.request(
-                    "POST", url, params=params, data=data)
-            except:
-                logger.warning("got exception trying to update '%s'",
-                               k, exc_info=True)
-            else:
-                if response.status not in (200, 204):
-                    content = (await response.content.read()).decode().strip()
-                    logger.warning("got HTTP status %d "
-                                   "trying to update '%s': %s",
-                                   response.status, k, content)
-                response.close()
+        async with aiohttp.ClientSession() as session:
+            while True:
+                k, v, t = await self._queue.get()
+                url = self.base_url + "/write"
+                params = {"u": self.user, "p": self.password, "db": self.database,
+                          "precision": "ms"}
+                data = "{},dataset={} {} {}".format(
+                    self.table, k, format_influxdb(v), round(t*1e3))
+                try:
+                    response = await session.post(url, params=params, data=data)
+                except:
+                    logger.warning("got exception trying to update '%s'",
+                                   k, exc_info=True)
+                else:
+                    if response.status not in (200, 204):
+                        content = (await response.content.read()).decode().strip()
+                        logger.warning("got HTTP status %d "
+                                       "trying to update '%s': %s",
+                                       response.status, k, content)
+                    response.close()
 
 
 class _Mock:
