@@ -21,7 +21,6 @@ extern crate amp;
 #[cfg(has_drtio)]
 extern crate drtioaux;
 
-use std::boxed::Box;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 use amp::{mailbox, rpc_queue};
@@ -127,12 +126,12 @@ fn startup_ethernet() {
     //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m", seconds, micros, printer)
     // }
 
-    let net_device = ethmac::EthernetDevice;
+    let net_device = unsafe { ethmac::EthernetDevice::new() };
     // let net_device = smoltcp::phy::EthernetTracer::new(net_device, _net_trace_writer);
-    let arp_cache  = smoltcp::iface::SliceArpCache::new([Default::default(); 8]);
+    let mut neighbor_cache_storage = [None; 8];
+    let neighbor_cache = smoltcp::iface::NeighborCache::new(&mut neighbor_cache_storage[..]);
     let mut interface  = smoltcp::iface::EthernetInterface::new(
-        Box::new(net_device), Box::new(arp_cache) as Box<smoltcp::iface::ArpCache>,
-        hardware_addr, [IpCidr::new(protocol_addr, 0)], None);
+        net_device, neighbor_cache, hardware_addr, [IpCidr::new(protocol_addr, 0)], None);
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
