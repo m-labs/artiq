@@ -32,7 +32,7 @@ class Config:
     Exposes the configurable quantities of a single SAWG channel.
 
     Access to the configuration registers for a SAWG channel can not
-    be concurrent. There must be at least :attr:_rtio_interval` machine
+    be concurrent. There must be at least :attr:`_rtio_interval` machine
     units of delay between accesses. Replacement is not supported and will be
     lead to an ``RTIOCollision`` as this is likely a programming error.
     All methods therefore advance the timeline by the duration of one
