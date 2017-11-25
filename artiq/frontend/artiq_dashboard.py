@@ -36,7 +36,9 @@ def get_argparser():
         help="TCP port to connect to for broadcasts")
     parser.add_argument(
         "--db-file", default=None,
-        help="database file for local GUI settings")
+        help="database file for local GUI settings, "
+             "by default in {} and dependant on master hostname".format(
+                                                        get_user_config_dir()))
     verbosity_args(parser)
     return parser
 
