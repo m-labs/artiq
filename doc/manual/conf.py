@@ -20,6 +20,12 @@ import sphinx_rtd_theme
 from unittest.mock import MagicMock
 
 
+# Hack-patch Sphinx so that ARTIQ-Python types are correctly printed
+# See: https://github.com/m-labs/artiq/issues/741
+from sphinx.ext import autodoc
+autodoc.repr = str
+
+
 class Mock(MagicMock):
     @classmethod
     def __getattr__(cls, name):
