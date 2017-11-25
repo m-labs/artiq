@@ -21,9 +21,6 @@ from artiq.dashboard import (experiments, shortcuts, explorer,
 
 
 def get_argparser():
-    default_db_file = os.path.join(get_user_config_dir(),
-                                   "artiq_dashboard.pyon")
-
     parser = argparse.ArgumentParser(description="ARTIQ Dashboard")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -38,9 +35,8 @@ def get_argparser():
         "--port-broadcast", default=1067, type=int,
         help="TCP port to connect to for broadcasts")
     parser.add_argument(
-        "--db-file", default=default_db_file,
-        help="database file for local GUI settings "
-             "(default: %(default)s)")
+        "--db-file", default=None,
+        help="database file for local GUI settings")
     verbosity_args(parser)
     return parser
 
@@ -92,6 +88,12 @@ def main():
     # initialize application
     args = get_argparser().parse_args()
     widget_log_handler = log.init_log(args, "dashboard")
+
+    if args.db_file is None:
+        args.db_file = os.path.join(get_user_config_dir(),
+                           "artiq_dashboard_{server}_{port}.pyon".format(
+                            server=args.server.replace(":","."),
+                            port=args.port_notify))
 
     app = QtWidgets.QApplication(["ARTIQ Dashboard"])
     loop = QEventLoop(app)
