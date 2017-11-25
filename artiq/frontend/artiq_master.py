@@ -48,6 +48,8 @@ def get_argparser():
 
     log_args(parser)
 
+    parser.add_argument("--name", help="friendly name")
+
     return parser
 
 
@@ -94,6 +96,12 @@ def main():
     scheduler.start()
     atexit_register_coroutine(scheduler.stop)
 
+    class MasterConfig:
+        def get_name(self):
+            return args.name
+    config = MasterConfig()
+
+
     worker_handlers.update({
         "get_device_db": device_db.get_device_db,
         "get_device": device_db.get,
@@ -112,7 +120,8 @@ def main():
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
-        "master_experiment_db": experiment_db
+        "master_experiment_db": experiment_db,
+        "master_config": config
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
