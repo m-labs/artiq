@@ -48,7 +48,9 @@ def get_argparser():
 
     log_args(parser)
 
-    parser.add_argument("--name", help="friendly name")
+    parser.add_argument("--name",
+        help="friendly name, displayed in dashboards "
+             "to identify master instead of server address")
 
     return parser
 
