@@ -12,7 +12,7 @@ from quamash import QEventLoop
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import (atexit_register_coroutine, verbosity_args,
                          get_user_config_dir)
-from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.protocols.pc_rpc import AsyncioClient, Client
 from artiq.protocols.broadcast import Receiver
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
@@ -110,6 +110,11 @@ def main():
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
+    config = Client(args.server, args.port_control, "master_config")
+    server_name = config.get_name()
+    if server_name is None:
+        server_name = args.server
+
     disconnect_reported = False
     def report_disconnect():
         nonlocal disconnect_reported
@@ -139,7 +144,7 @@ def main():
         broadcast_clients[target] = client
 
     # initialize main window
-    main_window = MainWindow(args.server)
+    main_window = MainWindow(server_name)
     smgr.register(main_window)
     mdi_area = MdiArea()
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -211,7 +216,7 @@ def main():
         main_window.tabifyDockWidget(d_schedule, d_log0)
 
     logging.info("ARTIQ dashboard %s connected to %s",
-                 artiq_version, args.server)
+                 artiq_version, server_name)
 
     # run
     main_window.show()
