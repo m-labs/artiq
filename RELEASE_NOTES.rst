@@ -7,6 +7,10 @@ Release notes
 ----------------
 
 * The DDS channel number for the NIST CLOCK target has changed.
+* The dashboard configuration files are now stored one-per-master, keyed by the
+  server address argument and the notify port.
+* The master now has a ``--name`` argument. If given, the dashboard is labelled
+  with this name rather than the server address.
 
 
 3.0
