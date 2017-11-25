@@ -218,8 +218,11 @@ def main():
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
 
+    server_description = server_name
+    if server_name != args.server:
+        server_description += " ({})".format(args.server)
     logging.info("ARTIQ dashboard %s connected to %s",
-                 artiq_version, server_name)
+                 artiq_version, server_description)
 
     # run
     main_window.show()
