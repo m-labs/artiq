@@ -55,6 +55,14 @@ def get_argparser():
     return parser
 
 
+class MasterConfig:
+    def __init__(self, name):
+        self.name = name
+
+    def get_name(self):
+        return self.name
+
+
 def main():
     args = get_argparser().parse_args()
     log_forwarder = init_log(args)
@@ -98,11 +106,7 @@ def main():
     scheduler.start()
     atexit_register_coroutine(scheduler.stop)
 
-    class MasterConfig:
-        def get_name(self):
-            return args.name
-    config = MasterConfig()
-
+    config = MasterConfig(args.name)
 
     worker_handlers.update({
         "get_device_db": device_db.get_device_db,
@@ -119,11 +123,11 @@ def main():
     experiment_db.scan_repository_async()
 
     server_control = RPCServer({
+        "master_config": config,
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
-        "master_experiment_db": experiment_db,
-        "master_config": config
+        "master_experiment_db": experiment_db
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
