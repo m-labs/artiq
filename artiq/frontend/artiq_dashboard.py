@@ -113,6 +113,7 @@ def main():
         rpc_clients[target] = client
 
     config = Client(args.server, args.port_control, "master_config")
+    atexit.register(config.close_rpc)
     server_name = config.get_name()
     if server_name is None:
         server_name = args.server
