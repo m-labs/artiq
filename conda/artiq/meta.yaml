@@ -18,7 +18,7 @@ build:
     - {{ entry_point }}
     {% endfor %}
     {% endfor %}
-  script: $PYTHON setup.py install --single-version-externally-managed --record=record.txt
+  script: $PYTHON setup.py install --no-compile --single-version-externally-managed --record=record.txt
 
 requirements:
   build:
