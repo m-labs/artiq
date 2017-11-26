@@ -18,8 +18,7 @@ from artiq.tools import verbosity_args, init_logger, logger, SSHClient
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ core device "
-                                                 "development tool")
+    parser = argparse.ArgumentParser(description="ARTIQ core device development tool")
 
     verbosity_args(parser)
 
@@ -34,7 +33,9 @@ def get_argparser():
                         help="TTY device corresponding to the development board")
     parser.add_argument("-l", "--lockfile", metavar="PATH",
                         type=str, default="/run/boards/kc705",
-                        help="The lockfile to be acquired for the duration of the script")
+                        help="The lockfile to be acquired for the duration of the actions")
+    parser.add_argument("-w", "--wait", action="store_true",
+                        help="Wait for the board to unlock instead of aborting the actions")
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
@@ -71,23 +72,26 @@ def main():
         "firmware": firmware,
     }
 
-    lock_acquired = False
+    flock_acquired = False
+    flock_file = None # GC root
     def lock():
-        nonlocal lock_acquired
+        nonlocal flock_acquired
+        nonlocal flock_file
 
-        if not lock_acquired:
+        if not flock_acquired:
             logger.info("Acquiring device lock")
-            flock = client.spawn_command("flock --verbose --nonblock {} /bin/sleep 86400"
-                                            .format(args.lockfile),
+            flock = client.spawn_command("flock --verbose {block} {lockfile} sleep 86400"
+                                            .format(block="" if args.wait else "--nonblock",
+                                                    lockfile=args.lockfile),
                                          get_pty=True)
             flock_file = flock.makefile('r')
-            while not lock_acquired:
+            while not flock_acquired:
                 line = flock_file.readline()
                 if not line:
                     break
                 logger.debug(line.rstrip())
                 if line.startswith("flock: executing"):
-                    lock_acquired = True
+                    flock_acquired = True
                 elif line.startswith("flock: failed"):
                     logger.error("Failed to get lock")
                     sys.exit(1)
