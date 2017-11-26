@@ -178,7 +178,7 @@ fn startup_ethernet() {
         }
 
         if let Some(net_stats_diff) = net_stats.update() {
-            warn!("ethernet mac:{}", net_stats_diff); // mac:{} (sic)
+            warn!("ethernet mac:{}", ethmac::EthernetStatistics::new());
         }
     }
 }

@@ -109,16 +109,18 @@ impl phy::TxToken for EthernetTxSlot {
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct EthernetStatistics {
-    rx_errors:  u32,
-    rx_dropped: u32,
+    rx_preamble_errors: u32,
+    rx_crc_errors:      u32,
+    rx_dropped:         u32,
 }
 
 impl EthernetStatistics {
     pub fn new() -> Self {
         unsafe {
             EthernetStatistics {
-                rx_errors:  csr::ethmac::crc_errors_read(),
-                rx_dropped: csr::ethmac::sram_writer_errors_read(),
+                rx_preamble_errors: csr::ethmac::preamble_errors_read(),
+                rx_crc_errors:      csr::ethmac::crc_errors_read(),
+                rx_dropped:         csr::ethmac::sram_writer_errors_read(),
             }
         }
     }
@@ -128,8 +130,9 @@ impl EthernetStatistics {
         *self = Self::new();
 
         let diff = EthernetStatistics {
-            rx_errors:  self.rx_errors.wrapping_sub(old.rx_errors),
-            rx_dropped: self.rx_dropped.wrapping_sub(old.rx_dropped),
+            rx_preamble_errors: self.rx_preamble_errors.wrapping_sub(old.rx_preamble_errors),
+            rx_crc_errors:      self.rx_crc_errors.wrapping_sub(old.rx_crc_errors),
+            rx_dropped:         self.rx_dropped.wrapping_sub(old.rx_dropped),
         };
         if diff == EthernetStatistics::default() {
             None
@@ -141,8 +144,11 @@ impl EthernetStatistics {
 
 impl fmt::Display for EthernetStatistics {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.rx_errors > 0 {
-            write!(f, " rx crc errors: {}", self.rx_errors)?
+        if self.rx_preamble_errors > 0 {
+            write!(f, " rx preamble errors: {}", self.rx_preamble_errors)?
+        }
+        if self.rx_crc_errors > 0 {
+            write!(f, " rx crc errors: {}", self.rx_crc_errors)?
         }
         if self.rx_dropped > 0 {
             write!(f, " rx dropped: {}", self.rx_dropped)?
