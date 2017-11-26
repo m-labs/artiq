@@ -269,10 +269,12 @@ class SSHClient:
     def get_ssh(self):
         if self.ssh is None:
             import paramiko
+            logging.getLogger("paramiko").setLevel(logging.WARNING)
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             self.ssh.connect(self.host)
+            logger.debug("Connecting to {}".format(self.host))
         return self.ssh
 
     def get_transport(self):
@@ -286,11 +288,11 @@ class SSHClient:
         return self.sftp
 
     def spawn_command(self, cmd, get_pty=False, **kws):
-        logger.info("Executing {}".format(cmd))
-        chan = self.get_ssh().get_transport().open_session()
+        chan = self.get_transport().open_session()
+        chan.set_combine_stderr(True)
         if get_pty:
             chan.get_pty()
-        chan.set_combine_stderr(True)
+        logger.debug("Executing {}".format(cmd))
         chan.exec_command(cmd.format(tmp=self.tmp, **kws))
         return chan
 

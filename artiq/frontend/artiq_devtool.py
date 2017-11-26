@@ -6,6 +6,7 @@
 
 import sys
 import argparse
+import logging
 import subprocess
 import socket
 import select
@@ -22,20 +23,23 @@ def get_argparser():
 
     verbosity_args(parser)
 
-    parser.add_argument("-H", "--host", metavar="HOST",
+    parser.add_argument("-H", "--host", metavar="HOSTNAME",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument("-D", "--device", metavar="DEVICE",
+    parser.add_argument("-D", "--device", metavar="HOSTNAME",
                         type=str, default="kc705.lab.m-labs.hk",
                         help="address or domain corresponding to the development board")
-    parser.add_argument("-s", "--serial", metavar="SERIAL",
+    parser.add_argument("-s", "--serial", metavar="PATH",
                         type=str, default="/dev/ttyUSB_kc705",
                         help="TTY device corresponding to the development board")
+    parser.add_argument("-l", "--lockfile", metavar="PATH",
+                        type=str, default="/run/boards/kc705",
+                        help="The lockfile to be acquired for the duration of the script")
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
                              "kc705_dds kc705_drtio_master kc705_drtio_satellite")
-    parser.add_argument("-c", "--config", metavar="TARGET_CFG",
+    parser.add_argument("-c", "--config", metavar="PATH",
                         type=str, default="openocd-kc705.cfg",
                         help="OpenOCD configuration file corresponding to the development board")
 
@@ -50,6 +54,8 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
+    if args.verbose == args.quiet == 0:
+        logging.getLogger().setLevel(logging.INFO)
 
     if args.target == "kc705_dds" or args.target == "kc705_drtio_master":
         firmware = "runtime"
@@ -64,6 +70,27 @@ def main():
         "serial":   args.serial,
         "firmware": firmware,
     }
+
+    lock_acquired = False
+    def lock():
+        nonlocal lock_acquired
+
+        if not lock_acquired:
+            logger.info("Acquiring device lock")
+            flock = client.spawn_command("flock --verbose --nonblock {} /bin/sleep 86400"
+                                            .format(args.lockfile),
+                                         get_pty=True)
+            flock_file = flock.makefile('r')
+            while not lock_acquired:
+                line = flock_file.readline()
+                if not line:
+                    break
+                logger.debug(line.rstrip())
+                if line.startswith("flock: executing"):
+                    lock_acquired = True
+                elif line.startswith("flock: failed"):
+                    logger.error("Failed to get lock")
+                    sys.exit(1)
 
     for action in args.actions:
         if action == "build":
@@ -85,6 +112,8 @@ def main():
                 shutil.rmtree(target_dir)
 
         elif action == "reset":
+            lock()
+
             logger.info("Resetting device")
             client.run_command(
                 "{env} artiq_flash start" +
@@ -92,6 +121,8 @@ def main():
                 **substs)
 
         elif action == "boot" or action == "boot+log":
+            lock()
+
             logger.info("Uploading firmware")
             client.get_sftp().put("/tmp/{target}/software/{firmware}/{firmware}.bin"
                                       .format(target=args.target, firmware=firmware),
@@ -111,6 +142,8 @@ def main():
             client.drain(flterm)
 
         elif action == "connect":
+            lock()
+
             transport = client.get_transport()
 
             def forwarder(local_stream, remote_stream):
@@ -141,10 +174,6 @@ def main():
                     local_stream, peer_addr = listener.accept()
                     logger.info("Accepting %s:%s and opening SSH channel to %s:%s",
                                 *peer_addr, args.device, port)
-                    if client.get_transport() is None:
-                        logger.error("Trying to open a channel before the transport is ready!")
-                        continue
-
                     try:
                         remote_stream = \
                             transport.open_channel('direct-tcpip', (args.device, port), peer_addr)
@@ -156,12 +185,14 @@ def main():
                                               name="forward-{}".format(port), daemon=True)
                     thread.start()
 
-            for port in (1380, 1381, 1382, 1383):
+            ports = [1380, 1381, 1382, 1383]
+            for port in ports:
                 thread = threading.Thread(target=listener, args=(port,),
                                           name="listen-{}".format(port), daemon=True)
                 thread.start()
 
-            logger.info("Connecting to device")
+            logger.info("Forwarding ports {} to core device and logs from core device"
+                            .format(", ".join(map(str, ports))))
             client.run_command(
                 "{env} python3 flterm.py {serial} --output-only",
                 **substs)
