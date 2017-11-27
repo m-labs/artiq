@@ -40,9 +40,6 @@ def get_argparser():
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
                              "kc705_dds kc705_drtio_master kc705_drtio_satellite")
-    parser.add_argument("-c", "--config", metavar="PATH",
-                        type=str, default="openocd-kc705.cfg",
-                        help="OpenOCD configuration file corresponding to the development board")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
@@ -120,8 +117,7 @@ def main():
 
             logger.info("Resetting device")
             client.run_command(
-                "{env} artiq_flash start" +
-                (" --target-file " + args.config if args.config else ""),
+                "{env} artiq_flash start",
                 **substs)
 
         elif action == "boot" or action == "boot+log":
@@ -140,8 +136,7 @@ def main():
                 ("--upload-only" if action == "boot" else "--output-only"),
                 **substs)
             artiq_flash = client.spawn_command(
-                "{env} artiq_flash start" +
-                (" --target-file " + args.config if args.config else ""),
+                "{env} artiq_flash start",
                 **substs)
             client.drain(flterm)
 
