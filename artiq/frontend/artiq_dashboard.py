@@ -113,10 +113,10 @@ def main():
         rpc_clients[target] = client
 
     config = Client(args.server, args.port_control, "master_config")
-    atexit.register(config.close_rpc)
-    server_name = config.get_name()
-    if server_name is None:
-        server_name = args.server
+    try:
+        server_name = config.get_name()
+    finally:
+        config.close_rpc()
 
     disconnect_reported = False
     def report_disconnect():
@@ -147,7 +147,7 @@ def main():
         broadcast_clients[target] = client
 
     # initialize main window
-    main_window = MainWindow(server_name)
+    main_window = MainWindow(args.server if server_name is None else server_name)
     smgr.register(main_window)
     mdi_area = MdiArea()
     mdi_area.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
@@ -218,9 +218,11 @@ def main():
     if d_log0 is not None:
         main_window.tabifyDockWidget(d_schedule, d_log0)
 
-    server_description = server_name
-    if server_name != args.server:
-        server_description += " ({})".format(args.server)
+
+    if server_name is not None:
+        server_description = server_name + " ({})".format(args.server)
+    else:
+        server_description = args.server
     logging.info("ARTIQ dashboard %s connected to %s",
                  artiq_version, server_description)
 
