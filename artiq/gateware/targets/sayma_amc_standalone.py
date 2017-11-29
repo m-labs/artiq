@@ -105,7 +105,6 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
         "rtio":          0x11000000,
         "rtio_dma":      0x12000000,
         "serwb":         0x13000000,
-        "ad9154":        0x14000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
