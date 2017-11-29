@@ -5,7 +5,7 @@ use ad9154_reg;
 fn spi_setup(dacno: u8) {
     unsafe {
         csr::converter_spi::offline_write(1);
-        csr::converter_spi::cs_polarity_write(0);
+        csr::converter_spi::cs_polarity_write(0b0001);
         csr::converter_spi::clk_polarity_write(0);
         csr::converter_spi::clk_phase_write(0);
         csr::converter_spi::lsb_first_write(0);
@@ -71,11 +71,10 @@ fn jesd_jsync(dacno: u8) -> bool {
     }
 }
 
-// ad9154 mode 2
-// external clk=300MHz
-// pclock=150MHz
+// ad9154 mode 1
+// linerate 6Gbps
 // deviceclock_fpga=150MHz
-// deviceclock_dac=300MHz
+// deviceclock_dac=600MHz
 
 struct JESDSettings {
     did: u8,
@@ -120,20 +119,20 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     did: 0x5a,
     bid: 0x5,
 
-    l: 4,
+    l: 8,
     m: 4,
     n: 16,
     np: 16,
     f: 2,
-    s: 1,
+    s: 2,
     k: 16,
-    cs: 1,
+    cs: 0,
 
     subclassv: 1,
     jesdv: 1
 };
 
-fn dac_setup() -> Result<(), &'static str> {
+fn dac_setup(linerate: u64) -> Result<(), &'static str> {
     // reset
     write(ad9154_reg::SPI_INTFCONFA,
             1*ad9154_reg::SOFTRESET_M | 1*ad9154_reg::SOFTRESET |
@@ -148,9 +147,12 @@ fn dac_setup() -> Result<(), &'static str> {
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
     clock::spin_us(100);
     if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
-        return Err("AD9154 not found")
+        return Err("AD9154 not found");
+    } else {
+        info!("AD9154 found");
     }
 
+    info!("AD9154 configuration...");
     write(ad9154_reg::PWRCNTRL0,
             0*ad9154_reg::PD_DAC0 | 0*ad9154_reg::PD_DAC1 |
             0*ad9154_reg::PD_DAC2 | 0*ad9154_reg::PD_DAC3 |
@@ -205,7 +207,7 @@ fn dac_setup() -> Result<(), &'static str> {
     write(ad9154_reg::PDP_AVG_TIME, 0*ad9154_reg::PDP_ENABLE);
 
     write(ad9154_reg::MASTER_PD, 0);
-    write(ad9154_reg::PHY_PD, 0x0f); // power down lanes 0-3
+    write(ad9154_reg::PHY_PD, 0x00); // lanes 0-7 enabled
     write(ad9154_reg::GENERIC_PD,
             0*ad9154_reg::PD_SYNCOUT0B |
             1*ad9154_reg::PD_SYNCOUT1B);
@@ -233,7 +235,7 @@ fn dac_setup() -> Result<(), &'static str> {
     write(ad9154_reg::ILS_HD_CF,
             0*ad9154_reg::HD | 0*ad9154_reg::CF);
     write(ad9154_reg::ILS_CHECKSUM, jesd_checksum(&JESD_SETTINGS));
-    write(ad9154_reg::LANEDESKEW, 0x0f);
+    write(ad9154_reg::LANEDESKEW, 0xff);
     for i in 0..8 {
         write(ad9154_reg::BADDISPARITY, 0*ad9154_reg::RST_IRQ_DIS |
                 0*ad9154_reg::DISABLE_ERR_CNTR_DIS |
@@ -258,20 +260,33 @@ fn dac_setup() -> Result<(), &'static str> {
     write(ad9154_reg::CTRLREG2, 0*ad9154_reg::ILAS_MODE |
             0*ad9154_reg::THRESHOLD_MASK_EN);
     write(ad9154_reg::KVAL, 1); // *4*K multiframes during ILAS
-    write(ad9154_reg::LANEENABLE, 0x0f); // CGS _after_ this
+    write(ad9154_reg::LANEENABLE, 0xff); // CGS _after_ this
 
     write(ad9154_reg::TERM_BLK1_CTRLREG0, 1);
     write(ad9154_reg::TERM_BLK2_CTRLREG0, 1);
     write(ad9154_reg::SERDES_SPI_REG, 1);
-    write(ad9154_reg::CDR_OPERATING_MODE_REG_0,
-            0*ad9154_reg::CDR_OVERSAMP | 0x2*ad9154_reg::CDR_RESERVED |
-            1*ad9154_reg::ENHALFRATE);
+    if linerate > 5_650_000_000 {
+        write(ad9154_reg::CDR_OPERATING_MODE_REG_0,
+                0*ad9154_reg::CDR_OVERSAMP | 0x2*ad9154_reg::CDR_RESERVED |
+                1*ad9154_reg::ENHALFRATE);
+    } else {
+        write(ad9154_reg::CDR_OPERATING_MODE_REG_0,
+                0*ad9154_reg::CDR_OVERSAMP | 0x2*ad9154_reg::CDR_RESERVED |
+                0*ad9154_reg::ENHALFRATE);
+    }
     write(ad9154_reg::CDR_RESET, 0);
     write(ad9154_reg::CDR_RESET, 1);
-    write(ad9154_reg::REF_CLK_DIVIDER_LDO,
-            0x0*ad9154_reg::SPI_CDR_OVERSAMP |
+    if linerate > 5_650_000_000 {
+        write(ad9154_reg::REF_CLK_DIVIDER_LDO,
+            0*ad9154_reg::SPI_CDR_OVERSAMP |
             1*ad9154_reg::SPI_LDO_BYPASS_FILT |
             0*ad9154_reg::SPI_LDO_REF_SEL);
+    } else {
+        write(ad9154_reg::REF_CLK_DIVIDER_LDO,
+            1*ad9154_reg::SPI_CDR_OVERSAMP |
+            1*ad9154_reg::SPI_LDO_BYPASS_FILT |
+            0*ad9154_reg::SPI_LDO_REF_SEL);
+    }
     write(ad9154_reg::LDO_FILTER_1, 0x62); // magic
     write(ad9154_reg::LDO_FILTER_2, 0xc9); // magic
     write(ad9154_reg::LDO_FILTER_3, 0x0e); // magic
@@ -334,7 +349,7 @@ fn dac_setup() -> Result<(), &'static str> {
     let t = clock::get_ms();
     while read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB == 0 {
         if clock::get_ms() > t + 200 {
-            return Err("SERDES PLL lock timeout");
+            return Err("AD9154 SERDES PLL lock timeout");
         }
     }
 
@@ -361,16 +376,16 @@ fn dac_setup() -> Result<(), &'static str> {
             0*ad9154_reg::SYNCCLRLAST);
     clock::spin_us(1000); // ensure at least one sysref edge
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
-        return Err("no sync lock")
+        return Err("A9154 no sync lock");
     }
     write(ad9154_reg::XBAR_LN_0_1,
-            7*ad9154_reg::LOGICAL_LANE0_SRC | 6*ad9154_reg::LOGICAL_LANE1_SRC);
+            0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
     write(ad9154_reg::XBAR_LN_2_3,
-            5*ad9154_reg::LOGICAL_LANE2_SRC | 4*ad9154_reg::LOGICAL_LANE3_SRC);
+            2*ad9154_reg::LOGICAL_LANE2_SRC | 3*ad9154_reg::LOGICAL_LANE3_SRC);
     write(ad9154_reg::XBAR_LN_4_5,
-            0*ad9154_reg::LOGICAL_LANE4_SRC | 0*ad9154_reg::LOGICAL_LANE5_SRC);
+            4*ad9154_reg::LOGICAL_LANE4_SRC | 5*ad9154_reg::LOGICAL_LANE5_SRC);
     write(ad9154_reg::XBAR_LN_6_7,
-            0*ad9154_reg::LOGICAL_LANE6_SRC | 0*ad9154_reg::LOGICAL_LANE7_SRC);
+            6*ad9154_reg::LOGICAL_LANE6_SRC | 7*ad9154_reg::LOGICAL_LANE7_SRC);
     write(ad9154_reg::JESD_BIT_INVERSE_CTRL, 0x00);
     write(ad9154_reg::GENERAL_JRX_CTRL_0,
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
@@ -378,7 +393,7 @@ fn dac_setup() -> Result<(), &'static str> {
     Ok(())
 }
 
-fn monitor() {
+fn dac_monitor() {
     write(ad9154_reg::IRQ_STATUS0, 0x00);
     write(ad9154_reg::IRQ_STATUS1, 0x00);
     write(ad9154_reg::IRQ_STATUS2, 0x00);
@@ -421,22 +436,19 @@ fn monitor() {
     write(ad9154_reg::IRQ_STATUS3, 0x00);
 }
 
-fn cfg(dacno: u8) -> Result<(), &'static str> {
+fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     spi_setup(dacno);
-    // Release the JESD clock domain reset late, as we need to
-    // set up clock chips before.
-    jesd_unreset();
-
     jesd_enable(dacno, false);
     jesd_prbs(dacno, false);
     jesd_stpl(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
-    dac_setup()?;
+    dac_setup(6_000_000_000)?;
     jesd_enable(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
-    monitor();
+    dac_monitor();
+    clock::spin_us(50000);
     let t = clock::get_ms();
     while !jesd_ready(dacno) {
         if clock::get_ms() > t + 200 {
@@ -444,29 +456,33 @@ fn cfg(dacno: u8) -> Result<(), &'static str> {
         }
     }
     clock::spin_us(10000);
-    if read(ad9154_reg::CODEGRPSYNCFLG) != 0x0f {
+    if read(ad9154_reg::CODEGRPSYNCFLG) != 0xff {
         return Err("bad CODEGRPSYNCFLG")
     }
     if !jesd_jsync(dacno) {
         return Err("bad SYNC")
     }
-    if read(ad9154_reg::FRAMESYNCFLG) != 0x0f {
+    if read(ad9154_reg::FRAMESYNCFLG) != 0xff {
         return Err("bad FRAMESYNCFLG")
     }
-    if read(ad9154_reg::GOODCHKSUMFLG) != 0x0f {
+    if read(ad9154_reg::GOODCHKSUMFLG) != 0xff {
         return Err("bad GOODCHECKSUMFLG")
     }
-    if read(ad9154_reg::INITLANESYNCFLG) != 0x0f {
+    if read(ad9154_reg::INITLANESYNCFLG) != 0xff {
         return Err("bad INITLANESYNCFLG")
     }
     Ok(())
 }
 
 pub fn init() -> Result<(), &'static str> {
+    // Release the JESD clock domain reset late, as we need to
+    // set up clock chips before.
+    jesd_unreset();
+    //for dacno in 0..csr::AD9154.len() {
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
-        debug!("setting up DAC #{}", dacno);
-        cfg(dacno)?;
+        debug!("setting up A9154-{} DAC...", dacno);
+        dac_cfg(dacno)?;
     }
     Ok(())
 }
