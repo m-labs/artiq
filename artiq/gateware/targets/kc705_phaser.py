@@ -157,7 +157,6 @@ class Phaser(MiniSoC, AMPSoC):
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
         "mailbox":       0x70000000,
-        "ad9154":        0x50000000,
     }
     mem_map.update(MiniSoC.mem_map)
 
