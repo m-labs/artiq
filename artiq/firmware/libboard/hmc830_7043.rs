@@ -5,9 +5,9 @@
  * fout = fvco/2
  *
  * HMC7043 config:
- * dac clock: 600MHz (div=1)
- * fpga clock: 150MHz (div=4)
- * sysref clock: 9.375MHz (div=64)
+ * dac clock: 600MHz (div=2)
+ * fpga clock: 150MHz (div=8)
+ * sysref clock: 9.375MHz (div=128)
  */
 
 mod clock_mux {
