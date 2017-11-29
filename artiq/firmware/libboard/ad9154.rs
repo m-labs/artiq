@@ -35,9 +35,9 @@ fn read(addr: u16) -> u8 {
     }
 }
 
-fn jesd_reset(dacno: u8, rst: bool) {
+fn jesd_unreset() {
     unsafe {
-        (csr::AD9154[dacno as usize].jesd_jreset_write)(if rst {1} else {0})
+        csr::ad9154_crg::jreset_write(0)
     }
 }
 
@@ -425,7 +425,7 @@ fn cfg(dacno: u8) -> Result<(), &'static str> {
     spi_setup(dacno);
     // Release the JESD clock domain reset late, as we need to
     // set up clock chips before.
-    jesd_reset(dacno, false);
+    jesd_unreset();
 
     jesd_enable(dacno, false);
     jesd_prbs(dacno, false);
