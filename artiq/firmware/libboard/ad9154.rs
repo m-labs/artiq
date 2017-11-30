@@ -376,7 +376,7 @@ fn dac_setup(linerate: u64) -> Result<(), &'static str> {
             0*ad9154_reg::SYNCCLRLAST);
     clock::spin_us(1000); // ensure at least one sysref edge
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
-        return Err("A9154 no sync lock");
+        return Err("AD9154 no sync lock");
     }
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
@@ -478,10 +478,10 @@ pub fn init() -> Result<(), &'static str> {
     // Release the JESD clock domain reset late, as we need to
     // set up clock chips before.
     jesd_unreset();
-    //for dacno in 0..csr::AD9154.len() {
+
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
-        debug!("setting up A9154-{} DAC...", dacno);
+        debug!("setting up AD9154-{} DAC...", dacno);
         dac_cfg(dacno)?;
     }
     Ok(())
