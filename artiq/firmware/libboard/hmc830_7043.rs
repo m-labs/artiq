@@ -21,8 +21,8 @@ mod clock_mux {
         unsafe {
             csr::clock_mux::out_write(
                 1*CLK_SRC_EXT_SEL |  // use ext clk from sma
-                1*REF_CLK_SRC_SEL |  //
-                0*DAC_CLK_SRC_SEL);  // use clk from dac_clk // FIXME (should use hmc830 output)
+                1*REF_CLK_SRC_SEL |
+                1*DAC_CLK_SRC_SEL);
         }
     }
 }
@@ -105,7 +105,7 @@ mod hmc830 {
         }
 
         let t = clock::get_ms();
-        info!("HMC830 waiting for lock...");
+        info!("waiting for lock...");
         while read(0x12) & 0x02 == 0 {
             if clock::get_ms() > t + 2000 {
                 return Err("HMC830 lock timeout");
@@ -180,6 +180,6 @@ mod hmc7043 {
 
 pub fn init() -> Result<(), &'static str> {
     clock_mux::init();
-    //hmc830::init()?; // FIXME
+    hmc830::init()?;
     hmc7043::init()
 }
