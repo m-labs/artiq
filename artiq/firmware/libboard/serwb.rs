@@ -4,7 +4,12 @@ pub fn wait_init() {
     info!("waiting for AMC/RTM serwb bridge to be ready...");
     unsafe {
         csr::serwb_phy_amc::control_reset_write(1);
-        while csr::serwb_phy_amc::control_ready_read() == 0 {}
+        while csr::serwb_phy_amc::control_ready_read() == 0 {
+            if csr::serwb_phy_amc::control_error_read() == 1 {
+                info!("retry serwb initialization...");
+                csr::serwb_phy_amc::control_reset_write(1);
+            }
+        }
     }
     info!("done.");
 
