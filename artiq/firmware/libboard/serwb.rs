@@ -6,7 +6,7 @@ pub fn wait_init() {
         csr::serwb_phy_amc::control_reset_write(1);
         while csr::serwb_phy_amc::control_ready_read() == 0 {
             if csr::serwb_phy_amc::control_error_read() == 1 {
-                info!("retry serwb initialization...");
+                warn!("AMC/RTM serwb bridge initialization failed, retrying.");
                 csr::serwb_phy_amc::control_reset_write(1);
             }
         }
