@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from misoc.cores import timer
 from misoc.interconnect import wishbone
@@ -49,4 +50,7 @@ def build_artiq_soc(soc, argdict):
     builder.add_software_package("libunwind")
     builder.add_software_package("ksupport", os.path.join(artiq_dir, "firmware", "ksupport"))
     builder.add_software_package("runtime", os.path.join(artiq_dir, "firmware", "runtime"))
-    builder.build()
+    try:
+        builder.build()
+    except subprocess.CalledProcessError as e:
+        raise SystemExit("Command {} failed".format(" ".join(e.cmd)))
