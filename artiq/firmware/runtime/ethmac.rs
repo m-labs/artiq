@@ -1,88 +1,158 @@
-use core::slice;
+use core::{slice, fmt};
+use smoltcp::Result;
+use smoltcp::phy::{self, DeviceCapabilities, Device};
+
 use board::{csr, mem};
-use smoltcp::Error;
-use smoltcp::phy::{DeviceCapabilities, Device};
 
-const RX0_BASE: usize = mem::ETHMAC_BASE + 0x0000;
-const RX1_BASE: usize = mem::ETHMAC_BASE + 0x0800;
-const RX2_BASE: usize = mem::ETHMAC_BASE + 0x1000;
-const RX3_BASE: usize = mem::ETHMAC_BASE + 0x1800;
-const TX0_BASE: usize = mem::ETHMAC_BASE + 0x2000;
-const TX1_BASE: usize = mem::ETHMAC_BASE + 0x2800;
-const TX2_BASE: usize = mem::ETHMAC_BASE + 0x3000;
-const TX3_BASE: usize = mem::ETHMAC_BASE + 0x3800;
+const RX_SLOTS: usize = csr::ETHMAC_RX_SLOTS as usize;
+const TX_SLOTS: usize = csr::ETHMAC_TX_SLOTS as usize;
+const SLOT_SIZE: usize = csr::ETHMAC_SLOT_SIZE as usize;
 
-const RX_BUFFERS: [*mut u8; 4] = [RX0_BASE as *mut u8, RX1_BASE as *mut u8,
-                                  RX2_BASE as *mut u8, RX3_BASE as *mut u8];
-const TX_BUFFERS: [*mut u8; 4] = [TX0_BASE as *mut u8, TX1_BASE as *mut u8,
-                                  TX2_BASE as *mut u8, TX3_BASE as *mut u8];
+fn next_rx_slot() -> Option<usize> {
+    unsafe {
+        if csr::ethmac::sram_writer_ev_pending_read() == 0 {
+            None
+        } else {
+            Some(csr::ethmac::sram_writer_slot_read() as usize)
+        }
+    }
+}
 
-pub struct EthernetDevice;
+fn next_tx_slot() -> Option<usize> {
+    unsafe {
+        if csr::ethmac::sram_reader_ready_read() == 0 {
+            None
+        } else {
+            Some((csr::ethmac::sram_reader_slot_read() as usize + 1) % TX_SLOTS)
+        }
+    }
+}
 
-impl Device for EthernetDevice {
-    type RxBuffer = RxBuffer;
-    type TxBuffer = TxBuffer;
+fn rx_buffer(slot: usize) -> *const u8 {
+    debug_assert!(slot < RX_SLOTS);
+    (mem::ETHMAC_BASE + SLOT_SIZE * slot) as _
+}
+
+fn tx_buffer(slot: usize) -> *mut u8 {
+    debug_assert!(slot < TX_SLOTS);
+    (mem::ETHMAC_BASE + SLOT_SIZE * (RX_SLOTS + slot)) as _
+}
+
+pub struct EthernetDevice(());
+
+impl EthernetDevice {
+    pub unsafe fn new() -> EthernetDevice {
+        EthernetDevice(())
+    }
+}
+
+impl<'a> Device<'a> for EthernetDevice {
+    type RxToken = EthernetRxSlot;
+    type TxToken = EthernetTxSlot;
 
     fn capabilities(&self) -> DeviceCapabilities {
         let mut caps = DeviceCapabilities::default();
         caps.max_transmission_unit = 1514;
-        caps.max_burst_size = Some(RX_BUFFERS.len());
+        caps.max_burst_size = Some(RX_SLOTS);
         caps
     }
 
-    fn receive(&mut self, _timestamp: u64) -> Result<Self::RxBuffer, Error> {
-        unsafe {
-            if csr::ethmac::sram_writer_ev_pending_read() != 0 {
-                let slot   = csr::ethmac::sram_writer_slot_read();
-                let length = csr::ethmac::sram_writer_length_read();
-                Ok(RxBuffer(slice::from_raw_parts(RX_BUFFERS[slot as usize],
-                                                  length as usize)))
-            } else {
-                Err(Error::Exhausted)
-            }
+    fn receive(&mut self) -> Option<(Self::RxToken, Self::TxToken)> {
+        if let (Some(rx_slot), Some(tx_slot)) = (next_rx_slot(), next_tx_slot()) {
+            Some((EthernetRxSlot(rx_slot), EthernetTxSlot(tx_slot)))
+        } else {
+            None
         }
     }
 
-    fn transmit(&mut self, _timestamp: u64, length: usize) -> Result<Self::TxBuffer, Error> {
-        unsafe {
-            if csr::ethmac::sram_reader_ready_read() != 0 {
-                let slot  = csr::ethmac::sram_reader_slot_read();
-                let slot  = (slot + 1) % (TX_BUFFERS.len() as u8);
-                csr::ethmac::sram_reader_slot_write(slot);
-                csr::ethmac::sram_reader_length_write(length as u16);
-                Ok(TxBuffer(slice::from_raw_parts_mut(TX_BUFFERS[slot as usize],
-                                                      length as usize)))
-            } else {
-                Err(Error::Exhausted)
-            }
+    fn transmit(&mut self) -> Option<Self::TxToken> {
+        if let Some(tx_slot) = next_tx_slot() {
+            Some(EthernetTxSlot(tx_slot))
+        } else {
+            None
         }
     }
 }
 
-pub struct RxBuffer(&'static [u8]);
+pub struct EthernetRxSlot(usize);
 
-impl AsRef<[u8]> for RxBuffer {
-    fn as_ref(&self) -> &[u8] { self.0 }
-}
-
-impl Drop for RxBuffer {
-    fn drop(&mut self) {
-        unsafe { csr::ethmac::sram_writer_ev_pending_write(1) }
+impl phy::RxToken for EthernetRxSlot {
+    fn consume<R, F>(self, _timestamp: u64, f: F) -> Result<R>
+        where F: FnOnce(&[u8]) -> Result<R>
+    {
+        unsafe {
+            let length = csr::ethmac::sram_writer_length_read() as usize;
+            let result = f(slice::from_raw_parts(rx_buffer(self.0), length));
+            csr::ethmac::sram_writer_ev_pending_write(1);
+            result
+        }
     }
 }
 
-pub struct TxBuffer(&'static mut [u8]);
+pub struct EthernetTxSlot(usize);
 
-impl AsRef<[u8]> for TxBuffer {
-    fn as_ref(&self) -> &[u8] { self.0 }
+impl phy::TxToken for EthernetTxSlot {
+    fn consume<R, F>(self, _timestamp: u64, length: usize, f: F) -> Result<R>
+        where F: FnOnce(&mut [u8]) -> Result<R>
+    {
+        debug_assert!(length < SLOT_SIZE);
+
+        unsafe {
+            let result = f(slice::from_raw_parts_mut(tx_buffer(self.0), length))?;
+            csr::ethmac::sram_reader_slot_write(self.0 as u8);
+            csr::ethmac::sram_reader_length_write(length as u16);
+            csr::ethmac::sram_reader_start_write(1);
+            Ok(result)
+        }
+    }
 }
 
-impl AsMut<[u8]> for TxBuffer {
-    fn as_mut(&mut self) -> &mut [u8] { self.0 }
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct EthernetStatistics {
+    rx_preamble_errors: u32,
+    rx_crc_errors:      u32,
+    rx_dropped:         u32,
 }
 
-impl Drop for TxBuffer {
-    fn drop(&mut self) {
-        unsafe { csr::ethmac::sram_reader_start_write(1) }
+impl EthernetStatistics {
+    pub fn new() -> Self {
+        unsafe {
+            EthernetStatistics {
+                rx_preamble_errors: csr::ethmac::preamble_errors_read(),
+                rx_crc_errors:      csr::ethmac::crc_errors_read(),
+                rx_dropped:         csr::ethmac::sram_writer_errors_read(),
+            }
+        }
+    }
+
+    pub fn update(&mut self) -> Option<Self> {
+        let old = self.clone();
+        *self = Self::new();
+
+        let diff = EthernetStatistics {
+            rx_preamble_errors: self.rx_preamble_errors.wrapping_sub(old.rx_preamble_errors),
+            rx_crc_errors:      self.rx_crc_errors.wrapping_sub(old.rx_crc_errors),
+            rx_dropped:         self.rx_dropped.wrapping_sub(old.rx_dropped),
+        };
+        if diff == EthernetStatistics::default() {
+            None
+        } else {
+            Some(diff)
+        }
+    }
+}
+
+impl fmt::Display for EthernetStatistics {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if self.rx_preamble_errors > 0 {
+            write!(f, " rx preamble errors: {}", self.rx_preamble_errors)?
+        }
+        if self.rx_crc_errors > 0 {
+            write!(f, " rx crc errors: {}", self.rx_crc_errors)?
+        }
+        if self.rx_dropped > 0 {
+            write!(f, " rx dropped: {}", self.rx_dropped)?
+        }
+        Ok(())
     }
 }
