@@ -2,10 +2,10 @@
 # $ conda env create -f conda/artiq-doc.yaml
 name: artiq-doc
 channels:
-  - defaults
-  - conda-forge/label/main
   - m-labs/label/dev
   - m-labs/label/main
+  - defaults
+  - conda-forge/label/main
 dependencies:
   - python>=3.5.3,<3.6
   - sphinx=1.4.8

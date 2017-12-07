@@ -2,9 +2,9 @@
 # $ conda env create -f conda/artiq-dev.yaml
 name: artiq-dev
 channels:
-  - defaults
-  - conda-forge/label/main
   - m-labs/label/dev
   - m-labs/label/main
+  - defaults
+  - conda-forge/label/main
 dependencies:
   - artiq-dev
