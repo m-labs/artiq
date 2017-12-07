@@ -13,6 +13,12 @@ Release notes
   with this name rather than the server address.
 
 
+3.1
+---
+
+No further notes.
+
+
 3.0
 ---
 
