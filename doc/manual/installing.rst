@@ -37,18 +37,18 @@ Installing the ARTIQ packages
 
 First add the conda-forge repository containing ARTIQ dependencies to your conda configuration::
 
-    $ conda config --add channels http://conda.anaconda.org/conda-forge/label/main
+    $ conda config --prepend channels http://conda.anaconda.org/conda-forge/label/main
 
 Then add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates::
 
-    $ conda config --add channels http://conda.anaconda.org/m-labs/label/main
+    $ conda config --prepend channels http://conda.anaconda.org/m-labs/label/main
 
 .. note::
     To use the development versions of ARTIQ, also add the ``dev`` label (http://conda.anaconda.org/m-labs/label/dev).
     Development versions are built for every change and contain more features, but are not as well-tested and are more likely to contain more bugs or inconsistencies than the releases in the ``main`` label.
 
 Then prepare to create a new conda environment with the ARTIQ package and the matching binaries for your hardware:
-choose a suitable name for the environment, for example ``artiq-main`` if you intend to track the main label or ``artiq-2016-04-01`` if you consider the environment a snapshot of ARTIQ on 2016-04-01.
+choose a suitable name for the environment, for example ``artiq-main`` if you intend to track the main label, ``artiq-3`` for the 3.x release series, or ``artiq-2016-04-01`` if you consider the environment a snapshot of ARTIQ on 2016-04-01.
 Choose the package containing the binaries for your hardware:
 
     * ``artiq-kc705-nist_clock`` for the KC705 board with the NIST "clock" FMC backplane and AD9914 DDS chips.
