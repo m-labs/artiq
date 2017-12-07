@@ -16,6 +16,8 @@ Major releases
 8. Mint a new DOI from Zenodo and update the README/introduction.
 9. Update the m-labs.hk/artiq/manual redirect to point to m-labs.hk/artiq/manual-release-X (edit /artiq/.htaccess).
 10. "Draft a new release" and close the milestone on GitHub.
+11. Deprecate the old release documentation with a banner in
+    doc/manual/_templates/layout.html in the old ``release-(X-1)`` branch.
 
 Minor (bugfix) releases
 -----------------------
