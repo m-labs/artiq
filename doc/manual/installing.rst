@@ -112,6 +112,9 @@ The ``artiq`` or ``artiq-dev`` conda packages install ``openocd`` automatically 
 
 .. _setup-openocd:
 
+Configuring OpenOCD
+^^^^^^^^^^^^^^^^^^^
+
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
 On Linux, first ensure that the current user belongs to the ``plugdev`` group. If it does not, run ``sudo adduser $USER plugdev`` and relogin. Afterwards::

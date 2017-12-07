@@ -27,7 +27,7 @@ ARTIQ Anaconda development environment
            $ git clone --recursive https://github.com/m-labs/artiq ~/artiq-dev/artiq
            $ cd ~/artiq-dev/artiq
 
-       Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ (the default will fetch the development ``master`` branch).
+       Add ``-b release-X`` to the ``git clone`` command if you are building a stable branch of ARTIQ. Replace ``X`` with the major release. The default will fetch the development ``master`` branch.
     3. :ref:`Install Anaconda or Miniconda <install-anaconda>`
     4. Create and activate a conda environment named ``artiq-dev`` and install the ``artiq-dev`` package which pulls in all the packages required to develop ARTIQ::
 
@@ -37,10 +37,9 @@ ARTIQ Anaconda development environment
 
            $ pip install -e .
     6. :ref:`Install Vivado <install-xilinx>`
-    7. :ref:`Obtain and install the JTAG SPI flash proxy bitstream <install-bscan-spi>`
-    8. :ref:`Configure OpenOCD <setup-openocd>`
-    9. :ref:`Build target binaries <build-target-binaries>`
-    10. :ref:`Flash target binaries <flash-target-binaries>`
+    7. :ref:`Configure OpenOCD <setup-openocd>`
+    8. :ref:`Build target binaries <build-target-binaries>`
+    9. :ref:`Flash target binaries <flash-target-binaries>`
 
 .. _install-from-source:
 
