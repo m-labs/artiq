@@ -4,8 +4,8 @@
 #  * tcpdump has CAP_NET_RAW capabilities set
 #    use # setcap cap_net_raw+eip /usr/sbin/tcpdump
 
-import argparse
 import os
+import argparse
 import subprocess
 
 from artiq.tools import verbosity_args, init_logger, logger, SSHClient
@@ -49,7 +49,6 @@ def main():
         subprocess.check_call(args.command)
     except subprocess.CalledProcessError:
         logger.error("Command failed")
-        sys.exit(1)
 
     tcpdump.close()
     sftp.get("{tmp}/trace.pcap".format(tmp=client.tmp),
