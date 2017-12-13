@@ -120,8 +120,14 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
                          **kwargs)
         AMPSoC.__init__(self)
         platform = self.platform
-        platform.toolchain.bitstream_commands.append(
-            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]")
+        platform.toolchain.bitstream_commands.extend([
+            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
+            "set_property BITSTREAM.CONFIG.CONFIGRATE 3 [current_design]",
+            "set_property BITSTREAM.CONFIG.SPI_BUSWIDTH 1 [current_design]",
+            "set_property CFGBVS VCCO [current_design]",
+            "set_property CONFIG_VOLTAGE 3.3 [current_design]",
+            ])
+
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             platform.request("user_led", 0),
