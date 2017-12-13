@@ -126,6 +126,8 @@ class ProgrammerJtagSpi7(Programmer):
 
 
 class ProgrammerSayma(Programmer):
+    sector_size = 0x10000
+
     def __init__(self, preinit_commands):
         # TODO: support Sayma RTM
         Programmer.__init__(self, None, preinit_commands)
@@ -147,10 +149,9 @@ class ProgrammerSayma(Programmer):
             "set CHIP XCKU040",
             "source [find cpld/xilinx-xcu.cfg]",  # tap 1, pld 1
 
+            "target create xcu.proxy testee -chain-position xcu.tap",
             "set XILINX_USER1 0x02",
             "set XILINX_USER2 0x03",
-            "set JTAGSPI_IR $XILINX_USER1",
-            "source [find cpld/jtagspi.cfg]",
             "flash bank xcu.spi0 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER1",
             "flash bank xcu.spi1 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER2"
         ]
@@ -164,10 +165,16 @@ class ProgrammerSayma(Programmer):
         self.prog.append("reset halt")
 
     def flash_binary(self, flashno, address, filename):
+        sector_first = address // self.sector_size
+        size = os.path.getsize(filename)
+        assert size
+        sector_last = sector_first + (size - 1) // self.sector_size
+        assert sector_last >= sector_first
         self.prog += [
             "flash probe xcu.spi{}".format(flashno),
-            "irscan xcu.tap $XILINX_USER{}".format(flashno+1),
-            "flash write_bank {} {} 0x{:x}".format(flashno, filename, address)
+            "flash erase_sector {} {} {}".format(flashno, sector_first, sector_last),
+            "flash write_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
+            "flash verify_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
         ]
 
     def start(self):
@@ -238,6 +245,8 @@ def main():
             if not os.access(bin, os.R_OK):
                 bin_handle, bin = tempfile.mkstemp()
                 bit = os.path.join(bin_dir, "top.bit")
+                with open(bit, "rb") as f, open(bin_handle, "wb") as g:
+                    bit2bin(f, g)
                 conv = True
             programmer.flash_binary(*config["gateware"], bin)
         elif action == "bios":
@@ -253,9 +262,6 @@ def main():
         else:
             raise ValueError("invalid action", action)
 
-    if conv:
-        with open(bit, "rb") as f, open(bin_handle, "wb") as g:
-            bit2bin(f, g)
     try:
         programmer.do()
     finally:
