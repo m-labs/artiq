@@ -45,6 +45,8 @@ Prerequisites:
                              "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
+    parser.add_argument("--srcbuild", help="look for bitstream, BIOS and runtime in this "
+                                            "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
                         default="proxy gateware bios runtime start".split(),
                         help="actions to perform, default: %(default)s")
@@ -220,7 +222,7 @@ def main():
         else:
             bin_dir = os.path.join(artiq_dir, "binaries",
                                     "{}-{}".format(opts.target, adapter))
-    if not os.path.exists(bin_dir) and opts.action != ["start"]:
+    if opts.srcbuild is None and not os.path.exists(bin_dir) and opts.action != ["start"]:
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))
 
@@ -241,22 +243,38 @@ def main():
                 raise SystemExit(
                     "proxy gateware bitstream {} not found".format(config["proxy_bitfile"]))
         elif action == "gateware":
-            bin = os.path.join(bin_dir, "top.bin")
+            if opts.srcbuild is None:
+                path = bin_dir
+            else:
+                path = os.path.join(opts.srcbuild, "gateware")
+            bin = os.path.join(path, "top.bin")
             if not os.access(bin, os.R_OK):
                 bin_handle, bin = tempfile.mkstemp()
-                bit = os.path.join(bin_dir, "top.bit")
+                bit = os.path.join(path, "top.bit")
                 with open(bit, "rb") as f, open(bin_handle, "wb") as g:
                     bit2bin(f, g)
                 conv = True
             programmer.flash_binary(*config["gateware"], bin)
         elif action == "bios":
-            programmer.flash_binary(*config["bios"], os.path.join(bin_dir, "bios.bin"))
+            if opts.srcbuild is None:
+                path = bin_dir
+            else:
+                path = os.path.join(opts.srcbuild, "software", "bios")
+            programmer.flash_binary(*config["bios"], os.path.join(path, "bios.bin"))
         elif action == "runtime":
-            programmer.flash_binary(*config["runtime"], os.path.join(bin_dir, "runtime.fbi"))
+            if opts.srcbuild is None:
+                path = bin_dir
+            else:
+                path = os.path.join(opts.srcbuild, "software", "runtime")
+            programmer.flash_binary(*config["runtime"], os.path.join(path, "runtime.fbi"))
         elif action == "storage":
             programmer.flash_binary(*config["storage"], opts.storage)
         elif action == "load":
-            programmer.load(os.path.join(bin_dir, "top.bit"))
+            if opts.srcbuild is None:
+                path = bin_dir
+            else:
+                path = os.path.join(opts.srcbuild, "gateware")
+            programmer.load(os.path.join(path, "top.bit"))
         elif action == "start":
             programmer.start()
         else:
