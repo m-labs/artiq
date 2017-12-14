@@ -4,8 +4,7 @@ from artiq.experiment import *
 class SAWGTest(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("led")
-        self.setattr_device("ttl_sma")
+        self.setattr_device("ttl_sma0")
 
         self.setattr_device("sawg0")
         self.setattr_device("sawg1")
@@ -15,7 +14,6 @@ class SAWGTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        self.ttl_sma.output()
 
         while True:
             self.sawg0.amplitude1.set(0.)
@@ -30,21 +28,21 @@ class SAWGTest(EnvExperiment):
             self.sawg1.amplitude1.set(.4)
             self.sawg1.frequency0.set(10*MHz)
             self.sawg1.phase0.set(0.)
-            self.ttl_sma.pulse(200*ns)
+            self.ttl_sma0.pulse(200*ns)
             self.sawg1.amplitude1.set(.1)
             delay(200*ns)
             self.sawg1.amplitude1.set(-.4)
-            self.ttl_sma.pulse(200*ns)
+            self.ttl_sma0.pulse(200*ns)
             self.sawg1.amplitude1.set(.4)
             delay(200*ns)
             self.sawg1.phase0.set(.25)
-            self.ttl_sma.pulse(200*ns)
+            self.ttl_sma0.pulse(200*ns)
             self.sawg1.phase0.set(.5)
             delay(200*ns)
             self.sawg0.phase0.set(.5)
-            self.ttl_sma.pulse(200*ns)
+            self.ttl_sma0.pulse(200*ns)
             self.sawg1.frequency0.set(30*MHz)
             delay(200*ns)
             self.sawg1.frequency0.set(10*MHz)
             self.sawg1.phase0.set(0.)
-            self.ttl_sma.pulse(200*ns)
+            self.ttl_sma0.pulse(200*ns)
