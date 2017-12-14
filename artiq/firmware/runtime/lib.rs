@@ -77,8 +77,6 @@ fn startup() {
 
     #[cfg(has_i2c)]
     board::i2c::init();
-    #[cfg(has_ad9516)]
-    board::ad9516::init().expect("cannot initialize AD9516");
     #[cfg(has_hmc830_7043)]
     board::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
