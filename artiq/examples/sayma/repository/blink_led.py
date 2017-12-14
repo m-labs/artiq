@@ -10,5 +10,7 @@ class BlinkSaymaLED(EnvExperiment):
     def run(self):
         self.core.reset()
         while True:
-            self.led0.pulse(100*ms)
-            delay(100*ms)
+            for _ in range(3):
+                self.led0.pulse(100*ms)
+                delay(100*ms)
+            delay(500*ms)
