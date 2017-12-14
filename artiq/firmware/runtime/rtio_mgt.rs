@@ -219,16 +219,25 @@ pub fn startup(io: &Io) {
 
     let clk = config::read("startup_clock", |result| {
         match result {
-            Ok(b"i") => RtioClock::Internal,
-            Ok(b"e") => RtioClock::External,
-            _ => {
-                error!("unrecognized startup_clock configuration entry");
+            Ok(b"i") => {
+                info!("using internal startup RTIO clock");
+                RtioClock::Internal
+            },
+            Ok(b"e") => {
+                info!("using external startup RTIO clock");
+                RtioClock::External
+            },
+            Err(()) => {
+                info!("using internal startup RTIO clock (by default)");
+                RtioClock::Internal
+            },
+            Ok(_) => {
+                error!("unrecognized startup_clock configuration entry, using internal RTIO clock");
                 RtioClock::Internal
             }
         }
     });
 
-    info!("startup RTIO clock: {:?}", clk);
     if !crg::switch_clock(clk as u8) {
         error!("startup RTIO clock failed");
         warn!("this may cause the system initialization to fail");
