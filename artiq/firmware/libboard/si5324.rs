@@ -174,11 +174,14 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
     write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
-    write(6,   (read(6)? & 0xc0) | 0b001111)?;            // SFOUT2_REG=b001 SFOUT1_REG=b111
+    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
     write(25,  (s.n1_hs  << 5 ) as u8)?;
     write(31,  (s.nc1_ls >> 16) as u8)?;
     write(32,  (s.nc1_ls >> 8 ) as u8)?;
     write(33,  (s.nc1_ls)       as u8)?;
+    write(34,  (s.nc1_ls >> 16) as u8)?;                  // write to NC2_LS as well
+    write(35,  (s.nc1_ls >> 8 ) as u8)?;
+    write(36,  (s.nc1_ls)       as u8)?;
     write(40,  (s.n2_hs  << 5 ) as u8 | (s.n2_ls  >> 16) as u8)?;
     write(41,  (s.n2_ls  >> 8 ) as u8)?;
     write(42,  (s.n2_ls)        as u8)?;
