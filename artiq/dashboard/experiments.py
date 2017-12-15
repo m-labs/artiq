@@ -551,6 +551,8 @@ class ExperimentManager:
     def open_experiment(self, expurl):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
+            if dock.isMinimized():
+                dock.showNormal()
             self.main_window.centralWidget().setActiveSubWindow(dock)
             return dock
         try:
