@@ -9,7 +9,6 @@ from misoc.cores import spi as spi_csr
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
 from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
@@ -62,12 +61,6 @@ class Master(MiniSoC, AMPSoC):
         self.config["HAS_DRTIO"] = None
         self.add_csr_group("drtio", ["drtio0"])
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
-
-        platform.add_extension(ad9154_fmc_ebz)
-        ad9154_spi = platform.request("ad9154_spi")
-        self.comb += ad9154_spi.en.eq(1)
-        self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
-        self.csr_devices.append("converter_spi")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),

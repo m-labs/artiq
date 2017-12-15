@@ -10,7 +10,6 @@ from misoc.cores import gpio
 from misoc.integration.builder import *
 from misoc.targets.kc705 import BaseSoC, soc_kc705_args, soc_kc705_argdict
 
-from artiq.gateware.ad9154_fmc_ebz import ad9154_fmc_ebz
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gtx_7series
@@ -84,12 +83,6 @@ class Satellite(BaseSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
-
-        platform.add_extension(ad9154_fmc_ebz)
-        ad9154_spi = platform.request("ad9154_spi")
-        self.comb += ad9154_spi.en.eq(1)
-        self.submodules.converter_spi = spi_csr.SPIMaster(ad9154_spi)
-        self.csr_devices.append("converter_spi")
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
