@@ -8,10 +8,10 @@ type Result<T> = result::Result<T, &'static str>;
 const BUSNO: u8 = 0;
 const ADDRESS: u8 = 0x68;
 
-#[cfg(soc_platform = "kc705")]
-fn pca9548_select(channel: u8) -> Result<()> {
+#[cfg(any(soc_platform = "sayma_amc", soc_platform = "kc705"))]
+fn pca9548_select(address: u8, channel: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (0x74 << 1)).unwrap() {
+    if !i2c::write(BUSNO, (address << 1)).unwrap() {
         return Err("PCA9548 failed to ack write address")
     }
     if !i2c::write(BUSNO, 1 << channel).unwrap() {
@@ -161,7 +161,9 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     clock::spin_us(10_000);
 
     #[cfg(soc_platform = "kc705")]
-    pca9548_select(7)?;
+    pca9548_select(0x74, 7)?;
+    #[cfg(soc_platform = "sayma_amc")]
+    pca9548_select(0x70, 4)?;
 
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");
