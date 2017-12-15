@@ -198,7 +198,7 @@ fn startup_ethernet() {
             Err(err) => warn!("network error: {}", err)
         }
 
-        if let Some(net_stats_diff) = net_stats.update() {
+        if let Some(_net_stats_diff) = net_stats.update() {
             warn!("ethernet mac:{}", ethmac::EthernetStatistics::new());
         }
     }
