@@ -82,9 +82,10 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
             },
 
             Request::Hotswap(firmware) => {
+                warn!("hotswapping firmware");
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
-                warn!("hotswapping firmware");
+                stream.flush()?;
                 unsafe { board::boot::hotswap(&firmware) }
             },
 
