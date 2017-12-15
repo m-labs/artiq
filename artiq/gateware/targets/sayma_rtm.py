@@ -88,6 +88,38 @@ class SaymaRTM(Module):
             platform.request("dac_clk_src_sel")))
         csr_devices.append("clock_mux")
 
+        # Allaki: enable RF output, GPIO access to attenuator
+        self.comb += [
+            platform.request("allaki0_rfsw0").eq(1),
+            platform.request("allaki0_rfsw1").eq(1),
+            platform.request("allaki1_rfsw0").eq(1),
+            platform.request("allaki1_rfsw1").eq(1),
+            platform.request("allaki2_rfsw0").eq(1),
+            platform.request("allaki2_rfsw1").eq(1),
+            platform.request("allaki3_rfsw0").eq(1),
+            platform.request("allaki3_rfsw1").eq(1),
+        ]
+        allaki_atts = [
+            platform.request("allaki0_att0"),
+            platform.request("allaki0_att1"),
+            platform.request("allaki1_att0"),
+            platform.request("allaki1_att1"),
+            platform.request("allaki2_att0"),
+            platform.request("allaki2_att1"),
+            platform.request("allaki3_att0"),
+            platform.request("allaki3_att1"),
+        ]
+        allaki_att_gpio = []
+        for allaki_att in allaki_atts:
+            allaki_att_gpio += [
+                allaki_att.le,
+                allaki_att.sin,
+                allaki_att.clk,
+                allaki_att.rst_n,
+            ]
+        self.submodules.allaki_atts = gpio.GPIOOut(Cat(*allaki_att_gpio))
+        csr_devices.append("allaki_atts")
+
         self.comb += [
             platform.request("ad9154_rst_n").eq(1),
             platform.request("ad9154_txen", 0).eq(0b11),
