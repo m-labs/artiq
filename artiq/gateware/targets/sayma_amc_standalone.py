@@ -190,9 +190,9 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
             self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
             rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                for sawg in self.ad9154_0.sawgs +
-                                    self.ad9154_1.sawgs
-                                for phy in sawg.phys)
+                                 for sawg in self.ad9154_0.sawgs +
+                                             self.ad9154_1.sawgs
+                                 for phy in sawg.phys)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)

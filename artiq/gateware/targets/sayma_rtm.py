@@ -120,6 +120,7 @@ class SaymaRTM(Module):
         self.submodules.allaki_atts = gpio.GPIOOut(Cat(*allaki_att_gpio))
         csr_devices.append("allaki_atts")
 
+        # HMC clock chip and DAC control
         self.comb += [
             platform.request("ad9154_rst_n").eq(1),
             platform.request("ad9154_txen", 0).eq(0b11),
