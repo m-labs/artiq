@@ -170,6 +170,8 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
     loop {
         if stream.can_recv() {
             let request = HostMessage::read_from(stream)?;
+            trace!("moninj<-host {:?}", request);
+
             match request {
                 HostMessage::Monitor { enable, channel, probe } => {
                     if enable {
@@ -186,6 +188,8 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
                         overrd: overrd,
                         value: value
                     };
+
+                    trace!("moninj->host {:?}", reply);
                     reply.write_to(stream)?;
                 }
             }
@@ -202,7 +206,10 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
                         probe: probe,
                         value: current
                     };
+
+                    trace!("moninj->host {:?}", message);
                     message.write_to(stream)?;
+
                     *previous = Some(current);
                 }
             }
