@@ -140,6 +140,15 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             serial_rtm.tx.eq(serial_1.rx)
         ]
 
+        # Si5324 used to work around RGMII clock routing issue on first PCB revision
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+
         # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=2)
         self.comb += serwb_pll.refclk.eq(self.crg.cd_sys.clk)
