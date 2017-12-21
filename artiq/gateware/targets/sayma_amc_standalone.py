@@ -7,7 +7,6 @@ from collections import namedtuple
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect import stream
@@ -126,12 +125,6 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
             "set_property CONFIG_VOLTAGE 3.3 [current_design]",
             ])
 
-
-        self.submodules.leds = gpio.GPIOOut(Cat(
-            platform.request("user_led", 0),
-            platform.request("user_led", 1)))
-        self.csr_devices.append("leds")
-
         # forward RTM UART to second FTDI UART channel
         serial_1 = platform.request("serial", 1)
         serial_rtm = platform.request("serial_rtm")
@@ -167,17 +160,20 @@ class SaymaAMCStandalone(MiniSoC, AMPSoC):
 
         # RTIO
         rtio_channels = []
-        for i in (2, 3):
+        for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        for i in (0, 1):
-            sma_io = platform.request("sma_io", i)
-            self.comb += sma_io.direction.eq(1)
-            phy = ttl_simple.Output(sma_io.level)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 0)
+        self.comb += sma_io.direction.eq(1)
+        phy = ttl_simple.Output(sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 1)
+        self.comb += sma_io.direction.eq(0)
+        phy = ttl_simple.InOut(sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         if with_sawg:
             self.submodules.ad9154_crg = AD9154CRG(platform)

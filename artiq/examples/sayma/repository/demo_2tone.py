@@ -5,7 +5,7 @@ class SAWGTestTwoTone(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("led0")
-        self.setattr_device("ttl_sma0")
+        self.setattr_device("ttl_sma_out")
 
         self.setattr_device("sawg0")
         self.setattr_device("sawg1")
@@ -37,7 +37,7 @@ class SAWGTestTwoTone(EnvExperiment):
 
             delay(20*ms)
             self.led0.on()
-            self.ttl_sma0.on()
+            self.ttl_sma_out.on()
             self.sawg0.frequency0.set(10*MHz)
             self.sawg0.phase0.set(0.)
             self.sawg0.frequency1.set(1*MHz)
@@ -58,5 +58,5 @@ class SAWGTestTwoTone(EnvExperiment):
 
             self.sawg1.amplitude1.set(.0)
             self.sawg1.amplitude2.set(.0)
-            self.ttl_sma0.off()
+            self.ttl_sma_out.off()
             self.led0.off()

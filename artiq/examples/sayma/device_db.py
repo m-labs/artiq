@@ -49,65 +49,77 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 1}
     },
-    "ttl_sma0": {
+    "led1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 2}
     },
-    "ttl_sma1": {
+    "led1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 3}
+    },
+    "ttl_sma_out": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 4}
+    },
+    "ttl_sma_in": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5}
     },
 
     "sawg0": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 4, "parallelism": 4}
+        "arguments": {"channel_base": 6, "parallelism": 4}
     },
     "sawg1": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 14, "parallelism": 4}
+        "arguments": {"channel_base": 16, "parallelism": 4}
     },
     "sawg2": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 24, "parallelism": 4}
+        "arguments": {"channel_base": 26, "parallelism": 4}
     },
     "sawg3": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 34, "parallelism": 4}
+        "arguments": {"channel_base": 36, "parallelism": 4}
     },
     "sawg4": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 44, "parallelism": 4}
+        "arguments": {"channel_base": 46, "parallelism": 4}
     },
     "sawg5": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 54, "parallelism": 4}
+        "arguments": {"channel_base": 56, "parallelism": 4}
     },
     "sawg6": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 64, "parallelism": 4}
+        "arguments": {"channel_base": 66, "parallelism": 4}
     },
     "sawg7": {
         "type": "local",
         "module": "artiq.coredevice.sawg",
         "class": "SAWG",
-        "arguments": {"channel_base": 74, "parallelism": 4}
+        "arguments": {"channel_base": 76, "parallelism": 4}
     },
 }
