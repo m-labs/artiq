@@ -4,7 +4,7 @@ from artiq.experiment import *
 class PulseRate(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("rsmap")
+        self.setattr_device("rttl_sma_out")
 
     @kernel
     def run(self):
@@ -14,7 +14,7 @@ class PulseRate(EnvExperiment):
         while True:
             for i in range(10000):
                 try:
-                    self.rsmap.pulse_mu(dt)
+                    self.rttl_sma_out.pulse_mu(dt)
                     delay_mu(dt)
                 except RTIOUnderflow:
                     dt += 1

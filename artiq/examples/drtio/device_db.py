@@ -1,4 +1,4 @@
-core_addr = "kc705.lab.m-labs.hk"
+core_addr = "sayma1.lab.m-labs.hk"
 
 device_db = {
     "core": {
@@ -43,42 +43,17 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 3},
     },
-    "led4": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 4},
-    },
-    "led5": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 5},
-    },
-    "led6": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 6},
-    },
-    "led7": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 7},
-    },
-
-    "smap": {
+    "ttl_sma_out": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLInOut",
-        "arguments": {"channel": 8}
+        "arguments": {"channel": 4}
     },
-    "sman": {
+    "ttl_sma_in": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLInOut",
-        "arguments": {"channel": 9}
+        "arguments": {"channel": 5}
     },
 
     "rled0": {
@@ -105,42 +80,17 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 0x010003},
     },
-    "rled4": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 0x010004},
-    },
-    "rled5": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 0x010005},
-    },
-    "rled6": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 0x010006},
-    },
-    "rled7": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 0x010007},
-    },
-
-    "rsmap": {
+    "rttl_sma_out": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLInOut",
-        "arguments": {"channel": 0x010008}
+        "arguments": {"channel": 0x010004}
     },
-    "rsman": {
+    "rttl_sma_in": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLInOut",
-        "arguments": {"channel": 0x010009}
+        "arguments": {"channel": 0x010005}
     },
 
     "converter_spi": {
@@ -148,11 +98,17 @@ device_db = {
         "module": "artiq.coredevice.spi",
         "class": "NRTSPIMaster",
     },
-    "ad9154_spi": {
+    "ad9154_spi0": {
         "type": "local",
         "module": "artiq.coredevice.ad9154_spi",
         "class": "AD9154",
-        "arguments": {"spi_device": "converter_spi", "chip_select": 1}
+        "arguments": {"spi_device": "converter_spi", "chip_select": 2}
+    },
+    "ad9154_spi1": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154_spi",
+        "class": "AD9154",
+        "arguments": {"spi_device": "converter_spi", "chip_select": 3}
     },
     "rconverter_spi": {
         "type": "local",
@@ -160,10 +116,16 @@ device_db = {
         "class": "NRTSPIMaster",
         "arguments": {"busno": 0x010000}
     },
-    "rad9154_spi": {
+    "rad9154_spi0": {
         "type": "local",
         "module": "artiq.coredevice.ad9154_spi",
         "class": "AD9154",
-        "arguments": {"spi_device": "rconverter_spi", "chip_select": 1}
+        "arguments": {"spi_device": "rconverter_spi", "chip_select": 2}
+    },
+    "rad9154_spi1": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9154_spi",
+        "class": "AD9154",
+        "arguments": {"spi_device": "rconverter_spi", "chip_select": 3}
     },
 }

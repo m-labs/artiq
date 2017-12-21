@@ -4,8 +4,8 @@ from artiq.experiment import *
 class BlinkForever(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.rleds = [self.get_device("rled" + str(i)) for i in range(8)]
-        self.leds = [self.get_device("led" + str(i)) for i in range(8)]
+        self.rleds = [self.get_device("rled" + str(i)) for i in range(4)]
+        self.leds = [self.get_device("led" + str(i)) for i in range(4)]
 
     @kernel
     def run(self):

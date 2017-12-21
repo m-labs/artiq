@@ -5,8 +5,8 @@ from artiq.experiment import *
 class Test(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("ad9154_spi")
-        self.setattr_device("rad9154_spi")
+        self.ad9154_spi = self.get_device("ad9154_spi0")
+        self.rad9154_spi = self.get_device("rad9154_spi0")
 
     @kernel
     def run(self):
@@ -21,4 +21,3 @@ class Test(EnvExperiment):
 
     def p(self, f, *a):
         print(f % a)
-
