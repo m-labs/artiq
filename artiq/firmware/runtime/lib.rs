@@ -82,8 +82,6 @@ fn startup() {
     #[cfg(has_ad9154)]
     board::ad9154::init().expect("cannot initialize AD9154");
 
-    #[cfg(rgmii_clock_rerouted)]
-    setup_rgmii_si5324();
     #[cfg(has_ethmac)]
     startup_ethernet();
     #[cfg(not(has_ethmac))]
@@ -91,27 +89,6 @@ fn startup() {
         info!("done");
         loop {}
     }
-}
-
-#[cfg(rgmii_clock_rerouted)]
-fn setup_rgmii_si5324()
-{
-    const SI5324_SETTINGS: board::si5324::FrequencySettings
-            = board::si5324::FrequencySettings {
-        n1_hs  : 5,
-        nc1_ls : 8,
-        n2_hs  : 7,
-        n2_ls  : 360,
-        n31    : 63,
-        n32    : 63,
-        bwsel  : 4
-    };
-    info!("rerouting RGMII clock through Si5324");
-    unsafe { board::csr::ethphy::crg_reset_write(1); }
-    board::i2c::init();
-    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
-    board::si5324::select_ext_input(true).expect("failed to select Si5324 input");
-    unsafe { board::csr::ethphy::crg_reset_write(0); }
 }
 
 #[cfg(has_ethmac)]
