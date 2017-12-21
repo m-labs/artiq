@@ -77,6 +77,8 @@ fn startup() {
 
     #[cfg(has_i2c)]
     board::i2c::init();
+    #[cfg(si5324_free_running)]
+    setup_si5324_free_running();
     #[cfg(has_hmc830_7043)]
     board::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
@@ -89,6 +91,23 @@ fn startup() {
         info!("done");
         loop {}
     }
+}
+
+#[cfg(si5324_free_running)]
+fn setup_si5324_free_running()
+{
+    // 150MHz output (hardcoded)
+    const SI5324_SETTINGS: board::si5324::FrequencySettings
+        = board::si5324::FrequencySettings {
+        n1_hs  : 9,
+        nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 33732,
+        n31    : 9370,
+        n32    : 7139,
+        bwsel  : 3
+    };
+    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
 }
 
 #[cfg(has_ethmac)]
