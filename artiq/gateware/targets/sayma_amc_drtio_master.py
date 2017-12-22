@@ -6,6 +6,7 @@ from migen import *
 from migen.build.generic_platform import *
 
 from misoc.cores import spi as spi_csr
+from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.sayma_amc import MiniSoC
@@ -40,6 +41,7 @@ class Master(MiniSoC, AMPSoC):
         AMPSoC.__init__(self)
 
         platform = self.platform
+        rtio_clk_freq = 150e6
 
         # Si5324 used as a free-running oscillator, to avoid dependency on RTM.
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
@@ -55,7 +57,8 @@ class Master(MiniSoC, AMPSoC):
             clock_pads=platform.request("si5324_clkout"),
             tx_pads=[platform.request("sfp_tx")],
             rx_pads=[platform.request("sfp_rx")],
-            sys_clk_freq=self.clk_freq)
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
 
         self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
             DRTIOMaster(self.transceiver.channels[0]))
@@ -67,12 +70,13 @@ class Master(MiniSoC, AMPSoC):
         self.add_csr_group("drtio", ["drtio0"])
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
-        rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
-        platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
-        platform.add_period_constraint(self.transceiver.rxoutclk, rtio_clk_period)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.transceiver.txoutclk, self.transceiver.rxoutclk)
+        rtio_clk_period = 1e9/rtio_clk_freq
+        for gth in self.transceiver.gths:
+            platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+            platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk,
+                gth.txoutclk, gth.rxoutclk)
 
         rtio_channels = []
         for i in range(4):

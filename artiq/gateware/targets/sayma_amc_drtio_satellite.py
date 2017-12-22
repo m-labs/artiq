@@ -8,7 +8,7 @@ from migen.build.generic_platform import *
 from misoc.cores import spi as spi_csr
 from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
-from misoc.integration.builder import builder_args, builder_argdict
+from misoc.integration.builder import *
 from misoc.targets.sayma_amc import BaseSoC
 
 from artiq.gateware import rtio
@@ -34,6 +34,7 @@ class Satellite(BaseSoC):
                  **kwargs)
 
         platform = self.platform
+        rtio_clk_freq = 150e6
 
         rtio_channels = []
         for i in range(4):
@@ -54,17 +55,15 @@ class Satellite(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.submodules.transceiver = gth_7series.GTH(
+        self.submodules.transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("si5324_clkout"),
-            tx_pads=platform.request("sfp_tx"),
-            rx_pads=platform.request("sfp_rx"),
-            sys_clk_freq=self.clk_freq)
+            tx_pads=[platform.request("sfp_tx")],
+            rx_pads=[platform.request("sfp_rx")],
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer0 = rx0(gth_ultrascale.RXSynchronizer(
-            self.transceiver.rtio_clk_freq, initial_phase=180.0))
         self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.transceiver.channels[0], rtio_channels, self.rx_synchronizer0))
-        self.csr_devices.append("rx_synchronizer0")
+            self.transceiver.channels[0], rtio_channels))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
@@ -73,7 +72,7 @@ class Satellite(BaseSoC):
         self.add_csr_group("drtio", ["drtio0"])
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
-        self.config["RTIO_FREQUENCY"] = str(self.transceiver.rtio_clk_freq/1e6)
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         si5324_clkin = platform.request("si5324_clkin")
         self.specials += \
             Instance("OBUFDS",
@@ -88,12 +87,13 @@ class Satellite(BaseSoC):
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
 
-        rtio_clk_period = 1e9/self.transceiver.rtio_clk_freq
-        platform.add_period_constraint(self.transceiver.txoutclk, rtio_clk_period)
-        platform.add_period_constraint(self.transceiver.rxoutclk, rtio_clk_period)
+        rtio_clk_period = 1e9/rtio_clk_freq
+        gth = self.transceiver.gths[0]
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.transceiver.txoutclk, self.transceiver.rxoutclk)
+            gth.txoutclk, gth.rxoutclk)
 
 
 def main():
