@@ -37,8 +37,8 @@ Prerequisites:
 """)
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s")
-    parser.add_argument("-m", "--adapter", default=None,
-                        help="target adapter, default: board-dependent")
+    parser.add_argument("-m", "--variant", default=None,
+                        help="board variant")
     parser.add_argument("--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a development board " 
@@ -192,7 +192,7 @@ def main():
         "kc705": {
             "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
             "proxy_bitfile": "bscan_spi_xc7k325t.bit",
-            "adapters": ["nist_clock", "nist_qc2"],
+            "variants": ["nist_clock", "nist_qc2"],
             "gateware": (0, 0x000000),
             "bios":     (0, 0xaf0000),
             "runtime":  (0, 0xb00000),
@@ -201,7 +201,7 @@ def main():
         "sayma": {
             "programmer_factory": ProgrammerSayma,
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
-            "adapters": [],
+            "variants": ["standalone"],
             "gateware": (0, 0x000000),
             "bios":     (1, 0x000000),
             "runtime":  (1, 0x010000),
@@ -209,19 +209,19 @@ def main():
         },
     }[opts.target]
 
-    adapter = opts.adapter
-    if adapter is not None and adapter not in config["adapters"]:
-        raise SystemExit("Invalid adapter for this board")
-    if adapter is None and config["adapters"]:
-        adapter = config["adapters"][0]
+    variant = opts.variant
+    if variant is not None and variant not in config["variants"]:
+        raise SystemExit("Invalid variant for this board")
+    if variant is None and config["variants"]:
+        variant = config["variants"][0]
     bin_dir = opts.dir
     if bin_dir is None:
-        if adapter is None:
+        if variant is None:
             bin_dir = os.path.join(artiq_dir, "binaries",
                         "{}".format(opts.target))
         else:
             bin_dir = os.path.join(artiq_dir, "binaries",
-                                    "{}-{}".format(opts.target, adapter))
+                                    "{}-{}".format(opts.target, variant))
     if opts.srcbuild is None and not os.path.exists(bin_dir) and opts.action != ["start"]:
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))

@@ -11,6 +11,7 @@ Release notes
   server address argument and the notify port.
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
+* ``artiq_flash --adapter`` has been changed to ``artiq_flash --variant``.
 
 
 3.1
