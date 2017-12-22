@@ -27,7 +27,6 @@ from artiq.gateware import remote_csr
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq import __version__ as artiq_version
-from artiq import __path__ as artiq_path
 
 
 PhyPads = namedtuple("PhyPads", "txp txn")
@@ -220,9 +219,6 @@ class Standalone(MiniSoC, AMPSoC):
 
 
 def main():
-    installed_rtm_csr_csv = os.path.join(
-        artiq_path[0], "binaries", "sayma_rtm", "sayma_rtm_csr.csv")
-
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder / Sayma AMC stand-alone")
     builder_args(parser)
@@ -230,10 +226,6 @@ def main():
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma_rtm", "sayma_rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
-    parser.add_argument("--installed-rtm-csr-csv",
-        default=False, action="store_true",
-        help="use installed CSV file for RTM CSRs instead "
-             "({}, default: %(default)s)".format(installed_rtm_csr_csv))
     parser.add_argument("--with-sawg",
         default=False, action="store_true",
         help="add JESD204B and SAWG channels (default: %(default)s)")
@@ -241,13 +233,9 @@ def main():
 
     soc = Standalone(with_sawg=args.with_sawg, **soc_sdram_argdict(args))
 
-    if args.installed_rtm_csr_csv:
-        rtm_csr_csv = installed_rtm_csr_csv
-    else:
-        rtm_csr_csv = args.rtm_csr_csv
     remote_csr_regions = remote_csr.get_remote_csr_regions(
         soc.mem_map["serwb"] | soc.shadow_base,
-        rtm_csr_csv)
+        args.rtm_csr_csv)
     for name, origin, busword, csrs in remote_csr_regions:
         soc.add_csr_region(name, origin, busword, csrs)
     # Configuration for RTM peripherals. Keep in sync with sayma_rtm.py!
