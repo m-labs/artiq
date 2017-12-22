@@ -1,8 +1,5 @@
 #!/bin/bash
 
-BUILD_SETTINGS_FILE=$HOME/.m-labs/build_settings.sh
-[ -f $BUILD_SETTINGS_FILE ] && . $BUILD_SETTINGS_FILE
-
 SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/kc705-nist_clock
 mkdir -p $SOC_PREFIX
 
