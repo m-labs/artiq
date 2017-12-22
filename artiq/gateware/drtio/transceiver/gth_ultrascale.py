@@ -1,3 +1,6 @@
+from functools import reduce
+from operator import or_
+
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
@@ -237,16 +240,10 @@ class GTH(Module, TransceiverInterface):
 
         TransceiverInterface.__init__(self, channel_interfaces)
 
-        # rtio clock domain (clock from gth tx0, ored reset from all gth txs)
-        self.comb += self.cd_rtio.clk.eq(ClockSignal("gth0_rtio_tx"))
-        rtio_rst = Signal()
-        for i in range(nchannels):
-            rtio_rst.eq(rtio_rst | ResetSignal("gth" + str(i) + "rtio_tx"))
-            new_rtio_rst = Signal()
-            rtio_rst = new_rtio_rst
-        self.comb += self.cd_rtio.rst.eq(rtio_rst)
-
-        # rtio_rx clock domains
+        self.comb += [
+            self.cd_rtio.clk.eq(self.gths[master].cd_rtio_tx.clk),
+            self.cd_rtio.rst.eq(reduce(or_, [gth.cd_rtio_tx.rst for gth in self.gths]))
+        ]
         for i in range(nchannels):
             self.comb += [
                 getattr(self, "cd_rtio_rx" + str(i)).clk.eq(self.gths[i].cd_rtio_rx.clk),
