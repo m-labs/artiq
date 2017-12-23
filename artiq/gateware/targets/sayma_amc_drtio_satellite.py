@@ -55,10 +55,11 @@ class Satellite(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
+        self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
         self.submodules.transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("si5324_clkout"),
-            tx_pads=[platform.request("sfp_tx")],
-            rx_pads=[platform.request("sfp_rx")],
+            tx_pads=[platform.request("sfp_tx", 0)],
+            rx_pads=[platform.request("sfp_rx", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
