@@ -1,8 +1,8 @@
-#![feature(compiler_builtins_lib, lang_items)]
+#![feature(compiler_builtins_lib, lang_items, global_allocator)]
 #![no_std]
 
 extern crate compiler_builtins;
-extern crate alloc_artiq;
+extern crate alloc_list;
 extern crate std_artiq as std;
 #[macro_use]
 extern crate log;
@@ -218,6 +218,9 @@ fn startup() {
     }
 }
 
+#[global_allocator]
+static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     unsafe {
@@ -225,8 +228,7 @@ pub extern fn main() -> i32 {
             static mut _fheap: u8;
             static mut _eheap: u8;
         }
-        alloc_artiq::seed(&mut _fheap as *mut u8,
-                          &_eheap as *const u8 as usize - &_fheap as *const u8 as usize);
+        ALLOC.add_range(&mut _fheap, &mut _eheap);
 
         static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
