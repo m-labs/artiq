@@ -17,16 +17,13 @@ all: runtime.bin runtime.fbi
 $(RUSTOUT)/libruntime.a:
 	$(cargo) --manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml
 
-runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o glue.o
+runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^ \
 		-lunwind-bare -lprintf-nofloat --eh-frame-hdr
 	@chmod -x $@
 
 ksupport_data.o: ../ksupport/ksupport.elf
 	$(LD) -r -b binary -o $@ $<
-
-%.o: $(RUNTIME_DIRECTORY)/%.c
-	$(compile)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@
