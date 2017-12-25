@@ -44,7 +44,7 @@ def get_argparser():
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
                         help="actions to perform, sequence of: "
-                             "build reset boot boot+log connect hotswap clean")
+                             "build boot boot+log connect reset hotswap clean")
 
     return parser
 
@@ -111,14 +111,6 @@ def main():
             target_dir = "/tmp/{target}".format(target=args.target)
             if os.path.isdir(target_dir):
                 shutil.rmtree(target_dir)
-
-        elif action == "reset":
-            lock()
-
-            logger.info("Resetting device")
-            client.run_command(
-                "{env} artiq_flash start",
-                **substs)
 
         elif action == "boot" or action == "boot+log":
             lock()
@@ -194,6 +186,12 @@ def main():
                             .format(", ".join(map(str, ports))))
             client.run_command(
                 "{env} python3 flterm.py {serial} --output-only",
+                **substs)
+
+        elif action == "reset":
+            logger.info("Resetting device")
+            client.run_command(
+                "{env} artiq_flash start",
                 **substs)
 
         elif action == "hotswap":
