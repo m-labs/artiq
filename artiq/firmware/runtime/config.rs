@@ -10,9 +10,9 @@ mod imp {
 
     mod lock {
         use core::slice;
-        use core::sync::atomic::{AtomicUsize, Ordering};
+        use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
 
-        static LOCKED: AtomicUsize = AtomicUsize::new(0);
+        static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
 
         pub struct Lock;
 
