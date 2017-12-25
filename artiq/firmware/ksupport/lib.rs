@@ -167,7 +167,7 @@ extern fn rpc_recv(slot: *mut ()) -> usize {
     })
 }
 
-fn terminate(exception: &eh::Exception, mut backtrace: &mut [usize]) -> ! {
+fn terminate(exception: &eh::Exception, backtrace: &mut [usize]) -> ! {
     let mut cursor = 0;
     for index in 0..backtrace.len() {
         if backtrace[index] > kernel_proto::KERNELCPU_PAYLOAD_ADDRESS {
@@ -333,8 +333,8 @@ extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, wor
         if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
             dma_record_flush()
         }
-        let mut dst = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
-                                               DMA_RECORDER.data_len + length];
+        let dst = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
+                                           DMA_RECORDER.data_len + length];
         dst[..header_length].copy_from_slice(&header[..]);
         dst[header_length..].copy_from_slice(&data[..]);
         DMA_RECORDER.data_len += length;
