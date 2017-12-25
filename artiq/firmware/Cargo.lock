@@ -14,6 +14,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "backtrace_artiq"
+version = "0.0.0"
+
+[[package]]
 name = "bitflags"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -150,6 +154,7 @@ version = "0.0.0"
 dependencies = [
  "alloc_list 0.0.0",
  "amp 0.0.0",
+ "backtrace_artiq 0.0.0",
  "board 0.0.0",
  "build_artiq 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
