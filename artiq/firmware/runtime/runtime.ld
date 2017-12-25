@@ -20,6 +20,21 @@ SECTIONS
         _etext = .;
     } > runtime
 
+    .eh_frame :
+    {
+        __eh_frame_start = .;
+        KEEP(*(.eh_frame))
+        __eh_frame_end = .;
+    } > runtime
+
+    .eh_frame_hdr :
+    {
+        KEEP(*(.eh_frame_hdr))
+    } > runtime
+
+    __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
+    __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
+
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
@@ -79,10 +94,4 @@ SECTIONS
         . = ORIGIN(runtime) + LENGTH(runtime);
         _eheap = .;
     } > runtime
-
-    /DISCARD/ :
-    {
-        *(.eh_frame)
-        *(.gcc_except_table)
-    }
 }

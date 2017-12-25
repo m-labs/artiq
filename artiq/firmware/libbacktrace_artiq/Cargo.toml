@@ -1,0 +1,8 @@
+[package]
+authors = ["M-Labs"]
+name = "backtrace_artiq"
+version = "0.0.0"
+
+[lib]
+name = "backtrace_artiq"
+path = "lib.rs"

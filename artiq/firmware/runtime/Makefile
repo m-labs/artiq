@@ -1,7 +1,13 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
-LDFLAGS += -L../libbase
+CFLAGS += \
+	-I$(LIBUNWIND_DIRECTORY) \
+	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
+
+LDFLAGS += -L../libbase \
+	-L../libprintf \
+	-L../libunwind
 
 RUSTFLAGS += -Cpanic=abort
 
@@ -11,12 +17,16 @@ all: runtime.bin runtime.fbi
 $(RUSTOUT)/libruntime.a:
 	$(cargo) --manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml
 
-runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
-	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^
+runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o glue.o
+	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^ \
+		-lunwind-bare -lprintf-nofloat --eh-frame-hdr
 	@chmod -x $@
 
 ksupport_data.o: ../ksupport/ksupport.elf
 	$(LD) -r -b binary -o $@ $<
+
+%.o: $(RUNTIME_DIRECTORY)/%.c
+	$(compile)
 
 %.bin: %.elf
 	$(OBJCOPY) -O binary $< $@

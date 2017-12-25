@@ -14,6 +14,7 @@ extern crate alloc_list;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate logger_artiq;
+extern crate backtrace_artiq;
 #[macro_use]
 extern crate board;
 extern crate proto;
@@ -231,13 +232,20 @@ pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) 
 
 #[no_mangle]
 pub extern fn abort() {
-    panic!("aborted")
+    println!("aborted");
+
+    loop {}
 }
 
 #[no_mangle]
 #[lang = "panic_fmt"]
 pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     println!("panic at {}:{}: {}", file, line, args);
+
+    println!("backtrace:");
+    let _ = backtrace_artiq::backtrace(|ip| {
+        println!("{:#08x}", ip);
+    });
 
     if config::read_str("panic_reboot", |r| r == Ok("1")) {
         println!("rebooting...");
@@ -247,12 +255,4 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
         println!("use `artiq_coreconfig write -s panic_reboot 1` to reboot instead");
         loop {}
     }
-}
-
-// Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.
-// This is never called.
-#[allow(non_snake_case)]
-#[no_mangle]
-pub extern fn _Unwind_Resume() -> ! {
-    loop {}
 }

@@ -19,6 +19,7 @@ log = { version = "0.3", default-features = false }
 alloc_list = { path = "../liballoc_list" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
+backtrace_artiq = { path = "../libbacktrace_artiq" }
 board = { path = "../libboard", features = ["uart_console"] }
 proto = { path = "../libproto", features = ["log"] }
 amp = { path = "../libamp" }
