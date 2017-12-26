@@ -8,6 +8,7 @@ mod imp {
     mod lock {
         use core::slice;
         use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+        use board;
 
         static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -24,14 +25,20 @@ mod imp {
 
             pub fn data(&self) -> &'static [u8] {
                 extern {
+                    static _ftext:    u8;
                     static _fstorage: u8;
                     static _estorage: u8;
                 }
 
                 unsafe {
-                    let begin = &_fstorage as *const u8;
-                    let end   = &_estorage as *const u8;
-                    slice::from_raw_parts(begin, end as usize - begin as usize)
+                    let base  = &_ftext    as *const _ as usize;
+                    let begin = &_fstorage as *const _ as usize;
+                    let end   = &_estorage as *const _ as usize;
+
+                    let ptr = board::mem::FLASH_BOOT_ADDRESS + (begin - base);
+                    let len = end - begin;
+
+                    slice::from_raw_parts(ptr as *const u8, len)
                 }
             }
         }
@@ -71,7 +78,7 @@ mod imp {
             if record_size == !0 /* all ones; erased flash */ {
                 return None
             } else if record_size < 4 || record_size > data.len() {
-                error!("offset {}: invalid record size", self.offset);
+                error!("offset {}: invalid record size {}", self.offset, record_size);
                 return Some(Err(()))
             }
 
