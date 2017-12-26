@@ -1448,9 +1448,8 @@ class LLVMIRGenerator:
             llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
                                            name=insn.name)
 
-            # See the comment in process_Call.
-            if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
-                llcall.set_metadata('tbaa', self.tbaa_nowrite_call)
+            # The !tbaa metadata is not legal to use with the invoke instruction,
+            # so unlike process_Call, we do not set it here.
 
         return llcall
 
