@@ -106,7 +106,7 @@ fn startup() {
     //         where U: smoltcp::wire::pretty_print::PrettyPrint {
     //     let seconds = timestamp / 1000;
     //     let micros  = timestamp % 1000 * 1000;
-    //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m", seconds, micros, printer)
+    //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
     // }
 
     let net_device = unsafe { ethmac::EthernetDevice::new() };
@@ -156,11 +156,16 @@ fn startup() {
     loop {
         scheduler.run();
 
-        match interface.poll(&mut *borrow_mut!(scheduler.sockets()),
-                             board::clock::get_ms()) {
-            Ok(_poll_at) => (),
-            Err(smoltcp::Error::Unrecognized) => (),
-            Err(err) => warn!("network error: {}", err)
+        {
+            let sockets = &mut *borrow_mut!(scheduler.sockets());
+            loop {
+                match interface.poll(sockets, board::clock::get_ms()) {
+                    Ok(true) => (),
+                    Ok(false) => break,
+                    Err(smoltcp::Error::Unrecognized) => (),
+                    Err(err) => warn!("network error: {}", err)
+                }
+            }
         }
     }
 }
