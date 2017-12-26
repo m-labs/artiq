@@ -247,7 +247,8 @@ pub extern fn abort() {
 pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
     println!("panic at {}:{}: {}", file, line, args);
 
-    println!("backtrace:");
+    println!("backtrace for software version {}:",
+             include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     let _ = backtrace_artiq::backtrace(|ip| {
         println!("{:#08x}", ip);
     });
