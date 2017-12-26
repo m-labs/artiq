@@ -188,7 +188,7 @@ def main():
     parser = get_argparser()
     opts = parser.parse_args()
 
-    storage_at = 0x80000 # Keep in sync with runtime.ld
+    storage_at = 0x100000 # Keep in sync with runtime.ld
     config = {
         "kc705": {
             "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
