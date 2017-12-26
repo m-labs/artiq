@@ -270,7 +270,7 @@ class LLVMIRGenerator:
             sanitized_str = re.sub(rb"[^a-zA-Z0-9_.]", b"", as_bytes[:20]).decode('ascii')
             name = self.llmodule.get_unique_name("S.{}".format(sanitized_str))
 
-        llstr = self.llmodule.get_global(name)
+        llstr = self.llmodule.globals.get(name)
         if llstr is None:
             llstrty = ll.ArrayType(lli8, len(as_bytes))
             llstr = ll.GlobalVariable(self.llmodule, llstrty, name)
@@ -306,7 +306,7 @@ class LLVMIRGenerator:
             assert False
 
     def llbuiltin(self, name):
-        llglobal = self.llmodule.get_global(name)
+        llglobal = self.llmodule.globals.get(name)
         if llglobal is not None:
             return llglobal
 
@@ -458,7 +458,7 @@ class LLVMIRGenerator:
             assert False
 
     def get_function(self, typ, name):
-        llfun = self.llmodule.get_global(name)
+        llfun = self.llmodule.globals.get(name)
         if llfun is None:
             llfunty = self.llty_of_type(typ, bare=True)
             llfun   = ll.Function(self.llmodule, llfunty, name)
@@ -499,7 +499,7 @@ class LLVMIRGenerator:
         llobjects = defaultdict(lambda: [])
 
         for obj_id, obj_ref, obj_typ in self.embedding_map.iter_objects():
-            llobject = self.llmodule.get_global("O.{}".format(obj_id))
+            llobject = self.llmodule.globals.get("O.{}".format(obj_id))
             if llobject is not None:
                 llobjects[obj_typ].append(llobject.bitcast(llptr))
 
@@ -1209,7 +1209,7 @@ class LLVMIRGenerator:
                 llargs.append(llarg)
 
         llfunname = insn.target_function().type.name
-        llfun     = self.llmodule.get_global(llfunname)
+        llfun     = self.llmodule.globals.get(llfunname)
         if llfun is None:
             llretty = self.llty_of_type(insn.type, for_return=True)
             if self.needs_sret(llretty):
@@ -1643,7 +1643,7 @@ class LLVMIRGenerator:
 
             llclauseexnname = self.llconst_of_const(
                 ir.Constant(exnname, builtins.TStr()))
-            llclauseexnnameptr = self.llmodule.get_global("exn.{}".format(exnname))
+            llclauseexnnameptr = self.llmodule.globals.get("exn.{}".format(exnname))
             if llclauseexnnameptr is None:
                 llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
                                                        name="exn.{}".format(exnname))
