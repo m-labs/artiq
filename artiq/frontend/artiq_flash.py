@@ -70,7 +70,7 @@ def main():
             "gateware": 0x000000,
             "bios": 0xaf0000,
             "runtime": 0xb00000,
-            "storage": 0xb80000,
+            "storage": 0xc00000,
         },
     }[opts.target]
 
