@@ -6,7 +6,6 @@ CFLAGS += \
 	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include \
 
 LDFLAGS += -L../libbase \
-	-L../libprintf \
 	-L../libunwind
 
 RUSTFLAGS += -Cpanic=abort
@@ -19,7 +18,7 @@ $(RUSTOUT)/libruntime.a:
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^ \
-		-lunwind-bare -lprintf-nofloat --eh-frame-hdr
+		-lunwind-bare
 	@chmod -x $@
 
 ksupport_data.o: ../ksupport/ksupport.elf
