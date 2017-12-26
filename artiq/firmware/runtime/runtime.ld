@@ -69,8 +69,8 @@ SECTIONS
     .storage :
     {
         /* Keep in sync with artiq_flash.py */
-        _fstorage = .;
         .  = _ftext + 0x100000;
+        _fstorage = .;
         . += /*SPIFLASH_SECTOR_SIZE*/ 0x10000;
         _estorage = .;
     } > runtime
