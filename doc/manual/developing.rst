@@ -89,20 +89,20 @@ and the ARTIQ kernels.
 * Install LLVM and Clang: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-3.9 https://github.com/m-labs/llvm-or1k
+        $ git clone -b artiq-4.0 https://github.com/m-labs/llvm-or1k
         $ cd llvm-or1k
-        $ git clone -b artiq-3.9 https://github.com/m-labs/clang-or1k tools/clang
+        $ git clone -b artiq-4.0 https://github.com/m-labs/clang-or1k tools/clang
 
         $ mkdir build
         $ cd build
-        $ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD="OR1K;X86" -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_INSTALL_UTILS=ON -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF
+        $ cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local/llvm-or1k -DLLVM_TARGETS_TO_BUILD=X86 -DLLVM_EXPERIMENTAL_TARGETS_TO_BUILD=OR1K -DLLVM_ENABLE_ASSERTIONS=ON -DLLVM_INSTALL_UTILS=ON -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF
         $ make -j4
         $ sudo make install
 
 * Install Rust: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-1.20.0 https://github.com/m-labs/rust
+        $ git clone -b artiq-1.22.1 https://github.com/m-labs/rust
         $ cd rust
         $ git submodule update --init
         $ mkdir build
@@ -112,14 +112,16 @@ and the ARTIQ kernels.
         $ sudo chown $USER.$USER /usr/local/rust-or1k
         $ make install
 
-        $ libs="libcore libstd_unicode liballoc liblibc_mini libunwind"
-        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -L ."
+        $ libs="core std_unicode alloc"
+        $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -g --crate-type rlib -L ."
         $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ mkdir ../build-or1k
         $ cd ../build-or1k
-        $ for lib in ${libs}; do ${rustc} ../src/${lib}/lib.rs; done
-        $ ${rustc} -Cpanic=abort ../src/libpanic_abort/lib.rs
-        $ ${rustc} -Cpanic=unwind ../src/libpanic_unwind/lib.rs --cfg llvm_libunwind
+        $ for lib in ${libs}; do ${rustc} --crate-name ${lib} ../src/lib${lib}/lib.rs; done
+        $ ${rustc} --crate-name libc ../src/liblibc_mini/lib.rs
+        $ ${rustc} --crate-name unwind ../src/libunwind/lib.rs
+        $ ${rustc} -Cpanic=abort --crate-name panic_abort ../src/libpanic_abort/lib.rs
+        $ ${rustc} -Cpanic=unwind --crate-name panic_unwind ../src/libpanic_unwind/lib.rs --cfg llvm_libunwind
         $ mkdir -p ${destdir}
         $ cp *.rlib ${destdir}
 

@@ -18,9 +18,9 @@ requirements:
     - misoc 0.8.dev py35_30+gitd95f4edb
     - jesd204b 0.3
     - binutils-or1k-linux >=2.27
-    - llvm-or1k
+    - llvm-or1k 4.0.1
     - llvmlite-artiq 0.12.0
-    - rust-core-or1k 1.20.0 16
+    - rust-core-or1k 1.22.1 17
     - cargo 0.11.0
     - openocd ==0.10.0
     - lit

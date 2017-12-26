@@ -22,7 +22,7 @@ llptr      = ll.IntType(8).as_pointer()
 llptrptr   = ll.IntType(8).as_pointer().as_pointer()
 llslice    = ll.LiteralStructType([llptr, lli32])
 llsliceptr = ll.LiteralStructType([llptr, lli32]).as_pointer()
-llmetadata = ll.MetaData()
+llmetadata = ll.MetaDataType()
 
 
 def memoize(generator):
