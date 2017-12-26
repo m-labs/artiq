@@ -3,10 +3,7 @@ mod imp {
     use core::str;
     use std::btree_map::BTreeMap;
     use byteorder::{ByteOrder, BigEndian};
-    use board::{mem, csr, cache, spiflash};
-
-    const ADDR: usize = mem::FLASH_BOOT_ADDRESS + 0x80000 /* max runtime size */;
-    const SIZE: usize = csr::CONFIG_SPIFLASH_SECTOR_SIZE as usize;
+    use board::{cache, spiflash};
 
     mod lock {
         use core::slice;
@@ -26,7 +23,16 @@ mod imp {
             }
 
             pub fn data(&self) -> &'static [u8] {
-                unsafe { slice::from_raw_parts(super::ADDR as *const u8, super::SIZE) }
+                extern {
+                    static _fstorage: u8;
+                    static _estorage: u8;
+                }
+
+                unsafe {
+                    let begin = &_fstorage as *const u8;
+                    let end   = &_estorage as *const u8;
+                    slice::from_raw_parts(begin, end as usize - begin as usize)
+                }
             }
         }
 
@@ -62,12 +68,11 @@ mod imp {
             }
 
             let record_size = BigEndian::read_u32(data) as usize;
-            if record_size < 4 {
-                error!("offset {}: invalid record size", self.offset);
-                return Some(Err(()))
-            }
             if record_size == !0 /* all ones; erased flash */ {
                 return None
+            } else if record_size < 4 || record_size > data.len() {
+                error!("offset {}: invalid record size", self.offset);
+                return Some(Err(()))
             }
 
             let record_body = &data[4..record_size];
@@ -107,29 +112,28 @@ mod imp {
         })
     }
 
-    fn append_at(mut offset: usize, key: &[u8], value: &[u8]) -> Result<usize, ()> {
+    unsafe fn append_at<'a>(mut data: &'a [u8], key: &[u8], value: &[u8]) -> Result<&'a [u8], ()> {
         let record_size = 4 + key.len() + 1 + value.len();
-        if offset + record_size > SIZE {
+        if data.len() < record_size {
             return Err(())
         }
 
         let mut record_size_bytes = [0u8; 4];
         BigEndian::write_u32(&mut record_size_bytes[..], record_size as u32);
 
-        spiflash::write(ADDR + offset, &record_size_bytes[..]);
-        offset += record_size_bytes.len();
+        spiflash::write(data.as_ptr() as usize, &record_size_bytes[..]);
+        data = &data[record_size_bytes.len()..];
 
-        spiflash::write(ADDR + offset, key);
-        offset += key.len();
+        spiflash::write(data.as_ptr() as usize, key);
+        data = &data[key.len()..];
 
-        spiflash::write(ADDR + offset, &[0]);
-        offset += 1;
+        spiflash::write(data.as_ptr() as usize, &[0]);
+        data = &data[1..];
 
-        spiflash::write(ADDR + offset, value);
-        offset += value.len();
+        spiflash::write(data.as_ptr() as usize, value);
+        data = &data[value.len()..];
 
-        cache::flush_l2_cache();
-        Ok(offset)
+        Ok(data)
     }
 
     fn compact() -> Result<(), ()> {
@@ -144,28 +148,30 @@ mod imp {
             }
         }
 
-        spiflash::erase_sector(ADDR);
-        cache::flush_l2_cache();
-
-        let mut offset = 0;
+        let mut data = lock.data();
+        spiflash::erase_sector(data.as_ptr() as usize);
         for (key, value) in items {
-            offset = append_at(offset, key, value)?;
+            data = unsafe { append_at(data, key, value)? };
         }
+
+        cache::flush_l2_cache();
         Ok(())
     }
 
     fn append(key: &str, value: &[u8]) -> Result<(), ()> {
         let lock = Lock::take()?;
 
-        let free_offset = {
+        let free = {
             let mut iter = Iter::new(lock.data());
             while let Some(result) = iter.next() {
                 let _ = result?;
             }
-            iter.offset
+            &iter.data[iter.offset..]
         };
 
-        append_at(free_offset, key.as_bytes(), value)?;
+        unsafe { append_at(free, key.as_bytes(), value)? };
+
+        cache::flush_l2_cache();
         Ok(())
     }
 
@@ -185,9 +191,9 @@ mod imp {
     }
 
     pub fn erase() -> Result<(), ()> {
-        let _lock = Lock::take()?;
+        let lock = Lock::take()?;
 
-        spiflash::erase_sector(ADDR);
+        spiflash::erase_sector(lock.data().as_ptr() as usize);
         cache::flush_l2_cache();
 
         Ok(())

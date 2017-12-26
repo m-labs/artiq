@@ -41,7 +41,7 @@ Prerequisites:
                         help="board variant")
     parser.add_argument("--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
-                             "Useful for selecting a development board " 
+                             "Useful for selecting a development board "
                              "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
@@ -188,6 +188,7 @@ def main():
     parser = get_argparser()
     opts = parser.parse_args()
 
+    storage_at = 0x80000 # Keep in sync with runtime.ld
     config = {
         "kc705": {
             "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
@@ -196,7 +197,7 @@ def main():
             "gateware": (0, 0x000000),
             "bios":     (0, 0xaf0000),
             "runtime":  (0, 0xb00000),
-            "storage":  (0, 0xb80000),
+            "storage":  (0, 0xb00000 + storage_at),
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
@@ -205,7 +206,7 @@ def main():
             "gateware": (0, 0x000000),
             "bios":     (1, 0x000000),
             "runtime":  (1, 0x010000),
-            "storage":  (1, 0x090000),
+            "storage":  (1, 0x010000 + storage_at),
         },
     }[opts.target]
 

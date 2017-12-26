@@ -66,6 +66,15 @@ SECTIONS
         _edata = .;
     } > runtime
 
+    .storage :
+    {
+        /* Keep in sync with artiq_flash.py */
+        _fstorage = .;
+        .  = _ftext + 0x80000;
+        . += /*SPIFLASH_SECTOR_SIZE*/ 0x10000;
+        _estorage = .;
+    } > runtime
+
     .bss :
     {
         . = ALIGN(4);
