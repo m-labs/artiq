@@ -136,6 +136,7 @@ def main():
             lock()
 
             transport = client.get_transport()
+            transport.set_keepalive(30)
 
             def forwarder(local_stream, remote_stream):
                 try:
