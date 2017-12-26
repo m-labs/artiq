@@ -136,6 +136,8 @@ class CommKernelDummy:
 
 
 class CommKernel:
+    warned_of_mismatch = False
+
     def __init__(self, host, port=1381):
         self._read_type = None
         self.host = host
@@ -284,10 +286,11 @@ class CommKernel:
                                     .format(runtime_id))
 
         gateware_version = self._read_string()
-        if gateware_version != software_version:
+        if gateware_version != software_version and not self.warned_of_mismatch:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
                            gateware_version, software_version)
+            CommKernel.warned_of_mismatch = True
 
         finished_cleanly = self._read_bool()
         if not finished_cleanly:
