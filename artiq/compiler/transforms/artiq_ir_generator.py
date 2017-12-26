@@ -1812,7 +1812,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             assert None not in args
 
-        if self.unwind_target is None:
+        if self.unwind_target is None or \
+                types.is_function(callee.type) and "nounwind" in callee.type.flags:
             insn = self.append(ir.Call(func, args, arg_exprs))
         else:
             after_invoke = self.add_block("invoke")
