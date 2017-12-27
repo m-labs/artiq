@@ -124,7 +124,7 @@ impl Scheduler {
     pub fn run(&mut self) {
         self.sockets.borrow_mut().prune();
 
-        self.threads.append(&mut *borrow_mut!(self.spawned));
+        self.threads.append(&mut *self.spawned.borrow_mut());
         if self.threads.len() == 0 { return }
 
         let now = board::clock::get_ms();
@@ -133,7 +133,7 @@ impl Scheduler {
             self.run_idx = (self.run_idx + 1) % self.threads.len();
 
             let result = {
-                let mut thread = borrow_mut!(self.threads[self.run_idx].0);
+                let mut thread = self.threads[self.run_idx].0.borrow_mut();
                 match thread.waiting_for {
                     _ if thread.interrupted => {
                         thread.interrupted = false;
@@ -164,7 +164,7 @@ impl Scheduler {
                 },
                 Some(wait_request) => {
                     // The thread has suspended itself.
-                    let mut thread = borrow_mut!(self.threads[self.run_idx].0);
+                    let mut thread = self.threads[self.run_idx].0.borrow_mut();
                     thread.waiting_for = wait_request
                 }
             }
@@ -189,7 +189,7 @@ impl<'a> Io<'a> {
     pub fn spawn<F>(&self, stack_size: usize, f: F) -> ThreadHandle
             where F: 'static + FnOnce(Io) + Send {
         let handle = unsafe { Thread::new(self, stack_size, f) };
-        borrow_mut!(self.spawned).push(handle.clone());
+        self.spawned.borrow_mut().push(handle.clone());
         handle
     }
 
@@ -241,7 +241,7 @@ macro_rules! until {
     ($socket:expr, $ty:ty, |$var:ident| $cond:expr) => ({
         let (sockets, handle) = ($socket.io.sockets.clone(), $socket.handle);
         $socket.io.until(move || {
-            let mut sockets = borrow_mut!(sockets);
+            let mut sockets = sockets.borrow_mut();
             let $var = sockets.get::<$ty>(handle);
             $cond
         })
@@ -269,7 +269,8 @@ impl<'a> TcpListener<'a> {
     fn new_lower(io: &'a Io<'a>, buffer_size: usize) -> SocketHandle {
         let rx_buffer = vec![0; buffer_size];
         let tx_buffer = vec![0; buffer_size];
-        borrow_mut!(io.sockets)
+        io.sockets
+            .borrow_mut()
             .add(TcpSocketLower::new(
                 TcpSocketBuffer::new(rx_buffer),
                 TcpSocketBuffer::new(tx_buffer)))
@@ -286,7 +287,7 @@ impl<'a> TcpListener<'a> {
 
     fn with_lower<F, R>(&self, f: F) -> R
             where F: FnOnce(SocketRef<TcpSocketLower>) -> R {
-        let mut sockets = borrow_mut!(self.io.sockets);
+        let mut sockets = self.io.sockets.borrow_mut();
         let result = f(sockets.get(self.handle.get()));
         result
     }
@@ -327,7 +328,7 @@ impl<'a> TcpListener<'a> {
         // that still counts as accepting even though nothing may be sent.
         let (sockets, handle) = (self.io.sockets.clone(), self.handle.get());
         self.io.until(move || {
-            let mut sockets = borrow_mut!(sockets);
+            let mut sockets = sockets.borrow_mut();
             let socket = sockets.get::<TcpSocketLower>(handle);
             socket.may_send() || socket.may_recv()
         })?;
@@ -352,7 +353,7 @@ impl<'a> TcpListener<'a> {
 impl<'a> Drop for TcpListener<'a> {
     fn drop(&mut self) {
         self.with_lower(|mut s| s.close());
-        borrow_mut!(self.io.sockets).release(self.handle.get())
+        self.io.sockets.borrow_mut().release(self.handle.get())
     }
 }
 
@@ -377,7 +378,7 @@ impl<'a> TcpStream<'a> {
 
     fn with_lower<F, R>(&self, f: F) -> R
             where F: FnOnce(SocketRef<TcpSocketLower>) -> R {
-        let mut sockets = borrow_mut!(self.io.sockets);
+        let mut sockets = self.io.sockets.borrow_mut();
         let result = f(sockets.get(self.handle));
         result
     }
@@ -496,6 +497,6 @@ impl<'a> Write for TcpStream<'a> {
 impl<'a> Drop for TcpStream<'a> {
     fn drop(&mut self) {
         self.with_lower(|mut s| s.close());
-        borrow_mut!(self.io.sockets).release(self.handle)
+        self.io.sockets.borrow_mut().release(self.handle)
     }
 }
