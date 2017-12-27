@@ -14,6 +14,14 @@ Release notes
 * ``artiq_flash --adapter`` has been changed to ``artiq_flash --variant``.
 
 
+3.2
+---
+
+* To accommodate larger runtimes, the flash layout as changed. As a result, the
+  contents of the flash storage will be lost when upgrading. Set the values back
+  (IP, MAC address, startup kernel, etc.) after the upgrade.
+
+
 3.1
 ---
 
