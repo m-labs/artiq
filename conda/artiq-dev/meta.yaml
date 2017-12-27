@@ -20,8 +20,8 @@ requirements:
     - binutils-or1k-linux >=2.27
     - llvm-or1k 4.0.1
     - llvmlite-artiq 0.20.0
-    - rust-core-or1k 1.22.1 17
-    - cargo 0.11.0
+    - rustc 1.22.1 17
+    - rust-core-or1k 1.22.1 18
     - openocd 0.10.0+git1
     - lit
     - outputcheck
