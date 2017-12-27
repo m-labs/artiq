@@ -682,6 +682,11 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "str"):
+            diag = diagnostic.Diagnostic("error",
+                "strings currently cannot be constructed", {},
+                node.loc)
+            self.engine.process(diag)
         elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
             if types.is_builtin(typ, "list"):
                 valid_forms = lambda: [
