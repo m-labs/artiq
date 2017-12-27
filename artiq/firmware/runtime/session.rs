@@ -8,8 +8,8 @@ use byteorder::{ByteOrder, NetworkEndian};
 use urc::Urc;
 use sched::{ThreadHandle, Io};
 use sched::{TcpListener, TcpStream};
-use board;
-use {config, mailbox, rpc_queue, kernel};
+use board::{self, config};
+use {mailbox, rpc_queue, kernel};
 #[cfg(has_rtio_core)]
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;

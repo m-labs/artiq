@@ -2,9 +2,10 @@
 #![no_std]
 
 #[macro_use]
-extern crate log;
-#[macro_use]
 extern crate bitflags;
+extern crate byteorder;
+#[macro_use]
+extern crate log;
 
 use core::{cmp, ptr, str};
 
@@ -21,6 +22,7 @@ pub mod uart_console;
 
 #[cfg(has_spiflash)]
 pub mod spiflash;
+pub mod config;
 
 pub mod i2c;
 pub mod spi;

@@ -20,9 +20,9 @@ Valid actions:
 
     * proxy: load the flash proxy gateware bitstream
     * gateware: write gateware bitstream to flash
-    * bios: write bios to flash
-    * runtime: write runtime to flash
+    * bootloader: write bootloader to flash
     * storage: write storage image to flash
+    * runtime: write runtime to flash
     * load: load gateware bitstream into device (volatile but fast)
     * start: trigger the target to (re)load its gateware bitstream from flash
 
@@ -48,7 +48,7 @@ Prerequisites:
     parser.add_argument("--srcbuild", help="look for bitstream, BIOS and runtime in this "
                                             "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="proxy gateware bios runtime start".split(),
+                        default="proxy gateware bootloader runtime start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
 
@@ -188,25 +188,24 @@ def main():
     parser = get_argparser()
     opts = parser.parse_args()
 
-    storage_at = 0x100000 # Keep in sync with runtime.ld
     config = {
         "kc705": {
             "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
             "proxy_bitfile": "bscan_spi_xc7k325t.bit",
             "variants": ["nist_clock", "nist_qc2"],
-            "gateware": (0, 0x000000),
-            "bios":     (0, 0xaf0000),
-            "runtime":  (0, 0xb00000),
-            "storage":  (0, 0xb00000 + storage_at),
+            "gateware":   (0, 0x000000),
+            "bootloader": (0, 0xaf0000),
+            "storage":    (0, 0xb00000),
+            "runtime":    (0, 0xb10000),
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
             "variants": ["standalone"],
-            "gateware": (0, 0x000000),
-            "bios":     (1, 0x000000),
-            "runtime":  (1, 0x010000),
-            "storage":  (1, 0x010000 + storage_at),
+            "gateware":   (0, 0x000000),
+            "bootloader": (1, 0x000000),
+            "storage":    (1, 0x010000),
+            "runtime":    (1, 0x020000),
         },
     }[opts.target]
 
@@ -256,20 +255,20 @@ def main():
                     bit2bin(f, g)
                 conv = True
             programmer.flash_binary(*config["gateware"], bin)
-        elif action == "bios":
+        elif action == "bootloader":
             if opts.srcbuild is None:
                 path = bin_dir
             else:
                 path = os.path.join(opts.srcbuild, "software", "bios")
-            programmer.flash_binary(*config["bios"], os.path.join(path, "bios.bin"))
+            programmer.flash_binary(*config["bootloader"], os.path.join(path, "bios.bin"))
+        elif action == "storage":
+            programmer.flash_binary(*config["storage"], opts.storage)
         elif action == "runtime":
             if opts.srcbuild is None:
                 path = bin_dir
             else:
                 path = os.path.join(opts.srcbuild, "software", "runtime")
             programmer.flash_binary(*config["runtime"], os.path.join(path, "runtime.fbi"))
-        elif action == "storage":
-            programmer.flash_binary(*config["storage"], opts.storage)
         elif action == "load":
             if opts.srcbuild is None:
                 path = bin_dir

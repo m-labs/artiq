@@ -12,8 +12,9 @@ path = "lib.rs"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
+bitflags = "1.0"
+byteorder = { version = "1.0", default-features = false }
 log = { version = "0.3", default-features = false }
-bitflags = { version = "1.0" }
 
 [features]
 uart_console = []

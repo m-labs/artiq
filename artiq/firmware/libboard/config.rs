@@ -1,14 +1,17 @@
 #[cfg(has_spiflash)]
 mod imp {
     use core::str;
-    use std::btree_map::BTreeMap;
     use byteorder::{ByteOrder, BigEndian};
-    use board::{cache, spiflash};
+    use cache;
+    use spiflash;
+
+    // One flash sector immediately after the bootloader.
+    const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::PAGE_SIZE;
+    const SIZE: usize = spiflash::PAGE_SIZE;
 
     mod lock {
         use core::slice;
         use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-        use board;
 
         static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
 
@@ -24,22 +27,7 @@ mod imp {
             }
 
             pub fn data(&self) -> &'static [u8] {
-                extern {
-                    static _ftext:    u8;
-                    static _fstorage: u8;
-                    static _estorage: u8;
-                }
-
-                unsafe {
-                    let base  = &_ftext    as *const _ as usize;
-                    let begin = &_fstorage as *const _ as usize;
-                    let end   = &_estorage as *const _ as usize;
-
-                    let ptr = board::mem::FLASH_BOOT_ADDRESS + (begin - base);
-                    let len = end - begin;
-
-                    slice::from_raw_parts(ptr as *const u8, len)
-                }
+                unsafe { slice::from_raw_parts(super::ADDR as *const u8, super::SIZE) }
             }
         }
 
@@ -52,6 +40,7 @@ mod imp {
 
     use self::lock::Lock;
 
+    #[derive(Clone)]
     struct Iter<'a> {
         data:   &'a [u8],
         offset: usize
@@ -140,28 +129,39 @@ mod imp {
         spiflash::write(data.as_ptr() as usize, value);
         data = &data[value.len()..];
 
+        cache::flush_l2_cache();
+
         Ok(data)
     }
 
     fn compact() -> Result<(), ()> {
         let lock = Lock::take()?;
 
-        let mut items = BTreeMap::new();
-        {
-            let mut iter = Iter::new(lock.data());
-            while let Some(result) = iter.next() {
-                let (key, value) = result?;
-                items.insert(key, value);
-            }
-        }
+        static mut OLD_DATA: [u8; SIZE] = [0; SIZE];
+        let old_data = unsafe {
+            OLD_DATA.copy_from_slice(lock.data());
+            &OLD_DATA[..]
+        };
 
         let mut data = lock.data();
-        spiflash::erase_sector(data.as_ptr() as usize);
-        for (key, value) in items {
+        unsafe { spiflash::erase_sector(data.as_ptr() as usize) };
+
+        // This is worst-case quadratic, but we're limited by a small SPI flash sector size,
+        // so it does not really matter.
+        let mut iter = Iter::new(old_data);
+        while let Some(result) = iter.next() {
+            let (key, mut value) = result?;
+
+            let mut next_iter = iter.clone();
+            while let Some(next_result) = next_iter.next() {
+                let (next_key, next_value) = next_result?;
+                if key == next_key {
+                    value = next_value
+                }
+            }
             data = unsafe { append_at(data, key, value)? };
         }
 
-        cache::flush_l2_cache();
         Ok(())
     }
 
@@ -178,7 +178,6 @@ mod imp {
 
         unsafe { append_at(free, key.as_bytes(), value)? };
 
-        cache::flush_l2_cache();
         Ok(())
     }
 
@@ -200,7 +199,7 @@ mod imp {
     pub fn erase() -> Result<(), ()> {
         let lock = Lock::take()?;
 
-        spiflash::erase_sector(lock.data().as_ptr() as usize);
+        unsafe { spiflash::erase_sector(lock.data().as_ptr() as usize) };
         cache::flush_l2_cache();
 
         Ok(())
