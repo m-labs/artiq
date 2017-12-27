@@ -615,7 +615,7 @@ pub fn thread(io: Io) {
     {
         let congress = congress.clone();
         respawn(&io, &mut kernel_thread, move |io| {
-            let mut congress = borrow_mut!(congress);
+            let mut congress = congress.borrow_mut();
             info!("running startup kernel");
             match flash_kernel_worker(&io, &mut congress, "startup_kernel") {
                 Ok(()) => info!("startup kernel finished"),
@@ -650,7 +650,7 @@ pub fn thread(io: Io) {
             let congress = congress.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
-                let mut congress = borrow_mut!(congress);
+                let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
                 match host_kernel_worker(&io, &mut stream, &mut *congress) {
                     Ok(()) => (),
@@ -673,7 +673,7 @@ pub fn thread(io: Io) {
 
             let congress = congress.clone();
             respawn(&io, &mut kernel_thread, move |io| {
-                let mut congress = borrow_mut!(congress);
+                let mut congress = congress.borrow_mut();
                 match flash_kernel_worker(&io, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),

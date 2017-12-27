@@ -26,15 +26,6 @@ use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 use amp::{mailbox, rpc_queue};
 
-macro_rules! borrow_mut {
-    ($x:expr) => ({
-        match $x.try_borrow_mut() {
-            Ok(x) => x,
-            Err(_) => panic!("cannot borrow mutably at {}:{}", file!(), line!())
-        }
-    })
-}
-
 mod config;
 mod ethmac;
 mod rtio_mgt;
@@ -157,7 +148,7 @@ fn startup() {
         scheduler.run();
 
         {
-            let sockets = &mut *borrow_mut!(scheduler.sockets());
+            let sockets = &mut *scheduler.sockets().borrow_mut();
             loop {
                 match interface.poll(sockets, board::clock::get_ms()) {
                     Ok(true) => (),
