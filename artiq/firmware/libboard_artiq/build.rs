@@ -1,3 +1,4 @@
+extern crate build_misoc;
 extern crate build_artiq;
 
 use std::env;
@@ -24,5 +25,6 @@ fn gen_hmc7043_writes() {
 }
 
 fn main() {
+    build_misoc::cfg();
     gen_hmc7043_writes();
 }

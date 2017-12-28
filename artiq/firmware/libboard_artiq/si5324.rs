@@ -1,7 +1,6 @@
 use core::result;
+use board::{csr, clock};
 use i2c;
-use clock;
-use csr;
 
 type Result<T> = result::Result<T, &'static str>;
 
@@ -200,8 +199,8 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     if !has_clkin2()? {
         return Err("Si5324 misses CLKIN2 signal");
     }
-    monitor_lock()?;
 
+    monitor_lock()?;
     Ok(())
 }
 

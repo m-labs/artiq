@@ -9,10 +9,12 @@ name = "board_artiq"
 path = "lib.rs"
 
 [build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
 bitflags = "1.0"
+log = { version = "0.3", default-features = false }
 board = { path = "../libboard" }
 
 [features]
