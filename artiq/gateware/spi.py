@@ -208,9 +208,11 @@ class SPIMaster(Module):
 
         clk_t = TSTriple()
         self.specials += clk_t.get_tristate(pads.clk)
-        self.comb += [
-            clk_t.oe.eq(~config.offline),
-            clk_t.o.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity),
+        self.comb += clk_t.oe.eq(~config.offline),
+        self.sync += [
+            If(spi.cg.ce & spi.cg.edge,
+                clk_t.o.eq((~spi.cg.clk & spi.cs_next) ^ config.clk_polarity)
+            )
         ]
 
         mosi_t = TSTriple()
