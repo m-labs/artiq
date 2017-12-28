@@ -195,8 +195,8 @@ def main():
             "variants": ["nist_clock", "nist_qc2"],
             "gateware":   (0, 0x000000),
             "bootloader": (0, 0xaf0000),
-            "storage":    (0, 0xb00000),
-            "runtime":    (0, 0xb10000),
+            "storage":    (0, 0xb30000),
+            "runtime":    (0, 0xb40000),
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
@@ -204,8 +204,8 @@ def main():
             "variants": ["standalone"],
             "gateware":   (0, 0x000000),
             "bootloader": (1, 0x000000),
-            "storage":    (1, 0x010000),
-            "runtime":    (1, 0x020000),
+            "storage":    (1, 0x040000),
+            "runtime":    (1, 0x050000),
         },
     }[opts.target]
 

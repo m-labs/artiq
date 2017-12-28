@@ -37,7 +37,7 @@ mod imp {
     use spiflash;
     use super::Error;
 
-    // One flash sector immediately after the bootloader.
+    // One flash sector immediately before the firmware.
     const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::PAGE_SIZE;
     const SIZE: usize = spiflash::PAGE_SIZE;
 
