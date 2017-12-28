@@ -7,7 +7,7 @@ build = "build.rs"
 [lib]
 name = "satman"
 crate-type = ["staticlib"]
-path = "lib.rs"
+path = "main.rs"
 
 [build-dependencies]
 build_artiq = { path = "../libbuild_artiq" }
