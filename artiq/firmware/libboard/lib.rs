@@ -1,6 +1,7 @@
 #![feature(asm, lang_items)]
 #![no_std]
 
+extern crate byteorder;
 #[macro_use]
 extern crate log;
 
@@ -18,6 +19,7 @@ pub mod uart_console;
 
 #[cfg(has_spiflash)]
 pub mod spiflash;
+pub mod config;
 
 pub mod i2c;
 pub mod spi;

@@ -3,14 +3,14 @@ use std::{mem, str};
 use std::cell::{Cell, RefCell};
 use std::io::{self, Read, Write};
 use std::error::Error;
-use {config, rtio_mgt, mailbox, rpc_queue, kernel};
+use {rtio_mgt, mailbox, rpc_queue, kernel};
 use cache::Cache;
 use rtio_dma::Manager as DmaManager;
 use urc::Urc;
 use sched::{ThreadHandle, Io};
 use sched::{TcpListener, TcpStream};
 use byteorder::{ByteOrder, NetworkEndian};
-use board;
+use board::{self, config};
 
 use rpc_proto as rpc;
 use session_proto as host;

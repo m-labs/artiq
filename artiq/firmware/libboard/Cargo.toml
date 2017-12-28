@@ -9,6 +9,7 @@ name = "board"
 path = "lib.rs"
 
 [dependencies]
+byteorder = { version = "1.0", default-features = false }
 log = { version = "0.3", default-features = false }
 
 [features]

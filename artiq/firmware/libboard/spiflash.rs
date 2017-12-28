@@ -3,6 +3,10 @@
 use core::cmp;
 use csr;
 
+pub const PAGE_SIZE: usize = csr::CONFIG_SPIFLASH_PAGE_SIZE as usize;
+
+const PAGE_MASK: usize = PAGE_SIZE - 1;
+
 const CMD_PP:   u8 = 0x02;
 const CMD_WRDI: u8 = 0x04;
 const CMD_RDSR: u8 = 0x05;
@@ -15,28 +19,24 @@ const PIN_DQ_I: u8 = 1 << 3;
 
 const SR_WIP:   u8 = 1;
 
-fn write_byte(mut byte: u8) {
-    unsafe {
-        csr::spiflash::bitbang_write(0);
-        for _ in 0..8 {
-            csr::spiflash::bitbang_write((byte & 0x80) >> 7);
-            csr::spiflash::bitbang_write((byte & 0x80) >> 7 | PIN_CLK);
-            byte <<= 1;
-        }
-        csr::spiflash::bitbang_write(0);
+unsafe fn write_byte(mut byte: u8) {
+    csr::spiflash::bitbang_write(0);
+    for _ in 0..8 {
+        csr::spiflash::bitbang_write((byte & 0x80) >> 7);
+        csr::spiflash::bitbang_write((byte & 0x80) >> 7 | PIN_CLK);
+        byte <<= 1;
     }
+    csr::spiflash::bitbang_write(0);
 }
 
-fn write_addr(mut addr: usize) {
-    unsafe {
-        csr::spiflash::bitbang_write(0);
-        for _ in 0..24 {
-            csr::spiflash::bitbang_write(((addr & 0x800000) >> 23) as u8);
-            csr::spiflash::bitbang_write(((addr & 0x800000) >> 23) as u8 | PIN_CLK);
-            addr <<= 1;
-        }
-        csr::spiflash::bitbang_write(0);
+unsafe fn write_addr(mut addr: usize) {
+    csr::spiflash::bitbang_write(0);
+    for _ in 0..24 {
+        csr::spiflash::bitbang_write(((addr & 0x800000) >> 23) as u8);
+        csr::spiflash::bitbang_write(((addr & 0x800000) >> 23) as u8 | PIN_CLK);
+        addr <<= 1;
     }
+    csr::spiflash::bitbang_write(0);
 }
 
 fn wait_until_ready() {
@@ -59,54 +59,47 @@ fn wait_until_ready() {
     }
 }
 
-pub fn erase_sector(addr: usize) {
-    unsafe {
-        let sector_addr = addr & !(csr::CONFIG_SPIFLASH_SECTOR_SIZE as usize - 1);
+pub unsafe fn erase_sector(addr: usize) {
+    let sector_addr = addr & !(csr::CONFIG_SPIFLASH_SECTOR_SIZE as usize - 1);
 
-        csr::spiflash::bitbang_en_write(1);
+    csr::spiflash::bitbang_en_write(1);
 
-        wait_until_ready();
+    wait_until_ready();
 
-        write_byte(CMD_WREN);
-        csr::spiflash::bitbang_write(PIN_CS_N);
+    write_byte(CMD_WREN);
+    csr::spiflash::bitbang_write(PIN_CS_N);
 
-        write_byte(CMD_SE);
-        write_addr(sector_addr);
-        csr::spiflash::bitbang_write(PIN_CS_N);
+    write_byte(CMD_SE);
+    write_addr(sector_addr);
+    csr::spiflash::bitbang_write(PIN_CS_N);
 
-        wait_until_ready();
+    wait_until_ready();
 
-        csr::spiflash::bitbang_en_write(0);
-    }
+    csr::spiflash::bitbang_en_write(0);
 }
 
-fn write_page(addr: usize, data: &[u8]) {
-    unsafe {
-        csr::spiflash::bitbang_en_write(1);
+unsafe fn write_page(addr: usize, data: &[u8]) {
+    csr::spiflash::bitbang_en_write(1);
 
-        wait_until_ready();
+    wait_until_ready();
 
-        write_byte(CMD_WREN);
-        csr::spiflash::bitbang_write(PIN_CS_N);
-        write_byte(CMD_PP);
-        write_addr(addr);
-        for &byte in data {
-            write_byte(byte)
-        }
-
-        csr::spiflash::bitbang_write(PIN_CS_N);
-        csr::spiflash::bitbang_write(0);
-
-        wait_until_ready();
-
-        csr::spiflash::bitbang_en_write(0);
+    write_byte(CMD_WREN);
+    csr::spiflash::bitbang_write(PIN_CS_N);
+    write_byte(CMD_PP);
+    write_addr(addr);
+    for &byte in data {
+        write_byte(byte)
     }
+
+    csr::spiflash::bitbang_write(PIN_CS_N);
+    csr::spiflash::bitbang_write(0);
+
+    wait_until_ready();
+
+    csr::spiflash::bitbang_en_write(0);
 }
 
-const PAGE_SIZE: usize = csr::CONFIG_SPIFLASH_PAGE_SIZE as usize;
-const PAGE_MASK: usize = PAGE_SIZE - 1;
-
-pub fn write(mut addr: usize, mut data: &[u8]) {
+pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
     if addr & PAGE_MASK != 0 {
         let size = cmp::min((PAGE_SIZE - (addr & PAGE_MASK)) as usize, data.len());
         write_page(addr, &data[..size]);

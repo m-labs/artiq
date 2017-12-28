@@ -1,5 +1,4 @@
-use config;
-use board::csr;
+use board::{csr, config};
 use sched::Io;
 
 #[cfg(has_rtio_crg)]
