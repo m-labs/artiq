@@ -26,8 +26,8 @@ amp = { path = "../libamp" }
 drtioaux = { path = "../libdrtioaux" }
 
 [dependencies.compiler_builtins]
-git = "https://github.com/rust-lang-nursery/compiler-builtins"
-rev = "631b568"
+git = "https://github.com/m-labs/compiler-builtins"
+rev = "97916b1"
 features = ["mem"]
 
 [dependencies.fringe]

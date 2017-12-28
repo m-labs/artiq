@@ -1,7 +1,8 @@
-#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator)]
+#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator,
+           compiler_builtins_lib)]
 #![no_std]
 
-extern crate rlibc;
+extern crate compiler_builtins;
 extern crate byteorder;
 extern crate cslice;
 extern crate unwind;

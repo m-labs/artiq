@@ -7,7 +7,6 @@ CFLAGS += \
 	-I$(MISOC_DIRECTORY)/software/include/dyld
 
 LDFLAGS += --eh-frame-hdr \
-	-L../libcompiler-rt \
 	-L../libm \
 	-L../libprintf \
 	-L../libunwind
@@ -22,7 +21,7 @@ $(RUSTOUT)/libksupport.a:
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(link) -T $(KSUPPORT_DIRECTORY)/ksupport.ld \
-		-lunwind-elf -lprintf-float -lm -lcompiler-rt
+		-lunwind-elf -lprintf-float -lm
 
 %.o: $(KSUPPORT_DIRECTORY)/%.c
 	$(compile)
