@@ -92,8 +92,8 @@ fn startup() {
 fn setup_si5324_free_running()
 {
     // 150MHz output (hardcoded)
-    const SI5324_SETTINGS: board::si5324::FrequencySettings
-        = board::si5324::FrequencySettings {
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
         n1_hs  : 9,
         nc1_ls : 4,
         n2_hs  : 10,
@@ -102,7 +102,7 @@ fn setup_si5324_free_running()
         n32    : 7139,
         bwsel  : 3
     };
-    board::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
+    board_artiq::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
 }
 
 #[cfg(has_ethmac)]
