@@ -203,7 +203,11 @@ class SPIMaster(Module):
             mosi_oe.eq(
                 ~config.offline & spi.cs &
                 (spi.oe | ~config.half_duplex)),
-            clk.eq((spi.cg.clk & spi.cs) ^ config.clk_polarity)
+        ]
+        self.sync += [
+            If(spi.cg.ce & spi.cg.edge,
+                clk.eq((~spi.cg.clk & spi.cs_next) ^ config.clk_polarity)
+            )
         ]
 
         if pads_n is None:
