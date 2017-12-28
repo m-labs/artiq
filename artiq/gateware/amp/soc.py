@@ -48,7 +48,6 @@ def build_artiq_soc(soc, argdict):
     builder = Builder(soc, **argdict)
     builder.add_software_package("libm")
     builder.add_software_package("libunwind")
-    builder.add_software_package("bootloader", os.path.join(artiq_dir, "firmware", "bootloader"))
     builder.add_software_package("ksupport", os.path.join(artiq_dir, "firmware", "ksupport"))
     builder.add_software_package("runtime", os.path.join(artiq_dir, "firmware", "runtime"))
     try:
