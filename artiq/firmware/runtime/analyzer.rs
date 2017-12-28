@@ -5,18 +5,13 @@ use analyzer_proto::*;
 
 const BUFFER_SIZE: usize = 512 * 1024;
 
-// hack until https://github.com/rust-lang/rust/issues/33626 is fixed
-#[repr(simd)]
-struct Align64(u64, u64, u64, u64, u64, u64, u64, u64);
-
+#[repr(align(64))]
 struct Buffer {
     data: [u8; BUFFER_SIZE],
-    __alignment: [Align64; 0]
 }
 
 static mut BUFFER: Buffer = Buffer {
-    data: [0; BUFFER_SIZE],
-    __alignment: []
+    data: [0; BUFFER_SIZE]
 };
 
 fn arm() {
@@ -68,9 +63,6 @@ fn worker(stream: &mut TcpStream) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    // verify that the hack above works
-    assert!(::core::mem::align_of::<Buffer>() == 64);
-
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1382).expect("analyzer: cannot listen");
 
