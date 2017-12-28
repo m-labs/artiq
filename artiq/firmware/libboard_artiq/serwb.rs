@@ -1,4 +1,4 @@
-use csr;
+use board::csr;
 
 pub fn wait_init() {
     info!("waiting for AMC/RTM serwb bridge to be ready...");

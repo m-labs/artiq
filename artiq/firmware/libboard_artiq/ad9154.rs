@@ -1,5 +1,4 @@
-use csr;
-use clock;
+use board::{csr, clock};
 use ad9154_reg;
 
 fn spi_setup(dacno: u8) {
