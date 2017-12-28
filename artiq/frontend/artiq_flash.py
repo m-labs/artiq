@@ -259,8 +259,8 @@ def main():
             if opts.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "software", "bios")
-            programmer.flash_binary(*config["bootloader"], os.path.join(path, "bios.bin"))
+                path = os.path.join(opts.srcbuild, "software", "bootloader")
+            programmer.flash_binary(*config["bootloader"], os.path.join(path, "bootloader.bin"))
         elif action == "storage":
             programmer.flash_binary(*config["storage"], opts.storage)
         elif action == "runtime":

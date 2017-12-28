@@ -244,12 +244,12 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
         println!("{:#08x}", ip);
     });
 
-    if config::read_str("panic_reboot", |r| r == Ok("1")) {
-        println!("rebooting...");
-        unsafe { board_artiq::boot::reboot() }
+    if config::read_str("panic_reset", |r| r == Ok("1")) {
+        println!("restarting...");
+        unsafe { board::boot::reset() }
     } else {
         println!("halting.");
-        println!("use `artiq_coreconfig write -s panic_reboot 1` to reboot instead");
+        println!("use `artiq_coreconfig write -s panic_reset 1` to restart instead");
         loop {}
     }
 }

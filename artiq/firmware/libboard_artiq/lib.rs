@@ -23,5 +23,3 @@ pub mod hmc830_7043;
 mod ad9154_reg;
 #[cfg(has_ad9154)]
 pub mod ad9154;
-
-pub mod boot;

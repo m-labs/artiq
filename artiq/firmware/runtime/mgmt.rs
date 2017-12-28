@@ -1,4 +1,4 @@
-use board_artiq::boot;
+use board::boot;
 use std::io::{self, Read, Write};
 use log::LogLevelFilter;
 use logger_artiq::BufferLogger;
@@ -92,8 +92,8 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
             Request::Reboot => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
-                warn!("rebooting");
-                unsafe { boot::reboot() }
+                warn!("restarting");
+                unsafe { boot::reset() }
             }
         };
     }

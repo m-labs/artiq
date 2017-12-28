@@ -45,11 +45,15 @@ class AMPSoC:
 
 
 def build_artiq_soc(soc, argdict):
+    firmware_dir = os.path.join(artiq_dir, "firmware")
     builder = Builder(soc, **argdict)
+    builder.software_packages = []
     builder.add_software_package("libm")
+    builder.add_software_package("libprintf")
     builder.add_software_package("libunwind")
-    builder.add_software_package("ksupport", os.path.join(artiq_dir, "firmware", "ksupport"))
-    builder.add_software_package("runtime", os.path.join(artiq_dir, "firmware", "runtime"))
+    builder.add_software_package("bootloader", os.path.join(firmware_dir, "bootloader"))
+    builder.add_software_package("ksupport",   os.path.join(firmware_dir, "ksupport"))
+    builder.add_software_package("runtime",    os.path.join(firmware_dir, "runtime"))
     try:
         builder.build()
     except subprocess.CalledProcessError as e:

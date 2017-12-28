@@ -43,11 +43,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "bootloader"
+version = "0.0.0"
+dependencies = [
+ "board 0.0.0",
+ "build_misoc 0.0.0",
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crc 1.6.0 (git+git://github.com/whitequark/crc-rs?rev=51cd356)",
+ "rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "build_artiq"
 version = "0.0.0"
 dependencies = [
  "walkdir 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "build_const"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "build_misoc"
@@ -76,6 +92,14 @@ dependencies = [
 name = "compiler_builtins"
 version = "0.1.0"
 source = "git+https://github.com/m-labs/compiler-builtins?rev=97916b1#97916b17ca542eac0524b8570c7d05913891a0dc"
+
+[[package]]
+name = "crc"
+version = "1.6.0"
+source = "git+git://github.com/whitequark/crc-rs?rev=51cd356#51cd3560aa9d3823061f2bb46797d8c61f4cfa9e"
+dependencies = [
+ "build_const 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "cslice"
@@ -176,6 +200,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlibc"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "runtime"
 version = "0.0.0"
 dependencies = [
@@ -220,6 +249,7 @@ dependencies = [
  "board 0.0.0",
  "board_artiq 0.0.0",
  "build_artiq 0.0.0",
+ "build_misoc 0.0.0",
  "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins?rev=631b568)",
  "drtioaux 0.0.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -263,10 +293,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b3c30d3802dfb7281680d6285f2ccdaa8c2d8fee41f93805dba5c4cf50dc23cf"
+"checksum build_const 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e90dc84f5e62d2ebe7676b83c22d33b6db8bd27340fb6ffbff0a364efa0cb9c9"
 "checksum byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"
 "checksum cc 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a9b13a57efd6b30ecd6598ebdb302cca617930b5470647570468a65d12ef9719"
 "checksum compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=97916b1)" = "<none>"
 "checksum compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins?rev=631b568)" = "<none>"
+"checksum crc 1.6.0 (git+git://github.com/whitequark/crc-rs?rev=51cd356)" = "<none>"
 "checksum cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0f8cb7306107e4b10e64994de6d3274bd08996a7c1322a27b86482392f96be0a"
 "checksum fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)" = "<none>"
 "checksum gcc 0.3.54 (registry+https://github.com/rust-lang/crates.io-index)" = "5e33ec290da0d127825013597dbdfc28bee4964690c7ce1166cbc2a7bd08b1bb"
@@ -275,6 +307,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "880f77541efa6e5cc74e76910c9884d9859683118839d6a1dc3b11e63512565b"
 "checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
 "checksum managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)" = "<none>"
+"checksum rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 "checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
 "checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=507d2fe)" = "<none>"
