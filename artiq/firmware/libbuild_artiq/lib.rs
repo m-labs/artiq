@@ -2,8 +2,8 @@ extern crate walkdir;
 
 use std::env;
 use std::fs::File;
-use std::io::{Write, BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::io::Write;
+use std::path::Path;
 use std::process::Command;
 
 use walkdir::WalkDir;
@@ -42,18 +42,7 @@ pub fn git_describe() {
         version = "unknown".to_owned();
     }
 
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let mut f = File::create(out_dir.join("git-describe")).unwrap();
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let mut f = File::create(Path::new(&out_dir).join("git-describe")).unwrap();
     write!(f, "{}", version).unwrap();
-}
-
-pub fn misoc_cfg() {
-    let out_dir = env::var("BUILDINC_DIRECTORY").unwrap();
-    let cfg_path = Path::new(&out_dir).join("generated").join("rust-cfg");
-    println!("cargo:rerun-if-changed={}", cfg_path.to_str().unwrap());
-
-    let f = BufReader::new(File::open(&cfg_path).unwrap());
-    for line in f.lines() {
-        println!("cargo:rustc-cfg={}", line.unwrap());
-    }
 }

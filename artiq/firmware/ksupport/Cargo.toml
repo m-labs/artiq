@@ -10,7 +10,7 @@ path = "lib.rs"
 crate-type = ["staticlib"]
 
 [build-dependencies]
-build_artiq = { path = "../libbuild_artiq" }
+build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
 byteorder = { version = "1.0", default-features = false }

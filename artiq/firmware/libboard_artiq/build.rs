@@ -1,10 +1,9 @@
 extern crate build_misoc;
-extern crate build_artiq;
 
 use std::env;
 use std::fs::File;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::Command;
 
 fn gen_hmc7043_writes() {
@@ -19,8 +18,8 @@ fn gen_hmc7043_writes() {
                 .ok()
                 .and_then(|o| String::from_utf8(o.stdout).ok())
                 .unwrap();
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let mut f = File::create(out_dir.join("hmc7043_writes.rs")).unwrap();
+    let out_dir = env::var("OUT_DIR").unwrap();
+    let mut f = File::create(Path::new(&out_dir).join("hmc7043_writes.rs")).unwrap();
     write!(f, "{}", hmc7043_writes).unwrap();
 }
 

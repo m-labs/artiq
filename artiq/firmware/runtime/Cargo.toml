@@ -10,6 +10,7 @@ crate-type = ["staticlib"]
 path = "main.rs"
 
 [build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
