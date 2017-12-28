@@ -11,6 +11,8 @@ from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import *
 from misoc.targets.sayma_amc import BaseSoC
 
+from microscope import *
+
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import gth_ultrascale
@@ -35,6 +37,9 @@ class Satellite(BaseSoC):
 
         platform = self.platform
         rtio_clk_freq = 150e6
+
+        self.submodules += Microscope(platform.request("serial", 1),
+                                      self.clk_freq)
 
         rtio_channels = []
         for i in range(4):

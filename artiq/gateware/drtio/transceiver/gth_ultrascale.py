@@ -8,6 +8,8 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 from misoc.cores.code_8b10b import Encoder, Decoder
 
+from microscope import *
+
 from artiq.gateware.drtio.core import TransceiverInterface, ChannelInterface
 from artiq.gateware.drtio.transceiver.gth_ultrascale_init import *
 
@@ -34,14 +36,13 @@ class GTHSingle(Module):
         # TX generates RTIO clock, init must be in system domain
         tx_init = GTHInit(sys_clk_freq, False)
         # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("rtio_tx")(
-            GTHInit(rtio_clk_freq, True))
+        rx_init = ClockDomainsRenamer("rtio_tx")(GTHInit(rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
 
-        pll_lock = Signal()
+        cpll_lock = Signal()
         self.comb += [
-            tx_init.plllock.eq(pll_lock),
-            rx_init.plllock.eq(pll_lock)
+            tx_init.plllock.eq(cpll_lock),
+            rx_init.plllock.eq(cpll_lock)
         ]
 
         txdata = Signal(dw)
@@ -77,7 +78,7 @@ class GTHSingle(Module):
                 p_TXOUT_DIV=2,
                 i_CPLLRESET=0,
                 i_CPLLPD=0,
-                o_CPLLLOCK=pll_lock,
+                o_CPLLLOCK=cpll_lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
                 i_TSTIN=2**20-1,
@@ -171,6 +172,14 @@ class GTHSingle(Module):
                 o_GTHTXN=tx_pads.n
             )
 
+        self.submodules += [
+            add_probe_single("drtio_gth", "cpll_lock", cpll_lock),
+            add_probe_single("drtio_gth", "txuserrdy", tx_init.Xxuserrdy),
+            add_probe_single("drtio_gth", "rxuserrdy", rx_init.Xxuserrdy, clock_domain="rtio_tx"),
+            add_probe_buffer("drtio_gth", "txdata", txdata, clock_domain="rtio_tx"),
+            add_probe_buffer("drtio_gth", "rxdata", rxdata, clock_domain="rtio_rx")
+        ]
+
         # tx clocking
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
@@ -178,8 +187,7 @@ class GTHSingle(Module):
         self.clock_domains.cd_rtio_tx = ClockDomain()
         if mode == "master":
             self.specials += \
-                Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk,
-                    i_DIV=0)
+                Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk, i_DIV=0)
         self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
 
         # rx clocking
@@ -207,6 +215,8 @@ class GTHSingle(Module):
             rx_init.restart.eq(clock_aligner.restart),
             self.rx_ready.eq(clock_aligner.ready)
         ]
+        self.submodules += add_probe_single("drtio_gth", "clock_aligner_ready", clock_aligner.ready,
+                                            clock_domain="rtio_tx")
 
 
 class GTH(Module, TransceiverInterface):

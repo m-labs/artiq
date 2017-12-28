@@ -11,6 +11,8 @@ from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.sayma_amc import MiniSoC
 
+from microscope import *
+
 from artiq.gateware.amp import AMPSoC, build_artiq_soc
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple
@@ -42,6 +44,9 @@ class Master(MiniSoC, AMPSoC):
 
         platform = self.platform
         rtio_clk_freq = 150e6
+
+        self.submodules += Microscope(platform.request("serial", 1),
+                                      self.clk_freq)
 
         # Si5324 used as a free-running oscillator, to avoid dependency on RTM.
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)

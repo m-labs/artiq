@@ -17,6 +17,7 @@ requirements:
     - migen 0.6.dev py35_50+git82b06ee
     - misoc 0.8.dev py35_41+gitc69cb371
     - jesd204b 0.4
+    - microscope
     - binutils-or1k-linux >=2.27
     - llvm-or1k 4.0.1
     - llvmlite-artiq 0.20.0
