@@ -230,7 +230,6 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
 #[no_mangle]
 pub extern fn abort() {
     println!("aborted");
-
     loop {}
 }
 

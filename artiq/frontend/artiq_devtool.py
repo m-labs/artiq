@@ -39,7 +39,8 @@ def get_argparser():
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
                         help="Target to build, one of: "
-                             "kc705_dds kc705_drtio_master kc705_drtio_satellite")
+                             "kc705_dds sayma_amc_standalone "
+                             "sayma_amc_drtio_master sayma_amc_drtio_satellite")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
@@ -55,9 +56,9 @@ def main():
     if args.verbose == args.quiet == 0:
         logging.getLogger().setLevel(logging.INFO)
 
-    if args.target == "kc705_dds" or args.target == "kc705_drtio_master":
+    if args.target in ["kc705_dds", "sayma_amc_standalone", "sayma_amc_drtio_master"]:
         firmware = "runtime"
-    elif args.target == "kc705_drtio_satellite":
+    elif args.target == "sayma_amc_drtio_satellite":
         firmware = "satman"
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
