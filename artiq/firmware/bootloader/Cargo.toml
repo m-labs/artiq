@@ -1,0 +1,18 @@
+[package]
+authors = ["M-Labs"]
+name = "bootloader"
+version = "0.0.0"
+build = "build.rs"
+
+[lib]
+name = "bootloader"
+crate-type = ["staticlib"]
+path = "main.rs"
+
+[build-dependencies]
+build_artiq = { path = "../libbuild_artiq" }
+
+[dependencies]
+rlibc = "1.0"
+crc = { git = "git://github.com/whitequark/crc-rs", rev = "51cd356", default-features = false }
+board = { path = "../libboard", features = ["uart_console"] }

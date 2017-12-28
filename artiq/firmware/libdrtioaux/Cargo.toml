@@ -8,6 +8,9 @@ build = "build.rs"
 name = "drtioaux"
 path = "lib.rs"
 
+[build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
+
 [dependencies]
 log = { version = "0.3", default-features = false }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }

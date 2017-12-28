@@ -1,2 +1,2 @@
 [workspace]
-members = ["runtime", "ksupport", "satman"]
+members = ["bootloader", "runtime", "ksupport", "satman"]
