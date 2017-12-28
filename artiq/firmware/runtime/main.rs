@@ -26,11 +26,11 @@ extern crate drtioaux;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
 use board::config;
+#[cfg(has_ethmac)]
+use board::ethmac;
 use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 use amp::{mailbox, rpc_queue};
 
-#[cfg(has_ethmac)]
-mod ethmac;
 #[cfg(has_rtio_core)]
 mod rtio_mgt;
 

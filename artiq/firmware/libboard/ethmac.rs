@@ -2,7 +2,8 @@ use core::{slice, fmt};
 use smoltcp::Result;
 use smoltcp::phy::{self, DeviceCapabilities, Device};
 
-use board::{csr, mem};
+use csr;
+use mem::ETHMAC_BASE;
 
 const RX_SLOTS: usize = csr::ETHMAC_RX_SLOTS as usize;
 const TX_SLOTS: usize = csr::ETHMAC_TX_SLOTS as usize;
@@ -30,12 +31,12 @@ fn next_tx_slot() -> Option<usize> {
 
 fn rx_buffer(slot: usize) -> *const u8 {
     debug_assert!(slot < RX_SLOTS);
-    (mem::ETHMAC_BASE + SLOT_SIZE * slot) as _
+    (ETHMAC_BASE + SLOT_SIZE * slot) as _
 }
 
 fn tx_buffer(slot: usize) -> *mut u8 {
     debug_assert!(slot < TX_SLOTS);
-    (mem::ETHMAC_BASE + SLOT_SIZE * (RX_SLOTS + slot)) as _
+    (ETHMAC_BASE + SLOT_SIZE * (RX_SLOTS + slot)) as _
 }
 
 pub struct EthernetDevice(());

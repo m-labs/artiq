@@ -2,6 +2,8 @@
 #![feature(asm)]
 
 extern crate byteorder;
+#[cfg(feature = "smoltcp")]
+extern crate smoltcp;
 
 #[cfg(target_arch = "or1k")]
 #[path = "or1k/mod.rs"]
@@ -21,3 +23,5 @@ pub mod spiflash;
 pub mod config;
 #[cfg(feature = "uart_console")]
 pub mod uart_console;
+#[cfg(all(has_ethmac, feature = "smoltcp"))]
+pub mod ethmac;
