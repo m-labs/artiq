@@ -175,7 +175,9 @@ class GTHSingle(Module):
         self.submodules += [
             add_probe_async("drtio_gth", "cpll_lock", cpll_lock),
             add_probe_async("drtio_gth", "txuserrdy", tx_init.Xxuserrdy),
+            add_probe_async("drtio_gth", "tx_init_done", tx_init.done),
             add_probe_async("drtio_gth", "rxuserrdy", rx_init.Xxuserrdy),
+            add_probe_async("drtio_gth", "rx_init_done", rx_init.done),
             add_probe_buffer("drtio_gth", "txdata", txdata, clock_domain="rtio_tx"),
             add_probe_buffer("drtio_gth", "rxdata", rxdata, clock_domain="rtio_rx")
         ]
