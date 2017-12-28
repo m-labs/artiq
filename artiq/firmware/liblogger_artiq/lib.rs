@@ -2,13 +2,14 @@
 
 extern crate log;
 extern crate log_buffer;
+#[macro_use]
 extern crate board;
 
 use core::cell::{Cell, RefCell};
 use core::fmt::Write;
 use log::{Log, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
 use log_buffer::LogBuffer;
-use board::{Console, clock};
+use board::clock;
 
 pub struct BufferLogger {
     buffer:      RefCell<LogBuffer<&'static mut [u8]>>,
@@ -110,9 +111,8 @@ impl Log for BufferLogger {
                      record.level(), record.target(), record.args()).unwrap();
 
             if record.level() <= self.uart_filter.get() {
-                writeln!(Console,
-                         "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
-                         record.level(), record.target(), record.args()).unwrap();
+                println!("[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
+                         record.level(), record.target(), record.args());
             }
         }
     }

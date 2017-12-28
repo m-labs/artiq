@@ -21,7 +21,7 @@ pub fn wait_init() {
         error!("incorrect RTM identifier: 0x{:08x}", rtm_identifier);
         // proceed anyway
     }
-    
+
     unsafe {
         debug!("AMC serwb settings:");
         debug!("  delay_min_found: {}", csr::serwb_phy_amc::control_delay_min_found_read());

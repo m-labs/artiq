@@ -26,11 +26,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "board"
 version = "0.0.0"
 dependencies = [
- "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "build_artiq 0.0.0",
+ "build_misoc 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "board_artiq"
+version = "0.0.0"
+dependencies = [
+ "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "board 0.0.0",
+ "build_artiq 0.0.0",
 ]
 
 [[package]]
@@ -39,6 +46,10 @@ version = "0.0.0"
 dependencies = [
  "walkdir 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "build_misoc"
+version = "0.0.0"
 
 [[package]]
 name = "byteorder"
@@ -169,6 +180,7 @@ dependencies = [
  "amp 0.0.0",
  "backtrace_artiq 0.0.0",
  "board 0.0.0",
+ "board_artiq 0.0.0",
  "build_artiq 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=97916b1)",

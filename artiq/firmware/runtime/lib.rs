@@ -17,6 +17,7 @@ extern crate logger_artiq;
 extern crate backtrace_artiq;
 #[macro_use]
 extern crate board;
+extern crate board_artiq;
 extern crate proto;
 extern crate amp;
 #[cfg(has_drtio)]
@@ -41,6 +42,7 @@ mod rtio_dma;
 mod mgmt;
 mod kernel;
 mod kern_hwreq;
+mod watchdog;
 mod session;
 #[cfg(any(has_rtio_moninj, has_drtio))]
 mod moninj;
@@ -51,7 +53,7 @@ fn startup() {
     board::clock::init();
     info!("ARTIQ runtime starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
-    info!("gateware version {}", board::ident(&mut [0; 64]));
+    info!("gateware version {}", board::ident::read(&mut [0; 64]));
 
     #[cfg(has_serwb_phy_amc)]
     board::serwb::wait_init();
@@ -69,7 +71,7 @@ fn startup() {
     info!("continuing boot");
 
     #[cfg(has_i2c)]
-    board::i2c::init();
+    board_artiq::i2c::init();
     #[cfg(si5324_free_running)]
     setup_si5324_free_running();
     #[cfg(has_hmc830_7043)]
@@ -106,26 +108,26 @@ fn setup_si5324_free_running()
 #[cfg(has_ethmac)]
 fn startup_ethernet() {
     let hardware_addr;
-    match config::read_str("mac", |r| r?.parse()) {
-        Err(()) => {
-            hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
-            warn!("using default MAC address {}; consider changing it", hardware_addr);
-        }
-        Ok(addr) => {
+    match config::read_str("mac", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) => {
             hardware_addr = addr;
             info!("using MAC address {}", hardware_addr);
+        }
+        _ => {
+            hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
+            warn!("using default MAC address {}; consider changing it", hardware_addr);
         }
     }
 
     let protocol_addr;
-    match config::read_str("ip", |r| r?.parse()) {
-        Err(()) => {
-            protocol_addr = IpAddress::v4(192, 168, 1, 50);
-            info!("using default IP address {}", protocol_addr);
-        }
-        Ok(addr) => {
+    match config::read_str("ip", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) => {
             protocol_addr = addr;
             info!("using IP address {}", protocol_addr);
+        }
+        _ => {
+            protocol_addr = IpAddress::v4(192, 168, 1, 50);
+            info!("using default IP address {}", protocol_addr);
         }
     }
 
@@ -159,26 +161,24 @@ fn startup_ethernet() {
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
 
-    match config::read_str("log_level", |r| r?.parse()) {
-        Err(()) => (),
-        Ok(log_level_filter) => {
+    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
                   log_level_filter);
             logger_artiq::BufferLogger::with(|logger|
                 logger.set_max_log_level(log_level_filter));
         }
+        _ => info!("log level set to INFO by default")
     }
 
-    match config::read_str("uart_log_level", |r| r?.parse()) {
-        Err(()) => {
-            info!("UART log level set to INFO by default");
-        },
-        Ok(uart_log_level_filter) => {
+    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(uart_log_level_filter)) => {
             info!("UART log level set to {} by `uart_log_level` config key",
                   uart_log_level_filter);
             logger_artiq::BufferLogger::with(|logger|
                 logger.set_uart_log_level(uart_log_level_filter));
         }
+        _ => info!("UART log level set to INFO by default")
     }
 
     let mut net_stats = ethmac::EthernetStatistics::new();
@@ -247,7 +247,7 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
 
     if config::read_str("panic_reboot", |r| r == Ok("1")) {
         println!("rebooting...");
-        unsafe { board::boot::reboot() }
+        unsafe { board_artiq::boot::reboot() }
     } else {
         println!("halting.");
         println!("use `artiq_coreconfig write -s panic_reboot 1` to reboot instead");

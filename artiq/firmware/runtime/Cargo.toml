@@ -16,11 +16,12 @@ build_artiq = { path = "../libbuild_artiq" }
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.3", default-features = false }
+board = { path = "../libboard", features = ["uart_console"] }
 alloc_list = { path = "../liballoc_list" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 backtrace_artiq = { path = "../libbacktrace_artiq" }
-board = { path = "../libboard", features = ["uart_console"] }
+board_artiq = { path = "../libboard_artiq" }
 proto = { path = "../libproto", features = ["log"] }
 amp = { path = "../libamp" }
 drtioaux = { path = "../libdrtioaux" }

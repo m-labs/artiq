@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use core::cmp;
 use csr;
 
@@ -8,7 +6,7 @@ pub const PAGE_SIZE: usize = csr::CONFIG_SPIFLASH_PAGE_SIZE as usize;
 const PAGE_MASK: usize = PAGE_SIZE - 1;
 
 const CMD_PP:   u8 = 0x02;
-const CMD_WRDI: u8 = 0x04;
+// const CMD_WRDI: u8 = 0x04;
 const CMD_RDSR: u8 = 0x05;
 const CMD_WREN: u8 = 0x06;
 const CMD_SE:   u8 = 0xd8;

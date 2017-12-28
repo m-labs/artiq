@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub const SPI_INTFCONFA                    : u16 = 0x000;
 pub const SOFTRESET                        : u8 = 1 << 0;
 pub const LSBFIRST                         : u8 = 1 << 1;

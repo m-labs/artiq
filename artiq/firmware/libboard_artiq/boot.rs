@@ -1,4 +1,4 @@
-use irq;
+use board::irq;
 
 pub unsafe fn reboot() -> ! {
     irq::set_ie(false);

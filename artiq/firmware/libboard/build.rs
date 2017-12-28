@@ -1,38 +1,18 @@
-extern crate build_artiq;
+extern crate build_misoc;
 extern crate cc;
 
 use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::PathBuf;
-use std::process::Command;
-
-fn build_vectors() {
-    println!("cargo:rerun-if-changed=vectors.S");
-    cc::Build::new()
-        .file("vectors.S")
-        .compile("vectors");
-}
-
-fn gen_hmc7043_writes() {
-    println!("cargo:rerun-if-changed=hmc7043_gen_writes.py");
-    println!("cargo:rerun-if-changed=hmc7043_guiexport_6gbps.py");
-
-    let hmc7043_writes =
-        Command::new("python3")
-                .arg("hmc7043_gen_writes.py")
-                .arg("hmc7043_guiexport_6gbps.py")
-                .output()
-                .ok()
-                .and_then(|o| String::from_utf8(o.stdout).ok())
-                .unwrap();
-    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
-    let mut f = File::create(out_dir.join("hmc7043_writes.rs")).unwrap();
-    write!(f, "{}", hmc7043_writes).unwrap();
-}
+use std::path::Path;
 
 fn main() {
-    build_artiq::misoc_cfg();
-    build_vectors();
-    gen_hmc7043_writes();
+    build_misoc::cfg();
+
+    let triple = env::var("TARGET").unwrap();
+    let arch = triple.split("-").next().unwrap();
+    let vectors_path = Path::new(arch).join("vectors.S");
+
+    println!("cargo:rerun-if-changed={}", vectors_path.to_str().unwrap());
+    cc::Build::new()
+        .file(vectors_path)
+        .compile("vectors");
 }

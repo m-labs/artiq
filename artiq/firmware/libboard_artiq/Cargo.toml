@@ -1,19 +1,19 @@
 [package]
 authors = ["M-Labs"]
-name = "board"
+name = "board_artiq"
 version = "0.0.0"
 build = "build.rs"
 
 [lib]
-name = "board"
+name = "board_artiq"
 path = "lib.rs"
 
 [build-dependencies]
-cc = "1.0"
-build_misoc = { path = "../libbuild_misoc" }
+build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
-byteorder = { version = "1.0", default-features = false }
+bitflags = "1.0"
+board = { path = "../libboard" }
 
 [features]
 uart_console = []

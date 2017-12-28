@@ -15,6 +15,7 @@ use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
+use watchdog::WatchdogSet;
 
 use rpc_proto as rpc;
 use session_proto as host;
@@ -66,7 +67,7 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: board::clock::WatchdogSet,
+    watchdog_set: WatchdogSet,
     log_buffer: String
 }
 
@@ -75,7 +76,7 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: board::clock::WatchdogSet::new(),
+            watchdog_set: WatchdogSet::new(),
             log_buffer: String::new()
         }
     }
@@ -226,7 +227,7 @@ fn process_host_message(io: &Io,
     match host_read(stream)? {
         host::Request::SystemInfo => {
             host_write(stream, host::Reply::SystemInfo {
-                ident: board::ident(&mut [0; 64]),
+                ident: board::ident::read(&mut [0; 64]),
                 finished_cleanly: session.congress.finished_cleanly.get()
             })?;
             session.congress.finished_cleanly.set(true);
@@ -238,7 +239,7 @@ fn process_host_message(io: &Io,
             config::read(key, |result| {
                 match result {
                     Ok(value) => host_write(stream, host::Reply::FlashRead(&value)),
-                    Err(())   => host_write(stream, host::Reply::FlashError)
+                    Err(_)    => host_write(stream, host::Reply::FlashError)
                 }
             })
         }

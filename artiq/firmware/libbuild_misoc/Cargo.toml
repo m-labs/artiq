@@ -1,0 +1,8 @@
+[package]
+authors = ["M-Labs"]
+name = "build_misoc"
+version = "0.0.0"
+
+[lib]
+name = "build_misoc"
+path = "lib.rs"

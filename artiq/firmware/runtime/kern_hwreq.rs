@@ -120,14 +120,14 @@ mod drtio_i2c {
 }
 
 mod i2c {
-    use board;
+    use board_artiq::i2c as local_i2c;
     use super::drtio_i2c;
 
     pub fn start(busno: u32) -> Result<(), ()> {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::i2c::start(node_busno)
+            local_i2c::start(node_busno)
         } else {
             drtio_i2c::start(nodeno, node_busno)
         }
@@ -137,7 +137,7 @@ mod i2c {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::i2c::restart(node_busno)
+            local_i2c::restart(node_busno)
         } else {
             drtio_i2c::restart(nodeno, node_busno)
         }
@@ -147,7 +147,7 @@ mod i2c {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::i2c::stop(node_busno)
+            local_i2c::stop(node_busno)
         } else {
             drtio_i2c::stop(nodeno, node_busno)
         }
@@ -157,7 +157,7 @@ mod i2c {
         let nodeno = (busno >> 16 )as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::i2c::write(node_busno, data)
+            local_i2c::write(node_busno, data)
         } else {
             drtio_i2c::write(nodeno, node_busno, data)
         }
@@ -167,7 +167,7 @@ mod i2c {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::i2c::read(node_busno, ack)
+            local_i2c::read(node_busno, ack)
         } else {
             drtio_i2c::read(nodeno, node_busno, ack)
         }
@@ -254,11 +254,13 @@ mod drtio_spi {
 
 #[cfg(not(has_drtio))]
 mod drtio_spi {
-    pub fn set_config(_nodeno: u8, _busno: u8, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
+    pub fn set_config(_nodeno: u8, _busno: u8, _flags: u8,
+                      _write_div: u8, _read_div: u8) -> Result<(), ()> {
         Err(())
     }
 
-    pub fn set_xfer(_nodeno: u8, _busno: u8, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
+    pub fn set_xfer(_nodeno: u8, _busno: u8, _chip_select: u16,
+                    _write_length: u8, _read_length: u8) -> Result<(), ()> {
         Err(())
     }
 
@@ -272,14 +274,14 @@ mod drtio_spi {
 }
 
 mod spi {
-    use board;
+    use board_artiq::spi as local_spi;
     use super::drtio_spi;
 
     pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::spi::set_config(node_busno, flags, write_div, read_div)
+            local_spi::set_config(node_busno, flags, write_div, read_div)
         } else {
             drtio_spi::set_config(nodeno, node_busno, flags, write_div, read_div)
         }
@@ -289,7 +291,7 @@ mod spi {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::spi::set_xfer(node_busno, chip_select, write_length, read_length)
+            local_spi::set_xfer(node_busno, chip_select, write_length, read_length)
         } else {
             drtio_spi::set_xfer(nodeno, node_busno, chip_select, write_length, read_length)
         }
@@ -299,7 +301,7 @@ mod spi {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::spi::write(node_busno, data)
+            local_spi::write(node_busno, data)
         } else {
             drtio_spi::write(nodeno, node_busno, data)
         }
@@ -309,7 +311,7 @@ mod spi {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            board::spi::read(node_busno)
+            local_spi::read(node_busno)
         } else {
             drtio_spi::read(nodeno, node_busno)
         }

@@ -226,12 +226,13 @@ pub fn startup(io: &Io) {
                 info!("using external startup RTIO clock");
                 RtioClock::External
             },
-            Err(()) => {
+            Err(_) => {
                 info!("using internal startup RTIO clock (by default)");
                 RtioClock::Internal
             },
             Ok(_) => {
-                error!("unrecognized startup_clock configuration entry, using internal RTIO clock");
+                error!("unrecognized startup_clock configuration entry, \
+                        using internal RTIO clock");
                 RtioClock::Internal
             }
         }
