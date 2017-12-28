@@ -173,9 +173,9 @@ class GTHSingle(Module):
             )
 
         self.submodules += [
-            add_probe_single("drtio_gth", "cpll_lock", cpll_lock),
-            add_probe_single("drtio_gth", "txuserrdy", tx_init.Xxuserrdy),
-            add_probe_single("drtio_gth", "rxuserrdy", rx_init.Xxuserrdy, clock_domain="rtio_tx"),
+            add_probe_async("drtio_gth", "cpll_lock", cpll_lock),
+            add_probe_async("drtio_gth", "txuserrdy", tx_init.Xxuserrdy),
+            add_probe_async("drtio_gth", "rxuserrdy", rx_init.Xxuserrdy),
             add_probe_buffer("drtio_gth", "txdata", txdata, clock_domain="rtio_tx"),
             add_probe_buffer("drtio_gth", "rxdata", rxdata, clock_domain="rtio_rx")
         ]
@@ -215,8 +215,7 @@ class GTHSingle(Module):
             rx_init.restart.eq(clock_aligner.restart),
             self.rx_ready.eq(clock_aligner.ready)
         ]
-        self.submodules += add_probe_single("drtio_gth", "clock_aligner_ready", clock_aligner.ready,
-                                            clock_domain="rtio_tx")
+        self.submodules += add_probe_async("drtio_gth", "clock_aligner_ready", clock_aligner.ready)
 
 
 class GTH(Module, TransceiverInterface):
