@@ -69,8 +69,8 @@ def main():
             "start": "xc7_program xc7.tap",
             "gateware": 0x000000,
             "bios": 0xaf0000,
-            "storage": 0xb00000,
-            "runtime": 0xb10000,
+            "storage": 0xb30000,
+            "runtime": 0xb40000,
         },
     }[opts.target]
 
