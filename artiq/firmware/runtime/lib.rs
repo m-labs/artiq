@@ -223,7 +223,7 @@ pub extern fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
+pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
 }
 

@@ -5,7 +5,7 @@ CFLAGS += \
 	-I$(LIBUNWIND_DIRECTORY) \
 	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include
 
-LDFLAGS += -L../libbase \
+LDFLAGS += \
 	-L../libunwind
 
 RUSTFLAGS += -Cpanic=abort

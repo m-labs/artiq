@@ -1,8 +1,6 @@
 INCLUDE generated/output_format.ld
-STARTUP(crt0-or1k.o)
-ENTRY(_start)
-
 INCLUDE generated/regions.ld
+ENTRY(_reset_handler)
 
 /* First 4M of main memory are reserved for runtime
  * code/data/heap, then comes kernel memory.
@@ -17,7 +15,7 @@ MEMORY {
 }
 
 /* Kernel stack is at the end of main RAM. */
-PROVIDE(_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4);
+_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4;
 
 /* Force ld to make the ELF header as loadable. */
 PHDRS
@@ -28,16 +26,18 @@ PHDRS
 
 SECTIONS
 {
+    .vectors : {
+        *(.vectors)
+    } :text
+
     .text :
     {
-        _ftext = .;
-        *(.text .stub .text.* .gnu.linkonce.t.*)
-        _etext = .;
+        *(.text .text.*)
     } :text
 
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got : {
-        _GLOBAL_OFFSET_TABLE_ = .;
+        PROVIDE(_GLOBAL_OFFSET_TABLE_ = .);
         *(.got)
     } :text
 
@@ -47,11 +47,7 @@ SECTIONS
 
     .rodata :
     {
-        . = ALIGN(4);
-        _frodata = .;
-        *(.rodata .rodata.* .gnu.linkonce.r.*)
-        *(.rodata1)
-        _erodata = .;
+        *(.rodata .rodata.*)
     } > ksupport
 
     .eh_frame :
@@ -66,24 +62,13 @@ SECTIONS
 
     .data :
     {
-        . = ALIGN(4);
-        _fdata = .;
-        *(.data .data.* .gnu.linkonce.d.*)
-        *(.data1)
-        *(.sdata .sdata.* .gnu.linkonce.s.*)
-        _edata = .;
+        *(.data .data.*)
     }
 
     .bss :
     {
-        . = ALIGN(4);
         _fbss = .;
-        *(.dynsbss)
-        *(.sbss .sbss.* .gnu.linkonce.sb.*)
-        *(.scommon)
-        *(.dynbss)
-        *(.bss .bss.* .gnu.linkonce.b.*)
-        *(COMMON)
+        *(.bss .bss.*)
         . = ALIGN(4);
         _ebss = .;
     }

@@ -9,6 +9,7 @@ name = "board"
 path = "lib.rs"
 
 [build-dependencies]
+cc = "1.0"
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]

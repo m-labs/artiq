@@ -1,8 +1,6 @@
 INCLUDE generated/output_format.ld
-STARTUP(crt0-or1k.o)
-ENTRY(_start)
-
 INCLUDE generated/regions.ld
+ENTRY(_reset_handler)
 
 /* Assume ORIGIN(main_ram) = 0x40000000. Unfortunately,
  * ld does not allow this expression here.
@@ -13,11 +11,14 @@ MEMORY {
 
 SECTIONS
 {
+    .vectors :
+    {
+        *(.vectors)
+    } > runtime
+
     .text :
     {
-        _ftext = .;
-        *(.text .stub .text.* .gnu.linkonce.t.*)
-        _etext = .;
+        *(.text .text.*)
     } > runtime
 
     .eh_frame :
@@ -49,41 +50,23 @@ SECTIONS
 
     .rodata :
     {
-        . = ALIGN(4);
-        _frodata = .;
-        *(.rodata .rodata.* .gnu.linkonce.r.*)
-        *(.rodata1)
-        _erodata = .;
+        *(.rodata .rodata.*)
     } > runtime
 
     .data :
     {
-        . = ALIGN(4);
-        _fdata = .;
-        *(.data .data.* .gnu.linkonce.d.*)
-        *(.data1)
-        *(.sdata .sdata.* .gnu.linkonce.s.*)
-        _edata = .;
+        *(.data .data.*)
     } > runtime
 
-    .bss :
+    .bss ALIGN(4) :
     {
-        . = ALIGN(4);
         _fbss = .;
-        *(.dynsbss)
-        *(.sbss .sbss.* .gnu.linkonce.sb.*)
-        *(.scommon)
-        *(.dynbss)
-        *(.bss .bss.* .gnu.linkonce.b.*)
-        *(COMMON)
-        . = ALIGN(4);
+        *(.bss .bss.*)
         _ebss = .;
     } > runtime
 
-    .stack :
+    .stack ALIGN(0x1000) :
     {
-        . = ALIGN(0x1000);
-        _estack = .;
         . += 0x4000;
         _fstack = . - 4;
     } > runtime

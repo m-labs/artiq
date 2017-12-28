@@ -1,10 +1,18 @@
 extern crate build_artiq;
+extern crate cc;
 
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process::Command;
+
+fn build_vectors() {
+    println!("cargo:rerun-if-changed=vectors.S");
+    cc::Build::new()
+        .file("vectors.S")
+        .compile("vectors");
+}
 
 fn gen_hmc7043_writes() {
     println!("cargo:rerun-if-changed=hmc7043_gen_writes.py");
@@ -25,5 +33,6 @@ fn gen_hmc7043_writes() {
 
 fn main() {
     build_artiq::misoc_cfg();
+    build_vectors();
     gen_hmc7043_writes();
 }

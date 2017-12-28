@@ -11,6 +11,7 @@ use core::{cmp, ptr, str};
 
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
+include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/sdram_phy.rs"));
 pub mod spr;
 pub mod irq;
 pub mod cache;

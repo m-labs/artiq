@@ -1,10 +1,11 @@
 #![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator)]
 #![no_std]
 
-extern crate unwind;
-extern crate libc;
+extern crate rlibc;
 extern crate byteorder;
 extern crate cslice;
+extern crate unwind;
+extern crate libc;
 
 extern crate alloc_stub;
 extern crate std_artiq as std;
@@ -492,12 +493,11 @@ pub unsafe fn main() {
 }
 
 #[no_mangle]
-pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
+pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
 }
 
-// We don't export this because libbase does.
-// #[no_mangle]
+#[no_mangle]
 pub extern fn abort() {
     panic!("aborted")
 }
