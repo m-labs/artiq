@@ -29,6 +29,7 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=507d2fe)",
 ]
 
 [[package]]
@@ -49,8 +50,9 @@ dependencies = [
  "board 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=97916b1)",
  "crc 1.6.0 (git+git://github.com/whitequark/crc-rs?rev=51cd356)",
- "rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=507d2fe)",
 ]
 
 [[package]]
@@ -200,11 +202,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rlibc"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
 name = "runtime"
 version = "0.0.0"
 dependencies = [
@@ -307,7 +304,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "880f77541efa6e5cc74e76910c9884d9859683118839d6a1dc3b11e63512565b"
 "checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
 "checksum managed 0.4.0 (git+https://github.com/m-labs/rust-managed.git?rev=629a6786a1cf1692015f464ed16c04eafa5cb8d1)" = "<none>"
-"checksum rlibc 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc874b127765f014d792f16763a81245ab80500e2ad921ed4ee9e82481ee08fe"
 "checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
 "checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=507d2fe)" = "<none>"
