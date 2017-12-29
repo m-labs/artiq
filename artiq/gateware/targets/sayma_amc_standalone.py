@@ -95,6 +95,7 @@ class AD9154(Module, AutoCSR):
         self.submodules += self.sawgs
 
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
+            assert len(Cat(ch.o)) == len(conv)
             self.sync.jesd += conv.eq(Cat(ch.o))
 
 
