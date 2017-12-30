@@ -39,8 +39,10 @@ class GTHSingle(Module):
         rx_init = ClockDomainsRenamer("rtio_tx")(GTHInit(rtio_clk_freq, True))
         self.submodules += tx_init, rx_init
 
+        cpll_reset = Signal()
         cpll_lock = Signal()
         self.comb += [
+            cpll_reset.eq(tx_init.pllreset),
             tx_init.plllock.eq(cpll_lock),
             rx_init.plllock.eq(cpll_lock)
         ]
@@ -77,7 +79,7 @@ class GTHSingle(Module):
                 p_RXOUT_DIV=2,
                 p_TXOUT_DIV=2,
                 i_CPLLRESET=0,
-                i_CPLLPD=0,
+                i_CPLLPD=cpll_reset,
                 o_CPLLLOCK=cpll_lock,
                 i_CPLLLOCKEN=1,
                 i_CPLLREFCLKSEL=0b001,
