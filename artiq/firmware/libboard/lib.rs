@@ -1,6 +1,7 @@
 #![no_std]
-#![feature(asm)]
+#![feature(compiler_builtins_lib, asm)]
 
+extern crate compiler_builtins;
 extern crate byteorder;
 #[cfg(feature = "smoltcp")]
 extern crate smoltcp;

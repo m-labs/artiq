@@ -15,6 +15,11 @@ build_misoc = { path = "../libbuild_misoc" }
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
 
+[dependencies.compiler_builtins]
+git = "https://github.com/m-labs/compiler-builtins"
+rev = "1c765ad"
+features = ["mem"]
+
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
 rev = "507d2fe"

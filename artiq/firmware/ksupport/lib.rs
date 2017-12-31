@@ -1,8 +1,6 @@
-#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator,
-           compiler_builtins_lib)]
+#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator)]
 #![no_std]
 
-extern crate compiler_builtins;
 extern crate byteorder;
 extern crate cslice;
 extern crate unwind;
@@ -10,7 +8,6 @@ extern crate libc;
 
 extern crate alloc_stub;
 extern crate std_artiq as std;
-
 extern crate board;
 extern crate dyld;
 extern crate proto;

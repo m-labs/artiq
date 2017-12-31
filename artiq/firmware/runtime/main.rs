@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(compiler_builtins_lib, alloc, lang_items, global_allocator, repr_align, attr_literals)]
+#![feature(alloc, lang_items, global_allocator, repr_align, attr_literals)]
 
-extern crate compiler_builtins;
 extern crate alloc;
 extern crate cslice;
 #[macro_use]

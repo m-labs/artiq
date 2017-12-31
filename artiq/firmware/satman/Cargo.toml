@@ -21,8 +21,3 @@ board_artiq = { path = "../libboard_artiq" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 drtioaux = { path = "../libdrtioaux" }
-
-[dependencies.compiler_builtins]
-git = "https://github.com/rust-lang-nursery/compiler-builtins"
-rev = "631b568"
-features = ["mem"]

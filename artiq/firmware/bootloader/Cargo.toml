@@ -17,11 +17,6 @@ byteorder = { version = "1.0", default-features = false }
 crc = { git = "git://github.com/whitequark/crc-rs", rev = "51cd356", default-features = false }
 board = { path = "../libboard", features = ["uart_console", "smoltcp"] }
 
-[dependencies.compiler_builtins]
-git = "https://github.com/m-labs/compiler-builtins"
-rev = "97916b1"
-features = ["mem"]
-
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
 rev = "507d2fe"

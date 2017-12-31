@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(lang_items, compiler_builtins_lib)]
+#![feature(lang_items)]
 
-extern crate compiler_builtins;
 extern crate crc;
 extern crate byteorder;
 extern crate smoltcp;

@@ -27,11 +27,6 @@ proto = { path = "../libproto", features = ["log"] }
 amp = { path = "../libamp" }
 drtioaux = { path = "../libdrtioaux" }
 
-[dependencies.compiler_builtins]
-git = "https://github.com/m-labs/compiler-builtins"
-rev = "97916b1"
-features = ["mem"]
-
 [dependencies.fringe]
 git = "https://github.com/m-labs/libfringe"
 rev = "bd23494"

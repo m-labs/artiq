@@ -1,4 +1,4 @@
-#![feature(compiler_builtins_lib, lang_items, global_allocator)]
+#![feature(lang_items, global_allocator)]
 #![no_std]
 
 extern crate compiler_builtins;
