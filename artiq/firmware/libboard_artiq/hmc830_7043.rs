@@ -30,23 +30,23 @@ mod clock_mux {
 mod hmc830 {
     use board::{csr, clock};
 
-    const HMC830_WRITES: [(u8, u32); 16] = [
-        (0x0, 0x20),
-        (0x1, 0x2),
-        (0x2, 0x2), // r_divider
-        (0x5, 0x1628),
-        (0x5, 0x60a0),
-        (0x5, 0xe110),
-        (0x5, 0x2818),
-        (0x5, 0x0),
-        (0x6, 0x303ca),
-        (0x7, 0x14d),
-        (0x8, 0xc1beff),
-        (0x9, 0x153fff),
-        (0xa, 0x2046),
-        (0xb, 0x7c061),
-        (0xf, 0x81),
-        (0x3, 0x30), // n_divider
+    // See "PLLs WITH INTEGRATED VCO - RF APPLICATIONS PRODUCT & OPERATING GUIDE"
+    const HMC830_WRITES: [(u8, u32); 15] = [
+        (0x0, 0x20),    // RESET: software reset
+        (0x0, 0x00),    // RESET: normal operation
+        (0x2, 0x01),    // REF_DIV: r=1
+        (0x5, 0xe110),  // VCO_REG_2: output divider=2, max output gain
+        (0x5, 0x2818),  // VCO_REG_3: diff output, auto RFO
+        (0x5, 0x60a0),  // VCO_REG_4: required value for HMC830
+        (0x5, 0x1628),  // VCO_REG_5: required value for HMC830
+        (0x5, 0x0),     // VCO_REG_0: set for normal operation
+        (0x6, 0x307ca), // SIGMA_DELTA: bypass modulator
+        (0x7, 0x4D),    // LOCK_DETECT: digital, 1/2 cycle window
+        (0x9, 0x2850),  // CHARGE_PUMP: gain=1.6mA, no offset
+        (0xa, 0x2047),  // AUTO_CAL: enable auto cal, 256 cycles, clk=ref/4
+        (0xb, 0x7c061), // PHASE_DETECTOR: defautls
+        (0xf, 0x81),    // GPO_SPI_RDIV: LD_SDO driver always on
+        (0x3, 0x18),    // N_DIV: n=24
     ];
 
     fn spi_setup() {
