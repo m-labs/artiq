@@ -42,7 +42,7 @@ mod hmc830 {
         (0x5, 0x0),  // VCO_REG5_0: set for normal operation
         (0x6, 0x307ca), // SIGMA_DELTA: bypass modulator
         (0x9, 0x2850), // CHARGE_PUMP: gain=1.6mA, no offset
-        (0xa, 0x2046), // AUTO_CAL: enable auto cal, 128 cycles, clk=ref/4
+        (0xa, 0x2047), // AUTO_CAL: enable auto cal, 256 cycles, clk=ref/4
         (0xb, 0x7c061), // PHASE_DETECTOR: defautls
         (0xf, 0x81), // GPO_SPI_RDIV: LD_SDO driver always on
         (0x3, 0x18), // N_DIV: n=24
