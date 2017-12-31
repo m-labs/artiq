@@ -147,9 +147,8 @@ class ProgrammerSayma(Programmer):
             "adapter_khz 5000",
             "transport select jtag",
 
-            "source [find cpld/xilinx-xc7.cfg]",  # tap 0, pld 0
             "set CHIP XCKU040",
-            "source [find cpld/xilinx-xcu.cfg]",  # tap 1, pld 1
+            "source [find cpld/xilinx-xcu.cfg]",
 
             "target create xcu.proxy testee -chain-position xcu.tap",
             "set XILINX_USER1 0x02",
@@ -159,11 +158,11 @@ class ProgrammerSayma(Programmer):
         ]
         self.init()
 
-    def load(self, bitfile, pld=1):
-        self.prog.append("pld load {} {{{}}}".format(pld, bitfile))
+    def load(self, bitfile):
+        self.prog.append("pld load 0 {{{}}}".format(bitfile))
 
-    def proxy(self, proxy_bitfile, pld=1):
-        self.load(proxy_bitfile, pld)
+    def proxy(self, proxy_bitfile):
+        self.load(proxy_bitfile)
         self.prog.append("reset halt")
 
     def flash_binary(self, flashno, address, filename):
