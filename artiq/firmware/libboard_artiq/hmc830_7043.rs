@@ -31,7 +31,7 @@ mod hmc830 {
     use board::{csr, clock};
 
     // See "PLLs WITH INTEGRATED VCO - RF APPLICATIONS PRODUCT & OPERATING GUIDE"
-    const HMC830_WRITES: [(u8, u32); 14] = [
+    const HMC830_WRITES: [(u8, u32); 15] = [
         (0x0, 0x20),    // RESET: software reset
         (0x0, 0x00),    // RESET: normal operation
         (0x2, 0x01),    // REF_DIV: r=1
@@ -39,8 +39,9 @@ mod hmc830 {
         (0x5, 0x2818),  // VCO_REG_3: diff output, auto RFO
         (0x5, 0x60a0),  // VCO_REG_4: required value for HMC830
         (0x5, 0x1628),  // VCO_REG_5: required value for HMC830
-        (0x5, 0x0),     // VCO_REG5_0: set for normal operation
+        (0x5, 0x0),     // VCO_REG_0: set for normal operation
         (0x6, 0x307ca), // SIGMA_DELTA: bypass modulator
+        (0x7, 0x4D),    // LOCK_DETECT: digital, 1/2 cycle window
         (0x9, 0x2850),  // CHARGE_PUMP: gain=1.6mA, no offset
         (0xa, 0x2047),  // AUTO_CAL: enable auto cal, 256 cycles, clk=ref/4
         (0xb, 0x7c061), // PHASE_DETECTOR: defautls
