@@ -51,7 +51,7 @@ dependencies = [
  "board 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "crc 1.6.0 (git+git://github.com/whitequark/crc-rs?rev=51cd356)",
+ "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=507d2fe)",
 ]
 
@@ -88,8 +88,8 @@ source = "git+https://github.com/m-labs/compiler-builtins?rev=1c765ad#1c765adbe8
 
 [[package]]
 name = "crc"
-version = "1.6.0"
-source = "git+git://github.com/whitequark/crc-rs?rev=51cd356#51cd3560aa9d3823061f2bb46797d8c61f4cfa9e"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "build_const 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -106,6 +106,7 @@ dependencies = [
  "board 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "std_artiq 0.0.0",
 ]
@@ -272,7 +273,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "652805b7e73fada9d85e9a6682a4abd490cb52d96aeecc12e33a0de34dfd0d23"
 "checksum cc 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a9b13a57efd6b30ecd6598ebdb302cca617930b5470647570468a65d12ef9719"
 "checksum compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=1c765ad)" = "<none>"
-"checksum crc 1.6.0 (git+git://github.com/whitequark/crc-rs?rev=51cd356)" = "<none>"
+"checksum crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bd5d02c0aac6bd68393ed69e00bbc2457f3e89075c6349db7189618dc4ddc1d7"
 "checksum cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0f8cb7306107e4b10e64994de6d3274bd08996a7c1322a27b86482392f96be0a"
 "checksum fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"

@@ -1,13 +1,12 @@
 #![no_std]
 
+extern crate byteorder;
+extern crate crc;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate board;
-extern crate byteorder;
 
 mod proto;
-#[cfg(has_drtio)]
-mod crc32;
 
 use std::io::{self, Read, Write};
 #[cfg(has_drtio)]
@@ -278,7 +277,7 @@ pub mod hw {
         unsafe {
             if (board::csr::DRTIO[linkidx].aux_rx_present_read)() == 1 {
                 let length = (board::csr::DRTIO[linkidx].aux_rx_length_read)();
-                let base = board::mem::DRTIO_AUX[linkidx].base + board::mem::DRTIO_AUX[linkidx].size/2; 
+                let base = board::mem::DRTIO_AUX[linkidx].base + board::mem::DRTIO_AUX[linkidx].size/2;
                 let sl = slice::from_raw_parts(base as *mut u8, length as usize);
                 Some(RxBuffer(linkno, sl))
             } else {
@@ -301,7 +300,7 @@ pub mod hw {
                 if len < 8 {
                     return Err(io::Error::new(io::ErrorKind::InvalidData, "packet too short"))
                 }
-                let computed_crc = crc32::checksum_ieee(&reader.get_ref()[0..len-4]);
+                let computed_crc = crc::crc32::checksum_ieee(&reader.get_ref()[0..len-4]);
                 reader.set_position((len-4) as u64);
                 let crc = read_u32(&mut reader)?;
                 if crc != computed_crc {
@@ -365,7 +364,7 @@ pub mod hw {
             len += padding;
         }
 
-        let crc = crc32::checksum_ieee(&writer.get_ref()[0..len as usize]);
+        let crc = crc::crc32::checksum_ieee(&writer.get_ref()[0..len as usize]);
         write_u32(&mut writer, crc)?;
         len += 4;
 

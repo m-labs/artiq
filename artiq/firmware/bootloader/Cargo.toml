@@ -14,7 +14,7 @@ build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
-crc = { git = "git://github.com/whitequark/crc-rs", rev = "51cd356", default-features = false }
+crc = { version = "1.7", default-features = false }
 board = { path = "../libboard", features = ["uart_console", "smoltcp"] }
 
 [dependencies.smoltcp]

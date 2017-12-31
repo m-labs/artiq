@@ -13,6 +13,7 @@ build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
 log = { version = "0.3", default-features = false }
+crc = { version = "1.7", default-features = false }
 std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
 board = { path = "../libboard" }
 byteorder = { version = "1.0", default-features = false }
