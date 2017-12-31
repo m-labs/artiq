@@ -1,7 +1,6 @@
 #![feature(lang_items, global_allocator)]
 #![no_std]
 
-extern crate compiler_builtins;
 extern crate alloc_list;
 extern crate std_artiq as std;
 #[macro_use]
