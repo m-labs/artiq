@@ -110,8 +110,11 @@ def main():
     args = parser.parse_args()
 
     soc = Satellite(**soc_sdram_argdict(args))
+    firmware_dir = os.path.join(artiq_dir, "firmware")
     builder = Builder(soc, **builder_argdict(args))
-    builder.add_software_package("satman", os.path.join(artiq_dir, "firmware", "satman"))
+    builder.software_packages = []
+    builder.add_software_package("bootloader", os.path.join(firmware_dir, "bootloader"))
+    builder.add_software_package("satman", os.path.join(firmware_dir, "satman"))
     builder.build()
 
 

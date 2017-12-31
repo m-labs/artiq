@@ -10,8 +10,9 @@ extern crate board;
 use core::{ptr, slice};
 use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
-use board::{boot, cache, clock, config, ethmac};
+use board::{boot, cache};
+#[cfg(has_ethmac)]
+use board::{clock, config, ethmac};
 use board::uart_console::Console;
 
 fn check_integrity() -> bool {
@@ -139,7 +140,10 @@ fn flash_boot() {
     }
 }
 
+#[cfg(has_ethmac)]
 fn network_boot() {
+    use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+
     println!("Initializing network...");
 
     let eth_addr = match config::read_str("mac", |r| r.map(|s| s.parse())) {
@@ -197,6 +201,7 @@ pub extern fn main() -> i32 {
     if startup() {
         println!("");
         flash_boot();
+        #[cfg(has_ethmac)]
         network_boot();
     } else {
         println!("Halting.");
