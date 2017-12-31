@@ -473,6 +473,17 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
+    for i in 0..99 {
+        let outcome = dac_cfg(dacno);
+        match outcome {
+            Ok(_) => return outcome,
+            Err(e) => warn!("AD9154-{} config attempt #{} failed ({}), retrying", dacno, i, e)
+        }
+    }
+    dac_cfg(dacno)
+}
+
 pub fn init() -> Result<(), &'static str> {
     // Release the JESD clock domain reset late, as we need to
     // set up clock chips before.
@@ -481,7 +492,7 @@ pub fn init() -> Result<(), &'static str> {
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
         debug!("setting up AD9154-{} DAC...", dacno);
-        dac_cfg(dacno)?;
+        dac_cfg_retry(dacno)?;
     }
     Ok(())
 }
