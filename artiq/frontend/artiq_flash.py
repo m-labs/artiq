@@ -22,7 +22,7 @@ Valid actions:
     * gateware: write gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash
-    * runtime: write runtime to flash
+    * firmware: write firmware to flash
     * load: load gateware bitstream into device (volatile but fast)
     * start: trigger the target to (re)load its gateware bitstream from flash
 
@@ -45,10 +45,10 @@ Prerequisites:
                              "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
-    parser.add_argument("--srcbuild", help="look for bitstream, BIOS and runtime in this "
+    parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
                                             "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="proxy gateware bootloader runtime start".split(),
+                        default="proxy gateware bootloader firmware start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
 
@@ -196,32 +196,28 @@ def main():
             "gateware":   (0, 0x000000),
             "bootloader": (0, 0xaf0000),
             "storage":    (0, 0xb30000),
-            "runtime":    (0, 0xb40000),
+            "firmware":   (0, 0xb40000),
         },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
-            "variants": ["standalone"],
+            "variants": ["standalone", "master", "satellite"],
             "gateware":   (0, 0x000000),
             "bootloader": (1, 0x000000),
             "storage":    (1, 0x040000),
-            "runtime":    (1, 0x050000),
+            "firmware":   (1, 0x050000),
         },
     }[opts.target]
 
     variant = opts.variant
     if variant is not None and variant not in config["variants"]:
         raise SystemExit("Invalid variant for this board")
-    if variant is None and config["variants"]:
+    if variant is None:
         variant = config["variants"][0]
     bin_dir = opts.dir
     if bin_dir is None:
-        if variant is None:
-            bin_dir = os.path.join(artiq_dir, "binaries",
-                        "{}".format(opts.target))
-        else:
-            bin_dir = os.path.join(artiq_dir, "binaries",
-                                    "{}-{}".format(opts.target, variant))
+        bin_dir = os.path.join(artiq_dir, "binaries",
+                               "{}-{}".format(opts.target, variant))
     if opts.srcbuild is None and not os.path.exists(bin_dir) and opts.action != ["start"]:
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))
@@ -263,12 +259,17 @@ def main():
             programmer.flash_binary(*config["bootloader"], os.path.join(path, "bootloader.bin"))
         elif action == "storage":
             programmer.flash_binary(*config["storage"], opts.storage)
-        elif action == "runtime":
+        elif action == "firmware":
+            if variant == "satellite":
+                firmware_name = "satman"
+            else:
+                firmware_name = "runtime"
             if opts.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "software", "runtime")
-            programmer.flash_binary(*config["runtime"], os.path.join(path, "runtime.fbi"))
+                path = os.path.join(opts.srcbuild, "software", firmware_name)
+            programmer.flash_binary(*config["firmware"],
+                                    os.path.join(path, firmware_name + ".fbi"))
         elif action == "load":
             if opts.srcbuild is None:
                 path = bin_dir
