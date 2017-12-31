@@ -99,6 +99,19 @@ class AD9154(Module, AutoCSR):
             self.sync.jesd += conv.eq(Cat(ch.o))
 
 
+class AD9154NoSAWG(Module, AutoCSR):
+    def __init__(self, platform, sys_crg, jesd_crg, dac):
+        self.submodules.jesd = AD9154JESD(platform, sys_crg, jesd_crg, dac)
+
+        self.sawgs = []
+
+        for i, conv in enumerate(self.jesd.core.sink.flatten()):
+            ramp = Signal(16)
+            self.sync += ramp.eq(ramp + (1 << 9 + i))
+            self.comb += conv.eq(Cat(ramp
+                for i in range(len(conv) // len(ramp))))
+
+
 class Standalone(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -177,19 +190,23 @@ class Standalone(MiniSoC, AMPSoC):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         if with_sawg:
-            self.submodules.ad9154_crg = AD9154CRG(platform)
-            self.submodules.ad9154_0 = AD9154(platform, self.crg, self.ad9154_crg, 0)
-            self.submodules.ad9154_1 = AD9154(platform, self.crg, self.ad9154_crg, 1)
-            self.csr_devices.append("ad9154_crg")
-            self.csr_devices.append("ad9154_0")
-            self.csr_devices.append("ad9154_1")
-            self.config["HAS_AD9154"] = None
-            self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
-            self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
-            rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                 for sawg in self.ad9154_0.sawgs +
-                                             self.ad9154_1.sawgs
-                                 for phy in sawg.phys)
+            cls = AD9154
+        else:
+            cls = AD9154NoSAWG
+
+        self.submodules.ad9154_crg = AD9154CRG(platform)
+        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
+        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
+        self.csr_devices.append("ad9154_crg")
+        self.csr_devices.append("ad9154_0")
+        self.csr_devices.append("ad9154_1")
+        self.config["HAS_AD9154"] = None
+        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
+        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.extend(rtio.Channel.from_phy(phy)
+                                for sawg in self.ad9154_0.sawgs +
+                                            self.ad9154_1.sawgs
+                                for phy in sawg.phys)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
