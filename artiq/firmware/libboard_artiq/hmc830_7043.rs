@@ -31,7 +31,7 @@ mod hmc830 {
     use board::{csr, clock};
 
     // See "PLLs WITH INTEGRATED VCO - RF APPLICATIONS PRODUCT & OPERATING GUIDE"
-    const HMC830_WRITES: [(u8, u32); 16] = [
+    const HMC830_WRITES: [(u8, u32); 14] = [
         (0x0, 0x20), // RESET: software reset
         (0x0, 0x00), // RESET: normal operation
         (0x2, 0x01), // REF_DIV: r=1
