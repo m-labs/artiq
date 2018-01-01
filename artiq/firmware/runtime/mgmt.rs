@@ -1,6 +1,6 @@
 use board::boot;
 use std::io::{self, Read, Write};
-use log::LogLevelFilter;
+use log::{self, LevelFilter};
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
@@ -44,11 +44,11 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                     io.until(|| BufferLogger::with(|logger| !logger.is_empty()))?;
 
                     BufferLogger::with(|logger| {
-                        let log_level = logger.max_log_level();
+                        let log_level = log::max_level();
                         logger.extract(|log| {
                             stream.write_string(log)?;
 
-                            if log_level == LogLevelFilter::Trace {
+                            if log_level == LevelFilter::Trace {
                                 // Hold exclusive access over the logger until we get positive
                                 // acknowledgement; otherwise we get an infinite loop of network
                                 // trace messages being transmitted and causing more network
@@ -69,8 +69,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
 
             Request::SetLogFilter(level) => {
                 info!("changing log level to {}", level);
-                BufferLogger::with(|logger|
-                    logger.set_max_log_level(level));
+                log::set_max_level(level);
                 Reply::Success.write_to(stream)?;
             },
 

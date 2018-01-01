@@ -164,8 +164,7 @@ fn startup_ethernet() {
         Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
                   log_level_filter);
-            logger_artiq::BufferLogger::with(|logger|
-                logger.set_max_log_level(log_level_filter));
+            log::set_max_level(log_level_filter);
         }
         _ => info!("log level set to INFO by default")
     }

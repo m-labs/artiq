@@ -14,7 +14,7 @@ build_misoc = { path = "../libbuild_misoc" }
 build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
-log = { version = "0.3", default-features = false }
+log = { version = "0.4", default-features = false }
 alloc_list = { path = "../liballoc_list" }
 board = { path = "../libboard", features = ["uart_console"] }
 board_artiq = { path = "../libboard_artiq" }

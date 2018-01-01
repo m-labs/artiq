@@ -8,6 +8,6 @@ name = "logger_artiq"
 path = "lib.rs"
 
 [dependencies]
-log = { version = "0.3", default-features = false, features = [] }
+log = { version = "0.4", default-features = false }
 log_buffer = { version = "1.0" }
 board = { path = "../libboard" }

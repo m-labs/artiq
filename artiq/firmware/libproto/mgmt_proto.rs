@@ -2,7 +2,7 @@ use std::vec::Vec;
 use std::io::{self, Read, Write};
 use {ReadExt, WriteExt};
 #[cfg(feature = "log")]
-use log::LogLevelFilter;
+use log;
 
 #[derive(Debug)]
 pub enum Request {
@@ -10,9 +10,9 @@ pub enum Request {
     ClearLog,
     PullLog,
     #[cfg(feature = "log")]
-    SetLogFilter(LogLevelFilter),
+    SetLogFilter(log::LevelFilter),
     #[cfg(feature = "log")]
-    SetUartLogFilter(LogLevelFilter),
+    SetUartLogFilter(log::LevelFilter),
 
     Hotswap(Vec<u8>),
     Reboot,
@@ -29,14 +29,14 @@ pub enum Reply<'a> {
 impl Request {
     pub fn read_from(reader: &mut Read) -> io::Result<Request> {
         #[cfg(feature = "log")]
-        fn read_log_level_filter(reader: &mut Read) -> io::Result<LogLevelFilter> {
+        fn read_log_level_filter(reader: &mut Read) -> io::Result<log::LevelFilter> {
             Ok(match reader.read_u8()? {
-                0 => LogLevelFilter::Off,
-                1 => LogLevelFilter::Error,
-                2 => LogLevelFilter::Warn,
-                3 => LogLevelFilter::Info,
-                4 => LogLevelFilter::Debug,
-                5 => LogLevelFilter::Trace,
+                0 => log::LevelFilter::Off,
+                1 => log::LevelFilter::Error,
+                2 => log::LevelFilter::Warn,
+                3 => log::LevelFilter::Info,
+                4 => log::LevelFilter::Debug,
+                5 => log::LevelFilter::Trace,
                 _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
                                                "invalid log level"))
             })
