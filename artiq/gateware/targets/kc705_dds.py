@@ -135,6 +135,73 @@ _zotino = [
     )
 ]
 
+
+# FMC DIO 32ch LVDS a v1.2 on HPC to VHDCI-Carrier v1.1
+# uring the upper/right VHDCI connector: LVDS7 and LVDS8
+# using the lower/left VHDCI connector: LVDS3 and LVDS4
+_urukul = [
+    ("urukul_spi_p", 0,
+        Subsignal("clk", Pins("HPC:LA17_CC_P")),
+        Subsignal("mosi", Pins("HPC:LA16_P")),
+        Subsignal("miso", Pins("HPC:LA24_P")),
+        Subsignal("cs_n", Pins("HPC:LA19_P HPC:LA20_P HPC:LA21_P")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_spi_n", 0,
+        Subsignal("clk", Pins("HPC:LA17_CC_N")),
+        Subsignal("mosi", Pins("HPC:LA16_N")),
+        Subsignal("miso", Pins("HPC:LA24_N")),
+        Subsignal("cs_n", Pins("HPC:LA19_N HPC:LA20_N HPC:LA21_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_io_update", 0,
+        Subsignal("p", Pins("HPC:LA22_P")),
+        Subsignal("n", Pins("HPC:LA22_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_dds_reset", 0,
+        Subsignal("p", Pins("HPC:LA23_P")),
+        Subsignal("n", Pins("HPC:LA23_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sync_clk", 0,
+        Subsignal("p", Pins("HPC:LA18_CC_P")),
+        Subsignal("n", Pins("HPC:LA18_CC_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sync_in", 0,
+        Subsignal("p", Pins("HPC:LA25_P")),
+        Subsignal("n", Pins("HPC:LA25_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_io_update_ret", 0,
+        Subsignal("p", Pins("HPC:LA26_P")),
+        Subsignal("n", Pins("HPC:LA26_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sw0", 0,
+        Subsignal("p", Pins("HPC:LA28_P")),
+        Subsignal("n", Pins("HPC:LA28_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sw1", 0,
+        Subsignal("p", Pins("HPC:LA29_P")),
+        Subsignal("n", Pins("HPC:LA29_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sw2", 0,
+        Subsignal("p", Pins("HPC:LA30_P")),
+        Subsignal("n", Pins("HPC:LA30_N")),
+        IOStandard("LVDS_25"),
+    ),
+    ("urukul_sw3", 0,
+        Subsignal("p", Pins("HPC:LA31_P")),
+        Subsignal("n", Pins("HPC:LA31_N")),
+        IOStandard("LVDS_25"),
+    )
+]
+
+
 class _NIST_Ions(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -170,6 +237,7 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.platform.add_extension(_ams101_dac)
         self.platform.add_extension(_sdcard_spi_33)
         self.platform.add_extension(_zotino)
+        self.platform.add_extension(_urukul)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
