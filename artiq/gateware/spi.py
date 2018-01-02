@@ -238,22 +238,32 @@ class SPIMaster(Module):
         else:
             if hasattr(pads, "cs_n"):
                 for i in range(len(pads.cs_n)):
-                    self.specials += Instance("IOBUFDS",
+                    self.specials += Instance("OBUFTDS",
                         i_I=(cs[i] & spi.cs) ^ ~config.cs_polarity,
                         i_T=config.offline,
-                        io_IO=pads.cs_n[i], io_IOB=pads_n.cs_n[i])
+                        o_O=pads.cs_n[i], o_OB=pads_n.cs_n[i])
 
-            self.specials += Instance("IOBUFDS",
+            self.specials += Instance("OBUFTDS",
                 i_I=clk, i_T=config.offline,
-                io_IO=pads.clk, io_IOB=pads_n.clk)
+                o_O=pads.clk, o_OB=pads_n.clk)
 
             mosi = Signal()
-            self.specials += Instance("IOBUFDS",
+            self.specials += Instance("IOBUFDS_INTERMDISABLE",
+                p_DIFF_TERM="TRUE",
+                p_IBUF_LOW_PWR="FALSE",
+                p_USE_IBUFDISABLE="TRUE",
+                i_IBUFDISABLE=config.offline | mosi_oe,
+                i_INTERMDISABLE=config.offline | mosi_oe,
                 o_O=mosi, i_I=spi.reg.o, i_T=~mosi_oe,
                 io_IO=pads.mosi, io_IOB=pads_n.mosi)
             if hasattr(pads, "miso"):
                 miso = Signal()
-                self.specials += Instance("IBUFDS",
+                self.specials += Instance("IBUFDS_INTERMDISABLE",
+                    p_DIFF_TERM="TRUE",
+                    p_IBUF_LOW_PWR="FALSE",
+                    p_USE_IBUFDISABLE="TRUE",
+                    i_IBUFDISABLE=config.offline,
+                    i_INTERMDISABLE=config.offline,
                     o_O=miso, i_I=pads.miso, i_IB=pads_n.miso)
             else:
                 miso = mosi
