@@ -353,6 +353,17 @@ class NIST_CLOCK(_NIST_Ions):
         self.submodules += dac_monitor
         sdac_phy.probes.extend(dac_monitor.probes)
 
+        phy = spi.SPIMaster(self.platform.request("urukul_spi_p"),
+                self.platform.request("urukul_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for signal in "io_update dds_reset sw0 sw1 sw2 sw3".split():
+            pads = platform.request("urukul_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy,

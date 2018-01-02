@@ -34,7 +34,7 @@ device_db = {
         "class": "DDSGroupAD9914",
         "arguments": {
             "sysclk": 3e9,
-            "first_dds_bus_channel": 32,
+            "first_dds_bus_channel": 39,
             "dds_bus_count": 2,
             "dds_channel_count": 3
         }
@@ -191,25 +191,68 @@ device_db = {
         "arguments": {"spi_device": "spi_zotino", "ldac_device": "ttl_zotino_ldac"}
     },
 
+    "spi_urukul": {
+        "type": "local",
+        "module": "artiq.coredevice.spi",
+        "class": "SPIMaster",
+        "arguments": {"channel": 32}
+    },
+    "ttl_urukul_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 33}
+    },
+    "ttl_urukul_dds_reset": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 34}
+    },
+    "ttl_urukul_sw0": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 35}
+    },
+    "ttl_urukul_sw1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 36}
+    },
+    "ttl_urukul_sw2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 37}
+    },
+    "ttl_urukul_sw3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 38}
+    },
+
     # AD9914 DDS
     "dds0": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 32, "channel": 0},
+        "arguments": {"bus_channel": 39, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 32, "channel": 1}
+        "arguments": {"bus_channel": 39, "channel": 1}
     },
     "dds2": {
         "type": "local",
         "module": "artiq.coredevice.dds",
         "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 32, "channel": 2}
+        "arguments": {"bus_channel": 39, "channel": 2}
     },
 
     # Controllers

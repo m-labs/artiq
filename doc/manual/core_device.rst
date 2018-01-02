@@ -76,28 +76,42 @@ With the CLOCK hardware, the TTL lines are mapped as follows:
 +--------------------+-----------------------+--------------+
 | 31                 | ZOTINO_LDAC           | Output       |
 +--------------------+-----------------------+--------------+
+| 33                 | URUKUL_IO_UPDATE      | Output       |
++--------------------+-----------------------+--------------+
+| 34                 | URUKUL_DDS_RESET      | Output       |
++--------------------+-----------------------+--------------+
+| 35                 | URUKUL_SW0            | Output       |
++--------------------+-----------------------+--------------+
+| 36                 | URUKUL_SW1            | Output       |
++--------------------+-----------------------+--------------+
+| 37                 | URUKUL_SW2            | Output       |
++--------------------+-----------------------+--------------+
+| 38                 | URUKUL_SW3            | Output       |
++--------------------+-----------------------+--------------+
 
 The board has RTIO SPI buses mapped as follows:
 
-+--------------+--------------+--------------+--------------+------------+
-| RTIO channel | CS_N         | MOSI         | MISO         | CLK        |
-+==============+==============+==============+==============+============+
-| 22           | AMS101_CS_N  | AMS101_MOSI  |              | AMS101_CLK |
-+--------------+--------------+--------------+--------------+------------+
-| 23           | SPI0_CS_N    | SPI0_MOSI    | SPI0_MISO    | SPI0_CLK   |
-+--------------+--------------+--------------+--------------+------------+
-| 24           | SPI1_CS_N    | SPI1_MOSI    | SPI1_MISO    | SPI1_CLK   |
-+--------------+--------------+--------------+--------------+------------+
-| 25           | SPI2_CS_N    | SPI2_MOSI    | SPI2_MISO    | SPI2_CLK   |
-+--------------+--------------+--------------+--------------+------------+
-| 26           | MMC_SPI_CS_N | MMC_SPI_MOSI | MMC_SPI_MISO | MMC_SPI_CLK|
-+--------------+--------------+--------------+--------------+------------+
-| 30           | ZOTINO_CS_N  | ZOTINO_MOSI  | ZOTINO_MISO  | ZOTINO_CLK |
-+--------------+--------------+--------------+--------------+------------+
++--------------+------------------+--------------+--------------+------------+
+| RTIO channel | CS_N             | MOSI         | MISO         | CLK        |
++==============+==================+==============+==============+============+
+| 22           | AMS101_CS_N      | AMS101_MOSI  |              | AMS101_CLK |
++--------------+------------------+--------------+--------------+------------+
+| 23           | SPI0_CS_N        | SPI0_MOSI    | SPI0_MISO    | SPI0_CLK   |
++--------------+------------------+--------------+--------------+------------+
+| 24           | SPI1_CS_N        | SPI1_MOSI    | SPI1_MISO    | SPI1_CLK   |
++--------------+------------------+--------------+--------------+------------+
+| 25           | SPI2_CS_N        | SPI2_MOSI    | SPI2_MISO    | SPI2_CLK   |
++--------------+------------------+--------------+--------------+------------+
+| 26           | MMC_SPI_CS_N     | MMC_SPI_MOSI | MMC_SPI_MISO | MMC_SPI_CLK|
++--------------+------------------+--------------+--------------+------------+
+| 30           | ZOTINO_CS_N      | ZOTINO_MOSI  | ZOTINO_MISO  | ZOTINO_CLK |
++--------------+------------------+--------------+--------------+------------+
+| 32           | URUKUL_CS_N[0:2] | URUKUL_MOSI  | URUKUL_MISO  | URUKUL_CLK |
++--------------+------------------+--------------+--------------+------------+
 
-The DDS bus is on channel 32.
+The DDS bus is on channel 39.
 
-This configuration supports a Zotino connected to the KC705 FMC HPC through a FMC DIO 32ch LVDS v1.2 and a VHDCI breakout board rev 1.0. On the VHDCI breakout board, the VHDCI cable to the KC705 should be plugged into to the bottom connector, and the EEM cable to the Zotino should be connected to J41.
+This configuration supports a Zotino and/or an Urukul connected to the KC705 FMC HPC through a FMC DIO 32ch LVDS v1.2 and a VHDCI breakout board rev 1.0 or rev 1.1. On the VHDCI breakout board, the VHDCI cable to the KC705 should be plugged into to the bottom connector. The EEM cable to the Zotino should be connected to J41 and the EEM cables to Urukul to J42 and J43.
 
 The shift registers on the FMC card should be configured to set the directions of its LVDS buffers, using :mod:`artiq.coredevice.shiftreg`.
 
