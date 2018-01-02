@@ -112,7 +112,7 @@ _zotino = [
         Subsignal("clk", Pins("HPC:LA32_N")),
         Subsignal("ser", Pins("HPC:LA33_P")),
         Subsignal("latch", Pins("HPC:LA32_P")),
-        IOStandard("LVCMOS33")
+        IOStandard("LVCMOS25")
     ),
     ("zotino_spi_p", 0,
         Subsignal("clk", Pins("HPC:LA08_P")),
