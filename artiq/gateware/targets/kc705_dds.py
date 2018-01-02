@@ -29,11 +29,10 @@ class _RTIOCRG(Module, AutoCSR):
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
-        # 10 MHz when using 125MHz input
+        # 100 MHz when using 125MHz input
         self.clock_domains.cd_ext_clkout = ClockDomain(reset_less=True)
         ext_clkout = platform.request("user_sma_gpio_p_33")
         self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
-
 
         rtio_external_clk = Signal()
         user_sma_clock = platform.request("user_sma_clock")
@@ -66,7 +65,7 @@ class _RTIOCRG(Module, AutoCSR):
                      p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
                      o_CLKOUT0=rtiox4_clk,
 
-                     p_CLKOUT1_DIVIDE=50, p_CLKOUT1_PHASE=0.0,
+                     p_CLKOUT1_DIVIDE=5, p_CLKOUT1_PHASE=0.0,
                      o_CLKOUT1=ext_clkout_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
