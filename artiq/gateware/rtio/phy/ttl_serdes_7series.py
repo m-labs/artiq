@@ -67,19 +67,9 @@ class _IOSERDESE2_8X(Module):
 
         pad_i = Signal()
         pad_o = Signal()
-        i = self.i
-        self.specials += Instance("ISERDESE2", p_DATA_RATE="DDR",
-                                  p_DATA_WIDTH=8,
-                                  p_INTERFACE_TYPE="NETWORKING", p_NUM_CE=1,
-                                  o_Q1=i[7], o_Q2=i[6], o_Q3=i[5], o_Q4=i[4],
-                                  o_Q5=i[3], o_Q6=i[2], o_Q7=i[1], o_Q8=i[0],
-                                  i_D=pad_i,
-                                  i_CLK=ClockSignal("rtiox4"),
-                                  i_CLKB=~ClockSignal("rtiox4"),
-                                  i_CE1=1, i_RST=0,
-                                  i_CLKDIV=ClockSignal("rio_phy"))
+        iserdes = _ISERDESE2_8X(pad_i)
         oserdes = _OSERDESE2_8X(pad_o)
-        self.submodules += oserdes
+        self.submodules += iserdes, oserdes
         if pad_n is None:
             self.specials += Instance("IOBUF",
                                       i_I=pad_o, o_O=pad_i, i_T=oserdes.t_out,
@@ -89,6 +79,7 @@ class _IOSERDESE2_8X(Module):
                                       i_I=pad_o, o_O=pad_i, i_T=oserdes.t_out,
                                       io_IO=pad, io_IOB=pad_n)
         self.comb += [
+            self.i.eq(iserdes.i),
             oserdes.t_in.eq(~self.oe),
             oserdes.o.eq(self.o)
         ]
