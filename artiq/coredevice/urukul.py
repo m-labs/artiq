@@ -113,6 +113,7 @@ class CPLD:
 
     @kernel
     def sta_read(self):
+        self.cfg_write(self.cfg_reg)  # to latch STA
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_CFG_WR, _SPIT_CFG_RD)
         self.bus.set_xfer(CS_CFG, 0, 24)
         self.bus.write(self.cfg_reg << 8)
@@ -121,17 +122,24 @@ class CPLD:
 
     @kernel
     def init(self, clk_sel=0, sync_sel=0):
-        t = now_mu()
         cfg = urukul_cfg(rf_sw=0, led=0, profile=0, att_le=0,
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
         self.cfg_write(cfg | (1 << CFG_RST))
+        delay(100*us)
         self.cfg_write(cfg)
         proto_rev = urukul_sta_proto_rev(self.sta_read())
         if proto_rev != STA_PROTO_REV_MATCH:
             raise ValueError("Urukul proto_rev mismatch")
-        at_mu(t)
         delay(100*us)
+
+    @kernel
+    def io_rst(self):
+        delay(1*us)
+        self.cfg_write(self.cfg_reg | (1 << CFG_IO_RST))
+        delay(1*us)
+        self.cfg_write(self.cfg_reg & ~(1 << CFG_IO_RST))
+        delay(1*us)
 
     @kernel
     def cfg_sw(self, sw, on):
@@ -140,7 +148,7 @@ class CPLD:
             c |= 1 << sw
         else:
             c &= ~(1 << sw)
-        self.write_cfg(c)
+        self.cfg_write(c)
 
     @kernel
     def set_att_mu(self, channel, att):
