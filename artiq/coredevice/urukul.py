@@ -88,7 +88,8 @@ CS_DDS_CH3 = 7
 
 
 class CPLD:
-    def __init__(self, dmgr, spi_device, io_update_device, dds_reset_device,
+    def __init__(self, dmgr, spi_device, io_update_device,
+            dds_reset_device=None,
             refclk=100e6, core_device="core"):
 
         self.core   = dmgr.get(core_device)

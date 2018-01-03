@@ -203,12 +203,6 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 33}
     },
-    "ttl_urukul_dds_reset": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 34}
-    },
     "ttl_urukul_sw0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
@@ -240,7 +234,6 @@ device_db = {
         "arguments": {
             "spi_device": "spi_urukul",
             "io_update_device": "ttl_urukul_io_update",
-            "dds_reset_device": "ttl_urukul_dds_reset",
             "refclk": 100e6
         }
     },
