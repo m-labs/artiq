@@ -1,11 +1,5 @@
-"""
-Driver for the AD9912 DDS.
-"""
-
-
-from artiq.language.core import kernel, delay_mu, delay
+from artiq.language.core import kernel, delay_mu, delay, portable
 from artiq.language.units import us, ns
-from artiq.coredevice import spi, urukul
 from artiq.coredevice.ad9912_reg import *
 
 from numpy import int32, int64
@@ -13,7 +7,7 @@ from numpy import int32, int64
 
 class AD9912:
     """
-    Support for the Analog devices AD9912 DDS
+    Support for the AD9912 DDS on Urukul
 
     :param chip_select: Chip select configuration.
     :param cpld_device: Name of the Urukul CPLD this device is on.
@@ -32,7 +26,7 @@ class AD9912:
         if sw_device:
             self.sw = dmgr.get(sw_device)
         self.pll_n = pll_n
-        self.sysclk = self.cpld.refclk * pll_n
+        self.sysclk = self.cpld.refclk*pll_n
         self.ftw_per_hz = 1/self.sysclk*(int64(1) << 48)
 
     @kernel
@@ -43,9 +37,7 @@ class AD9912:
         self.bus.write((addr | ((length - 1) << 13)) << 16)
         delay_mu(-self.bus.xfer_period_mu)
         self.bus.set_xfer(self.chip_select, length*8, 0)
-        if length < 4:
-            data <<= 32 - length*8
-        self.bus.write(data)
+        self.bus.write(data << (32 - length*8))
         delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
 
     @kernel
