@@ -1,5 +1,5 @@
 from artiq.language.core import kernel, delay_mu, delay, now_mu, at_mu
-from artiq.language.units import us
+from artiq.language.units import us, ms
 
 from numpy import int32, int64
 
@@ -126,8 +126,9 @@ class CPLD:
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
         self.cfg_write(cfg | (1 << CFG_RST) | (1 << CFG_IO_RST))
-        delay(100*us)
+        delay(1*ms)
         self.cfg_write(cfg)
+        delay(10*ms)  # DDS wake up
         proto_rev = urukul_sta_proto_rev(self.sta_read())
         if proto_rev != STA_PROTO_REV_MATCH:
             raise ValueError("Urukul proto_rev mismatch")

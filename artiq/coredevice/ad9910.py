@@ -44,7 +44,7 @@ class AD9910:
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
-        assert chip_select >= 4
+        assert 4 <= chip_select <= 7
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
@@ -61,13 +61,12 @@ class AD9910:
         self.pll_cp = pll_cp
 
     @kernel
-    def write(self, addr, data, length=4):
-        assert (length == 2) or (length == 4)
+    def write32(self, addr, data):
         self.bus.set_xfer(self.chip_select, 8, 0)
         self.bus.write(addr << 24)
         delay_mu(-self.bus.xfer_period_mu)
-        self.bus.set_xfer(self.chip_select, length*8, 0)
-        self.bus.write(data << (32 - length*8))
+        self.bus.set_xfer(self.chip_select, 32, 0)
+        self.bus.write(data)
         delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
 
     @kernel
@@ -82,36 +81,32 @@ class AD9910:
         delay_mu(t - 2*self.bus.write_period_mu)
 
     @kernel
-    def read(self, addr, length=4):
-        assert length >= 2
-        assert length <= 4
+    def read32(self, addr):
         self.bus.set_xfer(self.chip_select, 8, 0)
         self.bus.write((addr | 0x80) << 24)
         delay_mu(-self.bus.xfer_period_mu)
-        self.bus.set_xfer(self.chip_select, 0, length*8)
+        self.bus.set_xfer(self.chip_select, 0, 32)
         self.bus.write(0)
         delay_mu(2*self.bus.xfer_period_mu)
         data = self.bus.read_sync()
-        if length < 4:
-            data &= (1 << (length*8)) - 1
         return data
 
     @kernel
     def init(self):
-        # self.cpld.io_rst()
-        self.write(_AD9910_REG_CFR1, 0x00000002)
+        self.write32(_AD9910_REG_CFR1, 0x00000002)
         delay(100*ns)
         self.cpld.io_update.pulse(100*ns)
-        aux_dac = self.read(_AD9910_REG_AUX_DAC)
-        assert aux_dac & 0xff == 0x7f
+        aux_dac = self.read32(_AD9910_REG_AUX_DAC)
+        if aux_dac & 0xff != 0x7f:
+            raise ValueError("Urukul AD9910 AUX_DAC mismatch")
         delay(10*us)
-        self.write(_AD9910_REG_CFR2, 0x01400020)
+        self.write32(_AD9910_REG_CFR2, 0x01400020)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
-        self.write(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
+        self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
         delay(10*us)
         self.cpld.io_update.pulse(100*ns)
-        self.write(_AD9910_REG_CFR3, cfr3)
+        self.write32(_AD9910_REG_CFR3, cfr3)
         delay(10*us)
         self.cpld.io_update.pulse(100*ns)
         for i in range(100):

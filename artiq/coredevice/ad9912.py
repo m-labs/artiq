@@ -21,7 +21,7 @@ class AD9912:
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
-        assert chip_select >= 4
+        assert 4 <= chip_select <= 7
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
@@ -60,7 +60,8 @@ class AD9912:
         t = now_mu()
         self.write(AD9912_SER_CONF, 0x99)
         prodid = self.read(AD9912_PRODIDH, length=2)
-        assert (prodid == 0x1982) or (prodid == 0x1902)
+        if (prodid != 0x1982) and (prodid != 0x1902):
+            raise ValueError("Urukul AD9912 product id mismatch")
         delay(10*us)
         self.write(AD9912_PWRCNTRL1, 0x80)  # HSTL, CMOS power down
         delay(10*us)

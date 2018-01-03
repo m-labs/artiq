@@ -29,7 +29,6 @@ class UrukulTest(EnvExperiment):
         self.led.off()
 
         self.urukul_cpld.init(clk_sel=1)
-        delay(1*ms)  # DDS wake up
         self.urukul_ch0b.init()
         self.urukul_ch1b.init()
         self.urukul_ch2b.init()
