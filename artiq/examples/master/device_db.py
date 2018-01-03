@@ -237,7 +237,7 @@ device_db = {
             "refclk": 100e6
         }
     },
-    "urukul_ch0": {
+    "urukul_ch0a": {
         "type": "local",
         "module": "artiq.coredevice.ad9912",
         "class": "AD9912",
@@ -248,7 +248,7 @@ device_db = {
             "sw_device": "ttl_urukul_sw0"
         }
     },
-    "urukul_ch1": {
+    "urukul_ch1a": {
         "type": "local",
         "module": "artiq.coredevice.ad9912",
         "class": "AD9912",
@@ -259,7 +259,7 @@ device_db = {
             "sw_device": "ttl_urukul_sw1"
         }
     },
-    "urukul_ch2": {
+    "urukul_ch2a": {
         "type": "local",
         "module": "artiq.coredevice.ad9912",
         "class": "AD9912",
@@ -270,12 +270,56 @@ device_db = {
             "sw_device": "ttl_urukul_sw2"
         }
     },
-    "urukul_ch3": {
+    "urukul_ch3a": {
         "type": "local",
         "module": "artiq.coredevice.ad9912",
         "class": "AD9912",
         "arguments": {
             "pll_n": 10,
+            "chip_select": 7,
+            "cpld_device": "urukul_cpld",
+            "sw_device": "ttl_urukul_sw3"
+        }
+    },
+    "urukul_ch0b": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 4,
+            "cpld_device": "urukul_cpld",
+            "sw_device": "ttl_urukul_sw0"
+        }
+    },
+    "urukul_ch1b": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 5,
+            "cpld_device": "urukul_cpld",
+            "sw_device": "ttl_urukul_sw1"
+        }
+    },
+    "urukul_ch2b": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 6,
+            "cpld_device": "urukul_cpld",
+            "sw_device": "ttl_urukul_sw2"
+        }
+    },
+    "urukul_ch3b": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
             "chip_select": 7,
             "cpld_device": "urukul_cpld",
             "sw_device": "ttl_urukul_sw3"
