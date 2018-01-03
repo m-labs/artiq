@@ -125,7 +125,7 @@ class CPLD:
         cfg = urukul_cfg(rf_sw=0, led=0, profile=0, att_le=0,
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
-        self.cfg_write(cfg | (1 << CFG_RST))
+        self.cfg_write(cfg | (1 << CFG_RST) | (1 << CFG_IO_RST))
         delay(100*us)
         self.cfg_write(cfg)
         proto_rev = urukul_sta_proto_rev(self.sta_read())
