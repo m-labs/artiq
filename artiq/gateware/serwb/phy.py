@@ -376,6 +376,7 @@ class SERWBPLL(Module):
 
 
 class SERWBPHY(Module, AutoCSR):
+    cd = "serwb_serdes"
     def __init__(self, device, pll, pads, mode="master"):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":

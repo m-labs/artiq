@@ -8,8 +8,10 @@ from misoc.cores.code_8b10b import Encoder, Decoder
 
 class S7Serdes(Module):
     def __init__(self, pll, pads, mode="master"):
-        self.tx_data = Signal(32)
-        self.rx_data = Signal(32)
+        self.tx_k = Signal(4)
+        self.tx_d = Signal(32)
+        self.rx_k = Signal(4)
+        self.rx_d = Signal(32)
 
         self.tx_idle = Signal()
         self.tx_comma = Signal()
@@ -99,10 +101,14 @@ class S7Serdes(Module):
                 self.encoder.k[0].eq(1),
                 self.encoder.d[0].eq(0xbc)
             ).Else(
-                self.encoder.d[0].eq(self.tx_data[0:8]),
-                self.encoder.d[1].eq(self.tx_data[8:16]),
-                self.encoder.d[2].eq(self.tx_data[16:24]),
-                self.encoder.d[3].eq(self.tx_data[24:32])
+                self.encoder.k[0].eq(self.tx_k[0]),
+                self.encoder.k[1].eq(self.tx_k[1]),
+                self.encoder.k[2].eq(self.tx_k[2]),
+                self.encoder.k[3].eq(self.tx_k[3]),
+                self.encoder.d[0].eq(self.tx_d[0:8]),
+                self.encoder.d[1].eq(self.tx_d[8:16]),
+                self.encoder.d[2].eq(self.tx_d[16:24]),
+                self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
         self.sync.serwb_serdes += \
@@ -213,7 +219,8 @@ class S7Serdes(Module):
             self.decoders[1].input.eq(self.rx_bitslip.o[10:20]),
             self.decoders[2].input.eq(self.rx_bitslip.o[20:30]),
             self.decoders[3].input.eq(self.rx_bitslip.o[30:40]),
-            self.rx_data.eq(Cat(*[self.decoders[i].d for i in range(4)])),
+            self.rx_k.eq(Cat(*[self.decoders[i].k for i in range(4)])),
+            self.rx_d.eq(Cat(*[self.decoders[i].d for i in range(4)])),
             rx_idle.eq(self.rx_bitslip.o == 0),
             rx_comma.eq(((self.decoders[0].d == 0xbc) & (self.decoders[0].k == 1)) &
                         ((self.decoders[1].d == 0x00) & (self.decoders[1].k == 0)) &
