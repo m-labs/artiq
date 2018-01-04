@@ -54,6 +54,24 @@ fn startup() {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident::read(&mut [0; 64]));
 
+    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(log_level_filter)) => {
+            info!("log level set to {} by `log_level` config key",
+                  log_level_filter);
+            log::set_max_level(log_level_filter);
+        }
+        _ => info!("log level set to INFO by default")
+    }
+    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(uart_log_level_filter)) => {
+            info!("UART log level set to {} by `uart_log_level` config key",
+                  uart_log_level_filter);
+            logger_artiq::BufferLogger::with(|logger|
+                logger.set_uart_log_level(uart_log_level_filter));
+        }
+        _ => info!("UART log level set to INFO by default")
+    }
+
     #[cfg(has_serwb_phy_amc)]
     board_artiq::serwb::wait_init();
 
@@ -161,25 +179,6 @@ fn startup_ethernet() {
     io.spawn(4096, moninj::thread);
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
-
-    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
-        Ok(Ok(log_level_filter)) => {
-            info!("log level set to {} by `log_level` config key",
-                  log_level_filter);
-            log::set_max_level(log_level_filter);
-        }
-        _ => info!("log level set to INFO by default")
-    }
-
-    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
-        Ok(Ok(uart_log_level_filter)) => {
-            info!("UART log level set to {} by `uart_log_level` config key",
-                  uart_log_level_filter);
-            logger_artiq::BufferLogger::with(|logger|
-                logger.set_uart_log_level(uart_log_level_filter));
-        }
-        _ => info!("UART log level set to INFO by default")
-    }
 
     let mut net_stats = ethmac::EthernetStatistics::new();
     loop {
