@@ -130,18 +130,20 @@ fn startup_ethernet() {
         }
     }
 
+    let mut net_device = unsafe { ethmac::EthernetDevice::new() };
+    net_device.reset();
+
     // fn _net_trace_writer<U>(timestamp: u64, printer: smoltcp::wire::PrettyPrinter<U>)
     //         where U: smoltcp::wire::pretty_print::PrettyPrint {
     //     let seconds = timestamp / 1000;
     //     let micros  = timestamp % 1000 * 1000;
     //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
     // }
-
-    let net_device = unsafe { ethmac::EthernetDevice::new() };
     // let net_device = smoltcp::phy::EthernetTracer::new(net_device, _net_trace_writer);
-    let mut neighbor_cache_storage = [None; 8];
+
+    let mut neighbor_map = [None; 8];
     let neighbor_cache =
-        smoltcp::iface::NeighborCache::new(&mut neighbor_cache_storage[..]);
+        smoltcp::iface::NeighborCache::new(&mut neighbor_map[..]);
     let mut interface  =
         smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
                        .neighbor_cache(neighbor_cache)

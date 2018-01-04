@@ -158,10 +158,12 @@ fn network_boot() {
 
     println!("Using MAC address {} and IP address {}", eth_addr, ip_addr);
 
-    let net_device = unsafe { ethmac::EthernetDevice::new() };
-    let mut neighbor_cache_storage = [None; 2];
+    let mut net_device = unsafe { ethmac::EthernetDevice::new() };
+    net_device.reset();
+
+    let mut neighbor_map = [None; 2];
     let neighbor_cache =
-        smoltcp::iface::NeighborCache::new(&mut neighbor_cache_storage[..]);
+        smoltcp::iface::NeighborCache::new(&mut neighbor_map[..]);
     let mut ip_addrs = [IpCidr::new(ip_addr, 0)];
     let mut interface  =
         smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
