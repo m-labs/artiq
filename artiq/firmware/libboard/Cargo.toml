@@ -22,7 +22,7 @@ features = ["mem"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "507d2fe"
+rev = "888b1d2"
 default-features = false
 optional = true
 
