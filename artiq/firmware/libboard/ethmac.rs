@@ -4,7 +4,6 @@ use smoltcp::phy::{self, DeviceCapabilities, Device};
 
 use csr;
 use mem::ETHMAC_BASE;
-use clock;
 
 const RX_SLOTS: usize = csr::ETHMAC_RX_SLOTS as usize;
 const TX_SLOTS: usize = csr::ETHMAC_TX_SLOTS as usize;
@@ -47,7 +46,10 @@ impl EthernetDevice {
         EthernetDevice(())
     }
 
-    pub fn reset(&mut self) {
+    #[cfg(has_ethphy)]
+    pub fn reset_phy(&mut self) {
+        use clock;
+
         unsafe {
             csr::ethphy::crg_reset_write(1);
             clock::spin_us(2_000);

@@ -159,7 +159,9 @@ fn network_boot() {
     println!("Using MAC address {} and IP address {}", eth_addr, ip_addr);
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
-    net_device.reset();
+
+    #[cfg(has_ethphy)]
+    net_device.reset_phy();
 
     let mut neighbor_map = [None; 2];
     let neighbor_cache =
