@@ -216,8 +216,12 @@ class Target:
                 filename, line = location.rsplit(":", 1)
                 if filename == "??" or filename == "<synthesized>":
                     continue
+                if line == "?":
+                    line = -1
+                else:
+                    line = int(line)
                 # can't get column out of addr2line D:
-                backtrace.append((filename, int(line), -1, function, address))
+                backtrace.append((filename, line, -1, function, address))
             return backtrace
 
     def demangle(self, names):
