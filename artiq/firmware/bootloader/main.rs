@@ -158,6 +158,7 @@ fn network_boot() {
 
     println!("Using MAC address {} and IP address {}", eth_addr, ip_addr);
 
+    #[allow(unused_mut)]
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
 
     #[cfg(has_ethphy)]

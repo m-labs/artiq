@@ -8,13 +8,6 @@ mod ddr {
                     DFII_COMMAND_WRDATA, DFII_COMMAND_RDDATA};
     use sdram_phy::{DFII_NPHASES, DFII_PIX_DATA_SIZE, DFII_PIX_WRDATA_ADDR, DFII_PIX_RDDATA_ADDR};
 
-    unsafe fn enable_write_leveling(enabled: bool) {
-        dfii::pi0_address_write(sdram_phy::DDR3_MR1 as u16 | ((enabled as u16) << 7));
-        dfii::pi0_baddress_write(1);
-        sdram_phy::command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
-        ddrphy::wlevel_en_write(enabled as u8);
-    }
-
     #[cfg(kusddrphy)]
     const DDRPHY_MAX_DELAY: u16 = 512;
     #[cfg(not(kusddrphy))]
@@ -30,6 +23,15 @@ mod ddr {
         )
     }
 
+    #[cfg(ddrphy_wlevel)]
+    unsafe fn enable_write_leveling(enabled: bool) {
+        dfii::pi0_address_write(sdram_phy::DDR3_MR1 as u16 | ((enabled as u16) << 7));
+        dfii::pi0_baddress_write(1);
+        sdram_phy::command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+        ddrphy::wlevel_en_write(enabled as u8);
+    }
+
+    #[cfg(ddrphy_wlevel)]
     unsafe fn write_level(logger: &mut Option<&mut fmt::Write>,
                           delay: &mut [u16; DQS_SIGNAL_COUNT],
                           high_skew: &mut [bool; DQS_SIGNAL_COUNT]) -> bool {
@@ -102,6 +104,7 @@ mod ddr {
         !failed
     }
 
+    #[cfg(ddrphy_wlevel)]
     unsafe fn read_bitslip(logger: &mut Option<&mut fmt::Write>,
                            delay: &[u16; DQS_SIGNAL_COUNT],
                            high_skew: &[bool; DQS_SIGNAL_COUNT]) {
@@ -238,13 +241,16 @@ mod ddr {
     }
 
     pub unsafe fn level(logger: &mut Option<&mut fmt::Write>) -> bool {
-        let mut delay = [0; DQS_SIGNAL_COUNT];
-        let mut high_skew = [false; DQS_SIGNAL_COUNT];
-
-        if !write_level(logger, &mut delay, &mut high_skew) {
-            return false
+        #[cfg(ddrphy_wlevel)]
+        {
+            let mut delay = [0; DQS_SIGNAL_COUNT];
+            let mut high_skew = [false; DQS_SIGNAL_COUNT];
+            if !write_level(logger, &mut delay, &mut high_skew) {
+                return false
+            }
+            read_bitslip(logger, &delay, &high_skew);
         }
-        read_bitslip(logger, &delay, &high_skew);
+
         read_delays(logger);
 
         true
