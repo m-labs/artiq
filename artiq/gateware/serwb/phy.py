@@ -17,7 +17,7 @@ from artiq.gateware.serwb.s7phy import S7Serdes
 # 6) Link is ready.
 
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=1024):
+    def __init__(self, serdes, taps, timeout=4096):
         self.reset = Signal()
         self.ready = Signal()
         self.error = Signal()
@@ -153,7 +153,7 @@ class _SerdesMasterInit(Module):
 
 
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=1024):
+    def __init__(self, serdes, taps, timeout=4096):
         self.reset = Signal()
         self.ready = Signal()
         self.error = Signal()
@@ -174,7 +174,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
 
         self.comb += serdes.rx_delay_inc.eq(1)
 
-        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
         fsm.act("IDLE",
             NextValue(delay, 0),
             NextValue(delay_min, 0),
@@ -313,8 +313,8 @@ class _SerdesControl(Module, AutoCSR):
 
 class SERWBPLL(Module):
     def __init__(self, refclk_freq, linerate, vco_div=1):
-        assert refclk_freq == 125e6
-        assert linerate == 1.25e9
+        assert refclk_freq in [62.5e6, 125e6]
+        assert linerate in [625e6, 1.25e9]
 
         self.lock = Signal()
         self.refclk = Signal()
@@ -324,15 +324,10 @@ class SERWBPLL(Module):
 
         # # #
 
-        #----------------------------
-        # refclk:              125MHz
-        # vco:                1250MHz
-        #----------------------------
-        # serwb_serdes:      31.25MHz
-        # serwb_serdes_20x:    625MHz
-        # serwb_serdes_5x:  156.25MHz
-        #----------------------------
         self.linerate = linerate
+
+        refclk_mult = 125e6//refclk_freq
+        linerate_div = 1.25e9//linerate
 
         pll_locked = Signal()
         pll_fb = Signal()
@@ -344,21 +339,21 @@ class SERWBPLL(Module):
                 p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                 # VCO @ 1.25GHz / vco_div
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
-                p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=vco_div,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0*refclk_mult,
+                p_CLKFBOUT_MULT=10*refclk_mult, p_DIVCLK_DIVIDE=vco_div,
                 i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
                 o_CLKFBOUT=pll_fb,
 
-                # 31.25MHz: serwb_serdes
-                p_CLKOUT0_DIVIDE=40//vco_div, p_CLKOUT0_PHASE=0.0,
+                # serwb_serdes
+                p_CLKOUT0_DIVIDE=linerate_div*40//vco_div, p_CLKOUT0_PHASE=0.0,
                 o_CLKOUT0=pll_serwb_serdes_clk,
 
-                # 625MHz: serwb_serdes_20x
-                p_CLKOUT1_DIVIDE=2//vco_div, p_CLKOUT1_PHASE=0.0,
+                # serwb_serdes_20x
+                p_CLKOUT1_DIVIDE=linerate_div*2//vco_div, p_CLKOUT1_PHASE=0.0,
                 o_CLKOUT1=pll_serwb_serdes_20x_clk,
 
-                # 156.25MHz: serwb_serdes_5x
-                p_CLKOUT2_DIVIDE=8//vco_div, p_CLKOUT2_PHASE=0.0,
+                # serwb_serdes_5x
+                p_CLKOUT2_DIVIDE=linerate_div*8//vco_div, p_CLKOUT2_PHASE=0.0,
                 o_CLKOUT2=pll_serwb_serdes_5x_clk
             ),
             Instance("BUFG", 
@@ -372,7 +367,6 @@ class SERWBPLL(Module):
                 o_O=self.serwb_serdes_5x_clk)
         ]
         self.specials += MultiReg(pll_locked, self.lock)
-
 
 
 class SERWBPHY(Module, AutoCSR):
