@@ -107,7 +107,7 @@ class AD9154NoSAWG(Module, AutoCSR):
 
         for i, conv in enumerate(self.jesd.core.sink.flatten()):
             ramp = Signal(16)
-            self.sync += ramp.eq(ramp + (1 << 9 + i))
+            self.sync.rtio += ramp.eq(ramp + (1 << 9 + i))
             self.comb += conv.eq(Cat(ramp
                 for i in range(len(conv) // len(ramp))))
 
