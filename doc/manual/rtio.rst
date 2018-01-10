@@ -117,6 +117,22 @@ To track down ``RTIOUnderflows`` in an experiment there are a few approaches:
     code.
   * The :any:`integrated logic analyzer <core-device-rtio-analyzer-tool>` shows the timeline context that lead to the exception. The analyzer is always active and supports plotting of RTIO slack. RTIO slack is the difference between timeline cursor and wall clock time (``now - rtio_counter``).
 
+Sequence errors
+---------------
+A sequence error happens when the sequence of coarse timestamps cannot be supported by the gateware. For example, there may have been too many timeline rewinds.
+
+Internally, the gateware stores output events in an array of FIFO buffers (the "lanes") and the timestamps in each lane much be strictly increasing. The gateware selects a different lane when an event with a decreasing or equal timestamp is submitted. A sequence error occurs when no appropriate lane can be found.
+
+Notes:
+
+* Strictly increasing timestamps never cause sequence errors. 
+* Configuring the gateware with more lanes for the RTIO core reduces the frequency of sequence errors. 
+* Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the whole sequence does not affect the result.
+
+The offending event is discarded and the RTIO core keeps operating.
+
+This error is reported asynchronously via the core device log: for performance reasons with DRTIO, the CPU does not wait for an error report from the satellite after writing an event. Therefore, it is not possible to raise an exception precisely.
+
 Collisions
 ----------
 A collision happens when more than one event is submitted on a given channel with the same coarse timestamp, and that channel does not implement replacement behavior or the fine timestamps are different.

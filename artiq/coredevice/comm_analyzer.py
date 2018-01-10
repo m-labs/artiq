@@ -27,9 +27,9 @@ class ExceptionType(Enum):
     legacy_o_sequence_error_reset = 0b010001
     legacy_o_collision_reset = 0b010010
     legacy_i_overflow_reset = 0b100000
+    legacy_o_sequence_error = 0b010101
 
     o_underflow = 0b010100
-    o_sequence_error = 0b010101
 
     i_overflow = 0b100001
 

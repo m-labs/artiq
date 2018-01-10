@@ -1,4 +1,3 @@
-
 #[cfg(has_rtio)]
 mod imp {
     use core::ptr::{read_volatile, write_volatile};
@@ -10,7 +9,6 @@ mod imp {
 
     pub const RTIO_O_STATUS_WAIT:           u8 = 1;
     pub const RTIO_O_STATUS_UNDERFLOW:      u8 = 2;
-    pub const RTIO_O_STATUS_SEQUENCE_ERROR: u8 = 4;
     pub const RTIO_I_STATUS_WAIT_EVENT:     u8 = 1;
     pub const RTIO_I_STATUS_OVERFLOW:       u8 = 2;
     pub const RTIO_I_STATUS_WAIT_STATUS:    u8 = 4;
@@ -48,11 +46,6 @@ mod imp {
             raise!("RTIOUnderflow",
                 "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
                 timestamp, channel as i64, timestamp - get_counter())
-        }
-        if status & RTIO_O_STATUS_SEQUENCE_ERROR != 0 {
-            raise!("RTIOSequenceError",
-                "RTIO sequence error at {0} mu, channel {1}",
-                timestamp, channel as i64, 0)
         }
     }
 
@@ -200,39 +193,23 @@ mod imp {
 pub use self::imp::*;
 
 pub mod drtio_dbg {
-    use ::send;
-    use ::recv;
-    use kernel_proto::*;
+        use ::send;
+        use ::recv;
+        use kernel_proto::*;
 
-    #[repr(C)]
-    pub struct ChannelState(i32, i64);
+        #[repr(C)]
+        pub struct PacketCounts(i32, i32);
 
-    pub extern fn get_channel_state(channel: i32) -> ChannelState {
-        send(&DrtioChannelStateRequest { channel: channel as u32 });
-        recv!(&DrtioChannelStateReply { fifo_space, last_timestamp }
-              => ChannelState(fifo_space as i32, last_timestamp as i64))
-    }
+        pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
+            send(&DrtioPacketCountRequest { linkno: linkno as u8 });
+            recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
+                  => PacketCounts(tx_cnt as i32, rx_cnt as i32))
+        }
 
-    pub extern fn reset_channel_state(channel: i32) {
-        send(&DrtioResetChannelStateRequest { channel: channel as u32 })
-    }
-
-    pub extern fn get_fifo_space(channel: i32) {
-        send(&DrtioGetFifoSpaceRequest { channel: channel as u32 })
-    }
-
-    #[repr(C)]
-    pub struct PacketCounts(i32, i32);
-
-    pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
-        send(&DrtioPacketCountRequest { linkno: linkno as u8 });
-        recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
-              => PacketCounts(tx_cnt as i32, rx_cnt as i32))
-    }
-
-    pub extern fn get_fifo_space_req_count(linkno: i32) -> i32 {
-        send(&DrtioFifoSpaceReqCountRequest { linkno: linkno as u8 });
-        recv!(&DrtioFifoSpaceReqCountReply { cnt }
-              => cnt as i32)
+        pub extern fn get_buffer_space_req_count(linkno: i32) -> i32 {
+            send(&DrtioBufferSpaceReqCountRequest { linkno: linkno as u8 });
+            recv!(&DrtioBufferSpaceReqCountReply { cnt }
+                  => cnt as i32)
+        }
     }
 }

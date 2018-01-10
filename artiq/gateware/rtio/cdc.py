@@ -2,7 +2,7 @@ from migen import *
 from migen.genlib.cdc import *
 
 
-__all__ = ["GrayCodeTransfer", "RTIOCounter", "BlindTransfer"]
+__all__ = ["GrayCodeTransfer", "BlindTransfer"]
 
 
 # note: transfer is in rtio/sys domains and not affected by the reset CSRs
@@ -28,28 +28,15 @@ class GrayCodeTransfer(Module):
         self.sync += self.o.eq(value_sys)
 
 
-class RTIOCounter(Module):
-    def __init__(self, width):
-        self.width = width
-        # Timestamp counter in RTIO domain
-        self.value_rtio = Signal(width)
-        # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rtio, monotonic and glitch-free
-        self.value_sys = Signal(width)
-
-        # # #
-
-        # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
-        gt = GrayCodeTransfer(width)
-        self.submodules += gt
-        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
-
-
 class BlindTransfer(Module):
-    def __init__(self, idomain="rio", odomain="rsys"):
+    def __init__(self, idomain="rio", odomain="rsys", data_width=0):
         self.i = Signal()
         self.o = Signal()
+        if data_width:
+            self.data_i = Signal(data_width)
+            self.data_o = Signal(data_width)
+
+        # # #
 
         ps = PulseSynchronizer(idomain, odomain)
         ps_ack = PulseSynchronizer(odomain, idomain)
@@ -65,3 +52,10 @@ class BlindTransfer(Module):
             ps_ack.i.eq(ps.o),
             self.o.eq(ps.o)
         ]
+
+        if data_width:
+            bxfer_data = Signal(data_width)
+            isync += If(ps.i, bxfer_data.eq(self.data_i))
+            bxfer_data.attr.add("no_retiming")
+            self.specials += MultiReg(bxfer_data, self.data_o,
+                                      odomain=odomain)

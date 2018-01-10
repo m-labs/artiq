@@ -46,14 +46,10 @@ pub enum Message<'a> {
         duration: u64
     },
 
-    DrtioChannelStateRequest { channel: u32 },
-    DrtioChannelStateReply { fifo_space: u16, last_timestamp: u64 },
-    DrtioResetChannelStateRequest { channel: u32 },
-    DrtioGetFifoSpaceRequest { channel: u32 },
     DrtioPacketCountRequest { linkno: u8 },
     DrtioPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
-    DrtioFifoSpaceReqCountRequest { linkno: u8 },
-    DrtioFifoSpaceReqCountReply { cnt: u32 },
+    DrtioBufferSpaceReqCountRequest { linkno: u8 },
+    DrtioBufferSpaceReqCountReply { cnt: u32 },
 
     RunFinished,
     RunException {

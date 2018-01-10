@@ -7,16 +7,13 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio.cdc import RTIOCounter
+from artiq.gateware.rtio.cdc import GrayCodeTransfer
 from artiq.gateware.rtio import cri
 
 
 class _CSRs(AutoCSR):
     def __init__(self):
         self.protocol_error = CSR(3)
-
-        self.chan_sel_override = CSRStorage(16)
-        self.chan_sel_override_en = CSRStorage()
 
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
@@ -25,12 +22,28 @@ class _CSRs(AutoCSR):
         self.reset = CSR()
         self.reset_phy = CSR()
 
-        self.o_get_fifo_space = CSR()
-        self.o_dbg_fifo_space = CSRStatus(16)
-        self.o_dbg_last_timestamp = CSRStatus(64)
-        self.o_dbg_fifo_space_req_cnt = CSRStatus(32)
-        self.o_reset_channel_status = CSR()
+        self.o_get_buffer_space = CSR()
+        self.o_dbg_buffer_space = CSRStatus(16)
+        self.o_dbg_buffer_space_req_cnt = CSRStatus(32)
         self.o_wait = CSRStatus()
+
+
+class RTIOCounter(Module):
+    def __init__(self, width):
+        self.width = width
+        # Timestamp counter in RTIO domain
+        self.value_rtio = Signal(width)
+        # Timestamp counter resynchronized to sys domain
+        # Lags behind value_rtio, monotonic and glitch-free
+        self.value_sys = Signal(width)
+
+        # # #
+
+        # note: counter is in rtio domain and never affected by the reset CSRs
+        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
+        gt = GrayCodeTransfer(width)
+        self.submodules += gt
+        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
 
 
 class RTController(Module):
@@ -41,27 +54,20 @@ class RTController(Module):
         # protocol errors
         err_unknown_packet_type = Signal()
         err_packet_truncated = Signal()
-        signal_fifo_space_timeout = Signal()
-        err_fifo_space_timeout = Signal()
+        signal_buffer_space_timeout = Signal()
+        err_buffer_space_timeout = Signal()
         self.sync.sys_with_rst += [
             If(self.csrs.protocol_error.re,
                 If(self.csrs.protocol_error.r[0], err_unknown_packet_type.eq(0)),
                 If(self.csrs.protocol_error.r[1], err_packet_truncated.eq(0)),
-                If(self.csrs.protocol_error.r[2], err_fifo_space_timeout.eq(0))
+                If(self.csrs.protocol_error.r[2], err_buffer_space_timeout.eq(0))
             ),
             If(rt_packet.err_unknown_packet_type, err_unknown_packet_type.eq(1)),
             If(rt_packet.err_packet_truncated, err_packet_truncated.eq(1)),
-            If(signal_fifo_space_timeout, err_fifo_space_timeout.eq(1))
+            If(signal_buffer_space_timeout, err_buffer_space_timeout.eq(1))
         ]
         self.comb += self.csrs.protocol_error.w.eq(
-            Cat(err_unknown_packet_type, err_packet_truncated, err_fifo_space_timeout))
-
-        # channel selection
-        chan_sel = Signal(16)
-        self.comb += chan_sel.eq(
-            Mux(self.csrs.chan_sel_override_en.storage,
-                self.csrs.chan_sel_override.storage,
-                self.cri.chan_sel[:16]))
+            Cat(err_unknown_packet_type, err_packet_truncated, err_buffer_space_timeout))
 
         # master RTIO counter and counter synchronization
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
@@ -104,26 +110,16 @@ class RTController(Module):
         self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
 
-        # remote channel status cache
-        fifo_spaces_mem = Memory(16, channel_count)
-        fifo_spaces = fifo_spaces_mem.get_port(write_capable=True)
-        self.specials += fifo_spaces_mem, fifo_spaces
-        last_timestamps_mem = Memory(64, channel_count)
-        last_timestamps = last_timestamps_mem.get_port(write_capable=True)
-        self.specials += last_timestamps_mem, last_timestamps
-
         # common packet fields
-        rt_packet_fifo_request = Signal()
+        chan_sel = self.cri.chan_sel[:16]
+        rt_packet_buffer_request = Signal()
         rt_packet_read_request = Signal()
         self.comb += [
-            fifo_spaces.adr.eq(chan_sel),
-            last_timestamps.adr.eq(chan_sel),
-            last_timestamps.dat_w.eq(self.cri.timestamp),
             rt_packet.sr_channel.eq(chan_sel),
             rt_packet.sr_address.eq(self.cri.o_address),
             rt_packet.sr_data.eq(self.cri.o_data),
             rt_packet.sr_timestamp.eq(self.cri.timestamp),
-            If(rt_packet_fifo_request,
+            If(rt_packet_buffer_request,
                 rt_packet.sr_notwrite.eq(1),
                 rt_packet.sr_address.eq(0)
             ),
@@ -136,29 +132,27 @@ class RTController(Module):
         # output status
         o_status_wait = Signal()
         o_status_underflow = Signal()
-        o_status_sequence_error = Signal()
         self.comb += [
             self.cri.o_status.eq(Cat(
-                o_status_wait, o_status_underflow, o_status_sequence_error)),
+                o_status_wait, o_status_underflow)),
             self.csrs.o_wait.status.eq(o_status_wait)
         ]
-        o_sequence_error_set = Signal()
         o_underflow_set = Signal()
         self.sync.sys_with_rst += [
             If(self.cri.cmd == cri.commands["write"],
-                o_status_underflow.eq(0),
-                o_status_sequence_error.eq(0),
+                o_status_underflow.eq(0)
             ),
-            If(o_underflow_set, o_status_underflow.eq(1)),
-            If(o_sequence_error_set, o_status_sequence_error.eq(1))
+            If(o_underflow_set, o_status_underflow.eq(1))
         ]
 
         timeout_counter = WaitTimer(8191)
         self.submodules += timeout_counter
 
-        cond_sequence_error = self.cri.timestamp < last_timestamps.dat_r
-        cond_underflow = ((self.cri.timestamp[fine_ts_width:]
+        cond_underflow = Signal()
+        self.comb += cond_underflow.eq((self.cri.timestamp[fine_ts_width:]
                            - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
+
+        buffer_space = Signal(16)
 
         # input status
         i_status_wait_event = Signal()
@@ -190,56 +184,51 @@ class RTController(Module):
 
         fsm.act("IDLE",
             If(self.cri.cmd == cri.commands["write"],
-                If(cond_sequence_error,
-                    o_sequence_error_set.eq(1)
-                ).Elif(cond_underflow,
+                If(cond_underflow,
                     o_underflow_set.eq(1)
                 ).Else(
                     NextState("WRITE")
                 )
             ),
             If(self.cri.cmd == cri.commands["read"], NextState("READ")),
-            If(self.csrs.o_get_fifo_space.re, NextState("GET_FIFO_SPACE"))
+            If(self.csrs.o_get_buffer_space.re, NextState("GET_BUFFER_SPACE"))
         )
         fsm.act("WRITE",
             o_status_wait.eq(1),
             rt_packet.sr_stb.eq(1),
             If(rt_packet.sr_ack,
-                fifo_spaces.we.eq(1),
-                fifo_spaces.dat_w.eq(fifo_spaces.dat_r - 1),
-                last_timestamps.we.eq(1),
-                If(fifo_spaces.dat_r <= 1,
-                    NextState("GET_FIFO_SPACE")
+                NextValue(buffer_space, buffer_space - 1),
+                If(buffer_space <= 1,
+                    NextState("GET_BUFFER_SPACE")
                 ).Else(
                     NextState("IDLE")
                 )
             )
         )
-        fsm.act("GET_FIFO_SPACE",
+        fsm.act("GET_BUFFER_SPACE",
             o_status_wait.eq(1),
-            rt_packet.fifo_space_not_ack.eq(1),
-            rt_packet_fifo_request.eq(1),
+            rt_packet.buffer_space_not_ack.eq(1),
+            rt_packet_buffer_request.eq(1),
             rt_packet.sr_stb.eq(1),
             If(rt_packet.sr_ack,
-                NextState("GET_FIFO_SPACE_REPLY")
+                NextState("GET_BUFFER_SPACE_REPLY")
             )
         )
-        fsm.act("GET_FIFO_SPACE_REPLY",
+        fsm.act("GET_BUFFER_SPACE_REPLY",
             o_status_wait.eq(1),
-            fifo_spaces.dat_w.eq(rt_packet.fifo_space),
-            fifo_spaces.we.eq(1),
-            rt_packet.fifo_space_not_ack.eq(1),
-            If(rt_packet.fifo_space_not,
-                If(rt_packet.fifo_space != 0,
+            NextValue(buffer_space, rt_packet.buffer_space),
+            rt_packet.buffer_space_not_ack.eq(1),
+            If(rt_packet.buffer_space_not,
+               If(rt_packet.buffer_space != 0,
                     NextState("IDLE")
                 ).Else(
-                    NextState("GET_FIFO_SPACE")
+                    NextState("GET_BUFFER_SPACE")
                 )
             ),
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
-                signal_fifo_space_timeout.eq(1),
-                NextState("GET_FIFO_SPACE")
+                signal_buffer_space_timeout.eq(1),
+                NextState("GET_BUFFER_SPACE")
             )
         )
         fsm.act("READ",
@@ -260,21 +249,12 @@ class RTController(Module):
             )
         )
 
-        # channel state access
-        self.comb += [
-            self.csrs.o_dbg_fifo_space.status.eq(fifo_spaces.dat_r),
-            self.csrs.o_dbg_last_timestamp.status.eq(last_timestamps.dat_r),
-            If(self.csrs.o_reset_channel_status.re,
-                fifo_spaces.dat_w.eq(0),
-                fifo_spaces.we.eq(1),
-                last_timestamps.dat_w.eq(0),
-                last_timestamps.we.eq(1)
-            )
-        ]
+        # debug CSRs
+        self.comb += self.csrs.o_dbg_buffer_space.status.eq(buffer_space),
         self.sync += \
-            If((rt_packet.sr_stb & rt_packet.sr_ack & rt_packet_fifo_request),
-                self.csrs.o_dbg_fifo_space_req_cnt.status.eq(
-                    self.csrs.o_dbg_fifo_space_req_cnt.status + 1)
+            If((rt_packet.sr_stb & rt_packet.sr_ack & rt_packet_buffer_request),
+               self.csrs.o_dbg_buffer_space_req_cnt.status.eq(
+                   self.csrs.o_dbg_buffer_space_req_cnt.status + 1)
             )
 
     def get_csrs(self):
