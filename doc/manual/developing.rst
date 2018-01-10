@@ -104,7 +104,7 @@ and the ARTIQ kernels.
         $ cd ~/artiq-dev
         $ git clone -b artiq-1.23.0 https://github.com/m-labs/rust
         $ cd rust
-        $ git submodule update --init
+        $ git submodule update --init --recursive
         $ mkdir build
         $ cd build
         $ ../configure --prefix=/usr/local/rust-or1k --llvm-root=/usr/local/llvm-or1k --disable-manage-submodules --disable-docs
