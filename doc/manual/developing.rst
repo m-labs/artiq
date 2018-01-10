@@ -102,7 +102,7 @@ and the ARTIQ kernels.
 * Install Rust: ::
 
         $ cd ~/artiq-dev
-        $ git clone -b artiq-1.22.1 https://github.com/m-labs/rust
+        $ git clone -b artiq-1.23.0 https://github.com/m-labs/rust
         $ cd rust
         $ git submodule update --init
         $ mkdir build
