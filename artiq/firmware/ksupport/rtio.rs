@@ -193,23 +193,22 @@ mod imp {
 pub use self::imp::*;
 
 pub mod drtio_dbg {
-        use ::send;
-        use ::recv;
-        use kernel_proto::*;
+    use ::send;
+    use ::recv;
+    use kernel_proto::*;
 
-        #[repr(C)]
-        pub struct PacketCounts(i32, i32);
+    #[repr(C)]
+    pub struct PacketCounts(i32, i32);
 
-        pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
-            send(&DrtioPacketCountRequest { linkno: linkno as u8 });
-            recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
-                  => PacketCounts(tx_cnt as i32, rx_cnt as i32))
-        }
+    pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
+        send(&DrtioPacketCountRequest { linkno: linkno as u8 });
+        recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
+              => PacketCounts(tx_cnt as i32, rx_cnt as i32))
+    }
 
-        pub extern fn get_buffer_space_req_count(linkno: i32) -> i32 {
-            send(&DrtioBufferSpaceReqCountRequest { linkno: linkno as u8 });
-            recv!(&DrtioBufferSpaceReqCountReply { cnt }
-                  => cnt as i32)
-        }
+    pub extern fn get_buffer_space_req_count(linkno: i32) -> i32 {
+        send(&DrtioBufferSpaceReqCountRequest { linkno: linkno as u8 });
+        recv!(&DrtioBufferSpaceReqCountReply { cnt }
+              => cnt as i32)
     }
 }
