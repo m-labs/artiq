@@ -242,9 +242,7 @@ class TimeOffset(Module, AutoCSR):
 
 class CRIMaster(Module, AutoCSR):
     def __init__(self):
-        self.error_status = CSRStatus(3)  # same encoding as RTIO status
-        self.error_underflow_reset = CSR()
-        self.error_sequence_error_reset = CSR()
+        self.underflow = CSR()
 
         self.error_channel = CSRStatus(24)
         self.error_timestamp = CSRStatus(64)
@@ -256,19 +254,16 @@ class CRIMaster(Module, AutoCSR):
 
         # # #
 
-        error_set = Signal(2)
-        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset]):
-            # bit 0 is RTIO wait and always 0 here
-            bit = i + 1
-            self.sync += [
-                If(error_set[i],
-                    self.error_status.status[bit].eq(1),
-                    self.error_channel.status.eq(self.sink.channel),
-                    self.error_timestamp.status.eq(self.sink.timestamp),
-                    self.error_address.status.eq(self.sink.address)
-                ),
-                If(rcsr.re, self.error_status.status[bit].eq(0))
-            ]
+        underflow_trigger = Signal()
+        self.sync += [
+            If(underflow_trigger,
+                self.underflow.w.eq(1),
+                self.error_channel.status.eq(self.sink.channel),
+                self.error_timestamp.status.eq(self.sink.timestamp),
+                self.error_address.status.eq(self.sink.address)
+            ),
+            If(self.underflow.re, self.underflow.w.eq(0))
+        ]
 
         self.comb += [
             self.cri.chan_sel.eq(self.sink.channel),
@@ -281,7 +276,7 @@ class CRIMaster(Module, AutoCSR):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            If(self.error_status.status == 0,
+            If(~self.underflow.w,
                 If(self.sink.stb,
                     If(self.sink.eop,
                         # last packet contains dummy data, discard it
@@ -306,16 +301,14 @@ class CRIMaster(Module, AutoCSR):
                 self.sink.ack.eq(1),
                 NextState("IDLE")
             ),
-            If(self.cri.o_status[1], NextState("UNDERFLOW")),
-            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR"))
+            If(self.cri.o_status[1], NextState("UNDERFLOW"))
         )
-        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR"]):
-            fsm.act(name,
-                self.busy.eq(1),
-                error_set.eq(1 << n),
-                self.sink.ack.eq(1),
-                NextState("IDLE")
-            )
+        fsm.act("UNDERFLOW",
+            self.busy.eq(1),
+            underflow_trigger.eq(1),
+            self.sink.ack.eq(1),
+            NextState("IDLE")
+        )
 
 
 class DMA(Module):

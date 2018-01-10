@@ -258,10 +258,10 @@ class SequenceError(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
-        t = now_mu()
-        self.ttl_out.pulse(25*us)
-        at_mu(t)
-        self.ttl_out.pulse(25*us)
+        delay(55*256*us)
+        for _ in range(256):
+            self.ttl_out.pulse(25*us)
+            delay(-75*us)
 
 
 class Collision(EnvExperiment):
@@ -276,6 +276,8 @@ class Collision(EnvExperiment):
         for i in range(16):
             self.ttl_out_serdes.pulse_mu(1)
             delay_mu(1)
+        while self.core.get_rtio_counter_mu() < now_mu():
+            pass
 
 
 class AddressCollision(EnvExperiment):
@@ -288,6 +290,8 @@ class AddressCollision(EnvExperiment):
         self.core.reset()
         self.loop_in.input()
         self.loop_in.pulse(10*us)
+        while self.core.get_rtio_counter_mu() < now_mu():
+            pass
 
 
 class TimeKeepsRunning(EnvExperiment):
@@ -358,7 +362,7 @@ class CoredeviceTest(ExperimentCase):
         rtt = self.dataset_mgr.get("rtt")
         print(rtt)
         self.assertGreater(rtt, 0*ns)
-        self.assertLess(rtt, 60*ns)
+        self.assertLess(rtt, 140*ns)
 
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
@@ -397,27 +401,23 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(RTIOUnderflow):
             self.execute(Underflow)
 
+    def execute_and_test_in_log(self, experiment, string):
+        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
+        mgmt = CommMgmt(core_addr)
+        mgmt.clear_log()
+        self.execute(experiment)
+        log = mgmt.get_log()
+        self.assertIn(string, log)
+        mgmt.close()
+
     def test_sequence_error(self):
-        with self.assertRaises(RTIOSequenceError):
-            self.execute(SequenceError)
+        self.execute_and_test_in_log(SequenceError, "RTIO sequence error")
 
     def test_collision(self):
-        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(Collision)
-        log = mgmt.get_log()
-        self.assertIn("RTIO collision", log)
-        mgmt.close()
+        self.execute_and_test_in_log(Collision, "RTIO collision")
 
     def test_address_collision(self):
-        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
-        mgmt = CommMgmt(core_addr)
-        mgmt.clear_log()
-        self.execute(AddressCollision)
-        log = mgmt.get_log()
-        self.assertIn("RTIO collision", log)
-        mgmt.close()
+        self.execute_and_test_in_log(AddressCollision, "RTIO collision")
 
     def test_watchdog(self):
         # watchdog only works on the device
@@ -491,7 +491,7 @@ class RPCTest(ExperimentCase):
 
 
 class _DMA(EnvExperiment):
-    def build(self, trace_name="foobar"):
+    def build(self, trace_name="test_rtio"):
         self.setattr_device("core")
         self.setattr_device("core_dma")
         self.setattr_device("ttl1")
@@ -499,8 +499,12 @@ class _DMA(EnvExperiment):
         self.delta = np.int64(0)
 
     @kernel
-    def record(self):
+    def record(self, for_handle=True):
         with self.core_dma.record(self.trace_name):
+            # When not using the handle, retrieving the DMA trace
+            # in dma.playback() can be slow. Allow some time.
+            if not for_handle:
+                delay(1*ms)
             delay(100*ns)
             self.ttl1.on()
             delay(100*ns)
@@ -519,20 +523,22 @@ class _DMA(EnvExperiment):
         self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
 
     @kernel
-    def playback(self, use_handle=False):
-        self.core.break_realtime()
-        start = now_mu()
+    def playback(self, use_handle=True):
         if use_handle:
             handle = self.core_dma.get_handle(self.trace_name)
+            self.core.break_realtime()
+            start = now_mu()
             self.core_dma.playback_handle(handle)
         else:
+            self.core.break_realtime()
+            start = now_mu()
             self.core_dma.playback(self.trace_name)
         self.delta = now_mu() - start
 
     @kernel
     def playback_many(self, n):
-        self.core.break_realtime()
         handle = self.core_dma.get_handle(self.trace_name)
+        self.core.break_realtime()
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
             self.core_dma.playback_handle(handle)
@@ -579,9 +585,9 @@ class DMATest(ExperimentCase):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(_DMA)
-        exp.record()
 
         for use_handle in [False, True]:
+            exp.record(use_handle)
             get_analyzer_dump(core_host)  # clear analyzer buffer
             exp.playback(use_handle)
 
@@ -603,9 +609,13 @@ class DMATest(ExperimentCase):
         exp = self.create(_DMA)
         exp.record()
 
-        for use_handle in [False, True]:
-            exp.playback(use_handle)
-            self.assertEqual(exp.delta, 200)
+        exp.record(False)
+        exp.playback(False)
+        self.assertEqual(exp.delta, 1000200)
+
+        exp.record(True)
+        exp.playback(True)
+        self.assertEqual(exp.delta, 200)
 
     def test_dma_record_time(self):
         exp = self.create(_DMA)
@@ -618,11 +628,17 @@ class DMATest(ExperimentCase):
     def test_dma_playback_time(self):
         exp = self.create(_DMA)
         count = 20000
-        exp.record()
+        exp.record_many(40)
         exp.playback_many(count)
         dt = self.dataset_mgr.get("dma_playback_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 3*us)
+        self.assertLess(dt/count, 4.5*us)
+
+    def test_dma_underflow(self):
+        exp = self.create(_DMA)
+        exp.record()
+        with self.assertRaises(RTIOUnderflow):
+            exp.playback_many(20000)
 
     def test_handle_invalidation(self):
         exp = self.create(_DMA)

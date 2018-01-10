@@ -25,8 +25,11 @@ layout = [
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
     # o_status bits:
-    # <0:wait> <1:underflow> <2:sequence_error>
-    ("o_status", 3, DIR_S_TO_M),
+    # <0:wait> <1:underflow>
+    ("o_status", 2, DIR_S_TO_M),
+    # targets may optionally report a pessimistic estimate of the number
+    # of outputs events that can be written without waiting.
+    ("o_buffer_space", 16, DIR_S_TO_M),
 
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
@@ -35,6 +38,9 @@ layout = [
     # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 3, DIR_S_TO_M),
 
+    # value of the timestamp counter transferred into the CRI clock domain.
+    # monotonic, may lag behind the counter in the IO clock domain, but
+    # not be ahead of it.
     ("counter", 64, DIR_S_TO_M)
 ]
 
@@ -55,7 +61,7 @@ class KernelInitiator(Module, AutoCSR):
         self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
         self.o_we = CSR()
-        self.o_status = CSRStatus(3)
+        self.o_status = CSRStatus(2)
 
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)

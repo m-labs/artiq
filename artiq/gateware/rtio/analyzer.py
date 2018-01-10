@@ -94,10 +94,6 @@ class MessageEncoder(Module, AutoCSR):
                 exception_stb.eq(1),
                 exception.exception_type.eq(ExceptionType.o_underflow.value)
             ),
-            If(just_written & cri.o_status[2],
-                exception_stb.eq(1),
-                exception.exception_type.eq(ExceptionType.o_sequence_error.value)
-            ),
             If(read_overflow,
                 exception_stb.eq(1),
                 exception.exception_type.eq(ExceptionType.i_overflow.value)

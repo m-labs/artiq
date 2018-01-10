@@ -101,12 +101,12 @@ class SMA_SPI(_NIST_Ions):
         phy = spi.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=4, ififo_depth=4))
+            phy, ififo_depth=4))
 
         phy = spi.SPIMaster(self.platform.request("sma_spi"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
-            phy, ofifo_depth=128, ififo_depth=128))
+            phy, ififo_depth=128))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
