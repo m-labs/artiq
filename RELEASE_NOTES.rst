@@ -3,9 +3,16 @@
 Release notes
 =============
 
-4.0 (unreleased)
-----------------
+4.0
+---
 
+* RTIO outputs use a new architecture called Scalable Event Dispatcher (SED),
+  which allows building systems with large number of RTIO channels more
+  efficiently.
+  From the user perspective, collision errors become asynchronous, and non-
+  monotonic timestamps on any combination of channels are generally allowed
+  (instead of producing sequence errors).
+  RTIO inputs are not affected.
 * The DDS channel number for the NIST CLOCK target has changed.
 * The dashboard configuration files are now stored one-per-master, keyed by the
   server address argument and the notify port.
