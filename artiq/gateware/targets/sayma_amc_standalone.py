@@ -122,9 +122,9 @@ class Standalone(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cpu_type="or1k", with_sawg=False, **kwargs):
+    def __init__(self, with_sawg=False, **kwargs):
         MiniSoC.__init__(self,
-                         cpu_type=cpu_type,
+                         cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          ident=artiq_version,

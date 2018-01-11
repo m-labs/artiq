@@ -81,8 +81,8 @@ class SMA_SPI(_NIST_Ions):
     """
     SPI on 4 SMA for PDQ2 test/demo.
     """
-    def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+    def __init__(self, **kwargs):
+        _NIST_Ions.__init__(self, **kwargs)
 
         platform = self.platform
         self.platform.add_extension(_sma_spi)

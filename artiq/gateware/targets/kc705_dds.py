@@ -210,9 +210,9 @@ class _NIST_Ions(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cpu_type="or1k", **kwargs):
+    def __init__(self, **kwargs):
         MiniSoC.__init__(self,
-                         cpu_type=cpu_type,
+                         cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          ident=artiq_version,
@@ -277,8 +277,8 @@ class NIST_CLOCK(_NIST_Ions):
     """
     NIST clock hardware, with old backplane and 11 DDS channels
     """
-    def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+    def __init__(self, **kwargs):
+        _NIST_Ions.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_clock.fmc_adapter_io)
@@ -379,8 +379,8 @@ class NIST_QC2(_NIST_Ions):
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
     and 24 DDS channels.  Two backplanes are used.
     """
-    def __init__(self, cpu_type="or1k", **kwargs):
-        _NIST_Ions.__init__(self, cpu_type, **kwargs)
+    def __init__(self, **kwargs):
+        _NIST_Ions.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_qc2.fmc_adapter_io)

@@ -80,9 +80,9 @@ class _KasliBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, cpu_type="or1k", **kwargs):
+    def __init__(self, **kwargs):
         MiniSoC.__init__(self,
-                         cpu_type=cpu_type,
+                         cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          ident=artiq_version,
@@ -147,8 +147,8 @@ class Opticlock(_KasliBase):
     """
     Opticlock extension configuration
     """
-    def __init__(self, cpu_type="or1k", **kwargs):
-        _KasliBase.__init__(self, cpu_type, **kwargs)
+    def __init__(self, **kwargs):
+        _KasliBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(_dio("eem0"))
