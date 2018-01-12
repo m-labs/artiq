@@ -145,7 +145,7 @@ def _dio(eem):
 
 class Opticlock(_KasliBase):
     """
-    Opticlock extension configuration
+    Opticlock extension variant configuration
     """
     def __init__(self, **kwargs):
         _KasliBase.__init__(self, **kwargs)
@@ -183,16 +183,16 @@ def main():
         description="ARTIQ device binary builder for Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
-    parser.add_argument("-E", "--extensions", default="opticlock",
-                        help="extension setup: opticlock "
+    parser.add_argument("--variant", default="opticlock",
+                        help="extension variant setup: opticlock "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
-    extensions = args.extensions.lower()
-    if extensions == "opticlock":
+    variant = args.variant.lower()
+    if variant == "opticlock":
         cls = Opticlock
     else:
-        raise SystemExit("Invalid hardware adapter string (-E/--extensions)")
+        raise SystemExit("Invalid hardware adapter string (--variant)")
 
     soc = cls(**soc_kasli_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
