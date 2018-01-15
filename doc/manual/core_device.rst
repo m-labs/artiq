@@ -158,3 +158,22 @@ The QC2 hardware uses TCA6424A I2C I/O expanders to define the directions of its
 To avoid I/O contention, the startup kernel should first program the TCA6424A expanders and then call ``output()`` on all ``TTLInOut`` channels that should be configured as outputs.
 
 See :mod:`artiq.coredevice.i2c` for more details.
+
+Kasli
+-----
+
+`Kasli <https://github.com/m-labs/sinara/wiki/Kasli>`_ is a versatile coredevice designed for ARTIQ as part of the `Sinara <https://github.com/m-labs/sinara/wiki>`_ family of boards.
+
+Opticlock
++++++++++
+
+In the opticlock variant, Kasli is the coredevice controlling three `DIO_BNC <https://github.com/m-labs/sinara/wiki/DIO_BNC>`_ boards, one `Urukul-AD9912 <https://github.com/m-labs/sinara/wiki/Urukul>`_, one `Urukul-AD9910 <https://github.com/m-labs/sinara/wiki/Urukul>`_, and one Sampler `<https://github.com/m-labs/sinara/wiki/Sampler>`_.
+
+Kasli is connected to the network using a 1000Base-X SFP module. `No-name
+<fs.com>`_ BiDi (1000Base-BX) modules have been used successfully.
+
+Kasli is supplied with 100 MHz reference at its SMA input.
+Both Urukul boards are supplied with a 100 MHz reference clock on their external
+SMA inputs.
+
+The first four TTL channels are used as inputs. The rest are outputs.
