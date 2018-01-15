@@ -4,7 +4,6 @@ import unittest
 from migen import *
 
 from artiq.gateware.serwb import packet
-from artiq.gateware.serwb import etherbone
 from artiq.gateware.serwb.phy import _SerdesMasterInit, _SerdesSlaveInit
 
 
@@ -116,7 +115,7 @@ def generator(test, dut, valid_bitslip, valid_delays, check_success):
         test.assertEqual(error, 1)
 
 
-class TestPHYInit(unittest.TestCase):
+class TestSERWBInit(unittest.TestCase):
     def test_master_init_success(self):
         dut = DUTMaster()
         valid_bitslip = 2
