@@ -54,7 +54,7 @@ fn jesd_ready(dacno: u8) -> bool {
 
 fn jesd_prbs(dacno: u8, en: bool) {
     unsafe {
-        (csr::AD9154[dacno as usize].jesd_control_prbs_config_write)(if en {1} else {0})
+        (csr::AD9154[dacno as usize].jesd_control_prbs_config_write)(if en {0b01} else {0b00})
     }
 }
 
@@ -392,6 +392,58 @@ fn dac_setup(linerate: u64) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn dac_status() {
+    info!("SERDES_PLL_LOCK: {}",
+        (read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB));
+    info!("");
+    info!("CODEGRPSYNC: 0x{:02x}", read(ad9154_reg::CODEGRPSYNCFLG));
+    info!("FRAMESYNC: 0x{:02x}", read(ad9154_reg::FRAMESYNCFLG));
+    info!("GOODCHECKSUM: 0x{:02x}", read(ad9154_reg::GOODCHKSUMFLG));
+    info!("INITLANESYNC: 0x{:02x}", read(ad9154_reg::INITLANESYNCFLG));
+    info!("");
+    info!("DID_REG: 0x{:02x}", read(ad9154_reg::DID_REG));
+    info!("BID_REG: 0x{:02x}", read(ad9154_reg::BID_REG));
+    info!("SCR_L_REG: 0x{:02x}", read(ad9154_reg::SCR_L_REG));
+    info!("F_REG: 0x{:02x}", read(ad9154_reg::F_REG));
+    info!("K_REG: 0x{:02x}", read(ad9154_reg::K_REG));
+    info!("M_REG: 0x{:02x}", read(ad9154_reg::M_REG));
+    info!("CS_N_REG: 0x{:02x}", read(ad9154_reg::CS_N_REG));
+    info!("NP_REG: 0x{:02x}", read(ad9154_reg::NP_REG));
+    info!("S_REG: 0x{:02x}", read(ad9154_reg::S_REG));
+    info!("HD_CF_REG: 0x{:02x}", read(ad9154_reg::HD_CF_REG));
+    info!("RES1_REG: 0x{:02x}", read(ad9154_reg::RES1_REG));
+    info!("RES2_REG: 0x{:02x}", read(ad9154_reg::RES2_REG));
+    info!("LIDx_REG: 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x}",
+         read(ad9154_reg::LID0_REG),
+         read(ad9154_reg::LID1_REG),
+         read(ad9154_reg::LID2_REG),
+         read(ad9154_reg::LID3_REG),
+         read(ad9154_reg::LID4_REG),
+         read(ad9154_reg::LID5_REG),
+         read(ad9154_reg::LID6_REG),
+         read(ad9154_reg::LID7_REG));
+    info!("CHECKSUMx_REG: 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x}",
+        read(ad9154_reg::CHECKSUM0_REG),
+        read(ad9154_reg::CHECKSUM1_REG),
+        read(ad9154_reg::CHECKSUM2_REG),
+        read(ad9154_reg::CHECKSUM3_REG),
+        read(ad9154_reg::CHECKSUM4_REG),
+        read(ad9154_reg::CHECKSUM5_REG),
+        read(ad9154_reg::CHECKSUM6_REG),
+        read(ad9154_reg::CHECKSUM7_REG));
+    info!("COMPSUMx_REG: 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x} 0x{:02x}",
+        read(ad9154_reg::COMPSUM0_REG),
+        read(ad9154_reg::COMPSUM1_REG),
+        read(ad9154_reg::COMPSUM2_REG),
+        read(ad9154_reg::COMPSUM3_REG),
+        read(ad9154_reg::COMPSUM4_REG),
+        read(ad9154_reg::COMPSUM5_REG),
+        read(ad9154_reg::COMPSUM6_REG),
+        read(ad9154_reg::COMPSUM7_REG));
+    info!("BADDISPARITY: 0x{:02x}", read(ad9154_reg::BADDISPARITY));
+    info!("NITDISPARITY: 0x{:02x}", read(ad9154_reg::NIT_W));
+}
+
 fn dac_monitor() {
     write(ad9154_reg::IRQ_STATUS0, 0x00);
     write(ad9154_reg::IRQ_STATUS1, 0x00);
@@ -433,6 +485,60 @@ fn dac_monitor() {
     write(ad9154_reg::IRQ_STATUS1, 0x00);
     write(ad9154_reg::IRQ_STATUS2, 0x00);
     write(ad9154_reg::IRQ_STATUS3, 0x00);
+}
+
+fn dac_prbs(dacno: u8, p: u8, t: u32) {
+    /* follow phy prbs testing (p58 of ad9154 datasheet) */
+
+    /* step 1: start sending prbs pattern from the transmitter */
+    jesd_prbs(dacno, true);
+
+    /* step 2: select prbs mode */
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+
+    /* step 3: enable test for all lanes */
+    write(ad9154_reg::PHY_PRBS_TEST_EN, 0xff);
+
+    /* step 4: reset */
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL |
+        1*ad9154_reg::PHY_TEST_RESET);
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+
+    /* step 5: prbs threshold */
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_LOBITS, t as u8);
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_MIDBITS, (t >> 8) as u8);
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_HIBITS, (t >> 16) as u8);
+
+    /* step 6: start */
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL |
+        1*ad9154_reg::PHY_TEST_START);
+
+    /* step 7: wait 500 ms */
+    clock::spin_us(500000);
+
+    /* step 8 : stop */
+    write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+
+    info!("prbs_status: {:02x}", read(ad9154_reg::PHY_PRBS_TEST_STATUS));
+    for i in 0..8 {
+        /* step 9.a: select src err */
+        write(ad9154_reg::PHY_PRBS_TEST_CTRL,
+        i*ad9154_reg::PHY_SRC_ERR_CNT);
+        /* step 9.b: retrieve number of errors */
+        info!("prbs errors[{}]: {:06x}", i,
+            (read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_LOBITS) as u32) |
+            ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
+            ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16));
+    }
+
+    jesd_prbs(dacno, false);
 }
 
 fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
