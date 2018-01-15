@@ -22,7 +22,7 @@ requirements:
     - llvm-or1k 4.0.1
     - llvmlite-artiq 0.20.0
     - rust-core-or1k 1.23.0 19
-    - openocd 0.10.0+git1
+    - openocd 0.10.0+git2
     - lit
     - outputcheck
     - coverage
