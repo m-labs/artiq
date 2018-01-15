@@ -198,6 +198,15 @@ def main():
             "storage":    (0, 0xb30000),
             "firmware":   (0, 0xb40000),
         },
+        "kasli": {
+            "programmer_factory": partial(ProgrammerJtagSpi7, "kasli"),
+            "proxy_bitfile": "bscan_spi_xc7a100t.bit",
+            "variants": ["opticlock"],
+            "gateware":   (0, 0x000000),
+            "bootloader": (0, 0x400000),
+            "storage":    (0, 0x440000),
+            "firmware":   (0, 0x450000),
+        },
         "sayma": {
             "programmer_factory": ProgrammerSayma,
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
