@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -182,13 +183,28 @@ class SaymaRTM(Module):
 
 
 def main():
-    build_dir = "artiq_sayma_rtm"
+    parser = argparse.ArgumentParser(
+        description="ARTIQ device binary builder for Kasli systems")
+    parser.add_argument("--output-dir", default="artiq_sayma_rtm",
+                        help="output directory for generated "
+                             "source files and binaries")
+    parser.add_argument("--no-compile-gateware", action="store_true",
+                        help="do not compile the gateware, only generate "
+                             "the CSR map")
+    parser.add_argument("--csr-csv", default=None,
+                        help="store CSR map in CSV format into the "
+                             "specified file")
+    args = parser.parse_args()
+
     platform = sayma_rtm.Platform()
     top = SaymaRTM(platform)
-    os.makedirs(build_dir, exist_ok=True)
-    with open(os.path.join(build_dir, "sayma_rtm_csr.csv"), "w") as f:
+
+    os.makedirs(args.output_dir, exist_ok=True)
+    with open(os.path.join(args.output_dir, "sayma_rtm_csr.csv"), "w") as f:
         f.write(get_csr_csv(top.csr_regions))
-    platform.build(top, build_dir=build_dir)
+
+    if not args.no_compile_gateware:
+        platform.build(top, build_dir=args.output_dir)
 
 
 if __name__ == "__main__":
