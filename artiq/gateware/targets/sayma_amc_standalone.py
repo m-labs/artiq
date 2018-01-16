@@ -7,6 +7,7 @@ from collections import namedtuple
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
+from misoc.cores.slave_fpga import SlaveFPGA
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect import stream
@@ -146,6 +147,11 @@ class Standalone(MiniSoC, AMPSoC):
             serial_1.tx.eq(serial_rtm.rx),
             serial_rtm.tx.eq(serial_1.rx)
         ]
+
+        # RTM bitstream upload
+        rtm_fpga_cfg = platform.request("rtm_fpga_cfg")
+        self.submodules.rtm_fpga_cfg = SlaveFPGA(rtm_fpga_cfg)
+        self.csr_devices.append("rtm_fpga_cfg")
 
         # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=2)
