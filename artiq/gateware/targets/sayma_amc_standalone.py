@@ -220,8 +220,8 @@ class Standalone(MiniSoC, AMPSoC):
 
         self.clock_domains.cd_rtio = ClockDomain()
         self.comb += [
-            self.cd_rtio.clk.eq(ClockSignal()),
-            self.cd_rtio.rst.eq(ResetSignal())
+            self.cd_rtio.clk.eq(ClockSignal("jesd")),
+            self.cd_rtio.rst.eq(ResetSignal("jesd"))
         ]
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
