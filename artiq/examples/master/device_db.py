@@ -2,7 +2,7 @@
 # The RTIO channel numbers here are for NIST CLOCK on KC705.
 # The list of devices here is not exhaustive.
 
-core_addr = "kc705.lab.m-labs.hk"
+core_addr = "kc705-1.lab.m-labs.hk"
 
 device_db = {
     "core": {
