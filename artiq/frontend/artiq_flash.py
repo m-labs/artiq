@@ -36,7 +36,8 @@ Prerequisites:
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
 """)
     parser.add_argument("-t", "--target", default="kc705",
-                        help="target board, default: %(default)s")
+                        help="target board, default: %(default)s, one of: "
+                             "kc705 kasli sayma sayma_rtm")
     parser.add_argument("-m", "--variant", default=None,
                         help="board variant")
     parser.add_argument("--preinit-command", default=[], action="append",
@@ -216,17 +217,26 @@ def main():
             "storage":    (1, 0x040000),
             "firmware":   (1, 0x050000),
         },
+        "sayma_rtm": {
+            "programmer_factory": ProgrammerSayma,
+            "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
+            "gateware":   (1, 0x150000),
+        },
     }[opts.target]
 
     variant = opts.variant
-    if variant is not None and variant not in config["variants"]:
-        raise SystemExit("Invalid variant for this board")
-    if variant is None:
-        variant = config["variants"][0]
+    if "variants" in config:
+        if variant is not None and variant not in config["variants"]:
+            raise SystemExit("Invalid variant for this board")
+        if variant is None:
+            variant = config["variants"][0]
     bin_dir = opts.dir
     if bin_dir is None:
-        bin_dir = os.path.join(artiq_dir, "binaries",
-                               "{}-{}".format(opts.target, variant))
+        if variant:
+            bin_name = "{}-{}".format(opts.target, variant)
+        else:
+            bin_name = opts.target
+        bin_dir = os.path.join(artiq_dir, "binaries", bin_name)
     if opts.srcbuild is None and not os.path.exists(bin_dir) and opts.action != ["start"]:
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))
