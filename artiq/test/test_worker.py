@@ -92,7 +92,7 @@ class WorkerCase(unittest.TestCase):
                 _run_experiment("ExceptionTermination")
             self.assertGreater(len(logs.records), 0)
             self.assertIn("Terminating with exception (TypeError)",
-                          logs.output[0])
+                          logs.output[-1])
 
     def test_watchdog_no_timeout(self):
         _run_experiment("WatchdogNoTimeout")
