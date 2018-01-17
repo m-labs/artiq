@@ -90,7 +90,7 @@ class WorkerCase(unittest.TestCase):
         with self.assertLogs() as logs:
             with self.assertRaises(WorkerInternalException):
                 _run_experiment("ExceptionTermination")
-            self.assertEqual(len(logs.records), 1)
+            self.assertGreater(len(logs.records), 0)
             self.assertIn("Terminating with exception (TypeError)",
                           logs.output[0])
 
