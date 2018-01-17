@@ -37,7 +37,7 @@ Prerequisites:
 """)
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
-                             "kc705 kasli sayma sayma_rtm")
+                             "kc705 kasli sayma_amc sayma_rtm")
     parser.add_argument("-m", "--variant", default=None,
                         help="board variant")
     parser.add_argument("--preinit-command", default=[], action="append",
@@ -208,7 +208,7 @@ def main():
             "storage":    (0, 0x440000),
             "firmware":   (0, 0x450000),
         },
-        "sayma": {
+        "sayma_amc": {
             "programmer_factory": ProgrammerSayma,
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
             "variants": ["standalone", "master", "satellite"],
