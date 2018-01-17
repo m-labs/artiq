@@ -392,6 +392,7 @@ fn dac_setup(linerate: u64) -> Result<(), &'static str> {
     Ok(())
 }
 
+#[allow(dead_code)]
 fn dac_status() {
     info!("SERDES_PLL_LOCK: {}",
         (read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB));
@@ -487,6 +488,7 @@ fn dac_monitor() {
     write(ad9154_reg::IRQ_STATUS3, 0x00);
 }
 
+#[allow(dead_code)]
 fn dac_prbs(dacno: u8, p: u8, t: u32) {
     /* follow phy prbs testing (p58 of ad9154 datasheet) */
 

@@ -198,6 +198,8 @@ impl<'a> Library<'a> {
 
     pub fn load(data: &[u8], image: &'a mut [u8], resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<Library<'a>, Error<'a>> {
+        #![allow(unused_assignments)]
+
         let ehdr = read_unaligned::<Elf32_Ehdr>(data, 0)
                                   .map_err(|()| "cannot read ELF header")?;
 
