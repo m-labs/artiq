@@ -48,7 +48,7 @@ def get_argparser():
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
                         help="actions to perform, sequence of: "
-                             "build clean reset flash flash+log hotswap")
+                             "build clean reset flash flash+log connect hotswap")
 
     return parser
 
@@ -77,12 +77,12 @@ def main():
     flash_args = ["-t", boardtype]
     if boardtype == "sayma":
         if args.board is None:
-            args.board = "sayma_1"
-        if args.board == "sayma_1":
+            args.board = "sayma-1"
+        if args.board == "sayma-1":
             flash_args += ["--preinit-command", "ftdi_location 5:2"]
-        elif args.board == "sayma_2":
+        elif args.board == "sayma-2":
             flash_args += ["--preinit-command", "ftdi_location 3:10"]
-        elif args.board == "sayma_3":
+        elif args.board == "sayma-3":
             flash_args += ["--preinit-command", "ftdi_location 5:1"]
         else:
             raise NotImplementedError("unknown --preinit-command for {}".format(boardtype))
@@ -92,7 +92,7 @@ def main():
         "target":     args.target,
         "hostname":   args.host,
         "boardtype":  boardtype,
-        "board":      args.board if args.board else boardtype + "_1",
+        "board":      args.board if args.board else boardtype + "-1",
         "firmware":   firmware,
     }
     substs.update({

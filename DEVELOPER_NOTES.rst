@@ -34,7 +34,7 @@ To avoid conflicts for development boards on the server, while using a board you
 
 To lock the KC705 for 30 minutes or until Ctrl-C is pressed:
 ::
-  flock --verbose /run/boards/kc705_1 sleep 1800
+  flock --verbose /run/boards/kc705-1 sleep 1800
 
 Check that the command acquires the lock, i.e. prints something such as:
 ::
@@ -43,7 +43,7 @@ Check that the command acquires the lock, i.e. prints something such as:
 
 To lock the KC705 for the duration of the execution of a shell:
 ::
-  flock /run/boards/kc705_1 bash
+  flock /run/boards/kc705-1 bash
 
 You may also use this script:
 ::
@@ -54,7 +54,7 @@ If the board is already locked by another user, the ``flock`` commands above wil
 
 To determine which user is locking a board, use:
 ::
-  fuser -v /run/boards/kc705_1
+  fuser -v /run/boards/kc705-1
 
 
 Selecting a development board with artiq_flash
