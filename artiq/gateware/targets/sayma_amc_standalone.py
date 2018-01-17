@@ -6,6 +6,7 @@ from collections import namedtuple
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.io import DifferentialInput
 
 from misoc.cores.slave_fpga import SlaveFPGA
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
@@ -40,6 +41,7 @@ class AD9154CRG(Module, AutoCSR):
     fabric_freq = int(125e6)
     def __init__(self, platform):
         self.jreset = CSRStorage(reset=1)
+        self.jref = Signal()
 
         self.refclk = Signal()
         refclk2 = Signal()
@@ -55,6 +57,9 @@ class AD9154CRG(Module, AutoCSR):
         ]
         self.cd_jesd.clk.attr.add("keep")
         platform.add_period_constraint(self.cd_jesd.clk, 1e9/self.refclk_freq)
+
+        jref = platform.request("dac_sysref")
+        self.specials += DifferentialInput(jref.p, jref.n, self.jref)
 
 
 class AD9154JESD(Module, AutoCSR):
@@ -86,6 +91,7 @@ class AD9154JESD(Module, AutoCSR):
             phys, settings, converter_data_width=64))
         self.submodules.control = control = to_jesd(JESD204BCoreTXControl(core))
         core.register_jsync(platform.request("dac_sync", dac))
+        #core.register_jref(jesd_crg.jref) # FIXME: uncomment on next jesd204b update
 
 
 class AD9154(Module, AutoCSR):
