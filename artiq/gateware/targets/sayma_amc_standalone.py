@@ -258,7 +258,9 @@ def main():
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
     parser.add_argument("--with-sawg",
         default=False, action="store_true",
-        help="add JESD204B and SAWG channels (default: %(default)s)")
+        help="Add SAWG RTIO channels feeding the JESD links. If not "
+        "specified, fixed sawtooth generators are used. "
+        "(default: %(default)s)")
     args = parser.parse_args()
 
     soc = Standalone(with_sawg=args.with_sawg, **soc_sdram_argdict(args))
