@@ -157,6 +157,9 @@ class Opticlock(_KasliBase):
         # platform.add_extension(_urukul("eem3", "eem4"))
         # platform.add_extension(_novogorny("eem5"))
 
+        # EEM clock fan-out from Si5324, not MMCX
+        self.comb += platform.request("clk_sel").eq(1)
+
         rtio_channels = []
         for eem in "eem0 eem1 eem2".split():
             for i in range(8):
