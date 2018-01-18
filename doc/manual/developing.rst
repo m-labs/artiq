@@ -1,6 +1,9 @@
 Developing ARTIQ
 ^^^^^^^^^^^^^^^^
 
+.. note::
+    Developing ARTIQ is currently only possible on Linux.
+
 We describe two different approaches to creating a development environment for ARTIQ.
 
 The first method uses existing pre-compiled Anaconda packages and the ``artiq-dev`` meta-package for the development environment.
