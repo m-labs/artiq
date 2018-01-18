@@ -131,7 +131,7 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     jesdv: 1
 };
 
-fn dac_setup(linerate: u64) -> Result<(), &'static str> {
+fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     // reset
     write(ad9154_reg::SPI_INTFCONFA,
             1*ad9154_reg::SOFTRESET_M | 1*ad9154_reg::SOFTRESET |
@@ -148,10 +148,10 @@ fn dac_setup(linerate: u64) -> Result<(), &'static str> {
     if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
         return Err("AD9154 not found");
     } else {
-        info!("AD9154 found");
+        info!("AD9154-{} found", dacno);
     }
 
-    info!("AD9154 configuration...");
+    info!("AD9154-{} configuration...", dacno);
     write(ad9154_reg::PWRCNTRL0,
             0*ad9154_reg::PD_DAC0 | 0*ad9154_reg::PD_DAC1 |
             0*ad9154_reg::PD_DAC2 | 0*ad9154_reg::PD_DAC3 |
@@ -488,37 +488,40 @@ fn dac_monitor() {
     write(ad9154_reg::IRQ_STATUS3, 0x00);
 }
 
-#[allow(dead_code)]
-fn dac_prbs(dacno: u8, p: u8, t: u32) {
-    /* follow phy prbs testing (p58 of ad9154 datasheet) */
+fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
+    let mut prbs_errors: u32 = 0;
 
-    /* step 1: start sending prbs pattern from the transmitter */
+    /* follow phy prbs testing (p58 of ad9154 datasheet) */
+    info!("AD9154-{} PRBS test", dacno);
+
+    /* step 1: start sending prbs7 pattern from the transmitter */
     jesd_prbs(dacno, true);
+    clock::spin_us(500000);
 
     /* step 2: select prbs mode */
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL);
 
     /* step 3: enable test for all lanes */
     write(ad9154_reg::PHY_PRBS_TEST_EN, 0xff);
 
     /* step 4: reset */
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL |
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL |
         1*ad9154_reg::PHY_TEST_RESET);
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL);
 
     /* step 5: prbs threshold */
-    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_LOBITS, t as u8);
-    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_MIDBITS, (t >> 8) as u8);
-    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_HIBITS, (t >> 16) as u8);
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_LOBITS, 0);
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_MIDBITS, 0);
+    write(ad9154_reg::PHY_PRBS_TEST_THRESHOLD_HIBITS, 0);
 
     /* step 6: start */
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL);
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL |
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL |
         1*ad9154_reg::PHY_TEST_START);
 
     /* step 7: wait 500 ms */
@@ -526,21 +529,29 @@ fn dac_prbs(dacno: u8, p: u8, t: u32) {
 
     /* step 8 : stop */
     write(ad9154_reg::PHY_PRBS_TEST_CTRL,
-        p*ad9154_reg::PHY_PRBS_PAT_SEL);
+        0b00*ad9154_reg::PHY_PRBS_PAT_SEL);
 
-    info!("prbs_status: {:02x}", read(ad9154_reg::PHY_PRBS_TEST_STATUS));
     for i in 0..8 {
+        let mut lane_errors: u32 = 0;
         /* step 9.a: select src err */
         write(ad9154_reg::PHY_PRBS_TEST_CTRL,
         i*ad9154_reg::PHY_SRC_ERR_CNT);
         /* step 9.b: retrieve number of errors */
-        info!("prbs errors[{}]: {:06x}", i,
-            (read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_LOBITS) as u32) |
-            ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
-            ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16));
+        lane_errors = (read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_LOBITS) as u32) |
+                      ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
+                      ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16);
+        if lane_errors > 0 {
+            warn!("AD9154-{} PRBS errors on lane{}: {:06x}", dacno, i, lane_errors);
+        }
+        prbs_errors += lane_errors
     }
 
     jesd_prbs(dacno, false);
+
+    if prbs_errors > 0 {
+        return Err("AD9154 PRBS failed")
+    }
+    Ok(())
 }
 
 fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
@@ -550,7 +561,7 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     jesd_stpl(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
-    dac_setup(6_000_000_000)?;
+    dac_setup(dacno, 6_000_000_000)?;
     jesd_enable(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
@@ -601,6 +612,9 @@ pub fn init() -> Result<(), &'static str> {
         let dacno = dacno as u8;
         debug!("setting up AD9154-{} DAC...", dacno);
         dac_cfg_retry(dacno)?;
+        dac_prbs(dacno)?;
+        dac_cfg_retry(dacno)?;
     }
+
     Ok(())
 }
