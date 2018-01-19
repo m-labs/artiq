@@ -62,7 +62,7 @@ Selecting a development board with artiq_flash
 
 The board lock file also contains the openocd commands for selecting the corresponding developer board:
 ::
-  artiq_flash --preinit-command "$(cat /var/lib/artiq/boards/sayma-1)"
+  artiq_flash -I "$(cat /var/lib/artiq/boards/sayma-1)"
 
 
 Using developer tools

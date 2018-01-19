@@ -43,7 +43,7 @@ Prerequisites:
 
     parser.add_argument("-n", "--dry-run",
                         default=False, action="store_true",
-                        help="Only show the openocd script that would be run")
+                        help="only show the openocd script that would be run")
     parser.add_argument("-H", "--host", metavar="HOSTNAME",
                         type=str, default=None,
                         help="SSH host where the development board is located")
@@ -52,7 +52,7 @@ Prerequisites:
                              "kc705 kasli sayma_amc sayma_rtm")
     parser.add_argument("-m", "--variant", default=None,
                         help="board variant")
-    parser.add_argument("--preinit-command", default=[], action="append",
+    parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a development board "
                              "when several are connected.")
@@ -85,18 +85,14 @@ def proxy_path():
 
 
 class Programmer:
-    def __init__(self, client, target_file, preinit_commands):
-        self.client = client
-        if target_file:
-            self.target_file = self._transfer_script(target_file)
-        else:
-            self.target_file = None
-        self.preinit_commands = preinit_commands
-        self.prog = []
+    def __init__(self, client, preinit_script):
+        self._client = client
+        self._preinit_script = preinit_script
+        self._script = []
 
     def _transfer_script(self, script):
-        if isinstance(self.client, LocalClient):
-            return script
+        if isinstance(self._client, LocalClient):
+            return "[find {}]".format(script)
 
         def rewriter(content):
             def repl(match):
@@ -104,20 +100,29 @@ class Programmer:
             return re.sub(rb"\[find (.+?)\]", repl, content, re.DOTALL)
 
         script = os.path.join(scripts_path(), script)
-        return self.client.transfer_file(script, rewriter)
+        return self._client.transfer_file(script, rewriter)
 
-    def _command(self, cmd):
-        self.prog.append(cmd.replace("{", "{{").replace("}", "}}"))
+    def script(self):
+        return [
+            *self._preinit_script,
+            "init",
+            *self._script,
+            "exit"
+        ]
 
-    def init(self):
-        for command in self.preinit_commands:
-            self._command(command)
-        self._command("init")
+    def run(self):
+        cmdline = ["openocd"]
+        if isinstance(self._client, LocalClient):
+            cmdline += ["-s", scripts_path()]
+        cmdline += ["-c", "; ".join(script)]
 
-    def load(self, bitfile):
+        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in self.script()]
+        self._client.run_command(cmdline)
+
+    def load(self, bitfile, pld):
         raise NotImplementedError
 
-    def proxy(self, proxy_bitfile):
+    def proxy(self, proxy_bitfile, pld):
         raise NotImplementedError
 
     def flash_binary(self, flashno, address, filename):
@@ -125,55 +130,41 @@ class Programmer:
 
     def start(self):
         raise NotImplementedError
-
-    def script(self):
-        return "\n".join(self.prog)
-
-    def do(self):
-        self._command("exit")
-
-        cmdline = ["openocd"]
-        if isinstance(self.client, LocalClient):
-            cmdline += ["-s", scripts_path()]
-        if self.target_file is not None:
-            cmdline += ["-f", self.target_file]
-        cmdline += ["-c", "; ".join(self.prog)]
-
-        self.client.run_command(cmdline)
 
 
 class ProgrammerJtagSpi7(Programmer):
-    def __init__(self, client, target, preinit_commands):
-        Programmer.__init__(self, client, os.path.join("board", target + ".cfg"),
-                            preinit_commands)
-        self.init()
+    def __init__(self, client, target, preinit_script):
+        Programmer.__init__(self, client, preinit_script)
+
+        target_file = self._transfer_script(os.path.join("board", target + ".cfg"))
+        self._preinit_script.append("source {}".format(target_file))
 
     def load(self, bitfile, pld=0):
-        bitfile = self.client.transfer_file(bitfile)
-        self._command("pld load {} {{{}}}".format(pld, bitfile))
+        bitfile = self._client.transfer_file(bitfile)
+        self._script.append("pld load {} {{{}}}".format(pld, bitfile))
 
     def proxy(self, proxy_bitfile, pld=0):
-        proxy_bitfile = self.client.transfer_file(proxy_bitfile)
-        self._command("jtagspi_init {} {{{}}}".format(pld, proxy_bitfile))
+        proxy_bitfile = self._client.transfer_file(proxy_bitfile)
+        self._script.append("jtagspi_init {} {{{}}}".format(pld, proxy_bitfile))
 
     def flash_binary(self, flashno, address, filename):
-        # jtagspi_program supports only one flash
-        assert flashno == 0
-        filename = self.client.transfer_file(filename)
-        self._command("jtagspi_program {{{}}} 0x{:x}".format(
+        assert flashno == 0 # jtagspi_program supports only one flash
+
+        filename = self._client.transfer_file(filename)
+        self._script.append("jtagspi_program {{{}}} 0x{:x}".format(
                 filename, address))
 
     def start(self):
-        self._command("xc7_program xc7.tap")
+        self._script.append("xc7_program xc7.tap")
 
 
 class ProgrammerSayma(Programmer):
     sector_size = 0x10000
 
-    def __init__(self, client, preinit_commands):
-        Programmer.__init__(self, client, None, preinit_commands)
+    def __init__(self, client, preinit_script):
+        Programmer.__init__(self, client, preinit_script)
 
-        self.prog += [
+        self._preinit_script += [
             "interface ftdi",
             "ftdi_device_desc \"Quad RS232-HS\"",
             "ftdi_vid_pid 0x0403 0x6011",
@@ -198,30 +189,29 @@ class ProgrammerSayma(Programmer):
             "flash bank xcu.spi0 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER1",
             "flash bank xcu.spi1 jtagspi 0 0 0 0 xcu.proxy $XILINX_USER2"
         ]
-        self.init()
 
     def load(self, bitfile, pld=1):
-        bitfile = self.client.transfer_file(bitfile)
-        self._command("pld load {} {{{}}}".format(pld, bitfile))
+        bitfile = self._client.transfer_file(bitfile)
+        self._script.append("pld load {} {{{}}}".format(pld, bitfile))
 
     def proxy(self, proxy_bitfile, pld=1):
         self.load(proxy_bitfile, pld)
-        self._command("reset halt")
+        self._script.append("reset halt")
 
     def flash_binary(self, flashno, address, filename):
         sector_first = address // self.sector_size
         size = os.path.getsize(filename)
-        assert size
         sector_last = sector_first + (size - 1) // self.sector_size
-        assert sector_last >= sector_first
-        filename = self.client.transfer_file(filename)
-        self._command("flash probe xcu.spi{}".format(flashno))
-        self._command("flash erase_sector {} {} {}".format(flashno, sector_first, sector_last))
-        self._command("flash write_bank {} {{{}}} 0x{:x}".format(flashno, filename, address))
-        self._command("flash verify_bank {} {{{}}} 0x{:x}".format(flashno, filename, address))
+        filename = self._client.transfer_file(filename)
+        self._script += [
+            "flash probe xcu.spi{}".format(flashno),
+            "flash erase_sector {} {} {}".format(flashno, sector_first, sector_last),
+            "flash write_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
+            "flash verify_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
+        ]
 
     def start(self):
-        self._command("xcu_program xcu.tap")
+        self._script.append("xcu_program xcu.tap")
 
 
 def main():
@@ -285,7 +275,7 @@ def main():
     else:
         client = SSHClient(args.host)
 
-    programmer = config["programmer_factory"](client, preinit_commands=args.preinit_command)
+    programmer = config["programmer_factory"](client, preinit_script=args.preinit_command)
 
     conv = False
     for action in args.action:
@@ -345,10 +335,10 @@ def main():
             raise ValueError("invalid action", action)
 
     if args.dry_run:
-        print(programmer.script())
+        print("\n".join(programmer.script()))
     else:
         try:
-            programmer.do()
+            programmer.run()
         finally:
             if conv:
                 os.unlink(bin)
