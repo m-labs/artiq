@@ -114,9 +114,9 @@ class Programmer:
         cmdline = ["openocd"]
         if isinstance(self._client, LocalClient):
             cmdline += ["-s", scripts_path()]
-        cmdline += ["-c", "; ".join(script)]
+        cmdline += ["-c", "; ".join(self.script())]
 
-        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in self.script()]
+        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
         self._client.run_command(cmdline)
 
     def load(self, bitfile, pld):
