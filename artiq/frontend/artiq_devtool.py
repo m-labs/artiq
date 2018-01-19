@@ -13,6 +13,7 @@ import select
 import threading
 import os
 import shutil
+import re
 
 from artiq.tools import verbosity_args, init_logger, logger, SSHClient
 
@@ -93,6 +94,15 @@ def main():
         nonlocal flock_file
 
         if not flock_acquired:
+            fuser_args = ["fuser", "-u", lockfile]
+            fuser = client.spawn_command(fuser_args)
+            fuser_file = fuser.makefile('r')
+            fuser_match = re.search(r"\((.+?)\)", fuser_file.readline())
+            if fuser_match.group(1) == os.getenv("USER"):
+                logger.info("Lock already acquired by {}".format(os.getenv("USER")))
+                flock_acquired = True
+                return
+
             logger.info("Acquiring device lock")
             flock_args = ["flock"]
             if not args.wait:
