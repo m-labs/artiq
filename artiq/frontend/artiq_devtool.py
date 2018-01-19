@@ -33,6 +33,9 @@ def get_argparser():
                         help="target to build, one of: "
                              "kc705_dds kasli sayma_rtm sayma_amc_standalone "
                              "sayma_amc_drtio_master sayma_amc_drtio_satellite")
+    parser.add_argument("-g", "--build-gateware",
+                        default=False, action="store_true",
+                        help="build gateware, not just software")
     parser.add_argument("-H", "--host",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
@@ -69,12 +72,12 @@ def main():
     def build_dir(*path, target=args.target):
         return os.path.join("/tmp", target, *path)
 
-    build_args = []
+    extra_build_args = []
     if args.target == "kc705_dds":
         board_type, firmware = "kc705", "runtime"
     elif args.target == "sayma_amc_standalone":
         board_type, firmware = "sayma_amc", "runtime"
-        build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
+        extra_build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
     elif args.target == "sayma_amc_drtio_master":
         board_type, firmware = "sayma_amc", "runtime"
     elif args.target == "sayma_amc_drtio_satellite":
@@ -127,7 +130,16 @@ def main():
                     logger.error("Failed to get lock")
                     sys.exit(1)
 
+    def command(*args, on_failure="Command failed"):
+        try:
+            subprocess.check_call(args)
+        except subprocess.CalledProcessError:
+            logger.error(on_failure)
+            sys.exit(1)
+
     def flash(*steps):
+        lock()
+
         flash_args = ["artiq_flash"]
         for _ in range(args.verbose):
             flash_args.append("-v")
@@ -135,40 +147,32 @@ def main():
         flash_args += ["--srcbuild", build_dir()]
         flash_args += ["--preinit-command", "source {}".format(board_file)]
         flash_args += steps
-        subprocess.check_call(flash_args)
+        command(*flash_args, on_failure="Flashing failed")
 
     for action in args.actions:
         if action == "build":
             logger.info("Building target")
-            try:
-                subprocess.check_call([
-                    "python3", "-m", "artiq.gateware.targets." + args.target,
-                               "--no-compile-gateware",
-                               *build_args,
-                                "--output-dir", build_dir()])
-            except subprocess.CalledProcessError:
-                logger.error("Build failed")
-                sys.exit(1)
+
+            build_args = ["python3", "-m", "artiq.gateware.targets." + args.target]
+            if not args.build_gateware:
+                build_args.append("--no-compile-gateware")
+            build_args += ["--output-dir", build_dir()]
+            build_args += extra_build_args
+            command(*build_args, on_failure="Build failed")
 
         elif action == "clean":
             logger.info("Cleaning build directory")
             shutil.rmtree(build_dir, ignore_errors=True)
 
         elif action == "reset":
-            lock()
-
             logger.info("Resetting device")
             flash("start")
 
         elif action == "flash":
-            lock()
-
             logger.info("Flashing and booting firmware")
             flash("proxy", "bootloader", "firmware", "start")
 
         elif action == "flash+log":
-            lock()
-
             logger.info("Flashing firmware")
             flash("proxy", "bootloader", "firmware")
 
@@ -234,12 +238,9 @@ def main():
 
         elif action == "hotswap":
             logger.info("Hotswapping firmware")
-            try:
-                subprocess.check_call(["artiq_coreboot", "hotswap",
-                    build_dir("software", firmware, firmware + ".bin")])
-            except subprocess.CalledProcessError:
-                logger.error("Build failed")
-                sys.exit(1)
+            firmware = build_dir("software", firmware, firmware + ".bin")
+            command("artiq_coreboot", "hotswap", firmware,
+                    on_failure="Hotswapping failed")
 
         else:
             logger.error("Unknown action {}".format(action))
