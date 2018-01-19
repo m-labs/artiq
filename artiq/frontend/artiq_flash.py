@@ -9,8 +9,10 @@ import re
 from functools import partial
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import verbosity_args, init_logger, logger, SSHClient, LocalClient
+from artiq.tools import verbosity_args, init_logger
+from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
+
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -95,8 +97,8 @@ class Programmer:
 
         def rewriter(content):
             def repl(match):
-                return "[find {}]".format(self._transfer_script(match.group(1)))
-            return re.sub(r"\[find (.+?)\]", repl, content, re.DOTALL)
+                return self._transfer_script(match.group(1).decode()).encode()
+            return re.sub(rb"\[find (.+?)\]", repl, content, re.DOTALL)
 
         script = os.path.join(scripts_path(), script)
         return self.client.transfer_file(script, rewriter)
@@ -178,9 +180,11 @@ class ProgrammerSayma(Programmer):
             "adapter_khz 5000",
             "transport select jtag",
 
-            "source [find cpld/xilinx-xc7.cfg]",  # tap 0, pld 0
+            # tap 0, pld 0
+            "source {}".format(self._transfer_script("cpld/xilinx-xc7.cfg")),
+            # tap 1, pld 1
             "set CHIP XCKU040",
-            "source [find cpld/xilinx-xcu.cfg]",  # tap 1, pld 1
+            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg")),
 
             "target create xcu.proxy testee -chain-position xcu.tap",
             "set XILINX_USER1 0x02",

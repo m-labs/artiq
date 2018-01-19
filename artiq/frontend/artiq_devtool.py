@@ -15,7 +15,10 @@ import os
 import shutil
 import re
 
-from artiq.tools import verbosity_args, init_logger, logger, SSHClient
+from artiq.tools import verbosity_args, init_logger
+from artiq.remoting import SSHClient
+
+logger = logging.getLogger(__name__)
 
 
 def get_argparser():
@@ -98,7 +101,7 @@ def main():
             fuser = client.spawn_command(fuser_args)
             fuser_file = fuser.makefile('r')
             fuser_match = re.search(r"\((.+?)\)", fuser_file.readline())
-            if fuser_match.group(1) == os.getenv("USER"):
+            if fuser_match and fuser_match.group(1) == os.getenv("USER"):
                 logger.info("Lock already acquired by {}".format(os.getenv("USER")))
                 flock_acquired = True
                 return
@@ -156,19 +159,22 @@ def main():
             logger.info("Resetting device")
             flash("start")
 
-        elif action == "flash" or action == "flash+log":
+        elif action == "flash":
+            lock()
+
+            logger.info("Flashing and booting firmware")
+            flash("proxy", "bootloader", "firmware", "start")
+
+        elif action == "flash+log":
             lock()
 
             logger.info("Flashing firmware")
             flash("proxy", "bootloader", "firmware")
 
+            flterm = client.spawn_command(["flterm", serial, "--output-only"])
             logger.info("Booting firmware")
-            if action == "flash+log":
-                flterm = client.spawn_command(["flterm", serial, "--output-only"])
-                flash("start")
-                client.drain(flterm)
-            else:
-                flash("start")
+            flash("start")
+            client.drain(flterm)
 
         elif action == "connect":
             lock()
