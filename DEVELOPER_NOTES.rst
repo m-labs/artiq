@@ -30,11 +30,11 @@ Minor (bugfix) releases
 Sharing development boards
 ==========================
 
-To avoid conflicts for development boards on the server, while using a board you must hold the corresponding lock file present in ``/var/artiq/boards``. Holding the lock file grants you exclusive access to the board.
+To avoid conflicts for development boards on the server, while using a board you must hold the corresponding lock file present in ``/var/lib/artiq/boards``. Holding the lock file grants you exclusive access to the board.
 
 To lock the KC705 for 30 minutes or until Ctrl-C is pressed:
 ::
-  flock --verbose /var/artiq/boards/kc705-1 sleep 1800
+  flock --verbose /var/lib/artiq/boards/kc705-1 sleep 1800
 
 Check that the command acquires the lock, i.e. prints something such as:
 ::
@@ -43,18 +43,18 @@ Check that the command acquires the lock, i.e. prints something such as:
 
 To lock the KC705 for the duration of the execution of a shell:
 ::
-  flock /var/artiq/boards/kc705-1 bash
+  flock /var/lib/artiq/boards/kc705-1 bash
 
 You may also use this script:
 ::
   #!/bin/bash
-  exec flock /var/artiq/boards/$1 bash --rcfile <(cat ~/.bashrc; echo PS1=\"[$1\ lock]\ \$PS1\")
+  exec flock /var/lib/artiq/boards/$1 bash --rcfile <(cat ~/.bashrc; echo PS1=\"[$1\ lock]\ \$PS1\")
 
 If the board is already locked by another user, the ``flock`` commands above will wait for the lock to be released.
 
 To determine which user is locking a board, use:
 ::
-  fuser -v /var/artiq/boards/kc705-1
+  fuser -v /var/lib/artiq/boards/kc705-1
 
 
 Selecting a development board with artiq_flash
@@ -62,7 +62,7 @@ Selecting a development board with artiq_flash
 
 The board lock file also contains the openocd commands for selecting the corresponding developer board:
 ::
-  artiq_flash --preinit-command "$(cat /var/artiq/boards/sayma-1)"
+  artiq_flash --preinit-command "$(cat /var/lib/artiq/boards/sayma-1)"
 
 
 Using developer tools

@@ -37,17 +37,18 @@ def get_argparser():
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
     parser.add_argument('-b', "--board",
-                        type=str, default="{boardtype}-1",
+                        type=str, default="{board_type}-1",
                         help="Board to connect to on the development SSH host")
-    parser.add_argument("-d", "--device",
-                        type=str, default="{board}.{host}",
-                        help="Address or domain corresponding to the development board")
+    parser.add_argument("-B", "--board-file",
+                        type=str, default="/var/lib/artiq/boards/{board}",
+                        help="The board file containing the openocd initialization commands; "
+                             "it is also used as the lock file")
     parser.add_argument("-s", "--serial",
                         type=str, default="/dev/ttyUSB_{board}",
                         help="TTY device corresponding to the development board")
-    parser.add_argument("-l", "--lockfile",
-                        type=str, default="/run/boards/{board}",
-                        help="The lockfile to be acquired for the duration of the actions")
+    parser.add_argument("-d", "--device",
+                        type=str, default="{board}.{host}",
+                        help="Address or domain corresponding to the development board")
     parser.add_argument("-w", "--wait", action="store_true",
                         help="Wait for the board to unlock instead of aborting the actions")
 
@@ -70,23 +71,23 @@ def main():
 
     build_args = []
     if args.target == "kc705_dds":
-        boardtype, firmware = "kc705", "runtime"
+        board_type, firmware = "kc705", "runtime"
     elif args.target == "sayma_amc_standalone":
-        boardtype, firmware = "sayma_amc", "runtime"
+        board_type, firmware = "sayma_amc", "runtime"
         build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
     elif args.target == "sayma_amc_drtio_master":
-        boardtype, firmware = "sayma_amc", "runtime"
+        board_type, firmware = "sayma_amc", "runtime"
     elif args.target == "sayma_amc_drtio_satellite":
-        boardtype, firmware = "sayma_amc", "satman"
+        board_type, firmware = "sayma_amc", "satman"
     elif args.target == "sayma_rtm":
-        boardtype, firmware = "sayma_rtm", None
+        board_type, firmware = "sayma_rtm", None
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
-    board    = args.board.format(boardtype=boardtype)
-    device   = args.device.format(board=board, host=args.host)
-    lockfile = args.lockfile.format(board=board)
-    serial   = args.serial.format(board=board)
+    board      = args.board.format(board_type=board_type)
+    board_file = args.board_file.format(board=board)
+    device     = args.device.format(board=board, host=args.host)
+    serial     = args.serial.format(board=board)
 
     client = SSHClient(args.host)
 
@@ -97,7 +98,7 @@ def main():
         nonlocal flock_file
 
         if not flock_acquired:
-            fuser_args = ["fuser", "-u", lockfile]
+            fuser_args = ["fuser", "-u", board_file]
             fuser = client.spawn_command(fuser_args)
             fuser_file = fuser.makefile('r')
             fuser_match = re.search(r"\((.+?)\)", fuser_file.readline())
@@ -110,7 +111,7 @@ def main():
             flock_args = ["flock"]
             if not args.wait:
                 flock_args.append("--nonblock")
-            flock_args += ["--verbose", lockfile]
+            flock_args += ["--verbose", board_file]
             flock_args += ["sleep", "86400"]
 
             flock = client.spawn_command(flock_args, get_pty=True)
@@ -130,9 +131,9 @@ def main():
         flash_args = ["artiq_flash"]
         for _ in range(args.verbose):
             flash_args.append("-v")
-        flash_args += ["-H", args.host, "-t", boardtype]
+        flash_args += ["-H", args.host, "-t", board_type]
         flash_args += ["--srcbuild", build_dir()]
-        flash_args += ["--preinit-command", "source /var/boards/{}".format(board)]
+        flash_args += ["--preinit-command", "source {}".format(board_file)]
         flash_args += steps
         subprocess.check_call(flash_args)
 
