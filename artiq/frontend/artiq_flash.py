@@ -41,6 +41,9 @@ Prerequisites:
 
     verbosity_args(parser)
 
+    parser.add_argument("-n", "--dry-run",
+                        default=False, action="store_true",
+                        help="Only show the openocd script that would be run")
     parser.add_argument("-H", "--host", metavar="HOSTNAME",
                         type=str, default=None,
                         help="SSH host where the development board is located")
@@ -122,6 +125,9 @@ class Programmer:
 
     def start(self):
         raise NotImplementedError
+
+    def script(self):
+        return "\n".join(self.prog)
 
     def do(self):
         self._command("exit")
@@ -338,11 +344,14 @@ def main():
         else:
             raise ValueError("invalid action", action)
 
-    try:
-        programmer.do()
-    finally:
-        if conv:
-            os.unlink(bin)
+    if args.dry_run:
+        print(programmer.script())
+    else:
+        try:
+            programmer.do()
+        finally:
+            if conv:
+                os.unlink(bin)
 
 
 if __name__ == "__main__":
