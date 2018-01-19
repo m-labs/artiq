@@ -3,14 +3,13 @@ from operator import or_
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import MultiReg
 
-from misoc.interconnect.csr import *
 from misoc.cores.code_8b10b import Encoder, Decoder
 
 from microscope import *
 
 from artiq.gateware.drtio.core import TransceiverInterface, ChannelInterface
+from artiq.gateware.drtio.transceiver.clock_aligner import BruteforceClockAligner
 from artiq.gateware.drtio.transceiver.gth_ultrascale_init import *
 
 
