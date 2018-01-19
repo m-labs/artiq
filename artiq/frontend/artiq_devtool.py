@@ -30,7 +30,7 @@ def get_argparser():
 
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705_dds",
-                        help="Target to build, one of: "
+                        help="target to build, one of: "
                              "kc705_dds kasli sayma_rtm sayma_amc_standalone "
                              "sayma_amc_drtio_master sayma_amc_drtio_satellite")
     parser.add_argument("-H", "--host",
@@ -38,19 +38,19 @@ def get_argparser():
                         help="SSH host where the development board is located")
     parser.add_argument('-b', "--board",
                         type=str, default="{board_type}-1",
-                        help="Board to connect to on the development SSH host")
+                        help="board to connect to on the development SSH host")
     parser.add_argument("-B", "--board-file",
                         type=str, default="/var/lib/artiq/boards/{board}",
-                        help="The board file containing the openocd initialization commands; "
+                        help="the board file containing the openocd initialization commands; "
                              "it is also used as the lock file")
     parser.add_argument("-s", "--serial",
                         type=str, default="/dev/ttyUSB_{board}",
                         help="TTY device corresponding to the development board")
     parser.add_argument("-d", "--device",
                         type=str, default="{board}.{host}",
-                        help="Address or domain corresponding to the development board")
+                        help="address or domain corresponding to the development board")
     parser.add_argument("-w", "--wait", action="store_true",
-                        help="Wait for the board to unlock instead of aborting the actions")
+                        help="wait for the board to unlock instead of aborting the actions")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
