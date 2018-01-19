@@ -150,7 +150,8 @@ fn startup_ethernet() {
         }
     }
 
-    let net_device = unsafe { ethmac::EthernetDevice::new() };
+    let mut net_device = unsafe { ethmac::EthernetDevice::new() };
+    net_device.reset_phy_if_any();
 
     // fn _net_trace_writer<U>(timestamp: u64, printer: smoltcp::wire::PrettyPrinter<U>)
     //         where U: smoltcp::wire::pretty_print::PrettyPrint {

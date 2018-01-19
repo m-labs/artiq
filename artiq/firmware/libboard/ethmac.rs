@@ -57,6 +57,11 @@ impl EthernetDevice {
             clock::spin_us(2_000);
         }
     }
+
+    pub fn reset_phy_if_any(&mut self) {
+        #[cfg(has_ethphy)]
+        self.reset_phy();
+    }
 }
 
 impl<'a> Device<'a> for EthernetDevice {
