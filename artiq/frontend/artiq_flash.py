@@ -5,11 +5,12 @@ import os
 import subprocess
 import tempfile
 import shutil
+import re
 from functools import partial
 
 from artiq import __artiq_dir__ as artiq_dir
+from artiq.tools import verbosity_args, init_logger, logger, SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
-
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -35,6 +36,12 @@ Prerequisites:
       and replug the device. Ensure you are member of the
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
 """)
+
+    verbosity_args(parser)
+
+    parser.add_argument("-H", "--host", metavar="HOSTNAME",
+                        type=str, default=None,
+                        help="SSH host where the development board is located")
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
                              "kc705 kasli sayma_amc sayma_rtm")
@@ -73,14 +80,34 @@ def proxy_path():
 
 
 class Programmer:
-    def __init__(self, target_file, preinit_commands):
-        self.target_file = target_file
+    def __init__(self, client, target_file, preinit_commands):
+        self.client = client
+        if target_file:
+            self.target_file = self._transfer_script(target_file)
+        else:
+            self.target_file = None
         self.preinit_commands = preinit_commands
         self.prog = []
 
+    def _transfer_script(self, script):
+        if isinstance(self.client, LocalClient):
+            return script
+
+        def rewriter(content):
+            def repl(match):
+                return "[find {}]".format(self._transfer_script(match.group(1)))
+            return re.sub(r"\[find (.+?)\]", repl, content, re.DOTALL)
+
+        script = os.path.join(scripts_path(), script)
+        return self.client.transfer_file(script, rewriter)
+
+    def _command(self, cmd):
+        self.prog.append(cmd.replace("{", "{{").replace("}", "}}"))
+
     def init(self):
-        self.prog.extend(self.preinit_commands)
-        self.prog.append("init")
+        for command in self.preinit_commands:
+            self._command(command)
+        self._command("init")
 
     def load(self, bitfile):
         raise NotImplementedError
@@ -95,46 +122,49 @@ class Programmer:
         raise NotImplementedError
 
     def do(self):
-        self.prog.append("exit")
-        cmdline = [
-            "openocd",
-            "-s", scripts_path()
-        ]
+        self._command("exit")
+
+        cmdline = ["openocd"]
+        if isinstance(self.client, LocalClient):
+            cmdline += ["-s", scripts_path()]
         if self.target_file is not None:
             cmdline += ["-f", self.target_file]
         cmdline += ["-c", "; ".join(self.prog)]
-        subprocess.check_call(cmdline)
+
+        self.client.run_command(cmdline)
 
 
 class ProgrammerJtagSpi7(Programmer):
-    def __init__(self, target, preinit_commands):
-        Programmer.__init__(self, os.path.join("board", target + ".cfg"),
+    def __init__(self, client, target, preinit_commands):
+        Programmer.__init__(self, client, os.path.join("board", target + ".cfg"),
                             preinit_commands)
         self.init()
 
     def load(self, bitfile, pld=0):
-        self.prog.append("pld load {} {{{}}}".format(pld, bitfile))
+        bitfile = self.client.transfer_file(bitfile)
+        self._command("pld load {} {{{}}}".format(pld, bitfile))
 
     def proxy(self, proxy_bitfile, pld=0):
-        self.prog.append("jtagspi_init {} {{{}}}".format(pld, proxy_bitfile))
+        proxy_bitfile = self.client.transfer_file(proxy_bitfile)
+        self._command("jtagspi_init {} {{{}}}".format(pld, proxy_bitfile))
 
     def flash_binary(self, flashno, address, filename):
         # jtagspi_program supports only one flash
         assert flashno == 0
-        self.prog.append("jtagspi_program {{{}}} 0x{:x}".format(
+        filename = self.client.transfer_file(filename)
+        self._command("jtagspi_program {{{}}} 0x{:x}".format(
                 filename, address))
 
     def start(self):
-        self.prog.append("xc7_program xc7.tap")
+        self._command("xc7_program xc7.tap")
 
 
 class ProgrammerSayma(Programmer):
     sector_size = 0x10000
 
-    def __init__(self, preinit_commands):
-        # TODO: support Sayma RTM
-        Programmer.__init__(self, None, preinit_commands)
-        self.proxy_loaded = False
+    def __init__(self, client, preinit_commands):
+        Programmer.__init__(self, client, None, preinit_commands)
+
         self.prog += [
             "interface ftdi",
             "ftdi_device_desc \"Quad RS232-HS\"",
@@ -161,11 +191,12 @@ class ProgrammerSayma(Programmer):
         self.init()
 
     def load(self, bitfile, pld=1):
-        self.prog.append("pld load {} {{{}}}".format(pld, bitfile))
+        bitfile = self.client.transfer_file(bitfile)
+        self._command("pld load {} {{{}}}".format(pld, bitfile))
 
     def proxy(self, proxy_bitfile, pld=1):
         self.load(proxy_bitfile, pld)
-        self.prog.append("reset halt")
+        self._command("reset halt")
 
     def flash_binary(self, flashno, address, filename):
         sector_first = address // self.sector_size
@@ -173,25 +204,23 @@ class ProgrammerSayma(Programmer):
         assert size
         sector_last = sector_first + (size - 1) // self.sector_size
         assert sector_last >= sector_first
-        self.prog += [
-            "flash probe xcu.spi{}".format(flashno),
-            "flash erase_sector {} {} {}".format(flashno, sector_first, sector_last),
-            "flash write_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
-            "flash verify_bank {} {{{}}} 0x{:x}".format(flashno, filename, address),
-        ]
+        filename = self.client.transfer_file(filename)
+        self._command("flash probe xcu.spi{}".format(flashno))
+        self._command("flash erase_sector {} {} {}".format(flashno, sector_first, sector_last))
+        self._command("flash write_bank {} {{{}}} 0x{:x}".format(flashno, filename, address))
+        self._command("flash verify_bank {} {{{}}} 0x{:x}".format(flashno, filename, address))
 
     def start(self):
-        self.proxy_loaded = False
-        self.prog.append("xcu_program xcu.tap")
+        self._command("xcu_program xcu.tap")
 
 
 def main():
-    parser = get_argparser()
-    opts = parser.parse_args()
+    args = get_argparser().parse_args()
+    init_logger(args)
 
     config = {
         "kc705": {
-            "programmer_factory": partial(ProgrammerJtagSpi7, "kc705"),
+            "programmer_factory": partial(ProgrammerJtagSpi7, target="kc705"),
             "proxy_bitfile": "bscan_spi_xc7k325t.bit",
             "variants": ["nist_clock", "nist_qc2"],
             "gateware":   (0, 0x000000),
@@ -200,7 +229,7 @@ def main():
             "firmware":   (0, 0xb40000),
         },
         "kasli": {
-            "programmer_factory": partial(ProgrammerJtagSpi7, "kasli"),
+            "programmer_factory": partial(ProgrammerJtagSpi7, target="kasli"),
             "proxy_bitfile": "bscan_spi_xc7a100t.bit",
             "variants": ["opticlock"],
             "gateware":   (0, 0x000000),
@@ -222,29 +251,34 @@ def main():
             "proxy_bitfile": "bscan_spi_xcku040-sayma.bit",
             "gateware":   (1, 0x150000),
         },
-    }[opts.target]
+    }[args.target]
 
-    variant = opts.variant
+    variant = args.variant
     if "variants" in config:
         if variant is not None and variant not in config["variants"]:
             raise SystemExit("Invalid variant for this board")
         if variant is None:
             variant = config["variants"][0]
-    bin_dir = opts.dir
+    bin_dir = args.dir
     if bin_dir is None:
         if variant:
-            bin_name = "{}-{}".format(opts.target, variant)
+            bin_name = "{}-{}".format(args.target, variant)
         else:
-            bin_name = opts.target
+            bin_name = args.target
         bin_dir = os.path.join(artiq_dir, "binaries", bin_name)
-    if opts.srcbuild is None and not os.path.exists(bin_dir) and opts.action != ["start"]:
+    if args.srcbuild is None and not os.path.exists(bin_dir) and args.action != ["start"]:
         raise SystemExit("Binaries directory '{}' does not exist"
                          .format(bin_dir))
 
-    programmer = config["programmer_factory"](opts.preinit_command)
+    if args.host is None:
+        client = LocalClient()
+    else:
+        client = SSHClient(args.host)
+
+    programmer = config["programmer_factory"](client, preinit_commands=args.preinit_command)
 
     conv = False
-    for action in opts.action:
+    for action in args.action:
         if action == "proxy":
             proxy_found = False
             for p in [bin_dir, proxy_path(), os.path.expanduser("~/.migen"),
@@ -258,10 +292,10 @@ def main():
                 raise SystemExit(
                     "proxy gateware bitstream {} not found".format(config["proxy_bitfile"]))
         elif action == "gateware":
-            if opts.srcbuild is None:
+            if args.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "gateware")
+                path = os.path.join(args.srcbuild, "gateware")
             bin = os.path.join(path, "top.bin")
             if not os.access(bin, os.R_OK):
                 bin_handle, bin = tempfile.mkstemp()
@@ -271,29 +305,29 @@ def main():
                 conv = True
             programmer.flash_binary(*config["gateware"], bin)
         elif action == "bootloader":
-            if opts.srcbuild is None:
+            if args.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "software", "bootloader")
+                path = os.path.join(args.srcbuild, "software", "bootloader")
             programmer.flash_binary(*config["bootloader"], os.path.join(path, "bootloader.bin"))
         elif action == "storage":
-            programmer.flash_binary(*config["storage"], opts.storage)
+            programmer.flash_binary(*config["storage"], args.storage)
         elif action == "firmware":
             if variant == "satellite":
                 firmware_name = "satman"
             else:
                 firmware_name = "runtime"
-            if opts.srcbuild is None:
+            if args.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "software", firmware_name)
+                path = os.path.join(args.srcbuild, "software", firmware_name)
             programmer.flash_binary(*config["firmware"],
                                     os.path.join(path, firmware_name + ".fbi"))
         elif action == "load":
-            if opts.srcbuild is None:
+            if args.srcbuild is None:
                 path = bin_dir
             else:
-                path = os.path.join(opts.srcbuild, "gateware")
+                path = os.path.join(args.srcbuild, "gateware")
             programmer.load(os.path.join(path, "top.bit"))
         elif action == "start":
             programmer.start()

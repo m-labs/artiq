@@ -3,10 +3,9 @@ import logging
 import sys
 import asyncio
 import collections
-import os
 import atexit
 import string
-import random
+import os, random, tempfile, shutil, shlex, subprocess
 
 import numpy as np
 
@@ -256,7 +255,45 @@ def get_user_config_dir():
     return dir
 
 
-class SSHClient:
+class Client:
+    def transfer_file(self, filename, rewriter=None):
+        raise NotImplementedError
+
+    def run_command(self, cmd, **kws):
+        raise NotImplementedError
+
+
+class LocalClient(Client):
+    def __init__(self):
+        tmpname = "".join([random.Random().choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                           for _ in range(6)])
+        self.tmp = os.path.join(tempfile.gettempdir(), "artiq" + tmpname)
+        self._has_tmp = False
+
+    def _prepare_tmp(self):
+        if not self._has_tmp:
+            os.mkdir(self.tmp)
+            atexit.register(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
+            self._has_tmp = True
+
+    def transfer_file(self, filename, rewriter=None):
+        logger.debug("Transferring {}".format(filename))
+        if rewriter is None:
+            return filename
+        else:
+            tmp_filename = os.path.join(self.tmp, filename.replace(os.sep, "_"))
+            with open(filename) as local:
+                self._prepare_tmp()
+                with open(tmp_filename, 'w') as tmp:
+                    tmp.write(rewriter(local.read()))
+            return tmp_filename
+
+    def run_command(self, cmd, **kws):
+        logger.debug("Executing {}".format(cmd))
+        subprocess.check_call([arg.format(tmp=self.tmp, **kws) for arg in cmd])
+
+
+class SSHClient(Client):
     def __init__(self, host):
         self.host = host
         self.ssh = None
@@ -284,16 +321,28 @@ class SSHClient:
         if self.sftp is None:
             self.sftp = self.get_ssh().open_sftp()
             self.sftp.mkdir(self.tmp)
-            atexit.register(lambda: self.run_command("rm -rf {tmp}"))
+            atexit.register(lambda: self.run_command(["rm", "-rf", "{tmp}"]))
         return self.sftp
+
+    def transfer_file(self, filename, rewriter=None):
+        remote_filename = "{}/{}".format(self.tmp, filename.replace("/", "_"))
+        logger.debug("Transferring {}".format(filename))
+        if rewriter is None:
+            self.get_sftp().put(filename, remote_filename)
+        else:
+            with open(filename) as local:
+                with self.get_sftp().open(remote_filename, 'w') as remote:
+                    remote.write(rewriter(local.read()))
+        return remote_filename
 
     def spawn_command(self, cmd, get_pty=False, **kws):
         chan = self.get_transport().open_session()
         chan.set_combine_stderr(True)
         if get_pty:
             chan.get_pty()
+        cmd = " ".join([shlex.quote(arg.format(tmp=self.tmp, **kws)) for arg in cmd])
         logger.debug("Executing {}".format(cmd))
-        chan.exec_command(cmd.format(tmp=self.tmp, **kws))
+        chan.exec_command(cmd)
         return chan
 
     def drain(self, chan):
