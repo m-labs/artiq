@@ -30,11 +30,11 @@ Minor (bugfix) releases
 Sharing development boards
 ==========================
 
-To avoid conflicts for development boards on the server, while using a board you must hold the corresponding lock file present in ``/run/board``. Holding the lock file grants you exclusive access to the board.
+To avoid conflicts for development boards on the server, while using a board you must hold the corresponding lock file present in ``/var/boards``. Holding the lock file grants you exclusive access to the board.
 
 To lock the KC705 for 30 minutes or until Ctrl-C is pressed:
 ::
-  flock --verbose /run/boards/kc705-1 sleep 1800
+  flock --verbose /var/boards/kc705-1 sleep 1800
 
 Check that the command acquires the lock, i.e. prints something such as:
 ::
@@ -43,28 +43,52 @@ Check that the command acquires the lock, i.e. prints something such as:
 
 To lock the KC705 for the duration of the execution of a shell:
 ::
-  flock /run/boards/kc705-1 bash
+  flock /var/boards/kc705-1 bash
 
 You may also use this script:
 ::
   #!/bin/bash
-  exec flock /run/boards/$1 bash --rcfile <(cat ~/.bashrc; echo PS1=\"[$1\ lock]\ \$PS1\")
+  exec flock /var/boards/$1 bash --rcfile <(cat ~/.bashrc; echo PS1=\"[$1\ lock]\ \$PS1\")
 
 If the board is already locked by another user, the ``flock`` commands above will wait for the lock to be released.
 
 To determine which user is locking a board, use:
 ::
-  fuser -v /run/boards/kc705-1
+  fuser -v /var/boards/kc705-1
 
 
 Selecting a development board with artiq_flash
 ==============================================
 
-Use the ``bus:port`` notation::
+The board lock file also contains the openocd commands for selecting the corresponding developer board:
+::
+  artiq_flash --preinit-command "$(cat /var/boards/sayma-1)"
 
-  artiq_flash --preinit-command "ftdi_location 5:2"   # Sayma 1
-  artiq_flash --preinit-command "ftdi_location 3:10"  # Sayma 2
-  artiq_flash --preinit-command "ftdi_location 5:1"   # Sayma 3
+
+Using developer tools
+=====================
+
+ARTIQ ships with an ``artiq_devtool`` binary, which automates common actions arising when developing the board gateware and firmware on a machine other than the one to which the board is connected.
+
+.. argparse::
+   :ref: artiq.frontend.artiq_compile.get_argparser
+   :prog: artiq_compile
+
+To build and flash the firmware for ``sayma_amc_standalone`` target:
+::
+  artiq_devtool -t sayma_amc_standalone build flash+log
+
+To build the same target, flash it to the 3rd connected board, and forward the core device ports (1380, 1381, ...) as well as logs on the serial port:
+::
+  artiq_devtool -t sayma_amc_standalone -b sayma-3 build flash connect
+
+While the previous command is running, to build a new firmware and hotswap it, i.e. run without reflashing the board:
+::
+  artiq_devtool -t sayma_amc_standalone build hotswap
+
+While the previous command is running, to reset a board, e.g. if it became unresponsive:
+::
+  artiq_devtool -t sayma_amc_standalone reset
 
 
 Deleting git branches
