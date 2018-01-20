@@ -162,7 +162,7 @@ class ProgrammerSayma(Programmer):
     sector_size = 0x10000
 
     def __init__(self, client, preinit_script):
-        Programmer.__init__(self, client, preinit_script)
+        Programmer.__init__(self, client, [])
 
         self._preinit_script += [
             "interface ftdi",
@@ -176,6 +176,8 @@ class ProgrammerSayma(Programmer):
 
             "adapter_khz 5000",
             "transport select jtag",
+
+            *preinit_script,
 
             # tap 0, pld 0
             "source {}".format(self._transfer_script("cpld/xilinx-xc7.cfg")),
