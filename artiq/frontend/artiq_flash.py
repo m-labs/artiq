@@ -91,7 +91,7 @@ def find_proxy_bitfile(filename):
         full_path = os.path.join(p, filename)
         if os.access(full_path, os.R_OK):
             return full_path
-    raise FileNotFoundError("proxy bitstream {} not found"
+    raise FileNotFoundError("Cannot find proxy bitstream {}"
                             .format(filename))
 
 
@@ -280,6 +280,13 @@ def main():
 
     programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
+    def artifact_path(*path_filename):
+        if args.srcbuild is None:
+            *path, filename = path_filename
+            return os.path.join(bin_dir, filename)
+        else:
+            return os.path.join(args.srcbuild, *path_filename)
+
     for action in args.action:
         if action == "proxy":
             try:
@@ -287,43 +294,39 @@ def main():
             except FileNotFoundError as e:
                 raise SystemExit(e)
         elif action == "gateware":
-            if args.srcbuild is None:
-                path = bin_dir
-            else:
-                path = os.path.join(args.srcbuild, "gateware")
-            bin_filename = os.path.join(path, "top.bin")
-            if not os.access(bin_filename, os.R_OK):
-                bin_handle, bin_filename = tempfile.mkstemp()
-                bit_filename = os.path.join(path, "top.bit")
-                with open(bit_filename, "rb") as bit_handle:
+            gateware_bin = artifact_path("gateware", "top.bin")
+            if not os.access(gateware_bin, os.R_OK):
+                bin_handle, gateware_bin = tempfile.mkstemp()
+                gateware_bit = artifact_path("gateware", "top.bit")
+                with open(gateware_bit, "rb") as bit_handle:
                     bit2bin(bit_handle, bin_handle)
-                atexit.register(lambda: os.unlink(bin_filename))
-            programmer.flash_binary(*config["gateware"], bin_filename)
+                atexit.register(lambda: os.unlink(gateware_bin))
+
+            programmer.flash_binary(*config["gateware"], gateware_bin)
         elif action == "bootloader":
-            if args.srcbuild is None:
-                path = bin_dir
-            else:
-                path = os.path.join(args.srcbuild, "software", "bootloader")
-            programmer.flash_binary(*config["bootloader"], os.path.join(path, "bootloader.bin"))
+            bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
+            programmer.flash_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
-            programmer.flash_binary(*config["storage"], args.storage)
+            storage_img = args.storage
+            programmer.flash_binary(*config["storage"], storage_img)
         elif action == "firmware":
             if variant == "satellite":
-                firmware_name = "satman"
+                firmware = "satman"
             else:
-                firmware_name = "runtime"
-            if args.srcbuild is None:
-                path = bin_dir
-            else:
-                path = os.path.join(args.srcbuild, "software", firmware_name)
-            programmer.flash_binary(*config["firmware"],
-                                    os.path.join(path, firmware_name + ".fbi"))
+                firmware = "runtime"
+
+            firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
+            programmer.flash_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
-            if args.srcbuild is None:
-                path = bin_dir
+            if args.target == "sayma_rtm":
+                gateware_bit = artifact_path("top.bit")
+                programmer.load(gateware_bit, 0)
+            elif args.target == "sayma_amc":
+                gateware_bit = artifact_path("gateware", "top.bit")
+                programmer.load(gateware_bit, 1)
             else:
-                path = os.path.join(args.srcbuild, "gateware")
-            programmer.load(os.path.join(path, "top.bit"))
+                gateware_bit = artifact_path("gateware", "top.bit")
+                programmer.load(gateware_bit, 0)
         elif action == "start":
             programmer.start()
         else:
