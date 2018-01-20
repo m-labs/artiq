@@ -83,8 +83,16 @@ class SSHClient(Client):
                 logger.debug("Using cached {}".format(filename))
             else:
                 logger.debug("Transferring {}".format(filename))
-                with sftp.open(remote_filename, 'wb') as remote:
+                # Avoid a race condition by writing into a temporary file
+                # and atomically replacing
+                with sftp.open(remote_filename + ".~", "wb") as remote:
                     remote.write(rewritten)
+                try:
+                    sftp.rename(remote_filename + ".~", remote_filename)
+                except IOError:
+                    # Either it already exists (this is OK) or something else
+                    # happened (this isn't) and we need to re-raise
+                    sftp.stat(remote_filename)
         return remote_filename
 
     def spawn_command(self, cmd, get_pty=False, **kws):
