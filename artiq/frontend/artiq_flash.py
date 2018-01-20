@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import shutil
 import re
+import atexit
 from functools import partial
 
 from artiq import __artiq_dir__ as artiq_dir
@@ -279,7 +280,6 @@ def main():
 
     programmer = config["programmer_factory"](client, preinit_script=args.preinit_command)
 
-    conv = False
     for action in args.action:
         if action == "proxy":
             proxy_found = False
@@ -298,14 +298,14 @@ def main():
                 path = bin_dir
             else:
                 path = os.path.join(args.srcbuild, "gateware")
-            bin = os.path.join(path, "top.bin")
-            if not os.access(bin, os.R_OK):
-                bin_handle, bin = tempfile.mkstemp()
-                bit = os.path.join(path, "top.bit")
-                with open(bit, "rb") as f, open(bin_handle, "wb") as g:
-                    bit2bin(f, g)
-                conv = True
-            programmer.flash_binary(*config["gateware"], bin)
+            bin_filename = os.path.join(path, "top.bin")
+            if not os.access(bin_filename, os.R_OK):
+                bin_handle, bin_filename = tempfile.mkstemp()
+                bit_filename = os.path.join(path, "top.bit")
+                with open(bit_filename, "rb") as bit_handle:
+                    bit2bin(bit_handle, bin_handle)
+                atexit.register(lambda: os.unlink(bin_filename))
+            programmer.flash_binary(*config["gateware"], bin_filename)
         elif action == "bootloader":
             if args.srcbuild is None:
                 path = bin_dir
@@ -339,11 +339,7 @@ def main():
     if args.dry_run:
         print("\n".join(programmer.script()))
     else:
-        try:
-            programmer.run()
-        finally:
-            if conv:
-                os.unlink(bin)
+        programmer.run()
 
 
 if __name__ == "__main__":
