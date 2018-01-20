@@ -107,6 +107,13 @@ mod hmc830 {
         info!("waiting for lock...");
         while read(0x12) & 0x02 == 0 {
             if clock::get_ms() > t + 2000 {
+                error!("lock timeout");
+                info!("register dump:");
+                for addr in 0x00..0x14 {
+                    // These registers don't exist (in the data sheet at least)
+                    if addr == 0x0d || addr == 0x0e { continue; }
+                    info!("[0x{:02x}] = 0x{:04x}", addr, read(addr));
+                }
                 return Err("HMC830 lock timeout");
             }
         }
