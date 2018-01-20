@@ -298,8 +298,8 @@ def main():
             if not os.access(gateware_bin, os.R_OK):
                 bin_handle, gateware_bin = tempfile.mkstemp()
                 gateware_bit = artifact_path("gateware", "top.bit")
-                with open(gateware_bit, "rb") as bit_handle:
-                    bit2bin(bit_handle, bin_handle)
+                with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
+                    bit2bin(bit_file, bin_file)
                 atexit.register(lambda: os.unlink(gateware_bin))
 
             programmer.flash_binary(*config["gateware"], gateware_bin)
