@@ -160,7 +160,7 @@ class Standalone(MiniSoC, AMPSoC):
         self.csr_devices.append("rtm_fpga_cfg")
 
         # AMC/RTM serwb
-        serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=2)
+        serwb_pll = serwb.phy.SERWBPLL(125e6, 625e6, vco_div=2)
         self.comb += serwb_pll.refclk.eq(self.crg.cd_sys.clk)
         self.submodules += serwb_pll
 

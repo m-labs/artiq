@@ -140,7 +140,7 @@ class SaymaRTM(Module):
         self.comb += platform.request("hmc7043_reset").eq(0)
 
         # AMC/RTM serwb
-        serwb_pll = serwb.phy.SERWBPLL(125e6, 1.25e9, vco_div=1)
+        serwb_pll = serwb.phy.SERWBPLL(62.5e6, 625e6, vco_div=1)
         self.submodules += serwb_pll
 
         serwb_pads = platform.request("amc_rtm_serwb")
