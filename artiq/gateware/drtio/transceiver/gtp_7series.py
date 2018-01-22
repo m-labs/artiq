@@ -12,7 +12,7 @@ from artiq.gateware.drtio.transceiver.gtp_7series_init import *
 
 
 class GTPSingle(Module):
-    def __init__(self, qpll_channel, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq, mode):
+    def __init__(self, qpll_channel, pads, sys_clk_freq, rtio_clk_freq, mode):
         if mode != "master":
             raise NotImplementedError
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
@@ -163,10 +163,10 @@ class GTPSingle(Module):
                 o_RXDATA=Cat(rxdata[:8], rxdata[10:18]),
 
                 # Pads
-                i_GTPRXP=rx_pads.p,
-                i_GTPRXN=rx_pads.n,
-                o_GTPTXP=tx_pads.p,
-                o_GTPTXN=tx_pads.n
+                i_GTPRXP=pads.rxp,
+                i_GTPRXN=pads.rxn,
+                o_GTPTXP=pads.txp,
+                o_GTPTXN=pads.txn
             )
 
         # tx clocking
@@ -215,8 +215,8 @@ class GTPSingle(Module):
 
 
 class GTP(Module, TransceiverInterface):
-    def __init__(self, qpll_channel, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq, master=0):
-        self.nchannels = nchannels = len(tx_pads)
+    def __init__(self, qpll_channel, data_pads, sys_clk_freq, rtio_clk_freq, master=0):
+        self.nchannels = nchannels = len(data_pads)
         self.gtps = []
         if nchannels >= 1:
             raise NotImplementedError
@@ -227,7 +227,7 @@ class GTP(Module, TransceiverInterface):
         channel_interfaces = []
         for i in range(nchannels):
             mode = "master" if i == master else "slave"
-            gtp = GTPSingle(qpll_channel, tx_pads[i], rx_pads[i], sys_clk_freq, rtio_clk_freq, mode)
+            gtp = GTPSingle(qpll_channel, data_pads[i], sys_clk_freq, rtio_clk_freq, mode)
             if mode == "master":
                 self.comb += rtio_tx_clk.eq(gtp.cd_rtio_tx.clk)
             else:

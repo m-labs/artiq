@@ -14,7 +14,7 @@ from artiq.gateware.drtio.transceiver.gth_ultrascale_init import *
 
 
 class GTHSingle(Module):
-    def __init__(self, refclk, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq, dw, mode):
+    def __init__(self, refclk, pads, sys_clk_freq, rtio_clk_freq, dw, mode):
         assert (dw == 20) or (dw == 40)
         assert mode in ["master", "slave"]
 
@@ -167,10 +167,10 @@ class GTHSingle(Module):
                 i_RXELECIDLEMODE=0b11,
 
                 # Pads
-                i_GTHRXP=rx_pads.p,
-                i_GTHRXN=rx_pads.n,
-                o_GTHTXP=tx_pads.p,
-                o_GTHTXN=tx_pads.n
+                i_GTHRXP=pads.rxp,
+                i_GTHRXN=pads.rxn,
+                o_GTHTXP=pads.txp,
+                o_GTHTXN=pads.txn
             )
 
         self.submodules += [
@@ -222,8 +222,8 @@ class GTHSingle(Module):
 
 
 class GTH(Module, TransceiverInterface):
-    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq, dw=20, master=0):
-        self.nchannels = nchannels = len(tx_pads)
+    def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, dw=20, master=0):
+        self.nchannels = nchannels = len(data_pads)
         self.gths = []
 
         # # #
@@ -239,7 +239,7 @@ class GTH(Module, TransceiverInterface):
         channel_interfaces = []
         for i in range(nchannels):
             mode = "master" if i == master else "slave"
-            gth = GTHSingle(refclk, tx_pads[i], rx_pads[i], sys_clk_freq, rtio_clk_freq, dw, mode)
+            gth = GTHSingle(refclk, data_pads[i], sys_clk_freq, rtio_clk_freq, dw, mode)
             if mode == "master":
                 self.comb += rtio_tx_clk.eq(gth.cd_rtio_tx.clk)
             else:

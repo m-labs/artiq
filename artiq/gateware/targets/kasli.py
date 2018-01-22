@@ -30,14 +30,14 @@ class _RTIOCRG(Module, AutoCSR):
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         rtio_external_clk = Signal()
-        clk_fpgaio_se = Signal()
-        clk_fpgaio = platform.request("clk_fpgaio")  # from Si5324
-        platform.add_period_constraint(clk_fpgaio.p, 8.0)
+        clk_synth_se = Signal()
+        clk_synth = platform.request("si5324_clkout_fabric")
+        platform.add_period_constraint(clk_synth.p, 8.0)
         self.specials += [
-                Instance("IBUFGDS",
-                    p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="TRUE",
-                    i_I=clk_fpgaio.p, i_IB=clk_fpgaio.n, o_O=clk_fpgaio_se),
-                Instance("BUFG", i_I=clk_fpgaio_se, o_O=rtio_external_clk),
+            Instance("IBUFGDS",
+                p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="TRUE",
+                i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se),
+            Instance("BUFG", i_I=clk_synth_se, o_O=rtio_external_clk),
         ]
 
         pll_locked = Signal()
@@ -169,8 +169,8 @@ class Opticlock(_KasliBase):
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 
         for i in (1, 2):
-            sfp = platform.request("sfp", i)
-            phy = ttl_simple.Output(sfp.led)
+            sfp_ctl = platform.request("sfp_ctl", i)
+            phy = ttl_simple.Output(sfp_ctl.led)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
