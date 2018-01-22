@@ -204,7 +204,7 @@ _urukul = [
 ]
 
 
-class _Standalone_Base(MiniSoC, AMPSoC):
+class _StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -276,12 +276,12 @@ class _Standalone_Base(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class NIST_CLOCK(_Standalone_Base):
+class NIST_CLOCK(_StandaloneBase):
     """
     NIST clock hardware, with old backplane and 11 DDS channels
     """
     def __init__(self, **kwargs):
-        _Standalone_Base.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_clock.fmc_adapter_io)
@@ -377,13 +377,13 @@ class NIST_CLOCK(_Standalone_Base):
         self.add_rtio(rtio_channels)
 
 
-class NIST_QC2(_Standalone_Base):
+class NIST_QC2(_StandaloneBase):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
     and 24 DDS channels.  Two backplanes are used.
     """
     def __init__(self, **kwargs):
-        _Standalone_Base.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_qc2.fmc_adapter_io)
@@ -457,12 +457,12 @@ _sma_spi = [
 ]
 
 
-class SMA_SPI(_Standalone_Base):
+class SMA_SPI(_StandaloneBase):
     """
     SPI on 4 SMA for PDQ2 test/demo.
     """
     def __init__(self, **kwargs):
-        _Standalone_Base.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         self.platform.add_extension(_sma_spi)
