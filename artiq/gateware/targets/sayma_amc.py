@@ -295,7 +295,7 @@ class Master(MiniSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_FREE_RUNNING"] = None
 
-        self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
+        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("si5324_clkout"),
             data_pads=[platform.request("sfp", 0)],
@@ -395,7 +395,7 @@ class Satellite(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.comb += platform.request("sfp_tx_disable_n", 0).eq(1)
+        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("si5324_clkout"),
             data_pads=[platform.request("sfp", 0)],
