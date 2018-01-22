@@ -461,6 +461,8 @@ def main():
         cls = Master
     elif variant == "satellite":
         cls = Satellite
+    else:
+        raise SystemExit("Invalid variant (-V/--variant)")
     soc = cls(with_sawg=not args.without_sawg, **soc_sdram_argdict(args))
 
     # DRTIO variants do not use the RTM yet.
