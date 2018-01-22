@@ -11,13 +11,16 @@ from migen.build.xilinx.ise import XilinxISEToolchain
 
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
-from misoc.targets.kasli import (MiniSoC, soc_kasli_args,
-        soc_kasli_argdict)
+from misoc.cores.a7_gtp import *
+from misoc.targets.kasli import (BaseSoC, MiniSoC,
+    soc_kasli_args, soc_kasli_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi
+from artiq.gateware.drtio.transceiver import gtp_7series
+from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
@@ -72,7 +75,7 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
-class _KasliBase(MiniSoC, AMPSoC):
+class _StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -144,12 +147,12 @@ def _dio(eem):
         for i in range(8)]
 
 
-class Opticlock(_KasliBase):
+class Opticlock(_StandaloneBase):
     """
     Opticlock extension variant configuration
     """
     def __init__(self, **kwargs):
-        _KasliBase.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(_dio("eem0"))
@@ -182,21 +185,211 @@ class Opticlock(_KasliBase):
         self.add_rtio(rtio_channels)
 
 
+class Master(MiniSoC, AMPSoC):
+    mem_map = {
+        "cri_con":       0x10000000,
+        "rtio":          0x20000000,
+        "rtio_dma":      0x30000000,
+        "drtio_aux":     0x50000000,
+        "mailbox":       0x70000000
+    }
+    mem_map.update(MiniSoC.mem_map)
+
+    def __init__(self, **kwargs):
+        MiniSoC.__init__(self,
+                         cpu_type="or1k",
+                         sdram_controller_type="minicon",
+                         l2_size=128*1024,
+                         ident=artiq_version,
+                         ethmac_nrxslots=4,
+                         ethmac_ntxslots=4,
+                         **kwargs)
+        AMPSoC.__init__(self)
+
+        platform = self.platform
+        rtio_clk_freq = 150e6
+
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_SOFT_RESET"] = None
+        self.config["SI5324_FREE_RUNNING"] = None
+
+        self.comb += platform.request("sfp_ctl", 1).tx_disable.eq(0)
+        self.submodules.transceiver = gtp_7series.GTP(
+            qpll_channel=self.drtio_qpll_channel,
+            data_pads=[platform.request("sfp", 1)],
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
+
+        self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
+            DRTIOMaster(self.transceiver.channels[0]))
+        self.csr_devices.append("drtio0")
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+
+        rtio_clk_period = 1e9/rtio_clk_freq
+        for gtp in self.transceiver.gtps:
+            platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
+            platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk,
+                gtp.txoutclk, gtp.rxoutclk)
+
+        rtio_channels = []
+        phy = ttl_simple.Output(platform.request("user_led", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        phy = ttl_simple.Output(platform.request("sfp_ctl", 2).led)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
+        self.submodules.rtio_core = rtio.Core(rtio_channels, glbl_fine_ts_width=3)
+        self.csr_devices.append("rtio_core")
+
+        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
+        self.register_kernel_cpu_csrdevice("rtio")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.rtio.cri, self.rtio_dma.cri],
+            [self.rtio_core.cri, self.drtio0.cri])
+        self.register_kernel_cpu_csrdevice("cri_con")
+
+    # Never running out of stupid features, GTs on A7 make you pack
+    # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
+    def create_qpll(self):
+        si5324_clkout = self.platform.request("si5324_clkout")
+        si5324_clkout_buf = Signal()
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
+            o_O=si5324_clkout_buf)
+        qpll_eth_settings = QPLLSettings(
+            refclksel=0b001,
+            fbdiv=4,
+            fbdiv_45=5,
+            refclk_div=1)
+        qpll_drtio_settings = QPLLSettings(
+            refclksel=0b010,
+            fbdiv=4,
+            fbdiv_45=5,
+            refclk_div=1)
+        qpll = QPLL(self.crg.clk125_buf, qpll_eth_settings,
+                    si5324_clkout_buf, qpll_drtio_settings)
+        self.ethphy_qpll_channel, self.drtio_qpll_channel = qpll.channels
+
+
+class Satellite(BaseSoC):
+    mem_map = {
+        "drtio_aux": 0x50000000,
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, **kwargs):
+        BaseSoC.__init__(self,
+                 cpu_type="or1k",
+                 sdram_controller_type="minicon",
+                 l2_size=128*1024,
+                 ident=artiq_version,
+                 **kwargs)
+
+        platform = self.platform
+        rtio_clk_freq = 150e6
+
+        rtio_channels = []
+        phy = ttl_simple.Output(platform.request("user_led", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        phy = ttl_simple.Output(platform.request("sfp_ctl", 2).led)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
+        si5324_clkout = platform.request("si5324_clkout")
+        si5324_clkout_buf = Signal()
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
+            o_O=si5324_clkout_buf)
+        qpll_drtio_settings = QPLLSettings(
+            refclksel=0b010,
+            fbdiv=4,
+            fbdiv_45=5,
+            refclk_div=1)
+        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
+
+        self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
+        self.submodules.transceiver = gtp_7series.GTP(
+            qpll_channel=qpll.channels[0],
+            data_pads=[platform.request("sfp", 0)],
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
+        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.drtio0 = rx0(DRTIOSatellite(
+            self.transceiver.channels[0], rtio_channels))
+        self.csr_devices.append("drtio0")
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
+        si5324_clkin = platform.request("si5324_clkin")
+        self.specials += \
+            Instance("OBUFDS",
+                i_I=ClockSignal("rtio_rx0"),
+                o_O=si5324_clkin.p, o_OB=si5324_clkin.n
+            )
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_SOFT_RESET"] = None
+
+        rtio_clk_period = 1e9/rtio_clk_freq
+        gtp = self.transceiver.gtps[0]
+        platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            gtp.txoutclk, gtp.rxoutclk)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
     parser.add_argument("-V", "--variant", default="opticlock",
-                        help="variant: opticlock "
+                        help="variant: opticlock/master/satellite "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     if variant == "opticlock":
         cls = Opticlock
+    elif variant == "master":
+        cls = Master
+    elif variant == "satellite":
+        cls = Satellite
     else:
-        raise SystemExit("Invalid hardware adapter string (--variant)")
+        raise SystemExit("Invalid variant (-V/--variant)")
 
     soc = cls(**soc_kasli_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
