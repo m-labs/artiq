@@ -28,7 +28,7 @@ class UrukulTest(EnvExperiment):
         self.fmcdio_dirctl.set(0x0A008800)
         self.led.off()
 
-        self.urukul_cpld.init(clk_sel=1)
+        self.urukul_cpld.init(clk_sel=0)
         self.urukul_ch0b.init()
         self.urukul_ch1b.init()
         self.urukul_ch2b.init()
