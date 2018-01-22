@@ -9,12 +9,15 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.io import DifferentialInput
 
+from microscope import *
+
+from misoc.cores import gpio
 from misoc.cores.slave_fpga import SlaveFPGA
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect import stream
 from misoc.interconnect.csr import *
-from misoc.targets.sayma_amc import MiniSoC
+from misoc.targets.sayma_amc import BaseSoC, MiniSoC
 
 from jesd204b.common import (JESD204BTransportSettings,
                              JESD204BPhysicalSettings,
@@ -262,7 +265,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, with_sawg, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -272,6 +275,9 @@ class Master(MiniSoC, AMPSoC):
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
+
+        if with_sawg:
+            warnings.warn("SAWG is not implemented yet with DRTIO, ignoring.")
 
         platform = self.platform
         rtio_clk_freq = 150e6
