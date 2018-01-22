@@ -99,15 +99,15 @@ class AD9910:
         aux_dac = self.read32(_AD9910_REG_AUX_DAC)
         if aux_dac & 0xff != 0x7f:
             raise ValueError("Urukul AD9910 AUX_DAC mismatch")
-        delay(10*us)
+        delay(100*us)
         self.write32(_AD9910_REG_CFR2, 0x01400020)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
-        delay(10*us)
+        delay(100*us)
         self.cpld.io_update.pulse(100*ns)
         self.write32(_AD9910_REG_CFR3, cfr3)
-        delay(10*us)
+        delay(100*us)
         self.cpld.io_update.pulse(100*ns)
         for i in range(100):
             lock = urukul_sta_pll_lock(self.cpld.sta_read())
