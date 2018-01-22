@@ -94,7 +94,7 @@ class SaymaRTM(Module):
         csr_devices.append("clock_mux")
 
         # UART loopback
-        serial = platform.request(serial)
+        serial = platform.request("serial")
         self.comb += serial.tx.eq(serial.rx)
 
         # Allaki: enable RF output, GPIO access to attenuator
