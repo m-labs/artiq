@@ -15,7 +15,7 @@ _SPIT_CFG_WR = 2
 _SPIT_CFG_RD = 16
 _SPIT_ATT_WR = 2
 _SPIT_ATT_RD = 16
-_SPIT_DDS_WR = 16
+_SPIT_DDS_WR = 3
 _SPIT_DDS_RD = 16
 
 # CFG configuration register bit offsets
