@@ -218,7 +218,7 @@ class GTP(Module, TransceiverInterface):
     def __init__(self, qpll_channel, data_pads, sys_clk_freq, rtio_clk_freq, master=0):
         self.nchannels = nchannels = len(data_pads)
         self.gtps = []
-        if nchannels >= 1:
+        if nchannels > 1:
             raise NotImplementedError
 
         # # #
