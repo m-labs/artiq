@@ -19,6 +19,8 @@ Release notes
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
 * ``artiq_flash --adapter`` has been changed to ``artiq_flash --variant``.
+* ``kc705_dds`` has been renamed ``kc705``.
+* the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
 
 
 3.2

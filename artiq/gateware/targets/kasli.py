@@ -15,9 +15,10 @@ from misoc.targets.kasli import (MiniSoC, soc_kasli_args,
         soc_kasli_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.amp import AMPSoC, build_artiq_soc
+from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi
+from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
 
@@ -186,8 +187,8 @@ def main():
         description="ARTIQ device binary builder for Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
-    parser.add_argument("--variant", default="opticlock",
-                        help="extension variant setup: opticlock "
+    parser.add_argument("-V", "--variant", default="opticlock",
+                        help="variant: opticlock "
                              "(default: %(default)s)")
     args = parser.parse_args()
 

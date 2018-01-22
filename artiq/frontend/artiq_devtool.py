@@ -29,17 +29,16 @@ def get_argparser():
     verbosity_args(parser)
 
     parser.add_argument("-t", "--target", metavar="TARGET",
-                        type=str, default="kc705_dds",
+                        type=str, default="kc705",
                         help="target to build, one of: "
-                             "kc705_dds kasli sayma_rtm sayma_amc_standalone "
-                             "sayma_amc_drtio_master sayma_amc_drtio_satellite")
+                             "kc705 kasli sayma_rtm sayma_amc")
     parser.add_argument("-g", "--build-gateware",
                         default=False, action="store_true",
                         help="build gateware, not just software")
     parser.add_argument("-H", "--host",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument('-b', "--board",
+    parser.add_argument("-b", "--board",
                         type=str, default="{board_type}-1",
                         help="board to connect to on the development SSH host")
     parser.add_argument("-B", "--board-file",
@@ -73,15 +72,11 @@ def main():
         return os.path.join("/tmp", target, *path)
 
     extra_build_args = []
-    if args.target == "kc705_dds":
+    if args.target == "kc705":
         board_type, firmware = "kc705", "runtime"
-    elif args.target == "sayma_amc_standalone":
+    elif args.target == "sayma_amc":
         board_type, firmware = "sayma_amc", "runtime"
         extra_build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
-    elif args.target == "sayma_amc_drtio_master":
-        board_type, firmware = "sayma_amc", "runtime"
-    elif args.target == "sayma_amc_drtio_satellite":
-        board_type, firmware = "sayma_amc", "satman"
     elif args.target == "sayma_rtm":
         board_type, firmware = "sayma_rtm", None
     else:

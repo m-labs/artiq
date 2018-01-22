@@ -51,7 +51,7 @@ Prerequisites:
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
                              "kc705 kasli sayma_amc sayma_rtm")
-    parser.add_argument("-m", "--variant", default=None,
+    parser.add_argument("-V", "--variant", default=None,
                         help="board variant")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
