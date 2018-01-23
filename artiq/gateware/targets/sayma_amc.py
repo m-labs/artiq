@@ -98,7 +98,7 @@ class AD9154JESD(Module, AutoCSR):
             phys, settings, converter_data_width=64))
         self.submodules.control = control = to_jesd(JESD204BCoreTXControl(core))
         core.register_jsync(platform.request("dac_sync", dac))
-        #core.register_jref(jesd_crg.jref) # FIXME: uncomment on next jesd204b update
+        core.register_jref(jesd_crg.jref)
 
 
 class AD9154(Module, AutoCSR):
