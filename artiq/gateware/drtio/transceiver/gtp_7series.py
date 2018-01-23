@@ -77,9 +77,9 @@ class GTPSingle(Module):
                 p_PD_TRANS_TIME_NONE_P2=0x3c,
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
-                # QPLL
-                i_PLL0CLK=qpll_channel.clk,
-                i_PLL0REFCLK=qpll_channel.refclk,
+                # QPLL - must use channel 1!
+                i_PLL1CLK=qpll_channel.clk,
+                i_PLL1REFCLK=qpll_channel.refclk,
 
                 # TX clock
                 p_TXBUF_EN="FALSE",
