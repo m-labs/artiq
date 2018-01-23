@@ -55,6 +55,7 @@ class AD9154CRG(Module, AutoCSR):
         self.clock_domains.cd_jesd = ClockDomain()
         refclk_pads = platform.request("dac_refclk", 0)
 
+        platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
         self.specials += [
             Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b00,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n,
@@ -62,8 +63,6 @@ class AD9154CRG(Module, AutoCSR):
             Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk),
             AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
         ]
-        self.cd_jesd.clk.attr.add("keep")
-        platform.add_period_constraint(self.cd_jesd.clk, 1e9/self.refclk_freq)
 
         jref = platform.request("dac_sysref")
         self.specials += DifferentialInput(jref.p, jref.n, self.jref)
@@ -85,7 +84,6 @@ class AD9154JESD(Module, AutoCSR):
             phy = JESD204BPhyTX(
                     cpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
                     jesd_crg.fabric_freq, transceiver="gth")
-            phy.transmitter.cd_tx.clk.attr.add("keep")
             platform.add_period_constraint(phy.transmitter.cd_tx.clk,
                     40*1e9/jesd_crg.linerate)
             platform.add_false_path_constraints(
