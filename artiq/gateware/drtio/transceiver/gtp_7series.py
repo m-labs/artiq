@@ -175,16 +175,7 @@ class GTPSingle(Module):
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio_tx = ClockDomain()
         if mode == "master":
-            txoutclk_bufg = Signal()
-            txoutclk_bufr = Signal()
-            tx_bufr_div = 150.e6/rtio_clk_freq
-            assert tx_bufr_div == int(tx_bufr_div)
-            self.specials += [
-                Instance("BUFG", i_I=self.txoutclk, o_O=txoutclk_bufg),
-                Instance("BUFR", i_I=txoutclk_bufg, o_O=txoutclk_bufr,
-                    i_CE=1, p_BUFR_DIVIDE=str(int(tx_bufr_div))),
-                Instance("BUFG", i_I=txoutclk_bufr, o_O=self.cd_rtio_tx.clk)
-            ]
+            self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk)
         self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
 
         # rx clocking
