@@ -330,7 +330,7 @@ class Satellite(BaseSoC):
             i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             o_O=si5324_clkout_buf)
         qpll_drtio_settings = QPLLSettings(
-            refclksel=0b010,
+            refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
