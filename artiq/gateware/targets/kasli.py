@@ -275,20 +275,24 @@ class Master(MiniSoC, AMPSoC):
             i_CEB=0,
             i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             o_O=si5324_clkout_buf)
-        qpll_eth_settings = QPLLSettings(
+        # Note precisely the rules Xilinx made up:
+        # refclksel=0b001 GTREFCLK0 selected
+        # refclksel=0b010 GTREFCLK1 selected
+        # but if only one clock used, then it must be 001.
+        qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll_drtio_settings = QPLLSettings(
+        qpll_eth_settings = QPLLSettings(
             refclksel=0b010,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(self.crg.clk125_buf, qpll_eth_settings,
-                    si5324_clkout_buf, qpll_drtio_settings)
+        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings
+                    self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
-        self.ethphy_qpll_channel, self.drtio_qpll_channel = qpll.channels
+        self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
 class Satellite(BaseSoC):
@@ -330,12 +334,12 @@ class Satellite(BaseSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(0, None, si5324_clkout_buf, qpll_drtio_settings)
+        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
         self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
         self.submodules.transceiver = gtp_7series.GTP(
-            qpll_channel=qpll.channels[1],
+            qpll_channel=qpll.channels[0],
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
