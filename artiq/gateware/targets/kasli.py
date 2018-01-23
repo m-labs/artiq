@@ -329,11 +329,11 @@ class Satellite(BaseSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
+        qpll = QPLL(0, None, si5324_clkout_buf, qpll_drtio_settings)
 
         self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
         self.submodules.transceiver = gtp_7series.GTP(
-            qpll_channel=qpll.channels[0],
+            qpll_channel=qpll.channels[1],
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
