@@ -72,6 +72,12 @@ CSR_RANGE_SIZE = 0x800
 
 class SaymaRTM(Module):
     def __init__(self, platform):
+        platform.toolchain.bitstream_commands.extend([
+            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
+            "set_property CFGBVS VCCO [current_design]",
+            "set_property CONFIG_VOLTAGE 3.3 [current_design]",
+            ])
+
         csr_devices = []
 
         self.submodules.crg = CRG(platform)
