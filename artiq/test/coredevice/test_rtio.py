@@ -18,6 +18,17 @@ artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
 artiq_in_devel = os.getenv("ARTIQ_IN_DEVEL")
 
 
+class RTIOCounter(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        t0 = self.core.get_rtio_counter_mu()
+        t1 = self.core.get_rtio_counter_mu()
+        self.set_dataset("dt", self.core.mu_to_seconds(t1 - t0))
+
+
 class PulseNotReceived(Exception):
     pass
 
@@ -357,6 +368,12 @@ class HandoverException(EnvExperiment):
 
 
 class CoredeviceTest(ExperimentCase):
+    def test_rtio_counter(self):
+        self.execute(RTIOCounter)
+        dt = self.dataset_mgr.get("dt")
+        self.assertGreater(dt, 50*ns)
+        self.assertLess(dt, 200*ns)
+
     def test_loopback(self):
         self.execute(Loopback)
         rtt = self.dataset_mgr.get("rtt")
