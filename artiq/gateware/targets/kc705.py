@@ -32,6 +32,7 @@ class _RTIOCRG(Module, AutoCSR):
 
         # 100 MHz when using 125MHz input
         self.clock_domains.cd_ext_clkout = ClockDomain(reset_less=True)
+        platform.add_period_constraint(self.cd_ext_clkout.clk, 5.0)
         if use_sma:
             ext_clkout = platform.request("user_sma_gpio_p_33")
             self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
@@ -265,7 +266,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.rtio_crg.cd_rtio.clk.attr.add("keep")
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
@@ -511,7 +511,6 @@ class SMA_SPI(_StandaloneBase):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.rtio_crg.cd_rtio.clk.attr.add("keep")
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
