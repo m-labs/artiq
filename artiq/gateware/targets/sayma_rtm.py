@@ -81,13 +81,7 @@ class SaymaRTM(Module):
         csr_devices = []
 
         self.submodules.crg = CRG(platform)
-        self.crg.cd_sys.clk.attr.add("keep")
         clk_freq = 125e6
-        platform.add_period_constraint(self.crg.cd_sys.clk, 8.0)
-        platform.add_period_constraint(self.crg.cd_clk200.clk, 5.0)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.crg.cd_clk200.clk)
 
         self.submodules.rtm_identifier = RTMIdentifier()
         csr_devices.append("rtm_identifier")
