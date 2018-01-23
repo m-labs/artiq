@@ -289,7 +289,7 @@ class Master(MiniSoC, AMPSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings
+        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings,
                     self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
