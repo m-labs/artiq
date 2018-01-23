@@ -43,8 +43,7 @@ class GTPSingle(Module):
         txdata = Signal(20)
         rxdata = Signal(20)
         rxphaligndone = Signal()
-        self.specials += \
-            Instance("GTPE2_CHANNEL",
+        gtp_params = dict(
                 # Reset modes
                 i_GTRESETSEL=0,
                 i_RESETOVRD=0,
@@ -77,16 +76,11 @@ class GTPSingle(Module):
                 p_PD_TRANS_TIME_NONE_P2=0x3c,
                 p_PD_TRANS_TIME_TO_P2=0x64,
 
-                # QPLL - must use channel 1!
-                i_PLL1CLK=qpll_channel.clk,
-                i_PLL1REFCLK=qpll_channel.refclk,
-
                 # TX clock
                 p_TXBUF_EN="FALSE",
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
                 p_TXOUT_DIV=2,
-                i_TXSYSCLKSEL=0b11,
                 i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
@@ -136,7 +130,6 @@ class GTPSingle(Module):
                 p_TX_CLK25_DIV=5,
                 p_RX_XCLK_SEL="RXUSR",
                 p_RXOUT_DIV=2,
-                i_RXSYSCLKSEL=0b11,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
@@ -168,6 +161,27 @@ class GTPSingle(Module):
                 o_GTPTXP=pads.txp,
                 o_GTPTXN=pads.txn
             )
+        if qpll_channel.index == 0:
+            gtp_params.update(
+                i_RXSYSCLKSEL=0b00,
+                i_TXSYSCLKSEL=0b00,
+                i_PLL0CLK=qpll_channel.clk,
+                i_PLL0REFCLK=qpll_channel.refclk,
+                i_PLL1CLK=0,
+                i_PLL1REFCLK=0,
+            )
+        elif qpll_channel.index == 1:
+            gtp_params.update(
+                i_RXSYSCLKSEL=0b11,
+                i_TXSYSCLKSEL=0b11,
+                i_PLL0CLK=0,
+                i_PLL0REFCLK=0,
+                i_PLL1CLK=qpll_channel.clk,
+                i_PLL1REFCLK=qpll_channel.refclk,
+            )
+        else:
+            raise ValueError
+        self.specials += Instance("GTPE2_CHANNEL", **gtp_params)
 
         # tx clocking
         tx_reset_deglitched = Signal()
