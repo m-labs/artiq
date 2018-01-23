@@ -287,6 +287,7 @@ class Master(MiniSoC, AMPSoC):
             refclk_div=1)
         qpll = QPLL(self.crg.clk125_buf, qpll_eth_settings,
                     si5324_clkout_buf, qpll_drtio_settings)
+        self.submodules += qpll
         self.ethphy_qpll_channel, self.drtio_qpll_channel = qpll.channels
 
 
@@ -330,6 +331,7 @@ class Satellite(BaseSoC):
             fbdiv_45=5,
             refclk_div=1)
         qpll = QPLL(0, None, si5324_clkout_buf, qpll_drtio_settings)
+        self.submodules += qpll
 
         self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
         self.submodules.transceiver = gtp_7series.GTP(
