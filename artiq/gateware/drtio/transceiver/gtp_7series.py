@@ -86,7 +86,7 @@ class GTPSingle(Module):
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
                 p_TXOUT_DIV=2,
-                i_TXSYSCLKSEL=0b00,
+                i_TXSYSCLKSEL=0b11,
                 i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
@@ -136,7 +136,7 @@ class GTPSingle(Module):
                 p_TX_CLK25_DIV=5,
                 p_RX_XCLK_SEL="RXUSR",
                 p_RXOUT_DIV=2,
-                i_RXSYSCLKSEL=0b00,
+                i_RXSYSCLKSEL=0b11,
                 i_RXOUTCLKSEL=0b010,
                 o_RXOUTCLK=self.rxoutclk,
                 i_RXUSRCLK=ClockSignal("rtio_rx"),
