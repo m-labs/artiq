@@ -371,8 +371,9 @@ class CoredeviceTest(ExperimentCase):
     def test_rtio_counter(self):
         self.execute(RTIOCounter)
         dt = self.dataset_mgr.get("dt")
+        print(dt)
         self.assertGreater(dt, 50*ns)
-        self.assertLess(dt, 200*ns)
+        self.assertLess(dt, 1*us)
 
     def test_loopback(self):
         self.execute(Loopback)
