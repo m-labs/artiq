@@ -112,6 +112,20 @@ fn write(reg: u8, val: u8) -> Result<()> {
     Ok(())
 }
 
+#[cfg(si5324_soft_reset)]
+fn write_no_ack_value(reg: u8, val: u8) -> Result<()> {
+    i2c::start(BUSNO).unwrap();
+    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
+        return Err("Si5324 failed to ack write address")
+    }
+    if !i2c::write(BUSNO, reg).unwrap() {
+        return Err("Si5324 failed to ack register")
+    }
+    i2c::write(BUSNO, val).unwrap();
+    i2c::stop(BUSNO).unwrap();
+    Ok(())
+}
+
 fn read(reg: u8) -> Result<u8> {
     i2c::start(BUSNO).unwrap();
     if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
@@ -135,7 +149,7 @@ fn ident() -> Result<u16> {
 
 #[cfg(si5324_soft_reset)]
 fn soft_reset() -> Result<()> {
-    write(136, read(136)? | 0x80)?;
+    write_no_ack_value(136, read(136)? | 0x80)?;
     clock::spin_us(10_000);
     Ok(())
 }
