@@ -216,10 +216,10 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_SOFT_RESET"] = None
         self.config["SI5324_FREE_RUNNING"] = None
 
-        self.comb += platform.request("sfp_ctl", 1).tx_disable.eq(0)
+        self.comb += platform.request("sfp_ctl", 2).tx_disable.eq(0)
         self.submodules.transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
-            data_pads=[platform.request("sfp", 1)],
+            data_pads=[platform.request("sfp", 2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
 
@@ -245,7 +245,7 @@ class Master(MiniSoC, AMPSoC):
         phy = ttl_simple.Output(platform.request("user_led", 0))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        phy = ttl_simple.Output(platform.request("sfp_ctl", 2).led)
+        phy = ttl_simple.Output(platform.request("sfp_ctl", 1).led)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         
@@ -315,7 +315,7 @@ class Satellite(BaseSoC):
         phy = ttl_simple.Output(platform.request("user_led", 0))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        phy = ttl_simple.Output(platform.request("sfp_ctl", 2).led)
+        phy = ttl_simple.Output(platform.request("sfp_ctl", 1).led)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
