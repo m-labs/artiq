@@ -157,7 +157,7 @@ def main():
 
         elif action == "clean":
             logger.info("Cleaning build directory")
-            shutil.rmtree(build_dir, ignore_errors=True)
+            shutil.rmtree(build_dir(), ignore_errors=True)
 
         elif action == "reset":
             logger.info("Resetting device")
