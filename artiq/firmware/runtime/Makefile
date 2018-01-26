@@ -8,7 +8,7 @@ CFLAGS += \
 LDFLAGS += -L../libbase \
 	-L../libunwind
 
-RUSTFLAGS += -Cpanic=abort
+RUSTFLAGS += -Cpanic=unwind
 
 all:: runtime.bin runtime.fbi
 
