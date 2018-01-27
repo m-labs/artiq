@@ -23,6 +23,12 @@ Release notes
 * the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
 
 
+3.3
+---
+
+No further notes.
+
+
 3.2
 ---
 
