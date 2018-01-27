@@ -8,6 +8,7 @@ import shutil
 import re
 import atexit
 from functools import partial
+from collections import defaultdict
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger
@@ -62,7 +63,7 @@ Prerequisites:
     parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
                                             "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="proxy gateware bootloader firmware start".split(),
+                        default="gateware bootloader firmware start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
 
@@ -104,6 +105,7 @@ class Programmer:
         self._client = client
         self._board_script = []
         self._preinit_script = preinit_script
+        self._loaded = defaultdict(lambda: None)
         self._script = []
 
     def _transfer_script(self, script):
@@ -125,6 +127,12 @@ class Programmer:
             tap=tap, name=name, ir=0x02 + index)
 
     def load(self, bitfile, pld):
+        os.stat(bitfile) # check for existence
+
+        if self._loaded[pld] == bitfile:
+            return
+        self._loaded[pld] = bitfile
+
         bitfile = self._client.transfer_file(bitfile)
         add_commands(self._script,
             "pld load {pld} {filename}",
@@ -134,6 +142,8 @@ class Programmer:
         raise NotImplementedError
 
     def flash_binary(self, bankname, address, filename):
+        self.load_proxy()
+
         size = os.path.getsize(filename)
         filename = self._client.transfer_file(filename)
         add_commands(self._script,
@@ -269,10 +279,6 @@ def main():
             bin_name += "-" + variant
         bin_dir = os.path.join(artiq_dir, "binaries", bin_name)
 
-    if args.srcbuild is None and not os.path.exists(bin_dir) and args.action != ["start"]:
-        raise SystemExit("Binaries directory '{}' does not exist"
-                         .format(bin_dir))
-
     if args.host is None:
         client = LocalClient()
     else:
@@ -287,50 +293,48 @@ def main():
         else:
             return os.path.join(args.srcbuild, *path_filename)
 
-    for action in args.action:
-        if action == "proxy":
-            try:
-                programmer.load_proxy()
-            except FileNotFoundError as e:
-                raise SystemExit(e)
-        elif action == "gateware":
-            gateware_bin = artifact_path("gateware", "top.bin")
-            if not os.access(gateware_bin, os.R_OK):
-                bin_handle, gateware_bin = tempfile.mkstemp()
-                gateware_bit = artifact_path("gateware", "top.bit")
-                with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
-                    bit2bin(bit_file, bin_file)
-                atexit.register(lambda: os.unlink(gateware_bin))
+    try:
+        for action in args.action:
+            if action == "gateware":
+                gateware_bin = artifact_path("gateware", "top.bin")
+                if not os.access(gateware_bin, os.R_OK):
+                    bin_handle, gateware_bin = tempfile.mkstemp()
+                    gateware_bit = artifact_path("gateware", "top.bit")
+                    with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
+                        bit2bin(bit_file, bin_file)
+                    atexit.register(lambda: os.unlink(gateware_bin))
 
-            programmer.flash_binary(*config["gateware"], gateware_bin)
-        elif action == "bootloader":
-            bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
-            programmer.flash_binary(*config["bootloader"], bootloader_bin)
-        elif action == "storage":
-            storage_img = args.storage
-            programmer.flash_binary(*config["storage"], storage_img)
-        elif action == "firmware":
-            if variant == "satellite":
-                firmware = "satman"
-            else:
-                firmware = "runtime"
+                programmer.flash_binary(*config["gateware"], gateware_bin)
+            elif action == "bootloader":
+                bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
+                programmer.flash_binary(*config["bootloader"], bootloader_bin)
+            elif action == "storage":
+                storage_img = args.storage
+                programmer.flash_binary(*config["storage"], storage_img)
+            elif action == "firmware":
+                if variant == "satellite":
+                    firmware = "satman"
+                else:
+                    firmware = "runtime"
 
-            firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
-            programmer.flash_binary(*config["firmware"], firmware_fbi)
-        elif action == "load":
-            if args.target == "sayma_rtm":
-                gateware_bit = artifact_path("top.bit")
-                programmer.load(gateware_bit, 0)
-            elif args.target == "sayma_amc":
-                gateware_bit = artifact_path("gateware", "top.bit")
-                programmer.load(gateware_bit, 1)
+                firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
+                programmer.flash_binary(*config["firmware"], firmware_fbi)
+            elif action == "load":
+                if args.target == "sayma_rtm":
+                    gateware_bit = artifact_path("top.bit")
+                    programmer.load(gateware_bit, 0)
+                elif args.target == "sayma_amc":
+                    gateware_bit = artifact_path("gateware", "top.bit")
+                    programmer.load(gateware_bit, 1)
+                else:
+                    gateware_bit = artifact_path("gateware", "top.bit")
+                    programmer.load(gateware_bit, 0)
+            elif action == "start":
+                programmer.start()
             else:
-                gateware_bit = artifact_path("gateware", "top.bit")
-                programmer.load(gateware_bit, 0)
-        elif action == "start":
-            programmer.start()
-        else:
-            raise ValueError("invalid action", action)
+                raise ValueError("invalid action", action)
+    except FileNotFoundError as e:
+        raise SystemExit(e)
 
     if args.dry_run:
         print("\n".join(programmer.script()))
