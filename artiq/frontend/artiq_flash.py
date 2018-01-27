@@ -118,7 +118,7 @@ class Programmer:
             return re.sub(rb"\[find (.+?)\]", repl, content, re.DOTALL)
 
         script = os.path.join(scripts_path(), script)
-        return self._client.transfer_file(script, rewriter)
+        return self._client.upload(script, rewriter)
 
     def add_flash_bank(self, name, tap, index):
         add_commands(self._board_script,
@@ -133,7 +133,7 @@ class Programmer:
             return
         self._loaded[pld] = bitfile
 
-        bitfile = self._client.transfer_file(bitfile)
+        bitfile = self._client.upload(bitfile)
         add_commands(self._script,
             "pld load {pld} {filename}",
             pld=pld, filename=bitfile)
@@ -141,11 +141,11 @@ class Programmer:
     def load_proxy(self):
         raise NotImplementedError
 
-    def flash_binary(self, bankname, address, filename):
+    def write_binary(self, bankname, address, filename):
         self.load_proxy()
 
         size = os.path.getsize(filename)
-        filename = self._client.transfer_file(filename)
+        filename = self._client.upload(filename)
         add_commands(self._script,
             "flash probe {bankname}",
             "flash erase_sector {bankname} {firstsector} {lastsector}",
@@ -154,6 +154,15 @@ class Programmer:
             bankname=bankname, address=address, filename=filename,
             firstsector=address // self._sector_size,
             lastsector=(address + size - 1) // self._sector_size)
+
+    def read_binary(self, bankname, address, length, filename):
+        self.load_proxy()
+
+        filename = self._client.prepare_download(filename)
+        add_commands(self._script,
+            "flash probe {bankname}",
+            "flash read_bank {bankname} {filename} {address:#x} {length}",
+            bankname=bankname, filename=filename, address=address, length=length)
 
     def start(self):
         raise NotImplementedError
@@ -175,6 +184,9 @@ class Programmer:
 
         cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
         self._client.run_command(cmdline)
+        self._client.download()
+
+        self._script = []
 
 
 class ProgrammerXC7(Programmer):
@@ -304,13 +316,13 @@ def main():
                         bit2bin(bit_file, bin_file)
                     atexit.register(lambda: os.unlink(gateware_bin))
 
-                programmer.flash_binary(*config["gateware"], gateware_bin)
+                programmer.write_binary(*config["gateware"], gateware_bin)
             elif action == "bootloader":
                 bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
-                programmer.flash_binary(*config["bootloader"], bootloader_bin)
+                programmer.write_binary(*config["bootloader"], bootloader_bin)
             elif action == "storage":
                 storage_img = args.storage
-                programmer.flash_binary(*config["storage"], storage_img)
+                programmer.write_binary(*config["storage"], storage_img)
             elif action == "firmware":
                 if variant == "satellite":
                     firmware = "satman"
@@ -318,7 +330,7 @@ def main():
                     firmware = "runtime"
 
                 firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
-                programmer.flash_binary(*config["firmware"], firmware_fbi)
+                programmer.write_binary(*config["firmware"], firmware_fbi)
             elif action == "load":
                 if args.target == "sayma_rtm":
                     gateware_bit = artifact_path("top.bit")
