@@ -439,12 +439,13 @@ def main():
         description="Sayma AMC gateware and firmware builder")
     builder_args(parser)
     soc_sdram_args(parser)
+    parser.set_defaults(output_dir="artiq_sayma")
     parser.add_argument("-V", "--variant", default="standalone",
         help="variant: "
              "standalone/master/satellite "
              "(default: %(default)s)")
     parser.add_argument("--rtm-csr-csv",
-        default=os.path.join("artiq_sayma_rtm", "sayma_rtm_csr.csv"),
+        default=os.path.join("artiq_sayma", "rtm", "rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
     parser.add_argument("--without-sawg",
         default=False, action="store_true",

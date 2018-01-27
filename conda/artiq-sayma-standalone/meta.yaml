@@ -1,5 +1,5 @@
 package:
-  name: artiq-sayma_rtm
+  name: artiq-sayma-standalone
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -20,4 +20,4 @@ requirements:
 about:
   home: https://m-labs.hk/artiq
   license: LGPL
-  summary: 'Bitstream and CSR map for Sayma RTM'
+  summary: 'AMC and RTM bitstream, BIOS and runtime for stand-alone Sayma AMC'

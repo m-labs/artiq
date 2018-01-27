@@ -31,7 +31,7 @@ def get_argparser():
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kc705",
                         help="target to build, one of: "
-                             "kc705 kasli sayma_rtm sayma_amc")
+                             "kc705 kasli sayma")
     parser.add_argument("-g", "--build-gateware",
                         default=False, action="store_true",
                         help="build gateware, not just software")
@@ -71,14 +71,10 @@ def main():
     def build_dir(*path, target=args.target):
         return os.path.join("/tmp", target, *path)
 
-    extra_build_args = []
     if args.target == "kc705":
         board_type, firmware = "kc705", "runtime"
-    elif args.target == "sayma_amc":
-        board_type, firmware = "sayma_amc", "runtime"
-        extra_build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
-    elif args.target == "sayma_rtm":
-        board_type, firmware = "sayma_rtm", None
+    elif args.target == "sayma":
+        board_type, firmware = "sayma", "runtime"
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
@@ -132,6 +128,13 @@ def main():
             logger.error(on_failure)
             sys.exit(1)
 
+    def build(target, *extra_args, output_dir=build_dir()):
+        build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
+        if not args.build_gateware:
+            build_args.append("--no-compile-gateware")
+        build_args += ["--output-dir", output_dir]
+        command(*build_args, on_failure="Build failed")
+
     def flash(*steps):
         lock()
 
@@ -147,13 +150,11 @@ def main():
     for action in args.actions:
         if action == "build":
             logger.info("Building target")
-
-            build_args = ["python3", "-m", "artiq.gateware.targets." + args.target]
-            if not args.build_gateware:
-                build_args.append("--no-compile-gateware")
-            build_args += ["--output-dir", build_dir()]
-            build_args += extra_build_args
-            command(*build_args, on_failure="Build failed")
+            if args.target == "sayma":
+                build("sayma_rtm", output_dir=build_dir("rtm"))
+                build("sayma_amc", "--rtm-csr-csv", build_dir("rtm", "rtm_csr.csv"))
+            else:
+                build(args.target)
 
         elif action == "clean":
             logger.info("Cleaning build directory")

@@ -51,7 +51,7 @@ Prerequisites:
                         help="SSH host where the development board is located")
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
-                             "kc705 kasli sayma_amc sayma_rtm")
+                             "kc705 kasli sayma")
     parser.add_argument("-V", "--variant", default=None,
                         help="board variant")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
@@ -263,17 +263,13 @@ def main():
             "storage":    ("spi0", 0x440000),
             "firmware":   ("spi0", 0x450000),
         },
-        "sayma_amc": {
+        "sayma": {
             "programmer": ProgrammerSayma,
             "variants":   ["standalone", "master", "satellite"],
             "gateware":   ("spi0", 0x000000),
             "bootloader": ("spi1", 0x000000),
             "storage":    ("spi1", 0x040000),
             "firmware":   ("spi1", 0x050000),
-        },
-        "sayma_rtm": {
-            "programmer": ProgrammerSayma,
-            "gateware":   ("spi1", 0x150000),
         },
     }[args.target]
 
@@ -332,10 +328,9 @@ def main():
                 firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
                 programmer.write_binary(*config["firmware"], firmware_fbi)
             elif action == "load":
-                if args.target == "sayma_rtm":
-                    gateware_bit = artifact_path("top.bit")
-                    programmer.load(gateware_bit, 0)
-                elif args.target == "sayma_amc":
+                if args.target == "sayma":
+                    rtm_gateware_bit = artifact_path("rtm", "rtm.bit")
+                    programmer.load(rtm_gateware_bit, 0)
                     gateware_bit = artifact_path("gateware", "top.bit")
                     programmer.load(gateware_bit, 1)
                 else:

@@ -190,7 +190,7 @@ class SaymaRTM(Module):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
-    parser.add_argument("--output-dir", default="artiq_sayma_rtm",
+    parser.add_argument("--output-dir", default="artiq_sayma/rtm",
                         help="output directory for generated "
                              "source files and binaries")
     parser.add_argument("--no-compile-gateware", action="store_true",
@@ -205,11 +205,11 @@ def main():
     top = SaymaRTM(platform)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    with open(os.path.join(args.output_dir, "sayma_rtm_csr.csv"), "w") as f:
+    with open(os.path.join(args.output_dir, "rtm_csr.csv"), "w") as f:
         f.write(get_csr_csv(top.csr_regions))
 
     if not args.no_compile_gateware:
-        platform.build(top, build_dir=args.output_dir)
+        platform.build(top, build_dir=args.output_dir, build_name="rtm")
 
 
 if __name__ == "__main__":
