@@ -79,4 +79,5 @@ class KernelOverheadTest(ExperimentCase):
         exp = self.create(_KernelOverhead)
         kernel_overhead = exp.kernel_overhead()
         print(kernel_overhead, "s")
+        self.assertGreater(kernel_overhead, 0.001)
         self.assertLess(kernel_overhead, 0.5)
