@@ -329,7 +329,7 @@ def main():
                 programmer.write_binary(*config["firmware"], firmware_fbi)
             elif action == "load":
                 if args.target == "sayma":
-                    rtm_gateware_bit = artifact_path("rtm", "rtm.bit")
+                    rtm_gateware_bit = artifact_path("rtm_gateware", "rtm.bit")
                     programmer.load(rtm_gateware_bit, 0)
                     gateware_bit = artifact_path("gateware", "top.bit")
                     programmer.load(gateware_bit, 1)

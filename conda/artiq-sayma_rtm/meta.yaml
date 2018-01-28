@@ -1,5 +1,5 @@
 package:
-  name: artiq-sayma-standalone
+  name: artiq-sayma_rtm
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -14,11 +14,10 @@ build:
 requirements:
   build:
     - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_FULL_HASH", "")[:8]) if "GIT_DESCRIBE_TAG" in environ else "" }}
-    - artiq-sayma_rtm {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_FULL_HASH", "")[:8]) if "GIT_DESCRIBE_TAG" in environ else "" }}
   run:
     - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_FULL_HASH", "")[:8]) if "GIT_DESCRIBE_TAG" in environ else "" }}
 
 about:
   home: https://m-labs.hk/artiq
   license: LGPL
-  summary: 'Bitstream, BIOS and runtime for stand-alone Sayma AMC'
+  summary: 'Bitstream and CSR map for Sayma RTM'

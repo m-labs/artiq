@@ -151,8 +151,8 @@ def main():
         if action == "build":
             logger.info("Building target")
             if args.target == "sayma":
-                build("sayma_rtm", output_dir=build_dir("rtm"))
-                build("sayma_amc", "--rtm-csr-csv", build_dir("rtm", "rtm_csr.csv"))
+                build("sayma_rtm", output_dir=build_dir("rtm_gateware"))
+                build("sayma_amc", "--rtm-csr-csv", build_dir("rtm_gateware", "rtm_csr.csv"))
             else:
                 build(args.target)
 

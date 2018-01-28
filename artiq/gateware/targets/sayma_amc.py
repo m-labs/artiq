@@ -445,7 +445,7 @@ def main():
              "standalone/master/satellite "
              "(default: %(default)s)")
     parser.add_argument("--rtm-csr-csv",
-        default=os.path.join("artiq_sayma", "rtm", "rtm_csr.csv"),
+        default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
     parser.add_argument("--without-sawg",
         default=False, action="store_true",

@@ -190,7 +190,7 @@ class SaymaRTM(Module):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
-    parser.add_argument("--output-dir", default="artiq_sayma/rtm",
+    parser.add_argument("--output-dir", default="artiq_sayma/rtm_gateware",
                         help="output directory for generated "
                              "source files and binaries")
     parser.add_argument("--no-compile-gateware", action="store_true",
