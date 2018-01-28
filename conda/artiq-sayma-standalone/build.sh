@@ -2,7 +2,7 @@
 
 RTM_PREFIX=$SP_DIR/artiq/binaries/sayma_rtm
 
-SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/sayma-standalone
+SOC_PREFIX=$SP_DIR/artiq/binaries/sayma-standalone
 mkdir -p $SOC_PREFIX
 
 $PYTHON -m artiq.gateware.targets.sayma_amc -V standalone \

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/kasli-opticlock
+SOC_PREFIX=$SP_DIR/artiq/binaries/kasli-opticlock
 mkdir -p $SOC_PREFIX
 
 V=1 $PYTHON -m artiq.gateware.targets.kasli -V opticlock

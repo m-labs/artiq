@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/kc705-nist_qc2
+SOC_PREFIX=$SP_DIR/artiq/binaries/kc705-nist_qc2
 mkdir -p $SOC_PREFIX
 
 V=1 $PYTHON -m artiq.gateware.targets.kc705 -V nist_qc2

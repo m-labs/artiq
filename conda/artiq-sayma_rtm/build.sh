@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOC_PREFIX=$PREFIX/lib/python3.5/site-packages/artiq/binaries/sayma_rtm
+SOC_PREFIX=$SP_DIR/artiq/binaries/sayma_rtm
 mkdir -p $SOC_PREFIX
 
 $PYTHON -m artiq.gateware.targets.sayma_rtm
