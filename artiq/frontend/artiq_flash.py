@@ -23,7 +23,6 @@ def get_argparser():
         epilog="""\
 Valid actions:
 
-    * proxy: load the flash proxy gateware bitstream
     * gateware: write gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash

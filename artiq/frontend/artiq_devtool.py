@@ -166,11 +166,11 @@ def main():
 
         elif action == "flash":
             logger.info("Flashing and booting firmware")
-            flash("proxy", "bootloader", "firmware", "start")
+            flash("bootloader", "firmware", "start")
 
         elif action == "flash+log":
             logger.info("Flashing firmware")
-            flash("proxy", "bootloader", "firmware")
+            flash("bootloader", "firmware")
 
             flterm = client.spawn_command(["flterm", serial, "--output-only"])
             logger.info("Booting firmware")
