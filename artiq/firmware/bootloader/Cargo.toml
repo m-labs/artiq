@@ -1,0 +1,24 @@
+[package]
+authors = ["M-Labs"]
+name = "bootloader"
+version = "0.0.0"
+build = "build.rs"
+
+[lib]
+name = "bootloader"
+crate-type = ["staticlib"]
+path = "main.rs"
+
+[build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
+
+[dependencies]
+byteorder = { version = "1.0", default-features = false }
+crc = { version = "1.7", default-features = false }
+board = { path = "../libboard", features = ["uart_console", "smoltcp"] }
+
+[dependencies.smoltcp]
+git = "https://github.com/m-labs/smoltcp"
+rev = "181083f"
+default-features = false
+features = ["proto-ipv4", "socket-tcp"]
