@@ -241,6 +241,7 @@ class ProgrammerSayma(Programmer):
         self.add_flash_bank("spi1", "xcu", index=1)
 
         add_commands(self._script, "echo \"RTM FPGA XADC:\"", "xadc_report xc7.tap")
+        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
 
     def load_proxy(self):
         self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=1)
