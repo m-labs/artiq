@@ -109,7 +109,7 @@ class Programmer:
             "telnet_port disabled"
         ] + preinit_script
         self._loaded = defaultdict(lambda: None)
-        self._script = []
+        self._script = ["init"]
 
     def _transfer_script(self, script):
         if isinstance(self._client, LocalClient):
@@ -174,7 +174,6 @@ class Programmer:
         return [
             *self._board_script,
             *self._preinit_script,
-            "init",
             *self._script,
             "exit"
         ]
@@ -204,6 +203,8 @@ class ProgrammerXC7(Programmer):
             boardfile=self._transfer_script("board/{}.cfg".format(board)))
         self.add_flash_bank("spi0", "xc7", index=0)
 
+        add_commands(self._script, "xadc_report xc7.tap")
+
     def load_proxy(self):
         self.load(find_proxy_bitfile(self._proxy), pld=0)
 
@@ -219,6 +220,8 @@ class ProgrammerSayma(Programmer):
         Programmer.__init__(self, client, preinit_script)
 
         add_commands(self._board_script,
+            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
+
             "interface ftdi",
             "ftdi_device_desc \"Quad RS232-HS\"",
             "ftdi_vid_pid 0x0403 0x6011",
@@ -237,12 +240,13 @@ class ProgrammerSayma(Programmer):
         self.add_flash_bank("spi0", "xcu", index=0)
         self.add_flash_bank("spi1", "xcu", index=1)
 
+        add_commands(self._script, "echo \"RTM FPGA XADC:\"", "xadc_report xc7.tap")
+
     def load_proxy(self):
         self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=1)
 
     def start(self):
-        add_commands(self._script,
-            "xcu_program xcu.tap")
+        add_commands(self._script, "xcu_program xcu.tap")
 
 
 def main():
