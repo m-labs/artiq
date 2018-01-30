@@ -51,6 +51,10 @@ Prerequisites:
                         help="target adapter, default: %(default)s")
     parser.add_argument("--target-file", default=None,
                         help="use alternative OpenOCD target file")
+    parser.add_argument("-I", "--preinit-command", default=[], action="append",
+                        help="add a pre-initialization OpenOCD command. "
+                             "Useful for selecting a development board "
+                             "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
     parser.add_argument("action", metavar="ACTION", nargs="*",
@@ -84,6 +88,7 @@ def main():
     conv = False
 
     prog = []
+    prog.extend(opts.preinit_command)
     prog.append("init")
     for action in opts.action:
         if action == "proxy":
