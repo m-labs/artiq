@@ -103,7 +103,11 @@ class Programmer:
     def __init__(self, client, preinit_script):
         self._client = client
         self._board_script = []
-        self._preinit_script = preinit_script
+        self._preinit_script = [
+            "gdb_port disabled",
+            "tcl_port disabled",
+            "telnet_port disabled"
+        ] + preinit_script
         self._loaded = defaultdict(lambda: None)
         self._script = []
 
