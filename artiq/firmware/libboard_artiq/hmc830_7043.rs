@@ -180,10 +180,21 @@ mod hmc7043 {
         for &(addr, data) in HMC7043_WRITES.iter() {
             write(addr, data);
         }
-        /* sysref digital coarse delay configuration (18 steps, 1/2VCO cycle/step)*/
-        write(0x112, 0x0);
-        /* sysref analog fine delay configuration (24 steps, 25ps/step)*/
-        write(0x111, 0x0);
+
+        /* dac1 sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
+        write(0x0d6, 0);
+        /* dac1 sysref analog fine delay configuration (24 steps, 25ps/step)*/
+        write(0x0d5, 0);
+
+        /* dac2 sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
+        write(0x0ea, 0);
+        /* dac2 sysref analog fine delay configuration (24 steps, 25ps/step)*/
+        write(0x0e9, 0);
+
+        /* fpga sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
+        write(0x112, 0);
+        /* fpga sysref analog fine delay configuration (24 steps, 25ps/step)*/
+        write(0x111, 0);
 
         Ok(())
     }
