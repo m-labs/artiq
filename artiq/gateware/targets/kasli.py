@@ -248,7 +248,7 @@ class Master(MiniSoC, AMPSoC):
         phy = ttl_simple.Output(platform.request("sfp_ctl", 1).led)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        
+
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -381,6 +381,7 @@ def main():
         description="ARTIQ device binary builder for Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
+    parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("-V", "--variant", default="opticlock",
                         help="variant: opticlock/master/satellite "
                              "(default: %(default)s)")

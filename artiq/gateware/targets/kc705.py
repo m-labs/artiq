@@ -329,7 +329,7 @@ class NIST_CLOCK(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ififo_depth=128))
-            
+
         phy = spi.SPIMaster(platform.request("sdcard_spi_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
@@ -526,6 +526,7 @@ def main():
         description="KC705 gateware and firmware builder")
     builder_args(parser)
     soc_kc705_args(parser)
+    parser.set_defaults(output_dir="artiq_kc705")
     parser.add_argument("-V", "--variant", default="nist_clock",
                         help="variant: "
                              "nist_clock/nist_qc2/sma_spi "

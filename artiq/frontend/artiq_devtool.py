@@ -14,6 +14,7 @@ import threading
 import os
 import shutil
 import re
+import shlex
 
 from artiq.tools import verbosity_args, init_logger
 from artiq.remoting import SSHClient
@@ -32,9 +33,16 @@ def get_argparser():
                         type=str, default="kc705",
                         help="target to build, one of: "
                              "kc705 kasli sayma")
+    parser.add_argument("-V", "--variant", metavar="VARIANT",
+                        type=str, default=None,
+                        help="variant to build, dependent on the target")
     parser.add_argument("-g", "--build-gateware",
                         default=False, action="store_true",
                         help="build gateware, not just software")
+    parser.add_argument("--args", metavar="ARGS",
+                        type=shlex.split, default=[],
+                        help="extra arguments for gateware/firmware build")
+
     parser.add_argument("-H", "--host",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
@@ -69,7 +77,7 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     def build_dir(*path, target=args.target):
-        return os.path.join("/tmp", target, *path)
+        return os.path.join("/tmp/", "artiq_" + target, *path)
 
     if args.target == "kc705":
         board_type, firmware = "kc705", "runtime"
@@ -122,16 +130,19 @@ def main():
                     sys.exit(1)
 
     def command(*args, on_failure="Command failed"):
+        logger.debug("Running {}".format(" ".join([shlex.quote(arg) for arg in args])))
         try:
             subprocess.check_call(args)
         except subprocess.CalledProcessError:
             logger.error(on_failure)
             sys.exit(1)
 
-    def build(target, *extra_args, output_dir=build_dir()):
+    def build(target, *extra_args, output_dir=build_dir(), variant=args.variant):
         build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
         if not args.build_gateware:
             build_args.append("--no-compile-gateware")
+        if variant:
+            build_args += ["--variant", args.variant]
         build_args += ["--output-dir", output_dir]
         command(*build_args, on_failure="Build failed")
 
@@ -141,9 +152,12 @@ def main():
         flash_args = ["artiq_flash"]
         for _ in range(args.verbose):
             flash_args.append("-v")
-        flash_args += ["-H", args.host, "-t", board_type]
+        flash_args += ["-H", args.host]
+        flash_args += ["-t", board_type]
+        if args.variant:
+            flash_args += ["-V", args.variant]
+        flash_args += ["-I", "source {}".format(board_file)]
         flash_args += ["--srcbuild", build_dir()]
-        flash_args += ["--preinit-command", "source {}".format(board_file)]
         flash_args += steps
         command(*flash_args, on_failure="Flashing failed")
 
@@ -151,7 +165,7 @@ def main():
         if action == "build":
             logger.info("Building target")
             if args.target == "sayma":
-                build("sayma_rtm", output_dir=build_dir("rtm_gateware"))
+                build("sayma_rtm", output_dir=build_dir("rtm_gateware"), variant=None)
                 build("sayma_amc", "--rtm-csr-csv", build_dir("rtm_gateware", "rtm_csr.csv"))
             else:
                 build(args.target)

@@ -312,17 +312,17 @@ def main():
     try:
         for action in args.action:
             if action == "gateware":
-                gateware_bin = artifact_path("gateware", "top.bin")
+                gateware_bin = artifact_path(variant, "gateware", "top.bin")
                 if not os.access(gateware_bin, os.R_OK):
                     bin_handle, gateware_bin = tempfile.mkstemp()
-                    gateware_bit = artifact_path("gateware", "top.bit")
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
                     with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
                         bit2bin(bit_file, bin_file)
                     atexit.register(lambda: os.unlink(gateware_bin))
 
                 programmer.write_binary(*config["gateware"], gateware_bin)
             elif action == "bootloader":
-                bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
+                bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
                 programmer.write_binary(*config["bootloader"], bootloader_bin)
             elif action == "storage":
                 storage_img = args.storage
@@ -333,16 +333,16 @@ def main():
                 else:
                     firmware = "runtime"
 
-                firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
+                firmware_fbi = artifact_path(variant, "software", firmware, firmware + ".fbi")
                 programmer.write_binary(*config["firmware"], firmware_fbi)
             elif action == "load":
                 if args.target == "sayma":
                     rtm_gateware_bit = artifact_path("rtm_gateware", "rtm.bit")
                     programmer.load(rtm_gateware_bit, 0)
-                    gateware_bit = artifact_path("gateware", "top.bit")
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
                     programmer.load(gateware_bit, 1)
                 else:
-                    gateware_bit = artifact_path("gateware", "top.bit")
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
                     programmer.load(gateware_bit, 0)
             elif action == "start":
                 programmer.start()
