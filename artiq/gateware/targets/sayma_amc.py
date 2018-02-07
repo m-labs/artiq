@@ -160,9 +160,10 @@ class Standalone(MiniSoC, AMPSoC):
         ]
 
         # RTM bitstream upload
-        rtm_fpga_cfg = platform.request("rtm_fpga_cfg")
-        self.submodules.rtm_fpga_cfg = SlaveFPGA(rtm_fpga_cfg)
-        self.csr_devices.append("rtm_fpga_cfg")
+        # https://github.com/m-labs/artiq/issues/908#issuecomment-363650534
+        #rtm_fpga_cfg = platform.request("rtm_fpga_cfg")
+        #self.submodules.rtm_fpga_cfg = SlaveFPGA(rtm_fpga_cfg)
+        #self.csr_devices.append("rtm_fpga_cfg")
 
         # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 625e6, vco_div=2)
