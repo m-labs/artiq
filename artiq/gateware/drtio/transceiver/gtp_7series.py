@@ -111,6 +111,7 @@ class GTPSingle(Module):
 
                 # RX Startup/Reset
                 i_GTRXRESET=rx_init.gtrxreset,
+                i_RXPD=Cat(rx_init.gtrxpd, rx_init.gtrxpd),
                 o_RXRESETDONE=rx_init.rxresetdone,
                 i_RXDLYSRESET=rx_init.rxdlysreset,
                 o_RXDLYSRESETDONE=rx_init.rxdlysresetdone,
