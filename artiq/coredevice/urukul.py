@@ -22,7 +22,6 @@ _SPIT_DDS_RD = 16
 CFG_RF_SW = 0
 CFG_LED = 4
 CFG_PROFILE = 8
-CFG_ATT_LE = 11
 CFG_IO_UPDATE = 12
 CFG_MASK_NU = 16
 CFG_CLK_SEL = 17
@@ -32,10 +31,10 @@ CFG_IO_RST = 20
 
 
 @kernel
-def urukul_cfg(rf_sw, led, profile, att_le, io_update, mask_nu,
+def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
         clk_sel, sync_sel, rst, io_rst):
     return ((rf_sw << CFG_RF_SW) | (led << CFG_LED) |
-            (profile << CFG_PROFILE) | (att_le << CFG_ATT_LE) |
+            (profile << CFG_PROFILE) |
             (io_update << CFG_IO_UPDATE) | (mask_nu << CFG_MASK_NU) |
             (clk_sel << CFG_CLK_SEL) | (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) | (io_rst << CFG_IO_RST))
@@ -75,7 +74,7 @@ def urukul_sta_proto_rev(sta):
 
 
 # supported hardware and CPLD code version
-STA_PROTO_REV_MATCH = 0x06
+STA_PROTO_REV_MATCH = 0x07
 
 # chip select (decoded)
 CS_CFG = 1
@@ -122,7 +121,7 @@ class CPLD:
 
     @kernel
     def init(self, clk_sel=0, sync_sel=0):
-        cfg = urukul_cfg(rf_sw=0, led=0, profile=0, att_le=0,
+        cfg = urukul_cfg(rf_sw=0, led=0, profile=0,
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
         self.cfg_write(cfg | (1 << CFG_RST) | (1 << CFG_IO_RST))
@@ -164,8 +163,6 @@ class CPLD:
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_ATT_WR, _SPIT_ATT_RD)
         self.bus.set_xfer(CS_ATT, 32, 0)
         self.bus.write(a)
-        self.cfg_write(self.cfg_reg | (1 << CFG_ATT_LE))
-        self.cfg_write(self.cfg_reg & ~(1 << CFG_ATT_LE))
 
     @kernel
     def set_att(self, channel, att):
