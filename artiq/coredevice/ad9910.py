@@ -64,7 +64,7 @@ class AD9910:
     def write32(self, addr, data):
         self.bus.set_xfer(self.chip_select, 8, 0)
         self.bus.write(addr << 24)
-        delay_mu(-self.bus.xfer_period_mu)
+        delay_mu(-self.bus.xfer_period_mu + 8)
         self.bus.set_xfer(self.chip_select, 32, 0)
         self.bus.write(data)
         delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
@@ -74,7 +74,7 @@ class AD9910:
         self.bus.set_xfer(self.chip_select, 8, 0)
         self.bus.write(addr << 24)
         t = self.bus.xfer_period_mu
-        delay_mu(-t)
+        delay_mu(-t + 8)
         self.bus.set_xfer(self.chip_select, 32, 0)
         self.bus.write(data_high)
         self.bus.write(data_low)
@@ -84,7 +84,7 @@ class AD9910:
     def read32(self, addr):
         self.bus.set_xfer(self.chip_select, 8, 0)
         self.bus.write((addr | 0x80) << 24)
-        delay_mu(-self.bus.xfer_period_mu)
+        delay_mu(-self.bus.xfer_period_mu + 8)
         self.bus.set_xfer(self.chip_select, 0, 32)
         self.bus.write(0)
         delay_mu(2*self.bus.xfer_period_mu)
