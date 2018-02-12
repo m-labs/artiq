@@ -70,11 +70,11 @@ def urukul_sta_ifc_mode(sta):
 
 @kernel
 def urukul_sta_proto_rev(sta):
-    return (sta >> STA_PROTO_REV) & 0xff
+    return (sta >> STA_PROTO_REV) & 0x7f
 
 
 # supported hardware and CPLD code version
-STA_PROTO_REV_MATCH = 0x07
+STA_PROTO_REV_MATCH = 0x08
 
 # chip select (decoded)
 CS_CFG = 1
@@ -112,7 +112,6 @@ class CPLD:
 
     @kernel
     def sta_read(self):
-        self.cfg_write(self.cfg_reg)  # to latch STA
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_CFG_WR, _SPIT_CFG_RD)
         self.bus.set_xfer(CS_CFG, 0, 24)
         self.bus.write(self.cfg_reg << 8)
