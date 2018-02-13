@@ -8,6 +8,7 @@ from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
+from migen.genlib.io import DifferentialOutput
 
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
@@ -231,7 +232,7 @@ class Opticlock(_StandaloneBase):
         platform.add_extension(_dio("eem1"))
         platform.add_extension(_dio("eem2"))
         platform.add_extension(_novogorny("eem3"))
-        platform.add_extension(_urukul("eem4", "eem5"))
+        platform.add_extension(_urukul("eem5", "eem4"))
 
         # EEM clock fan-out from Si5324, not MMCX
         self.comb += platform.request("clk_sel").eq(1)
@@ -259,13 +260,16 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = spi.SPIMaster(self.platform.request("eem4_spi_p"),
-                self.platform.request("eem4_spi_n"))
+        phy = spi.SPIMaster(self.platform.request("eem5_spi_p"),
+                self.platform.request("eem5_spi_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        for signal in "io_update dds_reset sw0 sw1 sw2 sw3".split():
-            pads = platform.request("eem4_{}".format(signal))
+        pads = platform.request("eem5_dds_reset")
+        self.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        for signal in "io_update sw0 sw1 sw2 sw3".split():
+            pads = platform.request("eem5_{}".format(signal))
             phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
