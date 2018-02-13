@@ -61,10 +61,10 @@ class CRG(Module):
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
 
-class RTMIdentifier(Module, AutoCSR):
+class RTMMagic(Module, AutoCSR):
     def __init__(self):
-        self.identifier = CSRStatus(32)
-        self.comb += self.identifier.status.eq(0x5352544d)  # "SRTM"
+        self.magic = CSRStatus(32)
+        self.comb += self.magic.status.eq(0x5352544d)  # "SRTM"
 
 
 CSR_RANGE_SIZE = 0x800
@@ -83,8 +83,8 @@ class SaymaRTM(Module):
         self.submodules.crg = CRG(platform)
         clk_freq = 125e6
 
-        self.submodules.rtm_identifier = RTMIdentifier()
-        csr_devices.append("rtm_identifier")
+        self.submodules.rtm_magic = RTMMagic()
+        csr_devices.append("rtm_magic")
 
         # clock mux: 100MHz ext SMA clock to HMC830 input
         self.submodules.clock_mux = gpio.GPIOOut(Cat(

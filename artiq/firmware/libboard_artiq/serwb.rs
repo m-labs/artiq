@@ -38,12 +38,12 @@ pub fn wait_init() {
     }
     info!("done.");
 
-    // Try reading the identifier register on the other side of the bridge.
-    let rtm_identifier = unsafe {
-        csr::rtm_identifier::identifier_read()
+    // Try reading the magic number register on the other side of the bridge.
+    let rtm_magic = unsafe {
+        csr::rtm_magic::magic_read()
     };
-    if rtm_identifier != 0x5352544d {
-        error!("incorrect RTM identifier: 0x{:08x}", rtm_identifier);
+    if rtm_magic != 0x5352544d {
+        error!("incorrect RTM magic number: 0x{:08x}", rtm_magic);
         // proceed anyway
     }
 
