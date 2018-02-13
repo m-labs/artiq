@@ -49,20 +49,6 @@ class UrukulTest(EnvExperiment):
 
         i = 0
         j = 0
-        while True:
-            delay(13*us)
-            self.urukul0_ch0.write32(0x07, i)
-            self.urukul0_cpld.io_update.pulse(10*ns)
-            k = self.urukul0_ch0.read32(0x07)
-            delay(100*us)
-            if k != i:
-                #print(i)
-                #print(k)
-                #if j > 20:
-                #    return
-                j += 1
-                #delay(20*ms)
-            i += 1
 
         while True:
             self.urukul0_ch0.sw.pulse(5*ms)
