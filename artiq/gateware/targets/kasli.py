@@ -146,6 +146,79 @@ def _dio(eem):
         for i in range(8)]
 
 
+def _novogorny(eem):
+    return [
+        ("{}_spi_p".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_p {0}:{1[1]}_p".format(
+                eem, [_eem_signal(i + 3) for i in range(2)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_spi_n".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_n {0}:{1[1]}_n".format(
+                eem, [_eem_signal(i + 3) for i in range(2)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ] + [
+            ("{}_{}".format(eem, sig), 0,
+                Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
+                Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+                IOStandard("LVDS_25")
+            ) for i, j, sig in [
+                (5, eem, "conv"),
+                (6, eem, "bosy"),
+                (7, eem, "scko"),
+            ]
+        ]
+
+
+def _urukul(eem, eem_aux):
+    return [
+        ("{}_spi_p".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_p {0}:{1[1]}_p {0}:{1[2]}_p".format(
+                eem, [_eem_signal(i + 3) for i in range(3)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_spi_n".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_n {0}:{1[1]}_n {0}:{1[2]}_n".format(
+                eem, [_eem_signal(i + 3) for i in range(3)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ] + [
+            ("{}_{}".format(eem, sig), 0,
+                Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
+                Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+                IOStandard("LVDS_25")
+            ) for i, j, sig in [
+                (6, eem, "io_update"),
+                (7, eem, "dds_reset"),
+                (0, eem_aux, "sync_clk"),
+                (1, eem_aux, "sync_in"),
+                (2, eem_aux, "io_update_ret"),
+                (3, eem_aux, "nu_mosi3"),
+                (4, eem_aux, "sw0"),
+                (5, eem_aux, "sw1"),
+                (6, eem_aux, "sw2"),
+                (7, eem_aux, "sw3")
+            ]
+        ]
+
+
 class Opticlock(_StandaloneBase):
     """
     Opticlock extension variant configuration
@@ -157,19 +230,45 @@ class Opticlock(_StandaloneBase):
         platform.add_extension(_dio("eem0"))
         platform.add_extension(_dio("eem1"))
         platform.add_extension(_dio("eem2"))
-        # platform.add_extension(_urukul("eem3", "eem4"))
-        # platform.add_extension(_novogorny("eem5"))
+        platform.add_extension(_novogorny("eem3"))
+        platform.add_extension(_urukul("eem4", "eem5"))
 
         # EEM clock fan-out from Si5324, not MMCX
         self.comb += platform.request("clk_sel").eq(1)
 
         rtio_channels = []
-        for eem in "eem0 eem1 eem2".split():
-            for i in range(8):
-                phy = ttl_serdes_7series.Output_8X(
-                        platform.request(eem, i))
-                self.submodules += phy
-                rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(24):
+            eem, port = divmod(i, 8)
+            pads = platform.request("eem{}".format(eem), port)
+            if i < 4:
+                cls = ttl_serdes_7series.InOut_8X
+            else:
+                cls = ttl_serdes_7series.Output_8X
+            phy = cls(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi.SPIMaster(self.platform.request("eem3_spi_p"),
+                self.platform.request("eem3_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for signal in "conv".split():
+            pads = platform.request("eem3_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi.SPIMaster(self.platform.request("eem4_spi_p"),
+                self.platform.request("eem4_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for signal in "io_update dds_reset sw0 sw1 sw2 sw3".split():
+            pads = platform.request("eem4_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         for i in (1, 2):
             sfp_ctl = platform.request("sfp_ctl", i)
