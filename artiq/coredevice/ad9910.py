@@ -149,7 +149,7 @@ class AD9910:
         raise ValueError("PLL failed to lock")
 
     @kernel
-    def set_mu(self, ftw, pow=0, asf=0x3fff):
+    def set_mu(self, ftw=int32(0), pow=int32(0), asf=int32(0x3fff)):
         """Set profile 0 data in machine units.
 
         After the SPI transfer, the shared IO update pin is pulsed to
@@ -195,8 +195,10 @@ class AD9910:
                     self.amplitude_to_asf(amplitude))
 
     @kernel
-    def set_att_mu(self, att):
+    def set_att_mu(self, att=int32(0)):
         """Set digital step attenuator in machine units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att_mu`
 
         :param att: Attenuation setting, 8 bit digital.
         """
@@ -205,6 +207,8 @@ class AD9910:
     @kernel
     def set_att(self, att):
         """Set digital step attenuator in SI units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att`
 
         :param att: Attenuation in dB.
         """

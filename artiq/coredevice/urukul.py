@@ -87,6 +87,15 @@ CS_DDS_CH3 = 7
 
 
 class CPLD:
+    """Urukul CPLD SPI router and configuration interface.
+
+    :param spi_device: SPI bus device name
+    :param io_update_device: IO update RTIO TTLOut channel name
+    :param dds_reset_device: DDS reset RTIO TTLOut channel name
+    :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
+        frequency in Hz
+    :param core_device: Core device name
+    """
     def __init__(self, dmgr, spi_device, io_update_device,
             dds_reset_device=None,
             refclk=100e6, core_device="core"):
@@ -103,12 +112,17 @@ class CPLD:
         self.att_reg = int32(0)
 
     @kernel
-    def cfg_write(self, cfg_reg):
+    def cfg_write(self, data=int32(0)):
+        """Write to the configuration register.
+
+        :param data: 24 bit data to be written. Will be stored at
+            :attr:`cfg_reg`.
+        """
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_CFG_WR, _SPIT_CFG_RD)
         self.bus.set_xfer(CS_CFG, 24, 0)
-        self.bus.write(cfg_reg << 8)
+        self.bus.write(data << 8)
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_DDS_WR, _SPIT_DDS_RD)
-        self.cfg_reg = cfg_reg
+        self.cfg_reg = data
 
     @kernel
     def sta_read(self):
@@ -150,11 +164,12 @@ class CPLD:
         self.cfg_write(c)
 
     @kernel
-    def set_att_mu(self, channel, att):
-        """
-        Parameters:
-            att (int): 0-255, 255 minimum attenuation,
-                0 maximum attenuation (31.5 dB)
+    def set_att_mu(self, channel=int32(0), att=int32(0)):
+        """Set digital step attenuator in machine units.
+
+        :param channel: Attenuator channel (0-3).
+        :param att: Digital attenuation setting:
+            255 minimum attenuation, 0 maximum attenuation (31.5 dB)
         """
         a = self.att_reg & ~(0xff << (channel * 8))
         a |= att << (channel * 8)
@@ -165,4 +180,9 @@ class CPLD:
 
     @kernel
     def set_att(self, channel, att):
+        """Set digital step attenuator in SI units.
+
+        :param channel: Attenuator channel (0-3).
+        :param att: Attenuation in dB.
+        """
         self.set_att_mu(channel, 255 - int32(round(att*8)))

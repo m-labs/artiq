@@ -7,11 +7,19 @@ from numpy import int32, int64
 
 class AD9912:
     """
-    Support for the AD9912 DDS on Urukul
+    AD9912 DDS channel on Urukul
 
-    :param chip_select: Chip select configuration.
+    This class supports a single DDS channel and exposes the DDS,
+    the digital step attenuator, and the RF switch.
+
+    :param chip_select: Chip select configuration. On Urukul this is an
+        encoded chip select and not "one-hot".
     :param cpld_device: Name of the Urukul CPLD this device is on.
-    :param sw_device: Name of the RF switch device.
+    :param sw_device: Name of the RF switch device. The RF switch is a
+        TTLOut channel available as the :attr:`sw` attribute of this instance.
+    :param pll_n: DDS PLL multiplier. The DDS sample clock is
+        f_ref*pll_n where f_ref is the reference frequency (set in the parent
+        Urukul CPLD instance).
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus", "sw",
             "ftw_per_hz", "sysclk", "pll_n"}
@@ -27,10 +35,17 @@ class AD9912:
             self.sw = dmgr.get(sw_device)
         self.pll_n = pll_n
         self.sysclk = self.cpld.refclk*pll_n
+        assert self.sysclk < 1e9
         self.ftw_per_hz = 1/self.sysclk*(int64(1) << 48)
 
     @kernel
-    def write(self, addr, data, length=1):
+    def write(self, addr=int32(0), data=int32(0), length=int32(1)):
+        """Variable length write to a register. Up to 32 bits.
+
+        :param addr: Register address
+        :param data: Data to be written: int32
+        :param length: Length in bytes (1-4)
+        """
         assert length > 0
         assert length <= 4
         self.bus.set_xfer(self.chip_select, 16, 0)
@@ -41,7 +56,12 @@ class AD9912:
         delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
 
     @kernel
-    def read(self, addr, length=1):
+    def read(self, addr=int32(0), length=int32(1)):
+        """Variable length read from a register. Up to 32 bits.
+
+        :param addr: Register address
+        :param length: Length in bytes (1-4)
+        """
         assert length > 0
         assert length <= 4
         self.bus.set_xfer(self.chip_select, 16, 0)
@@ -57,8 +77,11 @@ class AD9912:
 
     @kernel
     def init(self):
+        """Initialize and configure the DDS."""
         t = now_mu()
+        # SPI mode
         self.write(AD9912_SER_CONF, 0x99)
+        # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, length=2)
         if (prodid != 0x1982) and (prodid != 0x1902):
             raise ValueError("Urukul AD9912 product id mismatch")
@@ -69,19 +92,39 @@ class AD9912:
         delay(10*us)
         self.write(AD9912_PLLCFG, 0b00000101)  # 375 µA, high range
         at_mu(t)
-        delay(100*us)
+        delay(100*us)  # constant duration of 100 µs
 
     @kernel
     def set_att_mu(self, att):
+        """Set digital step attenuator in machine units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att_mu`
+
+        :param att: Attenuation setting, 8 bit digital.
+        """
         self.cpld.set_att_mu(self.chip_select - 4, att)
 
     @kernel
     def set_att(self, att):
+        """Set digital step attenuator in SI units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att`
+
+        :param att: Attenuation in dB.
+        """
         self.cpld.set_att(self.chip_select - 4, att)
 
     @kernel
     def set_mu(self, ftw=int64(0), pow=int32(0)):
-        # do a streaming transfer of FTW and POW
+        """Set profile 0 data in machine units.
+
+        After the SPI transfer, the shared IO update pin is pulsed to
+        activate the data.
+
+        :param ftw: Frequency tuning word: 32 bit unsigned.
+        :param pow: Phase tuning word: 16 bit unsigned.
+        """
+        # streaming transfer of FTW and POW
         self.bus.set_xfer(self.chip_select, 16, 0)
         self.bus.write((AD9912_POW1 << 16) | (3 << 29))
         delay_mu(-self.bus.xfer_period_mu)
@@ -107,5 +150,12 @@ class AD9912:
 
     @kernel
     def set(self, frequency, phase=0.0):
+        """Set profile 0 data in SI units.
+
+        .. seealso:: :meth:`set_mu`
+
+        :param ftw: Frequency in Hz
+        :param pow: Phase tuning word in turns
+        """
         self.set_mu(self.frequency_to_ftw(frequency),
             self.turns_to_pow(phase))
