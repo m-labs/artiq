@@ -81,8 +81,10 @@ def main():
 
     if args.target == "kc705":
         board_type, firmware = "kc705", "runtime"
+        variant = "nist_clock" if args.variant is None else args.variant
     elif args.target == "sayma":
         board_type, firmware = "sayma", "runtime"
+        variant = "standalone" if args.variant is None else args.variant
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
@@ -137,12 +139,12 @@ def main():
             logger.error(on_failure)
             sys.exit(1)
 
-    def build(target, *extra_args, output_dir=build_dir(), variant=args.variant):
+    def build(target, *extra_args, output_dir=build_dir(), variant=variant):
         build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
         if not args.build_gateware:
             build_args.append("--no-compile-gateware")
         if variant:
-            build_args += ["--variant", args.variant]
+            build_args += ["--variant", variant]
         build_args += ["--output-dir", output_dir]
         command(*build_args, on_failure="Build failed")
 
@@ -154,8 +156,7 @@ def main():
             flash_args.append("-v")
         flash_args += ["-H", args.host]
         flash_args += ["-t", board_type]
-        if args.variant:
-            flash_args += ["-V", args.variant]
+        flash_args += ["-V", variant]
         flash_args += ["-I", "source {}".format(board_file)]
         flash_args += ["--srcbuild", build_dir()]
         flash_args += steps
@@ -248,7 +249,7 @@ def main():
 
         elif action == "hotswap":
             logger.info("Hotswapping firmware")
-            firmware = build_dir("software", firmware, firmware + ".bin")
+            firmware = build_dir(variant, "software", firmware, firmware + ".bin")
             command("artiq_coreboot", "hotswap", firmware,
                     on_failure="Hotswapping failed")
 
