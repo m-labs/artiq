@@ -94,15 +94,28 @@ fn startup() {
         }
     }
 
-    // fn _net_trace_writer<U>(timestamp: u64, printer: smoltcp::wire::PrettyPrinter<U>)
-    //         where U: smoltcp::wire::pretty_print::PrettyPrint {
-    //     let seconds = timestamp / 1000;
-    //     let micros  = timestamp % 1000 * 1000;
-    //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
-    // }
-
     let net_device = unsafe { ethmac::EthernetDevice::new() };
-    // let net_device = smoltcp::phy::EthernetTracer::new(net_device, _net_trace_writer);
+
+    let net_device = {
+        use smoltcp::wire::PrettyPrinter;
+        use smoltcp::wire::EthernetFrame;
+
+        fn net_trace_writer(timestamp: u64, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
+            let seconds = timestamp / 1000;
+            let micros  = timestamp % 1000 * 1000;
+            print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
+        }
+
+        fn net_trace_silent(_timestamp: u64, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
+
+        let net_trace_fn: fn(u64, PrettyPrinter<EthernetFrame<&[u8]>>);
+        match config::read_str("net_trace", |r| r.map(|s| s == "1")) {
+            Ok(true) => net_trace_fn = net_trace_writer,
+            _ => net_trace_fn = net_trace_silent
+        }
+        smoltcp::phy::EthernetTracer::new(net_device, net_trace_fn)
+    };
+
     let mut neighbor_cache_storage = [None; 8];
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(&mut neighbor_cache_storage[..]);
