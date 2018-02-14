@@ -47,23 +47,6 @@ class UrukulTest(EnvExperiment):
         self.urukul0_ch3.sw.on()
         self.urukul0_ch3.set_att(20.)
 
-        i = 0
-        j = 0
-
         while True:
             self.urukul0_ch0.sw.pulse(5*ms)
             delay(5*ms)
-
-        while False:
-            self.led0.pulse(.5*s)
-            delay(.5*s)
-
-    @kernel
-    def test_att_noise(self, n=1024):
-        bus = self.urukul0_cpld.bus
-        bus.set_config_mu(_SPI_CONFIG, _SPIT_ATT_WR, _SPIT_ATT_RD)
-        bus.set_xfer(CS_ATT, 32, 0)
-        for i in range(n):
-            delay(5*us)
-            bus.write(self.att_reg)
-        bus.set_config_mu(_SPI_CONFIG, _SPIT_DDS_WR, _SPIT_DDS_RD)
