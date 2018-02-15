@@ -174,19 +174,6 @@ fn process_errors() {
     }
 }
 
-
-#[cfg(rtio_frequency = "62.5")]
-const SI5324_SETTINGS: si5324::FrequencySettings
-        = si5324::FrequencySettings {
-    n1_hs  : 10,
-    nc1_ls : 8,
-    n2_hs  : 10,
-    n2_ls  : 20112,
-    n31    : 2514,
-    n32    : 4597,
-    bwsel  : 4
-};
-
 #[cfg(rtio_frequency = "150.0")]
 const SI5324_SETTINGS: si5324::FrequencySettings
         = si5324::FrequencySettings {
