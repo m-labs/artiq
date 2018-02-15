@@ -104,6 +104,8 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_SOFT_RESET"] = None
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
@@ -227,6 +229,10 @@ class Opticlock(_StandaloneBase):
     def __init__(self, **kwargs):
         _StandaloneBase.__init__(self, **kwargs)
 
+        self.config["SI5324_FREE_RUNNING"] = None
+        self.config["SI5324_EXT_REF"] = None
+        self.config["RTIO_FREQUENCY"] = "125.0"
+
         platform = self.platform
         platform.add_extension(_dio("eem0"))
         platform.add_extension(_dio("eem1"))
@@ -318,6 +324,7 @@ class Master(MiniSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_SOFT_RESET"] = None
         self.config["SI5324_FREE_RUNNING"] = None
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         self.comb += platform.request("sfp_ctl", 2).tx_disable.eq(0)
         self.submodules.transceiver = gtp_7series.GTP(

@@ -110,7 +110,20 @@ fn startup() {
 #[cfg(si5324_free_running)]
 fn setup_si5324_free_running()
 {
-    // 150MHz output (hardcoded)
+    // 125MHz output, from 10MHz CLKIN2 reference
+    #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
+        n1_hs  : 10,
+        nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 300,
+        n31    : 75,
+        n32    : 6,
+        bwsel  : 10
+    };
+    // 150MHz output, from crystal
+    #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 9,
