@@ -9,12 +9,14 @@ from migen.build.platforms.sinara import sayma_rtm
 
 from misoc.interconnect import wishbone, stream
 from misoc.interconnect.csr import *
+from misoc.cores import identifier
 from misoc.cores import spi
 from misoc.cores import gpio
 from misoc.integration.wb_slaves import WishboneSlaveManager
 from misoc.integration.cpu_interface import get_csr_csv
 
 from artiq.gateware import serwb
+from artiq import __version__ as artiq_version
 
 
 class CRG(Module):
@@ -85,6 +87,8 @@ class SaymaRTM(Module):
 
         self.submodules.rtm_magic = RTMMagic()
         csr_devices.append("rtm_magic")
+        self.submodules.rtm_identifier = identifier.Identifier(artiq_version)
+        csr_devices.append("rtm_identifier")
 
         # clock mux: 100MHz ext SMA clock to HMC830 input
         self.submodules.clock_mux = gpio.GPIOOut(Cat(
