@@ -113,7 +113,8 @@ mod hmc830 {
                     if addr == 0x0d || addr == 0x0e { continue; }
                     error!("[0x{:02x}] = 0x{:04x}", addr, read(addr));
                 }
-                return Err("HMC830 lock timeout");
+            //    return Err("HMC830 lock timeout");
+                break;
             }
         }
 
@@ -124,9 +125,7 @@ mod hmc830 {
 mod hmc7043 {
     use board::csr;
     
-    // To do:
-    //   - check input and output resistors
-    //   - check which output channels we actually need
+    // To do: check which output channels we actually need
     const DAC_CLK_DIV: u32 = 2;
     const FPGA_CLK_DIV: u32 = 8;
     const SYSREF_DIV: u32 = 128;
@@ -206,7 +205,7 @@ mod hmc7043 {
 
         write(0x1, 0x40);  // Enable high-performace/low-noise mode
         write(0x3, 0x10);  // Disable SYSREF timer
-        write(0xA, 0x10);  // Disable the REFSYNCIN input
+        write(0xA, 0x06);  // Disable the REFSYNCIN input
         write(0xB, 0x07);  // Enable the CLKIN input as LVPECL
         write(0x50, 0x1f); // Disable GPO pin
         write(0x9F, 0x4d); // Unexplained high-performance mode
