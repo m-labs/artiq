@@ -8,6 +8,7 @@ import shutil
 import re
 import atexit
 from functools import partial
+from collections import defaultdict
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import verbosity_args, init_logger
@@ -22,7 +23,6 @@ def get_argparser():
         epilog="""\
 Valid actions:
 
-    * proxy: load the flash proxy gateware bitstream
     * gateware: write gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash
@@ -50,8 +50,8 @@ Prerequisites:
                         help="SSH host where the development board is located")
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
-                             "kc705 kasli sayma_amc sayma_rtm")
-    parser.add_argument("-m", "--variant", default=None,
+                             "kc705 kasli sayma")
+    parser.add_argument("-V", "--variant", default=None,
                         help="board variant")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
@@ -62,7 +62,7 @@ Prerequisites:
     parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
                                             "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="proxy gateware bootloader firmware start".split(),
+                        default="gateware bootloader firmware start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
 
@@ -103,8 +103,13 @@ class Programmer:
     def __init__(self, client, preinit_script):
         self._client = client
         self._board_script = []
-        self._preinit_script = preinit_script
-        self._script = []
+        self._preinit_script = [
+            "gdb_port disabled",
+            "tcl_port disabled",
+            "telnet_port disabled"
+        ] + preinit_script
+        self._loaded = defaultdict(lambda: None)
+        self._script = ["init"]
 
     def _transfer_script(self, script):
         if isinstance(self._client, LocalClient):
@@ -116,7 +121,7 @@ class Programmer:
             return re.sub(rb"\[find (.+?)\]", repl, content, re.DOTALL)
 
         script = os.path.join(scripts_path(), script)
-        return self._client.transfer_file(script, rewriter)
+        return self._client.upload(script, rewriter)
 
     def add_flash_bank(self, name, tap, index):
         add_commands(self._board_script,
@@ -125,7 +130,13 @@ class Programmer:
             tap=tap, name=name, ir=0x02 + index)
 
     def load(self, bitfile, pld):
-        bitfile = self._client.transfer_file(bitfile)
+        os.stat(bitfile) # check for existence
+
+        if self._loaded[pld] == bitfile:
+            return
+        self._loaded[pld] = bitfile
+
+        bitfile = self._client.upload(bitfile)
         add_commands(self._script,
             "pld load {pld} {filename}",
             pld=pld, filename=bitfile)
@@ -133,9 +144,11 @@ class Programmer:
     def load_proxy(self):
         raise NotImplementedError
 
-    def flash_binary(self, bankname, address, filename):
+    def write_binary(self, bankname, address, filename):
+        self.load_proxy()
+
         size = os.path.getsize(filename)
-        filename = self._client.transfer_file(filename)
+        filename = self._client.upload(filename)
         add_commands(self._script,
             "flash probe {bankname}",
             "flash erase_sector {bankname} {firstsector} {lastsector}",
@@ -145,6 +158,15 @@ class Programmer:
             firstsector=address // self._sector_size,
             lastsector=(address + size - 1) // self._sector_size)
 
+    def read_binary(self, bankname, address, length, filename):
+        self.load_proxy()
+
+        filename = self._client.prepare_download(filename)
+        add_commands(self._script,
+            "flash probe {bankname}",
+            "flash read_bank {bankname} {filename} {address:#x} {length}",
+            bankname=bankname, filename=filename, address=address, length=length)
+
     def start(self):
         raise NotImplementedError
 
@@ -152,7 +174,6 @@ class Programmer:
         return [
             *self._board_script,
             *self._preinit_script,
-            "init",
             *self._script,
             "exit"
         ]
@@ -165,6 +186,9 @@ class Programmer:
 
         cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
         self._client.run_command(cmdline)
+        self._client.download()
+
+        self._script = []
 
 
 class ProgrammerXC7(Programmer):
@@ -178,6 +202,8 @@ class ProgrammerXC7(Programmer):
             "source {boardfile}",
             boardfile=self._transfer_script("board/{}.cfg".format(board)))
         self.add_flash_bank("spi0", "xc7", index=0)
+
+        add_commands(self._script, "xadc_report xc7.tap")
 
     def load_proxy(self):
         self.load(find_proxy_bitfile(self._proxy), pld=0)
@@ -194,6 +220,8 @@ class ProgrammerSayma(Programmer):
         Programmer.__init__(self, client, preinit_script)
 
         add_commands(self._board_script,
+            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
+
             "interface ftdi",
             "ftdi_device_desc \"Quad RS232-HS\"",
             "ftdi_vid_pid 0x0403 0x6011",
@@ -212,12 +240,14 @@ class ProgrammerSayma(Programmer):
         self.add_flash_bank("spi0", "xcu", index=0)
         self.add_flash_bank("spi1", "xcu", index=1)
 
+        add_commands(self._script, "echo \"RTM FPGA XADC:\"", "xadc_report xc7.tap")
+        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
+
     def load_proxy(self):
         self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=1)
 
     def start(self):
-        add_commands(self._script,
-            "xcu_program xcu.tap")
+        add_commands(self._script, "xcu_program xcu.tap")
 
 
 def main():
@@ -235,23 +265,19 @@ def main():
         },
         "kasli": {
             "programmer": partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
-            "variants":   ["opticlock"],
+            "variants":   ["opticlock", "master", "satellite"],
             "gateware":   ("spi0", 0x000000),
             "bootloader": ("spi0", 0x400000),
             "storage":    ("spi0", 0x440000),
             "firmware":   ("spi0", 0x450000),
         },
-        "sayma_amc": {
+        "sayma": {
             "programmer": ProgrammerSayma,
             "variants":   ["standalone", "master", "satellite"],
             "gateware":   ("spi0", 0x000000),
             "bootloader": ("spi1", 0x000000),
             "storage":    ("spi1", 0x040000),
             "firmware":   ("spi1", 0x050000),
-        },
-        "sayma_rtm": {
-            "programmer": ProgrammerSayma,
-            "gateware":   ("spi1", 0x150000),
         },
     }[args.target]
 
@@ -269,10 +295,6 @@ def main():
             bin_name += "-" + variant
         bin_dir = os.path.join(artiq_dir, "binaries", bin_name)
 
-    if args.srcbuild is None and not os.path.exists(bin_dir) and args.action != ["start"]:
-        raise SystemExit("Binaries directory '{}' does not exist"
-                         .format(bin_dir))
-
     if args.host is None:
         client = LocalClient()
     else:
@@ -287,50 +309,47 @@ def main():
         else:
             return os.path.join(args.srcbuild, *path_filename)
 
-    for action in args.action:
-        if action == "proxy":
-            try:
-                programmer.load_proxy()
-            except FileNotFoundError as e:
-                raise SystemExit(e)
-        elif action == "gateware":
-            gateware_bin = artifact_path("gateware", "top.bin")
-            if not os.access(gateware_bin, os.R_OK):
-                bin_handle, gateware_bin = tempfile.mkstemp()
-                gateware_bit = artifact_path("gateware", "top.bit")
-                with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
-                    bit2bin(bit_file, bin_file)
-                atexit.register(lambda: os.unlink(gateware_bin))
+    try:
+        for action in args.action:
+            if action == "gateware":
+                gateware_bin = artifact_path(variant, "gateware", "top.bin")
+                if not os.access(gateware_bin, os.R_OK):
+                    bin_handle, gateware_bin = tempfile.mkstemp()
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                    with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
+                        bit2bin(bit_file, bin_file)
+                    atexit.register(lambda: os.unlink(gateware_bin))
 
-            programmer.flash_binary(*config["gateware"], gateware_bin)
-        elif action == "bootloader":
-            bootloader_bin = artifact_path("software", "bootloader", "bootloader.bin")
-            programmer.flash_binary(*config["bootloader"], bootloader_bin)
-        elif action == "storage":
-            storage_img = args.storage
-            programmer.flash_binary(*config["storage"], storage_img)
-        elif action == "firmware":
-            if variant == "satellite":
-                firmware = "satman"
-            else:
-                firmware = "runtime"
+                programmer.write_binary(*config["gateware"], gateware_bin)
+            elif action == "bootloader":
+                bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
+                programmer.write_binary(*config["bootloader"], bootloader_bin)
+            elif action == "storage":
+                storage_img = args.storage
+                programmer.write_binary(*config["storage"], storage_img)
+            elif action == "firmware":
+                if variant == "satellite":
+                    firmware = "satman"
+                else:
+                    firmware = "runtime"
 
-            firmware_fbi = artifact_path("software", firmware, firmware + ".fbi")
-            programmer.flash_binary(*config["firmware"], firmware_fbi)
-        elif action == "load":
-            if args.target == "sayma_rtm":
-                gateware_bit = artifact_path("top.bit")
-                programmer.load(gateware_bit, 0)
-            elif args.target == "sayma_amc":
-                gateware_bit = artifact_path("gateware", "top.bit")
-                programmer.load(gateware_bit, 1)
+                firmware_fbi = artifact_path(variant, "software", firmware, firmware + ".fbi")
+                programmer.write_binary(*config["firmware"], firmware_fbi)
+            elif action == "load":
+                if args.target == "sayma":
+                    rtm_gateware_bit = artifact_path("rtm_gateware", "rtm.bit")
+                    programmer.load(rtm_gateware_bit, 0)
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                    programmer.load(gateware_bit, 1)
+                else:
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                    programmer.load(gateware_bit, 0)
+            elif action == "start":
+                programmer.start()
             else:
-                gateware_bit = artifact_path("gateware", "top.bit")
-                programmer.load(gateware_bit, 0)
-        elif action == "start":
-            programmer.start()
-        else:
-            raise ValueError("invalid action", action)
+                raise ValueError("invalid action", action)
+    except FileNotFoundError as e:
+        raise SystemExit(e)
 
     if args.dry_run:
         print("\n".join(programmer.script()))

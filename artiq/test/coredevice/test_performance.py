@@ -1,4 +1,5 @@
 import os
+import time
 import unittest
 
 from artiq.experiment import *
@@ -52,3 +53,31 @@ class TransferTest(ExperimentCase):
         device_to_host_rate = exp.device_to_host()
         print(device_to_host_rate, "B/s")
         self.assertGreater(device_to_host_rate, 2e6)
+
+
+class _KernelOverhead(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    def kernel_overhead(self):
+        n = 100
+        t0 = time.monotonic()
+        for _ in range(n):
+            self.dummy_kernel()
+        t1 = time.monotonic()
+        return (t1-t0)/n
+
+    @kernel
+    def dummy_kernel(self):
+        pass
+
+
+class KernelOverheadTest(ExperimentCase):
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
+    def test_kernel_overhead(self):
+        exp = self.create(_KernelOverhead)
+        kernel_overhead = exp.kernel_overhead()
+        print(kernel_overhead, "s")
+        self.assertGreater(kernel_overhead, 0.001)
+        self.assertLess(kernel_overhead, 0.5)

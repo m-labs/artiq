@@ -146,6 +146,7 @@ class GTPRXInit(Module):
         # GTP signals
         self.plllock = Signal()
         self.gtrxreset = Signal()
+        self.gtrxpd = Signal()
         self.rxresetdone = Signal()
         self.rxdlysreset = Signal()
         self.rxdlysresetdone = Signal()
@@ -194,12 +195,14 @@ class GTPRXInit(Module):
 
         # Deglitch FSM outputs driving transceiver asynch inputs
         gtrxreset = Signal()
+        gtrxpd = Signal()
         rxdlysreset = Signal()
         rxphalign = Signal()
         rxdlyen = Signal()
         rxuserrdy = Signal()
         self.sync += [
             self.gtrxreset.eq(gtrxreset),
+            self.gtrxpd.eq(gtrxpd),
             self.rxdlysreset.eq(rxdlysreset),
             self.rxphalign.eq(rxphalign),
             self.rxdlyen.eq(rxdlyen),
@@ -212,7 +215,7 @@ class GTPRXInit(Module):
         pll_reset_timer = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
-        startup_fsm = ResetInserter()(FSM(reset_state="GTP_RESET"))
+        startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
         self.submodules += startup_fsm
 
         ready_timer = WaitTimer(int(4e-3*sys_clk_freq))
@@ -225,6 +228,11 @@ class GTPRXInit(Module):
         cdr_stable_timer = WaitTimer(1024)
         self.submodules += cdr_stable_timer
 
+        startup_fsm.act("GTP_PD",
+            gtrxreset.eq(1),
+            gtrxpd.eq(1),
+            NextState("GTP_RESET")
+        )
         startup_fsm.act("GTP_RESET",
             gtrxreset.eq(1),
             NextState("DRP_READ_ISSUE")
@@ -300,6 +308,6 @@ class GTPRXInit(Module):
         startup_fsm.act("READY",
             rxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("GTP_RESET")
+            If(self.restart, NextState("GTP_PD")
             )
         )

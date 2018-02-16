@@ -14,15 +14,16 @@ from misoc.cores import gpio
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
-from artiq.gateware.amp import AMPSoC, build_artiq_soc
+from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
                                      dds, spi, ad5360_monitor)
+from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
 
 class _RTIOCRG(Module, AutoCSR):
-    def __init__(self, platform, rtio_internal_clk):
+    def __init__(self, platform, rtio_internal_clk, use_sma=True):
         self._clock_sel = CSRStorage()
         self._pll_reset = CSRStorage(reset=1)
         self._pll_locked = CSRStatus()
@@ -31,15 +32,18 @@ class _RTIOCRG(Module, AutoCSR):
 
         # 100 MHz when using 125MHz input
         self.clock_domains.cd_ext_clkout = ClockDomain(reset_less=True)
-        ext_clkout = platform.request("user_sma_gpio_p_33")
-        self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
+        platform.add_period_constraint(self.cd_ext_clkout.clk, 5.0)
+        if use_sma:
+            ext_clkout = platform.request("user_sma_gpio_p_33")
+            self.sync.ext_clkout += ext_clkout.eq(~ext_clkout)
 
         rtio_external_clk = Signal()
-        user_sma_clock = platform.request("user_sma_clock")
-        platform.add_period_constraint(user_sma_clock.p, 8.0)
-        self.specials += Instance("IBUFDS",
-                                  i_I=user_sma_clock.p, i_IB=user_sma_clock.n,
-                                  o_O=rtio_external_clk)
+        if use_sma:
+            user_sma_clock = platform.request("user_sma_clock")
+            platform.add_period_constraint(user_sma_clock.p, 8.0)
+            self.specials += Instance("IBUFDS",
+                                      i_I=user_sma_clock.p, i_IB=user_sma_clock.n,
+                                      o_O=rtio_external_clk)
 
         pll_locked = Signal()
         rtio_clk = Signal()
@@ -201,7 +205,7 @@ _urukul = [
 ]
 
 
-class _NIST_Ions(MiniSoC, AMPSoC):
+class _StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -262,7 +266,6 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.rtio_crg.cd_rtio.clk.attr.add("keep")
         self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
@@ -273,12 +276,12 @@ class _NIST_Ions(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class NIST_CLOCK(_NIST_Ions):
+class NIST_CLOCK(_StandaloneBase):
     """
     NIST clock hardware, with old backplane and 11 DDS channels
     """
     def __init__(self, **kwargs):
-        _NIST_Ions.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_clock.fmc_adapter_io)
@@ -326,7 +329,7 @@ class NIST_CLOCK(_NIST_Ions):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ififo_depth=128))
-            
+
         phy = spi.SPIMaster(platform.request("sdcard_spi_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
@@ -374,13 +377,13 @@ class NIST_CLOCK(_NIST_Ions):
         self.add_rtio(rtio_channels)
 
 
-class NIST_QC2(_NIST_Ions):
+class NIST_QC2(_StandaloneBase):
     """
     NIST QC2 hardware, as used in Quantum I and Quantum II, with new backplane
     and 24 DDS channels.  Two backplanes are used.
     """
     def __init__(self, **kwargs):
-        _NIST_Ions.__init__(self, **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         platform = self.platform
         platform.add_extension(nist_qc2.fmc_adapter_io)
@@ -444,25 +447,101 @@ class NIST_QC2(_NIST_Ions):
         self.add_rtio(rtio_channels)
 
 
+_sma_spi = [
+    ("sma_spi", 0,
+        Subsignal("clk", Pins("Y23")),  # user_sma_gpio_p
+        Subsignal("cs_n", Pins("Y24")),  # user_sma_gpio_n
+        Subsignal("mosi", Pins("L25")),  # user_sma_clk_p
+        Subsignal("miso", Pins("K25")),  # user_sma_clk_n
+        IOStandard("LVCMOS25")),
+]
+
+
+class SMA_SPI(_StandaloneBase):
+    """
+    SPI on 4 SMA for PDQ2 test/demo.
+    """
+    def __init__(self, **kwargs):
+        _StandaloneBase.__init__(self, **kwargs)
+
+        platform = self.platform
+        self.platform.add_extension(_sma_spi)
+
+        rtio_channels = []
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        ams101_dac = self.platform.request("ams101_dac", 0)
+        phy = ttl_simple.Output(ams101_dac.ldac)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi.SPIMaster(ams101_dac)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ififo_depth=4))
+
+        phy = spi.SPIMaster(self.platform.request("sma_spi"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(
+            phy, ififo_depth=128))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(rtio_channels)
+
+    def add_rtio(self, rtio_channels):
+        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk,
+                                            use_sma=False)
+        self.csr_devices.append("rtio_crg")
+        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.csr_devices.append("rtio_core")
+        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
+            rtio.DMA(self.get_native_sdram_if()))
+        self.register_kernel_cpu_csrdevice("rtio")
+        self.register_kernel_cpu_csrdevice("rtio_dma")
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.rtio.cri, self.rtio_dma.cri],
+            [self.rtio_core.cri])
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
+        self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.rtio_crg.cd_rtio.clk)
+
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+                                                      self.get_native_sdram_if())
+        self.csr_devices.append("rtio_analyzer")
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ device binary builder / single-FPGA KC705-based "
-                    "systems with AD9 DDS (NIST Ions hardware)")
+        description="KC705 gateware and firmware builder")
     builder_args(parser)
     soc_kc705_args(parser)
-    parser.add_argument("-H", "--hw-adapter", default="nist_clock",
-                        help="hardware adapter type: "
-                             "nist_clock/nist_qc2 "
+    parser.set_defaults(output_dir="artiq_kc705")
+    parser.add_argument("-V", "--variant", default="nist_clock",
+                        help="variant: "
+                             "nist_clock/nist_qc2/sma_spi "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
-    hw_adapter = args.hw_adapter.lower()
-    if hw_adapter == "nist_clock":
+    variant = args.variant.lower()
+    if variant == "nist_clock":
         cls = NIST_CLOCK
-    elif hw_adapter == "nist_qc2":
+    elif variant == "nist_qc2":
         cls = NIST_QC2
+    elif variant == "sma_spi":
+        cls = SMA_SPI
     else:
-        raise SystemExit("Invalid hardware adapter string (-H/--hw-adapter)")
+        raise SystemExit("Invalid variant (-V/--variant)")
 
     soc = cls(**soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))

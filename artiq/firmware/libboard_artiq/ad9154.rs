@@ -374,8 +374,14 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             1*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY |
             0*ad9154_reg::SYNCCLRLAST);
     clock::spin_us(1000); // ensure at least one sysref edge
+    if read(ad9154_reg::SYNC_CONTROL) & ad9154_reg::SYNCARM != 0 {
+        return Err("AD9154 no sysref edge");
+    }
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
         return Err("AD9154 no sync lock");
+    }
+    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_WLIM != 0 {
+        return Err("AD9154 sysref phase error");
     }
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);

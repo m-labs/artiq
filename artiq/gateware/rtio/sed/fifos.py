@@ -26,7 +26,7 @@ class FIFOs(Module):
         if mode == "sync":
             fifo_cls = SyncFIFOBuffered
         elif mode == "async":
-            fifo_cls = AsyncFIFO
+            fifo_cls = AsyncFIFOBuffered
         else:
             raise ValueError
 

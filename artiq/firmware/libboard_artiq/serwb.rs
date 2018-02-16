@@ -1,4 +1,18 @@
+use core::{cmp, str};
 use board::csr;
+
+fn read_rtm_ident(buf: &mut [u8]) -> &str {
+    unsafe {
+        csr::rtm_identifier::address_write(0);
+        let len = csr::rtm_identifier::data_read();
+        let len = cmp::min(len, buf.len() as u8);
+        for i in 0..len {
+            csr::rtm_identifier::address_write(1 + i);
+            buf[i as usize] = csr::rtm_identifier::data_read();
+        }
+        str::from_utf8_unchecked(&buf[..len as usize])
+    }
+}
 
 unsafe fn debug_print(rtm: bool) {
     debug!("AMC serwb settings:");
@@ -38,16 +52,18 @@ pub fn wait_init() {
     }
     info!("done.");
 
-    // Try reading the identifier register on the other side of the bridge.
-    let rtm_identifier = unsafe {
-        csr::rtm_identifier::identifier_read()
+    // Try reading the magic number register on the other side of the bridge.
+    let rtm_magic = unsafe {
+        csr::rtm_magic::magic_read()
     };
-    if rtm_identifier != 0x5352544d {
-        error!("incorrect RTM identifier: 0x{:08x}", rtm_identifier);
+    if rtm_magic != 0x5352544d {
+        error!("incorrect RTM magic number: 0x{:08x}", rtm_magic);
         // proceed anyway
     }
 
     unsafe {
         debug_print(true);
     }
+
+    info!("RTM gateware version {}", read_rtm_ident(&mut [0; 64]));
 }

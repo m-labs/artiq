@@ -41,4 +41,27 @@ device_db = {
         "class": "WaveOutput",
         "arguments": {"name": "state_detection"}
     },
+
+    # Controllers
+    "lda": {
+        "type": "controller",
+        "best_effort": True,
+        "host": "::1",
+        "port": 3253,
+        "command": "aqctl_lda -p {port} --bind {bind} --simulation"
+    },
+
+    "camera_sim": {
+        "type": "controller",
+        "host": "::1",
+        "port": 6283,
+        "target_name": "camera_sim",
+        "command": "python3 -m artiq.examples.remote_exec_controller"
+    },
+    "camera_sim_rexec": {
+        "type": "controller_aux_target",
+        "controller": "camera_sim",
+        "target_name": "camera_sim_rexec"
+    },
+
 }

@@ -14,6 +14,7 @@ import threading
 import os
 import shutil
 import re
+import shlex
 
 from artiq.tools import verbosity_args, init_logger
 from artiq.remoting import SSHClient
@@ -29,17 +30,23 @@ def get_argparser():
     verbosity_args(parser)
 
     parser.add_argument("-t", "--target", metavar="TARGET",
-                        type=str, default="kc705_dds",
+                        type=str, default="kc705",
                         help="target to build, one of: "
-                             "kc705_dds kasli sayma_rtm sayma_amc_standalone "
-                             "sayma_amc_drtio_master sayma_amc_drtio_satellite")
+                             "kc705 kasli sayma")
+    parser.add_argument("-V", "--variant", metavar="VARIANT",
+                        type=str, default=None,
+                        help="variant to build, dependent on the target")
     parser.add_argument("-g", "--build-gateware",
                         default=False, action="store_true",
                         help="build gateware, not just software")
+    parser.add_argument("--args", metavar="ARGS",
+                        type=shlex.split, default=[],
+                        help="extra arguments for gateware/firmware build")
+
     parser.add_argument("-H", "--host",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
-    parser.add_argument('-b', "--board",
+    parser.add_argument("-b", "--board",
                         type=str, default="{board_type}-1",
                         help="board to connect to on the development SSH host")
     parser.add_argument("-B", "--board-file",
@@ -70,20 +77,14 @@ def main():
         logging.getLogger().setLevel(logging.INFO)
 
     def build_dir(*path, target=args.target):
-        return os.path.join("/tmp", target, *path)
+        return os.path.join("/tmp/", "artiq_" + target, *path)
 
-    extra_build_args = []
-    if args.target == "kc705_dds":
+    if args.target == "kc705":
         board_type, firmware = "kc705", "runtime"
-    elif args.target == "sayma_amc_standalone":
-        board_type, firmware = "sayma_amc", "runtime"
-        extra_build_args += ["--rtm-csr-csv", build_dir("sayma_rtm_csr.csv", target="sayma_rtm")]
-    elif args.target == "sayma_amc_drtio_master":
-        board_type, firmware = "sayma_amc", "runtime"
-    elif args.target == "sayma_amc_drtio_satellite":
-        board_type, firmware = "sayma_amc", "satman"
-    elif args.target == "sayma_rtm":
-        board_type, firmware = "sayma_rtm", None
+        variant = "nist_clock" if args.variant is None else args.variant
+    elif args.target == "sayma":
+        board_type, firmware = "sayma", "runtime"
+        variant = "standalone" if args.variant is None else args.variant
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
@@ -131,11 +132,21 @@ def main():
                     sys.exit(1)
 
     def command(*args, on_failure="Command failed"):
+        logger.debug("Running {}".format(" ".join([shlex.quote(arg) for arg in args])))
         try:
             subprocess.check_call(args)
         except subprocess.CalledProcessError:
             logger.error(on_failure)
             sys.exit(1)
+
+    def build(target, *extra_args, output_dir=build_dir(), variant=variant):
+        build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
+        if not args.build_gateware:
+            build_args.append("--no-compile-gateware")
+        if variant:
+            build_args += ["--variant", variant]
+        build_args += ["--output-dir", output_dir]
+        command(*build_args, on_failure="Build failed")
 
     def flash(*steps):
         lock()
@@ -143,26 +154,26 @@ def main():
         flash_args = ["artiq_flash"]
         for _ in range(args.verbose):
             flash_args.append("-v")
-        flash_args += ["-H", args.host, "-t", board_type]
+        flash_args += ["-H", args.host]
+        flash_args += ["-t", board_type]
+        flash_args += ["-V", variant]
+        flash_args += ["-I", "source {}".format(board_file)]
         flash_args += ["--srcbuild", build_dir()]
-        flash_args += ["--preinit-command", "source {}".format(board_file)]
         flash_args += steps
         command(*flash_args, on_failure="Flashing failed")
 
     for action in args.actions:
         if action == "build":
             logger.info("Building target")
-
-            build_args = ["python3", "-m", "artiq.gateware.targets." + args.target]
-            if not args.build_gateware:
-                build_args.append("--no-compile-gateware")
-            build_args += ["--output-dir", build_dir()]
-            build_args += extra_build_args
-            command(*build_args, on_failure="Build failed")
+            if args.target == "sayma":
+                build("sayma_rtm", output_dir=build_dir("rtm_gateware"), variant=None)
+                build("sayma_amc", "--rtm-csr-csv", build_dir("rtm_gateware", "rtm_csr.csv"))
+            else:
+                build(args.target)
 
         elif action == "clean":
             logger.info("Cleaning build directory")
-            shutil.rmtree(build_dir, ignore_errors=True)
+            shutil.rmtree(build_dir(), ignore_errors=True)
 
         elif action == "reset":
             logger.info("Resetting device")
@@ -170,11 +181,11 @@ def main():
 
         elif action == "flash":
             logger.info("Flashing and booting firmware")
-            flash("proxy", "bootloader", "firmware", "start")
+            flash("bootloader", "firmware", "start")
 
         elif action == "flash+log":
             logger.info("Flashing firmware")
-            flash("proxy", "bootloader", "firmware")
+            flash("bootloader", "firmware")
 
             flterm = client.spawn_command(["flterm", serial, "--output-only"])
             logger.info("Booting firmware")
@@ -238,7 +249,7 @@ def main():
 
         elif action == "hotswap":
             logger.info("Hotswapping firmware")
-            firmware = build_dir("software", firmware, firmware + ".bin")
+            firmware = build_dir(variant, "software", firmware, firmware + ".bin")
             command("artiq_coreboot", "hotswap", firmware,
                     on_failure="Hotswapping failed")
 

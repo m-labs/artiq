@@ -6,6 +6,7 @@ import shutil
 import shlex
 import subprocess
 import hashlib
+import random
 
 __all__ = ["LocalClient", "SSHClient"]
 
@@ -13,7 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class Client:
-    def transfer_file(self, filename, rewriter=None):
+    def upload(self, filename, rewriter=None):
+        raise NotImplementedError
+
+    def prepare_download(self, filename):
+        raise NotImplementedError
+
+    def download(self):
         raise NotImplementedError
 
     def run_command(self, cmd, **kws):
@@ -24,8 +31,8 @@ class LocalClient(Client):
     def __init__(self):
         self._tmp = os.path.join(tempfile.gettempdir(), "artiq")
 
-    def transfer_file(self, filename, rewriter=None):
-        logger.debug("Transferring {}".format(filename))
+    def upload(self, filename, rewriter=None):
+        logger.debug("Uploading {}".format(filename))
         if rewriter is None:
             return filename
         else:
@@ -37,6 +44,13 @@ class LocalClient(Client):
                     tmp.write(rewritten)
             return tmp_filename
 
+    def prepare_download(self, filename):
+        logger.debug("Downloading {}".format(filename))
+        return filename
+
+    def download(self):
+        pass
+
     def run_command(self, cmd, **kws):
         logger.debug("Executing {}".format(cmd))
         subprocess.check_call([arg.format(tmp=self._tmp, **kws) for arg in cmd])
@@ -47,8 +61,10 @@ class SSHClient(Client):
         self.host = host
         self.ssh = None
         self.sftp = None
-        self._tmp = "/tmp/artiq"
+        self._tmpr = "/tmp/artiq"
+        self._tmpl = tempfile.TemporaryDirectory(prefix="artiq")
         self._cached = []
+        self._downloads = {}
 
     def get_ssh(self):
         if self.ssh is None:
@@ -68,39 +84,59 @@ class SSHClient(Client):
         if self.sftp is None:
             self.sftp = self.get_ssh().open_sftp()
             try:
-                self._cached = self.sftp.listdir(self._tmp)
+                self._cached = self.sftp.listdir(self._tmpr)
             except OSError:
-                self.sftp.mkdir(self._tmp)
+                self.sftp.mkdir(self._tmpr)
         return self.sftp
 
-    def transfer_file(self, filename, rewriter=lambda x: x):
-        sftp = self.get_sftp()
+    def upload(self, filename, rewriter=lambda x: x):
         with open(filename, 'rb') as local:
             rewritten = rewriter(local.read())
             digest = hashlib.sha1(rewritten).hexdigest()
-            remote_filename = os.path.join(self._tmp, digest)
-            if digest in self._cached:
-                logger.debug("Using cached {}".format(filename))
-            else:
-                logger.debug("Transferring {}".format(filename))
-                # Avoid a race condition by writing into a temporary file
-                # and atomically replacing
-                with sftp.open(remote_filename + ".~", "wb") as remote:
-                    remote.write(rewritten)
-                try:
-                    sftp.rename(remote_filename + ".~", remote_filename)
-                except IOError:
-                    # Either it already exists (this is OK) or something else
-                    # happened (this isn't) and we need to re-raise
-                    sftp.stat(remote_filename)
+            remote_filename = "{}/{}".format(self._tmpr, digest)
+
+        sftp = self.get_sftp()
+        if digest in self._cached:
+            logger.debug("Using cached {}".format(filename))
+        else:
+            logger.debug("Uploading {}".format(filename))
+            # Avoid a race condition by writing into a temporary file
+            # and atomically replacing
+            with sftp.open(remote_filename + ".~", "wb") as remote:
+                remote.write(rewritten)
+            try:
+                sftp.rename(remote_filename + ".~", remote_filename)
+            except IOError:
+                # Either it already exists (this is OK) or something else
+                # happened (this isn't) and we need to re-raise
+                sftp.stat(remote_filename)
+
         return remote_filename
+
+    def prepare_download(self, filename):
+        tmpname = "".join([random.Random().choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                           for _ in range(6)])
+        remote_filename = "{}/{}_{}".format(self._tmpr, tmpname, filename)
+
+        _sftp = self.get_sftp()
+        logger.debug("Downloading {}".format(filename))
+        self._downloads[filename] = remote_filename
+
+        return remote_filename
+
+    def download(self):
+        sftp = self.get_sftp()
+        for filename, remote_filename in self._downloads.items():
+            sftp.get(remote_filename, filename)
+
+        self._downloads = {}
 
     def spawn_command(self, cmd, get_pty=False, **kws):
         chan = self.get_transport().open_session()
         chan.set_combine_stderr(True)
         if get_pty:
             chan.get_pty()
-        cmd = " ".join([shlex.quote(arg.format(tmp=self._tmp, **kws)) for arg in cmd])
+        cmd = " ".join([shlex.quote(arg.format(tmp=self._tmpr, **kws)) for arg in cmd])
         logger.debug("Executing {}".format(cmd))
         chan.exec_command(cmd)
         return chan

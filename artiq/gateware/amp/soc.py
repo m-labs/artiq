@@ -1,13 +1,8 @@
-import os
-import subprocess
-
 from misoc.cores import timer
 from misoc.interconnect import wishbone
-from misoc.integration.builder import *
 
 from artiq.gateware.amp.kernel_cpu import KernelCPU
 from artiq.gateware.amp.mailbox import Mailbox
-from artiq import __artiq_dir__ as artiq_dir
 
 
 class AMPSoC:
@@ -42,19 +37,3 @@ class AMPSoC:
         self.add_csr_region(name,
                             self.mem_map[name] | 0x80000000, 32,
                             csrs)
-
-
-def build_artiq_soc(soc, argdict):
-    firmware_dir = os.path.join(artiq_dir, "firmware")
-    builder = Builder(soc, **argdict)
-    builder.software_packages = []
-    builder.add_software_package("libm")
-    builder.add_software_package("libprintf")
-    builder.add_software_package("libunwind")
-    builder.add_software_package("bootloader", os.path.join(firmware_dir, "bootloader"))
-    builder.add_software_package("ksupport",   os.path.join(firmware_dir, "ksupport"))
-    builder.add_software_package("runtime",    os.path.join(firmware_dir, "runtime"))
-    try:
-        builder.build()
-    except subprocess.CalledProcessError as e:
-        raise SystemExit("Command {} failed".format(" ".join(e.cmd)))

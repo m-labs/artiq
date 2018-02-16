@@ -17,6 +17,7 @@ __pycache__/
 /artiq/binaries
 /artiq/firmware/target/
 /misoc_*/
+/artiq_*/
 
 /artiq/test/results
 /artiq/examples/*/results

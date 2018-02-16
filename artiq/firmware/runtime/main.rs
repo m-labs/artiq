@@ -110,7 +110,20 @@ fn startup() {
 #[cfg(si5324_free_running)]
 fn setup_si5324_free_running()
 {
-    // 150MHz output (hardcoded)
+    // 125MHz output, from 10MHz CLKIN2 reference
+    #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
+        n1_hs  : 10,
+        nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 300,
+        n31    : 75,
+        n32    : 6,
+        bwsel  : 10
+    };
+    // 150MHz output, from crystal
+    #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 9,
@@ -153,13 +166,25 @@ fn startup_ethernet() {
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
 
-    // fn _net_trace_writer<U>(timestamp: u64, printer: smoltcp::wire::PrettyPrinter<U>)
-    //         where U: smoltcp::wire::pretty_print::PrettyPrint {
-    //     let seconds = timestamp / 1000;
-    //     let micros  = timestamp % 1000 * 1000;
-    //     print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
-    // }
-    // let net_device = smoltcp::phy::EthernetTracer::new(net_device, _net_trace_writer);
+    let net_device = {
+        use smoltcp::wire::PrettyPrinter;
+        use smoltcp::wire::EthernetFrame;
+
+        fn net_trace_writer(timestamp: u64, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
+            let seconds = timestamp / 1000;
+            let micros  = timestamp % 1000 * 1000;
+            print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
+        }
+
+        fn net_trace_silent(_timestamp: u64, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
+
+        let net_trace_fn: fn(u64, PrettyPrinter<EthernetFrame<&[u8]>>);
+        match config::read_str("net_trace", |r| r.map(|s| s == "1")) {
+            Ok(true) => net_trace_fn = net_trace_writer,
+            _ => net_trace_fn = net_trace_silent
+        }
+        smoltcp::phy::EthernetTracer::new(net_device, net_trace_fn)
+    };
 
     let mut neighbor_map = [None; 8];
     let neighbor_cache =

@@ -28,34 +28,48 @@ class UrukulTest(EnvExperiment):
         self.fmcdio_dirctl.set(0x0A008800)
         self.led.off()
 
-        self.urukul_cpld.init(clk_sel=1)
+        self.urukul_cpld.init(clk_sel=0)
         self.urukul_ch0b.init()
         self.urukul_ch1b.init()
         self.urukul_ch2b.init()
         self.urukul_ch3b.init()
 
-        delay(100*us)
+        delay(1000*us)
         self.urukul_ch0b.set(100*MHz)
         self.urukul_ch0b.sw.on()
         self.urukul_ch0b.set_att(10.)
 
-        delay(100*us)
+        delay(1000*us)
         self.urukul_ch1b.set(10*MHz, 0.5)
         self.urukul_ch1b.sw.on()
         self.urukul_ch1b.set_att(0.)
 
-        delay(100*us)
+        delay(1000*us)
         self.urukul_ch2b.set(400*MHz)
         self.urukul_ch2b.sw.on()
         self.urukul_ch2b.set_att(0.)
 
-        delay(100*us)
+        delay(1000*us)
         self.urukul_ch3b.set(1*MHz)
         self.urukul_ch3b.sw.on()
         self.urukul_ch3b.set_att(20.)
 
+        i = 0
+        j = 0
         while True:
-            self.urukul_ch0b.set_mu(0x12345678, 0, 0x3fff)
+            delay(13*us)
+            self.urukul_ch0b.write32(0x07, i)
+            self.urukul_cpld.io_update.pulse(10*ns)
+            k = self.urukul_ch0b.read32(0x07)
+            delay(100*us)
+            if k != i:
+                #print(i)
+                #print(k)
+                #if j > 20:
+                #    return
+                j += 1
+                #delay(20*ms)
+            i += 1
 
         while True:
             self.urukul_ch0b.sw.pulse(5*ms)

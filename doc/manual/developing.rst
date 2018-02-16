@@ -142,6 +142,13 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     * Get Vivado from http://www.xilinx.com/support/download/index.htm.
 
+    * The "appropriate" Vivado version to use for building the bitstream can
+      vary. Some versions contain bugs that lead to hidden or visible failures,
+      others work fine.
+      Refer to the `M-Labs buildbot logs <http://buildbot.m-labs.hk/>`_ to
+      determine which version is currently used to when building the binary
+      packages.
+
     * During the Vivado installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
 
 * Install Migen: ::
@@ -217,7 +224,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
     * For KC705::
 
-        $ python3 -m artiq.gateware.targets.kc705_dds -H nist_clock # or nist_qc2
+        $ python3 -m artiq.gateware.targets.kc705 -V nist_clock # or nist_qc2
 
     .. note:: Add ``--toolchain ise`` if you wish to use ISE instead of Vivado. ISE needs a separate installation step.
 

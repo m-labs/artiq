@@ -15,14 +15,13 @@ _SPIT_CFG_WR = 2
 _SPIT_CFG_RD = 16
 _SPIT_ATT_WR = 2
 _SPIT_ATT_RD = 16
-_SPIT_DDS_WR = 16
+_SPIT_DDS_WR = 3
 _SPIT_DDS_RD = 16
 
 # CFG configuration register bit offsets
 CFG_RF_SW = 0
 CFG_LED = 4
 CFG_PROFILE = 8
-CFG_ATT_LE = 11
 CFG_IO_UPDATE = 12
 CFG_MASK_NU = 16
 CFG_CLK_SEL = 17
@@ -32,10 +31,10 @@ CFG_IO_RST = 20
 
 
 @kernel
-def urukul_cfg(rf_sw, led, profile, att_le, io_update, mask_nu,
+def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
         clk_sel, sync_sel, rst, io_rst):
     return ((rf_sw << CFG_RF_SW) | (led << CFG_LED) |
-            (profile << CFG_PROFILE) | (att_le << CFG_ATT_LE) |
+            (profile << CFG_PROFILE) |
             (io_update << CFG_IO_UPDATE) | (mask_nu << CFG_MASK_NU) |
             (clk_sel << CFG_CLK_SEL) | (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) | (io_rst << CFG_IO_RST))
@@ -71,11 +70,11 @@ def urukul_sta_ifc_mode(sta):
 
 @kernel
 def urukul_sta_proto_rev(sta):
-    return (sta >> STA_PROTO_REV) & 0xff
+    return (sta >> STA_PROTO_REV) & 0x7f
 
 
 # supported hardware and CPLD code version
-STA_PROTO_REV_MATCH = 0x06
+STA_PROTO_REV_MATCH = 0x08
 
 # chip select (decoded)
 CS_CFG = 1
@@ -88,6 +87,15 @@ CS_DDS_CH3 = 7
 
 
 class CPLD:
+    """Urukul CPLD SPI router and configuration interface.
+
+    :param spi_device: SPI bus device name
+    :param io_update_device: IO update RTIO TTLOut channel name
+    :param dds_reset_device: DDS reset RTIO TTLOut channel name
+    :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
+        frequency in Hz
+    :param core_device: Core device name
+    """
     def __init__(self, dmgr, spi_device, io_update_device,
             dds_reset_device=None,
             refclk=100e6, core_device="core"):
@@ -104,16 +112,20 @@ class CPLD:
         self.att_reg = int32(0)
 
     @kernel
-    def cfg_write(self, cfg_reg):
+    def cfg_write(self, data=int32(0)):
+        """Write to the configuration register.
+
+        :param data: 24 bit data to be written. Will be stored at
+            :attr:`cfg_reg`.
+        """
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_CFG_WR, _SPIT_CFG_RD)
         self.bus.set_xfer(CS_CFG, 24, 0)
-        self.bus.write(cfg_reg << 8)
+        self.bus.write(data << 8)
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_DDS_WR, _SPIT_DDS_RD)
-        self.cfg_reg = cfg_reg
+        self.cfg_reg = data
 
     @kernel
     def sta_read(self):
-        self.cfg_write(self.cfg_reg)  # to latch STA
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_CFG_WR, _SPIT_CFG_RD)
         self.bus.set_xfer(CS_CFG, 0, 24)
         self.bus.write(self.cfg_reg << 8)
@@ -122,7 +134,7 @@ class CPLD:
 
     @kernel
     def init(self, clk_sel=0, sync_sel=0):
-        cfg = urukul_cfg(rf_sw=0, led=0, profile=0, att_le=0,
+        cfg = urukul_cfg(rf_sw=0, led=0, profile=0,
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
         self.cfg_write(cfg | (1 << CFG_RST) | (1 << CFG_IO_RST))
@@ -152,11 +164,12 @@ class CPLD:
         self.cfg_write(c)
 
     @kernel
-    def set_att_mu(self, channel, att):
-        """
-        Parameters:
-            att (int): 0-255, 255 minimum attenuation,
-                0 maximum attenuation (31.5 dB)
+    def set_att_mu(self, channel=int32(0), att=int32(0)):
+        """Set digital step attenuator in machine units.
+
+        :param channel: Attenuator channel (0-3).
+        :param att: Digital attenuation setting:
+            255 minimum attenuation, 0 maximum attenuation (31.5 dB)
         """
         a = self.att_reg & ~(0xff << (channel * 8))
         a |= att << (channel * 8)
@@ -164,9 +177,12 @@ class CPLD:
         self.bus.set_config_mu(_SPI_CONFIG, _SPIT_ATT_WR, _SPIT_ATT_RD)
         self.bus.set_xfer(CS_ATT, 32, 0)
         self.bus.write(a)
-        self.cfg_write(self.cfg_reg | (1 << CFG_ATT_LE))
-        self.cfg_write(self.cfg_reg & ~(1 << CFG_ATT_LE))
 
     @kernel
     def set_att(self, channel, att):
+        """Set digital step attenuator in SI units.
+
+        :param channel: Attenuator channel (0-3).
+        :param att: Attenuation in dB.
+        """
         self.set_att_mu(channel, 255 - int32(round(att*8)))

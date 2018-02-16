@@ -13,7 +13,12 @@ def _get_csr_data(csv_file):
             region_name, csr_name = name.split(".")
             address = int(address, 0)
             length = int(length, 0)
-            ro = ro == "ro"
+            if ro == "ro":
+                ro = True
+            elif ro == "rw":
+                ro = False
+            else:
+                raise ValueError
             if region_name not in csr_data:
                 csr_data[region_name] = []
             csr_data[region_name].append((csr_name, address, length, ro))

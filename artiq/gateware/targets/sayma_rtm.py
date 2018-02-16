@@ -9,12 +9,14 @@ from migen.build.platforms.sinara import sayma_rtm
 
 from misoc.interconnect import wishbone, stream
 from misoc.interconnect.csr import *
+from misoc.cores import identifier
 from misoc.cores import spi
 from misoc.cores import gpio
 from misoc.integration.wb_slaves import WishboneSlaveManager
 from misoc.integration.cpu_interface import get_csr_csv
 
 from artiq.gateware import serwb
+from artiq import __version__ as artiq_version
 
 
 class CRG(Module):
@@ -61,10 +63,10 @@ class CRG(Module):
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
 
 
-class RTMIdentifier(Module, AutoCSR):
+class RTMMagic(Module, AutoCSR):
     def __init__(self):
-        self.identifier = CSRStatus(32)
-        self.comb += self.identifier.status.eq(0x5352544d)  # "SRTM"
+        self.magic = CSRStatus(32)
+        self.comb += self.magic.status.eq(0x5352544d)  # "SRTM"
 
 
 CSR_RANGE_SIZE = 0x800
@@ -72,18 +74,20 @@ CSR_RANGE_SIZE = 0x800
 
 class SaymaRTM(Module):
     def __init__(self, platform):
+        platform.toolchain.bitstream_commands.extend([
+            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
+            "set_property CFGBVS VCCO [current_design]",
+            "set_property CONFIG_VOLTAGE 3.3 [current_design]",
+            ])
+
         csr_devices = []
 
         self.submodules.crg = CRG(platform)
-        self.crg.cd_sys.clk.attr.add("keep")
         clk_freq = 125e6
-        platform.add_period_constraint(self.crg.cd_sys.clk, 8.0)
-        platform.add_period_constraint(self.crg.cd_clk200.clk, 5.0)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.crg.cd_clk200.clk)
 
-        self.submodules.rtm_identifier = RTMIdentifier()
+        self.submodules.rtm_magic = RTMMagic()
+        csr_devices.append("rtm_magic")
+        self.submodules.rtm_identifier = identifier.Identifier(artiq_version)
         csr_devices.append("rtm_identifier")
 
         # clock mux: 100MHz ext SMA clock to HMC830 input
@@ -94,7 +98,7 @@ class SaymaRTM(Module):
         csr_devices.append("clock_mux")
 
         # UART loopback
-        serial = platform.request(serial)
+        serial = platform.request("serial")
         self.comb += serial.tx.eq(serial.rx)
 
         # Allaki: enable RF output, GPIO access to attenuator
@@ -148,6 +152,7 @@ class SaymaRTM(Module):
         self.submodules += serwb_pll
 
         serwb_pads = platform.request("amc_rtm_serwb")
+        platform.add_period_constraint(serwb_pads.clk_p, 16.)
         serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
         self.comb += self.crg.reset.eq(serwb_phy_rtm.init.reset)
@@ -189,7 +194,7 @@ class SaymaRTM(Module):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
-    parser.add_argument("--output-dir", default="artiq_sayma_rtm",
+    parser.add_argument("--output-dir", default="artiq_sayma/rtm_gateware",
                         help="output directory for generated "
                              "source files and binaries")
     parser.add_argument("--no-compile-gateware", action="store_true",
@@ -204,11 +209,11 @@ def main():
     top = SaymaRTM(platform)
 
     os.makedirs(args.output_dir, exist_ok=True)
-    with open(os.path.join(args.output_dir, "sayma_rtm_csr.csv"), "w") as f:
+    with open(os.path.join(args.output_dir, "rtm_csr.csv"), "w") as f:
         f.write(get_csr_csv(top.csr_regions))
 
     if not args.no_compile_gateware:
-        platform.build(top, build_dir=args.output_dir)
+        platform.build(top, build_dir=args.output_dir, build_name="rtm")
 
 
 if __name__ == "__main__":
