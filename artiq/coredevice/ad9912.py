@@ -86,13 +86,13 @@ class AD9912:
         if (prodid != 0x1982) and (prodid != 0x1902):
             raise ValueError("Urukul AD9912 product id mismatch")
         delay(10*us)
-        self.write(AD9912_PWRCNTRL1, 0x80)  # HSTL, CMOS power down
+        # HSTL power down, CMOS power down
+        self.write(AD9912_PWRCNTRL1, 0x80)
         delay(10*us)
         self.write(AD9912_N_DIV, self.pll_n//2 - 2)
         delay(10*us)
-        self.write(AD9912_PLLCFG, 0b00000101)  # 375 µA, high range
-        at_mu(t)
-        delay(100*us)  # constant duration of 100 µs
+        # I_cp = 375 µA, VCO high range
+        self.write(AD9912_PLLCFG, 0b00000101)
 
     @kernel
     def set_att_mu(self, att):
