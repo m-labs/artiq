@@ -62,7 +62,7 @@ class AD9910:
         self.pll_n = pll_n
         assert self.cpld.refclk < 60e6
         self.sysclk = self.cpld.refclk*pll_n/4  # Urukul clock fanout divider
-        assert self.sysclk < 1e9
+        assert self.sysclk <= 1e9
         self.ftw_per_hz = 1./self.sysclk*(int64(1) << 32)
         assert 0 <= pll_vco <= 5
         vco_min, vco_max = [(370, 510), (420, 590), (500, 700),

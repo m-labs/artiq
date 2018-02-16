@@ -35,7 +35,7 @@ class AD9912:
             self.sw = dmgr.get(sw_device)
         self.pll_n = pll_n
         self.sysclk = self.cpld.refclk*pll_n
-        assert self.sysclk < 1e9
+        assert self.sysclk <= 1e9
         self.ftw_per_hz = 1/self.sysclk*(int64(1) << 48)
 
     @kernel
