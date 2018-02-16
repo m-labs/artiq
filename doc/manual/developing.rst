@@ -146,7 +146,7 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
       vary. Some versions contain bugs that lead to hidden or visible failures,
       others work fine.
       Refer to the `M-Labs buildbot logs <http://buildbot.m-labs.hk/>`_ to
-      determine which version is currently used to when building the binary
+      determine which version is currently used when building the binary
       packages.
 
     * During the Vivado installation, uncheck ``Install cable drivers`` (they are not required as we use better and open source alternatives).
