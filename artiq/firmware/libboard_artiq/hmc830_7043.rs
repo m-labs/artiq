@@ -139,9 +139,9 @@ mod hmc7043 {
         (true, SYSREF_DIV, 0x0, 0x0),   // 3: DAC1_SYSREF
         (false, 0, 0x0, 0x0),           // 4: ADC2_CLK
         (false, 0, 0x0, 0x0),           // 5: ADC2_SYSREF
-        (true, DAC_CLK_DIV, 0x0, 0x0),  // 6: GTP_CLK2
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 6: GTP_CLK2
         (true, SYSREF_DIV, 0x0, 0x0),   // 7: FPGA_DAC_SYSREF
-        (true, DAC_CLK_DIV, 0x0, 0x0),  // 8: GTP_CLK1
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 8: GTP_CLK1
         (true, FPGA_CLK_DIV, 0x0, 0x0), // 9: AMC_MASTER_AUX_CLK
         (true, FPGA_CLK_DIV, 0x0, 0x0), // 10: RTM_MASTER_AUX_CLK
         (false, 0, 0x0, 0x0),           // 11: FPGA_ADC_SYSREF
