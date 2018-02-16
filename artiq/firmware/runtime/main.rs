@@ -110,17 +110,30 @@ fn startup() {
 #[cfg(si5324_free_running)]
 fn setup_si5324_free_running()
 {
-    // 125MHz output, from 10MHz CLKIN2 reference
+    // 125MHz output, from 100MHz CLKIN2 reference, 9 Hz
+    // FIXME: needs !FREE_RUN at address 0x00
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 10,
         nc1_ls : 4,
         n2_hs  : 10,
-        n2_ls  : 300,
-        n31    : 75,
-        n32    : 6,
+        n2_ls  : 260,
+        n31    : 65,
+        n32    : 52,
         bwsel  : 10
+    };
+    // 125MHz output, from crystal, 7 Hz
+    #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
+        n1_hs  : 10,
+        nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 19972,
+        n31    : 4993,
+        n32    : 4565,
+        bwsel  : 4
     };
     // 150MHz output, from crystal
     #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
