@@ -113,8 +113,7 @@ mod hmc830 {
                     if addr == 0x0d || addr == 0x0e { continue; }
                     error!("[0x{:02x}] = 0x{:04x}", addr, read(addr));
                 }
-            //    return Err("HMC830 lock timeout");
-                break;
+                return Err("HMC830 lock timeout");
             }
         }
 
