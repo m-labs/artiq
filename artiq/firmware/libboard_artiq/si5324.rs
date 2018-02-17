@@ -43,7 +43,8 @@ pub struct FrequencySettings {
     pub n2_ls: u32,
     pub n31: u32,
     pub n32: u32,
-    pub bwsel: u8
+    pub bwsel: u8,
+    pub crystal_ref: bool
 }
 
 fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings> {
@@ -201,7 +202,9 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     #[cfg(si5324_soft_reset)]
     soft_reset()?;
 
-    write(0,   read(0)? | 0x40)?;                         // FREE_RUN=1
+    if settings.crystal_ref {
+        write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
+    }
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
     write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1

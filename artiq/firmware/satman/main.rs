@@ -183,7 +183,8 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     n2_ls  : 33732,
     n31    : 9370,
     n32    : 7139,
-    bwsel  : 3
+    bwsel  : 3,
+    crystal_ref: true
 };
 
 fn drtio_link_is_up() -> bool {
