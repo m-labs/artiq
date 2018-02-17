@@ -292,7 +292,7 @@ class Master(MiniSoC, AMPSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
-        self.config["SI5324_FREE_RUNNING"] = None
+        self.config["SI5324_AS_SYNTHESIZER"] = None
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.transceiver = gth_ultrascale.GTH(

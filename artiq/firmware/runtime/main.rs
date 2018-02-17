@@ -89,8 +89,8 @@ fn startup() {
 
     #[cfg(has_i2c)]
     board_artiq::i2c::init();
-    #[cfg(si5324_free_running)]
-    setup_si5324_free_running();
+    #[cfg(si5324_as_synthesizer)]
+    setup_si5324_as_synthesizer();
     #[cfg(has_hmc830_7043)]
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
@@ -107,8 +107,8 @@ fn startup() {
     }
 }
 
-#[cfg(si5324_free_running)]
-fn setup_si5324_free_running()
+#[cfg(si5324_as_synthesizer)]
+fn setup_si5324_as_synthesizer()
 {
     // 125MHz output, from 100MHz CLKIN2 reference, 9 Hz
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
