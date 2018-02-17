@@ -113,7 +113,8 @@ mod hmc830 {
                     if addr == 0x0d || addr == 0x0e { continue; }
                     error!("[0x{:02x}] = 0x{:04x}", addr, read(addr));
                 }
-                return Err("HMC830 lock timeout");
+            //    return Err("HMC830 lock timeout");
+                break;
             }
         }
 
@@ -123,8 +124,30 @@ mod hmc830 {
 
 mod hmc7043 {
     use board::csr;
+    
+    // To do: check which output channels we actually need
+    const DAC_CLK_DIV: u32 = 2;
+    const FPGA_CLK_DIV: u32 = 8;
+    const SYSREF_DIV: u32 = 128;
 
-    include!(concat!(env!("OUT_DIR"), "/hmc7043_writes.rs"));
+    // enabled, divider, analog phase shift, digital phase shift
+    const OUTPUT_CONFIG: [(bool, u32, u8, u8); 14] = [
+        (true, DAC_CLK_DIV, 0x0, 0x0),  // 0: DAC2_CLK
+        (true, SYSREF_DIV, 0x0, 0x0),   // 1: DAC2_SYSREF
+        (true, DAC_CLK_DIV, 0x0, 0x0),  // 2: DAC1_CLK
+        (true, SYSREF_DIV, 0x0, 0x0),   // 3: DAC1_SYSREF
+        (false, 0, 0x0, 0x0),           // 4: ADC2_CLK
+        (false, 0, 0x0, 0x0),           // 5: ADC2_SYSREF
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 6: GTP_CLK2
+        (true, SYSREF_DIV, 0x0, 0x0),   // 7: FPGA_DAC_SYSREF
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 8: GTP_CLK1
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 9: AMC_MASTER_AUX_CLK
+        (true, FPGA_CLK_DIV, 0x0, 0x0), // 10: RTM_MASTER_AUX_CLK
+        (false, 0, 0x0, 0x0),           // 11: FPGA_ADC_SYSREF
+        (false, 0, 0x0, 0x0),           // 12: ADC1_CLK
+        (false, 0, 0x0, 0x0),           // 13: ADC1_SYSREF
+        ];
+
 
     fn spi_setup() {
         unsafe {
@@ -176,25 +199,46 @@ mod hmc7043 {
             info!("HMC7043 found");
         }
         info!("HMC7043 configuration...");
-         /* global configuration */
-        for &(addr, data) in HMC7043_WRITES.iter() {
-            write(addr, data);
+
+        write(0x0, 0x1);   // Software reset
+        write(0x0, 0x0);
+
+        write(0x1, 0x40);  // Enable high-performace/low-noise mode
+        write(0x3, 0x10);  // Disable SYSREF timer
+        write(0xA, 0x06);  // Disable the REFSYNCIN input
+        write(0xB, 0x07);  // Enable the CLKIN input as LVPECL
+        write(0x50, 0x1f); // Disable GPO pin
+        write(0x9F, 0x4d); // Unexplained high-performance mode
+        write(0xA0, 0xdf); // Unexplained high-performance mode
+
+        // Enable required output groups
+        write(0x4, (1 << 0) |
+                   (1 << 1) |
+                   (1 << 3) |
+                   (1 << 4) |
+                   (1 << 5));
+
+        for channel in 0..14 {
+            let channel_base = 0xc8 + 0x0a*(channel as u16);
+            let (enabled, divider, aphase, dphase) = OUTPUT_CONFIG[channel];
+
+            if enabled {
+                // Only clock channels need to be high-performance
+                if (channel % 2) == 0 { write(channel_base, 0x91); }
+                else { write(channel_base, 0x11); }
+            }
+            else { write(channel_base, 0x10); }
+            write(channel_base + 0x1, (divider & 0x0ff) as u8);
+            write(channel_base + 0x2, ((divider & 0x700) >> 8) as u8);
+            write(channel_base + 0x3, aphase & 0x1f);
+            write(channel_base + 0x4, dphase & 0x1f);
+
+            // No analog phase shift on clock channels
+            if (channel % 2) == 0 { write(channel_base + 0x7, 0x00); } 
+            else { write(channel_base + 0x7, 0x01); }
+
+            write(channel_base + 0x8, 0x08)
         }
-
-        /* dac1 sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
-        write(0x0d6, 0);
-        /* dac1 sysref analog fine delay configuration (24 steps, 25ps/step)*/
-        write(0x0d5, 0);
-
-        /* dac2 sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
-        write(0x0ea, 0);
-        /* dac2 sysref analog fine delay configuration (24 steps, 25ps/step)*/
-        write(0x0e9, 0);
-
-        /* fpga sysref digital coarse delay configuration (17 steps, 1/2VCO cycle/step)*/
-        write(0x112, 0);
-        /* fpga sysref analog fine delay configuration (24 steps, 25ps/step)*/
-        write(0x111, 0);
 
         Ok(())
     }
