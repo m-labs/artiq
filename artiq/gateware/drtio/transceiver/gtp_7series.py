@@ -15,6 +15,8 @@ class GTPSingle(Module):
     def __init__(self, qpll_channel, pads, sys_clk_freq, rtio_clk_freq, mode):
         if mode != "master":
             raise NotImplementedError
+
+        self.stable_clkin = Signal()
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
             Encoder(2, True))
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -35,6 +37,7 @@ class GTPSingle(Module):
         self.submodules += tx_init, rx_init
 
         self.comb += [
+            tx_init.stable_clkin.eq(self.stable_clkin),
             qpll_channel.reset.eq(tx_init.pllreset),
             tx_init.plllock.eq(qpll_channel.lock),
             rx_init.plllock.eq(qpll_channel.lock),
@@ -721,6 +724,8 @@ class GTP(Module, TransceiverInterface):
             channel_interfaces.append(channel_interface)
 
         TransceiverInterface.__init__(self, channel_interfaces)
+        for gtp in self.gtps:
+            self.comb += gtp.stable_clkin.eq(self.stable_clkin.storage)
 
         self.comb += [
             self.cd_rtio.clk.eq(self.gtps[master].cd_rtio_tx.clk),

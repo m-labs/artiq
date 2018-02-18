@@ -10,6 +10,7 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 class GTPTXInit(Module):
     def __init__(self, sys_clk_freq):
+        self.stable_clkin = Signal()
         self.done = Signal()
         self.restart = Signal()
 
@@ -82,7 +83,7 @@ class GTPTXInit(Module):
         startup_fsm.act("PLL_RESET",
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
-            If(pll_reset_timer.done,
+            If(pll_reset_timer.done & self.stable_clkin,
                 NextState("GTP_RESET")
             )
         )

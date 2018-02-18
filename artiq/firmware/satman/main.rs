@@ -206,6 +206,9 @@ fn startup() {
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     i2c::init();
     si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
+    unsafe {
+        csr::drtio_transceiver::stable_clkin_write(1);
+    }
 
     loop {
         while !drtio_link_is_up() {

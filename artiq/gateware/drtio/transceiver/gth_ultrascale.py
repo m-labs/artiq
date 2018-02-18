@@ -251,6 +251,8 @@ class GTH(Module, TransceiverInterface):
             channel_interfaces.append(channel_interface)
 
         TransceiverInterface.__init__(self, channel_interfaces)
+        # GTH PLLs recover on their own from an interrupted clock input.
+        # stable_clkin can be ignored.
 
         self.comb += [
             self.cd_rtio.clk.eq(self.gths[master].cd_rtio_tx.clk),

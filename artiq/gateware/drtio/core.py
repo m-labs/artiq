@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from migen import *
 from migen.genlib.cdc import ElasticBuffer
+from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
@@ -17,8 +18,9 @@ class ChannelInterface:
         self.decoders = decoders
 
 
-class TransceiverInterface:
+class TransceiverInterface(AutoCSR):
     def __init__(self, channel_interfaces):
+        self.stable_clkin = CSRStorage()
         self.clock_domains.cd_rtio = ClockDomain()
         for i in range(len(channel_interfaces)):
             name = "rtio_rx" + str(i)

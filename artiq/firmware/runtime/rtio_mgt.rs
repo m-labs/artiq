@@ -41,6 +41,9 @@ pub mod drtio {
     use drtioaux;
 
     pub fn startup(io: &Io) {
+        unsafe {
+            csr::drtio_transceiver::stable_clkin_write(1);
+        }
         io.spawn(4096, link_thread);
     }
 

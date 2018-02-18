@@ -327,14 +327,15 @@ class Master(MiniSoC, AMPSoC):
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         self.comb += platform.request("sfp_ctl", 2).tx_disable.eq(0)
-        self.submodules.transceiver = gtp_7series.GTP(
+        self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
             data_pads=[platform.request("sfp", 2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
+        self.csr_devices.append("drtio_transceiver")
 
         self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
-            DRTIOMaster(self.transceiver.channels[0]))
+            DRTIOMaster(self.drtio_transceiver.channels[0]))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
@@ -344,7 +345,7 @@ class Master(MiniSoC, AMPSoC):
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
         rtio_clk_period = 1e9/rtio_clk_freq
-        for gtp in self.transceiver.gtps:
+        for gtp in self.drtio_transceiver.gtps:
             platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
@@ -447,14 +448,15 @@ class Satellite(BaseSoC):
         self.submodules += qpll
 
         self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
-        self.submodules.transceiver = gtp_7series.GTP(
+        self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
+        self.csr_devices.append("drtio_transceiver")
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
         self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.transceiver.channels[0], rtio_channels))
+            self.drtio_transceiver.channels[0], rtio_channels))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
@@ -478,7 +480,7 @@ class Satellite(BaseSoC):
         self.config["SI5324_SOFT_RESET"] = None
 
         rtio_clk_period = 1e9/rtio_clk_freq
-        gtp = self.transceiver.gtps[0]
+        gtp = self.drtio_transceiver.gtps[0]
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
