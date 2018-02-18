@@ -333,6 +333,8 @@ class Master(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
+        self.sync += self.disable_si5324_ibuf.eq(
+            ~self.drtio_transceiver.stable_clkin.storage)
 
         self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
             DRTIOMaster(self.drtio_transceiver.channels[0]))
@@ -379,16 +381,20 @@ class Master(MiniSoC, AMPSoC):
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
     def create_qpll(self):
+        # The GTP acts up if you send any glitch to its
+        # clock input, even while the PLL is held in reset.
+        self.disable_si5324_ibuf = Signal(reset=1)
+        self.disable_si5324_ibuf.attr.add("keep")
         si5324_clkout = self.platform.request("si5324_clkout")
         si5324_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
+            i_CEB=self.disable_si5324_ibuf,
             i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             o_O=si5324_clkout_buf)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
-        # but if only one clock used, then it must be 001.
+        # but if only one clock is used, then it must be 001.
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
@@ -433,10 +439,12 @@ class Satellite(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
+        disable_si5324_ibuf = Signal(reset=1)
+        disable_si5324_ibuf.attr.add("keep")
         si5324_clkout = platform.request("si5324_clkout")
         si5324_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
+            i_CEB=disable_si5324_ibuf,
             i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             o_O=si5324_clkout_buf)
         qpll_drtio_settings = QPLLSettings(
@@ -454,6 +462,9 @@ class Satellite(BaseSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
+        self.sync += disable_si5324_ibuf.eq(
+            ~self.drtio_transceiver.stable_clkin.storage)
+
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
         self.submodules.drtio0 = rx0(DRTIOSatellite(
             self.drtio_transceiver.channels[0], rtio_channels))
