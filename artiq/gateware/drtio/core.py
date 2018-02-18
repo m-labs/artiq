@@ -31,8 +31,8 @@ class TransceiverInterface(AutoCSR):
 class GenericRXSynchronizer(Module):
     """Simple RX synchronizer based on the portable Migen elastic buffer.
 
-    Introduces timing non-determinism in the satellite -> master path,
-    (and in the echo_request/echo_reply RTT) but useful for testing.
+    Introduces timing non-determinism in the satellite RX path, e.g.
+    echo_request/echo_reply RTT and TSC sync, but useful for testing.
     """
     def __init__(self):
         self.signals = []
