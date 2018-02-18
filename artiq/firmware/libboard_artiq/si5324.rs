@@ -93,7 +93,8 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
         n2_ls: settings.n2_ls - 1,
         n31: settings.n31 - 1,
         n32: settings.n32 - 1,
-        bwsel: settings.bwsel
+        bwsel: settings.bwsel,
+        crystal_ref: settings.crystal_ref
     };
     Ok(r)
 }
