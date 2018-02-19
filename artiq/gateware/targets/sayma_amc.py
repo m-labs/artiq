@@ -33,6 +33,7 @@ from artiq.gateware import remote_csr
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
+from artiq.gateware.drtio.xilinx_rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
@@ -399,8 +400,10 @@ class Satellite(BaseSoC):
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
         self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.drtio_transceiver.channels[0], rtio_channels))
+            self.drtio_transceiver.channels[0], rtio_channels,
+            self.rx_synchronizer))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
