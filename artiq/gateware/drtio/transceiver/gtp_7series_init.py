@@ -18,6 +18,7 @@ class GTPTXInit(Module):
         self.plllock = Signal()
         self.pllreset = Signal()
         self.gttxreset = Signal()
+        self.gttxreset.attr.add("no_retiming")
         self.txresetdone = Signal()
         self.txdlysreset = Signal()
         self.txdlysresetdone = Signal()
@@ -147,6 +148,7 @@ class GTPRXInit(Module):
         # GTP signals
         self.plllock = Signal()
         self.gtrxreset = Signal()
+        self.gtrxreset.attr.add("no_retiming")
         self.gtrxpd = Signal()
         self.rxresetdone = Signal()
         self.rxdlysreset = Signal()
