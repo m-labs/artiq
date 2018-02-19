@@ -44,6 +44,8 @@ class _RTIOCRG(Module, AutoCSR):
                 i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se),
             Instance("BUFG", i_I=clk_synth_se, o_O=rtio_external_clk),
         ]
+        platform.add_false_path_constraints(
+                rtio_external_clk, rtio_internal_clk)
 
         pll_locked = Signal()
         rtio_clk = Signal()
@@ -124,7 +126,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.platform.add_period_constraint(self.rtio_crg.cd_rtio.clk, 8.)
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
@@ -132,6 +133,15 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
+
+        # ignore timing of path from OSERDESE2 through the pad to ISERDESE2
+        self.platform.add_platform_command(
+            "set_false_path -quiet "
+            "-through [get_pins -filter {{REF_PIN_NAME == OQ || REF_PIN_NAME == TQ}} "
+                "-of [get_cells -filter {{REF_NAME == OSERDESE2}}]] "
+            "-to [get_pins -filter {{REF_PIN_NAME == D}} "
+                "-of [get_cells -filter {{REF_NAME == ISERDESE2}}]]"
+        )
 
 
 def _eem_signal(i):
