@@ -384,7 +384,7 @@ class Master(MiniSoC, AMPSoC):
         # The GTP acts up if you send any glitch to its
         # clock input, even while the PLL is held in reset.
         self.disable_si5324_ibuf = Signal(reset=1)
-        self.disable_si5324_ibuf.attr.add("keep")
+        self.disable_si5324_ibuf.attr.add("no_retiming")
         si5324_clkout = self.platform.request("si5324_clkout")
         si5324_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
@@ -440,7 +440,7 @@ class Satellite(BaseSoC):
         self.csr_devices.append("rtio_moninj")
 
         disable_si5324_ibuf = Signal(reset=1)
-        disable_si5324_ibuf.attr.add("keep")
+        disable_si5324_ibuf.attr.add("no_retiming")
         si5324_clkout = platform.request("si5324_clkout")
         si5324_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
