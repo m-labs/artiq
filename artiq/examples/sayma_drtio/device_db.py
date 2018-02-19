@@ -1,4 +1,4 @@
-core_addr = "sayma1.lab.m-labs.hk"
+core_addr = "sayma-1.lab.m-labs.hk"
 
 device_db = {
     "core": {

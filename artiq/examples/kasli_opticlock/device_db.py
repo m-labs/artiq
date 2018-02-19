@@ -1,5 +1,4 @@
 # This is an example device database that needs to be adapted to your setup.
-# The RTIO channel numbers here are for OPTICLOCK on KASLI.
 # The list of devices here is not exhaustive.
 
 core_addr = "vettel.ber.quartiq.de"
