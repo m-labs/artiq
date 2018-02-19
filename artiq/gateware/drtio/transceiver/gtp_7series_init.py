@@ -146,7 +146,6 @@ class GTPRXInit(Module):
         self.restart = Signal()
 
         # GTP signals
-        self.plllock = Signal()
         self.gtrxreset = Signal()
         self.gtrxreset.attr.add("no_retiming")
         self.gtrxpd = Signal()
@@ -185,12 +184,10 @@ class GTPRXInit(Module):
         self.sync += rxpmaresetdone_r.eq(rxpmaresetdone)
 
         # Double-latch transceiver asynch outputs
-        plllock = Signal()
         rxresetdone = Signal()
         rxdlysresetdone = Signal()
         rxsyncdone = Signal()
         self.specials += [
-            MultiReg(self.plllock, plllock),
             MultiReg(self.rxresetdone, rxresetdone),
             MultiReg(self.rxdlysresetdone, rxdlysresetdone),
             MultiReg(self.rxsyncdone, rxsyncdone)
@@ -211,12 +208,6 @@ class GTPRXInit(Module):
             self.rxdlyen.eq(rxdlyen),
             self.rxuserrdy.eq(rxuserrdy)
         ]
-
-        # After configuration, transceiver resets have to stay low for
-        # at least 500ns (see AR43482)
-        pll_reset_cycles = ceil(500e-9*sys_clk_freq)
-        pll_reset_timer = WaitTimer(pll_reset_cycles)
-        self.submodules += pll_reset_timer
 
         startup_fsm = ResetInserter()(FSM(reset_state="GTP_PD"))
         self.submodules += startup_fsm

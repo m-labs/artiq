@@ -39,8 +39,7 @@ class GTPSingle(Module):
         self.comb += [
             tx_init.stable_clkin.eq(self.stable_clkin),
             qpll_channel.reset.eq(tx_init.pllreset),
-            tx_init.plllock.eq(qpll_channel.lock),
-            rx_init.plllock.eq(qpll_channel.lock),
+            tx_init.plllock.eq(qpll_channel.lock)
         ]
 
         txdata = Signal(20)
