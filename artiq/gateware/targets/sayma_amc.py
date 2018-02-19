@@ -288,6 +288,7 @@ class Master(MiniSoC, AMPSoC):
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
         self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
