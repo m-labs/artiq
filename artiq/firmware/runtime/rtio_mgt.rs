@@ -131,21 +131,34 @@ pub mod drtio {
             Err(e) => error!("[LINK#{}] aux packet error ({})", linkno, e)
         }
     }
+    
+    // FIXME: use csr::DRTIO.len(), maybe get rid of static mut as well.
+    static mut LINK_UP: [bool; 16] = [false; 16];
+
+    fn link_up(linkno: u8) -> bool {
+        unsafe {
+            LINK_UP[linkno as usize]
+        }
+    }
+
+    fn set_link_up(linkno: u8, up: bool) {
+        unsafe {
+            LINK_UP[linkno as usize] = up
+        }
+    }
 
     pub fn link_thread(io: Io) {
-        let mut link_up = vec![false; csr::DRTIO.len()];
-
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
-                if link_up[linkno as usize] {
+                if link_up(linkno) {
                     /* link was previously up */
                     if link_rx_up(linkno) {
                         process_local_errors(linkno);
                         process_aux_errors(linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
-                        link_up[linkno as usize] = false;
+                        set_link_up(linkno, false);
                     }
                 } else {
                     /* link was previously down */
@@ -158,7 +171,7 @@ pub mod drtio {
                             init_buffer_space(linkno);
                             sync_tsc(linkno);
                             info!("[LINK#{}] link initialization completed", linkno);
-                            link_up[linkno as usize] = true;
+                            set_link_up(linkno, true);
                         } else {
                             info!("[LINK#{}] ping failed", linkno);
                         }
@@ -170,7 +183,18 @@ pub mod drtio {
     }
 
     pub fn init() {
-        // TODO: send reset commands (over aux) to every link that is up
+        for linkno in 0..csr::DRTIO.len() {
+            let linkno = linkno as u8;
+            if link_up(linkno) {
+                drtioaux::hw::send_link(linkno,
+                    &drtioaux::Packet::ResetRequest { phy: false }).unwrap();
+                match drtioaux::hw::recv_timeout_link(linkno, None) {
+                    Ok(drtioaux::Packet::ResetAck) => (),
+                    Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
+                    Err(e) => error!("[LINK#{}] reset failed, aux packet error ({})", linkno, e)
+                }
+            }
+        }
     }
 }
 

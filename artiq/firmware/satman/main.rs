@@ -18,11 +18,33 @@ use board_artiq::serwb;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
 
+
+fn drtio_reset(reset: bool) {
+    unsafe {
+        (csr::DRTIO[0].reset_write)(if reset { 1 } else { 0 });
+    }
+}
+
+fn drtio_reset_phy(reset: bool) {
+    unsafe {
+        (csr::DRTIO[0].reset_phy_write)(if reset { 1 } else { 0 });
+    }
+}
+
 fn process_aux_packet(p: &drtioaux::Packet) {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
     match *p {
         drtioaux::Packet::EchoRequest => drtioaux::hw::send_link(0, &drtioaux::Packet::EchoReply).unwrap(),
+        drtioaux::Packet::ResetRequest { phy } => {
+            if phy {
+                drtio_reset_phy(true);
+                drtio_reset_phy(false);
+            } else {
+                drtio_reset(true);
+                drtio_reset(false);
+            }
+        },
 
         drtioaux::Packet::RtioErrorRequest => {
             let errors;
@@ -193,14 +215,6 @@ fn drtio_link_is_up() -> bool {
     }
 }
 
-fn drtio_reset(reset: bool) {
-    let reset = if reset { 1 } else { 0 };
-    unsafe {
-        (csr::DRTIO[0].reset_write)(reset);
-        (csr::DRTIO[0].reset_phy_write)(reset);
-    }
-}
-
 fn startup() {
     board::clock::init();
     info!("ARTIQ satellite manager starting...");
@@ -225,10 +239,12 @@ fn startup() {
         info!("link is up, switching to recovered clock");
         si5324::select_ext_input(true).expect("failed to switch clocks");
         drtio_reset(false);
+        drtio_reset_phy(false);
         while drtio_link_is_up() {
             process_errors();
             process_aux_packets();
         }
+        drtio_reset_phy(true);
         drtio_reset(true);
         info!("link is down, switching to local crystal clock");
         si5324::select_ext_input(false).expect("failed to switch clocks");

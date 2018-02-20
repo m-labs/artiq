@@ -17,6 +17,8 @@ use proto::*;
 pub enum Packet {
     EchoRequest,
     EchoReply,
+    ResetRequest { phy: bool },
+    ResetAck,
 
     RtioErrorRequest,
     RtioNoErrorReply,
@@ -52,6 +54,10 @@ impl Packet {
         Ok(match read_u8(reader)? {
             0x00 => Packet::EchoRequest,
             0x01 => Packet::EchoReply,
+            0x02 => Packet::ResetRequest {
+                phy: read_bool(reader)?
+            },
+            0x03 => Packet::ResetAck,
 
             0x20 => Packet::RtioErrorRequest,
             0x21 => Packet::RtioNoErrorReply,
@@ -149,6 +155,11 @@ impl Packet {
         match *self {
             Packet::EchoRequest => write_u8(writer, 0x00)?,
             Packet::EchoReply => write_u8(writer, 0x01)?,
+            Packet::ResetRequest { phy } => {
+                write_u8(writer, 0x02)?;
+                write_bool(writer, phy)?;
+            },
+            Packet::ResetAck => write_u8(writer, 0x03)?,
 
             Packet::RtioErrorRequest => write_u8(writer, 0x20)?,
             Packet::RtioNoErrorReply => write_u8(writer, 0x21)?,
