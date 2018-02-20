@@ -9,14 +9,13 @@ from artiq.gateware.drtio.rt_serializer import *
 
 class RTPacketSatellite(Module):
     def __init__(self, link_layer):
+        self.reset = Signal()
+
         self.unknown_packet_type = Signal()
         self.packet_truncated = Signal()
 
         self.tsc_load = Signal()
         self.tsc_load_value = Signal(64)
-
-        self.reset = Signal(reset=1)
-        self.reset_phy = Signal(reset=1)
 
         self.cri = cri.Interface()
 
@@ -97,13 +96,6 @@ class RTPacketSatellite(Module):
                 Cat(rx_dp.packet_as["write"].short_data, write_data_buffer)),
         ]
 
-        reset = Signal()
-        reset_phy = Signal()
-        self.sync += [
-            self.reset.eq(reset),
-            self.reset_phy.eq(reset_phy)
-        ]
-
         rx_fsm = FSM(reset_state="INPUT")
         self.submodules += rx_fsm
 
@@ -120,7 +112,6 @@ class RTPacketSatellite(Module):
                         # mechanism
                         rx_plm.types["echo_request"]: echo_req.eq(1),
                         rx_plm.types["set_time"]: NextState("SET_TIME"),
-                        rx_plm.types["reset"]: NextState("RESET"),
                         rx_plm.types["write"]: NextState("WRITE"),
                         rx_plm.types["buffer_space_request"]: NextState("BUFFER_SPACE"),
                         rx_plm.types["read_request"]: NextState("READ_REQUEST"),
@@ -136,14 +127,6 @@ class RTPacketSatellite(Module):
         )
         rx_fsm.act("SET_TIME",
             self.tsc_load.eq(1),
-            NextState("INPUT")
-        )
-        rx_fsm.act("RESET",
-            If(rx_dp.packet_as["reset"].phy,
-                reset_phy.eq(1)
-            ).Else(
-                reset.eq(1)
-            ),
             NextState("INPUT")
         )
 

@@ -54,11 +54,10 @@ pub mod drtio {
         }
     }
 
-    fn reset_phy(linkno: u8) {
+    fn link_reset(linkno: u8) {
         let linkno = linkno as usize;
         unsafe {
-            (csr::DRTIO[linkno].reset_phy_write)(1);
-            while (csr::DRTIO[linkno].o_wait_read)() == 1 {}
+            (csr::DRTIO[linkno].reset_write)(1);
         }
     }
 
@@ -70,22 +69,13 @@ pub mod drtio {
         }
     }
 
-    fn init_link(linkno: u8) {
+    fn init_buffer_space(linkno: u8) {
         let linkidx = linkno as usize;
         unsafe {
-            (csr::DRTIO[linkidx].reset_write)(1);
-            while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
-
             (csr::DRTIO[linkidx].o_get_buffer_space_write)(1);
             while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
             info!("[LINK#{}] buffer space is {}",
                 linkno, (csr::DRTIO[linkidx].o_dbg_buffer_space_read)());
-        }
-    }
-
-    pub fn init() {
-        for linkno in 0..csr::DRTIO.len() {
-            init_link(linkno as u8);
         }
     }
 
@@ -114,7 +104,7 @@ pub mod drtio {
             (csr::DRTIO[linkidx].protocol_error_write)(errors);
         }
         if errors != 0 {
-            error!("[LINK#{}] found error(s)", linkno);
+            error!("[LINK#{}] error(s) found (0x{:02x}):", linkno, errors);
             if errors & 1 != 0 {
                 error!("[LINK#{}] received packet of an unknown type", linkno);
             }
@@ -148,33 +138,39 @@ pub mod drtio {
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
-                if !link_up[linkno as usize] {
+                if link_up[linkno as usize] {
+                    /* link was previously up */
+                    if link_rx_up(linkno) {
+                        process_local_errors(linkno);
+                        process_aux_errors(linkno);
+                    } else {
+                        info!("[LINK#{}] link is down", linkno);
+                        link_up[linkno as usize] = false;
+                    }
+                } else {
+                    /* link was previously down */
                     if link_rx_up(linkno) {
                         info!("[LINK#{}] link RX became up, pinging", linkno);
+                        link_reset(linkno);
                         let ping_count = ping_remote(linkno, &io);
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
-                            init_link(linkno);  // clear all FIFOs first
-                            reset_phy(linkno);
+                            init_buffer_space(linkno);
                             sync_tsc(linkno);
                             info!("[LINK#{}] link initialization completed", linkno);
                             link_up[linkno as usize] = true;
                         } else {
                             info!("[LINK#{}] ping failed", linkno);
                         }
-                    } else {
-                        if link_rx_up(linkno) {
-                            process_local_errors(linkno);
-                            process_aux_errors(linkno);
-                        } else {
-                            info!("[LINK#{}] link is down", linkno);
-                            link_up[linkno as usize] = false;
-                        }
                     }
                 }
             }
             io.sleep(200).unwrap();
         }
+    }
+
+    pub fn init() {
+        // TODO: send reset commands (over aux) to every link that is up
     }
 }
 

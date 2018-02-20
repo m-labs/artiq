@@ -111,11 +111,6 @@ class RTPacketMaster(Module):
         # a set_time request pending
         self.tsc_value = Signal(64)
 
-        # reset interface
-        self.reset_stb = Signal()
-        self.reset_ack = Signal()
-        self.reset_phy = Signal()
-
         # rx errors
         self.err_unknown_packet_type = Signal()
         self.err_packet_truncated = Signal()
@@ -221,13 +216,6 @@ class RTPacketMaster(Module):
             self.set_time_stb, self.set_time_ack, None,
             set_time_stb, set_time_ack, None)
 
-        reset_stb = Signal()
-        reset_ack = Signal()
-        reset_phy = Signal()
-        self.submodules += _CrossDomainRequest("rtio",
-            self.reset_stb, self.reset_ack, self.reset_phy,
-            reset_stb, reset_ack, reset_phy)
-
         echo_stb = Signal()
         echo_ack = Signal()
         self.submodules += _CrossDomainRequest("rtio",
@@ -287,8 +275,6 @@ class RTPacketMaster(Module):
                 ).Elif(set_time_stb,
                     tsc_value_load.eq(1),
                     NextState("SET_TIME")
-                ).Elif(reset_stb,
-                    NextState("RESET")
                 )
             )
         )
@@ -341,13 +327,6 @@ class RTPacketMaster(Module):
             tx_dp.send("set_time", timestamp=tsc_value),
             If(tx_dp.packet_last,
                 set_time_ack.eq(1),
-                NextState("IDLE")
-            )
-        )
-        tx_fsm.act("RESET",
-            tx_dp.send("reset", phy=reset_phy),
-            If(tx_dp.packet_last,
-                reset_ack.eq(1),
                 NextState("IDLE")
             )
         )

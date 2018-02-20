@@ -47,7 +47,6 @@ def get_m2s_layouts(alignment):
 
     plm.add_type("echo_request")
     plm.add_type("set_time", ("timestamp", 64))
-    plm.add_type("reset", ("phy", 1))
 
     plm.add_type("write", ("timestamp", 64),
                           ("channel", 16),

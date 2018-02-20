@@ -13,14 +13,14 @@ from artiq.gateware.rtio import cri
 
 class _CSRs(AutoCSR):
     def __init__(self):
+        self.reset = CSR()
+
         self.protocol_error = CSR(3)
 
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=200)
 
-        self.reset = CSR()
-        self.reset_phy = CSR()
 
         self.o_get_buffer_space = CSR()
         self.o_dbg_buffer_space = CSRStatus(16)
@@ -50,6 +50,19 @@ class RTController(Module):
     def __init__(self, rt_packet, channel_count, fine_ts_width):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
+
+        # reset
+        local_reset = Signal(reset=1)
+        self.sync += local_reset.eq(self.csrs.reset.re)
+        local_reset.attr.add("no_retiming")
+        self.clock_domains.cd_sys_with_rst = ClockDomain()
+        self.clock_domains.cd_rtio_with_rst = ClockDomain()
+        self.comb += [
+            self.cd_sys_with_rst.clk.eq(ClockSignal()),
+            self.cd_sys_with_rst.rst.eq(local_reset)
+        ]
+        self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
+        self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
 
         # protocol errors
         err_unknown_packet_type = Signal()
@@ -84,31 +97,6 @@ class RTController(Module):
             If(rt_packet.set_time_ack, rt_packet.set_time_stb.eq(0)),
             If(self.csrs.set_time.re, rt_packet.set_time_stb.eq(1))
         ]
-
-        # reset
-        self.sync += [
-            If(rt_packet.reset_ack, rt_packet.reset_stb.eq(0)),
-            If(self.csrs.reset.re,
-                rt_packet.reset_stb.eq(1),
-                rt_packet.reset_phy.eq(0)
-            ),
-            If(self.csrs.reset_phy.re,
-                rt_packet.reset_stb.eq(1),
-                rt_packet.reset_phy.eq(1)
-            ),
-        ]
-
-        local_reset = Signal(reset=1)
-        self.sync += local_reset.eq(self.csrs.reset.re)
-        local_reset.attr.add("no_retiming")
-        self.clock_domains.cd_sys_with_rst = ClockDomain()
-        self.clock_domains.cd_rtio_with_rst = ClockDomain()
-        self.comb += [
-            self.cd_sys_with_rst.clk.eq(ClockSignal()),
-            self.cd_sys_with_rst.rst.eq(local_reset)
-        ]
-        self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
 
         # common packet fields
         chan_sel = self.cri.chan_sel[:16]

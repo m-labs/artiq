@@ -193,6 +193,14 @@ fn drtio_link_is_up() -> bool {
     }
 }
 
+fn drtio_reset(reset: bool) {
+    let reset = if reset { 1 } else { 0 };
+    unsafe {
+        (csr::DRTIO[0].reset_write)(reset);
+        (csr::DRTIO[0].reset_phy_write)(reset);
+    }
+}
+
 fn startup() {
     board::clock::init();
     info!("ARTIQ satellite manager starting...");
@@ -216,10 +224,12 @@ fn startup() {
         }
         info!("link is up, switching to recovered clock");
         si5324::select_ext_input(true).expect("failed to switch clocks");
+        drtio_reset(false);
         while drtio_link_is_up() {
             process_errors();
             process_aux_packets();
         }
+        drtio_reset(true);
         info!("link is down, switching to local crystal clock");
         si5324::select_ext_input(false).expect("failed to switch clocks");
     }
