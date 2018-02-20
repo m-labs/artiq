@@ -79,8 +79,8 @@ class _IOSERDESE2_8X(Module):
                                       p_DIFF_TERM="TRUE",
                                       p_IBUF_LOW_PWR="TRUE",
                                       p_USE_IBUFDISABLE="TRUE",
-                                      i_IBUFDISABLE=self.oe,
-                                      i_INTERMDISABLE=self.oe,
+                                      i_IBUFDISABLE=~oserdes.t_out,
+                                      i_INTERMDISABLE=~oserdes.t_out,
                                       i_I=pad_o, o_O=pad_i, i_T=oserdes.t_out,
                                       io_IO=pad, io_IOB=pad_n)
         self.comb += [
