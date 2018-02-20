@@ -240,7 +240,7 @@ class Opticlock(_StandaloneBase):
         _StandaloneBase.__init__(self, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["SI5324_EXT_REF"] = None
+        # self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
 
         platform = self.platform
