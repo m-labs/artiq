@@ -68,6 +68,10 @@ class DUT(Module):
         self.submodules.satellite = DRTIOSatellite(
             self.transceivers.bob, rtio_channels, rx_synchronizer,
             lane_count=4, fifo_depth=8, fine_ts_width=0)
+        self.satellite.reset.storage.reset = 0
+        self.satellite.reset.storage_full.reset = 0
+        self.satellite.reset_phy.storage.reset = 0
+        self.satellite.reset_phy.storage_full.reset = 0
 
 
 class OutputsTestbench:
