@@ -301,6 +301,7 @@ class GTPRXInit(Module):
         startup_fsm.act("READY",
             rxuserrdy.eq(1),
             self.done.eq(1),
-            If(self.restart, NextState("GTP_PD")
+            If(self.restart,
+                NextState("GTP_PD")
             )
         )
