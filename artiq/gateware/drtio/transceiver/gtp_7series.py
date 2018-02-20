@@ -689,7 +689,7 @@ class GTPSingle(Module):
             self.comb += decoders[i].input.eq(rxdata[10*i:10*(i+1)])
 
         # clock alignment
-        clock_aligner = BruteforceClockAligner(0b0101111100, rtio_clk_freq, check_period=10e-3)
+        clock_aligner = BruteforceClockAligner(0b0101111100, rtio_clk_freq, check_period=12e-3)
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
