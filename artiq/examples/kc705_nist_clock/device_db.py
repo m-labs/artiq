@@ -192,7 +192,7 @@ device_db = {
 
     "spi_urukul": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 32}
     },

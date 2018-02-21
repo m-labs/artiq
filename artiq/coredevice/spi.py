@@ -1,6 +1,8 @@
 """
 Driver for generic SPI on RTIO.
 
+This ARTIQ coredevice driver corresponds to the legacy MiSoC SPI core (v1).
+
 Output event replacement is not supported and issuing commands at the same
 time is an error.
 """

@@ -16,9 +16,6 @@ class UrukulTest(EnvExperiment):
         self.setattr_device("urukul_ch3b")
         self.setattr_device("led")
 
-    def p(self, f, *a):
-        print(f % a)
-
     @kernel
     def run(self):
         self.core.reset()
@@ -28,7 +25,7 @@ class UrukulTest(EnvExperiment):
         self.fmcdio_dirctl.set(0x0A008800)
         self.led.off()
 
-        self.urukul_cpld.init(clk_sel=0)
+        self.urukul_cpld.init()
         self.urukul_ch0b.init()
         self.urukul_ch1b.init()
         self.urukul_ch2b.init()
@@ -54,24 +51,19 @@ class UrukulTest(EnvExperiment):
         self.urukul_ch3b.sw.on()
         self.urukul_ch3b.set_att(20.)
 
-        i = 0
-        j = 0
-        while True:
-            delay(13*us)
-            self.urukul_ch0b.write32(0x07, i)
-            self.urukul_cpld.io_update.pulse(10*ns)
-            k = self.urukul_ch0b.read32(0x07)
-            delay(100*us)
-            if k != i:
-                #print(i)
-                #print(k)
-                #if j > 20:
-                #    return
-                j += 1
-                #delay(20*ms)
-            i += 1
+        data = 0
+        errors = 0
+        delay(100*us)
+        while data != -1:
+            self.urukul_ch0b.write32(0x07, data)
+            read = self.urukul_ch0b.read32(0x07)
+            if read != data:
+                errors += 1
+                if errors > 20:
+                    return
+            data += 1
 
-        while True:
+        while False:
             self.urukul_ch0b.sw.pulse(5*ms)
             delay(5*ms)
 

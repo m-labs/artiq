@@ -11,9 +11,6 @@ class UrukulTest(EnvExperiment):
         self.setattr_device("urukul0_ch3")
         self.setattr_device("led0")
 
-    def p(self, f, *a):
-        print(f % a)
-
     @kernel
     def run(self):
         self.core.reset()
@@ -21,7 +18,7 @@ class UrukulTest(EnvExperiment):
         delay(5*ms)
         self.led0.off()
 
-        self.urukul0_cpld.init(clk_sel=0)
+        self.urukul0_cpld.init()
         self.urukul0_ch0.init()
         self.urukul0_ch1.init()
         self.urukul0_ch2.init()

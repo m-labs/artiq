@@ -19,7 +19,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi2
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
@@ -265,7 +265,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = spi.SPIMaster(self.platform.request("eem3_spi_p"),
+        phy = spi2.SPIMaster(self.platform.request("eem3_spi_p"),
                 self.platform.request("eem3_spi_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
@@ -276,7 +276,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = spi.SPIMaster(self.platform.request("eem5_spi_p"),
+        phy = spi2.SPIMaster(self.platform.request("eem5_spi_p"),
                 self.platform.request("eem5_spi_n"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))

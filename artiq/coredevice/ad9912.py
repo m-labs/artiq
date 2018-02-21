@@ -1,8 +1,11 @@
-from artiq.language.core import kernel, delay_mu, delay, portable
+from numpy import int32, int64
+
+from artiq.language.core import kernel, delay, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.ad9912_reg import *
 
-from numpy import int32, int64
+from artiq.coredevice import spi2 as spi
+from artiq.coredevice import urukul
 
 
 class AD9912:
@@ -39,8 +42,9 @@ class AD9912:
         self.ftw_per_hz = 1/self.sysclk*(int64(1) << 48)
 
     @kernel
-    def write(self, addr=int32(0), data=int32(0), length=int32(1)):
-        """Variable length write to a register. Up to 32 bits.
+    def write(self, addr, data, length):
+        """Variable length write to a register.
+        Up to 4 bytes.
 
         :param addr: Register address
         :param data: Data to be written: int32
@@ -48,51 +52,60 @@ class AD9912:
         """
         assert length > 0
         assert length <= 4
-        self.bus.set_xfer(self.chip_select, 16, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13)) << 16)
-        delay_mu(-self.bus.xfer_period_mu)
-        self.bus.set_xfer(self.chip_select, length*8, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, length*8,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data << (32 - length*8))
-        delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
 
     @kernel
-    def read(self, addr=int32(0), length=int32(1)):
-        """Variable length read from a register. Up to 32 bits.
+    def read(self, addr, length):
+        """Variable length read from a register.
+        Up to 4 bytes.
 
         :param addr: Register address
         :param length: Length in bytes (1-4)
+        :return: Data read
         """
         assert length > 0
         assert length <= 4
-        self.bus.set_xfer(self.chip_select, 16, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13) | 0x8000) << 16)
-        delay_mu(-self.bus.xfer_period_mu)
-        self.bus.set_xfer(self.chip_select, 0, length*8)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END
+                | spi.SPI_INPUT, length*8,
+                urukul.SPIT_DDS_RD, self.chip_select)
         self.bus.write(0)
-        delay_mu(2*self.bus.xfer_period_mu)
-        data = self.bus.read_sync()
+        data = self.bus.read()
         if length < 4:
             data &= (1 << (length*8)) - 1
         return data
 
     @kernel
     def init(self):
-        """Initialize and configure the DDS."""
-        t = now_mu()
+        """Initialize and configure the DDS.
+
+        Sets up SPI mode, confirms chip presence, powers down unused blocks,
+        and configures the PLL. Does not wait for PLL lock. Uses the
+        IO_UPDATE signal multiple times.
+        """
         # SPI mode
-        self.write(AD9912_SER_CONF, 0x99)
+        self.write(AD9912_SER_CONF, 0x99, length=1)
+        self.cpld.io_update.pulse(1*us)
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, length=2)
         if (prodid != 0x1982) and (prodid != 0x1902):
             raise ValueError("Urukul AD9912 product id mismatch")
-        delay(10*us)
+        delay(20*us)
         # HSTL power down, CMOS power down
-        self.write(AD9912_PWRCNTRL1, 0x80)
-        delay(10*us)
-        self.write(AD9912_N_DIV, self.pll_n//2 - 2)
-        delay(10*us)
+        self.write(AD9912_PWRCNTRL1, 0x80, length=1)
+        self.cpld.io_update.pulse(1*us)
+        self.write(AD9912_N_DIV, self.pll_n//2 - 2, length=1)
+        self.cpld.io_update.pulse(1*us)
         # I_cp = 375 µA, VCO high range
-        self.write(AD9912_PLLCFG, 0b00000101)
+        self.write(AD9912_PLLCFG, 0b00000101, length=1)
+        self.cpld.io_update.pulse(1*us)
 
     @kernel
     def set_att_mu(self, att):
@@ -110,12 +123,12 @@ class AD9912:
 
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att`
 
-        :param att: Attenuation in dB.
+        :param att: Attenuation in dB. Higher values mean more attenuation.
         """
         self.cpld.set_att(self.chip_select - 4, att)
 
     @kernel
-    def set_mu(self, ftw=int64(0), pow=int32(0)):
+    def set_mu(self, ftw, pow):
         """Set profile 0 data in machine units.
 
         After the SPI transfer, the shared IO update pin is pulsed to
@@ -125,13 +138,15 @@ class AD9912:
         :param pow: Phase tuning word: 16 bit unsigned.
         """
         # streaming transfer of FTW and POW
-        self.bus.set_xfer(self.chip_select, 16, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((AD9912_POW1 << 16) | (3 << 29))
-        delay_mu(-self.bus.xfer_period_mu)
-        self.bus.set_xfer(self.chip_select, 32, 0)
-        self.bus.write((pow << 16) | int32(ftw >> 32))
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 32,
+                urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((pow << 16) | (int32(ftw >> 32) & 0xffff))
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
-        delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
         self.cpld.io_update.pulse(10*ns)
 
     @portable(flags={"fast-math"})

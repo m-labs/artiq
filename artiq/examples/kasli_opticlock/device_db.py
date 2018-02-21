@@ -188,7 +188,7 @@ device_db = {
 
     "spi_novogorny0": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 24}
     },
@@ -201,7 +201,7 @@ device_db = {
 
     "spi_urukul0": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 26}
     },
@@ -242,7 +242,8 @@ device_db = {
         "arguments": {
             "spi_device": "spi_urukul0",
             "io_update_device": "ttl_urukul0_io_update",
-            "refclk": 100e6
+            "refclk": 100e6,
+            "clk_sel": 1
         }
     },
     "urukul0_ch0": {

@@ -1,8 +1,11 @@
-from artiq.language.core import kernel, delay_mu, delay, portable
-from artiq.language.units import us, ns, ms
-from artiq.coredevice.urukul import urukul_sta_pll_lock
-
 from numpy import int32, int64
+
+from artiq.language.core import kernel, delay, portable
+from artiq.language.units import us, ns, ms
+
+from artiq.coredevice import spi2 as spi
+from artiq.coredevice import urukul
+urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
 
 
 _AD9910_REG_CFR1 = 0x00
@@ -47,7 +50,7 @@ class AD9910:
     :param pll_vco: DDS PLL VCO range selection.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus", "sw",
-            "ftw_per_hz", "sysclk", "pll_n", "pll_cp", "pll_vco"}
+            "ftw_per_hz", "pll_n", "pll_cp", "pll_vco"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
             pll_n=40, pll_cp=7, pll_vco=5):
@@ -60,14 +63,14 @@ class AD9910:
             self.sw = dmgr.get(sw_device)
         assert 12 <= pll_n <= 127
         self.pll_n = pll_n
-        assert self.cpld.refclk < 60e6
-        self.sysclk = self.cpld.refclk*pll_n/4  # Urukul clock fanout divider
-        assert self.sysclk <= 1e9
-        self.ftw_per_hz = 1./self.sysclk*(int64(1) << 32)
+        assert self.cpld.refclk/4 <= 60e6
+        sysclk = self.cpld.refclk*pll_n/4  # Urukul clock fanout divider
+        assert sysclk <= 1e9
+        self.ftw_per_hz = 1./sysclk*(int64(1) << 32)
         assert 0 <= pll_vco <= 5
         vco_min, vco_max = [(370, 510), (420, 590), (500, 700),
                 (600, 880), (700, 950), (820, 1150)][pll_vco]
-        assert vco_min <= self.sysclk/1e6 <= vco_max
+        assert vco_min <= sysclk/1e6 <= vco_max
         self.pll_vco = pll_vco
         assert 0 <= pll_cp <= 7
         self.pll_cp = pll_cp
@@ -79,12 +82,27 @@ class AD9910:
         :param addr: Register address
         :param data: Data to be written
         """
-        self.bus.set_xfer(self.chip_select, 8, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(addr << 24)
-        delay_mu(-self.bus.xfer_period_mu + 8)
-        self.bus.set_xfer(self.chip_select, 32, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data)
-        delay_mu(self.bus.xfer_period_mu - self.bus.write_period_mu)
+
+    @kernel
+    def read32(self, addr):
+        """Read from 32 bit register.
+
+        :param addr: Register address
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((addr | 0x80) << 24)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END
+                | spi.SPI_INPUT, 32,
+                urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        return self.bus.read()
 
     @kernel
     def write64(self, addr, data_high, data_low):
@@ -94,68 +112,58 @@ class AD9910:
         :param data_high: High (MSB) 32 bits of the data
         :param data_low: Low (LSB) 32 data bits
         """
-        self.bus.set_xfer(self.chip_select, 8, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(addr << 24)
-        t = self.bus.xfer_period_mu
-        delay_mu(-t + 8)
-        self.bus.set_xfer(self.chip_select, 32, 0)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 32,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data_high)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
+                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data_low)
-        delay_mu(t - 2*self.bus.write_period_mu)
-
-    @kernel
-    def read32(self, addr):
-        """Read from 32 bit register.
-
-        :param addr: Register address
-        """
-        self.bus.set_xfer(self.chip_select, 8, 0)
-        self.bus.write((addr | 0x80) << 24)
-        delay_mu(-self.bus.xfer_period_mu + 8)
-        self.bus.set_xfer(self.chip_select, 0, 32)
-        self.bus.write(0)
-        delay_mu(2*self.bus.xfer_period_mu)
-        data = self.bus.read_sync()
-        return data
 
     @kernel
     def init(self):
-        """Initialize and configure the DDS."""
+        """Initialize and configure the DDS.
+
+        Sets up SPI mode, confirms chip presence, powers down unused blocks,
+        configures the PLL, waits for PLL lock. Uses the
+        IO_UPDATE signal multiple times.
+        """
         # Set SPI mode
         self.write32(_AD9910_REG_CFR1, 0x00000002)
-        delay(100*us)
-        self.cpld.io_update.pulse(100*ns)
+        self.cpld.io_update.pulse(1*us)
         # Use the AUX DAC setting to identify and confirm presence
         aux_dac = self.read32(_AD9910_REG_AUX_DAC)
         if aux_dac & 0xff != 0x7f:
             raise ValueError("Urukul AD9910 AUX_DAC mismatch")
-        delay(100*us)
+        delay(20*us)  # slack
         # Configure PLL settings and bring up PLL
         self.write32(_AD9910_REG_CFR2, 0x01400020)
+        self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
-        delay(100*us)
-        self.cpld.io_update.pulse(100*ns)
+        self.cpld.io_update.pulse(100*us)
         self.write32(_AD9910_REG_CFR3, cfr3)
-        delay(100*us)
-        self.cpld.io_update.pulse(100*ns)
+        self.cpld.io_update.pulse(100*us)
         # Wait for PLL lock, up to 100 ms
         for i in range(100):
-            lock = urukul_sta_pll_lock(self.cpld.sta_read())
+            sta = self.cpld.sta_read()
+            lock = urukul_sta_pll_lock(sta)
             delay(1*ms)
-            if lock & (1 << self.chip_select - 4) != 0:
+            if lock & (1 << self.chip_select - 4):
                 return
-        raise ValueError("PLL failed to lock")
+        raise ValueError("PLL lock timeout")
 
     @kernel
-    def set_mu(self, ftw=int32(0), pow=int32(0), asf=int32(0x3fff)):
+    def set_mu(self, ftw, pow=0, asf=0x3fff):
         """Set profile 0 data in machine units.
 
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
-        :param ftw: Frequency tuning word: 32 bit unsigned.
+        :param ftw: Frequency tuning word: 32 bit.
         :param pow: Phase tuning word: 16 bit unsigned.
         :param asf: Amplitude scale factor: 14 bit unsigned.
         """
@@ -195,7 +203,7 @@ class AD9910:
                     self.amplitude_to_asf(amplitude))
 
     @kernel
-    def set_att_mu(self, att=int32(0)):
+    def set_att_mu(self, att):
         """Set digital step attenuator in machine units.
 
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att_mu`
