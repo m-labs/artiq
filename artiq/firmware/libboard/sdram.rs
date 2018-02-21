@@ -209,7 +209,7 @@ mod ddr {
 
             // Get a bit further into the working zone
             #[cfg(kusddrphy)]
-            for _ in 0..16 {
+            for _ in 0..32 {
                 delay.set(delay.get() + 1);
                 ddrphy::rdly_dq_inc_write(1);
             }
