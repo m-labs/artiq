@@ -7,9 +7,7 @@ Output event replacement is not supported and issuing commands at the same
 time is an error.
 """
 
-from numpy import int64
 from artiq.language.core import syscall, kernel, portable, now_mu, delay_mu
-from artiq.language.types import TInt32, TNone
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
@@ -72,11 +70,10 @@ class SPIMaster:
     @portable
     def frequency_to_div(self, f):
         """Convert a SPI clock frequency to the closest SPI clock divider."""
-        return int64(round(
-            1/(f*self.core.mu_to_seconds(self.ref_period_mu))))
+        return int(round(1/(f*self.core.mu_to_seconds(self.ref_period_mu))))
 
     @kernel
-    def set_config(self, flags, length, freq, c):
+    def set_config(self, flags, length, freq, cs):
         """Set the configuration register.
 
         * If ``SPI_CS_POLARITY`` is cleared (``cs`` active low, the default),
@@ -140,8 +137,7 @@ class SPIMaster:
             Or number of the chip select to assert if ``cs`` is decoded
             downstream. (reset=0)
         """
-        self.set_config_mu(
-                flags, length, self.frequency_to_div(write_freq), cs)
+        self.set_config_mu(flags, length, self.frequency_to_div(freq), cs)
 
     @kernel
     def set_config_mu(self, flags, length, div, cs):
