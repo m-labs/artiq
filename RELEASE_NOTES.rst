@@ -18,7 +18,7 @@ Release notes
   server address argument and the notify port.
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
-* ``artiq_flash --adapter`` has been changed to ``artiq_flash --variant``.
+* ``artiq_flash -m/--adapter`` has been changed to ``artiq_flash -V/--variant``.
 * ``kc705_dds`` has been renamed ``kc705``.
 * the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
 
