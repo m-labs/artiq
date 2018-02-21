@@ -170,10 +170,29 @@ Opticlock
 In the opticlock variant, Kasli is the core device controlling three `DIO_BNC <https://github.com/m-labs/sinara/wiki/DIO_BNC>`_ boards, one `Urukul-AD9912 <https://github.com/m-labs/sinara/wiki/Urukul>`_, one `Urukul-AD9910 <https://github.com/m-labs/sinara/wiki/Urukul>`_, and one Sampler `<https://github.com/m-labs/sinara/wiki/Sampler>`_.
 
 Kasli is connected to the network using a 1000Base-X SFP module. `No-name
-<fs.com>`_ BiDi (1000Base-BX) modules have been used successfully.
+<fs.com>`_ BiDi (1000Base-BX) modules have been used successfully. The SFP module for the network
+should be installed into the SFP0 cage.
 
 Kasli is supplied with 100 MHz reference at its SMA input.
 Both Urukul boards are supplied with a 100 MHz reference clock on their external
 SMA inputs.
 
+The RTIO clock frequency is 125 MHz, which is synthesized from the 100 MHz reference using the Si5324.
+
 The first four TTL channels are used as inputs. The rest are outputs.
+
+DRTIO master
+++++++++++++
+
+Kasli can be used as a DRTIO master that provides local RTIO channels and can additionally control one DRTIO satellite.
+
+The RTIO clock frequency is 150 MHz, which is synthesized from the Si5324 crystal. The DRTIO line rate is 3 Gbps.
+
+The SFP module for the Ethernet network should be installed into the SFP0 cage, and the DRTIO connection is on SFP2.
+
+DRTIO satellite
++++++++++++++++
+
+Kasli can be used as a DRTIO satellite with a 150 MHz RTIO clock and a 3 Gbps DRTIO line rate.
+
+The DRTIO connection is on SFP0.
