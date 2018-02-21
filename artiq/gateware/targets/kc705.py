@@ -102,7 +102,7 @@ _ams101_dac = [
 
 _sdcard_spi_33 = [
     ("sdcard_spi_33", 0,
-        Subsignal("miso", Pins("AC20"), Misc("PULLUP")),
+        Subsignal("miso", Pins("AC20"), Misc("PULLUP=TRUE")),
         Subsignal("clk", Pins("AB23")),
         Subsignal("mosi", Pins("AB22")),
         Subsignal("cs_n", Pins("AC21")),
