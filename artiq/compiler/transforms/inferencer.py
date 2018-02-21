@@ -1004,6 +1004,17 @@ class Inferencer(algorithm.Visitor):
             elif keyword.arg in typ_optargs:
                 self._unify(keyword.value.type, typ_optargs[keyword.arg],
                             keyword.value.loc, None)
+            else:
+                note = diagnostic.Diagnostic("note",
+                    "extraneous argument", {},
+                    keyword.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "this function of type {type} does not accept argument '{name}'",
+                    {"type": types.TypePrinter().name(node.func.type),
+                     "name": keyword.arg},
+                    node.func.loc, [], [note])
+                self.engine.process(diag)
+                return
             passed_args[keyword.arg] = keyword.arg_loc
 
         for formalname in typ_args:
