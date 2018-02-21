@@ -35,7 +35,7 @@ Common problems
 +++++++++++++++
 
 * The SW13 switches on the board need to be set to 00001.
-* When connected, CLOCK adapter breaks the JTAG chain due to TDI not being connect to TDO on the FMC mezzanine.
+* When connected, the CLOCK adapter breaks the JTAG chain due to TDI not being connected to TDO on the FMC mezzanine.
 * On some boards, the JTAG USB connector is not correctly soldered.
 
 VADJ
@@ -162,12 +162,12 @@ See :mod:`artiq.coredevice.i2c` for more details.
 Kasli
 -----
 
-`Kasli <https://github.com/m-labs/sinara/wiki/Kasli>`_ is a versatile coredevice designed for ARTIQ as part of the `Sinara <https://github.com/m-labs/sinara/wiki>`_ family of boards.
+`Kasli <https://github.com/m-labs/sinara/wiki/Kasli>`_ is a versatile core device designed for ARTIQ as part of the `Sinara <https://github.com/m-labs/sinara/wiki>`_ family of boards.
 
 Opticlock
 +++++++++
 
-In the opticlock variant, Kasli is the coredevice controlling three `DIO_BNC <https://github.com/m-labs/sinara/wiki/DIO_BNC>`_ boards, one `Urukul-AD9912 <https://github.com/m-labs/sinara/wiki/Urukul>`_, one `Urukul-AD9910 <https://github.com/m-labs/sinara/wiki/Urukul>`_, and one Sampler `<https://github.com/m-labs/sinara/wiki/Sampler>`_.
+In the opticlock variant, Kasli is the core device controlling three `DIO_BNC <https://github.com/m-labs/sinara/wiki/DIO_BNC>`_ boards, one `Urukul-AD9912 <https://github.com/m-labs/sinara/wiki/Urukul>`_, one `Urukul-AD9910 <https://github.com/m-labs/sinara/wiki/Urukul>`_, and one Sampler `<https://github.com/m-labs/sinara/wiki/Sampler>`_.
 
 Kasli is connected to the network using a 1000Base-X SFP module. `No-name
 <fs.com>`_ BiDi (1000Base-BX) modules have been used successfully.
