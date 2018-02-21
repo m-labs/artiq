@@ -125,7 +125,7 @@ device_db = {
     },
     "spi_mmc": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 26}
     },

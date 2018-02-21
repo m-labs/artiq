@@ -330,7 +330,7 @@ class NIST_CLOCK(_StandaloneBase):
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ififo_depth=128))
 
-        phy = spi.SPIMaster(platform.request("sdcard_spi_33"))
+        phy = spi2.SPIMaster(platform.request("sdcard_spi_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=4))
