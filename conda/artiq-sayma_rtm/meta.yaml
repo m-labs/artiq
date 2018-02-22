@@ -7,9 +7,9 @@ source:
 
 build:
   noarch: python
-  ignore_prefix_files: True
   number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
   string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
+  detect_binary_files_with_prefix: False
 
 requirements:
   build:

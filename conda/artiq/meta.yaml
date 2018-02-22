@@ -19,6 +19,7 @@ build:
     {% endfor %}
     {% endfor %}
   script: $PYTHON setup.py install --no-compile --single-version-externally-managed --record=record.txt
+  detect_binary_files_with_prefix: False
 
 requirements:
   build:
