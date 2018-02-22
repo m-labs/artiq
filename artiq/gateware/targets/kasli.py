@@ -187,7 +187,7 @@ def _novogorny(eem):
                 IOStandard("LVDS_25")
             ) for i, j, sig in [
                 (5, eem, "conv"),
-                (6, eem, "bosy"),
+                (6, eem, "busy"),
                 (7, eem, "scko"),
             ]
         ]
