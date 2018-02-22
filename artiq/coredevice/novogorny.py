@@ -47,20 +47,19 @@ def adc_value(data, v_ref=5.):
     """Convert a ADC result packet to SI units (Volt)"""
     softspan = adc_softspan(data)
     data = adc_data(data)
+    g = 625
     if softspan & 4:
-        g3 = 2
-    else:
-        g3 = 1
+        g *= 2
     if softspan & 2:
-        g2 = 1 << 15
+        h = 1 << 15
     else:
-        g2 = 1 << 16
+        h = 1 << 16
+    data = -(data & h) + (data & ~h)
     if softspan & 1:
-        g1 = 1000
+        h *= 500
     else:
-        g1 = 1023
-    data = -(data & g2) + (data & ~g2)
-    v_per_lsb = v_ref*(1250*g3)/(g1*g2)
+        h *= 512
+    v_per_lsb = v_ref*g/h
     return data*v_per_lsb
 
 
