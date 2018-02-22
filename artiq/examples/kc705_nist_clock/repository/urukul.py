@@ -55,7 +55,9 @@ class UrukulTest(EnvExperiment):
         errors = 0
         delay(100*us)
         while data != -1:
+            delay(20*us)
             self.urukul_ch0b.write32(0x07, data)
+            self.urukul_cpld.io_update.pulse(1*us)
             read = self.urukul_ch0b.read32(0x07)
             if read != data:
                 errors += 1
