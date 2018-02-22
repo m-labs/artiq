@@ -21,6 +21,7 @@ from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi2
 from artiq.gateware.drtio.transceiver import gtp_7series
+from artiq.gateware.drtio.xilinx_rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
@@ -476,8 +477,10 @@ class Satellite(BaseSoC):
             ~self.drtio_transceiver.stable_clkin.storage)
 
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
         self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.drtio_transceiver.channels[0], rtio_channels))
+            self.drtio_transceiver.channels[0], rtio_channels,
+            self.rx_synchronizer))
         self.csr_devices.append("drtio0")
         self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
                           self.drtio0.aux_controller.bus)
