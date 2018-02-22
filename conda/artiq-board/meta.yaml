@@ -1,5 +1,5 @@
 package:
-  name: artiq-kc705-nist_qc2
+  name: artiq-{{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }}
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -20,4 +20,4 @@ requirements:
 about:
   home: https://m-labs.hk/artiq
   license: LGPL
-  summary: 'Bitstream, BIOS and runtime for NIST_QC2 on the KC705 board'
+  summary: 'Bitstream, BIOS and runtime for the {{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }} board variant'
