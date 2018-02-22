@@ -119,7 +119,7 @@ device_db = {
     # Generic SPI
     "spi0": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 23}
     },
@@ -161,7 +161,7 @@ device_db = {
     # DAC
     "spi_ams101": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 22}
     },

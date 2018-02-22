@@ -319,7 +319,7 @@ class NIST_CLOCK(_StandaloneBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = spi.SPIMaster(ams101_dac)
+        phy = spi2.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=4))
@@ -423,7 +423,7 @@ class NIST_QC2(_StandaloneBase):
         # add clock generators after TTLs
         rtio_channels += clock_generators
 
-        phy = spi.SPIMaster(ams101_dac)
+        phy = spi2.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=4))
@@ -478,12 +478,12 @@ class SMA_SPI(_StandaloneBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        phy = spi.SPIMaster(ams101_dac)
+        phy = spi2.SPIMaster(ams101_dac)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=4))
 
-        phy = spi.SPIMaster(self.platform.request("sma_spi"))
+        phy = spi2.SPIMaster(self.platform.request("sma_spi"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=128))
