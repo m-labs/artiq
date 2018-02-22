@@ -43,7 +43,8 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             } else {
                 drtio_reset(true);
                 drtio_reset(false);
-            }
+            },
+            drtioaux::hw::send_link(0, &drtioaux::Packet::ResetAck).unwrap();
         },
 
         drtioaux::Packet::RtioErrorRequest => {
