@@ -341,8 +341,8 @@ class NIST_CLOCK(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        sdac_phy = spi.SPIMaster(self.platform.request("zotino_spi_p"),
-                                 self.platform.request("zotino_spi_n"))
+        sdac_phy = spi2.SPIMaster(self.platform.request("zotino_spi_p"),
+                                  self.platform.request("zotino_spi_n"))
         self.submodules += sdac_phy
         rtio_channels.append(rtio.Channel.from_phy(sdac_phy, ififo_depth=4))
 

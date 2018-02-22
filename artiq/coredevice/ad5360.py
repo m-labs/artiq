@@ -6,14 +6,16 @@ time is an error.
 """
 
 
-from artiq.language.core import (kernel, portable, delay_mu, delay)
+from artiq.language.core import (kernel, portable, delay_mu, delay, now_mu,
+                                 at_mu)
 from artiq.language.units import ns, us
-from artiq.coredevice import spi
+from artiq.coredevice import spi2 as spi
 
 # Designed from the data sheets and somewhat after the linux kernel
 # iio driver.
 
-_AD5360_SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_CS_POLARITY |
+_AD5360_SPI_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
+                      0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
                       0*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
                       0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
 
@@ -27,6 +29,7 @@ _AD5360_CMD_SPECIAL = 0 << 22
 def _AD5360_WRITE_CHANNEL(c):
     return (c + 8) << 16
 
+
 _AD5360_SPECIAL_NOP = 0 << 16
 _AD5360_SPECIAL_CONTROL = 1 << 16
 _AD5360_SPECIAL_OFS0 = 2 << 16
@@ -37,6 +40,7 @@ _AD5360_SPECIAL_READ = 5 << 16
 @portable
 def _AD5360_READ_CHANNEL(ch):
     return (ch + 8) << 7
+
 
 _AD5360_READ_X1A = 0x000 << 7
 _AD5360_READ_X1B = 0x040 << 7
@@ -57,31 +61,34 @@ class AD5360:
       (optional). Needs to be explicitly initialized to high.
     :param chip_select: Value to drive on the chip select lines
       during transactions.
+    :param div_write: SPI clock divider during writes
+    :param div_read: SPI clock divider during reads
     """
+    kernel_invariants = {"bus", "core", "chip_select", "div_read", "div_write"}
 
-    def __init__(self, dmgr, spi_device, ldac_device=None, chip_select=1):
+    def __init__(self, dmgr, spi_device, ldac_device=None, chip_select=1,
+                 div_write=4, div_read=7):
         self.core = dmgr.get("core")
         self.bus = dmgr.get(spi_device)
         if ldac_device is not None:
             self.ldac = dmgr.get(ldac_device)
         self.chip_select = chip_select
+        # write: 2*8ns >= 10ns = t_6 (clk falling to cs_n rising)
+        # 4*8ns >= 20ns = t_1 (clk cycle time)
+        self.div_write = div_write
+        # read: 4*8*ns >= 25ns = t_22 (clk falling to miso valid)
+        self.div_read = div_read
 
     @kernel
-    def setup_bus(self, write_div=4, read_div=7):
+    def setup_bus(self):
         """Configure the SPI bus and the SPI transaction parameters
         for this device. This method has to be called before any other method
         if the bus has been used to access a different device in the meantime.
 
-        This method advances the timeline by the duration of two
-        RTIO-to-Wishbone bus transactions.
-
-        :param write_div: Write clock divider.
-        :param read_div: Read clock divider.
+        This method advances the timeline by one coarse RTIO cycle.
         """
-        # write: 2*8ns >= 10ns = t_6 (clk falling to cs_n rising)
-        # read: 4*8*ns >= 25ns = t_22 (clk falling to miso valid)
-        self.bus.set_config_mu(_AD5360_SPI_CONFIG, write_div, read_div)
-        self.bus.set_xfer(self.chip_select, 24, 0)
+        self.bus.set_config_mu(_AD5360_SPI_CONFIG, 24, self.div_write,
+                               self.chip_select)
 
     @kernel
     def write(self, data):
@@ -126,8 +133,8 @@ class AD5360:
     def read_channel_sync(self, channel=0, op=_AD5360_READ_X1A):
         """Read a channel register.
 
-        This method advances the timeline by the duration of :meth:`write` plus
-        three RTIO-to-Wishbone transactions.
+        This method advances the timeline by the duration of two :meth:`write`
+        plus two coarse RTIO cycles.
 
         :param channel: Channel number to read from.
         :param op: Operation to perform, one of :const:`_AD5360_READ_X1A`,
@@ -138,11 +145,13 @@ class AD5360:
         channel &= 0x3f
         self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_READ | op |
                    _AD5360_READ_CHANNEL(channel))
-        self.bus.set_xfer(self.chip_select, 0, 24)
+        self.bus.set_config_mu(_AD5360_SPI_CONFIG | spi.SPI_INPUT, 24,
+                               self.div_read, self.chip_select)
+        delay(270*ns)  # t_21 min sync high in readback
         self.write(_AD5360_CMD_SPECIAL | _AD5360_SPECIAL_NOP)
-        self.bus.read_async()
-        self.bus.set_xfer(self.chip_select, 24, 0)
-        return self.bus.input_async() & 0xffff
+        self.bus.set_config_mu(_AD5360_SPI_CONFIG, 24,
+                               self.div_write, self.chip_select)
+        return self.bus.read() & 0xffff
 
     @kernel
     def load(self):
@@ -168,15 +177,13 @@ class AD5360:
           :const:`_AD5360_CMD_OFFSET`, :const:`_AD5360_CMD_GAIN`
           (default: :const:`_AD5360_CMD_DATA`).
         """
+        t0 = now_mu()
+        # t10 max busy low for one channel
+        t_10 = self.core.seconds_to_mu(1.5*us)
         # compensate all delays that will be applied
-        delay_mu(-len(values)*(self.bus.xfer_period_mu +
-                               self.bus.write_period_mu +
-                               self.bus.ref_period_mu) -
-                 3*self.bus.ref_period_mu -
-                 self.core.seconds_to_mu(1.5*us))
+        delay_mu(-len(values)*self.bus.xfer_period_mu-t_10)
         for i in range(len(values)):
             self.write_channel(i, values[i], op)
-        delay_mu(3*self.bus.ref_period_mu +  # latency alignment ttl to spi
-                 self.core.seconds_to_mu(1.5*us))  # t10 max busy low for one channel
+        delay_mu(t_10)
         self.load()
-        delay_mu(-2*self.bus.ref_period_mu)  # load(), t13
+        at_mu(t0)
