@@ -344,6 +344,55 @@ class SPIMasterHandler(WishboneHandler):
             raise ValueError("bad address %d", address)
 
 
+class SPIMaster2Handler(WishboneHandler):
+    def __init__(self, vcd_manager, name):
+        self._reads = []
+        self.channels = {}
+        with vcd_manager.scope("spi2/{}".format(name)):
+            self.stb = vcd_manager.get_channel("{}/{}".format(name, "stb"), 1)
+            for reg_name, reg_width in [
+                    ("flags", 8),
+                    ("length", 5),
+                    ("div", 8),
+                    ("chip_select", 8),
+                    ("write", 32),
+                    ("read", 32)]:
+                self.channels[reg_name] = vcd_manager.get_channel(
+                        "{}/{}".format(name, reg_name), reg_width)
+
+    def process_message(self, message):
+        self.stb.set_value("1")
+        self.stb.set_value("0")
+        data = message.data
+        if isinstance(message, OutputMessage):
+            address = message.address
+            if address == 1:
+                logger.debug("SPI config @%d data=0x%08x",
+                         message.timestamp, data)
+                self.channels["chip_select"].set_value(
+                        "{:08b}".format(data >> 24))
+                self.channels["div"].set_value(
+                        "{:08b}".format(data >> 16 & 0xff))
+                self.channels["length"].set_value(
+                        "{:08b}".format(data >> 8 & 0x1f))
+                self.channels["flags"].set_value(
+                        "{:08b}".format(data & 0xff))
+            elif address == 0:
+                logger.debug("SPI write @%d data=0x%08x",
+                         message.timestamp, data)
+                self.channels["write"].set_value("{:032b}".format(data))
+            else:
+                raise ValueError("bad address", address)
+            # process untimed reads and insert them here
+            while self._reads[0].rtio_counter < message.timestamp:
+                read = self._reads.pop(0)
+                logger.debug("SPI read @%d data=0x%08x",
+                            read.rtio_counter, read.data)
+                self.channels["read"].set_value("{:032b}".format(read.data))
+        elif isinstance(message, InputMessage):
+            self._reads.append(message)
+
+
 def _extract_log_chars(data):
     r = ""
     for i in range(4):
@@ -447,6 +496,11 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     desc["class"] == "SPIMaster"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = SPIMasterHandler(
+                        vcd_manager, name)
+            if (desc["module"] == "artiq.coredevice.spi2" and
+                    desc["class"] == "SPIMaster"):
+                channel = desc["arguments"]["channel"]
+                channel_handlers[channel] = SPIMaster2Handler(
                         vcd_manager, name)
     return channel_handlers
 
