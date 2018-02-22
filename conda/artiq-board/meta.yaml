@@ -20,4 +20,4 @@ requirements:
 about:
   home: https://m-labs.hk/artiq
   license: LGPL
-  summary: 'Bitstream, BIOS and runtime for the {{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }} board variant'
+  summary: 'Bitstream, BIOS and firmware for the {{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }} board variant'
