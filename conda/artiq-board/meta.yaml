@@ -1,5 +1,5 @@
 package:
-  name: artiq-{{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }}
+  name: artiq-build
   version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
 
 source:
@@ -10,6 +10,12 @@ build:
   ignore_prefix_files: True
   number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
   string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_FULL_HASH", "")[:8] }}
+  script_env:
+    - ARTIQ_TARGET
+    - ARTIQ_VARIANT
+
+outputs:
+  - name: artiq-{{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }}
 
 requirements:
   build:
