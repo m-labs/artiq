@@ -1,5 +1,5 @@
 from functools import reduce
-from operator import or_
+from operator import or_, and_
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
@@ -16,7 +16,18 @@ from artiq.gateware.drtio.transceiver.gth_ultrascale_init import *
 class GTHSingle(Module):
     def __init__(self, refclk, pads, sys_clk_freq, rtio_clk_freq, dw, mode):
         assert (dw == 20) or (dw == 40)
-        assert mode in ["master", "slave"]
+        assert mode in ["single", "master", "slave"]
+        self.mode = mode
+
+        # phase alignment
+        self.txsyncallin = Signal()
+        self.txphaligndone = Signal()
+        self.txsyncallin = Signal()
+        self.txsyncin = Signal()
+        self.txsyncout = Signal()
+        self.txdlysreset = Signal()
+
+        # # #
 
         nwords = dw//10
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
@@ -96,11 +107,16 @@ class GTHSingle(Module):
                 # TX Startup/Reset
                 i_GTTXRESET=tx_init.gtXxreset,
                 o_TXRESETDONE=tx_init.Xxresetdone,
-                i_TXDLYSRESET=tx_init.Xxdlysreset,
+                i_TXDLYSRESET=tx_init.Xxdlysreset if mode != "slave" else self.txdlysreset,
                 o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
                 o_TXPHALIGNDONE=tx_init.Xxphaligndone,
                 i_TXUSERRDY=tx_init.Xxuserrdy,
-                i_TXSYNCMODE=1,
+                i_TXSYNCMODE=mode != "slave",
+                p_TXSYNC_MULTILANE=0 if mode == "single" else 1,
+                p_TXSYNC_OVRD=0,
+                i_TXSYNCALLIN=self.txsyncallin,
+                i_TXSYNCIN=self.txsyncin,
+                o_TXSYNCOUT=self.txsyncout,
 
                 # TX data
                 p_TX_DATA_WIDTH=dw,
@@ -172,6 +188,7 @@ class GTHSingle(Module):
                 o_GTHTXP=pads.txp,
                 o_GTHTXN=pads.txn
             )
+        self.comb += self.txphaligndone.eq(tx_init.Xxphaligndone)
 
         self.submodules += [
             add_probe_async("drtio_gth", "cpll_lock", cpll_lock),
@@ -221,6 +238,44 @@ class GTHSingle(Module):
         self.submodules += add_probe_async("drtio_gth", "clock_aligner_ready", clock_aligner.ready)
 
 
+class GTHTXPhaseAlignement(Module):
+    # TX Buffer Bypass in  Single-Lane/Multi-Lane Auto Mode (ug576)
+    def __init__(self, gths):
+        txsyncallin = Signal()
+        txsync = Signal()
+        txphaligndone = Signal(len(gths))
+        txdlysreset = Signal()
+        ready_for_align = Signal(len(gths))
+        all_ready_for_align = Signal()
+
+        for i, gth in enumerate(gths):
+            # Common to all transceivers
+            self.comb += [
+                ready_for_align[i].eq(1),
+                gth.txsyncin.eq(txsync),
+                gth.txsyncallin.eq(txsyncallin),
+                txphaligndone[i].eq(gth.txphaligndone)
+            ]
+            # Specific to Master or Single transceivers
+            if gth.mode == "master" or gth.mode == "single":
+                self.comb += [
+                    gth.tx_init.all_ready_for_align.eq(all_ready_for_align),
+                    txsync.eq(gth.txsyncout),
+                    txdlysreset.eq(gth.tx_init.Xxdlysreset)
+                ]
+            # Specific to Slave transceivers
+            else:
+                self.comb += [
+                    ready_for_align[i].eq(gth.tx_init.ready_for_align),
+                    gth.txdlysreset.eq(txdlysreset),
+                ]
+
+        self.comb += [
+            txsyncallin.eq(reduce(and_, [txphaligndone[i] for i in range(len(gths))])),
+            all_ready_for_align.eq(reduce(and_, [ready_for_align[i] for i in range(len(gths))]))
+        ]
+
+
 class GTH(Module, TransceiverInterface):
     def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, dw=20, master=0):
         self.nchannels = nchannels = len(data_pads)
@@ -238,17 +293,22 @@ class GTH(Module, TransceiverInterface):
         rtio_tx_clk = Signal()
         channel_interfaces = []
         for i in range(nchannels):
-            mode = "master" if i == master else "slave"
-            gth = GTHSingle(refclk, data_pads[i], sys_clk_freq, rtio_clk_freq, dw, mode)
-            if mode == "master":
-                self.comb += rtio_tx_clk.eq(gth.cd_rtio_tx.clk)
+            if nchannels == 1:
+                mode = "single"
             else:
+                mode = "master" if i == master else "slave"
+            gth = GTHSingle(plls[i], tx_pads[i], rx_pads[i], sys_clk_freq, dw, mode)
+            if mode == "slave":
                 self.comb += gth.cd_rtio_tx.clk.eq(rtio_tx_clk)
+            else:
+                self.comb += rtio_tx_clk.eq(gth.cd_rtio_tx.clk)
             self.gths.append(gth)
             setattr(self.submodules, "gth"+str(i), gth)
             channel_interface = ChannelInterface(gth.encoder, gth.decoders)
             self.comb += channel_interface.rx_ready.eq(gth.rx_ready)
             channel_interfaces.append(channel_interface)
+
+        self.submodules.tx_phase_alignment = GTHTXPhaseAlignement(self.gths)
 
         TransceiverInterface.__init__(self, channel_interfaces)
         # GTH PLLs recover on their own from an interrupted clock input.
