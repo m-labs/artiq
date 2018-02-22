@@ -1,6 +1,6 @@
 package:
   name: artiq
-  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  version: {{ environ["GIT_DESCRIBE_TAG"] }}
 
 source:
   git_url: ../..
@@ -9,8 +9,8 @@ source:
 
 build:
   noarch: python
-  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
-  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_FULL_HASH", "")[:8] }}
+  number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
+  string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
   entry_points:
     # NOTE: conda-build cannot distinguish between console and gui scripts
     {% for entry_point_type, entry_points in data.get("entry_points", dict()).items() -%}

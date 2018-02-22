@@ -1,6 +1,6 @@
 package:
-  name: artiq-build
-  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  name: artiq-board
+  version: {{ environ["GIT_DESCRIBE_TAG"] }}
 
 source:
   git_url: ../..
@@ -8,20 +8,20 @@ source:
 build:
   noarch: python
   ignore_prefix_files: True
-  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
-  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_FULL_HASH", "")[:8] }}
+  number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
+  string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
   script_env:
     - ARTIQ_TARGET
     - ARTIQ_VARIANT
 
 outputs:
-  - name: artiq-{{ environ.get("ARTIQ_TARGET") }}-{{ environ.get("ARTIQ_VARIANT") }}
+  - name: artiq-{{ environ["ARTIQ_TARGET"] }}-{{ environ["ARTIQ_VARIANT"] }}
 
 requirements:
   build:
-    - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_FULL_HASH", "")[:8]) if "GIT_DESCRIBE_TAG" in environ else "" }}
+    - artiq-dev {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
   run:
-    - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ.get("GIT_DESCRIBE_TAG"), number=environ.get("GIT_DESCRIBE_NUMBER"), hash=environ.get("GIT_FULL_HASH", "")[:8]) if "GIT_DESCRIBE_TAG" in environ else "" }}
+    - artiq {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
 
 about:
   home: https://m-labs.hk/artiq

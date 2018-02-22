@@ -1,14 +1,14 @@
 package:
   name: artiq-dev
-  version: {{ environ.get("GIT_DESCRIBE_TAG", "") }}
+  version: {{ environ["GIT_DESCRIBE_TAG"] }}
 
 source:
   git_url: ../..
 
 build:
   noarch: python
-  number: {{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}
-  string: py_{{ environ.get("GIT_DESCRIBE_NUMBER", 0) }}+git{{ environ.get("GIT_FULL_HASH", "")[:8] }}
+  number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
+  string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
 
 requirements:
   run:
