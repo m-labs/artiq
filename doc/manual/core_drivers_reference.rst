@@ -75,6 +75,12 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.sawg
     :members:
 
+:mod:`artiq.coredevice.novogorny` module
+----------------------------------------
+
+.. automodule:: artiq.coredevice.novogorny
+    :members:
+
 :mod:`artiq.coredevice.urukul` module
 -------------------------------------
 

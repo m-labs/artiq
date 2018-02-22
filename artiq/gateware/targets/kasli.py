@@ -269,7 +269,7 @@ class Opticlock(_StandaloneBase):
         phy = spi2.SPIMaster(self.platform.request("eem3_spi_p"),
                 self.platform.request("eem3_spi_n"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16))
 
         for signal in "conv".split():
             pads = platform.request("eem3_{}".format(signal))

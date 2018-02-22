@@ -16,7 +16,7 @@ __all__ = [
     "SPI_OFFLINE", "SPI_END", "SPI_INPUT",
     "SPI_CS_POLARITY", "SPI_CLK_POLARITY", "SPI_CLK_PHASE",
     "SPI_LSB_FIRST", "SPI_HALF_DUPLEX",
-    "SPIMaster", "NRTSPIMaster"
+    "SPIMaster"
 ]
 
 SPI_DATA_ADDR = 0
