@@ -33,7 +33,7 @@ from artiq.gateware import remote_csr
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
-from artiq.gateware.drtio.xilinx_rx_synchronizer import XilinxRXSynchronizer
+from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version

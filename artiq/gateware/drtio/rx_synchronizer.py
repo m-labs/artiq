@@ -1,4 +1,28 @@
 from migen import *
+from migen.genlib.cdc import ElasticBuffer
+
+
+class GenericRXSynchronizer(Module):
+    """Simple RX synchronizer based on the portable Migen elastic buffer.
+
+    Introduces timing non-determinism in the satellite RX path, e.g.
+    echo_request/echo_reply RTT and TSC sync, but useful for testing.
+    """
+    def __init__(self):
+        self.signals = []
+
+    def resync(self, signal):
+        synchronized = Signal.like(signal, related=signal)
+        self.signals.append((signal, synchronized))
+        return synchronized
+
+    def do_finalize(self):
+        eb = ElasticBuffer(sum(len(s[0]) for s in self.signals), 4, "rtio_rx", "rtio")
+        self.submodules += eb
+        self.comb += [
+            eb.din.eq(Cat(*[s[0] for s in self.signals])),
+            Cat(*[s[1] for s in self.signals]).eq(eb.dout)
+        ]
 
 
 class XilinxRXSynchronizer(Module):

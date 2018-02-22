@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 
 from migen import *
-from migen.genlib.cdc import ElasticBuffer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 
@@ -10,6 +9,7 @@ from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer, aux_controller,
                                   rt_packet_satellite, rt_errors_satellite,
                                   rt_packet_master, rt_controller_master)
+from artiq.gateware.drtio.rx_synchronizer import GenericRXSynchronizer
 
 
 class ChannelInterface:
@@ -27,29 +27,6 @@ class TransceiverInterface(AutoCSR):
             name = "rtio_rx" + str(i)
             setattr(self.clock_domains, "cd_"+name, ClockDomain(name=name))
         self.channels = channel_interfaces
-
-
-class GenericRXSynchronizer(Module):
-    """Simple RX synchronizer based on the portable Migen elastic buffer.
-
-    Introduces timing non-determinism in the satellite RX path, e.g.
-    echo_request/echo_reply RTT and TSC sync, but useful for testing.
-    """
-    def __init__(self):
-        self.signals = []
-
-    def resync(self, signal):
-        synchronized = Signal.like(signal, related=signal)
-        self.signals.append((signal, synchronized))
-        return synchronized
-
-    def do_finalize(self):
-        eb = ElasticBuffer(sum(len(s[0]) for s in self.signals), 4, "rtio_rx", "rtio")
-        self.submodules += eb
-        self.comb += [
-            eb.din.eq(Cat(*[s[0] for s in self.signals])),
-            Cat(*[s[1] for s in self.signals]).eq(eb.dout)
-        ]
 
 
 class DRTIOSatellite(Module):
