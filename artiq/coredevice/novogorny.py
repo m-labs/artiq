@@ -100,7 +100,7 @@ class Novogorny:
         self.gains &= ~(0b11 << (channel*2))
         self.gains |= gain << (channel*2)
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END,
-                               2, self.div, SPI_CS_SR)
+                               16, self.div, SPI_CS_SR)
         self.bus.write(self.gains << 16)
 
     @kernel
