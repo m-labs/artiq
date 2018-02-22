@@ -12,7 +12,7 @@ build:
   script_env:
     - ARTIQ_TARGET
     - ARTIQ_VARIANT
-  detect_binary_files_with_prefix: False
+  ignore_prefix_files: True
 
 outputs:
   - name: artiq-{{ environ["ARTIQ_TARGET"] }}-{{ environ["ARTIQ_VARIANT"] }}
