@@ -9,7 +9,8 @@ __all__ = ["GTHInit"]
 
 
 class GTHInit(Module):
-    def __init__(self, sys_clk_freq, rx):
+    def __init__(self, sys_clk_freq, rx, mode="master"):
+        assert not (rx and mode != "master")
         self.done = Signal()
         self.restart = Signal()
 
@@ -23,6 +24,9 @@ class GTHInit(Module):
         self.Xxphaligndone = Signal()
         self.Xxsyncdone = Signal()
         self.Xxuserrdy = Signal()
+
+        self.all_ready_for_align = Signal(reset=1)
+        self.ready_for_align = Signal()
 
         # # #
 
@@ -98,13 +102,21 @@ class GTHInit(Module):
         else:
             startup_fsm.act("RELEASE_GTH_RESET",
                 Xxuserrdy.eq(1),
-                If(Xxresetdone, NextState("ALIGN"))
+                If(Xxresetdone,
+                    If(mode == "slave",
+                        NextState("WAIT_ALIGN")
+                    ).Else(
+                        NextState("ALIGN")
+                    )
+                )
             )
         # Start delay alignment (pulse)
         startup_fsm.act("ALIGN",
             Xxuserrdy.eq(1),
-            Xxdlysreset.eq(1),
-            NextState("WAIT_ALIGN")
+            If(self.all_ready_for_align,
+                Xxdlysreset.eq(1),
+                NextState("WAIT_ALIGN")
+            )
         )
         if rx:
             # Wait for delay alignment
@@ -119,7 +131,11 @@ class GTHInit(Module):
             startup_fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
                 If(Xxdlysresetdone,
-                    NextState("WAIT_FIRST_ALIGN_DONE")
+                    If(mode == "slave",
+                        NextState("WAIT_LAST_ALIGN_DONE")
+                    ).Else(
+                        NextState("WAIT_FIRST_ALIGN_DONE")
+                    )
                 )
             )
 
@@ -127,9 +143,9 @@ class GTHInit(Module):
         # (from UG576 in TX Buffer Bypass in Single-Lane Auto Mode)
         startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
             Xxuserrdy.eq(1),
-            If(Xxphaligndone_rising, NextState("WAIT_SECOND_ALIGN_DONE"))
+            If(Xxphaligndone_rising, NextState("WAIT_LAST_ALIGN_DONE"))
         )
-        startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
+        startup_fsm.act("WAIT_LAST_ALIGN_DONE",
             Xxuserrdy.eq(1),
             If(Xxphaligndone_rising, NextState("READY"))
         )
