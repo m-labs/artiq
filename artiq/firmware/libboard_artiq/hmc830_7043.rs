@@ -52,6 +52,8 @@ mod hmc830 {
     fn spi_setup() {
         unsafe {
             while csr::converter_spi::idle_read() == 0 {}
+            // rising egde on CS since cs_polarity still 0
+            // selects "HMC Mode"
             csr::converter_spi::offline_write(0);
             csr::converter_spi::end_write(1);
             csr::converter_spi::cs_polarity_write(0b0001);
@@ -62,30 +64,30 @@ mod hmc830 {
             csr::converter_spi::div_write(16 - 2);
             csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_HMC830_CS);
 
-            // do a dummy cycle with cs still high to ensure Open mode
-            // (rising CLK before rising CS)
+            // do a dummy cycle with cs still high to clear CS
             csr::converter_spi::length_write(0);
             csr::converter_spi::data_write(0);
             while csr::converter_spi::writable_read() == 0 {}
 
-            csr::converter_spi::length_write(31 - 1);
+            csr::converter_spi::length_write(32 - 1);
         }
     }
 
     fn write(addr: u8, data: u32) {
-        let cmd = (0 << 6) | addr;
-        let val = ((cmd as u32) << 24) | data;
+        let val = ((addr as u32) << 24) | data;
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
-            csr::converter_spi::data_write(val << 1);
+            csr::converter_spi::data_write(val << 1);  // last clk cycle loads data
             while csr::converter_spi::writable_read() == 0 {}
         }
     }
 
     fn read(addr: u8) -> u32 {
-        write(addr, 0);
+        // SDO (miso/read bits) is technically CPHA=1, while SDI is CPHA=0
+        // trust that the 8.2ns+0.2ns/pF provide enough hold time on top of
+        // the SPI round trip delay and stick with CPHA=0
+        write((1 << 6) | addr, 0);
         unsafe {
-            while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_read() & 0xffffff
         }
     }
