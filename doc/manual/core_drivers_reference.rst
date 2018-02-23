@@ -27,12 +27,6 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.dma
     :members:
 
-:mod:`artiq.coredevice.spi` module
-----------------------------------
-
-.. automodule:: artiq.coredevice.spi
-    :members:
-
 :mod:`artiq.coredevice.spi2` module
 -----------------------------------
 

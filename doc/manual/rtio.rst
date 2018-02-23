@@ -76,7 +76,7 @@ The sequence is exactly equivalent to::
 
   ttl.pulse(2*us)
 
-The :meth:`artiq.coredevice.ttl.TTLOut.pulse` method advances the timeline cursor (using ``delay()``) while other methods such as :meth:`artiq.coredevice.ttl.TTLOut.on`, :meth:`artiq.coredevice.ttl.TTLOut.off`, :meth:`artiq.coredevice.dds._DDSGeneric.set`, or the ``set_*()`` methods of :class:`artiq.coredevice.spi.SPIMaster` do not. The latter are called *zero-duration* methods.
+The :meth:`artiq.coredevice.ttl.TTLOut.pulse` method advances the timeline cursor (using ``delay()``) while other methods such as :meth:`artiq.coredevice.ttl.TTLOut.on`, :meth:`artiq.coredevice.ttl.TTLOut.off`, :meth:`artiq.coredevice.dds._DDSGeneric.set`. The latter are called *zero-duration* methods.
 
 Underflow exceptions
 --------------------

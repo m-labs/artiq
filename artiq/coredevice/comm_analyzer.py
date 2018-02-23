@@ -492,11 +492,6 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                         dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
-            if (desc["module"] == "artiq.coredevice.spi" and
-                    desc["class"] == "SPIMaster"):
-                channel = desc["arguments"]["channel"]
-                channel_handlers[channel] = SPIMasterHandler(
-                        vcd_manager, name)
             if (desc["module"] == "artiq.coredevice.spi2" and
                     desc["class"] == "SPIMaster"):
                 channel = desc["arguments"]["channel"]
