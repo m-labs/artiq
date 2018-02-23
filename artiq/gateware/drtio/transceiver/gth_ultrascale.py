@@ -205,7 +205,7 @@ class GTHSingle(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio_tx = ClockDomain()
-        if mode == "master":
+        if mode == "master" or mode == "single":
             self.specials += \
                 Instance("BUFG_GT", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk, i_DIV=0)
         self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
