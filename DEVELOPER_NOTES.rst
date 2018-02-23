@@ -71,8 +71,8 @@ Using developer tools
 ARTIQ ships with an ``artiq_devtool`` binary, which automates common actions arising when developing the board gateware and firmware on a machine other than the one to which the board is connected.
 
 .. argparse::
-   :ref: artiq.frontend.artiq_compile.get_argparser
-   :prog: artiq_compile
+   :ref: artiq.frontend.artiq_devtool.get_argparser
+   :prog: artiq_devtool
 
 To build and flash the firmware for ``sayma_amc_standalone`` target:
 ::
