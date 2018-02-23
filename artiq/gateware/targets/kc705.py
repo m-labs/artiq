@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
-                                     dds, spi, spi2, ad5360_monitor)
+                                     dds, spi2, ad5360_monitor)
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
@@ -325,7 +325,7 @@ class NIST_CLOCK(_StandaloneBase):
             phy, ififo_depth=4))
 
         for i in range(3):
-            phy = spi.SPIMaster(self.platform.request("spi", i))
+            phy = spi2.SPIMaster(self.platform.request("spi", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ififo_depth=128))
@@ -429,7 +429,7 @@ class NIST_QC2(_StandaloneBase):
             phy, ififo_depth=4))
 
         for i in range(4):
-            phy = spi.SPIMaster(self.platform.request("spi", i))
+            phy = spi2.SPIMaster(self.platform.request("spi", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(
                 phy, ififo_depth=128))
