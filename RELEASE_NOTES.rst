@@ -21,7 +21,10 @@ Release notes
 * ``artiq_flash -m/--adapter`` has been changed to ``artiq_flash -V/--variant``.
 * ``kc705_dds`` has been renamed ``kc705``.
 * the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
-
+* SPI masters have been switched from misoc-spi to misoc-spi2. This affects
+  all out-of-tree RTIO core device drivers using those buses. See the various
+  commits on e.g. the ``ad5360`` driver for an example how to port from the old
+  to the new bus.
 
 3.3
 ---
