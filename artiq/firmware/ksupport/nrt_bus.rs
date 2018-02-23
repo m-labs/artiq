@@ -50,17 +50,9 @@ pub mod spi {
     use ::recv;
     use kernel_proto::*;
 
-    pub extern fn set_config(busno: i32, flags: i32, write_div: i32, read_div: i32) {
+    pub extern fn set_config(busno: i32, flags: i32, length: i32, div: i32, cs: i32) {
         send(&SpiSetConfigRequest { busno: busno as u32, flags: flags as u8,
-                                    write_div: write_div as u8, read_div: read_div as u8 });
-        recv!(&SpiBasicReply { succeeded } => if !succeeded {
-            raise!("SPIError", "SPI bus could not be accessed");
-        });
-    }
-
-    pub extern fn set_xfer(busno: i32, chip_select: i32, write_length: i32, read_length: i32) {
-        send(&SpiSetXferRequest { busno: busno as u32, chip_select: chip_select as u16,
-                                  write_length: write_length as u8, read_length: read_length as u8 });
+                                    length: length as u8, div: div as u8, cs: cs as u8 });
         recv!(&SpiBasicReply { succeeded } => if !succeeded {
             raise!("SPIError", "SPI bus could not be accessed");
         });

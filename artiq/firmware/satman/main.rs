@@ -144,14 +144,10 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             };
         }
 
-        drtioaux::Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
-            let succeeded = spi::set_config(busno, flags, write_div, read_div).is_ok();
+        drtioaux::Packet::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+            let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
             drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
         },
-        drtioaux::Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
-            let succeeded = spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
-            drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
-        }
         drtioaux::Packet::SpiWriteRequest { busno, data } => {
             let succeeded = spi::write(busno, data).is_ok();
             drtioaux::hw::send_link(0, &drtioaux::Packet::SpiBasicReply { succeeded: succeeded }).unwrap();
@@ -226,6 +222,7 @@ fn startup() {
     serwb::wait_init();
 
     #[cfg(has_hmc830_7043)]
+    /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     i2c::init();
     si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");

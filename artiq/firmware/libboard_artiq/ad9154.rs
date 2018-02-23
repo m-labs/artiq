@@ -3,34 +3,33 @@ use ad9154_reg;
 
 fn spi_setup(dacno: u8) {
     unsafe {
-        csr::converter_spi::offline_write(1);
+        while csr::converter_spi::idle_read() == 0 {}
+        csr::converter_spi::offline_write(0);
+        csr::converter_spi::end_write(1);
         csr::converter_spi::cs_polarity_write(0b0001);
         csr::converter_spi::clk_polarity_write(0);
         csr::converter_spi::clk_phase_write(0);
         csr::converter_spi::lsb_first_write(0);
         csr::converter_spi::half_duplex_write(0);
-        csr::converter_spi::clk_div_write_write(16);
-        csr::converter_spi::clk_div_read_write(16);
-        csr::converter_spi::xfer_len_write_write(24);
-        csr::converter_spi::xfer_len_read_write(0);
+        csr::converter_spi::length_write(24 - 1);
+        csr::converter_spi::div_write(16 - 2);
         csr::converter_spi::cs_write(1 << (csr::CONFIG_CONVERTER_SPI_FIRST_AD9154_CS + dacno as u32));
-        csr::converter_spi::offline_write(0);
     }
 }
 
 fn write(addr: u16, data: u8) {
     unsafe {
-        csr::converter_spi::data_write_write(
+        while csr::converter_spi::writable_read() == 0 {}
+        csr::converter_spi::data_write(
             ((addr as u32) << 16) | ((data as u32) << 8));
-        while csr::converter_spi::pending_read() != 0 {}
-        while csr::converter_spi::active_read() != 0 {}
+        while csr::converter_spi::writable_read() == 0 {}
     }
 }
 
 fn read(addr: u16) -> u8 {
     unsafe {
         write((1 << 15) | addr, 0);
-        csr::converter_spi::data_read_read() as u8
+        csr::converter_spi::data_read() as u8
     }
 }
 

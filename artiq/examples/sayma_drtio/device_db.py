@@ -95,7 +95,7 @@ device_db = {
 
     "converter_spi": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "NRTSPIMaster",
     },
     "ad9154_spi0": {
@@ -112,7 +112,7 @@ device_db = {
     },
     "rconverter_spi": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "NRTSPIMaster",
         "arguments": {"busno": 0x010000}
     },

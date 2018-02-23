@@ -94,6 +94,7 @@ fn startup() {
     #[cfg(si5324_as_synthesizer)]
     setup_si5324_as_synthesizer();
     #[cfg(has_hmc830_7043)]
+    /* must be the first SPI init because of HMC830 SPI mode selection */
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
     board_artiq::ad9154::init().expect("cannot initialize AD9154");

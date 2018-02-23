@@ -8,6 +8,7 @@ time is an error.
 """
 
 from artiq.language.core import syscall, kernel, portable, now_mu, delay_mu
+from artiq.language.types import TInt32, TNone
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
@@ -16,7 +17,7 @@ __all__ = [
     "SPI_OFFLINE", "SPI_END", "SPI_INPUT",
     "SPI_CS_POLARITY", "SPI_CLK_POLARITY", "SPI_CLK_PHASE",
     "SPI_LSB_FIRST", "SPI_HALF_DUPLEX",
-    "SPIMaster"
+    "SPIMaster", "NRTSPIMaster"
 ]
 
 SPI_DATA_ADDR = 0
@@ -205,3 +206,53 @@ class SPIMaster:
         :return: SPI input data.
         """
         return rtio_input_data(self.channel)
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def spi_set_config(busno: TInt32, flags: TInt32, length: TInt32, div: TInt32, cs: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def spi_write(busno: TInt32, data: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
+@syscall(flags={"nounwind", "nowrite"})
+def spi_read(busno: TInt32) -> TInt32:
+    raise NotImplementedError("syscall not simulated")
+
+
+class NRTSPIMaster:
+    """Core device non-realtime Serial Peripheral Interface (SPI) bus master.
+    Owns one non-realtime SPI bus.
+
+    With this driver, SPI transactions and are performed by the CPU without
+    involving RTIO.
+
+    Realtime and non-realtime buses are separate and defined at bitstream
+    compilation time.
+
+    See :class:`SPIMaster` for a description of the methods.
+    """
+    def __init__(self, dmgr, busno=0, core_device="core"):
+        self.core = dmgr.get(core_device)
+        self.busno = busno
+
+    @kernel
+    def set_config_mu(self, flags=0, length=8, div=6, cs=1):
+        """Set the ``config`` register.
+
+        Note that the non-realtime SPI cores are usually clocked by the system
+        clock and not the RTIO clock. In many cases, the SPI configuration is
+        already set by the firmware and you do not need to call this method.
+        """
+        spi_set_config(self.busno, flags, length, div, cs)
+
+    @kernel
+    def write(self, data=0):
+        spi_write(self.busno, data)
+
+    @kernel
+    def read(self):
+        return spi_read(self.busno)

@@ -51,16 +51,24 @@ mod hmc830 {
 
     fn spi_setup() {
         unsafe {
-            csr::converter_spi::offline_write(1);
+            while csr::converter_spi::idle_read() == 0 {}
+            csr::converter_spi::offline_write(0);
+            csr::converter_spi::end_write(1);
             csr::converter_spi::cs_polarity_write(0b0001);
             csr::converter_spi::clk_polarity_write(0);
             csr::converter_spi::clk_phase_write(0);
             csr::converter_spi::lsb_first_write(0);
             csr::converter_spi::half_duplex_write(0);
-            csr::converter_spi::clk_div_write_write(8);
-            csr::converter_spi::clk_div_read_write(8);
+            csr::converter_spi::div_write(16 - 2);
             csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_HMC830_CS);
-            csr::converter_spi::offline_write(0);
+
+            // do a dummy cycle with cs still high to ensure Open mode
+            // (rising CLK before rising CS)
+            csr::converter_spi::length_write(0);
+            csr::converter_spi::data_write(0);
+            while csr::converter_spi::writable_read() == 0 {}
+
+            csr::converter_spi::length_write(31 - 1);
         }
     }
 
@@ -68,24 +76,17 @@ mod hmc830 {
         let cmd = (0 << 6) | addr;
         let val = ((cmd as u32) << 24) | data;
         unsafe {
-            csr::converter_spi::xfer_len_write_write(32);
-            csr::converter_spi::xfer_len_read_write(0);
-            csr::converter_spi::data_write_write(val << (32-31));
-            while csr::converter_spi::pending_read() != 0 {}
-            while csr::converter_spi::active_read() != 0 {}
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::data_write(val << 1);
+            while csr::converter_spi::writable_read() == 0 {}
         }
     }
 
     fn read(addr: u8) -> u32 {
-        let cmd = (1 << 6) | addr;
-        let val = (cmd as u32) << 24;
+        write(addr, 0);
         unsafe {
-            csr::converter_spi::xfer_len_write_write(7);
-            csr::converter_spi::xfer_len_read_write(25);
-            csr::converter_spi::data_write_write(val << (32-31));
-            while csr::converter_spi::pending_read() != 0 {}
-            while csr::converter_spi::active_read() != 0 {}
-            csr::converter_spi::data_read_read() & 0xffffff
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::data_read() & 0xffffff
         }
     }
 
@@ -123,7 +124,7 @@ mod hmc830 {
 
 mod hmc7043 {
     use board::csr;
-    
+
     // To do: check which output channels we actually need
     const DAC_CLK_DIV: u32 = 2;
     const FPGA_CLK_DIV: u32 = 8;
@@ -150,16 +151,17 @@ mod hmc7043 {
 
     fn spi_setup() {
         unsafe {
-            csr::converter_spi::offline_write(1);
+            while csr::converter_spi::idle_read() == 0 {}
+            csr::converter_spi::offline_write(0);
+            csr::converter_spi::end_write(1);
             csr::converter_spi::cs_polarity_write(0b0001);
             csr::converter_spi::clk_polarity_write(0);
             csr::converter_spi::clk_phase_write(0);
             csr::converter_spi::lsb_first_write(0);
-            csr::converter_spi::half_duplex_write(1);
-            csr::converter_spi::clk_div_write_write(8);
-            csr::converter_spi::clk_div_read_write(8);
+            csr::converter_spi::half_duplex_write(0);  // change mid-transaction for reads
+            csr::converter_spi::length_write(24 - 1);
+            csr::converter_spi::div_write(16 - 2);
             csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_HMC7043_CS);
-            csr::converter_spi::offline_write(0);
         }
     }
 
@@ -167,24 +169,29 @@ mod hmc7043 {
         let cmd = (0 << 15) | addr;
         let val = ((cmd as u32) << 8) | data as u32;
         unsafe {
-            csr::converter_spi::xfer_len_write_write(24);
-            csr::converter_spi::xfer_len_read_write(0);
-            csr::converter_spi::data_write_write(val << (32-24));
-            while csr::converter_spi::pending_read() != 0 {}
-            while csr::converter_spi::active_read() != 0 {}
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::data_write(val << 8);
+            while csr::converter_spi::writable_read() == 0 {}
         }
     }
 
     fn read(addr: u16) -> u8 {
         let cmd = (1 << 15) | addr;
-        let val = (cmd as u32) << 8;
+        let val = cmd as u32;
         unsafe {
-            csr::converter_spi::xfer_len_write_write(16);
-            csr::converter_spi::xfer_len_read_write(8);
-            csr::converter_spi::data_write_write(val << (32-24));
-            while csr::converter_spi::pending_read() != 0 {}
-            while csr::converter_spi::active_read() != 0 {}
-            csr::converter_spi::data_read_read() as u8
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::end_write(0);
+            csr::converter_spi::length_write(16 - 1);
+            csr::converter_spi::data_write(val << 16);
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::end_write(1);
+            csr::converter_spi::half_duplex_write(1);
+            csr::converter_spi::length_write(8 - 1);
+            csr::converter_spi::data_write(0);
+            while csr::converter_spi::writable_read() == 0 {}
+            csr::converter_spi::half_duplex_write(0);
+            csr::converter_spi::length_write(24 - 1);
+            csr::converter_spi::data_read() as u8
         }
     }
 
@@ -233,7 +240,7 @@ mod hmc7043 {
             write(channel_base + 0x4, dphase & 0x1f);
 
             // No analog phase shift on clock channels
-            if (channel % 2) == 0 { write(channel_base + 0x7, 0x00); } 
+            if (channel % 2) == 0 { write(channel_base + 0x7, 0x00); }
             else { write(channel_base + 0x7, 0x01); }
 
             write(channel_base + 0x8, 0x08)
@@ -245,6 +252,7 @@ mod hmc7043 {
 
 pub fn init() -> Result<(), &'static str> {
     clock_mux::init();
+    /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830::init()?;
     hmc7043::init()
 }

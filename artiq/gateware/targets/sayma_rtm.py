@@ -10,7 +10,7 @@ from migen.build.platforms.sinara import sayma_rtm
 from misoc.interconnect import wishbone, stream
 from misoc.interconnect.csr import *
 from misoc.cores import identifier
-from misoc.cores import spi
+from misoc.cores import spi2
 from misoc.cores import gpio
 from misoc.integration.wb_slaves import WishboneSlaveManager
 from misoc.integration.cpu_interface import get_csr_csv
@@ -140,10 +140,10 @@ class SaymaRTM(Module):
             platform.request("ad9154_txen", 1).eq(0b11)
         ]
 
-        self.submodules.converter_spi = spi.SPIMaster([
+        self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
             platform.request("hmc_spi"),
             platform.request("ad9154_spi", 0),
-            platform.request("ad9154_spi", 1)])
+            platform.request("ad9154_spi", 1)))
         csr_devices.append("converter_spi")
         self.comb += platform.request("hmc7043_reset").eq(0)
 

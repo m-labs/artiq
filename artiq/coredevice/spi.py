@@ -21,7 +21,7 @@ __all__ = [
     "SPI_OFFLINE", "SPI_ACTIVE", "SPI_PENDING",
     "SPI_CS_POLARITY", "SPI_CLK_POLARITY", "SPI_CLK_PHASE",
     "SPI_LSB_FIRST", "SPI_HALF_DUPLEX",
-    "SPIMaster", "NRTSPIMaster"
+    "SPIMaster"
 ]
 
 
@@ -284,65 +284,3 @@ class SPIMaster:
         rtio_output(now_mu(), self.channel, SPI_CONFIG_ADDR | SPI_RT2WB_READ,
                     0)
         return rtio_input_data(self.channel)
-
-
-@syscall(flags={"nounwind", "nowrite"})
-def spi_set_config(busno: TInt32, flags: TInt32, write_div: TInt32, read_div: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-
-@syscall(flags={"nounwind", "nowrite"})
-def spi_set_xfer(busno: TInt32, chip_select: TInt32, write_length: TInt32, read_length: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-
-@syscall(flags={"nounwind", "nowrite"})
-def spi_write(busno: TInt32, data: TInt32) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
-
-@syscall(flags={"nounwind", "nowrite"})
-def spi_read(busno: TInt32) -> TInt32:
-    raise NotImplementedError("syscall not simulated")
-
-
-class NRTSPIMaster:
-    """Core device non-realtime Serial Peripheral Interface (SPI) bus master.
-    Owns one non-realtime SPI bus.
-
-    With this driver, SPI transactions and are performed by the CPU without
-    involving RTIO.
-
-    Realtime and non-realtime buses are separate and defined at bitstream
-    compilation time.
-
-    See :class:`SPIMaster` for a description of the methods.
-    """
-    def __init__(self, dmgr, busno=0, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.busno = busno
-
-    @kernel
-    def set_config_mu(self, flags=0, write_div=6, read_div=6):
-        """Set the ``config`` register.
-
-        Note that the non-realtime SPI cores are usually clocked by the system
-        clock and not the RTIO clock. In many cases, the SPI configuration is
-        already set by the firmware and you do not need to call this method.
-
-        The offline bit cannot be set using this method.
-        The SPI bus is briefly taken offline when this method is called.
-        """
-        spi_set_config(self.busno, flags, write_div, read_div)
-
-    @kernel
-    def set_xfer(self, chip_select=0, write_length=0, read_length=0):
-        spi_set_xfer(self.busno, chip_select, write_length, read_length)
-
-    @kernel
-    def write(self, data=0):
-        spi_write(self.busno, data)
-
-    @kernel
-    def read(self):
-        return spi_read(self.busno)

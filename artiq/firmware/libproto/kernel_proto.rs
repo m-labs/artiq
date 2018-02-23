@@ -85,8 +85,7 @@ pub enum Message<'a> {
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
 
-    SpiSetConfigRequest { busno: u32, flags: u8, write_div: u8, read_div: u8 },
-    SpiSetXferRequest { busno: u32, chip_select: u16, write_length: u8, read_length: u8 },
+    SpiSetConfigRequest { busno: u32, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { busno: u32, data: u32 },
     SpiReadRequest { busno: u32 },
     SpiReadReply { succeeded: bool, data: u32 },

@@ -118,7 +118,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_read = ::nrt_bus::i2c::read),
 
     api!(spi_set_config = ::nrt_bus::spi::set_config),
-    api!(spi_set_xfer = ::nrt_bus::spi::set_xfer),
     api!(spi_write = ::nrt_bus::spi::write),
     api!(spi_read = ::nrt_bus::spi::read),
 ];

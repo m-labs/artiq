@@ -194,25 +194,13 @@ mod drtio_spi {
         }
     }
 
-    pub fn set_config(nodeno: u8, busno: u8, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
+    pub fn set_config(nodeno: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
         let request = drtioaux::Packet::SpiSetConfigRequest {
             busno: busno,
             flags: flags,
-            write_div: write_div,
-            read_div: read_div
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        basic_reply(nodeno)
-    }
-
-    pub fn set_xfer(nodeno: u8, busno: u8, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::SpiSetXferRequest {
-            busno: busno,
-            chip_select: chip_select,
-            write_length: write_length,
-            read_length: read_length
+            length: length,
+            div: div,
+            cs: cs
         };
         if drtioaux::hw::send(nodeno, &request).is_err() {
             return Err(())
@@ -255,12 +243,7 @@ mod drtio_spi {
 #[cfg(not(has_drtio))]
 mod drtio_spi {
     pub fn set_config(_nodeno: u8, _busno: u8, _flags: u8,
-                      _write_div: u8, _read_div: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn set_xfer(_nodeno: u8, _busno: u8, _chip_select: u16,
-                    _write_length: u8, _read_length: u8) -> Result<(), ()> {
+                      _length: u8, _div: u8, _cs: u8) -> Result<(), ()> {
         Err(())
     }
 
@@ -277,23 +260,13 @@ mod spi {
     use board_artiq::spi as local_spi;
     use super::drtio_spi;
 
-    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
+    pub fn set_config(busno: u32, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
         let nodeno = (busno >> 16) as u8;
         let node_busno = busno as u8;
         if nodeno == 0 {
-            local_spi::set_config(node_busno, flags, write_div, read_div)
+            local_spi::set_config(node_busno, flags, length, div, cs)
         } else {
-            drtio_spi::set_config(nodeno, node_busno, flags, write_div, read_div)
-        }
-    }
-
-    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            local_spi::set_xfer(node_busno, chip_select, write_length, read_length)
-        } else {
-            drtio_spi::set_xfer(nodeno, node_busno, chip_select, write_length, read_length)
+            drtio_spi::set_config(nodeno, node_busno, flags, length, div, cs)
         }
     }
 
@@ -364,14 +337,10 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
             }
         }
 
-        &kern::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
-            let succeeded = spi::set_config(busno, flags, write_div, read_div).is_ok();
+        &kern::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+            let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
             kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         },
-        &kern::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
-            let succeeded = spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
-            kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
-        }
         &kern::SpiWriteRequest { busno, data } => {
             let succeeded = spi::write(busno, data).is_ok();
             kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })

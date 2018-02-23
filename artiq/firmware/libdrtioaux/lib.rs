@@ -41,8 +41,7 @@ pub enum Packet {
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
 
-    SpiSetConfigRequest { busno: u8, flags: u8, write_div: u8, read_div: u8 },
-    SpiSetXferRequest { busno: u8, chip_select: u16, write_length: u8, read_length: u8 },
+    SpiSetConfigRequest { busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { busno: u8, data: u32 },
     SpiReadRequest { busno: u8 },
     SpiReadReply { succeeded: bool, data: u32 },
@@ -123,15 +122,11 @@ impl Packet {
             0x90 => Packet::SpiSetConfigRequest {
                 busno: read_u8(reader)?,
                 flags: read_u8(reader)?,
-                write_div: read_u8(reader)?,
-                read_div: read_u8(reader)?
+                length: read_u8(reader)?,
+                div: read_u8(reader)?,
+                cs: read_u8(reader)?
             },
-            0x91 => Packet::SpiSetXferRequest {
-                busno: read_u8(reader)?,
-                chip_select: read_u16(reader)?,
-                write_length: read_u8(reader)?,
-                read_length: read_u8(reader)?
-            },
+            /* 0x91: was Packet::SpiSetXferRequest */
             0x92 => Packet::SpiWriteRequest {
                 busno: read_u8(reader)?,
                 data: read_u32(reader)?
@@ -238,19 +233,13 @@ impl Packet {
                 write_bool(writer, succeeded)?;
             },
 
-            Packet::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
+            Packet::SpiSetConfigRequest { busno, flags, length, div, cs } => {
                 write_u8(writer, 0x90)?;
                 write_u8(writer, busno)?;
                 write_u8(writer, flags)?;
-                write_u8(writer, write_div)?;
-                write_u8(writer, read_div)?;
-            },
-            Packet::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
-                write_u8(writer, 0x91)?;
-                write_u8(writer, busno)?;
-                write_u16(writer, chip_select)?;
-                write_u8(writer, write_length)?;
-                write_u8(writer, read_length)?;
+                write_u8(writer, length)?;
+                write_u8(writer, div)?;
+                write_u8(writer, cs)?;
             },
             Packet::SpiWriteRequest { busno, data } => {
                 write_u8(writer, 0x92)?;
