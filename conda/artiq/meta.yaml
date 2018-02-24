@@ -29,7 +29,7 @@ requirements:
     - llvmlite-artiq 0.10.0.dev py35_24
     - binutils-or1k-linux
     - pythonparser 1.0
-    - openocd >=0.10
+    - openocd 0.10.0 1
     - lit
     - outputcheck
     - scipy

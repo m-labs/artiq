@@ -19,7 +19,7 @@ requirements:
     - binutils-or1k-linux
     - llvm-or1k
     - llvmlite-artiq 0.10.0.dev py35_24
-    - openocd >=0.10
+    - openocd 0.10.0 1
     - lit
     - outputcheck
     - coverage
