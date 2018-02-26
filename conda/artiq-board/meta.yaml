@@ -8,7 +8,7 @@ source:
 build:
   noarch: python
   number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
-  string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
+  string: py_{{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
   script_env:
     - ARTIQ_TARGET
     - ARTIQ_VARIANT
@@ -19,9 +19,9 @@ outputs:
 
 requirements:
   build:
-    - artiq-dev {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
+    - artiq-dev {{ "{tag} py_{number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
   run:
-    - artiq {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
+    - artiq {{ "{tag} py_{number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
 
 about:
   home: https://m-labs.hk/artiq
