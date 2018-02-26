@@ -92,20 +92,20 @@ class AD9912:
         """
         # SPI mode
         self.write(AD9912_SER_CONF, 0x99, length=1)
-        self.cpld.io_update.pulse(1*us)
+        self.cpld.io_update.pulse(2*us)
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, length=2)
         if (prodid != 0x1982) and (prodid != 0x1902):
             raise ValueError("Urukul AD9912 product id mismatch")
-        delay(30*us)
+        delay(50*us)
         # HSTL power down, CMOS power down
         self.write(AD9912_PWRCNTRL1, 0x80, length=1)
-        self.cpld.io_update.pulse(1*us)
+        self.cpld.io_update.pulse(2*us)
         self.write(AD9912_N_DIV, self.pll_n//2 - 2, length=1)
-        self.cpld.io_update.pulse(1*us)
+        self.cpld.io_update.pulse(2*us)
         # I_cp = 375 µA, VCO high range
         self.write(AD9912_PLLCFG, 0b00000101, length=1)
-        self.cpld.io_update.pulse(1*us)
+        self.cpld.io_update.pulse(2*us)
 
     @kernel
     def set_att_mu(self, att):
