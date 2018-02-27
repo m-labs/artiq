@@ -13,8 +13,10 @@ from artiq.gateware.drtio.transceiver.gtp_7series_init import *
 
 class GTPSingle(Module):
     def __init__(self, qpll_channel, pads, sys_clk_freq, rtio_clk_freq, mode):
-        if mode != "master":
-            raise NotImplementedError
+        assert mode in ["single", "master", "slave"]
+        self.mode = mode
+
+        # # #
 
         self.stable_clkin = Signal()
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
@@ -31,10 +33,10 @@ class GTPSingle(Module):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        tx_init = GTPTXInit(sys_clk_freq)
+        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, mode)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio_tx")(GTPRXInit(rtio_clk_freq))
-        self.submodules += tx_init, rx_init
+        self.submodules += rx_init
 
         self.comb += [
             tx_init.stable_clkin.eq(self.stable_clkin),
@@ -353,7 +355,7 @@ class GTPSingle(Module):
 
             # TX Buffer Attributes
             p_TXSYNC_MULTILANE                       =0b0,
-            p_TXSYNC_OVRD                            =0b0,
+            p_TXSYNC_OVRD                            =0b1,
             p_TXSYNC_SKIP_DA                         =0b0
         )
         gtp_params.update(
@@ -438,7 +440,7 @@ class GTPSingle(Module):
             #o_RXNOTINTABLE                   =,
             # Receive Ports - RX AFE Ports
             i_GTPRXN                         =pads.rxn,
-            i_GTPRXP                         =pads.rxp,            
+            i_GTPRXP                         =pads.rxp,
             i_PMARSVDIN2                     =0b0,
             #o_PMARSVDOUT0                    =,
             #o_PMARSVDOUT1                    =,
@@ -667,7 +669,7 @@ class GTPSingle(Module):
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
         self.clock_domains.cd_rtio_tx = ClockDomain()
-        if mode == "master":
+        if mode == "master" or mode == "single":
             self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk)
         self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
 
@@ -698,29 +700,51 @@ class GTPSingle(Module):
         ]
 
 
+class GTPTXPhaseAlignement(Module):
+    # TX Buffer Bypass in  Single-Lane/Multi-Lane Auto Mode (ug482)
+    def __init__(self, gtps):
+        master_phaligndone = Signal()
+        slaves_phaligndone = Signal(reset=1)
+        # Specific to Slave transceivers
+        for gtp in gtps:
+            if gtp.mode == "slave":
+                self.comb += gtp.tx_init.master_phaligndone.eq(master_phaligndone)
+                slaves_phaligndone = slaves_phaligndone & gtp.tx_init.done
+        # Specific to Master transceivers
+        for gtp in gtps:
+            if gtp.mode == "master":
+                self.comb += [
+                    master_phaligndone.eq(gtp.tx_init.master_phaligndone),
+                    gtp.tx_init.slaves_phaligndone.eq(slaves_phaligndone)
+                ]
+
+
 class GTP(Module, TransceiverInterface):
     def __init__(self, qpll_channel, data_pads, sys_clk_freq, rtio_clk_freq, master=0):
         self.nchannels = nchannels = len(data_pads)
         self.gtps = []
-        if nchannels > 1:
-            raise NotImplementedError
 
         # # #
 
         rtio_tx_clk = Signal()
         channel_interfaces = []
         for i in range(nchannels):
-            mode = "master" if i == master else "slave"
-            gtp = GTPSingle(qpll_channel, data_pads[i], sys_clk_freq, rtio_clk_freq, mode)
-            if mode == "master":
-                self.comb += rtio_tx_clk.eq(gtp.cd_rtio_tx.clk)
+            if nchannels == 1:
+                mode = "single"
             else:
+                mode = "master" if i == master else "slave"
+            gtp = GTPSingle(qpll_channel, data_pads[i], sys_clk_freq, rtio_clk_freq, mode)
+            if mode == "slave":
                 self.comb += gtp.cd_rtio_tx.clk.eq(rtio_tx_clk)
+            else:
+                self.comb += rtio_tx_clk.eq(gtp.cd_rtio_tx.clk)
             self.gtps.append(gtp)
             setattr(self.submodules, "gtp"+str(i), gtp)
             channel_interface = ChannelInterface(gtp.encoder, gtp.decoders)
             self.comb += channel_interface.rx_ready.eq(gtp.rx_ready)
             channel_interfaces.append(channel_interface)
+
+        self.submodules.tx_phase_alignment = GTPTXPhaseAlignement(self.gtps)
 
         TransceiverInterface.__init__(self, channel_interfaces)
         for gtp in self.gtps:

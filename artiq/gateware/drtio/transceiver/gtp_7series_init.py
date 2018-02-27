@@ -9,7 +9,7 @@ __all__ = ["GTPTXInit", "GTPRXInit"]
 
 
 class GTPTXInit(Module):
-    def __init__(self, sys_clk_freq):
+    def __init__(self, sys_clk_freq, mode="single"):
         self.stable_clkin = Signal()
         self.done = Signal()
         self.restart = Signal()
@@ -28,6 +28,9 @@ class GTPTXInit(Module):
         self.txphaligndone = Signal()
         self.txdlyen = Signal()
         self.txuserrdy = Signal()
+
+        self.master_phaligndone = Signal()
+        self.slaves_phaligndone = Signal()
 
         # # #
 
@@ -106,6 +109,16 @@ class GTPTXInit(Module):
             txuserrdy.eq(1),
             txdlysreset.eq(1),
             If(txdlysresetdone,
+                If(mode == "slave",
+                    NextState("WAIT_MASTER")
+                ).Else(
+                    NextState("PHALIGN")
+                )
+            )
+        )
+        startup_fsm.act("WAIT_MASTER",
+            txuserrdy.eq(1),
+            If(self.master_phaligndone,
                 NextState("PHALIGN")
             )
         )
@@ -117,16 +130,39 @@ class GTPTXInit(Module):
                 NextState("WAIT_FIRST_ALIGN_DONE")
             )
         )
-        # Wait 2 rising edges of Xxphaligndone
-        # (from UG482 in TX Buffer Bypass in Single-Lane Auto Mode)
+        # Wait N rising edges of Xxphaligndone
+        # N=2 for Single, 3 for Master, 1 for Slave
+        # (from UGB482 in TX Buffer Bypass in Multi/Single-Lane Auto Mode)
         startup_fsm.act("WAIT_FIRST_ALIGN_DONE",
             txuserrdy.eq(1),
             txphalign.eq(1),
             If(txphaligndone_rising,
-                NextState("WAIT_SECOND_ALIGN_DONE")
+                If(mode == "slave",
+                    NextState("READY")
+                ).Else(
+                    NextState("WAIT_SECOND_ALIGN_DONE")
+                )
             )
         )
         startup_fsm.act("WAIT_SECOND_ALIGN_DONE",
+            txuserrdy.eq(1),
+            txdlyen.eq(1),
+            If(txphaligndone_rising,
+                If(mode == "master",
+                    NextState("WAIT_SLAVES")
+                ).Else(
+                    NextState("READY")
+                )
+            )
+        )
+        startup_fsm.act("WAIT_SLAVES",
+            txuserrdy.eq(1),
+            self.master_phaligndone.eq(1),
+            If(self.slaves_phaligndone,
+                NextState("WAIT_THIRD_ALIGN_DONE")
+            )
+        )
+        startup_fsm.act("WAIT_THIRD_ALIGN_DONE",
             txuserrdy.eq(1),
             txdlyen.eq(1),
             If(txphaligndone_rising,
