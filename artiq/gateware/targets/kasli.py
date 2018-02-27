@@ -465,9 +465,10 @@ class Satellite(BaseSoC):
         phy = ttl_simple.Output(platform.request("user_led", 0))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
-        phy = ttl_simple.Output(platform.request("sfp_ctl", 1).led)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(1, 3):
+            phy = ttl_simple.Output(platform.request("sfp_ctl", i).led)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
