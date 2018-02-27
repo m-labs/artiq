@@ -372,6 +372,9 @@ class Master(MiniSoC, AMPSoC):
         phy = ttl_simple.Output(platform.request("sfp_ctl", 1).led)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
 
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
@@ -388,6 +391,10 @@ class Master(MiniSoC, AMPSoC):
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri, self.drtio0.cri])
         self.register_kernel_cpu_csrdevice("cri_con")
+
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.cri_con.switch.slave,
+                                                      self.get_native_sdram_if())
+        self.csr_devices.append("rtio_analyzer")
 
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
