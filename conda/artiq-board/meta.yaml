@@ -16,7 +16,8 @@ build:
 
 outputs:
   - name: artiq-{{ environ["ARTIQ_TARGET"] }}-{{ environ["ARTIQ_VARIANT"] }}
-    files: '*'
+    files:
+      - lib
 
 requirements:
   build:
