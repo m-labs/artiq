@@ -162,7 +162,7 @@ device_db = {
     # DAC
     "spi_ams101": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 22}
     },
@@ -174,7 +174,7 @@ device_db = {
     },
     "spi_zotino": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 30}
     },
@@ -188,12 +188,17 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.ad5360",
         "class": "AD5360",
-        "arguments": {"spi_device": "spi_zotino", "ldac_device": "ttl_zotino_ldac"}
+        "arguments": {
+            "spi_device": "spi_zotino",
+            "ldac_device": "ttl_zotino_ldac",
+            "div_write": 30,
+            "div_read": 40
+        }
     },
 
     "spi_urukul": {
         "type": "local",
-        "module": "artiq.coredevice.spi",
+        "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 32}
     },
