@@ -49,10 +49,19 @@ mod moninj;
 mod analyzer;
 
 fn startup() {
+    log::set_max_level(log::LevelFilter::TRACE);
+    logger_artiq::BufferLogger::with(|logger|
+        logger.set_uart_log_level(log::LevelFilter::TRACE));
+
     board::clock::init();
     info!("ARTIQ runtime starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident::read(&mut [0; 64]));
+
+    #[cfg(has_rtm_fpga_cfg)]
+    board_artiq::rtm_fpga::program_bitstream().expect("cannot program RTM FPGA");
+    #[cfg(has_serwb_phy_amc)]
+    board_artiq::serwb::wait_init();
 
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {
@@ -71,9 +80,6 @@ fn startup() {
         }
         _ => info!("UART log level set to INFO by default")
     }
-
-    #[cfg(has_serwb_phy_amc)]
-    board_artiq::serwb::wait_init();
 
     let t = board::clock::get_ms();
     info!("press 'e' to erase startup and idle kernels...");
