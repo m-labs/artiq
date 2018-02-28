@@ -161,9 +161,17 @@ class Standalone(MiniSoC, AMPSoC):
         ]
 
         # RTM bitstream upload
-        rtm_fpga_cfg = platform.request("rtm_fpga_cfg")
-        self.submodules.rtm_fpga_cfg = SlaveFPGA(rtm_fpga_cfg)
-        self.csr_devices.append("rtm_fpga_cfg")
+        slave_fpga_cfg = self.platform.request("rtm_fpga_cfg")
+        self.submodules.slave_fpga_cfg = gpio.GPIOTristate([
+            slave_fpga_cfg.cclk,
+            slave_fpga_cfg.din,
+            slave_fpga_cfg.done,
+            slave_fpga_cfg.init_b,
+            slave_fpga_cfg.program_b,
+        ])
+        self.csr_devices.append("slave_fpga_cfg")
+        self.config["HAS_SLAVE_FPGA"] = None
+        self.config["SLAVE_FPGA_GATEWARE"] = 0xde0000
 
         # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 625e6, vco_div=2)
