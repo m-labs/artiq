@@ -130,6 +130,7 @@ class GTHInit(Module):
             # Wait for delay alignment
             startup_fsm.act("WAIT_ALIGN",
                 Xxuserrdy.eq(1),
+                self.ready_for_align.eq(1),
                 If(Xxdlysresetdone,
                     If(mode == "slave",
                         NextState("WAIT_LAST_ALIGN_DONE")

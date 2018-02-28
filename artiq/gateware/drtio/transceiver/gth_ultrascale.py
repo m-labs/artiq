@@ -44,7 +44,7 @@ class GTHSingle(Module):
         # # #
 
         # TX generates RTIO clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTHInit(sys_clk_freq, False)
+        self.submodules.tx_init = tx_init = GTHInit(sys_clk_freq, False, mode)
         # RX receives restart commands from RTIO domain
         rx_init = ClockDomainsRenamer("rtio_tx")(GTHInit(rtio_clk_freq, True))
         self.submodules += rx_init
@@ -298,10 +298,10 @@ class GTH(Module, TransceiverInterface):
             else:
                 mode = "master" if i == master else "slave"
             gth = GTHSingle(refclk, data_pads[i], sys_clk_freq, rtio_clk_freq, dw, mode)
-            if mode == "slave":
-                self.comb += gth.cd_rtio_tx.clk.eq(rtio_tx_clk)
-            else:
+            if mode == "master":
                 self.comb += rtio_tx_clk.eq(gth.cd_rtio_tx.clk)
+            elif mode == "slave":
+                self.comb += gth.cd_rtio_tx.clk.eq(rtio_tx_clk)
             self.gths.append(gth)
             setattr(self.submodules, "gth"+str(i), gth)
             channel_interface = ChannelInterface(gth.encoder, gth.decoders)
