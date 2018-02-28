@@ -10,9 +10,16 @@ mod imp {
             while csr::converter_spi::idle_read() == 0 {}
             csr::converter_spi::offline_write(flags >> 0 & 1);
             csr::converter_spi::end_write(flags >> 1 & 1);
-            /* input (in RTIO): flags >> 2 & 1 */
-            /* cs_polarity is a mask in the CSR interface */
-            csr::converter_spi::cs_polarity_write(0xff & (flags >> 3 & 1));
+            // input (in RTIO): flags >> 2 & 1
+            // cs_polarity is a mask in the CSR interface
+            // only affect the bits that are selected
+            let mut cs_polarity = csr::converter_spi::cs_polarity_read();
+            if flags >> 3 & 1 != 0 {
+                cs_polarity |= cs;
+            } else {
+                cs_polarity &= !cs;
+            }
+            csr::converter_spi::cs_polarity_write(cs_polarity);
             csr::converter_spi::clk_polarity_write(flags >> 4 & 1);
             csr::converter_spi::clk_phase_write(flags >> 5 & 1);
             csr::converter_spi::lsb_first_write(flags >> 6 & 1);
