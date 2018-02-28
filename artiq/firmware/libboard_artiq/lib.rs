@@ -1,3 +1,4 @@
+#![feature(asm, lang_items)]
 #![no_std]
 
 #[macro_use]
@@ -24,5 +25,3 @@ mod ad9154_reg;
 pub mod ad9154;
 #[cfg(has_allaki_atts)]
 pub mod hmc542;
-#[cfg(has_rtm_fpga_cfg)]
-pub mod rtm_fpga;

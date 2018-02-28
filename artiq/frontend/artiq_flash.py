@@ -6,7 +6,6 @@ import subprocess
 import tempfile
 import shutil
 import re
-import io
 import atexit
 from functools import partial
 from collections import defaultdict
@@ -279,7 +278,6 @@ def main():
             "bootloader": ("spi1", 0x000000),
             "storage":    ("spi1", 0x040000),
             "firmware":   ("spi1", 0x050000),
-            "rtm_gateware": ("spi1", 0x150000),
         },
     }[args.target]
 
@@ -311,30 +309,18 @@ def main():
         else:
             return os.path.join(args.srcbuild, *path_filename)
 
-    def convert_gateware(bit_filename, prefix_size=False):
-        bin_io = io.BytesIO()
-        with open(bit_filename, "rb") as bit_file:
-            bit2bin(bit_file, bin_io)
-        bin_data = bin_io.getvalue()
-
-        bin_handle, bin_filename = tempfile.mkstemp(
-            prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
-        with open(bin_handle, "wb") as bin_file:
-            if prefix_size:
-                bin_file.write(len(bin_data).to_bytes(4, byteorder="big"))
-            bin_file.write(bin_data)
-        atexit.register(lambda: os.unlink(bin_filename))
-        return bin_filename
-
     try:
         for action in args.action:
             if action == "gateware":
-                gateware_bin = convert_gateware(artifact_path(variant, "gateware", "top.bit"))
-                programmer.write_binary(*config["gateware"], gateware_bin)
+                gateware_bin = artifact_path(variant, "gateware", "top.bin")
+                if not os.access(gateware_bin, os.R_OK):
+                    bin_handle, gateware_bin = tempfile.mkstemp()
+                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                    with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
+                        bit2bin(bit_file, bin_file)
+                    atexit.register(lambda: os.unlink(gateware_bin))
 
-                if args.target == "sayma":
-                    rtm_gateware_bin = convert_gateware(artifact_path("rtm_gateware", "top.bit"))
-                    programmer.write_binary(*config["rtm_gateware"], rtm_gateware_bin)
+                programmer.write_binary(*config["gateware"], gateware_bin)
             elif action == "bootloader":
                 bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
                 programmer.write_binary(*config["bootloader"], bootloader_bin)
