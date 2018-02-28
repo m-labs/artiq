@@ -256,28 +256,29 @@ def main():
 
     config = {
         "kc705": {
-            "programmer": partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
-            "variants":   ["nist_clock", "nist_qc2"],
-            "gateware":   ("spi0", 0x000000),
-            "bootloader": ("spi0", 0xaf0000),
-            "storage":    ("spi0", 0xb30000),
-            "firmware":   ("spi0", 0xb40000),
+            "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
+            "variants":     ["nist_clock", "nist_qc2"],
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0xaf0000),
+            "storage":      ("spi0", 0xb30000),
+            "firmware":     ("spi0", 0xb40000),
         },
         "kasli": {
-            "programmer": partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
-            "variants":   ["opticlock", "master", "satellite"],
-            "gateware":   ("spi0", 0x000000),
-            "bootloader": ("spi0", 0x400000),
-            "storage":    ("spi0", 0x440000),
-            "firmware":   ("spi0", 0x450000),
+            "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
+            "variants":     ["opticlock", "master", "satellite"],
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0x400000),
+            "storage":      ("spi0", 0x440000),
+            "firmware":     ("spi0", 0x450000),
         },
         "sayma": {
-            "programmer": ProgrammerSayma,
-            "variants":   ["standalone", "master", "satellite"],
-            "gateware":   ("spi0", 0x000000),
-            "bootloader": ("spi1", 0x000000),
-            "storage":    ("spi1", 0x040000),
-            "firmware":   ("spi1", 0x050000),
+            "programmer":   ProgrammerSayma,
+            "variants":     ["standalone", "master", "satellite"],
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi1", 0x000000),
+            "storage":      ("spi1", 0x040000),
+            "firmware":     ("spi1", 0x050000),
+            "rtm_gateware": ("spi1", 0x150000),
         },
     }[args.target]
 
@@ -309,18 +310,34 @@ def main():
         else:
             return os.path.join(args.srcbuild, *path_filename)
 
+    def convert_gateware(bit_filename, header=False):
+        bin_handle, bin_filename = tempfile.mkstemp(
+            prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
+        with open(bit_filename, "rb") as bit_file, \
+                open(bin_handle, "wb") as bin_file:
+            if header:
+                bin_file.write(b"\x00"*8)
+            bit2bin(bit_file, bin_file)
+            if header:
+                magic = 0x53415231  # "SAR1"
+                length = bin_file.tell() - 8
+                bin_file.seek(0)
+                bin_file.write(magic.to_bytes(4, byteorder="big"))
+                bin_file.write(length.to_bytes(4, byteorder="big"))
+        atexit.register(lambda: os.unlink(bin_filename))
+        return bin_filename
+
     try:
         for action in args.action:
             if action == "gateware":
-                gateware_bin = artifact_path(variant, "gateware", "top.bin")
-                if not os.access(gateware_bin, os.R_OK):
-                    bin_handle, gateware_bin = tempfile.mkstemp()
-                    gateware_bit = artifact_path(variant, "gateware", "top.bit")
-                    with open(gateware_bit, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
-                        bit2bin(bit_file, bin_file)
-                    atexit.register(lambda: os.unlink(gateware_bin))
-
+                gateware_bin = convert_gateware(
+                    artifact_path(variant, "gateware", "top.bit"))
                 programmer.write_binary(*config["gateware"], gateware_bin)
+                if args.target == "sayma":
+                    rtm_gateware_bin = convert_gateware(
+                        artifact_path("rtm_gateware", "rtm.bit"), header=True)
+                    programmer.write_binary(*config["rtm_gateware"],
+                                            rtm_gateware_bin)
             elif action == "bootloader":
                 bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
                 programmer.write_binary(*config["bootloader"], bootloader_bin)

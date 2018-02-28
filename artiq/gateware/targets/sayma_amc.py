@@ -171,7 +171,7 @@ class Standalone(MiniSoC, AMPSoC):
         ])
         self.csr_devices.append("slave_fpga_cfg")
         self.config["HAS_SLAVE_FPGA"] = None
-        self.config["SLAVE_FPGA_GATEWARE"] = 0xde0000
+        self.config["SLAVE_FPGA_GATEWARE"] = 0x150000
 
         # AMC/RTM serwb
         serwb_pll = serwb.phy.SERWBPLL(125e6, 625e6, vco_div=2)
