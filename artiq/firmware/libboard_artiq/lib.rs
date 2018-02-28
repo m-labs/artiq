@@ -3,6 +3,7 @@
 
 #[macro_use]
 extern crate bitflags;
+extern crate byteorder;
 #[macro_use]
 extern crate log;
 extern crate board;
@@ -15,6 +16,8 @@ pub mod spi;
 #[cfg(has_si5324)]
 pub mod si5324;
 
+#[cfg(has_slave_fpga)]
+pub mod slave_fpga;
 #[cfg(has_serwb_phy_amc)]
 pub mod serwb;
 #[cfg(has_hmc830_7043)]

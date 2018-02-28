@@ -41,6 +41,7 @@ dependencies = [
  "board 0.0.0",
  "build_artiq 0.0.0",
  "build_misoc 0.0.0",
+ "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
