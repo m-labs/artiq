@@ -538,14 +538,13 @@ fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
         0b00*ad9154_reg::PHY_PRBS_PAT_SEL);
 
     for i in 0..8 {
-        let mut lane_errors: u32 = 0;
         /* step 9.a: select src err */
         write(ad9154_reg::PHY_PRBS_TEST_CTRL,
         i*ad9154_reg::PHY_SRC_ERR_CNT);
         /* step 9.b: retrieve number of errors */
-        lane_errors = (read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_LOBITS) as u32) |
-                      ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
-                      ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16);
+        let lane_errors =  (read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_LOBITS) as u32) |
+                          ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
+                          ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16);
         if lane_errors > 0 {
             warn!("AD9154-{} PRBS errors on lane{}: {:06x}", dacno, i, lane_errors);
         }
