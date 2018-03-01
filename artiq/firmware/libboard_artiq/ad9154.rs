@@ -22,13 +22,13 @@ fn write(addr: u16, data: u8) {
         while csr::converter_spi::writable_read() == 0 {}
         csr::converter_spi::data_write(
             ((addr as u32) << 16) | ((data as u32) << 8));
-        while csr::converter_spi::writable_read() == 0 {}
     }
 }
 
 fn read(addr: u16) -> u8 {
     unsafe {
         write((1 << 15) | addr, 0);
+        while csr::converter_spi::writable_read() == 0 {}
         csr::converter_spi::data_read() as u8
     }
 }

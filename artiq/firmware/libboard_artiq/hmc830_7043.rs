@@ -78,7 +78,6 @@ mod hmc830 {
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_write(val << 1);  // last clk cycle loads data
-            while csr::converter_spi::writable_read() == 0 {}
         }
     }
 
@@ -88,6 +87,7 @@ mod hmc830 {
         // the SPI round trip delay and stick with CPHA=0
         write((1 << 6) | addr, 0);
         unsafe {
+            while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_read() & 0xffffff
         }
     }
@@ -173,7 +173,6 @@ mod hmc7043 {
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_write(val << 8);
-            while csr::converter_spi::writable_read() == 0 {}
         }
     }
 

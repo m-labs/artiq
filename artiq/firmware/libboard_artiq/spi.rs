@@ -7,7 +7,7 @@ mod imp {
             return Err(())
         }
         unsafe {
-            while csr::converter_spi::idle_read() == 0 {}
+            while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::offline_write(flags >> 0 & 1);
             csr::converter_spi::end_write(flags >> 1 & 1);
             // input (in RTIO): flags >> 2 & 1
@@ -38,7 +38,6 @@ mod imp {
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_write(data);
-            while csr::converter_spi::writable_read() == 0 {}
         }
         Ok(())
     }
@@ -48,6 +47,7 @@ mod imp {
             return Err(())
         }
         Ok(unsafe {
+            while csr::converter_spi::writable_read() == 0 {}
             csr::converter_spi::data_read()
         })
     }
