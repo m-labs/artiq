@@ -28,46 +28,49 @@ pub fn load() -> Result<(), &'static str> {
     info!("Loading slave FPGA gateware...");
 
     let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
-    let magic = BigEndian::read_u32(&header[0..]);
-    let length = BigEndian::read_u32(&header[4..]) as usize;
 
-    if magic != 0x53415231 {  // "SAR1"
-        return Err("Slave FPGA gateware magic not found");
-    } else if length > 0x220000 {
-        return Err("Slave FPGA gateware too large (corrupted?)");
+    let magic = BigEndian::read_u32(&header[0..]);
+    info!("Magic: 0x{:08x}", magic);
+    if magic != 0x5352544d {  // "SRTM", see sayma_rtm target as well
+        return Err("Bad magic");
     }
-    info!("Slave FPGA gateware length: 0x{:06x}", length);
+
+    let length = BigEndian::read_u32(&header[4..]) as usize;
+    info!("Length: 0x{:08x}", length);
+    if length > 0x220000 {
+        return Err("Too large (corrupted?)");
+    }
 
     unsafe {
         if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
-            info!("Slave FPGA is DONE before loading");
+            info!("DONE before loading");
         }
 
         csr::slave_fpga_cfg::out_write(0);
         csr::slave_fpga_cfg::oe_write(CCLK_BIT | DIN_BIT | PROGRAM_B_BIT);
         clock::spin_us(1_000);  // TPROGRAM=250ns min, be_generous
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT != 0 {
-            return Err("Slave FPGA did not react to PROGRAM.");
+            return Err("Did not react to PROGRAM");
         }
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
         clock::spin_us(10_000);  // TPL=5ms max
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
-            return Err("Slave FPGA did not finish INITialization.");
+            return Err("Did not exit INIT");
         }
 
         for i in slice::from_raw_parts(GATEWARE.offset(8), length) {
             shift_u8(*i);
             if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
-                return Err("Slave FPGA error: INIT_B went low.");
+                return Err("INIT asserted during load");
             }
         }
 
         let t = clock::get_ms();
         while csr::slave_fpga_cfg::in_read() & DONE_BIT == 0 {
             if clock::get_ms() > t + 100 {
-                error!("Slave FPGA not DONE after loading");
-                error!("Corrupt gateware? Slave FPGA in slave serial mode?");
-                return Err("Slave FPGA not DONE");
+                error!("Timeout wating for DONE after loading");
+                error!("Boards not populated correctly?");
+                return Err("Not DONE");
             }
             shift_u8(0xff);
         }

@@ -319,7 +319,7 @@ def main():
                 bin_file.write(b"\x00"*8)
             bit2bin(bit_file, bin_file)
             if header:
-                magic = 0x53415231  # "SAR1"
+                magic = 0x5352544d  # "SRTM", see sayma_rtm target
                 length = bin_file.tell() - 8
                 bin_file.seek(0)
                 bin_file.write(magic.to_bytes(4, byteorder="big"))
