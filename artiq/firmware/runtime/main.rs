@@ -113,7 +113,7 @@ fn startup() {
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324_as_synthesizer()
 {
-    // 125MHz output, from 100MHz CLKIN2 reference, 9 Hz
+    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
@@ -123,7 +123,7 @@ fn setup_si5324_as_synthesizer()
         n2_ls  : 260,
         n31    : 65,
         n32    : 52,
-        bwsel  : 10,
+        bwsel  : 4,
         crystal_ref: false
     };
     // 125MHz output, from crystal, 7 Hz
