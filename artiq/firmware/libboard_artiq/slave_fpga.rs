@@ -39,17 +39,20 @@ pub fn load() -> Result<(), &'static str> {
     info!("Slave FPGA gateware length: 0x{:06x}", length);
 
     unsafe {
-        csr::slave_fpga_cfg::oe_write(CCLK_BIT | DIN_BIT | PROGRAM_B_BIT);
+        if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
+            info!("Slave FPGA is DONE before loading");
+        }
 
         csr::slave_fpga_cfg::out_write(0);
+        csr::slave_fpga_cfg::oe_write(CCLK_BIT | DIN_BIT | PROGRAM_B_BIT);
         clock::spin_us(1_000);  // TPROGRAM=250ns min, be_generous
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT != 0 {
             return Err("Slave FPGA did not react to PROGRAM.");
         }
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
-        clock::spin_us(5_000);  // TPL=5ms max
+        clock::spin_us(10_000);  // TPL=5ms max
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
-            return Err("Slave FPGA did finish INITialization.");
+            return Err("Slave FPGA did not finish INITialization.");
         }
 
         for i in slice::from_raw_parts(GATEWARE.offset(8), length) {
