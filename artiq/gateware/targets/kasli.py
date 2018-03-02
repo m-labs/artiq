@@ -304,6 +304,59 @@ class Opticlock(_StandaloneBase):
         self.add_rtio(rtio_channels)
 
 
+class SYSU(_StandaloneBase):
+    def __init__(self, **kwargs):
+        _StandaloneBase.__init__(self, **kwargs)
+
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["RTIO_FREQUENCY"] = "125.0"
+
+        platform = self.platform
+        platform.add_extension(_urukul("eem1", "eem0"))
+        platform.add_extension(_dio("eem2"))
+        platform.add_extension(_dio("eem3"))
+        platform.add_extension(_dio("eem4"))
+        platform.add_extension(_dio("eem5"))
+        platform.add_extension(_dio("eem6"))
+
+        # EEM clock fan-out from Si5324, not MMCX
+        self.comb += platform.request("clk_sel").eq(1)
+
+        rtio_channels = []
+        for i in range(40):
+            eem_offset, port = divmod(i, 8)
+            pads = platform.request("eem{}".format(2 + eem_offset), port)
+            phy = ttl_serdes_7series.InOut_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        phy = spi2.SPIMaster(self.platform.request("eem1_spi_p"),
+                self.platform.request("eem1_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        pads = platform.request("eem1_dds_reset")
+        self.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        for signal in "io_update sw0 sw1 sw2 sw3".split():
+            pads = platform.request("eem1_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        for i in (1, 2):
+            sfp_ctl = platform.request("sfp_ctl", i)
+            phy = ttl_simple.Output(sfp_ctl.led)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(rtio_channels)
+
+
 class Master(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -542,13 +595,15 @@ def main():
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("-V", "--variant", default="opticlock",
-                        help="variant: opticlock/master/satellite "
+                        help="variant: opticlock/sysu/master/satellite "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     if variant == "opticlock":
         cls = Opticlock
+    elif variant == "sysu":
+        cls = SYSU
     elif variant == "master":
         cls = Master
     elif variant == "satellite":
