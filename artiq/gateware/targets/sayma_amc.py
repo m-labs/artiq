@@ -146,11 +146,6 @@ class Standalone(MiniSoC, AMPSoC):
                          **kwargs)
         AMPSoC.__init__(self)
         platform = self.platform
-        platform.toolchain.bitstream_commands.extend([
-            "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
-            "set_property CFGBVS VCCO [current_design]",
-            "set_property CONFIG_VOLTAGE 3.3 [current_design]",
-            ])
 
         # forward RTM UART to second FTDI UART channel
         serial_1 = platform.request("serial", 1)
