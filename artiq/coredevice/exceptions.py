@@ -71,8 +71,8 @@ class CacheError(Exception):
 
 
 class RTIOUnderflow(Exception):
-    """Raised when the CPU fails to submit a RTIO event early enough
-    (with respect to the event's timestamp).
+    """Raised when the CPU or DMA core fails to submit a RTIO event early
+    enough (with respect to the event's timestamp).
 
     The offending event is discarded and the RTIO core keeps operating.
     """
