@@ -93,6 +93,7 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
+                csr::rtio::i_overflow_reset_write(1);
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
