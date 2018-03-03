@@ -90,6 +90,13 @@ class RTIOOverflow(Exception):
     artiq_builtin = True
 
 
+class RTIOLinkError(Exception):
+    """Raised with a RTIO operation could not be completed due to a DRTIO link
+    being down.
+    """
+    artiq_builtin = True
+
+
 class DMAError(Exception):
     """Raised when performing an invalid DMA operation."""
     artiq_builtin = True

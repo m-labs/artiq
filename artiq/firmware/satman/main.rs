@@ -206,9 +206,9 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
-fn drtio_link_is_up() -> bool {
+fn drtio_link_rx_up() -> bool {
     unsafe {
-        (csr::DRTIO[0].link_status_read)() == 1
+        (csr::DRTIO[0].rx_up_read)() == 1
     }
 }
 
@@ -231,14 +231,14 @@ fn startup() {
     }
 
     loop {
-        while !drtio_link_is_up() {
+        while !drtio_link_rx_up() {
             process_errors();
         }
         info!("link is up, switching to recovered clock");
         si5324::select_ext_input(true).expect("failed to switch clocks");
         drtio_reset(false);
         drtio_reset_phy(false);
-        while drtio_link_is_up() {
+        while drtio_link_rx_up() {
             process_errors();
             process_aux_packets();
         }

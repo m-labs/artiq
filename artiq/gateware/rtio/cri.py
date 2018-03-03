@@ -25,8 +25,8 @@ layout = [
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
     # o_status bits:
-    # <0:wait> <1:underflow>
-    ("o_status", 2, DIR_S_TO_M),
+    # <0:wait> <1:underflow> <2:link error>
+    ("o_status", 3, DIR_S_TO_M),
     # targets may optionally report a pessimistic estimate of the number
     # of outputs events that can be written without waiting.
     ("o_buffer_space", 16, DIR_S_TO_M),
@@ -35,8 +35,9 @@ layout = [
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
     # <0:wait for event (command timeout)> <1:overflow> <2:wait for status>
+    # <3:link error>
     # <0> and <1> are mutually exclusive. <1> has higher priority.
-    ("i_status", 3, DIR_S_TO_M),
+    ("i_status", 4, DIR_S_TO_M),
 
     # value of the timestamp counter transferred into the CRI clock domain.
     # monotonic, may lag behind the counter in the IO clock domain, but
@@ -61,12 +62,12 @@ class KernelInitiator(Module, AutoCSR):
         self.o_data = CSRStorage(512, write_from_dev=True)
         self.o_address = CSRStorage(16)
         self.o_we = CSR()
-        self.o_status = CSRStatus(2)
+        self.o_status = CSRStatus(3)
 
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)
         self.i_request = CSR()
-        self.i_status = CSRStatus(3)
+        self.i_status = CSRStatus(4)
         self.i_overflow_reset = CSR()
 
         self.counter = CSRStatus(64)

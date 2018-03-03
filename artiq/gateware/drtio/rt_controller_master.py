@@ -13,14 +13,13 @@ from artiq.gateware.rtio import cri
 
 class _CSRs(AutoCSR):
     def __init__(self):
-        self.reset = CSR()
+        self.link_up = CSRStorage()
 
         self.protocol_error = CSR(3)
 
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=200)
-
 
         self.o_get_buffer_space = CSR()
         self.o_dbg_buffer_space = CSRStatus(16)
@@ -53,7 +52,7 @@ class RTController(Module):
 
         # reset
         local_reset = Signal(reset=1)
-        self.sync += local_reset.eq(self.csrs.reset.re)
+        self.sync += local_reset.eq(~self.csrs.link_up.storage)
         local_reset.attr.add("no_retiming")
         self.clock_domains.cd_sys_with_rst = ClockDomain()
         self.clock_domains.cd_rtio_with_rst = ClockDomain()
@@ -63,6 +62,11 @@ class RTController(Module):
         ]
         self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
+
+        self.comb += [
+            self.cri.o_status[2].eq(~self.csrs.link_up.storage),
+            self.cri.i_status[3].eq(~self.csrs.link_up.storage)
+        ]
 
         # protocol errors
         err_unknown_packet_type = Signal()

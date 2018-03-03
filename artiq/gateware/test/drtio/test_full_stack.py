@@ -55,6 +55,7 @@ class DUT(Module):
         self.submodules.master = DRTIOMaster(self.transceivers.alice,
                                              fine_ts_width=0)
         self.submodules.master_ki = rtio.KernelInitiator(self.master.cri)
+        self.master.rt_controller.csrs.link_up.storage.reset = 1
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
@@ -81,7 +82,7 @@ class OutputsTestbench:
 
     def init(self):
         yield from self.dut.master.rt_controller.csrs.underflow_margin.write(100)
-        while not (yield from self.dut.master.link_layer.link_status.read()):
+        while not (yield from self.dut.master.link_layer.rx_up.read()):
             yield
         yield from self.get_buffer_space()
 
@@ -113,8 +114,10 @@ class OutputsTestbench:
         wlen = 0
         while status:
             status = yield from kcsrs.o_status.read()
-            if status & 2:
+            if status & 0x2:
                 raise RTIOUnderflow
+            if status & 0x4:
+                raise RTIOLinkError
             yield
             wlen += 1
         return wlen
@@ -251,11 +254,13 @@ class TestFullStack(unittest.TestCase):
                 return "timeout"
             if status & 0x2:
                 return "overflow"
+            if status & 0x8:
+                return "link error"
             return ((yield from kcsrs.i_data.read()),
                     (yield from kcsrs.i_timestamp.read()))
 
         def test():
-            while not (yield from dut.master.link_layer.link_status.read()):
+            while not (yield from dut.master.link_layer.rx_up.read()):
                 yield
 
             i1 = yield from get_input(10)
@@ -281,7 +286,7 @@ class TestFullStack(unittest.TestCase):
         mgr = dut.master.rt_manager
 
         def test():
-            while not (yield from dut.master.link_layer.link_status.read()):
+            while not (yield from dut.master.link_layer.rx_up.read()):
                 yield
 
             yield from mgr.update_packet_cnt.write(1)

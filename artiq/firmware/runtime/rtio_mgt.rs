@@ -50,14 +50,21 @@ pub mod drtio {
     fn link_rx_up(linkno: u8) -> bool {
         let linkno = linkno as usize;
         unsafe {
-            (csr::DRTIO[linkno].link_status_read)() == 1
+            (csr::DRTIO[linkno].rx_up_read)() == 1
         }
     }
 
-    fn link_reset(linkno: u8) {
+    fn link_up(linkno: u8) -> bool {
         let linkno = linkno as usize;
         unsafe {
-            (csr::DRTIO[linkno].reset_write)(1);
+            (csr::DRTIO[linkno].link_up_read)() == 1
+        }
+    }
+
+    fn set_link_up(linkno: u8, up: bool) {
+        let linkno = linkno as usize;
+        unsafe {
+            (csr::DRTIO[linkno].link_up_write)(if up { 1 }  else { 0 });
         }
     }
 
@@ -132,21 +139,6 @@ pub mod drtio {
         }
     }
     
-    // FIXME: use csr::DRTIO.len(), maybe get rid of static mut as well.
-    static mut LINK_UP: [bool; 16] = [false; 16];
-
-    fn link_up(linkno: u8) -> bool {
-        unsafe {
-            LINK_UP[linkno as usize]
-        }
-    }
-
-    fn set_link_up(linkno: u8, up: bool) {
-        unsafe {
-            LINK_UP[linkno as usize] = up
-        }
-    }
-
     pub fn link_thread(io: Io) {
         loop {
             for linkno in 0..csr::DRTIO.len() {
@@ -164,14 +156,13 @@ pub mod drtio {
                     /* link was previously down */
                     if link_rx_up(linkno) {
                         info!("[LINK#{}] link RX became up, pinging", linkno);
-                        link_reset(linkno);
                         let ping_count = ping_remote(linkno, &io);
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
+                            set_link_up(linkno, true);
                             init_buffer_space(linkno);
                             sync_tsc(linkno);
                             info!("[LINK#{}] link initialization completed", linkno);
-                            set_link_up(linkno, true);
                         } else {
                             info!("[LINK#{}] ping failed", linkno);
                         }

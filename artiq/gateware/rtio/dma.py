@@ -242,7 +242,7 @@ class TimeOffset(Module, AutoCSR):
 
 class CRIMaster(Module, AutoCSR):
     def __init__(self):
-        self.underflow = CSR()
+        self.error = CSR(2)
 
         self.error_channel = CSRStatus(24)
         self.error_timestamp = CSRStatus(64)
@@ -255,14 +255,21 @@ class CRIMaster(Module, AutoCSR):
         # # #
 
         underflow_trigger = Signal()
+        link_error_trigger = Signal()
         self.sync += [
             If(underflow_trigger,
-                self.underflow.w.eq(1),
+                self.error.w.eq(1),
                 self.error_channel.status.eq(self.sink.channel),
                 self.error_timestamp.status.eq(self.sink.timestamp),
                 self.error_address.status.eq(self.sink.address)
             ),
-            If(self.underflow.re, self.underflow.w.eq(0))
+            If(link_error_trigger,
+                self.error.w.eq(2),
+                self.error_channel.status.eq(self.sink.channel),
+                self.error_timestamp.status.eq(self.sink.timestamp),
+                self.error_address.status.eq(self.sink.address)
+            ),
+            If(self.error.re, self.error.w.eq(0))
         ]
 
         self.comb += [
@@ -276,7 +283,7 @@ class CRIMaster(Module, AutoCSR):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            If(~self.underflow.w,
+            If(self.error.w == 0,
                 If(self.sink.stb,
                     If(self.sink.eop,
                         # last packet contains dummy data, discard it
@@ -301,11 +308,18 @@ class CRIMaster(Module, AutoCSR):
                 self.sink.ack.eq(1),
                 NextState("IDLE")
             ),
-            If(self.cri.o_status[1], NextState("UNDERFLOW"))
+            If(self.cri.o_status[1], NextState("UNDERFLOW")),
+            If(self.cri.o_status[2], NextState("LINK_ERROR"))
         )
         fsm.act("UNDERFLOW",
             self.busy.eq(1),
             underflow_trigger.eq(1),
+            self.sink.ack.eq(1),
+            NextState("IDLE")
+        )
+        fsm.act("LINK_ERROR",
+            self.busy.eq(1),
+            link_error_trigger.eq(1),
             self.sink.ack.eq(1),
             NextState("IDLE")
         )
