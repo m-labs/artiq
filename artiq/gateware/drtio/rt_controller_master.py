@@ -63,11 +63,6 @@ class RTController(Module):
         self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
         self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
 
-        self.comb += [
-            self.cri.o_status[2].eq(~self.csrs.link_up.storage),
-            self.cri.i_status[3].eq(~self.csrs.link_up.storage)
-        ]
-
         # protocol errors
         err_unknown_packet_type = Signal()
         err_packet_truncated = Signal()
@@ -126,7 +121,7 @@ class RTController(Module):
         o_status_underflow = Signal()
         self.comb += [
             self.cri.o_status.eq(Cat(
-                o_status_wait, o_status_underflow)),
+                o_status_wait, o_status_underflow, ~self.csrs.link_up.storage)),
             self.csrs.o_wait.status.eq(o_status_wait)
         ]
         o_underflow_set = Signal()
@@ -151,7 +146,8 @@ class RTController(Module):
         i_status_overflow = Signal()
         i_status_wait_status = Signal()
         self.comb += self.cri.i_status.eq(Cat(
-            i_status_wait_event, i_status_overflow, i_status_wait_status))
+            i_status_wait_event, i_status_overflow, i_status_wait_status,
+            ~self.csrs.link_up.storage))
 
         load_read_reply = Signal()
         self.sync.sys_with_rst += [
