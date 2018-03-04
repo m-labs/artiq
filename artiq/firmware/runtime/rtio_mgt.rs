@@ -54,8 +54,14 @@ pub mod drtio {
         }
     }
 
-    fn link_up(linkno: u8) -> bool {
+    pub fn link_up(linkno: u8) -> bool {
         let linkno = linkno as usize;
+        /* This function may be called by kernels with arbitrary
+         * linkno values.
+         */
+        if linkno >= csr::DRTIO.len() {
+            return false;
+        }
         unsafe {
             (csr::DRTIO[linkno].link_up_read)() == 1
         }
@@ -195,6 +201,7 @@ mod drtio {
 
     pub fn startup(_io: &Io) {}
     pub fn init() {}
+    pub fn link_up(_linkno: u8) -> bool { false }
 }
 
 fn async_error_thread(io: Io) {

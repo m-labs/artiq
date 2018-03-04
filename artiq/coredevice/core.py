@@ -47,6 +47,10 @@ def rtio_init() -> TNone:
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall(flags={"nounwind", "nowrite"})
+def drtio_get_link_status(linkno: TInt32) -> TBool:
+    raise NotImplementedError("syscall not simulated")
+
 
 class Core:
     """Core device driver.
@@ -154,6 +158,14 @@ class Core:
     @kernel
     def get_rtio_counter_mu(self):
         return rtio_get_counter()
+
+    @kernel
+    def get_drtio_link_status(self, linkno):
+        """Returns whether the specified DRTIO link is up.
+
+        This is particularly useful in startup kernels to delay
+        startup until certain DRTIO links are up."""
+        return drtio_get_link_status(linkno)
 
     @kernel
     def reset(self):

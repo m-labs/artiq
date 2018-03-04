@@ -210,10 +210,15 @@ mod imp {
 
 pub use self::imp::*;
 
-pub mod drtio_dbg {
+pub mod drtio {
     use ::send;
     use ::recv;
     use kernel_proto::*;
+
+    pub extern fn get_link_status(linkno: i32) -> bool {
+        send(&DrtioLinkStatusRequest { linkno: linkno as u8 });
+        recv!(&DrtioLinkStatusReply { up } => up)
+    }
 
     #[repr(C)]
     pub struct PacketCounts(i32, i32);

@@ -300,6 +300,11 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
             kern_acknowledge()
         }
 
+        #[cfg(has_rtio_core)]
+        &kern::DrtioLinkStatusRequest { linkno } => {
+            let up = rtio_mgt::drtio::link_up(linkno);
+            kern_send(io, &kern::DrtioLinkStatusReply { up: up })
+        }
 
         #[cfg(has_rtio_core)]
         &kern::DrtioPacketCountRequest { linkno } => {
