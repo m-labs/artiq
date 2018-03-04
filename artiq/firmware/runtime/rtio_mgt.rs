@@ -196,7 +196,7 @@ pub mod drtio {
 }
 
 #[cfg(not(has_drtio))]
-mod drtio {
+pub mod drtio {
     use super::*;
 
     pub fn startup(_io: &Io) {}
