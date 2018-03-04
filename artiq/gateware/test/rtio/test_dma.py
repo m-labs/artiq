@@ -57,7 +57,7 @@ def do_dma(dut, address):
     yield
     while ((yield from dut.enable.read())):
         yield
-    error = yield from dut.cri_master.underflow.read()
+    error = yield from dut.cri_master.error.read()
     if error & 1:
         raise RTIOUnderflow
     if error & 2:
