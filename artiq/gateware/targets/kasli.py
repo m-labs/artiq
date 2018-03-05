@@ -267,8 +267,10 @@ class Opticlock(_StandaloneBase):
             pads = platform.request("eem{}".format(eem), port)
             if i < 4:
                 cls = ttl_serdes_7series.InOut_8X
-            else:
+            elif i < 8:
                 cls = ttl_serdes_7series.Output_8X
+            else:
+                cls = ttl_simple.Output
             phy = cls(pads.p, pads.n)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
