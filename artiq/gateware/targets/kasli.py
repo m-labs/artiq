@@ -252,9 +252,14 @@ class Opticlock(_StandaloneBase):
         platform.add_extension(_dio("eem2"))
         platform.add_extension(_novogorny("eem3"))
         platform.add_extension(_urukul("eem5", "eem4"))
+        platform.add_extension(_urukul("eem6"))
+        # platform.add_extension(_zotino("eem7"))
 
         # EEM clock fan-out from Si5324, not MMCX
-        self.comb += platform.request("clk_sel").eq(1)
+        try:
+            self.comb += platform.request("clk_sel").eq(1)
+        except ConstraintError:
+            pass
 
         rtio_channels = []
         for i in range(24):
