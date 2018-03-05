@@ -193,8 +193,8 @@ def _novogorny(eem):
         ]
 
 
-def _urukul(eem, eem_aux):
-    return [
+def _urukul(eem, eem_aux=None):
+    ios = [
         ("{}_spi_p".format(eem), 0,
             Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
             Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
@@ -213,24 +213,26 @@ def _urukul(eem, eem_aux):
                 eem, [_eem_signal(i + 3) for i in range(3)]))),
             IOStandard("LVDS_25"),
         ),
-        ] + [
+        ]
+    ttls = [(6, eem, "io_update"),
+            (7, eem, "dds_reset")]
+    if eem_aux is not None:
+        ttls += [(0, eem_aux, "sync_clk"),
+                 (1, eem_aux, "sync_in"),
+                 (2, eem_aux, "io_update_ret"),
+                 (3, eem_aux, "nu_mosi3"),
+                 (4, eem_aux, "sw0"),
+                 (5, eem_aux, "sw1"),
+                 (6, eem_aux, "sw2"),
+                 (7, eem_aux, "sw3")]
+    for i, j, sig in ttls:
+        ios.append(
             ("{}_{}".format(eem, sig), 0,
                 Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
                 Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
                 IOStandard("LVDS_25")
-            ) for i, j, sig in [
-                (6, eem, "io_update"),
-                (7, eem, "dds_reset"),
-                (0, eem_aux, "sync_clk"),
-                (1, eem_aux, "sync_in"),
-                (2, eem_aux, "io_update_ret"),
-                (3, eem_aux, "nu_mosi3"),
-                (4, eem_aux, "sw0"),
-                (5, eem_aux, "sw1"),
-                (6, eem_aux, "sw2"),
-                (7, eem_aux, "sw3")
-            ]
-        ]
+            ))
+    return ios
 
 
 class Opticlock(_StandaloneBase):
