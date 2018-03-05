@@ -45,17 +45,20 @@ pub fn load() -> Result<(), &'static str> {
         if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
             info!("DONE before loading");
         }
+        if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
+            info!("INIT asserted before loading");
+        }
 
         csr::slave_fpga_cfg::out_write(0);
         csr::slave_fpga_cfg::oe_write(CCLK_BIT | DIN_BIT | PROGRAM_B_BIT);
         clock::spin_us(1_000);  // TPROGRAM=250ns min, be_generous
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT != 0 {
-            return Err("Did not react to PROGRAM");
+            return Err("Did not assert INIT in reaction to PROGRAM");
         }
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
         clock::spin_us(10_000);  // TPL=5ms max
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
-            return Err("Did not exit INIT");
+            return Err("Did not exit INIT after releasing PROGRAM");
         }
 
         for i in slice::from_raw_parts(GATEWARE.offset(8), length) {
