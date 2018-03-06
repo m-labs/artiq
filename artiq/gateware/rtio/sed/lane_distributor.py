@@ -38,21 +38,26 @@ class LaneDistributor(Module):
         o_status_underflow = Signal()
         self.comb += self.cri.o_status.eq(Cat(o_status_wait, o_status_underflow))
 
-        # internal state
-        current_lane = Signal(max=lane_count)
-        last_coarse_timestamp = Signal(64-glbl_fine_ts_width)
-        last_lane_coarse_timestamps = Array(Signal(64-glbl_fine_ts_width)
-                                            for _ in range(lane_count))
-        seqn = Signal(seqn_width)
-
         # The core keeps writing events into the current lane as long as timestamps
         # (after compensation) are strictly increasing, otherwise it switches to
         # the next lane.
         # If spread is enabled, it also switches to the next lane after the current
         # lane has been full, in order to maximize lane utilization.
         # The current lane is called lane "A". The next lane (which may be chosen
-        # a later stage by the core) is called lane "B".
+        # at a later stage by the core) is called lane "B".
         # Computations for both lanes are prepared in advance to increase performance.
+
+        current_lane = Signal(max=lane_count)
+        # The last coarse timestamp received from the CRI, after compensation.
+        # Used to determine when to switch lanes.
+        last_coarse_timestamp = Signal(64-glbl_fine_ts_width)
+        # The last coarse timestamp written to each lane. Used to detect
+        # sequence errors.
+        last_lane_coarse_timestamps = Array(Signal(64-glbl_fine_ts_width)
+                                            for _ in range(lane_count))
+        # Sequence number counter. The sequence number is used to determine which
+        # event wins during a replace.
+        seqn = Signal(seqn_width)
 
         # distribute data to lanes
         for lio in self.output:
