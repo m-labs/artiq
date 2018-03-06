@@ -24,6 +24,10 @@ class LaneDistributor(Module):
         self.cri = interface
         self.sequence_error = Signal()
         self.sequence_error_channel = Signal(16)
+        # The minimum timestamp that an event must have to avoid triggering
+        # an underflow, at the time when the CRI write happens, and to a channel
+        # with zero latency compensation. This is synchronous to the system clock
+        # domain.
         self.minimum_coarse_timestamp = Signal(64-glbl_fine_ts_width)
         self.output = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                        for _ in range(lane_count)]
@@ -40,6 +44,15 @@ class LaneDistributor(Module):
         last_lane_coarse_timestamps = Array(Signal(64-glbl_fine_ts_width)
                                             for _ in range(lane_count))
         seqn = Signal(seqn_width)
+
+        # The core keeps writing events into the current lane as long as timestamps
+        # (after compensation) are strictly increasing, otherwise it switches to
+        # the next lane.
+        # If spread is enabled, it also switches to the next lane after the current
+        # lane has been full, in order to maximize lane utilization.
+        # The current lane is called lane "A". The next lane (which may be chosen
+        # a later stage by the core) is called lane "B".
+        # Computations for both lanes are prepared in advance to increase performance.
 
         # distribute data to lanes
         for lio in self.output:
@@ -70,6 +83,9 @@ class LaneDistributor(Module):
             last_minus_timestamp.eq(last_coarse_timestamp - coarse_timestamp)
         ]
 
+        # Quash channels are "dummy" channels to which writes are completely ignored.
+        # This is used by the RTIO log channel, which is taken into account
+        # by the analyzer but does not enter the lanes.
         quash = Signal()
         self.sync += quash.eq(0)
         for channel in quash_channels:
