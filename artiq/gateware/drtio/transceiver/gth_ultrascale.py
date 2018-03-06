@@ -531,8 +531,8 @@ class GTHSingle(Module):
             o_RXDATA=Cat(*[rxdata[10*i:10*i+8] for i in range(nwords)]),
 
             # RX electrical
-            i_RXPD=0b00,
-            i_RXELECIDLEMODE=0b11,
+            i_RXPD=Replicate(rx_init.restart, 2),
+			i_RXELECIDLEMODE=0b11,
 
             # Pads
             i_GTHRXP=pads.rxp,
