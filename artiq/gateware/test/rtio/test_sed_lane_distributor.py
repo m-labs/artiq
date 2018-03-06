@@ -77,12 +77,15 @@ def simulate(input_events, compensation=None, wait=True):
 
 class TestLaneDistributor(unittest.TestCase):
     def test_regular(self):
+        # N sequential events, all on lane 0
         N = 16
         output, access_results = simulate([(42+n, (n+1)*8) for n in range(N)], wait=False)
         self.assertEqual(output, [(0, n, 42+n, (n+1)*8) for n in range(N)])
         self.assertEqual(access_results, [("ok", 0)]*N)
 
     def test_wait_time(self):
+        # LANE_COUNT simultaneous events should be distributed and written to
+        # the lanes when the latter are writable
         output, access_results = simulate([(42+n, 8) for n in range(LANE_COUNT)])
         self.assertEqual(output, [(n, n, 42+n, 8) for n in range(LANE_COUNT)])
         expected_access_results = [("ok", 0)]*LANE_COUNT
@@ -91,33 +94,40 @@ class TestLaneDistributor(unittest.TestCase):
         self.assertEqual(access_results, expected_access_results)
 
     def test_lane_switch(self):
+        # N events separated by one fine timestamp distributed onto lanes
+        # LANE_COUNT == 1 << fine_ts_width
         N = 32
         output, access_results = simulate([(42+n, n+8) for n in range(N)], wait=False)
         self.assertEqual(output, [((n-n//8) % LANE_COUNT, n, 42+n, n+8) for n in range(N)])
         self.assertEqual([ar[0] for ar in access_results], ["ok"]*N)
 
     def test_sequence_error(self):
+        # LANE_COUNT + 1 simultaneous events, the last one being discarded due
+        # to sequence error, followed by a valid event
         input_events = [(42+n, 8) for n in range(LANE_COUNT+1)]
         input_events.append((42+LANE_COUNT+1, 16))
         output, access_results = simulate(input_events)
         self.assertEqual(len(output), len(input_events)-1)  # event with sequence error must get discarded
+        self.assertEqual(output[-1], (0, LANE_COUNT, 42+LANE_COUNT+1, 16))
         self.assertEqual([ar[0] for ar in access_results[:LANE_COUNT]], ["ok"]*LANE_COUNT)
         self.assertEqual(access_results[LANE_COUNT][0], "sequence_error")
+        self.assertEqual(access_results[LANE_COUNT + 1][0], "ok")
 
     def test_underflow(self):
+        # N sequential events except the penultimate which underflows
         N = 16
-        input_events = [(42+n, (n+1)*8) for n in range(N-2)]
-        input_events.append((0, 0))  # timestamp < 8 underflows
-        input_events.append((42+N-2, N*8))
+        input_events = [(42+n, (n+1)*8) for n in range(N)]
+        input_events[-2] = (0, 0)  # timestamp < 8 underflows
         output, access_results = simulate(input_events)
         self.assertEqual(len(output), len(input_events)-1)  # event with underflow must get discarded
         self.assertEqual([ar[0] for ar in access_results[:N-2]], ["ok"]*(N-2))
         self.assertEqual(access_results[N-2][0], "underflow")
-        self.assertEqual(output[N-2], (0, N-2, 42+N-2, N*8))
+        self.assertEqual(output[N-2], (0, N-2, 42+N-1, N*8))
         self.assertEqual(access_results[N-1][0], "ok")
 
     def test_spread(self):
-        # get to lane 6
+        # 6 simultaneous events to reach lane 6 and 7 which are not writable
+        # for 1 and 4 cycles respectively causing a forced lane switch
         input_events = [(42+n, 8) for n in range(7)]
         input_events.append((100, 16))
         input_events.append((100, 32))
