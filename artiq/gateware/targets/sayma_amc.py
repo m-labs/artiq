@@ -165,7 +165,7 @@ class Standalone(MiniSoC, AMPSoC):
             slave_fpga_cfg.program_b,
         ])
         self.csr_devices.append("slave_fpga_cfg")
-        self.config["HAS_SLAVE_FPGA"] = None
+        # self.config["HAS_SLAVE_FPGA"] = None
         self.config["SLAVE_FPGA_GATEWARE"] = 0x150000
 
         # AMC/RTM serwb
