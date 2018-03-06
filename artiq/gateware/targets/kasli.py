@@ -21,6 +21,7 @@ from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi2
 from artiq.gateware.drtio.transceiver import gtp_7series
+from artiq.gateware.drtio.si_phaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
@@ -573,12 +574,11 @@ class Satellite(BaseSoC):
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        si5324_clkin = platform.request("si5324_clkin")
-        self.specials += \
-            Instance("OBUFDS",
-                i_I=ClockSignal("rtio_rx0"),
-                o_O=si5324_clkin.p, o_OB=si5324_clkin.n
-            )
+        self.submodules.si_phaser = SiPhaser7Series(
+            si5324_clkin=platform.request("si5324_clkin"),
+            si5324_clkout_fabric=platform.request("si5324_clkout_fabric")
+        )
+        self.csr_devices.append("si_phaser")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")

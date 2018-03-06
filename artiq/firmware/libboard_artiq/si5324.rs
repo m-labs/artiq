@@ -1,6 +1,6 @@
 use core::result;
 use board::clock;
-#[cfg(not(si5324_soft_reset))]
+#[cfg(any(not(si5324_soft_reset), has_si_phaser))]
 use board::csr;
 use i2c;
 
@@ -45,6 +45,11 @@ pub struct FrequencySettings {
     pub n32: u32,
     pub bwsel: u8,
     pub crystal_ref: bool
+}
+
+pub enum Input {
+    Ckin1,
+    Ckin2,
 }
 
 fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySettings> {
@@ -160,8 +165,11 @@ fn has_xtal() -> Result<bool> {
     Ok((read(129)? & 0x01) == 0)  // LOSX_INT=0
 }
 
-fn has_clkin2() -> Result<bool> {
-    Ok((read(129)? & 0x04) == 0)  // LOS2_INT=0
+fn has_ckin(input: Input) -> Result<bool> {
+    match input {
+        Input::Ckin1 => Ok((read(129)? & 0x02) == 0),  // LOS1_INT=0
+        Input::Ckin2 => Ok((read(129)? & 0x04) == 0),  // LOS2_INT=0
+    }
 }
 
 fn locked() -> Result<bool> {
@@ -180,7 +188,7 @@ fn monitor_lock() -> Result<()> {
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings) -> Result<()> {
+pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
     let s = map_frequency_settings(settings)?;
 
     #[cfg(not(si5324_soft_reset))]
@@ -203,12 +211,16 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     #[cfg(si5324_soft_reset)]
     soft_reset()?;
 
+    let cksel_reg = match input {
+        Input::Ckin1 => 0b00,
+        Input::Ckin2 => 0b01,
+    };
     if settings.crystal_ref {
         write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
     }
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
-    write(3,   (read(3)? & 0x3f) | (0b01 << 6) | 0x10)?;  // CKSEL_REG=b01 SQ_ICAL=1
+    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
     write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
     write(25,  (s.n1_hs  << 5 ) as u8)?;
@@ -233,20 +245,40 @@ pub fn setup(settings: &FrequencySettings) -> Result<()> {
     if !has_xtal()? {
         return Err("Si5324 misses XA/XB signal");
     }
-    if !has_clkin2()? {
-        return Err("Si5324 misses CLKIN2 signal");
+    if !has_ckin(input)? {
+        return Err("Si5324 misses clock input signal");
     }
 
     monitor_lock()?;
     Ok(())
 }
 
-pub fn select_ext_input(external: bool) -> Result<()> {
-    if external {
-        write(3,   (read(3)? & 0x3f) | (0b00 << 6))?;  // CKSEL_REG=b00
-    } else {
-        write(3,   (read(3)? & 0x3f) | (0b01 << 6))?;  // CKSEL_REG=b01
+pub fn select_input(input: Input) -> Result<()> {
+    let cksel_reg = match input {
+        Input::Ckin1 => 0b00,
+        Input::Ckin2 => 0b01,
+    };
+    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;
+    if !has_ckin(input)? {
+        return Err("Si5324 misses clock input signal");
     }
     monitor_lock()?;
+    Ok(())
+}
+
+#[cfg(has_si_phaser)]
+pub fn select_recovered_clock(rc: bool) -> Result<()> {
+    write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=1
+    unsafe {
+        csr::si_phaser::switch_clocks_write(if rc { 1 } else { 0 });
+    }
+    write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=0
+    monitor_lock()?;
+    Ok(())
+}
+
+#[cfg(has_si_phaser)]
+pub fn calibrate_skew() -> Result<()> {
+    // TODO: implement
     Ok(())
 }

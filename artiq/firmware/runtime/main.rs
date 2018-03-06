@@ -152,7 +152,7 @@ fn setup_si5324_as_synthesizer()
         bwsel  : 3,
         crystal_ref: true
     };
-    board_artiq::si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
+    board_artiq::si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin2).expect("cannot initialize Si5324");
 }
 
 #[cfg(has_ethmac)]

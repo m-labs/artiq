@@ -195,14 +195,14 @@ fn process_errors() {
 
 #[cfg(rtio_frequency = "150.0")]
 const SI5324_SETTINGS: si5324::FrequencySettings
-        = si5324::FrequencySettings {
-    n1_hs  : 9,
-    nc1_ls : 4,
+    = si5324::FrequencySettings {
+    n1_hs  : 6,
+    nc1_ls : 6,
     n2_hs  : 10,
-    n2_ls  : 33732,
-    n31    : 9370,
-    n32    : 7139,
-    bwsel  : 3,
+    n2_ls  : 270,
+    n31    : 75,
+    n32    : 75,
+    bwsel  : 4,
     crystal_ref: true
 };
 
@@ -225,7 +225,7 @@ fn startup() {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     i2c::init();
-    si5324::setup(&SI5324_SETTINGS).expect("cannot initialize Si5324");
+    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
@@ -235,7 +235,8 @@ fn startup() {
             process_errors();
         }
         info!("link is up, switching to recovered clock");
-        si5324::select_ext_input(true).expect("failed to switch clocks");
+        si5324::select_recovered_clock(true).expect("failed to switch clocks");
+        si5324::calibrate_skew().expect("failed to calibrate skew");
         drtio_reset(false);
         drtio_reset_phy(false);
         while drtio_link_rx_up() {
@@ -245,7 +246,7 @@ fn startup() {
         drtio_reset_phy(true);
         drtio_reset(true);
         info!("link is down, switching to local crystal clock");
-        si5324::select_ext_input(false).expect("failed to switch clocks");
+        si5324::select_recovered_clock(false).expect("failed to switch clocks");
     }
 }
 
