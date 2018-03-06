@@ -45,6 +45,12 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.i2c
     :members:
 
+:mod:`artiq.coredevice.pcf8574a` module
+---------------------------------------
+
+.. automodule:: artiq.coredevice.pcf8574a
+    :members:
+
 :mod:`artiq.coredevice.cache` module
 ------------------------------------
 
