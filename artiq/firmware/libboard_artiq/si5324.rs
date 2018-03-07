@@ -1,6 +1,6 @@
 use core::result;
 use board::clock;
-#[cfg(any(not(si5324_soft_reset), has_si_phaser))]
+#[cfg(not(si5324_soft_reset))]
 use board::csr;
 use i2c;
 
@@ -266,90 +266,91 @@ pub fn select_input(input: Input) -> Result<()> {
     Ok(())
 }
 
-#[cfg(has_si_phaser)]
-pub fn select_recovered_clock(rc: bool) -> Result<()> {
-    write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=1
-    unsafe {
-        csr::si_phaser::switch_clocks_write(if rc { 1 } else { 0 });
-    }
-    write(3,   (read(3)? & 0xdf) | (0 << 5))?;  // DHOLD=0
-    monitor_lock()?;
-    Ok(())
-}
+#[cfg(has_siphaser)]
+pub mod siphaser {
+    use super::*;
+    use board::csr;
+    use board::clock;
 
-#[cfg(has_si_phaser)]
-fn phase_shift(direction: u8) {
-    unsafe {
-        csr::si_phaser::phase_shift_write(direction);
-        while csr::si_phaser::phase_shift_done_read() == 0 {}
-    }
-    // wait for the Si5324 loop to stabilize
-    clock::spin_us(500);
-}
-
-#[cfg(has_si_phaser)]
-fn get_phaser_sample() -> bool {
-    let mut sample = true;
-    for _ in 0..32 {
-        if unsafe { csr::si_phaser::sample_result_read() } == 0 {
-            sample = false;
+    pub fn select_recovered_clock(rc: bool) -> Result<()> {
+        write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=1
+        unsafe {
+            csr::siphaser::switch_clocks_write(if rc { 1 } else { 0 });
         }
+        write(3,   (read(3)? & 0xdf) | (0 << 5))?;  // DHOLD=0
+        monitor_lock()?;
+        Ok(())
     }
-    sample
-}
 
-#[cfg(has_si_phaser)]
-const PS_MARGIN: u32 = 28;
+    fn phase_shift(direction: u8) {
+        unsafe {
+            csr::siphaser::phase_shift_write(direction);
+            while csr::siphaser::phase_shift_done_read() == 0 {}
+        }
+        // wait for the Si5324 loop to stabilize
+        clock::spin_us(500);
+    }
 
-#[cfg(has_si_phaser)]
-fn get_stable_phaser_sample() -> (bool, u32) {
-    let mut nshifts: u32 = 0;
-    loop {
-        let s1 = get_phaser_sample();
-        for _ in 0..PS_MARGIN {
-            phase_shift(1);
-        }
-        let s2 = get_phaser_sample();
-        for _ in 0..PS_MARGIN {
-            phase_shift(1);
-        }
-        let s3 = get_phaser_sample();
-        nshifts += 2*PS_MARGIN;
-        if s1 == s2 && s2 == s3 {
-            for _ in 0..PS_MARGIN {
-                phase_shift(0);
+    fn get_phaser_sample() -> bool {
+        let mut sample = true;
+        for _ in 0..32 {
+            if unsafe { csr::siphaser::sample_result_read() } == 0 {
+                sample = false;
             }
-            nshifts -= PS_MARGIN;
-            return (s2, nshifts);
+        }
+        sample
+    }
+
+    const PS_MARGIN: u32 = 28;
+
+    fn get_stable_phaser_sample() -> (bool, u32) {
+        let mut nshifts: u32 = 0;
+        loop {
+            let s1 = get_phaser_sample();
+            for _ in 0..PS_MARGIN {
+                phase_shift(1);
+            }
+            let s2 = get_phaser_sample();
+            for _ in 0..PS_MARGIN {
+                phase_shift(1);
+            }
+            let s3 = get_phaser_sample();
+            nshifts += 2*PS_MARGIN;
+            if s1 == s2 && s2 == s3 {
+                for _ in 0..PS_MARGIN {
+                    phase_shift(0);
+                }
+                nshifts -= PS_MARGIN;
+                return (s2, nshifts);
+            }
         }
     }
-}
 
-#[cfg(has_si_phaser)]
-pub fn calibrate_skew(skew: u16) -> Result<()> {
-    // Get into a 0 region
-    let (s1, mut nshifts) = get_stable_phaser_sample();
-    if s1 {
-        while get_phaser_sample() {
+    pub fn calibrate_skew(skew: u16) -> Result<()> {
+        // Get into a 0 region
+        let (s1, mut nshifts) = get_stable_phaser_sample();
+        if s1 {
+            while get_phaser_sample() {
+                phase_shift(1);
+                nshifts += 1;
+            }
+            for _ in 0..PS_MARGIN {
+                phase_shift(1);
+            }
+            nshifts += PS_MARGIN;
+        }
+
+        // Get to the 0->1 transition
+        while !get_phaser_sample() {
             phase_shift(1);
             nshifts += 1;
         }
-        for _ in 0..PS_MARGIN {
+        info!("nshifts to 0->1 siphaser transition: {} ({}deg)", nshifts, nshifts*360/(56*8));
+
+        // Apply specified skew referenced to that transition
+        for _ in 0..skew {
             phase_shift(1);
         }
-        nshifts += PS_MARGIN;
+        Ok(())
     }
-
-    // Get to the 0->1 transition
-    while !get_phaser_sample() {
-        phase_shift(1);
-        nshifts += 1;
-    }
-    info!("nshifts to 0->1 siphaser transition: {} ({}deg)", nshifts, nshifts*360/(56*8));
-
-    // Apply specified skew referenced to that transition
-    for _ in 0..skew {
-        phase_shift(1);
-    }
-    Ok(())
 }

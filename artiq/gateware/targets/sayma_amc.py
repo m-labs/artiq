@@ -33,7 +33,7 @@ from artiq.gateware import remote_csr
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
-from artiq.gateware.drtio.si_phaser import SiPhaser7Series
+from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
 from artiq.build_soc import build_artiq_soc
@@ -433,13 +433,13 @@ class Satellite(BaseSoC):
         self.add_memory_group("drtio_aux", ["drtio0_aux"])
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        self.submodules.si_phaser = SiPhaser7Series(
+        self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             si5324_clkout_fabric=platform.request("si5324_clkout_fabric")
         )
         platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {mmcm_ps}]",
-            mmcm_ps=self.si_phaser.mmcm_ps_output)
-        self.csr_devices.append("si_phaser")
+            mmcm_ps=self.siphaser.mmcm_ps_output)
+        self.csr_devices.append("siphaser")
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
