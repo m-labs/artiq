@@ -294,23 +294,39 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
+        self.comb += [
+            platform.request("sfp_tx_disable", i).eq(0)
+            for i in range(2)
+        ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("si5324_clkout"),
-            data_pads=[platform.request("sfp", 0)],
+            data_pads=[platform.request("sfp", i) for i in range(2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.submodules.drtio0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})(
-            DRTIOMaster(self.drtio_transceiver.channels[0]))
-        self.csr_devices.append("drtio0")
-        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
-                          self.drtio0.aux_controller.bus)
-        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        drtio_csr_group = []
+        drtio_memory_group = []
+        drtio_cri = []
+        for i in range(2):
+            core_name = "drtio" + str(i)
+            memory_name = "drtio" + str(i) + "_aux"
+            drtio_csr_group.append(core_name)
+            drtio_memory_group.append(memory_name)
+
+            core = ClockDomainsRenamer({"rtio_rx": "rtio_rx"+str(i)})(
+                DRTIOMaster(self.drtio_transceiver.channels[i]))
+            setattr(self.submodules, core_name, core)
+            drtio_cri.append(core.cri)
+            self.csr_devices.append(core_name)
+
+            memory_address = self.mem_map["drtio_aux"] + 0x800*i
+            self.add_wb_slave(memory_address, 0x800,
+                              core.aux_controller.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
-        self.add_csr_group("drtio", ["drtio0"])
-        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+        self.add_csr_group("drtio", drtio_csr_group)
+        self.add_memory_group("drtio_aux", drtio_memory_group)
 
         rtio_clk_period = 1e9/rtio_clk_freq
         for gth in self.drtio_transceiver.gths:
@@ -349,7 +365,7 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri, self.drtio0.cri])
+            [self.rtio_core.cri] + drtio_cri)
         self.register_kernel_cpu_csrdevice("cri_con")
 
 
