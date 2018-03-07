@@ -24,7 +24,7 @@ class AD9912:
         f_ref*pll_n where f_ref is the reference frequency (set in the parent
         Urukul CPLD instance).
     """
-    kernel_invariants = {"chip_select", "cpld", "core", "bus", "sw",
+    kernel_invariants = {"chip_select", "cpld", "core", "bus",
             "ftw_per_hz", "sysclk", "pll_n"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
@@ -36,6 +36,7 @@ class AD9912:
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
+            self.kernel_invariants.add("sw")
         self.pll_n = pll_n
         self.sysclk = self.cpld.refclk*pll_n
         assert self.sysclk <= 1e9

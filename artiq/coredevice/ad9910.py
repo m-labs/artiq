@@ -49,7 +49,7 @@ class AD9910:
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
     """
-    kernel_invariants = {"chip_select", "cpld", "core", "bus", "sw",
+    kernel_invariants = {"chip_select", "cpld", "core", "bus",
             "ftw_per_hz", "pll_n", "pll_cp", "pll_vco"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
@@ -61,6 +61,7 @@ class AD9910:
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
+            self.kernel_invariants.add("sw")
         assert 12 <= pll_n <= 127
         self.pll_n = pll_n
         assert self.cpld.refclk/4 <= 60e6
