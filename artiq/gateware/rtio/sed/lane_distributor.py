@@ -176,10 +176,10 @@ class LaneDistributor(Module):
 
         # current lane has been full, spread events by switching to the next.
         if enable_spread:
-            do_write_r = Signal()
+            current_lane_writable_r = Signal(reset=1)
             self.sync += [
-                do_write_r.eq(do_write),
-                If(do_write_r & ~current_lane_writable,
+                current_lane_writable_r.eq(current_lane_writable),
+                If(~current_lane_writable_r & current_lane_writable,
                     force_laneB.eq(1)
                 ),
                 If(do_write,
