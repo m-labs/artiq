@@ -73,7 +73,7 @@ class SPIMaster(Module):
         config.end.reset = 1
         read = Signal()
 
-        self.sync.rio += [
+        self.sync.rio_phy += [
             If(self.rtlink.i.stb,
                 read.eq(0)
             ),
