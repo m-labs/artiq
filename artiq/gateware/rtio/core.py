@@ -67,7 +67,7 @@ class Core(Module, AutoCSR):
 
         coarse_ts = Signal(64-glbl_fine_ts_width)
         self.sync.rtio += coarse_ts.eq(coarse_ts + 1)
-        coarse_ts_cdc = GrayCodeTransfer(len(coarse_ts))
+        coarse_ts_cdc = GrayCodeTransfer(len(coarse_ts))  # from rtio to sys
         self.submodules += coarse_ts_cdc
         self.comb += [
             coarse_ts_cdc.i.eq(coarse_ts),
@@ -83,7 +83,7 @@ class Core(Module, AutoCSR):
             interface=self.cri)
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(coarse_ts)
-        self.sync += outputs.minimum_coarse_timestamp.eq(coarse_ts + 16)
+        self.sync += outputs.minimum_coarse_timestamp.eq(coarse_ts_cdc.o + 16)
 
         inputs = InputCollector(channels, glbl_fine_ts_width, "async",
             quash_channels=quash_channels,
