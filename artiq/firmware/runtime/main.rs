@@ -237,13 +237,13 @@ fn startup_ethernet() {
                     Ok(true) => (),
                     Ok(false) => break,
                     Err(smoltcp::Error::Unrecognized) => (),
-                    Err(err) => warn!("network error: {}", err)
+                    Err(err) => debug!("network error: {}", err)
                 }
             }
         }
 
         if let Some(_net_stats_diff) = net_stats.update() {
-            warn!("ethernet mac:{}", ethmac::EthernetStatistics::new());
+            debug!("ethernet mac:{}", ethmac::EthernetStatistics::new());
         }
     }
 }
