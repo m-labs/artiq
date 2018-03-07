@@ -18,7 +18,7 @@ class SiPhaser7Series(Module, AutoCSR):
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
         mmcm_freerun_fb = Signal()
-        mmcm_freerun_output = Signal()
+        self.mmcm_freerun_output = Signal()
         self.specials += \
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=1e9/125e6,
@@ -29,14 +29,14 @@ class SiPhaser7Series(Module, AutoCSR):
 
                 o_CLKFBOUT=mmcm_freerun_fb, i_CLKFBIN=mmcm_freerun_fb,
 
-                p_CLKOUT0_DIVIDE_F=5.0, o_CLKOUT0=mmcm_freerun_output,
+                p_CLKOUT0_DIVIDE_F=5.0, o_CLKOUT0=self.mmcm_freerun_output,
             )
         
         # 150MHz to 150MHz with controllable phase shift, VCO @ 1200MHz.
         # Inserted between CDR and output to Si, used to correct 
         # non-determinstic skew of Si5324.
         mmcm_ps_fb = Signal()
-        mmcm_ps_output = Signal()
+        self.mmcm_ps_output = Signal()
         self.specials += \
             Instance("MMCME2_ADV",
                 p_CLKIN1_PERIOD=1e9/150e6,
@@ -51,7 +51,7 @@ class SiPhaser7Series(Module, AutoCSR):
                 o_CLKFBOUT=mmcm_ps_fb, i_CLKFBIN=mmcm_ps_fb,
 
                 p_CLKOUT0_USE_FINE_PS="TRUE",
-                o_CLKOUT0=mmcm_ps_output,
+                o_CLKOUT0=self.mmcm_ps_output,
 
                 i_PSCLK=ClockSignal(),
                 i_PSEN=self.phase_shift.re,
@@ -62,8 +62,8 @@ class SiPhaser7Series(Module, AutoCSR):
         si5324_clkin_se = Signal()
         self.specials += [
             Instance("BUFGMUX",
-                i_I0=mmcm_freerun_output,
-                i_I1=mmcm_ps_output,
+                i_I0=self.mmcm_freerun_output,
+                i_I1=self.mmcm_ps_output,
                 i_S=self.switch_clocks.storage,
                 o_O=si5324_clkin_se
             ),
