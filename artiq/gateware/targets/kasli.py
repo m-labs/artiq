@@ -305,6 +305,20 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        phy = spi2.SPIMaster(self.platform.request("eem6_spi_p"),
+                self.platform.request("eem6_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for signal in "io_update".split():
+            pads = platform.request("eem6_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        pads = platform.request("eem6_dds_reset")
+        self.specials += DifferentialOutput(0, pads.p, pads.n)
+
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
         rtio_channels.append(rtio.LogChannel())
