@@ -119,8 +119,10 @@ class InputCollector(Module):
 
         i_status_raw = Signal(2)
         self.comb += i_status_raw.eq(Array(i_statuses)[sel])
-        input_timeout = Signal.like(self.cri.timestamp)
+        input_timeout = Signal.like(self.cri.timestamp, reset_less=True)
         input_pending = Signal()
+        self.cri.i_data.reset_less = True
+        self.cri.i_timestamp.reset_less = True
         sync_cri += [
             i_ack.eq(0),
             If(i_ack,

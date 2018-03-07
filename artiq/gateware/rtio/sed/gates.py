@@ -10,7 +10,8 @@ class Gates(Module):
     def __init__(self, lane_count, seqn_width, layout_fifo_payload, layout_output_network_payload):
         self.input = [Record(layouts.fifo_egress(seqn_width, layout_fifo_payload))
                       for _ in range(lane_count)]
-        self.output = [Record(layouts.output_network_node(seqn_width, layout_output_network_payload))
+        self.output = [Record(layouts.output_network_node(seqn_width, layout_output_network_payload),
+                              reset_less=True)
                        for _ in range(lane_count)]
 
         if hasattr(self.output[0].payload, "fine_ts"):
@@ -35,4 +36,5 @@ class Gates(Module):
             ]
 
             self.comb += input.re.eq(input.payload.timestamp[glbl_fine_ts_width:] == self.coarse_timestamp)
+            output.valid.reset_less = False
             self.sync += output.valid.eq(input.re & input.readable)

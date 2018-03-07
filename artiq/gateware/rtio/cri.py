@@ -47,8 +47,8 @@ layout = [
 
 
 class Interface(Record):
-    def __init__(self):
-        Record.__init__(self, layout)
+    def __init__(self, **kwargs):
+        Record.__init__(self, layout, **kwargs)
 
 
 class KernelInitiator(Module, AutoCSR):
@@ -112,7 +112,7 @@ class CRIDecoder(Module):
 
         # # #
 
-        selected = Signal(8)
+        selected = Signal(8, reset_less=True)
         self.sync += selected.eq(self.master.chan_sel[16:])
 
         # master -> slave

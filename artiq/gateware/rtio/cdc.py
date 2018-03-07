@@ -9,12 +9,12 @@ __all__ = ["GrayCodeTransfer", "BlindTransfer"]
 class GrayCodeTransfer(Module):
     def __init__(self, width):
         self.i = Signal(width)  # in rtio domain
-        self.o = Signal(width)  # in sys domain
+        self.o = Signal(width, reset_less=True)  # in sys domain
 
         # # #
 
         # convert to Gray code
-        value_gray_rtio = Signal(width)
+        value_gray_rtio = Signal(width, reset_less=True)
         self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
         # transfer to system clock domain
         value_gray_sys = Signal(width)
@@ -34,7 +34,7 @@ class BlindTransfer(Module):
         self.o = Signal()
         if data_width:
             self.data_i = Signal(data_width)
-            self.data_o = Signal(data_width)
+            self.data_o = Signal(data_width, reset_less=True)
 
         # # #
 
@@ -54,7 +54,7 @@ class BlindTransfer(Module):
         ]
 
         if data_width:
-            bxfer_data = Signal(data_width)
+            bxfer_data = Signal(data_width, reset_less=True)
             isync += If(ps.i, bxfer_data.eq(self.data_i))
             bxfer_data.attr.add("no_retiming")
             self.specials += MultiReg(bxfer_data, self.data_o,

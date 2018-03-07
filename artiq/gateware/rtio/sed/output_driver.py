@@ -13,9 +13,9 @@ __all__ = ["OutputDriver"]
 class OutputDriver(Module):
     def __init__(self, channels, glbl_fine_ts_width, lane_count, seqn_width):
         self.collision = Signal()
-        self.collision_channel = Signal(max=len(channels))
+        self.collision_channel = Signal(max=len(channels), reset_less=True)
         self.busy = Signal()
-        self.busy_channel = Signal(max=len(channels))
+        self.busy_channel = Signal(max=len(channels), reset_less=True)
 
         # output network
         layout_on_payload = layouts.output_network_payload(channels, glbl_fine_ts_width)
@@ -29,9 +29,11 @@ class OutputDriver(Module):
             ("collision", 1),
             ("payload", layout_on_payload)
         ]
-        lane_datas = [Record(layout_lane_data) for _ in range(lane_count)]
+        lane_datas = [Record(layout_lane_data, reset_less=True) for _ in range(lane_count)]
         en_replaces = [channel.interface.o.enable_replace for channel in channels]
         for lane_data, on_output in zip(lane_datas, output_network.output):
+            lane_data.valid.reset_less = False
+            lane_data.collision.reset_less = False
             replace_occured_r = Signal()
             nondata_replace_occured_r = Signal()
             self.sync += [
@@ -96,7 +98,7 @@ class OutputDriver(Module):
         ]
         for lane_data in lane_datas:
             stb_r = Signal()
-            channel_r = Signal(max=len(channels))
+            channel_r = Signal(max=len(channels), reset_less=True)
             self.sync += [
                 stb_r.eq(lane_data.valid & ~lane_data.collision),
                 channel_r.eq(lane_data.payload.channel),

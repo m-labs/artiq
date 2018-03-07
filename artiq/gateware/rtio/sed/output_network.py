@@ -56,7 +56,8 @@ class OutputNetwork(Module):
 
         step_input = self.input
         for step in boms_steps_pairs(lane_count):
-            step_output = [Record(layouts.output_network_node(seqn_width, layout_payload))
+            step_output = [Record(layouts.output_network_node(seqn_width, layout_payload),
+                                  reset_less=True)
                            for _ in range(lane_count)]
 
             for node1, node2 in step:

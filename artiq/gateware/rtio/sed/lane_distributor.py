@@ -23,7 +23,7 @@ class LaneDistributor(Module):
             interface = cri.Interface()
         self.cri = interface
         self.sequence_error = Signal()
-        self.sequence_error_channel = Signal(16)
+        self.sequence_error_channel = Signal(16, reset_less=True)
         # The minimum timestamp that an event must have to avoid triggering
         # an underflow, at the time when the CRI write happens, and to a channel
         # with zero latency compensation. This is synchronous to the system clock
@@ -75,10 +75,11 @@ class LaneDistributor(Module):
         # when timestamp and channel arrive in cycle #1, prepare computations
         coarse_timestamp = Signal(us_timestamp_width)
         self.comb += coarse_timestamp.eq(self.cri.timestamp[glbl_fine_ts_width:])
-        min_minus_timestamp = Signal((us_timestamp_width + 1, True))
-        laneAmin_minus_timestamp = Signal((us_timestamp_width + 1, True))
-        laneBmin_minus_timestamp = Signal((us_timestamp_width + 1, True))
-        last_minus_timestamp = Signal((us_timestamp_width + 1, True))
+        min_minus_timestamp = Signal((us_timestamp_width + 1, True),
+                                     reset_less=True)
+        laneAmin_minus_timestamp = Signal.like(min_minus_timestamp)
+        laneBmin_minus_timestamp = Signal.like(min_minus_timestamp)
+        last_minus_timestamp = Signal.like(min_minus_timestamp)
         current_lane_plus_one = Signal(max=lane_count)
         self.comb += current_lane_plus_one.eq(current_lane + 1)
         self.sync += [

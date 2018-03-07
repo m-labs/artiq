@@ -9,11 +9,11 @@ class OInterface:
         self.busy = Signal()
 
         if data_width:
-            self.data = Signal(data_width)
+            self.data = Signal(data_width, reset_less=True)
         if address_width:
-            self.address = Signal(address_width)
+            self.address = Signal(address_width, reset_less=True)
         if fine_ts_width:
-            self.fine_ts = Signal(fine_ts_width)
+            self.fine_ts = Signal(fine_ts_width, reset_less=True)
 
         self.enable_replace = enable_replace
 
@@ -36,9 +36,9 @@ class IInterface:
         self.stb = Signal()
 
         if data_width:
-            self.data = Signal(data_width)
+            self.data = Signal(data_width, reset_less=True)
         if fine_ts_width:
-            self.fine_ts = Signal(fine_ts_width)
+            self.fine_ts = Signal(fine_ts_width, reset_less=True)
 
         assert(not fine_ts_width or timestamped)
         self.timestamped = timestamped
