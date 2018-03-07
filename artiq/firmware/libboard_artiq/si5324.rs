@@ -272,7 +272,7 @@ pub fn select_recovered_clock(rc: bool) -> Result<()> {
     unsafe {
         csr::si_phaser::switch_clocks_write(if rc { 1 } else { 0 });
     }
-    write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=0
+    write(3,   (read(3)? & 0xdf) | (0 << 5))?;  // DHOLD=0
     monitor_lock()?;
     Ok(())
 }
