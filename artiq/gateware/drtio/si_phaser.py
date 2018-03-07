@@ -10,7 +10,7 @@ class SiPhaser7Series(Module, AutoCSR):
     def __init__(self, si5324_clkin, si5324_clkout_fabric):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
-        self.phase_shift_done = CSRStatus()
+        self.phase_shift_done = CSRStatus(reset=1)
         self.sample_result = CSRStatus()
 
         # 125MHz system clock to 150MHz. VCO @ 625MHz.
@@ -37,6 +37,7 @@ class SiPhaser7Series(Module, AutoCSR):
         # non-determinstic skew of Si5324.
         mmcm_ps_fb = Signal()
         mmcm_ps_output = Signal()
+        mmcm_ps_psdone = Signal()
         self.specials += \
             Instance("MMCME2_ADV",
                 p_CLKIN1_PERIOD=1e9/150e6,
@@ -56,8 +57,12 @@ class SiPhaser7Series(Module, AutoCSR):
                 i_PSCLK=ClockSignal(),
                 i_PSEN=self.phase_shift.re,
                 i_PSINCDEC=self.phase_shift.r,
-                o_PSDONE=self.phase_shift_done.status,
+                o_PSDONE=mmcm_ps_psdone,
             )
+        self.sync += [
+            If(self.phase_shift.re, self.phase_shift_done.status.eq(0)),
+            If(mmcm_ps_psdone, self.phase_shift_done.status.eq(1))
+        ]
 
         si5324_clkin_se = Signal()
         self.specials += [
