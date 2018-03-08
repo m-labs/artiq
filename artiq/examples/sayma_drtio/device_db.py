@@ -18,6 +18,11 @@ device_db = {
         "module": "artiq.coredevice.cache",
         "class": "CoreCache"
     },
+    "core_dma": {
+        "type": "local",
+        "module": "artiq.coredevice.dma",
+        "class": "CoreDMA"
+    },
 
     "led0": {
         "type": "local",
