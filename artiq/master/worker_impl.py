@@ -1,3 +1,11 @@
+"""Worker process implementation.
+
+This module contains the worker process main() function and the glue code
+necessary to connect the global artefacts used from experiment code (scheduler,
+device database, etc.) to their actual implementation in the parent master
+process via IPC.
+"""
+
 import sys
 import time
 import os
