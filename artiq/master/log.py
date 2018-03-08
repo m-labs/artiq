@@ -1,7 +1,6 @@
 import logging
 import logging.handlers
 
-from artiq.protocols.sync_struct import Notifier
 from artiq.protocols.logging import SourceFilter
 
 
