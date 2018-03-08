@@ -237,6 +237,7 @@ fn startup() {
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(32).expect("failed to calibrate skew");
+        drtioaux::hw::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);
         while drtio_link_rx_up() {

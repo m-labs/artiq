@@ -269,6 +269,17 @@ pub mod hw {
     use super::*;
     use std::io::Cursor;
 
+    pub fn reset(linkno: u8) {
+        let linkno = linkno as usize;
+        unsafe {
+            // clear buffer first to limit race window with buffer overflow
+            // error. We assume the CPU is fast enough so that no two packets
+            // will be received between the buffer and the error flag are cleared.
+            (board::csr::DRTIO[linkno].aux_rx_present_write)(1);
+            (board::csr::DRTIO[linkno].aux_rx_error_write)(1);
+        }
+    }
+
     fn rx_has_error(linkno: u8) -> bool {
         let linkno = linkno as usize;
         unsafe {
