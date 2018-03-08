@@ -35,6 +35,8 @@ mod ddr {
     unsafe fn write_level(logger: &mut Option<&mut fmt::Write>,
                           delay: &mut [u16; DQS_SIGNAL_COUNT],
                           high_skew: &mut [bool; DQS_SIGNAL_COUNT]) -> bool {
+        #[cfg(kusddrphy)]
+        log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
         log!(logger, "Write leveling: ");
 
         enable_write_leveling(true);
@@ -52,6 +54,10 @@ mod ddr {
 
             ddrphy::wdly_dq_rst_write(1);
             ddrphy::wdly_dqs_rst_write(1);
+            #[cfg(kusddrphy)]
+            for _ in 0..ddrphy::wdly_dqs_taps_read() {
+                ddrphy::wdly_dqs_inc_write(1);
+            }
             ddrphy::wlevel_strobe_write(1);
             spin_cycles(10);
 
@@ -268,9 +274,13 @@ pub unsafe fn init(mut _logger: Option<&mut fmt::Write>) -> bool {
 
     #[cfg(has_ddrphy)]
     {
+        #[cfg(kusddrphy)]
+        csr::ddrphy::en_vtc_write(0);
         if !ddr::level(&mut _logger) {
             return false
         }
+        #[cfg(kusddrphy)]
+        csr::ddrphy::en_vtc_write(1);
     }
 
     csr::dfii::control_write(sdram_phy::DFII_CONTROL_SEL);
