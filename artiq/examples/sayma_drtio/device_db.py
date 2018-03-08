@@ -5,7 +5,7 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"host": core_addr, "ref_period": 2e-9}
+        "arguments": {"host": core_addr, "ref_period": 1/(8*150e6)}
     },
     "core_log": {
         "type": "controller",
