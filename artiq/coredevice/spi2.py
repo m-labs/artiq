@@ -162,7 +162,7 @@ class SPIMaster:
             raise ValueError("Invalid SPI transfer length")
         if div > 257 or div < 2:
             raise ValueError("Invalid SPI clock divider")
-        self.xfer_duration_mu = (length + 1)*div*self.ref_period_mu
+        self.xfer_duration_mu = ((length + 1)*div + 1)*self.ref_period_mu
         rtio_output(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
                 ((length - 1) << 8) | ((div - 2) << 16) | (cs << 24))
         delay_mu(self.ref_period_mu)
