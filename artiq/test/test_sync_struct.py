@@ -63,7 +63,7 @@ class SyncStructCase(unittest.TestCase):
         await subscriber.close()
         await publisher.stop()
 
-        self.assertEqual(self.received_dict, test_dict.read)
+        self.assertEqual(self.received_dict, test_dict.raw_view)
 
     def test_recv(self):
         self.loop.run_until_complete(self._do_test_recv())

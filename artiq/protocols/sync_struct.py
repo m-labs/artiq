@@ -127,18 +127,19 @@ class Notifier:
     >>> n = Notifier([])
     >>> n.append([])
     >>> n[0].append(42)
-    >>> n.read
+    >>> n.raw_view
     [[42]]
 
     This class does not perform any network I/O and is meant to be used with
     e.g. the :class:`.Publisher` for this purpose. Only one publisher at most can be
     associated with a :class:`.Notifier`.
 
-    :param backing_struct: Structure to encapsulate. For convenience, it
-        also becomes available as the ``read`` property of the :class:`.Notifier`.
+    :param backing_struct: Structure to encapsulate.
     """
     def __init__(self, backing_struct, root=None, path=[]):
-        self.read = backing_struct
+        #: The raw data encapsulated (read-only!).
+        self.raw_view = backing_struct
+
         if root is None:
             self.root = self
             self.publish = None
@@ -197,6 +198,27 @@ class Notifier:
         return Notifier(item, self.root, self._path + [key])
 
 
+def update_from_dict(target, source):
+    """Updates notifier contents from given source dictionary.
+
+    Only the necessary changes are performed; unchanged fields are not written.
+    (Currently, modifications are only performed at the top level. That is,
+    whenever there is a change to a child array/struct the entire member is
+    updated instead of choosing a more optimal set of mods.)
+    """
+    curr = target.raw_view
+
+    # Delete removed keys.
+    for k in list(curr.keys()):
+        if k not in source:
+            del target[k]
+
+    # Insert/update changed data.
+    for k in source.keys():
+        if k not in curr or curr[k] != source[k]:
+            target[k] = source[k]
+
+
 class Publisher(AsyncioServer):
     """A network server that publish changes to structures encapsulated in
     a :class:`.Notifier`.
@@ -230,7 +252,7 @@ class Publisher(AsyncioServer):
             except KeyError:
                 return
 
-            obj = {"action": "init", "struct": notifier.read}
+            obj = {"action": "init", "struct": notifier.raw_view}
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
 

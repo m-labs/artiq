@@ -1,7 +1,7 @@
 import asyncio
 import tokenize
 
-from artiq.protocols.sync_struct import Notifier, process_mod
+from artiq.protocols.sync_struct import Notifier, process_mod, update_from_dict
 from artiq.protocols import pyon
 from artiq.tools import TaskObject
 
@@ -19,20 +19,14 @@ class DeviceDB:
         self.data = Notifier(device_db_from_file(self.backing_file))
 
     def scan(self):
-        new_data = device_db_from_file(self.backing_file)
-
-        for k in list(self.data.read.keys()):
-            if k not in new_data:
-                del self.data[k]
-        for k in new_data.keys():
-            if k not in self.data.read or self.data.read[k] != new_data[k]:
-                self.data[k] = new_data[k]
+        update_from_dict(self.data,
+            device_db_from_file(self.backing_file))
 
     def get_device_db(self):
-        return self.data.read
+        return self.data.raw_view
 
     def get(self, key):
-        return self.data.read[key]
+        return self.data.raw_view[key]
 
 
 class DatasetDB(TaskObject):
@@ -47,7 +41,7 @@ class DatasetDB(TaskObject):
         self.data = Notifier({k: (True, v) for k, v in file_data.items()})
 
     def save(self):
-        data = {k: v[1] for k, v in self.data.read.items() if v[0]}
+        data = {k: v[1] for k, v in self.data.raw_view.items() if v[0]}
         pyon.store_file(self.persist_file, data)
 
     async def _do(self):
@@ -59,7 +53,7 @@ class DatasetDB(TaskObject):
             self.save()
 
     def get(self, key):
-        return self.data.read[key][1]
+        return self.data.raw_view[key][1]
 
     def update(self, mod):
         process_mod(self.data, mod)
@@ -67,8 +61,8 @@ class DatasetDB(TaskObject):
     # convenience functions (update() can be used instead)
     def set(self, key, value, persist=None):
         if persist is None:
-            if key in self.data.read:
-                persist = self.data.read[key][0]
+            if key in self.data.raw_view:
+                persist = self.data.raw_view[key][0]
             else:
                 persist = False
         self.data[key] = (persist, value)
