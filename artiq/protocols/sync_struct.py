@@ -19,7 +19,7 @@ from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer
 
 
-_init_string = b"ARTIQ sync_struct\n"
+_protocol_banner = b"ARTIQ sync_struct\n"
 
 
 def process_mod(target, mod):
@@ -71,7 +71,7 @@ class Subscriber:
         try:
             if before_receive_cb is not None:
                 before_receive_cb()
-            self.writer.write(_init_string)
+            self.writer.write(_protocol_banner)
             self.writer.write((self.notifier_name + "\n").encode())
             self.receive_task = asyncio.ensure_future(self._receive_cr())
         except:
@@ -217,7 +217,7 @@ class Publisher(AsyncioServer):
     async def _handle_connection_cr(self, reader, writer):
         try:
             line = await reader.readline()
-            if line != _init_string:
+            if line != _protocol_banner:
                 return
 
             line = await reader.readline()
