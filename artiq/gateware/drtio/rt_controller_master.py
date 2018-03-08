@@ -19,7 +19,7 @@ class _CSRs(AutoCSR):
 
         self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
-        self.underflow_margin = CSRStorage(16, reset=200)
+        self.underflow_margin = CSRStorage(16, reset=300)
 
         self.o_get_buffer_space = CSR()
         self.o_dbg_buffer_space = CSRStatus(16)
