@@ -4,13 +4,15 @@ modified by one process (the *publisher*) with copies of it (the
 
 Synchronization is achieved by sending a full copy of the structure to each
 subscriber upon connection (*initialization*), followed by dictionaries
-describing each modification made to the structure (*mods*).
+describing each modification made to the structure (*mods*, see
+:class:`ModAction`).
 
 Structures must be PYON serializable and contain only lists, dicts, and
 immutable types. Lists and dicts can be nested arbitrarily.
 """
 
 import asyncio
+from enum import Enum, unique
 from operator import getitem
 from functools import partial
 
@@ -22,23 +24,66 @@ from artiq.protocols.asyncio_server import AsyncioServer
 _protocol_banner = b"ARTIQ sync_struct\n"
 
 
+@unique
+class ModAction(Enum):
+    """Describes the type of incremental modification.
+
+    `Mods` are represented by a dictionary ``m``. ``m["action"]`` describes
+    the type of modification, as per this enum, serialized as a string if
+    required.
+
+    The path (member field) the change applies to is given in
+    ``m["path"]`` as a list; elements give successive levels of indexing. (There
+    is no ``path`` on initial initialization.)
+
+    Details on the modification are stored in additional data fields specific
+    to each type.
+
+    For example, this represents appending the value ``42`` to an array
+    ``data.counts[0]``: ::
+
+        {
+            "action": "append",
+            "path": ["data", "counts", 0],
+            "x": 42
+        }
+    """
+
+    #: A full copy of the data is sent in `struct`; no `path` given.
+    init = "init"
+
+    #: Appends `x` to target list.
+    append = "append"
+
+    #: Inserts `x` into target list at index `i`.
+    insert = "insert"
+
+    #: Removes index `i` from target list.
+    pop = "pop"
+
+    #: Sets target's `key` to `value`.
+    setitem = "setitem"
+
+    #: Removes target's `key`.
+    delitem = "delitem"
+
+
+# Handlers to apply a given mod to a target dict, invoked with (target, mod).
+_mod_appliers = {
+    ModAction.append: lambda t, m: t.append(m["x"]),
+    ModAction.insert: lambda t, m: t.insert(m["i"], m["x"]),
+    ModAction.pop: lambda t, m: t.pop(m["i"]),
+    ModAction.setitem: lambda t, m: t.__setitem__(m["key"], m["value"]),
+    ModAction.delitem: lambda t, m: t.__delitem__(m["key"])
+}
+
+
 def process_mod(target, mod):
     """Apply a *mod* to the target, mutating it."""
     for key in mod["path"]:
         target = getitem(target, key)
-    action = mod["action"]
-    if action == "append":
-        target.append(mod["x"])
-    elif action == "insert":
-        target.insert(mod["i"], mod["x"])
-    elif action == "pop":
-        target.pop(mod["i"])
-    elif action == "setitem":
-        target.__setitem__(mod["key"], mod["value"])
-    elif action == "delitem":
-        target.__delitem__(mod["key"])
-    else:
-        raise ValueError
+
+    _mod_appliers[ModAction(mod["action"])](target, mod)
 
 
 class Subscriber:
@@ -155,7 +200,7 @@ class Notifier:
         """Append to a list."""
         self._backing_struct.append(x)
         if self.root.publish is not None:
-            self.root.publish({"action": "append",
+            self.root.publish({"action": ModAction.append.value,
                                "path": self._path,
                                "x": x})
 
@@ -163,7 +208,7 @@ class Notifier:
         """Insert an element into a list."""
         self._backing_struct.insert(i, x)
         if self.root.publish is not None:
-            self.root.publish({"action": "insert",
+            self.root.publish({"action": ModAction.insert.value,
                                "path": self._path,
                                "i": i, "x": x})
 
@@ -173,7 +218,7 @@ class Notifier:
         tracked."""
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
-            self.root.publish({"action": "pop",
+            self.root.publish({"action": ModAction.pop.value,
                                "path": self._path,
                                "i": i})
         return r
@@ -181,7 +226,7 @@ class Notifier:
     def __setitem__(self, key, value):
         self._backing_struct.__setitem__(key, value)
         if self.root.publish is not None:
-            self.root.publish({"action": "setitem",
+            self.root.publish({"action": ModAction.setitem.value,
                                "path": self._path,
                                "key": key,
                                "value": value})
@@ -189,7 +234,7 @@ class Notifier:
     def __delitem__(self, key):
         self._backing_struct.__delitem__(key)
         if self.root.publish is not None:
-            self.root.publish({"action": "delitem",
+            self.root.publish({"action": ModAction.delitem.value,
                                "path": self._path,
                                "key": key})
 
@@ -252,7 +297,7 @@ class Publisher(AsyncioServer):
             except KeyError:
                 return
 
-            obj = {"action": "init", "struct": notifier.raw_view}
+            obj = {"action": ModAction.init.value, "struct": notifier.raw_view}
             line = pyon.encode(obj) + "\n"
             writer.write(line.encode())
 
