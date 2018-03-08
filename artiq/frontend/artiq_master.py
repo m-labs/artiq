@@ -15,7 +15,7 @@ from artiq.protocols.broadcast import Broadcaster
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
-from artiq.master.worker_db import RIDCounter
+from artiq.master.rid_counter import RIDCounter
 from artiq.master.experiments import (FilesystemBackend, GitBackend,
                                       ExperimentDB)
 
