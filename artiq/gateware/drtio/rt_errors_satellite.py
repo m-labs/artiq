@@ -28,7 +28,7 @@ class RTErrorsSatellite(Module, AutoCSR):
                 if detect_edges:
                     source_r = Signal()
                     self.sync.rio += source_r.eq(source)
-                    self.comb += xfer.i.eq(source & source_r)
+                    self.comb += xfer.i.eq(source & ~source_r)
                 else:
                     self.comb += xfer.i.eq(source)
 
