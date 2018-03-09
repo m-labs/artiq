@@ -142,8 +142,8 @@ mod ddr {
         }
     }
 
-    unsafe fn read_delays(logger: &mut Option<&mut fmt::Write>) {
-        log!(logger, "Read delays: ");
+    unsafe fn read_leveling(logger: &mut Option<&mut fmt::Write>) {
+        log!(logger, "Read leveling: ");
 
         // Generate pseudo-random sequence
         let mut prs = [0; DFII_NPHASES * DFII_PIX_DATA_SIZE];
@@ -259,7 +259,7 @@ mod ddr {
             read_bitslip(logger, &delay, &high_skew);
         }
 
-        read_delays(logger);
+        read_leveling(logger);
 
         true
     }
