@@ -211,7 +211,7 @@ class TestFullStack(unittest.TestCase):
             {"sys": test(), "rtio": tb.check_ttls(ttl_changes)}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
-    def test_tsc_error(self):
+    def test_write_underflow(self):
         tb = OutputsTestbench()
 
         def test():
@@ -220,11 +220,8 @@ class TestFullStack(unittest.TestCase):
             yield from tb.init()
             errors = yield from saterr.protocol_error.read()
             self.assertEqual(errors, 0)
-            yield from csrs.tsc_correction.write(100000000)
-            yield from csrs.set_time.write(1)
-            for i in range(15):
-               yield
-            tb.delay(10000)
+            yield from csrs.underflow_margin.write(0)
+            tb.delay(100)
             yield from tb.write(0, 1)
             for i in range(12):
                yield

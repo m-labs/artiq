@@ -17,7 +17,6 @@ class _CSRs(AutoCSR):
 
         self.protocol_error = CSR(3)
 
-        self.tsc_correction = CSRStorage(64)
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=300)
 
@@ -83,13 +82,9 @@ class RTController(Module):
 
         # master RTIO counter and counter synchronization
         self.submodules.counter = RTIOCounter(64-fine_ts_width)
-        self.comb += self.cri.counter.eq(self.counter.value_sys << fine_ts_width)
-        tsc_correction = Signal(64)
-        self.csrs.tsc_correction.storage.attr.add("no_retiming")
-        self.specials += MultiReg(self.csrs.tsc_correction.storage, tsc_correction)
         self.comb += [
-            rt_packet.tsc_value.eq(
-                self.counter.value_rtio + tsc_correction),
+            self.cri.counter.eq(self.counter.value_sys << fine_ts_width),
+            rt_packet.tsc_value.eq(self.counter.value_rtio),
             self.csrs.set_time.w.eq(rt_packet.set_time_stb)
         ]
         self.sync += [
