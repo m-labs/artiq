@@ -379,7 +379,32 @@ class SYSU(_StandaloneBase):
         self.add_rtio(rtio_channels)
 
 
-class Master(MiniSoC, AMPSoC):
+class _RTIOClockMultiplier(Module):
+    def __init__(self, rtio_clk_freq):
+        self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
+
+        # See "Global Clock Network Deskew Using Two BUFGs" in ug472.
+        clkfbout = Signal()
+        clkfbin = Signal()
+        rtiox4_clk = Signal()
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal("rtio"),
+                i_RST=ResetSignal("rtio"),
+
+                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
+
+                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
+
+                p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
+            ),
+            Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk)
+        ]
+
+
+class _MasterBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -412,8 +437,8 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        sfp_ctl = [platform.request("sfp_ctl", i) for i in range(1, 3)]
-        self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctl]
+        self.sfp_ctl = [platform.request("sfp_ctl", i) for i in range(1, 3)]
+        self.comb += [sc.tx_disable.eq(0) for sc in self.sfp_ctl]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
             data_pads=[platform.request("sfp", i) for i in range(1, 3)],
@@ -425,7 +450,7 @@ class Master(MiniSoC, AMPSoC):
 
         drtio_csr_group = []
         drtio_memory_group = []
-        drtio_cri = []
+        self.drtio_cri = []
         for i in range(2):
             core_name = "drtio" + str(i)
             memory_name = "drtio" + str(i) + "_aux"
@@ -435,7 +460,7 @@ class Master(MiniSoC, AMPSoC):
             core = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})(
                 DRTIOMaster(self.drtio_transceiver.channels[i]))
             setattr(self.submodules, core_name, core)
-            drtio_cri.append(core.cri)
+            self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
             memory_address = self.mem_map["drtio_aux"] + 0x800*i
@@ -454,18 +479,9 @@ class Master(MiniSoC, AMPSoC):
                 self.crg.cd_sys.clk,
                 gtp.txoutclk, gtp.rxoutclk)
 
-        rtio_channels = []
-        phy = ttl_simple.Output(platform.request("user_led", 0))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        for sc in sfp_ctl:
-            phy = ttl_simple.Output(sc.led)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
-        rtio_channels.append(rtio.LogChannel())
+        self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
 
+    def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -479,7 +495,7 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri] + drtio_cri)
+            [self.rtio_core.cri] + self.drtio_cri)
         self.register_kernel_cpu_csrdevice("cri_con")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.cri_con.switch.slave,
@@ -519,7 +535,7 @@ class Master(MiniSoC, AMPSoC):
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
-class Satellite(BaseSoC):
+class _SatelliteBase(BaseSoC):
     mem_map = {
         "drtio_aux": 0x50000000,
     }
@@ -535,18 +551,6 @@ class Satellite(BaseSoC):
 
         platform = self.platform
         rtio_clk_freq = 150e6
-
-        rtio_channels = []
-        phy = ttl_simple.Output(platform.request("user_led", 0))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        for i in range(1, 3):
-            phy = ttl_simple.Output(platform.request("sfp_ctl", i).led)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
 
         disable_si5324_ibuf = Signal(reset=1)
         disable_si5324_ibuf.attr.add("no_retiming")
@@ -574,19 +578,6 @@ class Satellite(BaseSoC):
         self.sync += disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
 
-        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
-        self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.drtio_transceiver.channels[0], rtio_channels,
-            self.rx_synchronizer))
-        self.csr_devices.append("drtio0")
-        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
-                          self.drtio0.aux_controller.bus)
-        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
-        self.config["HAS_DRTIO"] = None
-        self.add_csr_group("drtio", ["drtio0"])
-        self.add_memory_group("drtio_aux", ["drtio0_aux"])
-
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
@@ -607,6 +598,80 @@ class Satellite(BaseSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
+
+        self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
+
+    def add_rtio(self, rtio_channels):
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
+        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
+        self.submodules.drtio0 = rx0(DRTIOSatellite(
+            self.drtio_transceiver.channels[0], rtio_channels,
+            self.rx_synchronizer))
+        self.csr_devices.append("drtio0")
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+
+
+class Master(_MasterBase):
+    def __init__(self, *args, **kwargs):
+        _MasterBase.__init__(self, *args, **kwargs)
+
+        platform = self.platform
+        platform.add_extension(_dio("eem0"))
+
+        rtio_channels = []
+
+        phy = ttl_simple.Output(platform.request("user_led", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        for sc in self.sfp_ctl:
+            phy = ttl_simple.Output(sc.led)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        for i in range(8):
+            pads = platform.request("eem0", i)
+            phy = ttl_serdes_7series.InOut_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(rtio_channels)
+
+
+class Satellite(_SatelliteBase):
+    def __init__(self, *args, **kwargs):
+        _SatelliteBase.__init__(self, *args, **kwargs)
+
+        platform = self.platform
+        platform.add_extension(_dio("eem0"))
+
+        rtio_channels = []
+        phy = ttl_simple.Output(platform.request("user_led", 0))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(1, 3):
+            phy = ttl_simple.Output(platform.request("sfp_ctl", i).led)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        for i in range(8):
+            pads = platform.request("eem0", i)
+            phy = ttl_serdes_7series.InOut_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.add_rtio(rtio_channels)
 
 
 def main():
