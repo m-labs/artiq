@@ -132,6 +132,12 @@ mod ddr {
                     if !incr_delay() { break }
                     dq = ptr::read_volatile(dq_addr);
                 }
+
+                // Get a bit further into the 0 zone
+                #[cfg(kusddrphy)]
+                for _ in 0..32 {
+                    incr_delay();
+                }
             }
 
             while dq == 0 {
