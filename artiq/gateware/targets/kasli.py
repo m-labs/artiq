@@ -472,12 +472,16 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.add_memory_group("drtio_aux", drtio_memory_group)
 
         rtio_clk_period = 1e9/rtio_clk_freq
-        for gtp in self.drtio_transceiver.gtps:
+        gtp = self.drtio_transceiver.gtps[0]
+        platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            gtp.txoutclk, gtp.rxoutclk)
+        for gtp in self.drtio_transceiver.gtps[1:]:
             platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
-            platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
-                self.crg.cd_sys.clk,
-                gtp.txoutclk, gtp.rxoutclk)
+                self.crg.cd_sys.clk, gtp.rxoutclk)
 
         self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
 

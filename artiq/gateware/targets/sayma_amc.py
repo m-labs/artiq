@@ -330,12 +330,16 @@ class Master(MiniSoC, AMPSoC):
         self.add_memory_group("drtio_aux", drtio_memory_group)
 
         rtio_clk_period = 1e9/rtio_clk_freq
-        for gth in self.drtio_transceiver.gths:
-            platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        gth = self.drtio_transceiver.gths[0]
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            gth.txoutclk, gth.rxoutclk)
+        for gth in self.drtio_transceiver.gths[1:]:
             platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
-                self.crg.cd_sys.clk,
-                gth.txoutclk, gth.rxoutclk)
+                self.crg.cd_sys.clk, gth.rxoutclk)
 
         rtio_channels = []
         for i in range(4):
