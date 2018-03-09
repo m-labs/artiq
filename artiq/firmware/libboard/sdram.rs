@@ -39,6 +39,11 @@ mod ddr {
         enable_write_leveling(true);
         spin_cycles(100);
 
+        let mut ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
+        #[cfg(kusddrphy)] {
+            ddrphy_max_delay -= ddrphy::wdly_dqs_taps_read();
+        }
+
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
                                .offset((DQS_SIGNAL_COUNT - 1 - n) as isize);
@@ -55,7 +60,7 @@ mod ddr {
             }
 
             let mut dq;
-            for _ in 0..DDRPHY_MAX_DELAY {
+            for _ in 0..ddrphy_max_delay {
                 ddrphy::wlevel_strobe_write(1);
                 spin_cycles(10);
                 dq = ptr::read_volatile(dq_addr);
@@ -87,6 +92,11 @@ mod ddr {
         enable_write_leveling(true);
         spin_cycles(100);
 
+        let mut ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
+        #[cfg(kusddrphy)] {
+            ddrphy_max_delay -= ddrphy::wdly_dqs_taps_read();
+        }
+        
         let mut failed = false;
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
@@ -108,7 +118,7 @@ mod ddr {
 
             let mut incr_delay = || {
                 delay[n] += 1;
-                if delay[n] >= DDRPHY_MAX_DELAY {
+                if delay[n] >= ddrphy_max_delay {
                     failed = true;
                     return false
                 }
