@@ -31,6 +31,51 @@ mod ddr {
         ddrphy::wlevel_en_write(enabled as u8);
     }
 
+    #[cfg(kusddrphy)]
+    unsafe fn write_level_scan(logger: &mut Option<&mut fmt::Write>) {
+        log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
+        log!(logger, "Write leveling scan:\n");
+
+        enable_write_leveling(true);
+        spin_cycles(100);
+
+        for n in 0..DQS_SIGNAL_COUNT {
+            let dq_addr = dfii::PI0_RDDATA_ADDR
+                               .offset((DQS_SIGNAL_COUNT - 1 - n) as isize);
+
+            log!(logger, "Module {}:\n", DQS_SIGNAL_COUNT - 1 - n);
+
+            ddrphy::dly_sel_write(1 << n);
+
+            ddrphy::wdly_dq_rst_write(1);
+            ddrphy::wdly_dqs_rst_write(1);
+            #[cfg(kusddrphy)]
+            for _ in 0..ddrphy::wdly_dqs_taps_read() {
+                ddrphy::wdly_dqs_inc_write(1);
+            }
+
+            let mut dq;
+            for _ in 0..DDRPHY_MAX_DELAY {
+                ddrphy::wlevel_strobe_write(1);
+                spin_cycles(10);
+                dq = ptr::read_volatile(dq_addr);
+                if dq != 0 {
+                    log!(logger, "1");
+                }
+                else {
+                    log!(logger, "0");
+                }
+
+                ddrphy::wdly_dq_inc_write(1);
+                ddrphy::wdly_dqs_inc_write(1);
+            }
+
+            log!(logger, "\n");
+        }
+
+        enable_write_leveling(false);
+    }
+
     #[cfg(ddrphy_wlevel)]
     unsafe fn write_level(logger: &mut Option<&mut fmt::Write>,
                           delay: &mut [u16; DQS_SIGNAL_COUNT],
@@ -142,7 +187,85 @@ mod ddr {
         }
     }
 
-    unsafe fn read_leveling(logger: &mut Option<&mut fmt::Write>) {
+    #[cfg(kusddrphy)]
+    unsafe fn read_level_scan(logger: &mut Option<&mut fmt::Write>) {
+        log!(logger, "Read leveling scan:\n");
+
+        // Generate pseudo-random sequence
+        let mut prs = [0; DFII_NPHASES * DFII_PIX_DATA_SIZE];
+        let mut prv = 42;
+        for b in prs.iter_mut() {
+            prv = 1664525 * prv + 1013904223;
+            *b = prv as u8;
+        }
+
+        // Activate
+        dfii::pi0_address_write(0);
+        dfii::pi0_baddress_write(0);
+        sdram_phy::command_p0(DFII_COMMAND_RAS|DFII_COMMAND_CS);
+        spin_cycles(15);
+
+        // Write test pattern
+        for p in 0..DFII_NPHASES {
+            for offset in 0..DFII_PIX_DATA_SIZE {
+                let addr = DFII_PIX_WRDATA_ADDR[p].offset(offset as isize);
+                let data = prs[DFII_PIX_DATA_SIZE * p + offset];
+                ptr::write_volatile(addr, data as u32);
+            }
+        }
+        sdram_phy::dfii_piwr_address_write(0);
+        sdram_phy::dfii_piwr_baddress_write(0);
+        sdram_phy::command_pwr(DFII_COMMAND_CAS|DFII_COMMAND_WE|DFII_COMMAND_CS|
+                               DFII_COMMAND_WRDATA);
+
+        // Calibrate each DQ in turn
+        sdram_phy::dfii_pird_address_write(0);
+        sdram_phy::dfii_pird_baddress_write(0);
+        for n in 0..DQS_SIGNAL_COUNT {
+            log!(logger, "Module {}:\n", DQS_SIGNAL_COUNT - n - 1);
+
+            ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
+
+            ddrphy::rdly_dq_rst_write(1);
+
+            for _ in 0..DDRPHY_MAX_DELAY {
+                sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
+                                       DFII_COMMAND_RDDATA);
+                spin_cycles(15);
+
+                let mut working = true;
+                for p in 0..DFII_NPHASES {
+                    for _ in 0..64 {
+                        for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
+                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
+                            let data = prs[DFII_PIX_DATA_SIZE * p + offset];
+                            if ptr::read_volatile(addr) as u8 != data {
+                                working = false;
+                            }
+                        }
+                    }
+                }
+                if working {
+                    log!(logger, "1");
+                }
+                else {
+                    log!(logger, "0");
+                }
+                ddrphy::rdly_dq_inc_write(1);
+            }
+
+            log!(logger, "\n");
+
+        }
+
+        // Precharge
+        dfii::pi0_address_write(0);
+        dfii::pi0_baddress_write(0);
+        sdram_phy::command_p0(DFII_COMMAND_RAS|DFII_COMMAND_WE|DFII_COMMAND_CS);
+        spin_cycles(15);
+    }
+
+    unsafe fn read_level(logger: &mut Option<&mut fmt::Write>) {
         log!(logger, "Read leveling: ");
 
         // Generate pseudo-random sequence
@@ -253,13 +376,17 @@ mod ddr {
         {
             let mut delay = [0; DQS_SIGNAL_COUNT];
             let mut high_skew = [false; DQS_SIGNAL_COUNT];
+            #[cfg(kusddrphy)]
+            write_level_scan(logger);
             if !write_level(logger, &mut delay, &mut high_skew) {
                 return false
             }
             read_bitslip(logger, &delay, &high_skew);
         }
 
-        read_leveling(logger);
+        #[cfg(kusddrphy)]
+        read_level_scan(logger);
+        read_level(logger);
 
         true
     }
