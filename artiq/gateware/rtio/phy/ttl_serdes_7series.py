@@ -66,7 +66,7 @@ class _ISERDESE2_8X(Module):
                                       i_IBUFDISABLE=0,
                                       i_INTERMDISABLE=0,
                                       o_O=pad_i,
-                                      io_IO=pad, io_IOB=pad_n)
+                                      io_I=pad, io_IB=pad_n)
 
 
 class _IOSERDESE2_8X(Module):
