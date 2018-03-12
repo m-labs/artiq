@@ -31,7 +31,7 @@ Website: https://m-labs.hk/artiq
 License
 =======
 
-Copyright (C) 2014-2017 M-Labs Limited.
+Copyright (C) 2014-2018 M-Labs Limited.
 
 ARTIQ is free software: you can redistribute it and/or modify
 it under the terms of the GNU Lesser General Public License as published by
