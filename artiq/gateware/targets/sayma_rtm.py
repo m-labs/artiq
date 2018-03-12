@@ -159,11 +159,7 @@ class SaymaRTM(Module):
         csr_devices.append("serwb_phy_rtm")
 
         serwb_phy_rtm.serdes.cd_serwb_serdes.clk.attr.add("keep")
-        serwb_phy_rtm.serdes.cd_serwb_serdes_20x.clk.attr.add("keep")
         serwb_phy_rtm.serdes.cd_serwb_serdes_5x.clk.attr.add("keep")
-        platform.add_period_constraint(serwb_phy_rtm.serdes.cd_serwb_serdes.clk, 40*1e9/serwb_pll.linerate),
-        platform.add_period_constraint(serwb_phy_rtm.serdes.cd_serwb_serdes_20x.clk, 2*1e9/serwb_pll.linerate),
-        platform.add_period_constraint(serwb_phy_rtm.serdes.cd_serwb_serdes_5x.clk, 8*1e9/serwb_pll.linerate)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             serwb_phy_rtm.serdes.cd_serwb_serdes.clk,
