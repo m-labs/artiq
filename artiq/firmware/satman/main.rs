@@ -177,7 +177,6 @@ fn process_errors() {
     let errors;
     unsafe {
         errors = (csr::DRTIO[0].protocol_error_read)();
-        (csr::DRTIO[0].protocol_error_write)(errors);
     }
     if errors & 1 != 0 {
         error!("received packet of an unknown type");
@@ -186,10 +185,22 @@ fn process_errors() {
         error!("received truncated packet");
     }
     if errors & 4 != 0 {
-        error!("write underflow");
+        let channel;
+        let timestamp_event;
+        let timestamp_counter;
+        unsafe {
+            channel = (csr::DRTIO[0].underflow_channel_read)();
+            timestamp_event = (csr::DRTIO[0].underflow_timestamp_event_read)() as i64;
+            timestamp_counter = (csr::DRTIO[0].underflow_timestamp_counter_read)() as i64;
+        }
+        error!("write underflow, channel={}, timestamp={}, counter={}, slack={}",
+               channel, timestamp_event, timestamp_counter, timestamp_event-timestamp_counter);
     }
     if errors & 8 != 0 {
         error!("write overflow");
+    }
+    unsafe {
+        (csr::DRTIO[0].protocol_error_write)(errors);
     }
 }
 

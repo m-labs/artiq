@@ -9,6 +9,10 @@ from artiq.gateware.rtio.cdc import BlindTransfer
 class RTErrorsSatellite(Module, AutoCSR):
     def __init__(self, rt_packet, outputs):
         self.protocol_error = CSR(4)
+        self.underflow_channel = CSRStatus(16)
+        self.underflow_timestamp_event = CSRStatus(64)
+        self.underflow_timestamp_counter = CSRStatus(64)
+
         self.rtio_error = CSR(3)
         self.sequence_error_channel = CSRStatus(16)
         self.collision_channel = CSRStatus(16)
@@ -49,16 +53,25 @@ class RTErrorsSatellite(Module, AutoCSR):
         # internal ARTIQ bugs.
         underflow = Signal()
         overflow = Signal()
+        underflow_error_cri = Signal(16+64+64)
+        underflow_error_csr = Signal(16+64+64)
         self.comb += [
             underflow.eq(outputs.cri.o_status[1]),
-            overflow.eq(outputs.cri.o_status[0])
+            overflow.eq(outputs.cri.o_status[0]),
+            underflow_error_cri.eq(Cat(outputs.cri.chan_sel[:16],
+                                       outputs.cri.timestamp,
+                                       outputs.cri.counter)),
+            Cat(self.underflow_channel.status,
+                self.underflow_timestamp_event.status,
+                self.underflow_timestamp_counter.status).eq(underflow_error_csr)
         ]
         error_csr(self.protocol_error,
                   (rt_packet.unknown_packet_type, False, None, None),
                   (rt_packet.packet_truncated, False, None, None),
-                  (underflow, True, None, None),
+                  (underflow, True, underflow_error_cri, underflow_error_csr),
                   (overflow, True, None, None)
         )
+
         error_csr(self.rtio_error,
                   (outputs.sequence_error, False,
                    outputs.sequence_error_channel, self.sequence_error_channel.status),

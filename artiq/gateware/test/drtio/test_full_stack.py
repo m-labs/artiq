@@ -222,11 +222,15 @@ class TestFullStack(unittest.TestCase):
             self.assertEqual(errors, 0)
             yield from csrs.underflow_margin.write(0)
             tb.delay(100)
-            yield from tb.write(0, 1)
+            yield from tb.write(42, 1)
             for i in range(12):
                yield
             errors = yield from saterr.protocol_error.read()
+            underflow_channel = yield from saterr.underflow_channel.read()
+            underflow_timestamp_event = yield from saterr.underflow_timestamp_event.read()
             self.assertEqual(errors, 4)  # write underflow
+            self.assertEqual(underflow_channel, 42)
+            self.assertEqual(underflow_timestamp_event, 100)
             yield from saterr.protocol_error.write(errors)
             yield
             errors = yield from saterr.protocol_error.read()
