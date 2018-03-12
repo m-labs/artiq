@@ -87,6 +87,8 @@ fn startup() -> bool {
         return false
     }
 
+    println!("Gateware ident {}", board::ident::read(&mut [0; 64]));
+
     println!("Initializing SDRAM...");
 
     if unsafe { board::sdram::init(Some(&mut Console)) } {
