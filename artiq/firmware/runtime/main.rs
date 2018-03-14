@@ -77,17 +77,19 @@ fn startup() {
     #[cfg(has_serwb_phy_amc)]
     board_artiq::serwb::wait_init();
 
-    let t = board::clock::get_ms();
-    info!("press 'e' to erase startup and idle kernels...");
-    while board::clock::get_ms() < t + 1000 {
-        if unsafe { board::csr::uart::rxtx_read() == b'e' } {
-            config::remove("startup_kernel").unwrap();
-            config::remove("idle_kernel").unwrap();
-            info!("startup and idle kernels erased");
-            break
+    #[cfg(has_uart)] {
+        let t = board::clock::get_ms();
+        info!("press 'e' to erase startup and idle kernels...");
+        while board::clock::get_ms() < t + 1000 {
+            if unsafe { board::csr::uart::rxtx_read() == b'e' } {
+                config::remove("startup_kernel").unwrap();
+                config::remove("idle_kernel").unwrap();
+                info!("startup and idle kernels erased");
+                break
+            }
         }
+        info!("continuing boot");
     }
-    info!("continuing boot");
 
     #[cfg(has_i2c)]
     board_artiq::i2c::init();

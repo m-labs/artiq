@@ -18,6 +18,7 @@ include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/sdram_phy.rs"));
 pub mod sdram;
 pub mod ident;
 pub mod clock;
+#[cfg(has_uart)]
 pub mod uart;
 #[cfg(has_spiflash)]
 pub mod spiflash;
