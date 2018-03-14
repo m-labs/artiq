@@ -85,6 +85,9 @@ def main():
     elif args.target == "sayma":
         board_type, firmware = "sayma", "runtime"
         variant = "standalone" if args.variant is None else args.variant
+    elif args.target == "kasli":
+        board_type, firmware = "kasli", "runtime"
+        variant = "opticlock" if args.variant is None else args.variant
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
