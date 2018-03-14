@@ -17,11 +17,12 @@ class _OSERDESE2_8X(Module):
                                   p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
                                   p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
                                   o_OQ=pad_o, o_TQ=self.t_out,
+                                  i_RST=ResetSignal("rio_phy"),
                                   i_CLK=ClockSignal("rtiox4"),
                                   i_CLKDIV=ClockSignal("rio_phy"),
                                   i_D1=o[0], i_D2=o[1], i_D3=o[2], i_D4=o[3],
                                   i_D5=o[4], i_D6=o[5], i_D7=o[6], i_D8=o[7],
-                                  i_TCE=1, i_OCE=1, i_RST=0,
+                                  i_TCE=1, i_OCE=1,
                                   i_T1=self.t_in)
         if pad_n is None:
             self.comb += pad.eq(pad_o)
@@ -49,7 +50,8 @@ class _ISERDESE2_8X(Module):
                                   i_D=pad_i,
                                   i_CLK=ClockSignal("rtiox4"),
                                   i_CLKB=~ClockSignal("rtiox4"),
-                                  i_CE1=1, i_RST=0,
+                                  i_CE1=1,
+                                  i_RST=ResetSignal("rio_phy"),
                                   i_CLKDIV=ClockSignal("rio_phy"))
         if pad_n is None:
             self.comb += pad_i.eq(pad)
