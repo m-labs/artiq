@@ -1,4 +1,4 @@
-import os, sys, tempfile, subprocess
+import os, sys, tempfile, subprocess, io
 from artiq.compiler import types
 from llvmlite_artiq import ir as ll, binding as llvm
 
@@ -8,27 +8,25 @@ llvm.initialize_all_asmprinters()
 
 class RunTool:
     def __init__(self, pattern, **tempdata):
-        self.files = []
-        self.pattern = pattern
-        self.tempdata = tempdata
-
-    def maketemp(self, data):
-        f = tempfile.NamedTemporaryFile()
-        f.write(data)
-        f.flush()
-        self.files.append(f)
-        return f
+        self._pattern   = pattern
+        self._tempdata  = tempdata
+        self._tempnames = {}
+        self._tempfiles = {}
 
     def __enter__(self):
-        tempfiles = {}
-        tempnames = {}
-        for key in self.tempdata:
-            tempfiles[key] = self.maketemp(self.tempdata[key])
-            tempnames[key] = tempfiles[key].name
+        for key, data in self._tempdata.items():
+            if data is None:
+                fd, filename = tempfile.mkstemp()
+                os.close(fd)
+                self._tempnames[key] = filename
+            else:
+                with tempfile.NamedTemporaryFile(delete=False) as f:
+                    f.write(data)
+                    self._tempnames[key] = f.name
 
         cmdline = []
-        for argument in self.pattern:
-            cmdline.append(argument.format(**tempnames))
+        for argument in self._pattern:
+            cmdline.append(argument.format(**self._tempnames))
 
         process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = process.communicate()
@@ -36,12 +34,17 @@ class RunTool:
             raise Exception("{} invocation failed: {}".
                             format(cmdline[0], stderr.decode('utf-8')))
 
-        tempfiles["__stdout__"] = stdout.decode('utf-8')
-        return tempfiles
+        self._tempfiles["__stdout__"] = io.StringIO(stdout.decode('utf-8'))
+        for key in self._tempdata:
+            if self._tempdata[key] is None:
+                self._tempfiles[key] = open(self._tempnames[key], "rb")
+        return self._tempfiles
 
     def __exit__(self, exc_typ, exc_value, exc_trace):
-        for f in self.files:
-            f.close()
+        for file in self._tempfiles.values():
+            file.close()
+        for filename in self._tempnames.values():
+            os.unlink(filename)
 
 def _dump(target, kind, suffix, content):
     if target is not None:
@@ -166,7 +169,7 @@ class Target:
         with RunTool([self.triple + "-ld", "-shared", "--eh-frame-hdr"] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-o", "{output}"],
-                     output=b"",
+                     output=None,
                      **{"obj{}".format(index): obj for index, obj in enumerate(objects)}) \
                 as results:
             library = results["output"].read()
@@ -181,7 +184,7 @@ class Target:
 
     def strip(self, library):
         with RunTool([self.triple + "-strip", "--strip-debug", "{library}", "-o", "{output}"],
-                     library=library, output=b"") \
+                     library=library, output=None) \
                 as results:
             return results["output"].read()
 
@@ -198,7 +201,7 @@ class Target:
                       "--demangle", "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
-            lines = iter(results["__stdout__"].rstrip().split("\n"))
+            lines = iter(results["__stdout__"].read().rstrip().split("\n"))
             backtrace = []
             while True:
                 try:
@@ -226,7 +229,7 @@ class Target:
 
     def demangle(self, names):
         with RunTool([self.triple + "-c++filt"] + names) as results:
-            return results["__stdout__"].rstrip().split("\n")
+            return results["__stdout__"].read().rstrip().split("\n")
 
 class NativeTarget(Target):
     def __init__(self):
