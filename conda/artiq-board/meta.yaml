@@ -6,7 +6,6 @@ source:
   git_url: ../..
 
 build:
-  noarch: python
   number: {{ environ["GIT_DESCRIBE_NUMBER"] }}
   string: {{ environ["GIT_DESCRIBE_NUMBER"] }}+git{{ environ["GIT_FULL_HASH"][:8] }}
   script_env:
@@ -16,6 +15,7 @@ build:
 
 outputs:
   - name: artiq-{{ environ["ARTIQ_TARGET"] }}-{{ environ["ARTIQ_VARIANT"] }}
+    noarch: generic
     files:
       - lib
 
