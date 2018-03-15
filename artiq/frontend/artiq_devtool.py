@@ -36,9 +36,9 @@ def get_argparser():
     parser.add_argument("-V", "--variant", metavar="VARIANT",
                         type=str, default=None,
                         help="variant to build, dependent on the target")
-    parser.add_argument("-g", "--build-gateware",
+    parser.add_argument("-g", "--gateware",
                         default=False, action="store_true",
-                        help="build gateware, not just software")
+                        help="build/flash gateware, not just software")
     parser.add_argument("--args", metavar="ARGS",
                         type=shlex.split, default=[],
                         help="extra arguments for gateware/firmware build")
@@ -144,7 +144,7 @@ def main():
 
     def build(target, *extra_args, output_dir=build_dir(), variant=variant):
         build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
-        if not args.build_gateware:
+        if not args.gateware:
             build_args.append("--no-compile-gateware")
         if variant:
             build_args += ["--variant", variant]
@@ -183,15 +183,19 @@ def main():
             flash("start")
 
         elif action == "flash":
-            logger.info("Flashing and booting firmware")
-            flash("bootloader", "firmware", "start")
+            gateware = ["gateware"] if args.gateware else []
+
+            logger.info("Flashing and booting")
+            flash(*gateware, "bootloader", "firmware", "start")
 
         elif action == "flash+log":
-            logger.info("Flashing firmware")
-            flash("bootloader", "firmware")
+            gateware = ["gateware"] if args.gateware else []
+
+            logger.info("Flashing")
+            flash(*gateware, "bootloader", "firmware")
 
             flterm = client.spawn_command(["flterm", serial, "--output-only"])
-            logger.info("Booting firmware")
+            logger.info("Booting")
             flash("start")
             client.drain(flterm)
 
