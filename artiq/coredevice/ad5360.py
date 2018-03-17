@@ -182,7 +182,7 @@ class AD5360:
         t_10 = self.core.seconds_to_mu(1.5*us)
         # compensate all delays that will be applied
         delay_mu(-t_10-len(values)*(
-            self.bus.ref_period_mu+self.bus.xfer_duration_mu))
+            self.bus.ref_period_mu + self.bus.xfer_duration_mu))
         for i in range(len(values)):
             self.write_channel(i, values[i], op)
         delay_mu(t_10)
