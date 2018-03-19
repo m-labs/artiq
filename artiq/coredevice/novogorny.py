@@ -1,6 +1,6 @@
 
 from artiq.language.core import kernel, delay, portable
-from artiq.language.units import us, ns
+from artiq.language.units import ns
 
 from artiq.coredevice import spi2 as spi
 
