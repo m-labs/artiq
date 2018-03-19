@@ -161,6 +161,44 @@ def _dio(eem):
         for i in range(8)]
 
 
+def _sampler(eem):
+    return [
+        ("{}_adc_spi_p".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
+            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_adc_spi_n".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
+            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_pgia_spi_p".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(4)))),
+            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(5)))),
+            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(6)))),
+            Subsignal("cs_n", Pins("{}:{}_p".format(eem, _eem_signal(7)))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_pgia_spi_n".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(4)))),
+            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(5)))),
+            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(6)))),
+            Subsignal("cs_n", Pins("{}:{}_n".format(eem, _eem_signal(7)))),
+            IOStandard("LVDS_25"),
+        ),
+        ] + [
+        ("{}_{}".format(eem, sig), 0,
+            Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
+            Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+            IOStandard("LVDS_25")
+        ) for i, j, sig in [
+            (2, eem, "cnv"),
+            (3, eem, "sdr")
+            ]
+        ]
+
+
 def _novogorny(eem):
     return [
         ("{}_spi_p".format(eem), 0,
@@ -182,14 +220,47 @@ def _novogorny(eem):
             IOStandard("LVDS_25"),
         ),
         ] + [
-            ("{}_{}".format(eem, sig), 0,
+        ("{}_{}".format(eem, sig), 0,
+            Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
+            Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+            IOStandard("LVDS_25")
+        ) for i, j, sig in [
+            (5, eem, "conv"),
+            (6, eem, "busy"),
+            (7, eem, "scko"),
+            ]
+        ]
+
+
+def _zotino(eem):
+    return [
+        ("{}_spi_p".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_p {0}:{1[1]}_p".format(
+                eem, [_eem_signal(i + 3) for i in range(2)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_spi_n".format(eem), 0,
+            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
+            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
+            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("cs_n", Pins(
+                "{0}:{1[0]}_n {0}:{1[1]}_n".format(
+                eem, [_eem_signal(i + 3) for i in range(2)]))),
+            IOStandard("LVDS_25"),
+        ),
+        ] + [
+        ("{}_{}".format(eem, sig), 0,
                 Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
                 Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
                 IOStandard("LVDS_25")
-            ) for i, j, sig in [
-                (5, eem, "conv"),
-                (6, eem, "busy"),
-                (7, eem, "scko"),
+        ) for i, j, sig in [
+            (5, eem, "ldac_n"),
+            (6, eem, "busy"),
+            (7, eem, "clr_n"),
             ]
         ]
 
@@ -254,7 +325,7 @@ class Opticlock(_StandaloneBase):
         platform.add_extension(_novogorny("eem3"))
         platform.add_extension(_urukul("eem5", "eem4"))
         platform.add_extension(_urukul("eem6"))
-        # platform.add_extension(_zotino("eem7"))
+        platform.add_extension(_zotino("eem7"))
 
         # EEM clock fan-out from Si5324, not MMCX
         try:
@@ -274,6 +345,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        # EEM3: Novogorny
         phy = spi2.SPIMaster(self.platform.request("eem3_spi_p"),
                 self.platform.request("eem3_spi_n"))
         self.submodules += phy
@@ -285,6 +357,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        # EEM5 + EEM4: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem5_spi_p"),
                 self.platform.request("eem5_spi_n"))
         self.submodules += phy
@@ -305,6 +378,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        # EEM6: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem6_spi_p"),
                 self.platform.request("eem6_spi_n"))
         self.submodules += phy
@@ -318,6 +392,18 @@ class Opticlock(_StandaloneBase):
 
         pads = platform.request("eem6_dds_reset")
         self.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        # EEM7: Zotino
+        phy = spi2.SPIMaster(self.platform.request("eem7_spi_p"),
+                self.platform.request("eem7_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for signal in "ldac_n clr_n".split():
+            pads = platform.request("eem7_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
