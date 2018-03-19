@@ -95,7 +95,7 @@ mod ddr {
         #[cfg(kusddrphy)] {
             ddrphy_max_delay -= ddrphy::wdly_dqs_taps_read();
         }
-        
+
         let mut failed = false;
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
@@ -316,50 +316,50 @@ mod ddr {
         for n in 0..DQS_SIGNAL_COUNT {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
-            let find_edge = |which| {
-                // Find the first (which=true) or last (which=false) tap that leads to a
-                // sufficiently high number of correct reads.
-                let mut last_valid = 0;
-                ddrphy::rdly_dq_rst_write(1);
-                for delay in 0..DDRPHY_MAX_DELAY {
-                    let mut valid = true;
-                    for _ in 0..256 {
-                        sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
-                                               DFII_COMMAND_RDDATA);
-                        spin_cycles(15);
+            // Find the first (which=true) or last (which=false) tap that leads to a
+            // sufficiently high number of correct reads.
+            let mut min_delay = 0;
+            let mut have_min_delay = false;
+            let mut max_delay = 0;
 
-                        for p in 0..DFII_NPHASES {
-                            for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
-                                let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
-                                let data = prs[DFII_PIX_DATA_SIZE * p + offset];
-                                if ptr::read_volatile(addr) as u8 != data {
-                                    valid = false;
-                                }
+            ddrphy::rdly_dq_rst_write(1);
+
+            for delay in 0..DDRPHY_MAX_DELAY {
+                let mut valid = true;
+                for _ in 0..256 {
+                    sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
+                                            DFII_COMMAND_RDDATA);
+                    spin_cycles(15);
+
+                    for p in 0..DFII_NPHASES {
+                        for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
+                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
+                            let data = prs[DFII_PIX_DATA_SIZE * p + offset];
+                            if ptr::read_volatile(addr) as u8 != data {
+                                valid = false;
                             }
                         }
                     }
-
-                    if valid {
-                        last_valid = delay;
-                        if which {
-                            break;
-                        }
-                    }
-                    ddrphy::rdly_dq_inc_write(1);
                 }
-                last_valid
-            };
 
-            // Find smallest working delay
-            let min_delay = find_edge(true);
-            let max_delay = find_edge(false);
+                if valid {
+                    if !have_min_delay {
+                        min_delay = delay;
+                        have_min_delay = true;
+                    }
+                    max_delay = delay;
+                }
+                ddrphy::rdly_dq_inc_write(1);
+            }
 
-            log!(logger, "{}:{:02}-{:02} ", DQS_SIGNAL_COUNT - n - 1,
-                 min_delay, max_delay);
+            let mean_delay = (min_delay + max_delay) / 2;
+            log!(logger, "{}: {} ({} wide), ",
+                 DQS_SIGNAL_COUNT - n - 1, mean_delay,
+                 max_delay - min_delay);
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
-            for _ in 0..(min_delay + max_delay) / 2 {
+            for _ in 0..mean_delay {
                 ddrphy::rdly_dq_inc_write(1);
             }
         }
