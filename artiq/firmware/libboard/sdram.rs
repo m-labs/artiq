@@ -321,6 +321,8 @@ mod ddr {
             let mut min_delay = 0;
             let mut have_min_delay = false;
             let mut max_delay = 0;
+            let mut have_max_delay = false;
+            let mut have_invalid = 0;
 
             ddrphy::rdly_dq_rst_write(1);
 
@@ -328,7 +330,7 @@ mod ddr {
                 let mut valid = true;
                 for _ in 0..256 {
                     sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
-                                            DFII_COMMAND_RDDATA);
+                                           DFII_COMMAND_RDDATA);
                     spin_cycles(15);
 
                     for p in 0..DFII_NPHASES {
@@ -347,7 +349,14 @@ mod ddr {
                         min_delay = delay;
                         have_min_delay = true;
                     }
-                    max_delay = delay;
+                    if !have_max_delay {
+                        max_delay = delay;
+                    }
+                } else if have_min_delay {
+                    have_invalid += 1;
+                    if have_invalid >= 10 {
+                        have_max_delay = true;
+                    }
                 }
                 ddrphy::rdly_dq_inc_write(1);
             }
