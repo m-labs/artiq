@@ -1,11 +1,8 @@
-from numpy import int32, int64
 
 from artiq.language.core import kernel, delay, portable
-from artiq.language.units import us, ns
-from artiq.coredevice.ad9912_reg import *
+from artiq.language.units import ns
 
 from artiq.coredevice import spi2 as spi
-from artiq.coredevice import urukul
 
 
 SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
