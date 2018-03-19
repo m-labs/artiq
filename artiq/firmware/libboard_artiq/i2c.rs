@@ -59,7 +59,19 @@ mod imp {
             half_period();
             half_period();
             if !sda_i(busno) {
-                error!("SDA is stuck low on bus #{}", busno)
+                warn!("SDA is stuck low on bus #{}, trying to unstuck", busno);
+
+                // Try toggling SCL a few times
+                for bit in 0..8 {
+                    scl_o(busno, false);
+                    half_period();
+                    scl_o(busno, true);
+                    half_period();
+                }
+            }
+
+            if !sda_i(busno) {
+                error!("SDA is stuck low on bus #{} and doesn't get unstuck", busno);
             }
         }
     }
