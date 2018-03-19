@@ -1,7 +1,6 @@
 #[cfg(has_ddrphy)]
 mod ddr {
     use core::{ptr, fmt};
-    use core::cell::Cell;
     use csr::{dfii, ddrphy};
     use sdram_phy::{self, spin_cycles};
     use sdram_phy::{DFII_COMMAND_CS, DFII_COMMAND_WE, DFII_COMMAND_CAS, DFII_COMMAND_RAS,
@@ -317,13 +316,14 @@ mod ddr {
         for n in 0..DQS_SIGNAL_COUNT {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
-            ddrphy::rdly_dq_rst_write(1);
-
-            let delay = Cell::new(0);
-            let incr_delay_until = |expected| {
-                while delay.get() < DDRPHY_MAX_DELAY {
-                    let mut working = true;
-                    for _ in 0..1024 {
+            let find_edge = |which| {
+                // Find the first (which=true) or last (which=false) tap that leads to a
+                // sufficiently high number of correct reads.
+                let mut last_valid = 0;
+                ddrphy::rdly_dq_rst_write(1);
+                for delay in 0..DDRPHY_MAX_DELAY {
+                    let mut valid = true;
+                    for _ in 0..256 {
                         sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
                                                DFII_COMMAND_RDDATA);
                         spin_cycles(15);
@@ -333,40 +333,26 @@ mod ddr {
                                 let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
                                 let data = prs[DFII_PIX_DATA_SIZE * p + offset];
                                 if ptr::read_volatile(addr) as u8 != data {
-                                    working = false;
+                                    valid = false;
                                 }
                             }
                         }
                     }
 
-                    if working == expected {
-                        break
+                    if valid {
+                        last_valid = delay;
+                        if which {
+                            break;
+                        }
                     }
-
-                    delay.set(delay.get() + 1);
                     ddrphy::rdly_dq_inc_write(1);
                 }
+                last_valid
             };
 
             // Find smallest working delay
-            incr_delay_until(true);
-            let min_delay = delay.get();
-
-            // Get a bit further into the working zone
-            #[cfg(kusddrphy)]
-            for _ in 0..32 {
-                delay.set(delay.get() + 1);
-                ddrphy::rdly_dq_inc_write(1);
-            }
-            #[cfg(not(kusddrphy))]
-            {
-                delay.set(delay.get() + 1);
-                ddrphy::rdly_dq_inc_write(1);
-            }
-
-            // Find largest working delay
-            incr_delay_until(false);
-            let max_delay = delay.get();
+            let min_delay = find_edge(true);
+            let max_delay = find_edge(false);
 
             log!(logger, "{}:{:02}-{:02} ", DQS_SIGNAL_COUNT - n - 1,
                  min_delay, max_delay);
