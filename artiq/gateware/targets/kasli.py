@@ -229,7 +229,7 @@ def _novogorny(eem):
             (6, eem, "busy"),
             (7, eem, "scko"),
             ]
-        ]   
+        ]
 
 
 def _zotino(eem):
@@ -357,7 +357,7 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        # EEM3 + EEM5: Urukul
+        # EEM5 + EEM4: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem5_spi_p"),
                 self.platform.request("eem5_spi_n"))
         self.submodules += phy
@@ -397,7 +397,7 @@ class Opticlock(_StandaloneBase):
         phy = spi2.SPIMaster(self.platform.request("eem7_spi_p"),
                 self.platform.request("eem7_spi_n"))
         self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16))
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
         for signal in "ldac_n clr_n".split():
             pads = platform.request("eem7_{}".format(signal))
