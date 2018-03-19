@@ -251,7 +251,7 @@ mod ddr {
 
                 let mut working = true;
                 for p in 0..DFII_NPHASES {
-                    for _ in 0..64 {
+                    for _ in 0..1024 {
                         for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
                             let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
                             let data = prs[DFII_PIX_DATA_SIZE * p + offset];
@@ -323,7 +323,7 @@ mod ddr {
             let incr_delay_until = |expected| {
                 while delay.get() < DDRPHY_MAX_DELAY {
                     let mut working = true;
-                    for _ in 0..64 {
+                    for _ in 0..1024 {
                         sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
                                                DFII_COMMAND_RDDATA);
                         spin_cycles(15);
