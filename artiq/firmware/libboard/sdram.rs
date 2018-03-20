@@ -379,9 +379,9 @@ mod ddr {
             }
 
             let mean_delay = (min_delay + max_delay) / 2;
-            log!(logger, "{}: {} ({} wide), ",
+            log!(logger, "{}: {}+-{}, ",
                  DQS_SIGNAL_COUNT - n - 1, mean_delay,
-                 max_delay - min_delay);
+                 max_seen_valid / 2);
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
