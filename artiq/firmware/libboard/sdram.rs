@@ -30,18 +30,19 @@ mod ddr {
         ddrphy::wlevel_en_write(enabled as u8);
     }
 
-    #[cfg(kusddrphy)]
+    #[cfg(ddrphy_wlevel)]
     unsafe fn write_level_scan(logger: &mut Option<&mut fmt::Write>) {
+        #[cfg(kusddrphy)]
         log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
         log!(logger, "Write leveling scan:\n");
 
         enable_write_leveling(true);
         spin_cycles(100);
 
-        let mut ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
-        #[cfg(kusddrphy)] {
-            ddrphy_max_delay -= ddrphy::wdly_dqs_taps_read();
-        }
+        #[cfg(not(kusddrphy))]
+        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
+        #[cfg(kusddrphy)]
+        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY - ddrphy::wdly_dqs_taps_read();
 
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
@@ -91,10 +92,10 @@ mod ddr {
         enable_write_leveling(true);
         spin_cycles(100);
 
-        let mut ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
-        #[cfg(kusddrphy)] {
-            ddrphy_max_delay -= ddrphy::wdly_dqs_taps_read();
-        }
+        #[cfg(not(kusddrphy))]
+        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
+        #[cfg(kusddrphy)]
+        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY - ddrphy::wdly_dqs_taps_read();
 
         let mut failed = false;
         for n in 0..DQS_SIGNAL_COUNT {
@@ -202,7 +203,6 @@ mod ddr {
         }
     }
 
-    #[cfg(kusddrphy)]
     unsafe fn read_level_scan(logger: &mut Option<&mut fmt::Write>) {
         log!(logger, "Read leveling scan:\n");
 
@@ -280,7 +280,7 @@ mod ddr {
         spin_cycles(15);
     }
 
-    unsafe fn read_level(logger: &mut Option<&mut fmt::Write>) {
+    unsafe fn read_level(logger: &mut Option<&mut fmt::Write>) -> bool {
         log!(logger, "Read leveling: ");
 
         // Generate pseudo-random sequence
@@ -316,13 +316,15 @@ mod ddr {
         for n in 0..DQS_SIGNAL_COUNT {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
-            // Find the first (which=true) or last (which=false) tap that leads to a
-            // sufficiently high number of correct reads.
+            // Find the first (min_delay) and last (max_delay) tap that bracket
+            // the largest tap interval of correct reads.
             let mut min_delay = 0;
-            let mut have_min_delay = false;
             let mut max_delay = 0;
-            let mut have_max_delay = false;
-            let mut have_invalid = 0;
+
+            let mut first_valid = 0;
+            let mut seen_valid = 0;
+            let mut seen_invalid = 0;
+            let mut max_seen_valid = 0;
 
             ddrphy::rdly_dq_rst_write(1);
 
@@ -345,20 +347,35 @@ mod ddr {
                 }
 
                 if valid {
-                    if !have_min_delay {
-                        min_delay = delay;
-                        have_min_delay = true;
+                    if seen_valid == 0 {
+                        first_valid = delay;
                     }
-                    if !have_max_delay {
+                    seen_valid += 1;
+                    seen_invalid = 0;
+                    if seen_valid > max_seen_valid {
+                        min_delay = first_valid;
                         max_delay = delay;
+                        max_seen_valid = seen_valid;
                     }
-                } else if have_min_delay {
-                    have_invalid += 1;
-                    if have_invalid >= 10 {
-                        have_max_delay = true;
+                } else {
+                    seen_invalid += 1;
+                    if seen_invalid >= DDRPHY_MAX_DELAY / 8 {
+                        seen_valid = 0;
                     }
                 }
                 ddrphy::rdly_dq_inc_write(1);
+            }
+
+            if max_delay <= min_delay {
+                log!(logger, "Zero window: {}: {}-{}\n",
+                     DQS_SIGNAL_COUNT - n - 1, min_delay, max_delay);
+                return false
+            }
+            if max_seen_valid <= 5 {
+                log!(logger, "Small window: {}: {}-{} ({})\n",
+                     DQS_SIGNAL_COUNT - n - 1, min_delay, max_delay,
+                     max_seen_valid);
+                return false
             }
 
             let mean_delay = (min_delay + max_delay) / 2;
@@ -380,6 +397,7 @@ mod ddr {
         spin_cycles(15);
 
         log!(logger, "done\n");
+        true
     }
 
     pub unsafe fn level(logger: &mut Option<&mut fmt::Write>) -> bool {
@@ -387,7 +405,6 @@ mod ddr {
         {
             let mut delay = [0; DQS_SIGNAL_COUNT];
             let mut high_skew = [false; DQS_SIGNAL_COUNT];
-            #[cfg(kusddrphy)]
             write_level_scan(logger);
             if !write_level(logger, &mut delay, &mut high_skew) {
                 return false
@@ -395,9 +412,10 @@ mod ddr {
             read_bitslip(logger, &delay, &high_skew);
         }
 
-        #[cfg(kusddrphy)]
         read_level_scan(logger);
-        read_level(logger);
+        if !read_level(logger) {
+            return false
+        }
 
         true
     }
