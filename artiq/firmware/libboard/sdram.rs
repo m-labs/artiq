@@ -367,8 +367,9 @@ mod ddr {
             }
 
             if max_delay <= min_delay {
-                log!(logger, "Zero window: {}: {}-{}\n",
-                     DQS_SIGNAL_COUNT - n - 1, min_delay, max_delay);
+                log!(logger, "Zero window: {}: {}-{} ({})\n",
+                     DQS_SIGNAL_COUNT - n - 1, min_delay, max_delay,
+                     max_seen_valid);
                 return false
             }
             if max_seen_valid <= 5 {
@@ -379,9 +380,7 @@ mod ddr {
             }
 
             let mean_delay = (min_delay + max_delay) / 2;
-            log!(logger, "{}: {}+-{}, ",
-                 DQS_SIGNAL_COUNT - n - 1, mean_delay,
-                 max_seen_valid / 2);
+            log!(logger, "{}+-{} ", mean_delay, max_seen_valid / 2);
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
