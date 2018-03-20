@@ -161,8 +161,8 @@ def _dio(eem):
         for i in range(8)]
 
 
-def _sampler(eem):
-    return [
+def _sampler(eem, eem_aux=None):
+    ios = [
         ("{}_adc_spi_p".format(eem), 0,
             Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
             Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
@@ -197,6 +197,26 @@ def _sampler(eem):
             (3, eem, "sdr")
             ]
         ]
+    if eem_aux is not None:
+        ios += [
+            ("{}_adc_data_p".format(eem), 0,
+                Subsignal("clkout", Pins("{}:{}_p".format(eem_aux, _eem_signal(0)))),
+                Subsignal("sdoa", Pins("{}:{}_p".format(eem_aux, _eem_signal(1)))),
+                Subsignal("sdob", Pins("{}:{}_p".format(eem_aux, _eem_signal(2)))),
+                Subsignal("sdoc", Pins("{}:{}_p".format(eem_aux, _eem_signal(3)))),
+                Subsignal("sdod", Pins("{}:{}_p".format(eem_aux, _eem_signal(4)))),
+                IOStandard("LVDS_25"),
+            ),
+            ("{}_adc_data_n".format(eem), 0,
+                Subsignal("clkout", Pins("{}:{}_n".format(eem_aux, _eem_signal(0)))),
+                Subsignal("sdoa", Pins("{}:{}_n".format(eem_aux, _eem_signal(1)))),
+                Subsignal("sdob", Pins("{}:{}_n".format(eem_aux, _eem_signal(2)))),
+                Subsignal("sdoc", Pins("{}:{}_n".format(eem_aux, _eem_signal(3)))),
+                Subsignal("sdod", Pins("{}:{}_n".format(eem_aux, _eem_signal(4)))),
+                IOStandard("LVDS_25"),
+            ),
+            ]
+    return ios
 
 
 def _novogorny(eem):
