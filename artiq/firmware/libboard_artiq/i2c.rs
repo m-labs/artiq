@@ -62,7 +62,7 @@ mod imp {
                 warn!("SDA is stuck low on bus #{}, trying to unstuck", busno);
 
                 // Try toggling SCL a few times
-                for bit in 0..8 {
+                for _bit in 0..8 {
                     scl_o(busno, false);
                     half_period();
                     scl_o(busno, true);
