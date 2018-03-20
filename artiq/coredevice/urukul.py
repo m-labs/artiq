@@ -169,7 +169,7 @@ class CPLD:
         Resets the DDS and verifies correct CPLD gateware version.
         """
         cfg = self.cfg_reg
-        self.cfg_reg = cfg | (1 << CFG_RST) | (1 << CFG_IO_RST)
+        self.cfg_reg = cfg | (0 << CFG_RST) | (1 << CFG_IO_RST)
         proto_rev = urukul_sta_proto_rev(self.sta_read())
         if proto_rev != STA_PROTO_REV_MATCH:
             raise ValueError("Urukul proto_rev mismatch")
