@@ -64,18 +64,19 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
     fn prng32(seed: &mut u32) -> u32 { *seed = 1664525 * *seed + 1013904223; *seed }
     fn prng16(seed: &mut u16) -> u16 { *seed = 25173 * *seed + 13849; *seed }
 
-    // Test data bus
-    test!((); for i in (0..0x100) { MEMORY[i] = 0xAAAAAAAA });
-    test!((); for i in (0..0x100) { MEMORY[i] = 0x55555555 });
+    for _ in 0..4 {
+        // Test data bus
+        test!((); for i in (0..0x100) { MEMORY[i] = 0xAAAAAAAA });
+        test!((); for i in (0..0x100) { MEMORY[i] = 0x55555555 });
 
-    // Test counter addressing with random data
-    test!(let mut seed = 0;
-          for i in (0..0x100000) { MEMORY[i] = prng32(&mut seed) });
+        // Test counter addressing with random data
+        test!(let mut seed = 0;
+            for i in (0..0x100000) { MEMORY[i] = prng32(&mut seed) });
 
-    // Test random addressing with counter data
-    test!(let mut seed = 0;
-          for i in (0..0x10000) { MEMORY[prng16(&mut seed)] = i });
-
+        // Test random addressing with counter data
+        test!(let mut seed = 0;
+            for i in (0..0x10000) { MEMORY[prng16(&mut seed)] = i });
+    }
     *wrong == 0
 }
 
