@@ -166,9 +166,12 @@ class CPLD:
     def init(self):
         """Initialize and detect Urukul.
 
-        Resets the DDS and verifies correct CPLD gateware version.
+        Resets the DDS I/O interface and verifies correct CPLD gateware
+        version.
+        Does not pulse the DDS MASTER_RESET as that confuses the AD9910.
         """
         cfg = self.cfg_reg
+        # Don't pulse MASTER_RESET (m-labs/artiq#940)
         self.cfg_reg = cfg | (0 << CFG_RST) | (1 << CFG_IO_RST)
         proto_rev = urukul_sta_proto_rev(self.sta_read())
         if proto_rev != STA_PROTO_REV_MATCH:
