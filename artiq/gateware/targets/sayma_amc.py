@@ -31,7 +31,7 @@ from artiq.gateware.amp import AMPSoC
 from artiq.gateware import serwb
 from artiq.gateware import remote_csr
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_simple, sawg
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
@@ -124,6 +124,53 @@ class AD9154NoSAWG(Module, AutoCSR):
             self.sync.rtio += ramp.eq(ramp + (1 << 9 + i))
             self.comb += conv.eq(Cat(ramp
                 for i in range(len(conv) // len(ramp))))
+
+
+class _RTIOClockMultiplier(Module):
+    def __init__(self, platform, rtio_clk_freq):
+        self.clock_domains.cd_rtio_serdes = ClockDomain()
+        self.clock_domains.cd_rtiox4_serdes = ClockDomain(reset_less=True)
+
+        # See "Global Clock Network Deskew Using Two BUFGs" in ug572.
+        # See also AR#67885.
+        clkfbout = Signal()
+        clkfbin = Signal()
+        rtio_clk = Signal()
+        rtiox4_clk = Signal()
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal("rtio"),
+                i_RST=ResetSignal("rtio"),
+
+                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
+
+                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
+
+                p_CLKOUT1_DIVIDE=8, o_CLKOUT1=rtio_clk,
+                p_CLKOUT2_DIVIDE=2, o_CLKOUT2=rtiox4_clk,
+            ),
+            Instance("BUFG", name="rtioserdes_bufg_fb",
+                i_I=clkfbout, o_O=clkfbin),
+            Instance("BUFG", name="rtioserdes_bufg_div",
+                i_I=rtio_clk, o_O=self.cd_rtio_serdes.clk),
+            Instance("BUFG", name="rtioserdes_bufg",
+                i_I=rtiox4_clk, o_O=self.cd_rtiox4_serdes.clk)
+        ]
+        self.comb += self.cd_rtio_serdes.rst.eq(ResetSignal("rio_phy"))
+
+        platform.add_platform_command(
+            "set_property CLOCK_DELAY_GROUP RTIOSERDES_BALANCE [get_nets -of [get_pins rtioserdes_bufg_fb/O]]")
+        platform.add_platform_command(
+            "set_property CLOCK_DELAY_GROUP RTIOSERDES_BALANCE [get_nets -of [get_pins rtioserdes_bufg_div/O]]")
+        platform.add_platform_command(
+            "set_property CLOCK_DELAY_GROUP RTIOSERDES_BALANCE [get_nets -of [get_pins rtioserdes_bufg/O]]")
+        platform.add_platform_command(
+            "set_property USER_CLOCK_ROOT X2Y1 [get_nets -of [get_pins rtioserdes_bufg_fb/O]]")
+        platform.add_platform_command(
+            "set_property USER_CLOCK_ROOT X2Y1 [get_nets -of [get_pins rtioserdes_bufg_div/O]]")
+        platform.add_platform_command(
+            "set_property USER_CLOCK_ROOT X2Y1 [get_nets -of [get_pins rtioserdes_bufg/O]]")
 
 
 class Standalone(MiniSoC, AMPSoC):
@@ -341,6 +388,7 @@ class Master(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gth.rxoutclk)
 
+        self.submodules.rtio_clkmul = _RTIOClockMultiplier(platform, rtio_clk_freq)
         rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
@@ -348,12 +396,12 @@ class Master(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output_8X(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut_8X(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -397,6 +445,7 @@ class Satellite(BaseSoC):
         self.submodules += Microscope(platform.request("serial", 1),
                                       self.clk_freq)
 
+        self.submodules.rtio_clkmul = _RTIOClockMultiplier(platform, rtio_clk_freq)
         rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
@@ -404,12 +453,12 @@ class Satellite(BaseSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output_8X(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut_8X(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
