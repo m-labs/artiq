@@ -133,6 +133,6 @@ class Sampler:
         adc_data = [0]*n
         self.sample_mu(adc_data)
         for i in range(n):
-            channel = 8 - len(data)
+            channel = i + 8 - len(data)
             gain = (self.gains >> (channel*2)) & 0b11
             data[i] = adc_mu_to_volt(adc_data[i], gain, self.v_ref)
