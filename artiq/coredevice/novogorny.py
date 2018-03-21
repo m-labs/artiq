@@ -1,4 +1,3 @@
-
 from artiq.language.core import kernel, delay, portable
 from artiq.language.units import ns
 
@@ -6,9 +5,9 @@ from artiq.coredevice import spi2 as spi
 
 
 SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
-        0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
-        0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
-        0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+              0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
+              0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
+              0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
 
 
 SPI_CS_ADC = 1
@@ -75,7 +74,7 @@ class Novogorny:
     kernel_invariants = {"bus", "core", "conv", "div", "v_ref"}
 
     def __init__(self, dmgr, spi_device, conv_device, div=8,
-            core_device="core"):
+                 core_device="core"):
         self.bus = dmgr.get(spi_device)
         self.core = dmgr.get(core_device)
         self.conv = dmgr.get(conv_device)
@@ -93,11 +92,13 @@ class Novogorny:
         :param channel: Channel index
         :param gain: Gain setting
         """
-        self.gains &= ~(0b11 << (channel*2))
-        self.gains |= gain << (channel*2)
+        gains = self.gains
+        gains &= ~(0b11 << (channel*2))
+        gains |= gain << (channel*2)
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END,
                                16, self.div, SPI_CS_SR)
-        self.bus.write(self.gains << 16)
+        self.bus.write(gains << 16)
+        self.gains = gains
 
     @kernel
     def configure(self, data):
