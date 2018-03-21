@@ -193,8 +193,8 @@ def _sampler(eem, eem_aux=None):
             Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
             IOStandard("LVDS_25")
         ) for i, j, sig in [
-            (2, eem, "cnv"),
-            (3, eem, "sdr")
+            (2, eem, "sdr"),
+            (3, eem, "cnv")
             ]
         ]
     if eem_aux is not None:
