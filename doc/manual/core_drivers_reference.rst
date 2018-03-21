@@ -81,6 +81,12 @@ These drivers are for the core device and the peripherals closely integrated int
 .. automodule:: artiq.coredevice.novogorny
     :members:
 
+:mod:`artiq.coredevice.sampler` module
+--------------------------------------
+
+.. automodule:: artiq.coredevice.sampler
+    :members:
+
 :mod:`artiq.coredevice.urukul` module
 -------------------------------------
 
