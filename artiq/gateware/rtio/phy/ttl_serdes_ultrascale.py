@@ -6,10 +6,9 @@ from artiq.gateware.rtio.phy import ttl_serdes_generic
 # SERDES clocks are in dedicated domains to make the implementation
 # of the convoluted clocking schemes from AR#67885 less tedious.
 
-
-class _OSERDESE2_8X(Module):
-    def __init__(self, pad, pad_n=None):
-        self.o = Signal(8)
+class _OSERDESE3(Module):
+    def __init__(self, dw, pad, pad_n=None):
+        self.o = Signal(dw)
         self.t_in = Signal()
         self.t_out = Signal()
 
@@ -17,12 +16,12 @@ class _OSERDESE2_8X(Module):
 
         pad_o = Signal()
         self.specials += Instance("OSERDESE3",
-            p_DATA_WIDTH=8, p_INIT=0,
+            p_DATA_WIDTH=dw, p_INIT=0,
             p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
             o_OQ=pad_o, o_T_OUT=self.t_out,
             i_RST=ResetSignal("rtio_serdes"),
-            i_CLK=ClockSignal("rtiox4_serdes"), i_CLKDIV=ClockSignal("rtio_serdes"),
+            i_CLK=ClockSignal("rtiox_serdes"), i_CLKDIV=ClockSignal("rtio_serdes"),
             i_D=self.o, i_T=self.t_in)
         if pad_n is None:
             self.comb += pad.eq(pad_o)
@@ -35,10 +34,10 @@ class _OSERDESE2_8X(Module):
                 io_IO=pad, io_IOB=pad_n)
 
 
-class _ISERDESE2_8X(Module):
-    def __init__(self, pad, pad_n=None):
-        self.o = Signal(8)
-        self.i = Signal(8)
+class _ISERDESE3(Module):
+    def __init__(self, dw, pad, pad_n=None):
+        self.o = Signal(dw)
+        self.i = Signal(dw)
         self.oe = Signal()
 
         # # #
@@ -47,15 +46,15 @@ class _ISERDESE2_8X(Module):
         self.specials += Instance("ISERDESE3",
             p_IS_CLK_INVERTED=0,
             p_IS_CLK_B_INVERTED=1,
-            p_DATA_WIDTH=8,
+            p_DATA_WIDTH=dw,
 
             i_D=pad_i,
             i_RST=ResetSignal("rtio_serdes"),
             i_FIFO_RD_EN=0,
-            i_CLK=ClockSignal("rtiox4_serdes"),
-            i_CLK_B=ClockSignal("rtiox4_serdes"), # locally inverted
+            i_CLK=ClockSignal("rtiox_serdes"),
+            i_CLK_B=ClockSignal("rtiox_serdes"), # locally inverted
             i_CLKDIV=ClockSignal("rtio_serdes"),
-            o_Q=Cat(*self.i[::-1]))
+            o_Q=Cat(*[self.i[i] for i in reversed(range(dw))]))
         if pad_n is None:
             self.comb += pad_i.eq(pad)
         else:
@@ -66,18 +65,18 @@ class _ISERDESE2_8X(Module):
                 io_I=pad, io_IB=pad_n)
 
 
-class _IOSERDESE2_8X(Module):
-    def __init__(self, pad, pad_n=None):
-        self.o = Signal(8)
-        self.i = Signal(8)
+class _IOSERDESE3(Module):
+    def __init__(self, dw, pad, pad_n=None):
+        self.o = Signal(dw)
+        self.i = Signal(dw)
         self.oe = Signal()
 
         # # #
 
         pad_i = Signal()
         pad_o = Signal()
-        iserdes = _ISERDESE2_8X(pad_i)
-        oserdes = _OSERDESE2_8X(pad_o)
+        iserdes = _ISERDESE3(dw, pad_i)
+        oserdes = _OSERDESE3(dw, pad_o)
         self.submodules += iserdes, oserdes
         if pad_n is None:
             self.specials += Instance("IOBUF",
@@ -96,22 +95,22 @@ class _IOSERDESE2_8X(Module):
         ]
 
 
-class Output_8X(ttl_serdes_generic.Output):
-    def __init__(self, pad, pad_n=None):
-        serdes = _OSERDESE2_8X(pad, pad_n)
+class Output(ttl_serdes_generic.Output):
+    def __init__(self, dw, pad, pad_n=None):
+        serdes = _OSERDESE3(dw, pad, pad_n)
         self.submodules += serdes
         ttl_serdes_generic.Output.__init__(self, serdes)
 
 
-class InOut_8X(ttl_serdes_generic.InOut):
-    def __init__(self, pad, pad_n=None):
-        serdes = _IOSERDESE2_8X(pad, pad_n)
+class InOut(ttl_serdes_generic.InOut):
+    def __init__(self, dw, pad, pad_n=None):
+        serdes = _IOSERDESE3(dw, pad, pad_n)
         self.submodules += serdes
         ttl_serdes_generic.InOut.__init__(self, serdes)
 
 
-class Input_8X(ttl_serdes_generic.InOut):
+class Input(ttl_serdes_generic.InOut):
     def __init__(self, pad, pad_n=None):
-        serdes = _ISERDESE2_8X(pad, pad_n)
+        serdes = _ISERDESE3(dw, pad, pad_n)
         self.submodules += serdes
         ttl_serdes_generic.InOut.__init__(self, serdes)

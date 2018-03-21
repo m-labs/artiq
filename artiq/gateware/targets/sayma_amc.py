@@ -126,17 +126,18 @@ class AD9154NoSAWG(Module, AutoCSR):
                 for i in range(len(conv) // len(ramp))))
 
 
+# Generates a X2 clock that can be used for 4:1 SERDES ratio.
 class _RTIOClockMultiplier(Module):
     def __init__(self, platform, rtio_clk_freq):
         self.clock_domains.cd_rtio_serdes = ClockDomain()
-        self.clock_domains.cd_rtiox4_serdes = ClockDomain(reset_less=True)
+        self.clock_domains.cd_rtiox_serdes = ClockDomain(reset_less=True)
 
         # See "Global Clock Network Deskew Using Two BUFGs" in ug572.
         # See also AR#67885.
         clkfbout = Signal()
         clkfbin = Signal()
         rtio_clk = Signal()
-        rtiox4_clk = Signal()
+        rtiox_clk = Signal()
         self.specials += [
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
@@ -148,14 +149,14 @@ class _RTIOClockMultiplier(Module):
                 o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
 
                 p_CLKOUT1_DIVIDE=8, o_CLKOUT1=rtio_clk,
-                p_CLKOUT2_DIVIDE=2, o_CLKOUT2=rtiox4_clk,
+                p_CLKOUT2_DIVIDE=4, o_CLKOUT2=rtiox_clk,
             ),
             Instance("BUFG", name="rtioserdes_bufg_fb",
                 i_I=clkfbout, o_O=clkfbin),
             Instance("BUFG", name="rtioserdes_bufg_div",
                 i_I=rtio_clk, o_O=self.cd_rtio_serdes.clk),
             Instance("BUFG", name="rtioserdes_bufg",
-                i_I=rtiox4_clk, o_O=self.cd_rtiox4_serdes.clk)
+                i_I=rtiox_clk, o_O=self.cd_rtiox_serdes.clk)
         ]
         self.comb += self.cd_rtio_serdes.rst.eq(ResetSignal("rio_phy"))
 
@@ -238,6 +239,7 @@ class Standalone(MiniSoC, AMPSoC):
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
         # RTIO
+        self.submodules.rtio_clkmul = _RTIOClockMultiplier(platform, 150e6)
         rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
@@ -245,12 +247,12 @@ class Standalone(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -396,12 +398,12 @@ class Master(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output_8X(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_serdes_ultrascale.InOut_8X(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -453,12 +455,12 @@ class Satellite(BaseSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output_8X(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_serdes_ultrascale.InOut_8X(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
