@@ -153,10 +153,14 @@ def _eem_signal(i):
     return n
 
 
+def _eem_pin(eem, i, pol):
+    return "{}:{}_{}".format(eem, _eem_signal(i), pol)
+
+
 def _dio(eem):
     return [(eem, i,
-        Subsignal("p", Pins("{}:{}_p".format(eem, _eem_signal(i)))),
-        Subsignal("n", Pins("{}:{}_n".format(eem, _eem_signal(i)))),
+        Subsignal("p", Pins(_eem_pin(eem, i, "p"))),
+        Subsignal("n", Pins(_eem_pin(eem, i, "n"))),
         IOStandard("LVDS_25"))
         for i in range(8)]
 
@@ -164,33 +168,33 @@ def _dio(eem):
 def _sampler(eem, eem_aux=None):
     ios = [
         ("{}_adc_spi_p".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
-            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 1, "p"))),
             IOStandard("LVDS_25"),
         ),
         ("{}_adc_spi_n".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
-            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 1, "n"))),
             IOStandard("LVDS_25"),
         ),
         ("{}_pgia_spi_p".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(4)))),
-            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(5)))),
-            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(6)))),
-            Subsignal("cs_n", Pins("{}:{}_p".format(eem, _eem_signal(7)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 4, "p"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 5, "p"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 6, "p"))),
+            Subsignal("cs_n", Pins(_eem_pin(eem, 7, "p"))),
             IOStandard("LVDS_25"),
         ),
         ("{}_pgia_spi_n".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(4)))),
-            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(5)))),
-            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(6)))),
-            Subsignal("cs_n", Pins("{}:{}_n".format(eem, _eem_signal(7)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 4, "n"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 5, "n"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 6, "n"))),
+            Subsignal("cs_n", Pins(_eem_pin(eem, 7, "n"))),
             IOStandard("LVDS_25"),
         ),
         ] + [
         ("{}_{}".format(eem, sig), 0,
-            Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
-            Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+            Subsignal("p", Pins(_eem_pin(j, i, "p"))),
+            Subsignal("n", Pins(_eem_pin(j, i, "n"))),
             IOStandard("LVDS_25")
         ) for i, j, sig in [
             (2, eem, "sdr"),
@@ -200,19 +204,19 @@ def _sampler(eem, eem_aux=None):
     if eem_aux is not None:
         ios += [
             ("{}_adc_data_p".format(eem), 0,
-                Subsignal("clkout", Pins("{}:{}_p".format(eem_aux, _eem_signal(0)))),
-                Subsignal("sdoa", Pins("{}:{}_p".format(eem_aux, _eem_signal(1)))),
-                Subsignal("sdob", Pins("{}:{}_p".format(eem_aux, _eem_signal(2)))),
-                Subsignal("sdoc", Pins("{}:{}_p".format(eem_aux, _eem_signal(3)))),
-                Subsignal("sdod", Pins("{}:{}_p".format(eem_aux, _eem_signal(4)))),
+                Subsignal("clkout", Pins(_eem_pin(eem_aux, 0, "p"))),
+                Subsignal("sdoa", Pins(_eem_pin(eem_aux, 1, "p"))),
+                Subsignal("sdob", Pins(_eem_pin(eem_aux, 2, "p"))),
+                Subsignal("sdoc", Pins(_eem_pin(eem_aux, 3, "p"))),
+                Subsignal("sdod", Pins(_eem_pin(eem_aux, 4, "p"))),
                 IOStandard("LVDS_25"),
             ),
             ("{}_adc_data_n".format(eem), 0,
-                Subsignal("clkout", Pins("{}:{}_n".format(eem_aux, _eem_signal(0)))),
-                Subsignal("sdoa", Pins("{}:{}_n".format(eem_aux, _eem_signal(1)))),
-                Subsignal("sdob", Pins("{}:{}_n".format(eem_aux, _eem_signal(2)))),
-                Subsignal("sdoc", Pins("{}:{}_n".format(eem_aux, _eem_signal(3)))),
-                Subsignal("sdod", Pins("{}:{}_n".format(eem_aux, _eem_signal(4)))),
+                Subsignal("clkout", Pins(_eem_pin(eem_aux, 0, "n"))),
+                Subsignal("sdoa", Pins(_eem_pin(eem_aux, 1, "n"))),
+                Subsignal("sdob", Pins(_eem_pin(eem_aux, 2, "n"))),
+                Subsignal("sdoc", Pins(_eem_pin(eem_aux, 3, "n"))),
+                Subsignal("sdod", Pins(_eem_pin(eem_aux, 4, "n"))),
                 IOStandard("LVDS_25"),
             ),
             ]
@@ -222,27 +226,25 @@ def _sampler(eem, eem_aux=None):
 def _novogorny(eem):
     return [
         ("{}_spi_p".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "p"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "p"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_p {0}:{1[1]}_p".format(
-                eem, [_eem_signal(i + 3) for i in range(2)]))),
+                _eem_pin(eem, 3, "p"), _eem_pin(eem, 4, "p"))),
             IOStandard("LVDS_25"),
         ),
         ("{}_spi_n".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "n"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "n"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_n {0}:{1[1]}_n".format(
-                eem, [_eem_signal(i + 3) for i in range(2)]))),
+                _eem_pin(eem, 3, "n"), _eem_pin(eem, 4, "n"))),
             IOStandard("LVDS_25"),
         ),
         ] + [
         ("{}_{}".format(eem, sig), 0,
-            Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
-            Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+            Subsignal("p", Pins(_eem_pin(j, i, "p"))),
+            Subsignal("n", Pins(_eem_pin(j, i, "n"))),
             IOStandard("LVDS_25")
         ) for i, j, sig in [
             (5, eem, "conv"),
@@ -255,27 +257,25 @@ def _novogorny(eem):
 def _zotino(eem):
     return [
         ("{}_spi_p".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "p"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "p"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_p {0}:{1[1]}_p".format(
-                eem, [_eem_signal(i + 3) for i in range(2)]))),
+                _eem_pin(eem, 3, "p"), _eem_pin(eem, 4, "p"))),
             IOStandard("LVDS_25"),
         ),
         ("{}_spi_n".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "n"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "n"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_n {0}:{1[1]}_n".format(
-                eem, [_eem_signal(i + 3) for i in range(2)]))),
+                _eem_pin(eem, 3, "n"), _eem_pin(eem, 4, "n"))),
             IOStandard("LVDS_25"),
         ),
         ] + [
         ("{}_{}".format(eem, sig), 0,
-                Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
-                Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+                Subsignal("p", Pins(_eem_pin(j, i, "p"))),
+                Subsignal("n", Pins(_eem_pin(j, i, "n"))),
                 IOStandard("LVDS_25")
         ) for i, j, sig in [
             (5, eem, "ldac_n"),
@@ -288,21 +288,19 @@ def _zotino(eem):
 def _urukul(eem, eem_aux=None):
     ios = [
         ("{}_spi_p".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_p".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_p".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_p".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "p"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "p"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_p {0}:{1[1]}_p {0}:{1[2]}_p".format(
-                eem, [_eem_signal(i + 3) for i in range(3)]))),
+                *(_eem_pin(eem, i + 3, "p") for i in range(3)))),
             IOStandard("LVDS_25"),
         ),
         ("{}_spi_n".format(eem), 0,
-            Subsignal("clk", Pins("{}:{}_n".format(eem, _eem_signal(0)))),
-            Subsignal("mosi", Pins("{}:{}_n".format(eem, _eem_signal(1)))),
-            Subsignal("miso", Pins("{}:{}_n".format(eem, _eem_signal(2)))),
+            Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
+            Subsignal("mosi", Pins(_eem_pin(eem, 1, "n"))),
+            Subsignal("miso", Pins(_eem_pin(eem, 2, "n"))),
             Subsignal("cs_n", Pins(
-                "{0}:{1[0]}_n {0}:{1[1]}_n {0}:{1[2]}_n".format(
-                eem, [_eem_signal(i + 3) for i in range(3)]))),
+                *(_eem_pin(eem, i + 3, "n") for i in range(3)))),
             IOStandard("LVDS_25"),
         ),
         ]
@@ -320,8 +318,8 @@ def _urukul(eem, eem_aux=None):
     for i, j, sig in ttls:
         ios.append(
             ("{}_{}".format(eem, sig), 0,
-                Subsignal("p", Pins("{}:{}_p".format(j, _eem_signal(i)))),
-                Subsignal("n", Pins("{}:{}_n".format(j, _eem_signal(i)))),
+                Subsignal("p", Pins(_eem_pin(j, i, "p"))),
+                Subsignal("n", Pins(_eem_pin(j, i, "n"))),
                 IOStandard("LVDS_25")
             ))
     return ios
