@@ -247,7 +247,7 @@ def _novogorny(eem):
             Subsignal("n", Pins(_eem_pin(j, i, "n"))),
             IOStandard("LVDS_25")
         ) for i, j, sig in [
-            (5, eem, "conv"),
+            (5, eem, "cnv"),
             (6, eem, "busy"),
             (7, eem, "scko"),
             ]
@@ -369,7 +369,7 @@ class Opticlock(_StandaloneBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16))
 
-        for signal in "conv".split():
+        for signal in "cnv".split():
             pads = platform.request("eem3_{}".format(signal))
             phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
             self.submodules += phy

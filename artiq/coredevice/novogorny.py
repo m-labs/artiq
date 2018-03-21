@@ -67,17 +67,17 @@ class Novogorny:
     register.
 
     :param spi_device: SPI bus device name
-    :param conv_device: CONV RTIO TTLOut channel name
+    :param cnv_device: CNV RTIO TTLOut channel name
     :param div: SPI clock divider (default: 8)
     :param core_device: Core device name
     """
-    kernel_invariants = {"bus", "core", "conv", "div", "v_ref"}
+    kernel_invariants = {"bus", "core", "cnv", "div", "v_ref"}
 
-    def __init__(self, dmgr, spi_device, conv_device, div=8,
+    def __init__(self, dmgr, spi_device, cnv_device, div=8,
                  core_device="core"):
         self.bus = dmgr.get(spi_device)
         self.core = dmgr.get(core_device)
-        self.conv = dmgr.get(conv_device)
+        self.cnv = dmgr.get(cnv_device)
         self.div = div
         self.gains = 0x0000
         self.v_ref = 5.  # 5 Volt reference
@@ -125,7 +125,7 @@ class Novogorny:
         :param next_ctrl: ADC control word for the next sample
         :return: The ADC result packet (machine units)
         """
-        self.conv.pulse(40*ns)  # t_CNVH
+        self.cnv.pulse(40*ns)  # t_CNVH
         delay(560*ns)  # t_CONV max
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT | spi.SPI_END,
                                24, self.div, SPI_CS_ADC)
@@ -163,7 +163,7 @@ class Novogorny:
                                24, self.div, SPI_CS_ADC)
         for i in range(len(data)):
             t0 = now_mu()
-            self.conv.pulse(40*ns)  # t_CNVH
+            self.cnv.pulse(40*ns)  # t_CNVH
             delay(560*ns)  # t_CONV max
             self.bus.write(ctrl << 24)
             at_mu(t0 + dt_mu)
