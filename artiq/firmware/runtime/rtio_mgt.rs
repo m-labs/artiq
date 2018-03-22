@@ -271,6 +271,7 @@ pub fn startup(io: &Io) {
 pub fn init_core() {
     unsafe {
         csr::rtio_core::reset_write(1);
+        csr::rtio_core::reset_phy_write(1);
     }
     drtio::init()
 }
