@@ -184,6 +184,7 @@ class Programmer:
             cmdline += ["-s", scripts_path()]
         cmdline += ["-c", "; ".join(self.script())]
 
+        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
         self._client.run_command(cmdline)
         self._client.download()
 
