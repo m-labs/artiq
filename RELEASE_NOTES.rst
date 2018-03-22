@@ -3,8 +3,11 @@
 Release notes
 =============
 
+ARTIQ-4
+-------
+
 4.0
----
+***
 
 * RTIO outputs use a new architecture called Scalable Event Dispatcher (SED),
   which allows building systems with large number of RTIO channels more
@@ -27,32 +30,35 @@ Release notes
   to the new bus.
 
 
+ARTIQ-3
+-------
+
 3.6
----
+***
 
 No further notes.
 
 
 3.5
----
+***
 
 No further notes.
 
 
 3.4
----
+***
 
 No further notes.
 
 
 3.3
----
+***
 
 No further notes.
 
 
 3.2
----
+***
 
 * To accommodate larger runtimes, the flash layout as changed. As a result, the
   contents of the flash storage will be lost when upgrading. Set the values back
@@ -60,13 +66,13 @@ No further notes.
 
 
 3.1
----
+***
 
 No further notes.
 
 
 3.0
----
+***
 
 * The ``--embed`` option of applets is replaced with the environment variable
   ``ARTIQ_APPLET_EMBED``. The GUI sets this enviroment variable itself and the
@@ -119,50 +125,53 @@ No further notes.
 * Packages are no longer available for 32-bit Windows.
 
 
+ARTIQ-2
+-------
+
 2.5
----
+***
 
 No further notes.
 
 
 2.4
----
+***
 
 No further notes.
 
 
 2.3
----
+***
 
 * When using conda, add the conda-forge channel before installing ARTIQ.
 
 
 2.2
----
+***
 
 No further notes.
 
 
 2.1
----
+***
 
 No further notes.
 
 
 2.0
----
+***
 
 No further notes.
 
 
 2.0rc2
-------
+******
 
 No further notes.
 
 
 2.0rc1
-------
+******
 
 * The format of the influxdb pattern file is simplified. The procedure to
   edit patterns is also changed to modifying the pattern file and calling:
@@ -211,39 +220,42 @@ No further notes.
   receives a numpy type.
 
 
+ARTIQ-1
+-------
+
 1.3
----
+***
 
 No further notes.
 
 
 1.2
----
+***
 
 No further notes.
 
 
 1.1
----
+***
 
 * TCA6424A.set converts the "outputs" value to little-endian before programming
   it into the registers.
 
 
 1.0
----
+***
 
 No further notes.
 
 
 1.0rc4
-------
+******
 
 * setattr_argument and setattr_device add their key to kernel_invariants.
 
 
 1.0rc3
-------
+******
 
 * The HDF5 format has changed.
 
@@ -257,7 +269,7 @@ No further notes.
 
 
 1.0rc2
-------
+******
 
 * The CPU speed in the pipistrello gateware has been reduced from 83 1/3 MHz to
   75 MHz. This will reduce the achievable sustained pulse rate and latency
@@ -267,7 +279,7 @@ No further notes.
 
 
 1.0rc1
-------
+******
 
 * Experiments (your code) should use ``from artiq.experiment import *``
   (and not ``from artiq import *`` as previously)
