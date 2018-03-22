@@ -138,7 +138,7 @@ class Programmer:
 
         bitfile = self._client.upload(bitfile)
         add_commands(self._script,
-            "pld load {pld} {filename}",
+            "pld load {pld} {{{filename}}}",
             pld=pld, filename=bitfile)
 
     def load_proxy(self):
@@ -152,8 +152,8 @@ class Programmer:
         add_commands(self._script,
             "flash probe {bankname}",
             "flash erase_sector {bankname} {firstsector} {lastsector}",
-            "flash write_bank {bankname} {filename} {address:#x}",
-            "flash verify_bank {bankname} {filename} {address:#x}",
+            "flash write_bank {bankname} {{{filename}}} {address:#x}",
+            "flash verify_bank {bankname} {{{filename}}} {address:#x}",
             bankname=bankname, address=address, filename=filename,
             firstsector=address // self._sector_size,
             lastsector=(address + size - 1) // self._sector_size)
@@ -164,7 +164,7 @@ class Programmer:
         filename = self._client.prepare_download(filename)
         add_commands(self._script,
             "flash probe {bankname}",
-            "flash read_bank {bankname} {filename} {address:#x} {length}",
+            "flash read_bank {bankname} {{{filename}}} {address:#x} {length}",
             bankname=bankname, filename=filename, address=address, length=length)
 
     def start(self):
@@ -184,7 +184,6 @@ class Programmer:
             cmdline += ["-s", scripts_path()]
         cmdline += ["-c", "; ".join(self.script())]
 
-        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
         self._client.run_command(cmdline)
         self._client.download()
 
