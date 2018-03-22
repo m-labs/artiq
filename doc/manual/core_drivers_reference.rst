@@ -33,7 +33,7 @@ System drivers
 
 
 Digital I/O drivers
-+++++++++++++++++++
+-------------------
 
 :mod:`artiq.coredevice.ttl` module
 ++++++++++++++++++++++++++++++++++
