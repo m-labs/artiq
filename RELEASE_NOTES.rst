@@ -26,6 +26,25 @@ Release notes
   commits on e.g. the ``ad5360`` driver for an example how to port from the old
   to the new bus.
 
+
+3.6
+---
+
+No further notes.
+
+
+3.5
+---
+
+No further notes.
+
+
+3.4
+---
+
+No further notes.
+
+
 3.3
 ---
 
