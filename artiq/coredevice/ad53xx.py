@@ -50,7 +50,7 @@ def ad53xx_cmd_write_ch(channel, value, op):
       :const:`AD53XX_CMD_GAIN`.
     :return: The 24-bit word to be written to the DAC
     """
-    return op | ((channel & 0x3f) + 8) << 16 | (value & 0xffff)
+    return op | (channel + 8) << 16 | (value & 0xffff)
 
 
 @portable
@@ -65,7 +65,7 @@ def ad53xx_cmd_read_ch(channel, op):
     :return: The 24-bit word to be written to the DAC
     """
     return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | op |
-            (((channel & 0x3f) + 8) << 7))
+            ((channel + 8) << 7))
 
 
 @portable
