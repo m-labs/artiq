@@ -109,10 +109,16 @@ RF generation drivers
 DAC/ADC drivers
 ---------------
 
-:mod:`artiq.coredevice.ad5360` module
+:mod:`artiq.coredevice.ad53xx` module
 +++++++++++++++++++++++++++++++++++++
 
-.. automodule:: artiq.coredevice.ad5360
+.. automodule:: artiq.coredevice.ad53xx
+    :members:
+
+:mod:`artiq.coredevice.zotino` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.zotino
     :members:
 
 :mod:`artiq.coredevice.sampler` module
