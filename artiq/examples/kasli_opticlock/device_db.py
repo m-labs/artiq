@@ -192,7 +192,7 @@ device_db = {
         "class": "SPIMaster",
         "arguments": {"channel": 24}
     },
-    "ttl_novogorny0_conv": {
+    "ttl_novogorny0_cnv": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
