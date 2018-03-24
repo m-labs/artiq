@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 
-class AD5360Test(EnvExperiment):
+class AD53XXTest(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("fmcdio_dirctl")
@@ -14,8 +14,7 @@ class AD5360Test(EnvExperiment):
         delay(5*ms)  # build slack for shift register set
         self.fmcdio_dirctl.set(self, 0x00008800)
         self.dac.setup_bus()
-        self.dac.write_offsets()
         self.led.on()
         delay(400*us)
         self.led.off()
-        self.dac.set([i << 10 for i in range(32)])
+        self.dac.set_dac_mu([i << 10 for i in range(32)])
