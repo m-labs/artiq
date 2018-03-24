@@ -186,8 +186,8 @@ device_db = {
     },
     "dac_zotino": {
         "type": "local",
-        "module": "artiq.coredevice.ad5360",
-        "class": "AD5360",
+        "module": "artiq.coredevice.zotino",
+        "class": "Zotino",
         "arguments": {
             "spi_device": "spi_zotino",
             "ldac_device": "ttl_zotino_ldac",
