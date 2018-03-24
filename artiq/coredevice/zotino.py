@@ -8,7 +8,6 @@ from artiq.language.core import kernel
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice.ad53xx import SPI_AD53XX_CONFIG, AD53xx
 
-_SPI_DAC_CONFIG = SPI_AD53XX_CONFIG
 _SPI_SR_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
                   0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
                   0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
@@ -16,6 +15,7 @@ _SPI_SR_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
 
 _SPI_CS_DAC = 1
 _SPI_CS_SR = 2
+
 
 class Zotino(AD53xx):
     """ Zotino 32-channel, 16-bit 1MSPS DAC.
@@ -41,7 +41,7 @@ class Zotino(AD53xx):
                         chip_select=_SPI_CS_DAC, div_write=div_write,
                         div_read=div_read, core=core)
 
-    @ kernel
+    @kernel
     def set_leds(self, leds):
         """ Sets the states of the 8 user LEDs.
 
@@ -49,5 +49,5 @@ class Zotino(AD53xx):
         """
         self.bus.set_config_mu(_SPI_SR_CONFIG, 8, self.div_write, _SPI_CS_SR)
         self.bus.write(leds << 24)
-        self.bus.set_config_mu(_SPI_DAC_CONFIG, 24, self.div_write,
-                               _SPI_CS_DAC)
+        self.bus.set_config_mu(SPI_AD53XX_CONFIG, 24, self.div_write,
+                               self.chip_select)

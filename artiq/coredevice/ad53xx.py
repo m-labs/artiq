@@ -13,7 +13,6 @@ from artiq.language.core import (kernel, portable, delay_mu, delay, now_mu,
 from artiq.language.units import ns
 from artiq.coredevice import spi2 as spi
 
-
 SPI_AD53XX_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
                      0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
                      0*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
