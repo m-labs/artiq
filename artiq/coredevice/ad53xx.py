@@ -13,6 +13,7 @@ from artiq.language.core import (kernel, portable, delay_mu, delay, now_mu,
 from artiq.language.units import ns
 from artiq.coredevice import spi2 as spi
 
+
 SPI_AD53XX_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
                      0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
                      0*spi.SPI_CLK_POLARITY | 1*spi.SPI_CLK_PHASE |
@@ -67,7 +68,7 @@ def ad53xx_cmd_read_ch(channel, op):
       a 32-bit integer, ready to be transferred directly by the SPI core.
     """
     return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | op |
-           (((channel & 0x3f) + 8) << 7)) << 8
+            (((channel & 0x3f) + 8) << 7)) << 8
 
 
 @portable
@@ -82,6 +83,7 @@ def voltage_to_mu(voltage, offset_dacs=8192, vref=5.):
     """
     return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
 
+
 @portable
 def offset_to_mu(voltage, offset_dacs=8192, vref=5.):
     """Returns the offset register value required to produce a given voltage
@@ -95,6 +97,7 @@ def offset_to_mu(voltage, offset_dacs=8192, vref=5.):
     :param vref: DAC reference voltage (default: 5.)
     """
     return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
+
 
 class AD53xx:
     """Analog devices AD53[67][0123] family of multi-channel Digital to Analog
@@ -252,7 +255,7 @@ class AD53xx:
         This method advances the timeline by two RTIO clock periods.
         """
         self.ldac.off()
-        delay_mu(2*self.bus.ref_period_mu) # t13 = 10ns ldac pulse width low
+        delay_mu(2*self.bus.ref_period_mu)  # t13 = 10ns ldac pulse width low
         self.ldac.on()
 
     @kernel
