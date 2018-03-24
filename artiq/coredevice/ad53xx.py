@@ -49,10 +49,9 @@ def ad53xx_cmd_write_ch(channel, value, op):
     :param op: The channel register to write to, one of
       :const:`AD53XX_CMD_DATA`, :const:`AD53XX_CMD_OFFSET` or
       :const:`AD53XX_CMD_GAIN`.
-    :return: The 24-bit word to be written to the DAC, aligned as the 24 MSB of
-      a 32-bit integer, ready to be transferred directly by the SPI core.
+    :return: The 24-bit word to be written to the DAC
     """
-    return (op | ((channel & 0x3f) + 8) << 16 | (value & 0xffff)) << 8
+    return op | ((channel & 0x3f) + 8) << 16 | (value & 0xffff)
 
 
 @portable
@@ -64,11 +63,10 @@ def ad53xx_cmd_read_ch(channel, op):
     :param op: The channel register to read, one of
       :const:`AD53XX_CMD_DATA`, :const:`AD53XX_CMD_OFFSET` or
       :const:`AD53XX_CMD_GAIN`
-    :return: The 24-bit word to be written to the DAC, aligned as the 24 MSB of
-      a 32-bit integer, ready to be transferred directly by the SPI core.
+    :return: The 24-bit word to be written to the DAC
     """
     return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | op |
-            (((channel & 0x3f) + 8) << 7)) << 8
+            (((channel & 0x3f) + 8) << 7))
 
 
 @portable
@@ -163,7 +161,7 @@ class AD53xx:
           :const:`AD53XX_READ_GAIN` (default: :const:`AD53XX_READ_X1A`).
         :return: The 16 bit register value
         """
-        self.bus.write(ad53xx_cmd_read_ch(channel, op))
+        self.bus.write(ad53xx_cmd_read_ch(channel, op) << 8)
         self.bus.set_config_mu(SPI_AD53XX_CONFIG | spi.SPI_INPUT, 24,
                                self.div_read, self.chip_select)
         delay(270*ns)  # t_21 min sync high in readback
@@ -197,7 +195,8 @@ class AD53xx:
 
         :param gain: 16-bit gain register value (default: 0xffff)
         """
-        self.bus.write(ad53xx_cmd_write_ch(channel, gain, AD53XX_CMD_GAIN))
+        self.bus.write(
+            ad53xx_cmd_write_ch(channel, gain, AD53XX_CMD_GAIN) << 8)
 
     @kernel
     def write_offset_mu(self, channel, offset=0x8000):
@@ -208,7 +207,8 @@ class AD53xx:
 
         :param offset: 16-bit offset register value (default: 0x8000)
         """
-        self.bus.write(ad53xx_cmd_write_ch(channel, offset, AD53XX_CMD_OFFSET))
+        self.bus.write(
+            ad53xx_cmd_write_ch(channel, offset, AD53XX_CMD_OFFSET) << 8)
 
     @kernel
     def write_offset(self, channel, voltage):
@@ -230,7 +230,8 @@ class AD53xx:
         The DAC output is not updated until LDAC is pulsed (see :meth load:).
         This method advances the timeline by the duration of one SPI transfer.
         """
-        self.bus.write(ad53xx_cmd_write_ch(channel, value, AD53XX_CMD_DATA))
+        self.bus.write(
+            ad53xx_cmd_write_ch(channel, value, AD53XX_CMD_DATA) << 8)
 
     @kernel
     def write_dac(self, channel, voltage):
