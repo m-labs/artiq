@@ -42,7 +42,7 @@ Digital I/O drivers
     :members:
 
 :mod:`artiq.coredevice.shiftreg` module
-++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.shiftreg
     :members:
