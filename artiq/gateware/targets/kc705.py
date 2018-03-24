@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
-                                     dds, spi2, ad5360_monitor)
+                                     dds, spi2, ad53xx_monitor)
 from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
@@ -351,7 +351,7 @@ class NIST_CLOCK(_StandaloneBase):
         self.submodules += ldac_phy
         rtio_channels.append(rtio.Channel.from_phy(ldac_phy))
 
-        dac_monitor = ad5360_monitor.AD5360Monitor(sdac_phy.rtlink, ldac_phy.rtlink)
+        dac_monitor = ad53xx_monitor.AD53XXMonitor(sdac_phy.rtlink, ldac_phy.rtlink)
         self.submodules += dac_monitor
         sdac_phy.probes.extend(dac_monitor.probes)
 

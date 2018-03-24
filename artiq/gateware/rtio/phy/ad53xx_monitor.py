@@ -1,10 +1,10 @@
 from migen import *
 
 from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR
-from artiq.coredevice.ad5360 import _AD5360_CMD_DATA, _AD5360_WRITE_CHANNEL
+from artiq.coredevice.ad53xx import AD53XX_CMD_DATA, ad53xx_cmd_write_ch
 
 
-class AD5360Monitor(Module):
+class AD53XXMonitor(Module):
     def __init__(self, spi_rtlink, ldac_rtlink=None, cs_no=0, cs_onehot=False, nchannels=32):
         self.probes = [Signal(16) for i in range(nchannels)]
 
@@ -39,8 +39,10 @@ class AD5360Monitor(Module):
                 )
             ]
 
-        writes = {(_AD5360_CMD_DATA | _AD5360_WRITE_CHANNEL(i)) >> 16: t.eq(spi_oif.data[8:24])
-                  for i, t in enumerate(write_targets)}
+        writes = {
+            ad53xx_cmd_write_ch(channel=i, value=0, op=AD53XX_CMD_DATA) >> 16:
+                t.eq(spi_oif.data[8:24])
+            for i, t in enumerate(write_targets)}
         self.sync.rio_phy += [
             If(spi_oif.stb & (spi_oif.address == SPI_DATA_ADDR),
                 Case(spi_oif.data[24:], writes)
