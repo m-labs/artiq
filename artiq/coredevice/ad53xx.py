@@ -69,28 +69,17 @@ def ad53xx_cmd_read_ch(channel, op):
 
 
 @portable
-def voltage_to_mu(voltage, offset_dacs=8192, vref=5.):
+def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
     """Returns the DAC register value required to produce a given output
     voltage, assuming offset and gain errors have been trimmed out.
 
-    :param voltage: Voltage
-    :param offset_dacs: Register value for the two offset DACs (default
-      :0x1555)
-    :param vref: DAC reference voltage (default: 5.)
-    """
-    return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
-
-
-@portable
-def offset_to_mu(voltage, offset_dacs=8192, vref=5.):
-    """Returns the offset register value required to produce a given voltage
-    when the DAC register is set to mid-scale.
-
+    Also used to return offset register value required to produce a given
+    voltage when the DAC register is set to mid-scale.
     An offset of V can be used to trim out a DAC offset error of -V.
 
-    :param voltage: Offset voltage
-    :param offset_dacs: Register value for the two offset DACs (default
-      :0x1555)
+    :param voltage: Voltage
+    :param offset_dacs: Register value for the two offset DACs
+      (default: 0x2000)
     :param vref: DAC reference voltage (default: 5.)
     """
     return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
@@ -219,8 +208,8 @@ class AD53xx:
 
         :param voltage: the offset voltage
         """
-        self.write_offset_mu(channel, offset_to_mu(voltage, self.offset_dacs,
-                                                   self.vref))
+        self.write_offset_mu(channel, voltage_to_mu(voltage, self.offset_dacs,
+                                                    self.vref))
 
     @kernel
     def write_dac_mu(self, channel, value):
