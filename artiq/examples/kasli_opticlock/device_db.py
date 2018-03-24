@@ -198,6 +198,15 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 25}
     },
+    "novogorny0" : {
+        "type": "local",
+        "module": "artiq.coredevice.novogorny",
+        "class": "Novogorny",
+        "arguments": {
+            "spi_device": "spi_novogorny0",
+            "cnv_device": "ttl_novogorny0_cnv",
+        }
+    },
 
     "spi_urukul0": {
         "type": "local",
