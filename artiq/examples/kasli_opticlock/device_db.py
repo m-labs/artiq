@@ -1,7 +1,7 @@
 # This is an example device database that needs to be adapted to your setup.
 # The list of devices here is not exhaustive.
 
-core_addr = "10.255.6.200"
+core_addr = "vettel.ber.quartiq.de"
 
 device_db = {
     "core": {
