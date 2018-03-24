@@ -1,7 +1,7 @@
 # This is an example device database that needs to be adapted to your setup.
 # The list of devices here is not exhaustive.
 
-core_addr = "vettel.ber.quartiq.de"
+core_addr = "10.255.6.200"
 
 device_db = {
     "core": {
@@ -192,20 +192,11 @@ device_db = {
         "class": "SPIMaster",
         "arguments": {"channel": 24}
     },
-    "ttl_novogorny0_cnv": {
+    "ttl_novogorny0_conv": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 25}
-    },
-    "novogorny0" : {
-        "type": "local",
-        "module": "artiq.coredevice.novogorny",
-        "class": "Novogorny",
-        "arguments": {
-            "spi_device": "spi_novogorny0",
-            "cnv_device": "ttl_novogorny0_cnv",
-        }
     },
 
     "spi_urukul0": {
@@ -311,5 +302,34 @@ device_db = {
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 33}
+    },
+
+    "spi_zotino0": {
+        "type": "local",
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 36}
+    },
+    "ttl_zotino0_ldac": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 37}
+    },
+    "ttl_zotino0_clr": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 38}
+    },
+    "zotino0": {
+        "type": "local",
+        "module": "artiq.coredevice.zotino",
+        "class": "Zotino",
+        "arguments": {
+            "spi_device": "spi_zotino0",
+            "ldac_device": "ttl_zotino0_ldac",
+            "clr_device": "ttl_zotino0_clr"
+        }
     }
 }
