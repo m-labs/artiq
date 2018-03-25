@@ -65,7 +65,7 @@ def get_argparser():
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
                         help="actions to perform, sequence of: "
-                             "build clean reset flash flash+log connect hotswap")
+                             "build clean reset flash flash+log load connect hotswap")
 
     return parser
 
@@ -198,6 +198,10 @@ def main():
             logger.info("Booting")
             flash("start")
             client.drain(flterm)
+
+        elif action == "load":
+            logger.info("Loading gateware")
+            flash("load")
 
         elif action == "connect":
             lock()
