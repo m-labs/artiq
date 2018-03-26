@@ -85,13 +85,23 @@ def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
     return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
 
 
+class _DummyTTL:
+    @portable
+    def on(self):
+        pass
+
+    @portable
+    def off(self):
+        pass
+
+
 class AD53xx:
     """Analog devices AD53[67][0123] family of multi-channel Digital to Analog
     Converters.
 
     :param spi_device: SPI bus device name
-    :param ldac_device: LDAC RTIO TTLOut channel name
-    :param clr_device: CLR RTIO TTLOut channel name
+    :param ldac_device: LDAC RTIO TTLOut channel name (optional)
+    :param clr_device: CLR RTIO TTLOut channel name (optional)
     :param chip_select: Value to drive on SPI chip select lines during
       transactions (default: 1)
     :param div_write: SPI clock divider for write operations (default: 4,
@@ -108,12 +118,18 @@ class AD53xx:
     kernel_invariants = {"bus", "ldac", "clr", "chip_select", "div_write",
                          "div_read", "vref", "core"}
 
-    def __init__(self, dmgr, spi_device, ldac_device, clr_device,
+    def __init__(self, dmgr, spi_device, ldac_device=None, clr_device=None,
                  chip_select=1, div_write=4, div_read=8, vref=5.,
                  offset_dacs=8192, core="core"):
         self.bus = dmgr.get(spi_device)
-        self.ldac = dmgr.get(ldac_device)
-        self.clr = dmgr.get(clr_device)
+        if ldac_device is None:
+            self.ldac = _DummyTTL()
+        else:
+            self.ldac = dmgr.get(ldac_device)
+        if clr_device is None:
+            self.clr = _DummyTTL()
+        else:
+            self.clr = dmgr.get(clr_device)
         self.chip_select = chip_select
         self.div_write = div_write
         self.div_read = div_read
@@ -256,6 +272,8 @@ class AD53xx:
         in the past. The DACs will synchronously start changing their output
         levels `now`.
 
+        If no LDAC device was defined, the LDAC pulse is skipped.
+
         See :meth load:.
 
         :param values: list of DAC values to program
@@ -282,6 +300,8 @@ class AD53xx:
         This method does not advance the timeline; write events are scheduled
         in the past. The DACs will synchronously start changing their output
         levels `now`.
+
+        If no LDAC device was defined, the LDAC pulse is skipped.
 
         :param voltages: list of voltages to program the DAC channels to
         :param channels: list of DAC channels to program. If not specified,
