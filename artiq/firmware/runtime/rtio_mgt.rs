@@ -264,14 +264,16 @@ pub fn startup(io: &Io) {
     }
 
     drtio::startup(io);
-    init_core();
+    init_core(true);
     io.spawn(4096, async_error_thread);
 }
 
-pub fn init_core() {
+pub fn init_core(phy: bool) {
     unsafe {
         csr::rtio_core::reset_write(1);
-        csr::rtio_core::reset_phy_write(1);
+        if phy {
+            csr::rtio_core::reset_phy_write(1);
+        }
     }
     drtio::init()
 }
