@@ -319,7 +319,7 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> 
     match request {
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
-            rtio_mgt::init_core();
+            rtio_mgt::init_core(false);
             kern_acknowledge()
         }
 
