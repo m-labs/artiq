@@ -7,11 +7,6 @@ from artiq.gateware.rtio.sed import layouts
 __all__ = ["LaneDistributor"]
 
 
-# CRI write happens in 3 cycles:
-# 1. set timestamp and channel
-# 2. set other payload elements and issue write command
-# 3. check status
-
 class LaneDistributor(Module):
     def __init__(self, lane_count, seqn_width, layout_payload,
                  compensation, glbl_fine_ts_width,

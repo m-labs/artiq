@@ -6,6 +6,11 @@ from migen.genlib.record import *
 from misoc.interconnect.csr import *
 
 
+# CRI write happens in 3 cycles:
+# 1. set timestamp and channel
+# 2. set other payload elements and issue write command
+# 3. check status
+
 commands = {
     "nop": 0,
 
