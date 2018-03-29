@@ -82,7 +82,6 @@ class AD9154JESD(Module, AutoCSR):
             cpll = JESD204BGTHChannelPLL(
                     jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate)
             self.submodules += cpll
-            #print(cpll)
             phy = JESD204BPhyTX(
                     cpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
                     jesd_crg.fabric_freq, transceiver="gth")
