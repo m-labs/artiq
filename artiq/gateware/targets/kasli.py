@@ -684,7 +684,7 @@ class _MasterBase(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
         for gtp in self.drtio_transceiver.gtps[1:]:
-            platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
+            platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
