@@ -165,7 +165,7 @@ class SaymaRTM(Module):
         platform.add_period_constraint(serwb_pads.clk_p, 10.)
         serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
-        self.comb += self.crg.serwb_refclk.eq(serwb_phy.serdes.refclk)
+        self.comb += self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.refclk)
         csr_devices.append("serwb_phy_rtm")
 
         serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master", with_scrambling=True)
