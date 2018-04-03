@@ -169,21 +169,10 @@ class Standalone(MiniSoC, AMPSoC):
         self.config["SLAVE_FPGA_GATEWARE"] = 0x150000
 
         # AMC/RTM serwb
-        serwb_pll = serwb.phy.SERWBPLL(125e6, 625e6, vco_div=2)
-        self.comb += serwb_pll.refclk.eq(self.crg.cd_sys.clk)
-        self.submodules += serwb_pll
-
         serwb_pads = platform.request("amc_rtm_serwb")
-        serwb_phy_amc = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="master")
+        serwb_phy_amc = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="master")
         self.submodules.serwb_phy_amc = serwb_phy_amc
         self.csr_devices.append("serwb_phy_amc")
-
-        serwb_phy_amc.serdes.cd_serwb_serdes.clk.attr.add("keep")
-        serwb_phy_amc.serdes.cd_serwb_serdes_5x.clk.attr.add("keep")
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            serwb_phy_amc.serdes.cd_serwb_serdes.clk,
-            serwb_phy_amc.serdes.cd_serwb_serdes_5x.clk)
 
         serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave", with_scrambling=True)
         self.submodules += serwb_core

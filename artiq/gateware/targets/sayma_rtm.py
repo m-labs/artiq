@@ -21,35 +21,48 @@ from artiq import __version__ as artiq_version
 
 class CRG(Module):
     def __init__(self, platform):
+        self.clock_domains.cd_sys0p2x = ClockDomain()
         self.clock_domains.cd_sys = ClockDomain()
+        self.clock_domains.cd_sys4x = ClockDomain()
         self.clock_domains.cd_clk200 = ClockDomain()
 
-        clk50 = platform.request("clk50")
-        self.reset = Signal()
+        self.serwb_refclk = Signal()
 
         pll_locked = Signal()
         pll_fb = Signal()
+        pll_sys0p2x = Signal()
         pll_sys = Signal()
+        pll_sys4x = Signal()
         pll_clk200 = Signal()
         self.specials += [
             Instance("PLLE2_BASE",
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                      # VCO @ 1GHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                     p_CLKFBOUT_MULT=20, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk50, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                     p_CLKFBOUT_MULT=10, p_DIVCLK_DIVIDE=1,
+                     i_CLKIN1=self.serwb_refclk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+
+                     # 25MHz
+                     p_CLKOUT0_DIVIDE=40, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys0p2x,
 
                      # 125MHz
-                     p_CLKOUT0_DIVIDE=8, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys,
+                     p_CLKOUT1_DIVIDE=8, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=pll_sys,
+
+                     # 500MHz
+                     p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=0.0, o_CLKOUT2=pll_sys4x,
 
                      # 200MHz
                      p_CLKOUT3_DIVIDE=5, p_CLKOUT3_PHASE=0.0, o_CLKOUT3=pll_clk200
             ),
+            Instance("BUFG", i_I=pll_sys0p2x, o_O=self.cd_sys0p2x.clk),
             Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
+            Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | self.reset),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | self.reset)
+            AsyncResetSynchronizer(self.cd_sys0p2x, ~pll_locked),
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked),
+            AsyncResetSynchronizer(self.cd_sys4x, ~pll_locked),
+            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked)
         ]
 
         reset_counter = Signal(4, reset=15)
@@ -148,22 +161,12 @@ class SaymaRTM(Module):
         self.comb += platform.request("hmc7043_reset").eq(0)
 
         # AMC/RTM serwb
-        serwb_pll = serwb.phy.SERWBPLL(62.5e6, 625e6, vco_div=1)
-        self.submodules += serwb_pll
-
         serwb_pads = platform.request("amc_rtm_serwb")
-        platform.add_period_constraint(serwb_pads.clk_p, 16.)
+        platform.add_period_constraint(serwb_pads.clk_p, 10.)
         serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pll, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
-        self.comb += self.crg.reset.eq(serwb_phy_rtm.init.reset)
+        self.comb += self.crg.serwb_refclk.eq(serwb_phy.serdes.refclk)
         csr_devices.append("serwb_phy_rtm")
-
-        serwb_phy_rtm.serdes.cd_serwb_serdes.clk.attr.add("keep")
-        serwb_phy_rtm.serdes.cd_serwb_serdes_5x.clk.attr.add("keep")
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            serwb_phy_rtm.serdes.cd_serwb_serdes.clk,
-            serwb_phy_rtm.serdes.cd_serwb_serdes_5x.clk)
 
         serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master", with_scrambling=True)
         self.submodules += serwb_core
