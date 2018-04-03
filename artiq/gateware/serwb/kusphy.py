@@ -7,7 +7,10 @@ from misoc.cores.code_8b10b import Encoder, Decoder
 
 
 class KUSSerdes(Module):
-    def __init__(self, pll, pads, mode="master"):
+    def __init__(self, pads, mode="master"):
+        if mode == "slave":
+            self.refclk = Signal()
+
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
         self.rx_k = Signal(4)
@@ -26,29 +29,18 @@ class KUSSerdes(Module):
 
         # # #
 
-        self.submodules.encoder = ClockDomainsRenamer("serwb_serdes")(
+        self.submodules.encoder = ClockDomainsRenamer("sys0p2x")(
             Encoder(4, True))
-        self.decoders = [ClockDomainsRenamer("serwb_serdes")(
+        self.decoders = [ClockDomainsRenamer("sys0p2x")(
             Decoder(True)) for _ in range(4)]
         self.submodules += self.decoders
 
         # clocking:
 
         # In master mode:
-        # - linerate/10 pll refclk provided by user
-        # - linerate/10 slave refclk generated on clk_pads
+        # - linerate/10 refclk generated on clk_pads
         # In Slave mode:
-        # - linerate/10 pll refclk provided by clk_pads
-        self.clock_domains.cd_serwb_serdes = ClockDomain()
-        self.clock_domains.cd_serwb_serdes_5x = ClockDomain()
-        self.clock_domains.cd_serwb_serdes_20x = ClockDomain(reset_less=True)
-        self.comb += [
-            self.cd_serwb_serdes.clk.eq(pll.serwb_serdes_clk),
-            self.cd_serwb_serdes_5x.clk.eq(pll.serwb_serdes_5x_clk),
-            self.cd_serwb_serdes_20x.clk.eq(pll.serwb_serdes_20x_clk)
-        ]
-        self.specials += AsyncResetSynchronizer(self.cd_serwb_serdes, ~pll.lock)
-        self.comb += self.cd_serwb_serdes_5x.rst.eq(self.cd_serwb_serdes.rst)
+        # - linerate/10 refclk provided by clk_pads
 
         # control/status cdc
         tx_idle = Signal()
@@ -61,20 +53,20 @@ class KUSSerdes(Module):
         rx_delay_en_vtc = Signal()
         rx_delay_ce = Signal()
         self.specials += [
-            MultiReg(self.tx_idle, tx_idle, "serwb_serdes"),
-            MultiReg(self.tx_comma, tx_comma, "serwb_serdes"),
+            MultiReg(self.tx_idle, tx_idle, "sys0p2x"),
+            MultiReg(self.tx_comma, tx_comma, "sys0p2x"),
             MultiReg(rx_idle, self.rx_idle, "sys"),
             MultiReg(rx_comma, self.rx_comma, "sys"),
-            MultiReg(self.rx_bitslip_value, rx_bitslip_value, "serwb_serdes"),
-            MultiReg(self.rx_delay_inc, rx_delay_inc, "serwb_serdes_5x"),
-            MultiReg(self.rx_delay_en_vtc, rx_delay_en_vtc, "serwb_serdes_5x")
+            MultiReg(self.rx_bitslip_value, rx_bitslip_value, "sys0p2x"),
+            MultiReg(self.rx_delay_inc, rx_delay_inc, "sys"),
+            MultiReg(self.rx_delay_en_vtc, rx_delay_en_vtc, "sys")
         ]
-        self.submodules.do_rx_delay_rst = PulseSynchronizer("sys", "serwb_serdes_5x")
+        self.submodules.do_rx_delay_rst = PulseSynchronizer("sys", "sys")
         self.comb += [
             rx_delay_rst.eq(self.do_rx_delay_rst.o),
             self.do_rx_delay_rst.i.eq(self.rx_delay_rst)
         ]
-        self.submodules.do_rx_delay_ce = PulseSynchronizer("sys", "serwb_serdes_5x")
+        self.submodules.do_rx_delay_ce = PulseSynchronizer("sys", "sys")
         self.comb += [
             rx_delay_ce.eq(self.do_rx_delay_ce.o),
             self.do_rx_delay_ce.i.eq(self.rx_delay_ce)
@@ -82,7 +74,7 @@ class KUSSerdes(Module):
 
         # tx clock (linerate/10)
         if mode == "master":
-            self.submodules.tx_clk_gearbox = Gearbox(40, "serwb_serdes", 8, "serwb_serdes_5x")
+            self.submodules.tx_clk_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
             self.comb += self.tx_clk_gearbox.i.eq((0b1111100000 << 30) |
                                                   (0b1111100000 << 20) |
                                                   (0b1111100000 << 10) |
@@ -94,8 +86,8 @@ class KUSSerdes(Module):
                     p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
                     o_OQ=clk_o,
-                    i_RST=ResetSignal("serwb_serdes"),
-                    i_CLK=ClockSignal("serwb_serdes_20x"), i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                    i_RST=ResetSignal("sys"),
+                    i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
                     i_D=self.tx_clk_gearbox.o
                 ),
                 Instance("OBUFDS",
@@ -107,7 +99,7 @@ class KUSSerdes(Module):
 
         # tx datapath
         # tx_data -> encoders -> gearbox -> serdes
-        self.submodules.tx_gearbox = Gearbox(40, "serwb_serdes", 8, "serwb_serdes_5x")
+        self.submodules.tx_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
         self.comb += [
             If(tx_comma,
                 self.encoder.k[0].eq(1),
@@ -123,7 +115,7 @@ class KUSSerdes(Module):
                 self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
-        self.sync.serwb_serdes += \
+        self.sync.sys0p2x += \
             If(tx_idle,
                 self.tx_gearbox.i.eq(0)
             ).Else(
@@ -137,8 +129,8 @@ class KUSSerdes(Module):
                 p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
                 o_OQ=serdes_o,
-                i_RST=ResetSignal("serwb_serdes"),
-                i_CLK=ClockSignal("serwb_serdes_20x"), i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                i_RST=ResetSignal("sys"),
+                i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
                 i_D=self.tx_gearbox.o
             ),
             Instance("OBUFDS",
@@ -168,12 +160,12 @@ class KUSSerdes(Module):
                 ]
             else:
                 self.specials += Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg)
-            self.comb += pll.refclk.eq(clk_i_bufg)
+            self.comb += self.refclk.eq(clk_i_bufg)
 
         # rx datapath
         # serdes -> gearbox -> bitslip -> decoders -> rx_data
-        self.submodules.rx_gearbox = Gearbox(8, "serwb_serdes_5x", 40, "serwb_serdes")
-        self.submodules.rx_bitslip = ClockDomainsRenamer("serwb_serdes")(BitSlip(40))
+        self.submodules.rx_gearbox = Gearbox(8, "sys", 40, "sys0p2x")
+        self.submodules.rx_bitslip = ClockDomainsRenamer("sys0p2x")(BitSlip(40))
 
         serdes_i_nodelay = Signal()
         self.specials += [
@@ -193,7 +185,7 @@ class KUSSerdes(Module):
                 p_DELAY_FORMAT="COUNT", p_DELAY_SRC="IDATAIN",
                 p_DELAY_TYPE="VARIABLE", p_DELAY_VALUE=0,
 
-                i_CLK=ClockSignal("serwb_serdes_5x"),
+                i_CLK=ClockSignal("sys"),
                 i_RST=rx_delay_rst, i_LOAD=0,
                 i_INC=rx_delay_inc, i_EN_VTC=rx_delay_en_vtc,
                 i_CE=rx_delay_ce,
@@ -206,11 +198,11 @@ class KUSSerdes(Module):
                 p_DATA_WIDTH=8,
 
                 i_D=serdes_i_delayed,
-                i_RST=ResetSignal("serwb_serdes"),
+                i_RST=ResetSignal("sys"),
                 i_FIFO_RD_CLK=0, i_FIFO_RD_EN=0,
-                i_CLK=ClockSignal("serwb_serdes_20x"),
-                i_CLK_B=ClockSignal("serwb_serdes_20x"), # locally inverted
-                i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                i_CLK=ClockSignal("sys4x"),
+                i_CLK_B=ClockSignal("sys4x"), # locally inverted
+                i_CLKDIV=ClockSignal("sys"),
                 o_Q=serdes_q
             )
         ]

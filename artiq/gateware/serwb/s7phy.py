@@ -7,7 +7,10 @@ from misoc.cores.code_8b10b import Encoder, Decoder
 
 
 class S7Serdes(Module):
-    def __init__(self, pll, pads, mode="master"):
+    def __init__(self, pads, mode="master"):
+        if mode == "slave":
+            self.refclk = Signal()
+
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
         self.rx_k = Signal(4)
@@ -25,29 +28,18 @@ class S7Serdes(Module):
 
         # # #
 
-        self.submodules.encoder = ClockDomainsRenamer("serwb_serdes")(
+        self.submodules.encoder = ClockDomainsRenamer("sys0p2x")(
             Encoder(4, True))
-        self.decoders = [ClockDomainsRenamer("serwb_serdes")(
+        self.decoders = [ClockDomainsRenamer("sys0p2x")(
             Decoder(True)) for _ in range(4)]
         self.submodules += self.decoders
 
         # clocking:
 
         # In master mode:
-        # - linerate/10 pll refclk provided by user
         # - linerate/10 slave refclk generated on clk_pads
         # In Slave mode:
-        # - linerate/10 pll refclk provided by clk_pads
-        self.clock_domains.cd_serwb_serdes = ClockDomain()
-        self.clock_domains.cd_serwb_serdes_5x = ClockDomain()
-        self.clock_domains.cd_serwb_serdes_20x = ClockDomain(reset_less=True)
-        self.comb += [
-            self.cd_serwb_serdes.clk.eq(pll.serwb_serdes_clk),
-            self.cd_serwb_serdes_5x.clk.eq(pll.serwb_serdes_5x_clk),
-            self.cd_serwb_serdes_20x.clk.eq(pll.serwb_serdes_20x_clk)
-        ]
-        self.specials += AsyncResetSynchronizer(self.cd_serwb_serdes, ~pll.lock)
-        self.comb += self.cd_serwb_serdes_5x.rst.eq(self.cd_serwb_serdes.rst)
+        # - linerate/10 refclk provided by clk_pads
 
         # control/status cdc
         tx_idle = Signal()
@@ -56,16 +48,16 @@ class S7Serdes(Module):
         rx_comma = Signal()
         rx_bitslip_value = Signal(6)
         self.specials += [
-            MultiReg(self.tx_idle, tx_idle, "serwb_serdes"),
-            MultiReg(self.tx_comma, tx_comma, "serwb_serdes"),
+            MultiReg(self.tx_idle, tx_idle, "sys0p2x"),
+            MultiReg(self.tx_comma, tx_comma, "sys0p2x"),
             MultiReg(rx_idle, self.rx_idle, "sys"),
             MultiReg(rx_comma, self.rx_comma, "sys")
         ]
-        self.specials += MultiReg(self.rx_bitslip_value, rx_bitslip_value, "serwb_serdes"),
+        self.specials += MultiReg(self.rx_bitslip_value, rx_bitslip_value, "sys0p2x"),
 
         # tx clock (linerate/10)
         if mode == "master":
-            self.submodules.tx_clk_gearbox = Gearbox(40, "serwb_serdes", 8, "serwb_serdes_5x")
+            self.submodules.tx_clk_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
             self.comb += self.tx_clk_gearbox.i.eq((0b1111100000 << 30) |
                                                   (0b1111100000 << 20) |
                                                   (0b1111100000 << 10) |
@@ -79,8 +71,8 @@ class S7Serdes(Module):
 
                     o_OQ=clk_o,
                     i_OCE=1,
-                    i_RST=ResetSignal("serwb_serdes"),
-                    i_CLK=ClockSignal("serwb_serdes_20x"), i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                    i_RST=ResetSignal("sys"),
+                    i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
                     i_D1=self.tx_clk_gearbox.o[0], i_D2=self.tx_clk_gearbox.o[1],
                     i_D3=self.tx_clk_gearbox.o[2], i_D4=self.tx_clk_gearbox.o[3],
                     i_D5=self.tx_clk_gearbox.o[4], i_D6=self.tx_clk_gearbox.o[5],
@@ -95,7 +87,7 @@ class S7Serdes(Module):
 
         # tx datapath
         # tx_data -> encoders -> gearbox -> serdes
-        self.submodules.tx_gearbox = Gearbox(40, "serwb_serdes", 8, "serwb_serdes_5x")
+        self.submodules.tx_gearbox = Gearbox(40, "sys0p2x", 8, "sys")
         self.comb += [
             If(tx_comma,
                 self.encoder.k[0].eq(1),
@@ -111,7 +103,7 @@ class S7Serdes(Module):
                 self.encoder.d[3].eq(self.tx_d[24:32])
             )
         ]
-        self.sync.serwb_serdes += \
+        self.sync.sys0p2x += \
             If(tx_idle,
                 self.tx_gearbox.i.eq(0)
             ).Else(
@@ -127,8 +119,8 @@ class S7Serdes(Module):
 
                 o_OQ=serdes_o,
                 i_OCE=1,
-                i_RST=ResetSignal("serwb_serdes"),
-                i_CLK=ClockSignal("serwb_serdes_20x"), i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                i_RST=ResetSignal("sys"),
+                i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
                 i_D1=self.tx_gearbox.o[0], i_D2=self.tx_gearbox.o[1],
                 i_D3=self.tx_gearbox.o[2], i_D4=self.tx_gearbox.o[3],
                 i_D5=self.tx_gearbox.o[4], i_D6=self.tx_gearbox.o[5],
@@ -161,12 +153,12 @@ class S7Serdes(Module):
                 ]
             else:
                 self.specials += Instance("BUFG", i_I=clk_i, o_O=clk_i_bufg)
-            self.comb += pll.refclk.eq(clk_i_bufg)
+            self.comb += self.refclk.eq(clk_i_bufg)
 
         # rx datapath
         # serdes -> gearbox -> bitslip -> decoders -> rx_data
-        self.submodules.rx_gearbox = Gearbox(8, "serwb_serdes_5x", 40, "serwb_serdes")
-        self.submodules.rx_bitslip = ClockDomainsRenamer("serwb_serdes")(BitSlip(40))
+        self.submodules.rx_gearbox = Gearbox(8, "sys", 40, "sys0p2x")
+        self.submodules.rx_bitslip = ClockDomainsRenamer("sys0p2x")(BitSlip(40))
 
         serdes_i_nodelay = Signal()
         self.specials += [
@@ -200,9 +192,9 @@ class S7Serdes(Module):
 
                 i_DDLY=serdes_i_delayed,
                 i_CE1=1,
-                i_RST=ResetSignal("serwb_serdes"),
-                i_CLK=ClockSignal("serwb_serdes_20x"), i_CLKB=~ClockSignal("serwb_serdes_20x"),
-                i_CLKDIV=ClockSignal("serwb_serdes_5x"),
+                i_RST=ResetSignal("sys"),
+                i_CLK=ClockSignal("sys4x"), i_CLKB=~ClockSignal("sys4x"),
+                i_CLKDIV=ClockSignal("sys"),
                 i_BITSLIP=0,
                 o_Q8=serdes_q[0], o_Q7=serdes_q[1],
                 o_Q6=serdes_q[2], o_Q5=serdes_q[3],

@@ -154,7 +154,6 @@ class _SerdesMasterInit(Module):
 
 class _SerdesSlaveInit(Module, AutoCSR):
     def __init__(self, serdes, taps, timeout=4096):
-        self.reset = Signal()
         self.ready = Signal()
         self.error = Signal()
 
@@ -170,11 +169,10 @@ class _SerdesSlaveInit(Module, AutoCSR):
         timer = WaitTimer(timeout)
         self.submodules += timer
 
-        self.comb += self.reset.eq(serdes.rx_idle)
-
         self.comb += serdes.rx_delay_inc.eq(1)
 
-        self.submodules.fsm = fsm = FSM(reset_state="IDLE")
+        self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
+        self.comb += fsm.reset.eq(serdes.rx_idle)
         fsm.act("IDLE",
             NextValue(delay, 0),
             NextValue(delay_min, 0),
@@ -311,74 +309,16 @@ class _SerdesControl(Module, AutoCSR):
         ]
 
 
-class SERWBPLL(Module):
-    def __init__(self, refclk_freq, linerate, vco_div=1):
-        assert refclk_freq in [62.5e6, 125e6]
-        assert linerate in [625e6, 1.25e9]
-
-        self.lock = Signal()
-        self.refclk = Signal()
-        self.serwb_serdes_clk = Signal()
-        self.serwb_serdes_20x_clk = Signal()
-        self.serwb_serdes_5x_clk = Signal()
-
-        # # #
-
-        self.linerate = linerate
-
-        refclk_mult = 125e6//refclk_freq
-        linerate_div = 1.25e9//linerate
-
-        pll_locked = Signal()
-        pll_fb = Signal()
-        pll_serwb_serdes_clk = Signal()
-        pll_serwb_serdes_20x_clk = Signal()
-        pll_serwb_serdes_5x_clk = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-
-                # VCO @ 1.25GHz / vco_div
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0*refclk_mult,
-                p_CLKFBOUT_MULT=10*refclk_mult, p_DIVCLK_DIVIDE=vco_div,
-                i_CLKIN1=self.refclk, i_CLKFBIN=pll_fb,
-                o_CLKFBOUT=pll_fb,
-
-                # serwb_serdes
-                p_CLKOUT0_DIVIDE=linerate_div*40//vco_div, p_CLKOUT0_PHASE=0.0,
-                o_CLKOUT0=pll_serwb_serdes_clk,
-
-                # serwb_serdes_20x
-                p_CLKOUT1_DIVIDE=linerate_div*2//vco_div, p_CLKOUT1_PHASE=0.0,
-                o_CLKOUT1=pll_serwb_serdes_20x_clk,
-
-                # serwb_serdes_5x
-                p_CLKOUT2_DIVIDE=linerate_div*8//vco_div, p_CLKOUT2_PHASE=0.0,
-                o_CLKOUT2=pll_serwb_serdes_5x_clk
-            ),
-            Instance("BUFG", 
-                i_I=pll_serwb_serdes_clk, 
-                o_O=self.serwb_serdes_clk),
-            Instance("BUFG",
-                i_I=pll_serwb_serdes_20x_clk,
-                o_O=self.serwb_serdes_20x_clk),
-            Instance("BUFG",
-                i_I=pll_serwb_serdes_5x_clk,
-                o_O=self.serwb_serdes_5x_clk)
-        ]
-        self.specials += MultiReg(pll_locked, self.lock)
-
-
 class SERWBPHY(Module, AutoCSR):
-    cd = "serwb_serdes"
-    def __init__(self, device, pll, pads, mode="master"):
+    cd = "sys0p2x"
+    def __init__(self, device, pads, mode="master"):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
-            self.submodules.serdes = KUSSerdes(pll, pads, mode)
+            self.submodules.serdes = KUSSerdes(pads, mode)
         elif device[:4] == "xc7a":
             taps = 32
-            self.submodules.serdes = S7Serdes(pll, pads, mode)
+            self.submodules.serdes = S7Serdes(pads, mode)
         else:
             raise NotImplementedError
         if mode == "master":
