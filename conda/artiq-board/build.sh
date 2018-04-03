@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SOC_PREFIX=$SP_DIR/artiq/binaries/${ARTIQ_TARGET}-${ARTIQ_VARIANT}
 mkdir -p ${SOC_PREFIX}
 

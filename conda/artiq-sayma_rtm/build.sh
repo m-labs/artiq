@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 SOC_PREFIX=$SP_DIR/artiq/binaries/sayma_rtm
 mkdir -p $SOC_PREFIX
 
