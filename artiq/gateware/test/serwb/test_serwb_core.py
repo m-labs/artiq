@@ -11,32 +11,39 @@ from misoc.interconnect.wishbone import SRAM
 
 class FakeInit(Module):
     def __init__(self):
-        self.ready = 1
+        self.ready = Signal(reset=1)
 
 
 class FakeSerdes(Module):
     def __init__(self):
+        self.tx_ce = Signal()
         self.tx_k = Signal(4)
         self.tx_d = Signal(32)
+        self.rx_ce = Signal()
         self.rx_k = Signal(4)
         self.rx_d = Signal(32)
 
+        # # #
+
+        data_ce = Signal(5, reset=0b00001)
+        self.sync += data_ce.eq(Cat(data_ce[1:], data_ce[0]))
+
+        self.comb += [
+            self.tx_ce.eq(data_ce[0]),
+            self.rx_ce.eq(data_ce[0])
+        ]
 
 class FakePHY(Module):
-    cd = "sys"
     def __init__(self):
-        self.init = FakeInit()
-        self.serdes = FakeSerdes()
+        self.submodules.init = FakeInit()
+        self.submodules.serdes = FakeSerdes()
 
 
 class DUTScrambler(Module):
     def __init__(self):
         self.submodules.scrambler = scrambler.Scrambler(sync_interval=16)
         self.submodules.descrambler = scrambler.Descrambler()
-        self.comb += [
-            self.scrambler.source.connect(self.descrambler.sink),
-            self.descrambler.source.ack.eq(1)
-        ]
+        self.comb += self.scrambler.source.connect(self.descrambler.sink)
 
 
 class DUTCore(Module):
@@ -53,8 +60,11 @@ class DUTCore(Module):
 
         # connect phy
         self.comb += [
+            phy_master.serdes.rx_ce.eq(phy_slave.serdes.tx_ce),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
             phy_master.serdes.rx_d.eq(phy_slave.serdes.tx_d),
+            
+            phy_slave.serdes.rx_ce.eq(phy_master.serdes.tx_ce),
             phy_slave.serdes.rx_k.eq(phy_master.serdes.tx_k),
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)
         ]
@@ -70,16 +80,21 @@ class DUTCore(Module):
 class TestSERWBCore(unittest.TestCase):
     def test_scrambler(self):
         def generator(dut):
+            # prepare test
+            prng = random.Random(42)
             i = 0
             last_data = -1
+            # test loop
             while i != 256:
                 # stim
-                if (yield dut.scrambler.sink.ack):
+                yield dut.scrambler.sink.valid.eq(1)
+                if (yield dut.scrambler.sink.valid) & (yield dut.scrambler.sink.ready):
                     i += 1
                 yield dut.scrambler.sink.data.eq(i)
 
                 # check
-                if (yield dut.descrambler.source.stb):
+                yield dut.descrambler.source.ready.eq(prng.randrange(2))
+                if (yield dut.descrambler.source.valid) & (yield dut.descrambler.source.ready):
                     current_data = (yield dut.descrambler.source.data)
                     if (current_data != (last_data + 1)):
                         dut.errors += 1

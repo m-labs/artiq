@@ -17,7 +17,6 @@ class SerdesModel(Module):
         self.rx_bitslip_value = Signal(6)
         self.rx_delay_rst = Signal()
         self.rx_delay_inc = Signal()
-        self.rx_delay_ce = Signal()
 
         self.valid_bitslip = Signal(6)
         self.valid_delays = Signal(taps)
@@ -35,7 +34,7 @@ class SerdesModel(Module):
             bitslip.eq(self.rx_bitslip_value),
             If(self.rx_delay_rst,
                 delay.eq(0)
-            ).Elif(self.rx_delay_inc & self.rx_delay_ce,
+            ).Elif(self.rx_delay_inc,
                 delay.eq(delay + 1)
             )
         ]
@@ -123,16 +122,6 @@ class TestSERWBInit(unittest.TestCase):
         run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, True))
 
     def test_master_init_failure(self):
-        # partial window at the beginning
-        dut = DUTMaster()
-        valid_bitslip = 2
-        valid_delays = 0b11000000000000000000000000000000
-        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, False))
-        # partial window at the end
-        dut = DUTMaster()
-        valid_bitslip = 2
-        valid_delays = 0b00000000000000000000000000000011
-        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, False))
         # too small window
         dut = DUTMaster()
         valid_bitslip = 2
@@ -146,16 +135,6 @@ class TestSERWBInit(unittest.TestCase):
         run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, True))
 
     def test_slave_init_failure(self):
-        # partial window at the beginning
-        dut = DUTSlave()
-        valid_bitslip = 2
-        valid_delays = 0b11000000000000000000000000000000
-        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, False))
-        # partial window at the end
-        dut = DUTSlave()
-        valid_bitslip = 2
-        valid_delays = 0b00000000000000000000000000000011
-        run_simulation(dut, generator(self, dut, valid_bitslip, valid_delays, False))
         # too small window
         dut = DUTSlave()
         valid_bitslip = 2
