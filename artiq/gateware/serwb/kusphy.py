@@ -53,9 +53,9 @@ class KUSSerdes(Module):
             clk_converter = stream.Converter(40, 8)
             self.submodules += clk_converter
             self.comb += [
-                clk_converter.sink.valid.eq(1),
+                clk_converter.sink.stb.eq(1),
                 clk_converter.sink.data.eq(Replicate(Signal(10, reset=0b1111100000), 4)),
-                clk_converter.source.ready.eq(1)
+                clk_converter.source.ack.eq(1)
             ]
             clk_o = Signal()
             self.specials += [
@@ -80,9 +80,9 @@ class KUSSerdes(Module):
         # tx_data -> encoders -> converter -> serdes
         self.submodules.tx_converter = tx_converter = stream.Converter(40, 8)
         self.comb += [
-        	tx_converter.sink.valid.eq(1),
-        	self.tx_ce.eq(tx_converter.sink.ready),
-        	tx_converter.source.ready.eq(1),
+        	tx_converter.sink.stb.eq(1),
+        	self.tx_ce.eq(tx_converter.sink.ack),
+        	tx_converter.source.ack.eq(1),
             If(self.tx_idle,
                 tx_converter.sink.data.eq(0)
             ).Else(
@@ -148,8 +148,8 @@ class KUSSerdes(Module):
         # serdes -> converter -> bitslip -> decoders -> rx_data
         self.submodules.rx_converter = rx_converter = stream.Converter(8, 40)
         self.comb += [
-            self.rx_ce.eq(rx_converter.source.valid),
-            rx_converter.source.ready.eq(1)
+            self.rx_ce.eq(rx_converter.source.stb),
+            rx_converter.source.ack.eq(1)
         ]
         self.submodules.rx_bitslip = rx_bitslip = CEInserter()(BitSlip(40))
         self.comb += rx_bitslip.ce.eq(self.rx_ce)
@@ -195,7 +195,7 @@ class KUSSerdes(Module):
         ]
 
         self.comb += [
-            rx_converter.sink.valid.eq(1),
+            rx_converter.sink.stb.eq(1),
             rx_converter.sink.data.eq(serdes_q),
             rx_bitslip.value.eq(self.rx_bitslip_value),
             rx_bitslip.i.eq(rx_converter.source.data),
