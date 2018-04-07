@@ -63,7 +63,7 @@ class DUTCore(Module):
             phy_master.serdes.rx_ce.eq(phy_slave.serdes.tx_ce),
             phy_master.serdes.rx_k.eq(phy_slave.serdes.tx_k),
             phy_master.serdes.rx_d.eq(phy_slave.serdes.tx_d),
-            
+
             phy_slave.serdes.rx_ce.eq(phy_master.serdes.tx_ce),
             phy_slave.serdes.rx_k.eq(phy_master.serdes.tx_k),
             phy_slave.serdes.rx_d.eq(phy_master.serdes.tx_d)
@@ -87,14 +87,14 @@ class TestSERWBCore(unittest.TestCase):
             # test loop
             while i != 256:
                 # stim
-                yield dut.scrambler.sink.valid.eq(1)
-                if (yield dut.scrambler.sink.valid) & (yield dut.scrambler.sink.ready):
+                yield dut.scrambler.sink.stb.eq(1)
+                if (yield dut.scrambler.sink.stb) & (yield dut.scrambler.sink.ack):
                     i += 1
                 yield dut.scrambler.sink.data.eq(i)
 
                 # check
-                yield dut.descrambler.source.ready.eq(prng.randrange(2))
-                if (yield dut.descrambler.source.valid) & (yield dut.descrambler.source.ready):
+                yield dut.descrambler.source.ack.eq(prng.randrange(2))
+                if (yield dut.descrambler.source.stb) & (yield dut.descrambler.source.ack):
                     current_data = (yield dut.descrambler.source.data)
                     if (current_data != (last_data + 1)):
                         dut.errors += 1
