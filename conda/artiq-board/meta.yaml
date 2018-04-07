@@ -18,12 +18,11 @@ outputs:
     noarch: generic
     files:
       - lib
-
-requirements:
-  build:
-    - artiq-dev {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
-  run:
-    - artiq {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
+    requirements:
+      build:
+        - artiq-dev {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
+      run:
+        - artiq {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
 
 about:
   home: https://m-labs.hk/artiq
