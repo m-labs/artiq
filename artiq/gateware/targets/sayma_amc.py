@@ -174,7 +174,7 @@ class Standalone(MiniSoC, AMPSoC):
         self.submodules.serwb_phy_amc = serwb_phy_amc
         self.csr_devices.append("serwb_phy_amc")
 
-        serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave", with_scrambling=True)
+        serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave", with_scrambling=False)
         self.submodules += serwb_core
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
