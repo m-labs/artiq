@@ -11,6 +11,7 @@ def K(x, y):
 
 
 @ResetInserter()
+@CEInserter()
 class _Scrambler(Module):
     def __init__(self, n_io, n_state=23, taps=[17, 22]):
         self.i = Signal(n_io)
@@ -38,26 +39,35 @@ class Scrambler(Module):
 
         if enable:
             # scrambler
-            scrambler = _Scrambler(32)
-            self.submodules += scrambler
-            self.comb += scrambler.i.eq(sink.data)
+            self.submodules.scrambler = scrambler = _Scrambler(32)
 
             # insert K.29.7 as sync character
             # every sync_interval cycles
             count = Signal(max=sync_interval)
-            self.sync += count.eq(count + 1)
-            self.comb += [
-                If(count == 0,
-                    scrambler.reset.eq(1),
-                    source.stb.eq(1),
-                    source.k[0].eq(1),
-                    source.d[:8].eq(K(29, 7))
-                ).Else(
-                    sink.ack.eq(source.ack),
-                    source.stb.eq(sink.stb),
-                    source.d.eq(scrambler.o)
+            self.submodules.fsm = fsm = FSM(reset_state="SYNC")
+            fsm.act("SYNC",
+                scrambler.reset.eq(1),
+                source.stb.eq(1),
+                source.k[0].eq(1),
+                source.d[:8].eq(K(29, 7)),
+                NextValue(count, 0),
+                If(source.ack,
+                    NextState("DATA")
                 )
-            ]
+            )
+            fsm.act("DATA",
+                scrambler.i.eq(sink.data),
+                sink.ack.eq(source.ack),
+                source.stb.eq(1),
+                source.d.eq(scrambler.o),
+                If(source.stb & source.ack,
+                    scrambler.ce.eq(1),
+                    NextValue(count, count + 1),
+                    If(count == (sync_interval - 1),
+                        NextState("SYNC")
+                    )
+                )
+            )
         else:
             self.comb += [
                 sink.connect(source, omit={"data"}),
@@ -75,8 +85,7 @@ class Descrambler(Module):
 
         if enable:
             # descrambler
-            descrambler = _Scrambler(32)
-            self.submodules += descrambler
+            self.submodules.descrambler = descrambler = _Scrambler(32)
             self.comb += descrambler.i.eq(sink.d)
 
             # detect K29.7 and synchronize descrambler
@@ -89,7 +98,10 @@ class Descrambler(Module):
                 ).Else(
                     sink.ack.eq(source.ack),
                     source.stb.eq(sink.stb),
-                    source.data.eq(descrambler.o)
+                    source.data.eq(descrambler.o),
+                	If(source.stb & source.ack,
+                		descrambler.ce.eq(1)
+                	)
                 )
             ]
         else:
