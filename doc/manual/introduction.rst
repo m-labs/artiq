@@ -10,7 +10,7 @@ It is maintained and developed by `M-Labs <https://m-labs.hk>`_ and the initial 
 
 The system features a high-level programming language that helps describing complex experiments, which is compiled and executed on dedicated hardware with nanosecond timing resolution and sub-microsecond latency. It includes graphical user interfaces to parametrize and schedule experiments and to visualize and explore the results.
 
-ARTIQ uses FPGA hardware to perform its time-critical tasks. The `Sinara hardware <https://github.com/sinara-hw>`_, and in particular the Kasli FPGA carrier, is designed to work with ARTIQ.
+ARTIQ uses FPGA hardware to perform its time-critical tasks. The `Sinara hardware <https://github.com/sinara-hw>`_, and in particular the Kasli FPGA carrier, is designed to work with ARTIQ (support for Sinara is available in ARTIQ-4 and above).
 ARTIQ is designed to be portable to hardware platforms from different vendors and FPGA manufacturers.
 Several different configurations of a `high-end FPGA evaluation kit <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ are also used and supported. FPGA platforms can be combined with any number of additional peripherals, either already accessible from ARTIQ or made accessible with little effort.
 
