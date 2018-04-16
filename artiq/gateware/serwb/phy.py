@@ -317,14 +317,14 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master"):
+    def __init__(self, device, pads, mode="master", phy_width=8):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
-            self.submodules.serdes = KUSSerdes(pads, mode)
+            self.submodules.serdes = KUSSerdes(pads, mode, phy_width)
         elif device[:4] == "xc7a":
             taps = 32
-            self.submodules.serdes = S7Serdes(pads, mode)
+            self.submodules.serdes = S7Serdes(pads, mode, phy_width)
         else:
             raise NotImplementedError
         if mode == "master":

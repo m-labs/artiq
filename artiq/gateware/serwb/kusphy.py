@@ -12,7 +12,8 @@ def K(x, y):
 
 @ResetInserter()
 class KUSSerdes(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads, mode="master", phy_width=8):
+        assert phy_width in [2, 4, 8]
         if mode == "slave":
             self.refclk = Signal()
 
@@ -78,7 +79,7 @@ class KUSSerdes(Module):
 
         # tx datapath
         # tx_data -> encoders -> converter -> serdes
-        self.submodules.tx_converter = tx_converter = stream.Converter(40, 8)
+        self.submodules.tx_converter = tx_converter = stream.Converter(40, phy_width)
         self.comb += [
         	tx_converter.sink.stb.eq(1),
         	self.tx_ce.eq(tx_converter.sink.ack),
@@ -105,6 +106,22 @@ class KUSSerdes(Module):
         ]
 
         serdes_o = Signal()
+        serdes_d = Signal(8)
+        if phy_width == 2:
+            self.comb += [
+                serdes_d[0:4].eq(Replicate(tx_converter.source.data[0], 4)),
+                serdes_d[4:8].eq(Replicate(tx_converter.source.data[1], 4))
+            ]
+        elif phy_width == 4:
+            self.comb += [
+                serdes_d[0:2].eq(Replicate(tx_converter.source.data[0], 2)),
+                serdes_d[2:4].eq(Replicate(tx_converter.source.data[1], 2)),
+                serdes_d[4:6].eq(Replicate(tx_converter.source.data[2], 2)),
+                serdes_d[6:8].eq(Replicate(tx_converter.source.data[3], 2))
+            ]
+        else:
+            self.comb += serdes_d.eq(tx_converter.source.data)
+
         self.specials += [
             Instance("OSERDESE3",
                 p_DATA_WIDTH=8, p_INIT=0,
@@ -113,7 +130,7 @@ class KUSSerdes(Module):
                 o_OQ=serdes_o,
                 i_RST=ResetSignal("sys"),
                 i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
-                i_D=tx_converter.source.data
+                i_D=serdes_d
             ),
             Instance("OBUFDS",
                 i_I=serdes_o,
@@ -146,7 +163,7 @@ class KUSSerdes(Module):
 
         # rx datapath
         # serdes -> converter -> bitslip -> decoders -> rx_data
-        self.submodules.rx_converter = rx_converter = stream.Converter(8, 40)
+        self.submodules.rx_converter = rx_converter = stream.Converter(phy_width, 40)
         self.comb += [
             self.rx_ce.eq(rx_converter.source.stb),
             rx_converter.source.ack.eq(1)
@@ -194,9 +211,23 @@ class KUSSerdes(Module):
             )
         ]
 
+        self.comb += rx_converter.sink.stb.eq(1)
+        if phy_width == 2:
+            self.comb += [
+                rx_converter.sink.data[0].eq(serdes_q[0]),
+                rx_converter.sink.data[1].eq(serdes_q[4])
+            ]
+        elif phy_width == 4:
+            self.comb += [
+                rx_converter.sink.data[0].eq(serdes_q[0]),
+                rx_converter.sink.data[1].eq(serdes_q[2]),
+                rx_converter.sink.data[2].eq(serdes_q[4]),
+                rx_converter.sink.data[3].eq(serdes_q[6]),
+            ]
+        else:
+            self.comb += rx_converter.sink.data.eq(serdes_q)
+
         self.comb += [
-            rx_converter.sink.stb.eq(1),
-            rx_converter.sink.data.eq(serdes_q),
             rx_bitslip.value.eq(self.rx_bitslip_value),
             rx_bitslip.i.eq(rx_converter.source.data),
             decoders[0].input.eq(rx_bitslip.o[0:10]),
