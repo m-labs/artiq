@@ -161,7 +161,7 @@ class SaymaRTM(Module):
         self.comb += self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.refclk)
         csr_devices.append("serwb_phy_rtm")
 
-        serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master", with_scrambling=False)
+        serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master", with_scrambling=True)
         self.submodules += serwb_core
 
         # process CSR devices and connect them to serwb
