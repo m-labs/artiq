@@ -170,11 +170,11 @@ class Standalone(MiniSoC, AMPSoC):
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
-        serwb_phy_amc = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="master", phy_width=4)
+        serwb_phy_amc = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="master")
         self.submodules.serwb_phy_amc = serwb_phy_amc
         self.csr_devices.append("serwb_phy_amc")
 
-        serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave", with_scrambling=True)
+        serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave")
         self.submodules += serwb_core
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 

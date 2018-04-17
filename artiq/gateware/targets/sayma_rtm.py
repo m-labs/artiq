@@ -26,6 +26,7 @@ class CRG(Module):
         self.clock_domains.cd_clk200 = ClockDomain()
 
         self.serwb_refclk = Signal()
+        self.serwb_reset = Signal()
 
         pll_locked = Signal()
         pll_fb = Signal()
@@ -53,9 +54,9 @@ class CRG(Module):
             Instance("BUFG", i_I=pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked),
-            AsyncResetSynchronizer(self.cd_sys4x, ~pll_locked),
-            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked)
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | self.serwb_reset),
+            AsyncResetSynchronizer(self.cd_sys4x, ~pll_locked | self.serwb_reset),
+            AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | self.serwb_reset)
         ]
 
         reset_counter = Signal(4, reset=15)
@@ -156,12 +157,15 @@ class SaymaRTM(Module):
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
         platform.add_period_constraint(serwb_pads.clk_p, 10.)
-        serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="slave", phy_width=4)
+        serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
-        self.comb += self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.refclk)
+        self.comb += [
+            self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.refclk),
+            self.crg.serwb_reset.eq(serwb_phy_rtm.serdes.reset)
+        ]
         csr_devices.append("serwb_phy_rtm")
 
-        serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master", with_scrambling=True)
+        serwb_core = serwb.core.SERWBCore(serwb_phy_rtm, int(clk_freq), mode="master")
         self.submodules += serwb_core
 
         # process CSR devices and connect them to serwb
