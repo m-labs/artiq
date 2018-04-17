@@ -2,8 +2,10 @@ from migen import *
 from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
+from misoc.interconnect import stream
 from misoc.interconnect.csr import *
 
+from artiq.gateware.serwb.scrambler import Scrambler, Descrambler
 from artiq.gateware.serwb.kusphy import KUSSerdes
 from artiq.gateware.serwb.s7phy import S7Serdes
 
@@ -110,7 +112,9 @@ class _SerdesMasterInit(Module):
             serdes.tx_comma.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_max - delay_min) < taps//16,
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -231,7 +235,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
             serdes.tx_idle.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
-            If((delay_max - delay_min) < taps//16,
+            If((delay_min == 0) |
+               (delay_max == (taps - 1)) |
+               ((delay_max - delay_min) < taps//16),
                NextValue(delay_min_found, 0),
                NextValue(delay_max_found, 0),
                NextState("WAIT_STABLE")
@@ -289,18 +295,25 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_max = CSRStatus(9)
         self.bitslip = CSRStatus(6)
 
+        self.scrambling_enable = CSRStorage()
+
+        self.prbs_error = Signal()
+        self.prbs_start = CSR()
+        self.prbs_cycles = CSRStorage(32)
+        self.prbs_errors = CSRStatus(32)
+
         # # #
 
         if mode == "master":
             # In Master mode, reset is coming from CSR,
             # it resets the Master that will also reset
             # the Slave by putting the link in idle.
-            self.comb += init.reset.eq(self.reset.re)
+            self.sync += init.reset.eq(self.reset.re)
         else:
             # In Slave mode, reset is coming from link,
             # Master reset the Slave by putting the link
             # in idle.
-            self.comb += [
+            self.sync += [
                 init.reset.eq(serdes.rx_idle),
                 serdes.reset.eq(serdes.rx_idle)
             ]
@@ -315,20 +328,81 @@ class _SerdesControl(Module, AutoCSR):
             self.bitslip.status.eq(init.bitslip)
         ]
 
+        # prbs
+        prbs_cycles = Signal(32)
+        prbs_errors = self.prbs_errors.status
+        prbs_fsm = FSM(reset_state="IDLE")
+        self.submodules += prbs_fsm
+        prbs_fsm.act("IDLE",
+            NextValue(prbs_cycles, 0),
+            If(self.prbs_start.re,
+                NextValue(prbs_errors, 0),
+                NextState("CHECK")
+            )
+        )
+        prbs_fsm.act("CHECK",
+            NextValue(prbs_cycles, prbs_cycles + 1),
+            If(self.prbs_error,
+                NextValue(prbs_errors, prbs_errors + 1),
+            ),
+            If(prbs_cycles == self.prbs_cycles.storage,
+                NextState("IDLE")
+            )
+        )
+
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", phy_width=8):
+    def __init__(self, device, pads, mode="master", init_timeout=2**14):
+        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
-            self.submodules.serdes = KUSSerdes(pads, mode, phy_width)
+            self.submodules.serdes = KUSSerdes(pads, mode)
         elif device[:4] == "xc7a":
             taps = 32
-            self.submodules.serdes = S7Serdes(pads, mode, phy_width)
+            self.submodules.serdes = S7Serdes(pads, mode)
         else:
             raise NotImplementedError
         if mode == "master":
-            self.submodules.init = _SerdesMasterInit(self.serdes, taps)
+            self.submodules.init = _SerdesMasterInit(self.serdes, taps, init_timeout)
         else:
-            self.submodules.init = _SerdesSlaveInit(self.serdes, taps)
+            self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
+
+        # scrambling
+        scrambler =  Scrambler()
+        descrambler = Descrambler()
+        self.submodules += scrambler, descrambler
+        self.comb += [
+            scrambler.enable.eq(self.control.scrambling_enable.storage),
+            descrambler.enable.eq(self.control.scrambling_enable.storage)
+        ]
+
+        # tx dataflow
+        self.comb += \
+            If(self.init.ready,
+                sink.connect(scrambler.sink),
+                scrambler.source.ack.eq(self.serdes.tx_ce),
+                If(scrambler.source.stb,
+                    self.serdes.tx_d.eq(scrambler.source.d),
+                    self.serdes.tx_k.eq(scrambler.source.k)
+                )
+            )
+
+        # rx dataflow
+        self.comb += [
+            If(self.init.ready,
+                descrambler.sink.stb.eq(self.serdes.rx_ce),
+                descrambler.sink.d.eq(self.serdes.rx_d),
+                descrambler.sink.k.eq(self.serdes.rx_k),
+                descrambler.source.connect(source)
+            ),
+            # For PRBS test we are using the scrambler/descrambler as PRBS,
+            # sending 0 to the scrambler and checking that descrambler
+            # output is always 0.
+            self.control.prbs_error.eq(
+                descrambler.source.stb &
+                descrambler.source.ack &
+                (descrambler.source.data != 0))
+        ]
