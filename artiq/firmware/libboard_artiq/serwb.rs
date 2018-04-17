@@ -1,5 +1,5 @@
 use core::{cmp, str};
-use board::csr;
+use board::{csr, clock};
 
 fn read_rtm_ident(buf: &mut [u8]) -> &str {
     unsafe {
@@ -15,26 +15,26 @@ fn read_rtm_ident(buf: &mut [u8]) -> &str {
 }
 
 unsafe fn debug_print(rtm: bool) {
-    debug!("AMC serwb settings:");
-    debug!("  delay_min_found: {}", csr::serwb_phy_amc::control_delay_min_found_read());
-    debug!("  delay_min: {}", csr::serwb_phy_amc::control_delay_min_read());
-    debug!("  delay_max_found: {}", csr::serwb_phy_amc::control_delay_max_found_read());
-    debug!("  delay_max: {}", csr::serwb_phy_amc::control_delay_max_read());
-    debug!("  delay: {}", csr::serwb_phy_amc::control_delay_read());
-    debug!("  bitslip: {}", csr::serwb_phy_amc::control_bitslip_read());
-    debug!("  ready: {}", csr::serwb_phy_amc::control_ready_read());
-    debug!("  error: {}", csr::serwb_phy_amc::control_error_read());
+    info!("AMC serwb settings:");
+    info!("  delay_min_found: {}", csr::serwb_phy_amc::control_delay_min_found_read());
+    info!("  delay_min: {}", csr::serwb_phy_amc::control_delay_min_read());
+    info!("  delay_max_found: {}", csr::serwb_phy_amc::control_delay_max_found_read());
+    info!("  delay_max: {}", csr::serwb_phy_amc::control_delay_max_read());
+    info!("  delay: {}", csr::serwb_phy_amc::control_delay_read());
+    info!("  bitslip: {}", csr::serwb_phy_amc::control_bitslip_read());
+    info!("  ready: {}", csr::serwb_phy_amc::control_ready_read());
+    info!("  error: {}", csr::serwb_phy_amc::control_error_read());
 
     if rtm {
-        debug!("RTM serwb settings:");
-        debug!("  delay_min_found: {}", csr::serwb_phy_rtm::control_delay_min_found_read());
-        debug!("  delay_min: {}", csr::serwb_phy_rtm::control_delay_min_read());
-        debug!("  delay_max_found: {}", csr::serwb_phy_rtm::control_delay_max_found_read());
-        debug!("  delay_max: {}", csr::serwb_phy_rtm::control_delay_max_read());
-        debug!("  delay: {}", csr::serwb_phy_rtm::control_delay_read());
-        debug!("  bitslip: {}", csr::serwb_phy_rtm::control_bitslip_read());
-        debug!("  ready: {}", csr::serwb_phy_rtm::control_ready_read());
-        debug!("  error: {}", csr::serwb_phy_rtm::control_error_read());
+        info!("RTM serwb settings:");
+        info!("  delay_min_found: {}", csr::serwb_phy_rtm::control_delay_min_found_read());
+        info!("  delay_min: {}", csr::serwb_phy_rtm::control_delay_min_read());
+        info!("  delay_max_found: {}", csr::serwb_phy_rtm::control_delay_max_found_read());
+        info!("  delay_max: {}", csr::serwb_phy_rtm::control_delay_max_read());
+        info!("  delay: {}", csr::serwb_phy_rtm::control_delay_read());
+        info!("  bitslip: {}", csr::serwb_phy_rtm::control_bitslip_read());
+        info!("  ready: {}", csr::serwb_phy_rtm::control_ready_read());
+        info!("  error: {}", csr::serwb_phy_rtm::control_error_read());
     }
 }
 
@@ -51,6 +51,20 @@ pub fn wait_init() {
         }
     }
     info!("done.");
+
+    unsafe {
+        info!("RTM to AMC Link test");
+        csr::serwb_phy_amc::control_prbs_cycles_write(1<<20);
+        csr::serwb_phy_amc::control_prbs_start_write(1);
+        clock::spin_us(1000000);
+        info!("{} errors", csr::serwb_phy_amc::control_prbs_errors_read());
+
+        info!("AMC to RTM Link test");
+        csr::serwb_phy_rtm::control_prbs_cycles_write(1<<20);
+        csr::serwb_phy_rtm::control_prbs_start_write(1);
+        clock::spin_us(1000000);
+        info!("{} errors", csr::serwb_phy_rtm::control_prbs_errors_read());
+    }
 
     // Try reading the magic number register on the other side of the bridge.
     let rtm_magic = unsafe {
