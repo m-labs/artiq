@@ -51,37 +51,37 @@ device_db.update(
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 9}
+        "arguments": {"channel": 8}
     },
     ttl_urukul0_io_update={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 10}
+        "arguments": {"channel": 9}
     },
     ttl_urukul0_sw0={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 11}
+        "arguments": {"channel": 10}
     },
     ttl_urukul0_sw1={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 12}
+        "arguments": {"channel": 11}
     },
     ttl_urukul0_sw2={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 13}
+        "arguments": {"channel": 12}
     },
     ttl_urukul0_sw3={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 14}
+        "arguments": {"channel": 13}
     },
     urukul0_cpld={
         "type": "local",
@@ -114,19 +114,19 @@ for i in range(2):
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 15+3*i+0}
+        "arguments": {"channel": 14+3*i+0}
     },
     device_db["ttl_zotino{}_ldac".format(i)] = {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 15+3*i+1}
+        "arguments": {"channel": 14+3*i+1}
     },
     device_db["ttl_zotino{}_clr".format(i)] = {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 15+3*i+2}
+        "arguments": {"channel": 14+3*i+2}
     },
     device_db["zotino{}".format(i)] = {
         "type": "local",
@@ -144,12 +144,12 @@ device_db.update(
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 18}
+        "arguments": {"channel": 20}
     },
     led1={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 19}
-    }
+        "arguments": {"channel": 21}
+    },
 )
