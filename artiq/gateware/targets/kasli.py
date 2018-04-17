@@ -586,6 +586,71 @@ class SYSU(_StandaloneBase):
         self.add_rtio(rtio_channels)
 
 
+class MITLL(_StandaloneBase):
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["RTIO_FREQUENCY"] = "125.0"
+
+        platform = self.platform
+        # TODO: grabber on eem0->eemB eem1->eemA
+        platform.add_extension(_urukul("eem3", "eem2"))
+        platform.add_extension(_dio("eem4"))
+        platform.add_extension(_zotino("eem5"))
+        platform.add_extension(_zotino("eem6"))
+
+        # EEM4: TTL
+        rtio_channels = []
+        for i in range(8):
+            pads = platform.request("eem4", i)
+            phy = ttl_serdes_7series.InOut_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        # EEM2, EEM3: Urukul
+        phy = spi2.SPIMaster(self.platform.request("eem3_spi_p"),
+                self.platform.request("eem3_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        pads = platform.request("eem3_dds_reset")
+        self.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        for signal in "io_update sw0 sw1 sw2 sw3".split():
+            pads = platform.request("eem3_{}".format(signal))
+            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        # EEM5, EEM6: Zotino
+        for i in (5, 6):
+            phy = spi2.SPIMaster(self.platform.request("eem{}_spi_p".format(i)),
+                    self.platform.request("eem{}_spi_n".format(i)))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+            for signal in "ldac_n clr_n".split():
+                pads = platform.request("eem{}_{}".format(i, signal))
+                phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        for i in (1, 2):
+            sfp_ctl = platform.request("sfp_ctl", i)
+            phy = ttl_simple.Output(sfp_ctl.led)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(rtio_channels)
+
+
 class _RTIOClockMultiplier(Module):
     def __init__(self, rtio_clk_freq):
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
@@ -895,7 +960,7 @@ def main():
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("-V", "--variant", default="opticlock",
-                        help="variant: opticlock/suservo/sysu/master/satellite "
+                        help="variant: opticlock/suservo/sysu/mitll/master/satellite "
                              "(default: %(default)s)")
     args = parser.parse_args()
 
@@ -906,6 +971,8 @@ def main():
         cls = SUServo
     elif variant == "sysu":
         cls = SYSU
+    elif variant == "mitll":
+        cls = MITLL
     elif variant == "master":
         cls = Master
     elif variant == "satellite":
