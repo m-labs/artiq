@@ -47,6 +47,30 @@ that the testsuite passes. Then prepare a pull request or send patches to the
 discussed. Expect your contribution to be held up to coding standards (e.g. use
 ``flake8`` to check yourself).
 
+Checklist for Code Contributions
+--------------------------------
+
+- Test your changes or have someone test them. Mention what was tested and how.
+- Use correct spelling and grammar. Use your code editor to help you with
+  syntax, spelling, and style
+- Style: PEP-8 (``flake8``)
+- Add, check docstrings and comments
+- Split your contribution into logically separate changes (``git rebase
+  --interactive``). Merge (squash, fixup) commits that just fix previous commits
+  or amend them. Remove unintended changes. Clean up your commits.
+- Check the copyright situation of your changes and sign off your patches
+  (``git commit --signoff``, see also below)
+- Write meaningful commit messages containing the area of the change
+  and a concise description (50 characters or less) in the first line.
+  Describe everything else in the long explanation.
+- Review each of your commits for the above items (``git show``)
+- Update ``RELEASE_NOTES.md`` if there are noteworthy changes, especially if
+  there are changes to existing APIs
+- Check, test, and update the documentation in `doc/`
+- Check, test, and update the conda recipes in `conda/`
+- Check, test, and update the unittests
+- Close and/or update issues
+
 Copyright and Sign-Off
 ----------------------
 
