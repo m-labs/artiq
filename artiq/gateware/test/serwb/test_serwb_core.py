@@ -6,6 +6,7 @@ from migen import *
 from artiq.gateware.serwb import scrambler
 from artiq.gateware.serwb import core
 
+from misoc.interconnect import stream
 from misoc.interconnect.wishbone import SRAM
 
 
@@ -35,8 +36,29 @@ class FakeSerdes(Module):
 
 class FakePHY(Module):
     def __init__(self):
+        self.sink = sink = stream.Endpoint([("data", 32)])
+        self.source = source = stream.Endpoint([("data", 32)])
+
+        # # #
+
         self.submodules.init = FakeInit()
         self.submodules.serdes = FakeSerdes()
+
+        # tx dataflow
+        self.comb += \
+            If(self.init.ready,
+                sink.ack.eq(self.serdes.tx_ce),
+                If(sink.stb,
+                    self.serdes.tx_d.eq(sink.data)
+                )
+            )
+
+        # rx dataflow
+        self.comb += \
+            If(self.init.ready,
+                source.stb.eq(self.serdes.rx_ce),
+                source.data.eq(self.serdes.rx_d)
+            )
 
 
 class DUTScrambler(Module):
@@ -47,15 +69,15 @@ class DUTScrambler(Module):
 
 
 class DUTCore(Module):
-    def __init__(self, **kwargs):
+    def __init__(self):
         # wishbone slave
         phy_slave = FakePHY()
-        serwb_slave = core.SERWBCore(phy_slave, int(1e6), "slave", **kwargs)
+        serwb_slave = core.SERWBCore(phy_slave, int(1e6), "slave")
         self.submodules += phy_slave, serwb_slave
 
         # wishbone master
         phy_master = FakePHY()
-        serwb_master = core.SERWBCore(phy_master, int(1e6), "master", **kwargs)
+        serwb_master = core.SERWBCore(phy_master, int(1e6), "master")
         self.submodules += phy_master, serwb_master
 
         # connect phy
@@ -130,14 +152,7 @@ class TestSERWBCore(unittest.TestCase):
                 if datas_r[i] != datas_w[i]:
                     dut.errors += 1
 
-        # scrambling off
-        dut = DUTCore(with_scrambling=False)
-        dut.errors = 0
-        run_simulation(dut, generator(dut))
-        self.assertEqual(dut.errors, 0)
-
-        # scrambling on
-        dut = DUTCore(with_scrambling=True)
+        dut = DUTCore()
         dut.errors = 0
         run_simulation(dut, generator(dut))
         self.assertEqual(dut.errors, 0)
