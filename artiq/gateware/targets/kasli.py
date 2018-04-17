@@ -549,6 +549,7 @@ class SYSU(_StandaloneBase):
         # EEM clock fan-out from Si5324, not MMCX
         self.comb += platform.request("clk_sel").eq(1)
 
+        # EEM2-6: TTL
         rtio_channels = []
         for i in range(40):
             eem_offset, port = divmod(i, 8)
@@ -557,6 +558,7 @@ class SYSU(_StandaloneBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        # EEM0, EEM1: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem1_spi_p"),
                 self.platform.request("eem1_spi_n"))
         self.submodules += phy
