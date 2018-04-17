@@ -10,7 +10,8 @@ class UrukulTest(EnvExperiment):
         self.setattr_device("urukul0_ch2")
         self.setattr_device("urukul0_ch3")
         self.setattr_device("led0")
-        self.ttl = self.get_device("ttl16")
+        self.setattr_device("led1")
+        self.ttl = self.get_device("ttl0")
 
     @kernel
     def run(self):
@@ -50,3 +51,4 @@ class UrukulTest(EnvExperiment):
                 self.urukul0_ch0.sw.pulse(100*ms)
             delay(100*ms)
             self.led0.pulse(100*ms)
+            self.led1.pulse(100*ms)
