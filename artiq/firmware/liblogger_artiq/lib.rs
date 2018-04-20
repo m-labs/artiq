@@ -5,11 +5,42 @@ extern crate log_buffer;
 #[macro_use]
 extern crate board;
 
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, RefCell, RefMut};
 use core::fmt::Write;
 use log::{Log, LevelFilter};
 use log_buffer::LogBuffer;
 use board::clock;
+
+pub struct LogBufferRef<'a> {
+    buffer:        RefMut<'a, LogBuffer<&'static mut [u8]>>,
+    old_log_level: LevelFilter
+}
+
+impl<'a> LogBufferRef<'a> {
+    fn new(buffer: RefMut<'a, LogBuffer<&'static mut [u8]>>) -> LogBufferRef<'a> {
+        let old_log_level = log::max_level();
+        log::set_max_level(LevelFilter::Off);
+        LogBufferRef { buffer, old_log_level }
+    }
+
+    pub fn is_empty(&mut self) -> bool {
+        self.buffer.extract().len() == 0
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer.clear()
+    }
+
+    pub fn extract(&mut self) -> &str {
+        self.buffer.extract()
+    }
+}
+
+impl<'a> Drop for LogBufferRef<'a> {
+    fn drop(&mut self) {
+        log::set_max_level(self.old_log_level)
+    }
+}
 
 pub struct BufferLogger {
     buffer:      RefCell<LogBuffer<&'static mut [u8]>>,
@@ -40,20 +71,11 @@ impl BufferLogger {
         f(unsafe { &*LOGGER })
     }
 
-    pub fn clear(&self) {
-        self.buffer.borrow_mut().clear()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.buffer.borrow_mut().extract().len() == 0
-    }
-
-    pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
-        let old_log_level = log::max_level();
-        log::set_max_level(LevelFilter::Off);
-        let result = f(self.buffer.borrow_mut().extract());
-        log::set_max_level(old_log_level);
-        result
+    pub fn buffer<'a>(&'a self) -> Result<LogBufferRef<'a>, ()> {
+        self.buffer
+            .try_borrow_mut()
+            .map(LogBufferRef::new)
+            .map_err(|_| ())
     }
 
     pub fn uart_log_level(&self) -> LevelFilter {
@@ -79,9 +101,10 @@ impl Log for BufferLogger {
             let seconds   = timestamp / 1_000_000;
             let micros    = timestamp % 1_000_000;
 
-            writeln!(self.buffer.borrow_mut(),
-                     "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
-                     record.level(), record.target(), record.args()).unwrap();
+            if let Ok(mut buffer) = self.buffer.try_borrow_mut() {
+                writeln!(buffer, "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
+                         record.level(), record.target(), record.args()).unwrap();
+            }
 
             if record.level() <= self.uart_filter.get() {
                 println!("[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
