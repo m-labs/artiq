@@ -27,44 +27,48 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
         match Request::read_from(stream)? {
             Request::GetLog => {
                 BufferLogger::with(|logger| {
-                    logger.extract(|log| {
-                        Reply::LogContent(log).write_to(stream)
-                    })
+                    let mut buffer = io.until_ok(|| logger.buffer())?;
+                    Reply::LogContent(buffer.extract()).write_to(stream)
                 })?;
             },
 
             Request::ClearLog => {
-                BufferLogger::with(|logger|
-                    logger.clear());
+                BufferLogger::with(|logger| -> io::Result<()> {
+                    let mut buffer = io.until_ok(|| logger.buffer())?;
+                    Ok(buffer.clear())
+                })?;
+
                 Reply::Success.write_to(stream)?;
             },
 
             Request::PullLog => {
-                loop {
-                    io.until(|| BufferLogger::with(|logger| !logger.is_empty()))?;
-
-                    BufferLogger::with(|logger| {
+                BufferLogger::with(|logger| -> io::Result<()> {
+                    loop {
+                        // Do this *before* acquiring the buffer, since that sets the log level
+                        // to OFF.
                         let log_level = logger.max_log_level();
-                        logger.extract(|log| {
-                            stream.write_string(log)?;
 
-                            if log_level == LogLevelFilter::Trace {
-                                // Hold exclusive access over the logger until we get positive
-                                // acknowledgement; otherwise we get an infinite loop of network
-                                // trace messages being transmitted and causing more network
-                                // trace messages to be emitted.
-                                //
-                                // Any messages unrelated to this management socket that arrive
-                                // while it is flushed are lost, but such is life.
-                                stream.flush()
-                            } else {
-                                Ok(())
-                            }
-                        })?;
+                        let mut buffer = io.until_ok(|| logger.buffer())?;
+                        if buffer.is_empty() { continue }
 
-                        Ok(logger.clear()) as io::Result<()>
-                    })?;
-                }
+                        stream.write_string(buffer.extract())?;
+
+                        if log_level == LogLevelFilter::Trace {
+                            // Hold exclusive access over the logger until we get positive
+                            // acknowledgement; otherwise we get an infinite loop of network
+                            // trace messages being transmitted and causing more network
+                            // trace messages to be emitted.
+                            //
+                            // Any messages unrelated to this management socket that arrive
+                            // while it is flushed are lost, but such is life.
+                            stream.flush()?;
+                        }
+
+                        // Clear the log *after* flushing the network buffers, or we're just
+                        // going to resend all the trace messages on the next iteration.
+                        buffer.clear();
+                    }
+                })?;
             },
 
             Request::SetLogFilter(level) => {

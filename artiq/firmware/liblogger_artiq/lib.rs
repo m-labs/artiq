@@ -4,12 +4,45 @@ extern crate log;
 extern crate log_buffer;
 extern crate board;
 
-use core::{mem, ptr};
-use core::cell::{Cell, RefCell};
+use core::ptr;
+use core::cell::{Cell, RefCell, Ref, RefMut};
 use core::fmt::Write;
 use log::{Log, LogMetadata, LogRecord, LogLevelFilter, MaxLogLevelFilter};
 use log_buffer::LogBuffer;
 use board::{Console, clock};
+
+pub struct LogBufferRef<'a> {
+    buffer:        RefMut<'a, LogBuffer<&'static mut [u8]>>,
+    filter:        Ref<'a, MaxLogLevelFilter>,
+    old_log_level: LogLevelFilter
+}
+
+impl<'a> LogBufferRef<'a> {
+    fn new(buffer: RefMut<'a, LogBuffer<&'static mut [u8]>>,
+           filter: Ref<'a, MaxLogLevelFilter>) -> LogBufferRef<'a> {
+        let old_log_level = filter.get();
+        filter.set(LogLevelFilter::Off);
+        LogBufferRef { buffer, filter, old_log_level }
+    }
+
+    pub fn is_empty(&mut self) -> bool {
+        self.buffer.extract().len() == 0
+    }
+
+    pub fn clear(&mut self) {
+        self.buffer.clear()
+    }
+
+    pub fn extract(&mut self) -> &str {
+        self.buffer.extract()
+    }
+}
+
+impl<'a> Drop for LogBufferRef<'a> {
+    fn drop(&mut self) {
+        self.filter.set(self.old_log_level)
+    }
+}
 
 pub struct BufferLogger {
     buffer:      RefCell<LogBuffer<&'static mut [u8]>>,
@@ -48,23 +81,15 @@ impl BufferLogger {
     }
 
     pub fn with<R, F: FnOnce(&BufferLogger) -> R>(f: F) -> R {
-        f(unsafe { mem::transmute::<*const BufferLogger, &BufferLogger>(LOGGER) })
+        f(unsafe { &*LOGGER })
     }
 
-    pub fn clear(&self) {
-        self.buffer.borrow_mut().clear()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.buffer.borrow_mut().extract().len() == 0
-    }
-
-    pub fn extract<R, F: FnOnce(&str) -> R>(&self, f: F) -> R {
-        let old_log_level = self.max_log_level();
-        self.set_max_log_level(LogLevelFilter::Off);
-        let result = f(self.buffer.borrow_mut().extract());
-        self.set_max_log_level(old_log_level);
-        result
+    pub fn buffer<'a>(&'a self) -> Result<LogBufferRef<'a>, ()> {
+        let filter = Ref::map(self.filter.borrow(), |f| f.as_ref().unwrap());
+        self.buffer
+            .try_borrow_mut()
+            .map(|buffer| LogBufferRef::new(buffer, filter))
+            .map_err(|_| ())
     }
 
     pub fn max_log_level(&self) -> LogLevelFilter {
@@ -106,9 +131,10 @@ impl Log for BufferLogger {
             let seconds   = timestamp / 1_000_000;
             let micros    = timestamp % 1_000_000;
 
-            writeln!(self.buffer.borrow_mut(),
-                     "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
-                     record.level(), record.target(), record.args()).unwrap();
+            if let Ok(mut buffer) = self.buffer.try_borrow_mut() {
+                writeln!(buffer, "[{:6}.{:06}s] {:>5}({}): {}", seconds, micros,
+                         record.level(), record.target(), record.args()).unwrap();
+            }
 
             if record.level() <= self.uart_filter.get() {
                 writeln!(Console,

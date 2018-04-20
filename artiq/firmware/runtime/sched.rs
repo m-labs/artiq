@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::mem;
+use std::result;
 use std::cell::{Cell, RefCell};
 use std::vec::Vec;
 use std::io::{Read, Write, Result, Error, ErrorKind};
@@ -17,7 +18,7 @@ type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
 #[derive(Debug)]
 struct WaitRequest {
-    event:   Option<*const (Fn() -> bool + 'static)>,
+    event:   Option<*mut FnMut() -> bool>,
     timeout: Option<u64>
 }
 
@@ -133,26 +134,22 @@ impl Scheduler {
             self.run_idx = (self.run_idx + 1) % self.threads.len();
 
             let result = {
-                let mut thread = self.threads[self.run_idx].0.borrow_mut();
-                match thread.waiting_for {
-                    _ if thread.interrupted => {
-                        thread.interrupted = false;
-                        thread.generator.resume(WaitResult::Interrupted)
-                    }
-                    WaitRequest { event: None, timeout: None } =>
-                        thread.generator.resume(WaitResult::Completed),
-                    WaitRequest { timeout: Some(instant), .. } if now >= instant =>
-                        thread.generator.resume(WaitResult::TimedOut),
-                    WaitRequest { event: Some(event), .. } if unsafe { (*event)() } =>
-                        thread.generator.resume(WaitResult::Completed),
-                    _ => {
-                        if self.run_idx == start_idx {
-                            // We've checked every thread and none of them are runnable.
-                            break
-                        } else {
-                            continue
-                        }
-                    }
+                let &mut Thread { ref mut generator, ref mut interrupted, ref waiting_for } =
+                    &mut *self.threads[self.run_idx].0.borrow_mut();
+                if *interrupted {
+                    *interrupted = false;
+                    generator.resume(WaitResult::Interrupted)
+                } else if waiting_for.event.is_none() && waiting_for.timeout.is_none() {
+                    generator.resume(WaitResult::Completed)
+                } else if waiting_for.timeout.map(|instant| now >= instant).unwrap_or(false) {
+                    generator.resume(WaitResult::TimedOut)
+                } else if waiting_for.event.map(|event| unsafe { (*event)() }).unwrap_or(false) {
+                    generator.resume(WaitResult::Completed)
+                } else if self.run_idx == start_idx {
+                    // We've checked every thread and none of them are runnable.
+                    break
+                } else {
+                    continue
                 }
             };
 
@@ -225,11 +222,23 @@ impl<'a> Io<'a> {
         })
     }
 
-    pub fn until<F: Fn() -> bool + 'static>(&self, f: F) -> Result<()> {
+    pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<()> {
+        let f = unsafe { mem::transmute::<&mut FnMut() -> bool, *mut FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
             timeout: None,
-            event:   Some(&f as *const _)
+            event:   Some(f)
         })
+    }
+
+    pub fn until_ok<T, E, F: FnMut() -> result::Result<T, E>>(&self, mut f: F) -> Result<T> {
+        let mut value = None;
+        self.until(|| {
+            if let Ok(result) = f() {
+                value = Some(result)
+            }
+            value.is_some()
+        })?;
+        Ok(value.unwrap())
     }
 
     pub fn join(&self, handle: ThreadHandle) -> Result<()> {
@@ -250,7 +259,7 @@ macro_rules! until {
 
 
 use ::smoltcp::Error as ErrorLower;
-// https://github.com/rust-lang/rust/issues/44057
+// https://github.com/rust-lang/rust/issues/26264
 // type ErrorLower = ::smoltcp::Error;
 
 type TcpSocketBuffer = ::smoltcp::socket::TcpSocketBuffer<'static>;
