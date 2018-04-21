@@ -16,6 +16,8 @@ pub enum Request {
 
     Hotswap(Vec<u8>),
     Reboot,
+
+    DebugAllocator,
 }
 
 pub enum Reply<'a> {
@@ -52,6 +54,7 @@ impl Request {
             6 => Request::SetUartLogFilter(read_log_level_filter(reader)?),
             4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
+            8 => Request::DebugAllocator,
             _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
         })
     }

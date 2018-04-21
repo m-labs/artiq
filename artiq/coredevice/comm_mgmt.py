@@ -17,6 +17,8 @@ class Request(Enum):
     Hotswap = 4
     Reboot = 5
 
+    DebugAllocator = 8
+
 
 class Reply(Enum):
     Success = 1
@@ -151,3 +153,6 @@ class CommMgmt:
     def reboot(self):
         self._write_header(Request.Reboot)
         self._read_expect(Reply.RebootImminent)
+
+    def debug_allocator(self):
+        self._write_header(Request.DebugAllocator)

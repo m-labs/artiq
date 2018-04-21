@@ -97,7 +97,10 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                 stream.close()?;
                 warn!("restarting");
                 unsafe { boot::reset() }
-            }
+            },
+
+            Request::DebugAllocator =>
+                unsafe { println!("{}", ::ALLOC) },
         };
     }
 }
