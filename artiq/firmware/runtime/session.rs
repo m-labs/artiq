@@ -522,7 +522,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
         let length = NetworkEndian::read_u32(slice) as usize;
         host_write(stream, host::Reply::RpcRequest { async: true })?;
         debug!("{:?}", &slice[4..][..length]);
-        stream.write(&slice[4..][..length])?;
+        stream.write_all(&slice[4..][..length])?;
         Ok(())
     })
 }
