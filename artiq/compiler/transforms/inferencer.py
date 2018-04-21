@@ -310,7 +310,15 @@ class Inferencer(algorithm.Visitor):
         node_types = []
         for node in nodes:
             if isinstance(node, asttyped.CoerceT):
-                node_types.append(node.value.type)
+                # If we already know exactly what we coerce this value to, use that type,
+                # or we'll get an unification error in case the coerced type is not the same
+                # as the type of the coerced value.
+                # Otherwise, use the potentially more specific subtype when considering possible
+                # coercions, or we may get stuck.
+                if node.type.fold(False, lambda acc, ty: acc or types.is_var(ty)):
+                    node_types.append(node.value.type)
+                else:
+                    node_types.append(node.type)
             else:
                 node_types.append(node.type)
         if any(map(types.is_var, node_types)): # not enough info yet
