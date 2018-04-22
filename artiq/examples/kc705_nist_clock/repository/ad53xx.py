@@ -13,7 +13,7 @@ class AD53XXTest(EnvExperiment):
         self.core.reset()
         delay(5*ms)  # build slack for shift register set
         self.fmcdio_dirctl.set(0x00008800)
-        self.dac.setup_bus()
+        self.dac.init()
         self.led.on()
         delay(400*us)
         self.led.off()
