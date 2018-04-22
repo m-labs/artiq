@@ -34,7 +34,7 @@ class Zotino(AD53xx):
     :param core_device: Core device name (default: "core")
     """
 
-    def __init__(self, dmgr, spi_device, ldac_device, clr_device,
+    def __init__(self, dmgr, spi_device, ldac_device=None, clr_device=None,
                  div_write=4, div_read=8, vref=5., core="core"):
         AD53xx.__init__(self, dmgr=dmgr, spi_device=spi_device,
                         ldac_device=ldac_device, clr_device=clr_device,
