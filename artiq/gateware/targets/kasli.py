@@ -8,7 +8,7 @@ from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
-from migen.genlib.io import DifferentialOutput
+from migen.genlib.io import DifferentialOutput, DifferentialInput
 
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
@@ -539,6 +539,19 @@ class SUServo(_StandaloneBase):
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
         su = ClockDomainsRenamer({"sys": "rio_phy"})(su)
         self.submodules += sampler_pads, urukul_pads, su
+
+        self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
+        clkout = Signal()
+        clkout_fabric = Signal()
+        self.specials += [
+                DifferentialInput(pads.clkout_p, pads.clkout_n, clkout),
+                Instance("BUFH", i_I=clkout, o_O=clkout_fabric),
+                Instance("BUFIO", i_I=clkout, o_O=su.adc.clkout_io)
+        ]
+        self.comb += [
+                # falling clkout makes two bits available
+                self.cd_ret.clk.eq(~clkout_fabric)
+        ]
 
         ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
         self.submodules += ctrls

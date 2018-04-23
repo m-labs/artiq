@@ -75,6 +75,12 @@ class TB(Module):
         cd_adc = ClockDomain("adc", reset_less=True)
         self.clock_domains += cd_adc
 
+        self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
+        self.comb += [
+                # falling clkout makes two bits available
+                self.cd_ret.clk.eq(~self.clkout)
+        ]
+
         self.sdo = []
         self.data = [Signal((p.width, True), reset_less=True)
                 for i in range(p.channels)]
@@ -124,6 +130,7 @@ def main():
     tb = TB(params)
     adc = ADC(tb, params)
     tb.submodules += adc
+    tb.comb += adc.clkout_io.eq(tb.clkout)
 
     def run(tb):
         dut = adc
