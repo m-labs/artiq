@@ -119,9 +119,16 @@ class ADC(Module, DiffMixin):
         except AttributeError:
             sck_en_ret = 1
         self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
+        clkout = self._diff(pads, "clkout")
+        clkout_fabric = Signal()
+        clkout_io = Signal()
+        self.specials += [
+                Instance("BUFH", i_I=clkout, o_O=clkout_fabric),
+                Instance("BUFIO", i_I=clkout, o_O=clkout_io)
+        ]
         self.comb += [
                 # falling clkout makes two bits available
-                self.cd_ret.clk.eq(~self._diff(pads, "clkout")),
+                self.cd_ret.clk.eq(~clkout_fabric)
         ]
         k = p.channels//p.lanes
         assert 2*t_read == k*p.width
@@ -130,7 +137,7 @@ class ADC(Module, DiffMixin):
             sdo_sr1 = Signal(t_read - 1)
             sdo_ddr = Signal(2)
             self.specials += io.DDRInput(sdo, sdo_ddr[1], sdo_ddr[0],
-                    self.cd_ret.clk)
+                    ~clkout_io)
             self.sync.ret += [
                     If(self.reading & sck_en_ret,
                         sdo_sr0.eq(Cat(sdo_ddr[0], sdo_sr0)),
