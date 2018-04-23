@@ -126,16 +126,18 @@ class ADC(Module, DiffMixin):
         k = p.channels//p.lanes
         assert 2*t_read == k*p.width
         for i, sdo in enumerate(sdo):
-            sdo_sr = Signal(2*t_read - 2)
+            sdo_sr0 = Signal(t_read - 1)
+            sdo_sr1 = Signal(t_read - 1)
             sdo_ddr = Signal(2)
             self.specials += io.DDRInput(sdo, sdo_ddr[1], sdo_ddr[0],
                     self.cd_ret.clk)
             self.sync.ret += [
                     If(self.reading & sck_en_ret,
-                        sdo_sr.eq(Cat(sdo_ddr, sdo_sr))
+                        sdo_sr0.eq(Cat(sdo_ddr[0], sdo_sr0)),
+                        sdo_sr1.eq(Cat(sdo_ddr[1], sdo_sr1))
                     )
             ]
             self.comb += [
                     Cat(reversed([self.data[i*k + j] for j in range(k)])).eq(
-                        Cat(sdo_ddr, sdo_sr))
+                        Cat(sdo_ddr, zip(sdo_sr0, sdo_sr1)))
             ]
