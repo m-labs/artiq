@@ -19,7 +19,9 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, spi2
+from artiq.gateware.rtio.phy import (
+        ttl_simple, ttl_serdes_7series, spi2, servo as rtservo)
+from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
@@ -328,6 +330,59 @@ def _urukul(eem, eem_aux=None):
     return ios
 
 
+def _urukul_qspi(eem0, eem1):
+    ios = [
+        ("{}_spi_p".format(eem0), 0,
+            Subsignal("clk", Pins(_eem_pin(eem0, 0, "p"))),
+            Subsignal("mosi", Pins(_eem_pin(eem0, 1, "p"))),
+            Subsignal("cs_n", Pins(
+                _eem_pin(eem0, 3, "p"), _eem_pin(eem0, 4, "p"))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_spi_n".format(eem0), 0,
+            Subsignal("clk", Pins(_eem_pin(eem0, 0, "n"))),
+            Subsignal("mosi", Pins(_eem_pin(eem0, 1, "n"))),
+            Subsignal("cs_n", Pins(
+                _eem_pin(eem0, 3, "n"), _eem_pin(eem0, 4, "n"))),
+            IOStandard("LVDS_25"),
+        ),
+        ]
+    ttls = [(6, eem0, "io_update"),
+            (7, eem0, "dds_reset"),
+            (4, eem1, "sw0"),
+            (5, eem1, "sw1"),
+            (6, eem1, "sw2"),
+            (7, eem1, "sw3")]
+    for i, j, sig in ttls:
+        ios.append(
+            ("{}_{}".format(eem0, sig), 0,
+                Subsignal("p", Pins(_eem_pin(j, i, "p"))),
+                Subsignal("n", Pins(_eem_pin(j, i, "n"))),
+                IOStandard("LVDS_25")
+            ))
+    ios += [
+        ("{}_qspi_p".format(eem0), 0,
+            Subsignal("cs_n", Pins(_eem_pin(eem0, 5, "p"))),
+            Subsignal("clk", Pins(_eem_pin(eem0, 2, "p"))),
+            Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "p"))),
+            Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "p"))),
+            Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "p"))),
+            Subsignal("mosi3", Pins(_eem_pin(eem1, 3, "p"))),
+            IOStandard("LVDS_25"),
+        ),
+        ("{}_qspi_n".format(eem0), 0,
+            Subsignal("cs_n", Pins(_eem_pin(eem0, 5, "n"))),
+            Subsignal("clk", Pins(_eem_pin(eem0, 2, "n"))),
+            Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "n"))),
+            Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "n"))),
+            Subsignal("mosi2", Pins(_eem_pin(eem1, 2, "n"))),
+            Subsignal("mosi3", Pins(_eem_pin(eem1, 3, "n"))),
+            IOStandard("LVDS_25"),
+        ),
+    ]
+    return ios
+
+
 class Opticlock(_StandaloneBase):
     """
     Opticlock extension variant configuration
@@ -448,8 +503,8 @@ class SUServo(_StandaloneBase):
         platform.add_extension(_dio("eem0"))
         platform.add_extension(_dio("eem1"))
         platform.add_extension(_sampler("eem3", "eem2"))
-        platform.add_extension(_urukul("eem5", "eem4"))
-        platform.add_extension(_urukul("eem7", "eem6"))
+        platform.add_extension(_urukul_qspi("eem5", "eem4"))
+        platform.add_extension(_urukul_qspi("eem7", "eem6"))
 
         try:
             # EEM clock fan-out from Si5324, not MMCX, only Kasli/v1.0
@@ -470,23 +525,27 @@ class SUServo(_StandaloneBase):
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
         # EEM3, EEM2: Sampler
-        phy = spi2.SPIMaster(self.platform.request("eem3_adc_spi_p"),
-                self.platform.request("eem3_adc_spi_n"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16))
-        phy = spi2.SPIMaster(self.platform.request("eem3_pgia_spi_p"),
-                self.platform.request("eem3_pgia_spi_n"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=2))
+        sampler_pads = servo_pads.SamplerPads(self.platform, "eem3", "eem2")
+        # EEM5, EEM4 and EEM7, EEM6: Urukul
+        urukul_pads = servo_pads.UrukulPads(self.platform,
+                "eem5", "eem4", "eem7", "eem6")
+        adc_p = servo.ADCParams(width=16, channels=8, lanes=4,
+                t_cnvh=4, t_conv=57, t_rtt=4)
+        iir_p = servo.IIRWidths(state=25, coeff=18, adc=16,
+                asf=14, word=16, accu=48, shift=11,
+                channel=3, profile=5)
+        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
+                channels=adc_p.channels, clk=1)
+        su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
+        su = ClockDomainsRenamer({"sys": "rio_phy"})(su)
+        self.submodules += sampler_pads, urukul_pads, su
 
-        for signal in "cnv".split():
-            pads = platform.request("eem3_{}".format(signal))
-            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        pads = platform.request("eem3_sdr")
-        self.specials += DifferentialOutput(1, pads.p, pads.n)
+        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
+        self.submodules += ctrls
+        rtio_channels.extend(rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
+        mem = rtservo.RTServoMem(iir_p, su.iir)
+        self.submodules += mem
+        rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
 
         # EEM5 + EEM4: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem5_spi_p"),
@@ -497,11 +556,11 @@ class SUServo(_StandaloneBase):
         pads = platform.request("eem5_dds_reset")
         self.specials += DifferentialOutput(0, pads.p, pads.n)
 
-        for signal in "io_update sw0 sw1 sw2 sw3".split():
+        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
             pads = platform.request("eem5_{}".format(signal))
-            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
+            self.specials += DifferentialOutput(
+                    su.iir.ctrl[i].en_out,
+                    pads.p, pads.n)
 
         # EEM7 + EEM6: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem7_spi_p"),
@@ -512,11 +571,11 @@ class SUServo(_StandaloneBase):
         pads = platform.request("eem7_dds_reset")
         self.specials += DifferentialOutput(0, pads.p, pads.n)
 
-        for signal in "io_update sw0 sw1 sw2 sw3".split():
+        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
             pads = platform.request("eem7_{}".format(signal))
-            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
+            self.specials += DifferentialOutput(
+                    su.iir.ctrl[i + 4].en_out,
+                    pads.p, pads.n)
 
         for i in (1, 2):
             sfp_ctl = platform.request("sfp_ctl", i)
@@ -529,6 +588,14 @@ class SUServo(_StandaloneBase):
         rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(rtio_channels)
+
+        platform.add_period_constraint(su.adc.cd_ret.clk, 8.)
+        platform.add_false_path_constraints(
+            su.adc.cd_ret.clk,
+            self.rtio_crg.cd_rtio.clk)
+        platform.add_false_path_constraints(
+            su.adc.cd_ret.clk,
+            self.crg.cd_sys.clk)
 
 
 class SYSU(_StandaloneBase):
