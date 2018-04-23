@@ -76,6 +76,8 @@ class ADC(Module, DiffMixin):
             self.sync += pads.sck_en.eq(sck_en)  # ODDR delay
         self.specials += io.DDROutput(0, sck_en,
                 self._diff(pads, "sck", output=True))
+        cnv_b = Signal()
+        self.comb += self._diff(pads, "cnv_b", output=True).eq(cnv_b)
         self.submodules.fsm = fsm = FSM("IDLE")
         fsm.act("IDLE",
                 self.done.eq(1),
@@ -86,7 +88,7 @@ class ADC(Module, DiffMixin):
         )
         fsm.act("CNVH",
                 count_load.eq(p.t_conv - 2),  # account for sck ODDR delay
-                pads.cnv_b.eq(1),
+                cnv_b.eq(1),
                 If(count_done,
                     NextState("CONV")
                 )
