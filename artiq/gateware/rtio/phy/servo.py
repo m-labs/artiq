@@ -32,17 +32,18 @@ class RTServoMem(Module):
         m_state = servo.m_state.get_port(write_capable=True)
         self.specials += m_state, m_coeff
 
-        assert w.coeff >= w.state
+        assert w.state >= w.coeff
+        assert len(m_coeff.dat_w) == 2*w.coeff
         assert w.coeff >= w.word
 
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
-                w.coeff,
+                w.state,
                 # coeff, profile, channel, 2 mems, rw
                 3 + w.profile + w.channel + 1 + 1,
                 enable_replace=False),
             rtlink.IInterface(
-                w.coeff,
+                w.state,
                 timestamped=False)
             )
 
@@ -52,7 +53,6 @@ class RTServoMem(Module):
         state_sel = self.rtlink.o.address[-2]
         high_coeff = self.rtlink.o.address[0]
         self.comb += [
-            self.rtlink.o.busy.eq(active),
                 m_coeff.adr.eq(self.rtlink.o.address[1:]),
                 m_coeff.dat_w.eq(Cat(self.rtlink.o.data, self.rtlink.o.data)),
                 m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
@@ -77,6 +77,7 @@ class RTServoMem(Module):
                 )
         ]
         self.comb += [
+                self.rtlink.o.busy.eq(read),
                 self.rtlink.i.stb.eq(read),
                 self.rtlink.i.data.eq(Mux(state_sel,
                     m_state.dat_r >> w.state - w.coeff,
