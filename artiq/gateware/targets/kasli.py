@@ -544,7 +544,8 @@ class SUServo(_StandaloneBase):
         clkout = Signal()
         clkout_fabric = Signal()
         self.specials += [
-                DifferentialInput(pads.clkout_p, pads.clkout_n, clkout),
+                DifferentialInput(
+                    sampler_pads.clkout_p, sampler_pads.clkout_n, clkout),
                 Instance("BUFH", i_I=clkout, o_O=clkout_fabric),
                 Instance("BUFIO", i_I=clkout, o_O=su.adc.clkout_io)
         ]
@@ -602,12 +603,12 @@ class SUServo(_StandaloneBase):
 
         self.add_rtio(rtio_channels)
 
-        platform.add_period_constraint(su.adc.cd_ret.clk, 8.)
+        platform.add_period_constraint(self.cd_ret.clk, 8.)
         platform.add_false_path_constraints(
-            su.adc.cd_ret.clk,
+            self.cd_ret.clk,
             self.rtio_crg.cd_rtio.clk)
         platform.add_false_path_constraints(
-            su.adc.cd_ret.clk,
+            self.cd_ret.clk,
             self.crg.cd_sys.clk)
 
 
