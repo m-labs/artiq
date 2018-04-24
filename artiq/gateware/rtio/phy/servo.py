@@ -32,18 +32,19 @@ class RTServoMem(Module):
         m_state = servo.m_state.get_port(write_capable=True)
         self.specials += m_state, m_coeff
 
+        # just expose the w.coeff (18) MSBs of state
         assert w.state >= w.coeff
         assert len(m_coeff.dat_w) == 2*w.coeff
         assert w.coeff >= w.word
 
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
-                w.state,
+                data_width=w.coeff,
                 # coeff, profile, channel, 2 mems, rw
-                3 + w.profile + w.channel + 1 + 1,
+                address_width=3 + w.profile + w.channel + 1 + 1,
                 enable_replace=False),
             rtlink.IInterface(
-                w.state,
+                data_width=w.coeff,
                 timestamped=False)
             )
 
@@ -53,6 +54,7 @@ class RTServoMem(Module):
         state_sel = self.rtlink.o.address[-2]
         high_coeff = self.rtlink.o.address[0]
         self.comb += [
+                self.rtlink.o.busy.eq(0),
                 m_coeff.adr.eq(self.rtlink.o.address[1:]),
                 m_coeff.dat_w.eq(Cat(self.rtlink.o.data, self.rtlink.o.data)),
                 m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
@@ -60,7 +62,7 @@ class RTServoMem(Module):
                 m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
                     we & ~state_sel),
                 m_state.adr.eq(self.rtlink.o.address),
-                m_state.dat_w.eq(self.rtlink.o.data << w.state - w.coeff),
+                m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
                 m_state.we.eq(self.rtlink.o.stb & we & state_sel),
         ]
         read = Signal()
@@ -70,17 +72,20 @@ class RTServoMem(Module):
                 If(read,
                     read.eq(0)
                 ),
-                If(self.rtlink.o.stb & ~we,
-                    read.eq(1),
+                If(self.rtlink.o.stb,
+                    read.eq(~we),
                     read_sel.eq(state_sel),
                     read_high.eq(high_coeff),
                 )
         ]
         self.comb += [
-                self.rtlink.o.busy.eq(read),
                 self.rtlink.i.stb.eq(read),
-                self.rtlink.i.data.eq(Mux(state_sel,
-                    m_state.dat_r >> w.state - w.coeff,
-                    Mux(read_high, m_coeff.dat_r[w.coeff:],
-                        m_coeff.dat_r)))
+                self.rtlink.i.data.eq(
+                    Mux(
+                        state_sel,
+                        m_state.dat_r[w.state - w.coeff:],
+                        Mux(
+                            read_high,
+                            m_coeff.dat_r[w.coeff:],
+                            m_coeff.dat_r[:w.coeff])))
         ]
