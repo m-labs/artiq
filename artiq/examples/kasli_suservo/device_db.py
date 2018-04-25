@@ -36,120 +36,217 @@ device_db = {
         "class": "PCA9548",
         "arguments": {"address": 0xe2}
     },
-}
 
-for i in range(16):
-    device_db["ttl" + str(i)] = {
+    "ttl0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLInOut",
-        "arguments": {"channel": i},
-    }
-
-
-device_db.update(
-    spi_sampler0_adc={
-        "type": "local",
-        "module": "artiq.coredevice.spi2",
-        "class": "SPIMaster",
-        "arguments": {"channel": 16}
+        "arguments": {"channel": 0},
     },
-    spi_sampler0_pgia={
+    "ttl1": {
         "type": "local",
-        "module": "artiq.coredevice.spi2",
-        "class": "SPIMaster",
-        "arguments": {"channel": 17}
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 1},
     },
-    ttl_sampler0_cnv={
+    "ttl2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 2},
+    },
+    "ttl3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 3},
+    },
+
+    "ttl4": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 18}
+        "arguments": {"channel": 4},
     },
-    sampler0={
+    "ttl5": {
         "type": "local",
-        "module": "artiq.coredevice.sampler",
-        "class": "Sampler",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 5},
+    },
+    "ttl6": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 6},
+    },
+    "ttl7": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 7},
+    },
+    "ttl8": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 8},
+    },
+    "ttl9": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 9},
+    },
+    "ttl10": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 10},
+    },
+    "ttl11": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 11},
+    },
+    "ttl12": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 12},
+    },
+    "ttl13": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 13},
+    },
+    "ttl14": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 14},
+    },
+    "ttl15": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 15},
+    },
+
+    "suservo0": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "SUServo",
         "arguments": {
-            "spi_adc_device": "spi_sampler0_adc",
-            "spi_pgia_device": "spi_sampler0_pgia",
-            "cnv_device": "ttl_sampler0_cnv",
+            "channel": 24,
+            "sampler_pgia_device": "spi_sampler0_pgia",
+            "urukul0_device": "urukul0_cpld",
+            "urukul1_device": "urukul1_cpld"
         }
     },
 
-    spi_urukul0={
+    "suservo0_ch0": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 16, "servo_device": "suservo0"}
+    },
+    "suservo0_ch1": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 17, "servo_device": "suservo0"}
+    },
+    "suservo0_ch2": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 18, "servo_device": "suservo0"}
+    },
+    "suservo0_ch3": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 19, "servo_device": "suservo0"}
+    },
+    "suservo0_ch4": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 20, "servo_device": "suservo0"}
+    },
+    "suservo0_ch5": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 21, "servo_device": "suservo0"}
+    },
+    "suservo0_ch6": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 22, "servo_device": "suservo0"}
+    },
+    "suservo0_ch7": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 23, "servo_device": "suservo0"}
+    },
+
+    "spi_sampler0_pgia": {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 19}
+        "arguments": {"channel": 25}
     },
-    ttl_urukul0_io_update={
+
+    "spi_urukul0": {
         "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 20}
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 26}
     },
-    ttl_urukul0_sw0={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 21}
-    },
-    ttl_urukul0_sw1={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 22}
-    },
-    ttl_urukul0_sw2={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 23}
-    },
-    ttl_urukul0_sw3={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 24}
-    },
-    urukul0_cpld={
+    "urukul0_cpld": {
         "type": "local",
         "module": "artiq.coredevice.urukul",
         "class": "CPLD",
         "arguments": {
             "spi_device": "spi_urukul0",
-            "io_update_device": "ttl_urukul0_io_update",
             "refclk": 125e6,
             "clk_sel": 0
         }
-    }
-)
-
-for i in range(4):
-    device_db["urukul0_ch" + str(i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ad9910",
-        "class": "AD9910",
-        "arguments": {
-            "pll_n": 32,
-            "chip_select": 4 + i,
-            "cpld_device": "urukul0_cpld",
-            "sw_device": "ttl_urukul0_sw" + str(i)
-        }
-    }
-
-device_db.update(
-    led0={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 31}
     },
-    led1={
+
+    "spi_urukul1": {
+        "type": "local",
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 27}
+    },
+    "urukul1_cpld": {
+        "type": "local",
+        "module": "artiq.coredevice.urukul",
+        "class": "CPLD",
+        "arguments": {
+            "spi_device": "spi_urukul1",
+            "refclk": 125e6,
+            "clk_sel": 0
+        }
+    },
+
+    "led0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 32}
+        "arguments": {"channel": 28}
+    },
+    "led1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 29}
     }
-)
+}
