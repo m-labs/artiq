@@ -111,7 +111,7 @@ class CPLD:
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update"}
 
-    def __init__(self, dmgr, spi_device, io_update_device,
+    def __init__(self, dmgr, spi_device, io_update_device=None,
             dds_reset_device=None,
             sync_sel=0, clk_sel=0,
             refclk=125e6, core_device="core"):
@@ -120,7 +120,8 @@ class CPLD:
         self.refclk = refclk
 
         self.bus = dmgr.get(spi_device)
-        self.io_update = dmgr.get(io_update_device)
+        if io_update_device is not None:
+            self.io_update = dmgr.get(io_update_device)
         if dds_reset_device is not None:
             self.dds_reset = dmgr.get(dds_reset_device)
 
