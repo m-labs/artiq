@@ -16,7 +16,6 @@ class SamplerPads(Module):
         dn = platform.request("{}_adc_data_n".format(eem0))
 
         clkout_se = Signal()
-        clkout_d = Signal()
         sck = Signal()
 
         self.specials += [
@@ -25,13 +24,7 @@ class SamplerPads(Module):
                 DDROutput(self.sck_en, 0, sck),
                 DifferentialOutput(sck, spip.clk, spin.clk),
                 DifferentialInput(dp.clkout, dn.clkout, clkout_se),
-                Instance(
-                    "IDELAYE2",
-                    p_HIGH_PERFORMANCE_MODE="TRUE", p_IDELAY_TYPE="FIXED",
-                    p_SIGNAL_PATTERN="CLOCK", p_IDELAY_VALUE=0,
-                    p_REFCLK_FREQUENCY=200.,
-                    i_IDATAIN=clkout_se, o_DATAOUT=clkout_d),
-                Instance("BUFR", i_I=clkout_d, o_O=self.clkout)
+                Instance("BUFR", i_I=clkout_se, o_O=self.clkout)
         ]
 
         # here to be early before the input delays below to have the clock
@@ -42,19 +35,12 @@ class SamplerPads(Module):
                 clk=dp.clkout)
         # platform.add_period_constraint(sampler_pads.clkout_p, 8.)
         for i in "abcd":
-            sdo_se = Signal()
             sdo = Signal()
             setattr(self, "sdo{}".format(i), sdo)
             sdop = getattr(dp, "sdo{}".format(i))
             sdon = getattr(dn, "sdo{}".format(i))
             self.specials += [
-                DifferentialInput(sdop, sdon, sdo_se),
-                Instance(
-                    "IDELAYE2",
-                    p_HIGH_PERFORMANCE_MODE="TRUE", p_IDELAY_TYPE="FIXED",
-                    p_SIGNAL_PATTERN="DATA", p_IDELAY_VALUE=15,
-                    p_REFCLK_FREQUENCY=200.,
-                    i_IDATAIN=sdo_se, o_DATAOUT=sdo),
+                DifferentialInput(sdop, sdon, sdo),
             ]
             # 8, -0+1.5 hold (t_HSDO_DDR), -0.5+0.5 skew
             platform.add_platform_command(
