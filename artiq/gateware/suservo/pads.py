@@ -3,17 +3,17 @@ from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
 
 
 class SamplerPads(Module):
-    def __init__(self, platform, eem0, eem1):
+    def __init__(self, platform, eem):
         self.sck_en = Signal()
         self.cnv = Signal()
         self.clkout = Signal()
 
-        spip = platform.request("{}_adc_spi_p".format(eem0))
-        spin = platform.request("{}_adc_spi_n".format(eem0))
-        cnv = platform.request("{}_cnv".format(eem0))
-        sdr = platform.request("{}_sdr".format(eem0))
-        dp = platform.request("{}_adc_data_p".format(eem0))
-        dn = platform.request("{}_adc_data_n".format(eem0))
+        spip = platform.request("{}_adc_spi_p".format(eem))
+        spin = platform.request("{}_adc_spi_n".format(eem))
+        cnv = platform.request("{}_cnv".format(eem))
+        sdr = platform.request("{}_sdr".format(eem))
+        dp = platform.request("{}_adc_data_p".format(eem))
+        dn = platform.request("{}_adc_data_n".format(eem))
 
         clkout_se = Signal()
         sck = Signal()
@@ -21,7 +21,7 @@ class SamplerPads(Module):
         self.specials += [
                 DifferentialOutput(self.cnv, cnv.p, cnv.n),
                 DifferentialOutput(1, sdr.p, sdr.n),
-                DDROutput(self.sck_en, 0, sck),
+                DDROutput(0, self.sck_en, sck, ClockSignal("rio_phy")),
                 DifferentialOutput(sck, spip.clk, spin.clk),
                 DifferentialInput(dp.clkout, dn.clkout, clkout_se),
                 Instance("BUFR", i_I=clkout_se, o_O=self.clkout)
@@ -52,17 +52,17 @@ class SamplerPads(Module):
 
 
 class UrukulPads(Module):
-    def __init__(self, platform, eem00, eem01, eem10, eem11):
+    def __init__(self, platform, eem0, eem1):
         spip, spin = [[
                 platform.request("{}_qspi_{}".format(eem, pol), 0)
-                for eem in (eem00, eem10)] for pol in "pn"]
+                for eem in (eem0, eem1)] for pol in "pn"]
         ioup = [platform.request("{}_io_update".format(eem), 0)
-                for eem in (eem00, eem10)]
+                for eem in (eem0, eem1)]
         self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
         self.specials += [(
-                DifferentialOutput(self.cs_n, spip[i].cs_n, spin[i].cs_n),
+                DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
                 DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
                 DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
                 for i in range(2)]

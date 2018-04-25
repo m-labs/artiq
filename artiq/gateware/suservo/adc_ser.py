@@ -55,13 +55,13 @@ class ADC(Module):
         assert p.lanes*t_read == p.width*p.channels
         assert all(_ > 0 for _ in (p.t_cnvh, p.t_conv, p.t_rtt))
         assert p.t_conv > 1
-        count = Signal(max=max(p.t_cnvh, p.t_conv - 1, t_read, p.t_rtt + 1) - 1,
+        count = Signal(max=max(p.t_cnvh, p.t_conv, t_read, p.t_rtt),
                 reset_less=True)
         count_load = Signal.like(count)
         count_done = Signal()
-        self.comb += [
-                count_done.eq(count == 0),
-        ]
+        update = Signal()
+
+        self.comb += count_done.eq(count == 0)
         self.sync += [
                 count.eq(count - 1),
                 If(count_done,
@@ -78,7 +78,7 @@ class ADC(Module):
                 )
         )
         fsm.act("CNVH",
-                count_load.eq(p.t_conv - 2),  # account for sck ODDR delay
+                count_load.eq(p.t_conv - 1),
                 pads.cnv.eq(1),
                 If(count_done,
                     NextState("CONV")
@@ -92,7 +92,7 @@ class ADC(Module):
         )
         fsm.act("READ",
                 self.reading.eq(1),
-                count_load.eq(p.t_rtt),  # again account for sck ODDR delay
+                count_load.eq(p.t_rtt - 1),
                 pads.sck_en.eq(1),
                 If(count_done,
                     NextState("RTT")
@@ -101,6 +101,7 @@ class ADC(Module):
         fsm.act("RTT",  # account for sck->clkout round trip time
                 self.reading.eq(1),
                 If(count_done,
+                    update.eq(1),
                     NextState("IDLE")
                 )
         )
@@ -111,10 +112,7 @@ class ADC(Module):
             sck_en_ret = 1
 
         self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
-        self.comb += [
-                # falling clkout makes two bits available
-                self.cd_ret.clk.eq(pads.clkout)
-        ]
+        self.comb += self.cd_ret.clk.eq(pads.clkout)
 
         k = p.channels//p.lanes
         assert t_read == k*p.width
@@ -126,7 +124,9 @@ class ADC(Module):
                         sdo_sr[0].eq(sdo),
                     )
             ]
-            self.comb += [
-                    Cat(reversed([self.data[i*k + j] for j in range(k)])
-                        ).eq(sdo_sr)
+            self.sync += [
+                    If(update,
+                        Cat(reversed([self.data[i*k + j] for j in range(k)])
+                            ).eq(sdo_sr)
+                    )
             ]

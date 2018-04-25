@@ -224,7 +224,7 @@ def _sampler(eem, eem_aux=None):
                 Subsignal("sdod", Pins(_eem_pin(eem_aux, 4, "n"))),
                 IOStandard("LVDS_25"),
             ),
-            ]
+        ]
     return ios
 
 
@@ -362,7 +362,7 @@ def _urukul_qspi(eem0, eem1):
             ))
     ios += [
         ("{}_qspi_p".format(eem0), 0,
-            Subsignal("cs_n", Pins(_eem_pin(eem0, 5, "p"))),
+            Subsignal("cs", Pins(_eem_pin(eem0, 5, "p"))),
             Subsignal("clk", Pins(_eem_pin(eem0, 2, "p"))),
             Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "p"))),
             Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "p"))),
@@ -371,7 +371,7 @@ def _urukul_qspi(eem0, eem1):
             IOStandard("LVDS_25"),
         ),
         ("{}_qspi_n".format(eem0), 0,
-            Subsignal("cs_n", Pins(_eem_pin(eem0, 5, "n"))),
+            Subsignal("cs", Pins(_eem_pin(eem0, 5, "n"))),
             Subsignal("clk", Pins(_eem_pin(eem0, 2, "n"))),
             Subsignal("mosi0", Pins(_eem_pin(eem1, 0, "n"))),
             Subsignal("mosi1", Pins(_eem_pin(eem1, 1, "n"))),
@@ -525,25 +525,25 @@ class SUServo(_StandaloneBase):
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
         # EEM3, EEM2: Sampler
-        sampler_pads = servo_pads.SamplerPads(self.platform, "eem3", "eem2")
+        sampler_pads = servo_pads.SamplerPads(self.platform, "eem3")
         # EEM5, EEM4 and EEM7, EEM6: Urukul
         urukul_pads = servo_pads.UrukulPads(self.platform,
-                "eem5", "eem4", "eem7", "eem6")
-        adc_p = servo.ADCParams(width=16, channels=8, lanes=4,
-                t_cnvh=4, t_conv=57, t_rtt=4)
-        iir_p = servo.IIRWidths(state=25, coeff=18, adc=16,
-                asf=14, word=16, accu=48, shift=11,
-                channel=3, profile=5)
+                "eem5", "eem7")
+        adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
+                # account for SCK pipeline latency
+                t_conv=57 - 4, t_rtt=4 + 4)
+        iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
+                accu=48, shift=11, channel=3, profile=5)
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
                 channels=adc_p.channels, clk=1)
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
-        su = ClockDomainsRenamer({"sys": "rio_phy"})(su)
+        su = ClockDomainsRenamer("rio_phy")(su)
         self.submodules += sampler_pads, urukul_pads, su
 
         ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
         self.submodules += ctrls
         rtio_channels.extend(rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
-        mem = rtservo.RTServoMem(iir_p, su.iir)
+        mem = rtservo.RTServoMem(iir_p, su)
         self.submodules += mem
         rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
 

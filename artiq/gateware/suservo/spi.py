@@ -37,8 +37,6 @@ class SPISimple(Module):
 
         assert p.clk >= 1
 
-        cs_n = pads.cs_n
-        clk = pads.clk
         cnt = Signal(max=max(2, p.clk), reset_less=True)
         cnt_done = Signal()
         cnt_next = Signal()
@@ -54,21 +52,17 @@ class SPISimple(Module):
         ]
 
         for i, d in enumerate(self.data):
-            self.comb += [
-                    getattr(pads, "mosi{}".format(i)).eq(d[-1])
-            ]
+            self.comb += getattr(pads, "mosi{}".format(i)).eq(d[-1])
 
         bits = Signal(max=p.width + 1, reset_less=True)
 
         self.submodules.fsm = fsm = CEInserter()(FSM("IDLE"))
 
-        self.comb += [
-                fsm.ce.eq(cnt_done)
-        ]
+        self.comb += fsm.ce.eq(cnt_done)
 
         fsm.act("IDLE",
                 self.done.eq(1),
-                cs_n.eq(1),
+                pads.cs_n.eq(1),
                 If(self.start,
                     cnt_next.eq(1),
                     NextState("SETUP")
@@ -84,7 +78,7 @@ class SPISimple(Module):
         )
         fsm.act("HOLD",
                 cnt_next.eq(1),
-                clk.eq(1),
+                pads.clk.eq(1),
                 NextState("SETUP")
         )
 

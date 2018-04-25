@@ -7,18 +7,19 @@ class RTServoCtrl(Module):
     """Per channel RTIO control interface"""
     def __init__(self, ctrl):
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(len(ctrl)))
+            rtlink.OInterface(len(ctrl.profile) + 2))
 
         # # #
 
-        self.sync.rio += [
-                If(self.rtlink.o.stb,
-                    Cat(ctrl.profile, ctrl.en_out, ctrl.en_iir).eq(
-                        self.rtlink.o.data),
-                )
-        ]
         self.comb += [
-                ctrl.stb.eq(self.rtlink.o.stb)
+                ctrl.stb.eq(self.rtlink.o.stb),
+                self.rtlink.o.busy.eq(0)
+        ]
+        self.sync.rio_phy += [
+                If(self.rtlink.o.stb,
+                    Cat(ctrl.en_out, ctrl.en_iir, ctrl.profile).eq(
+                            self.rtlink.o.data)
+                )
         ]
 
 
@@ -26,10 +27,11 @@ class RTServoMem(Module):
     """All-channel all-profile coefficient and state RTIO control
     interface."""
     def __init__(self, w, servo):
-        m_coeff = servo.m_coeff.get_port(write_capable=True,
-                we_granularity=w.coeff)
+        m_coeff = servo.iir.m_coeff.get_port(write_capable=True,
+                we_granularity=w.coeff, clock_domain="rio")
         assert len(m_coeff.we) == 2
-        m_state = servo.m_state.get_port(write_capable=True)
+        m_state = servo.iir.m_state.get_port(write_capable=True,
+                clock_domain="rio")
         self.specials += m_state, m_coeff
 
         # just expose the w.coeff (18) MSBs of state
@@ -52,8 +54,8 @@ class RTServoMem(Module):
 
         # # #
 
-        config = Signal(1, reset=0)
-        status = Signal(2)
+        config = Signal(w.coeff, reset=0)
+        status = Signal(w.coeff)
         self.comb += [
                 Cat(servo.start).eq(config),
                 status.eq(Cat(servo.start, servo.done))
@@ -87,16 +89,18 @@ class RTServoMem(Module):
                 m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
         ]
         read = Signal()
-        read_sel = Signal()
+        read_state = Signal()
         read_high = Signal()
+        read_config = Signal()
         self.sync.rio += [
                 If(read,
                     read.eq(0)
                 ),
                 If(self.rtlink.o.stb,
                     read.eq(~we),
-                    read_sel.eq(state_sel),
+                    read_state.eq(state_sel),
                     read_high.eq(high_coeff),
+                    read_config.eq(config_sel),
                 )
         ]
         self.sync.rio_phy += [
@@ -107,8 +111,8 @@ class RTServoMem(Module):
         self.comb += [
                 self.rtlink.i.stb.eq(read),
                 self.rtlink.i.data.eq(
-                    Mux(state_sel,
-                        Mux(config_sel,
+                    Mux(read_state,
+                        Mux(read_config,
                             status,
                             m_state.dat_r[w.state - w.coeff:]),
                         Mux(read_high,

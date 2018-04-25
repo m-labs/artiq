@@ -24,38 +24,37 @@ class Servo(Module):
         assert t_iir + (2 << iir_p.channel) < t_cycle, "need shifting time"
 
         self.start = Signal()
-        t_restart = t_cycle - t_adc
+        t_restart = t_cycle - t_adc + 1
         assert t_restart > 0
-        cnt = Signal(max=t_restart + 1)
+        cnt = Signal(max=t_restart)
         cnt_done = Signal()
-        token = Signal(2)
+        active = Signal(3)
         self.done = Signal()
-        iir_done = Signal()
+        self.sync += [
+                If(self.dds.done,
+                    active[2].eq(0)
+                ),
+                If(self.dds.start & self.dds.done,
+                    active[2].eq(1),
+                    active[1].eq(0)
+                ),
+                If(self.iir.start & self.iir.done,
+                    active[1].eq(1),
+                    active[0].eq(0)
+                ),
+                If(~cnt_done & self.adc.done,
+                    cnt.eq(cnt - 1)
+                ),
+                If(self.adc.start & self.adc.done,
+                    active[0].eq(1),
+                    cnt.eq(t_restart - 1)
+                )
+        ]
         self.comb += [
                 cnt_done.eq(cnt == 0),
-                iir_done.eq(self.iir.shifting | self.iir.done),
                 self.adc.start.eq(self.start & cnt_done),
-                self.iir.start.eq(token[0] & self.adc.done),
-                self.dds.start.eq(token[1] & iir_done),
+                self.iir.start.eq(active[0] & self.adc.done),
+                self.dds.start.eq(active[1] &
+                    (self.iir.shifting | self.iir.done)),
                 self.done.eq(self.dds.done),
-        ]
-        self.sync += [
-                If(self.adc.done & ~cnt_done,
-                    cnt.eq(cnt - 1),
-                ),
-                If(self.adc.start,
-                    cnt.eq(t_restart),
-                ),
-                If(self.adc.done,
-                    token[0].eq(0)
-                ),
-                If(self.adc.start,
-                    token[0].eq(1)
-                ),
-                If(iir_done,
-                    token[1].eq(0)
-                ),
-                If(self.iir.start,
-                    token[1].eq(1)
-                )
         ]

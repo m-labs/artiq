@@ -37,7 +37,7 @@ class TB(Module):
             sr = Signal(p.width*p.channels//p.lanes, reset_less=True)
             srs.append(sr)
             self.sync.adc += [
-                    sdo.eq(self._dly(sr[-1], -1)),
+                    sdo.eq(self._dly(sr[-1], 0)),
                     If(adc_sck_en,
                         sr[1:].eq(sr)
                     )
@@ -52,10 +52,10 @@ class TB(Module):
 
         adc_clk_rec = Signal()
         self.comb += [
-                adc_sck_en.eq(self._dly(self.sck_en, 1)),
+                adc_sck_en.eq(self._dly(self.sck_en, 0)),
                 self.sck_en_ret.eq(self._dly(adc_sck_en)),
 
-                adc_clk_rec.eq(self._dly(self.sck, 1)),
+                adc_clk_rec.eq(self._dly(self.sck, 0)),
                 self.clkout.eq(self._dly(adc_clk_rec)),
         ]
 

@@ -1,4 +1,4 @@
-core_addr = "lauda.ber.quartiq.de"
+core_addr = "10.0.16.119"
 
 device_db = {
     "core": {
@@ -141,9 +141,11 @@ device_db = {
         "class": "SUServo",
         "arguments": {
             "channel": 24,
-            "sampler_pgia_device": "spi_sampler0_pgia",
-            "urukul0_device": "urukul0_cpld",
-            "urukul1_device": "urukul1_cpld"
+            "pgia_device": "spi_sampler0_pgia",
+            "cpld0_device": "urukul0_cpld",
+            "cpld1_device": "urukul1_cpld",
+            "dds0_device": "urukul0_dds",
+            "dds1_device": "urukul1_dds"
         }
     },
 
@@ -215,8 +217,18 @@ device_db = {
         "class": "CPLD",
         "arguments": {
             "spi_device": "spi_urukul0",
-            "refclk": 125e6,
+            "refclk": 100e6,
             "clk_sel": 0
+        }
+    },
+    "urukul0_dds": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 3,
+            "cpld_device": "urukul0_cpld",
         }
     },
 
@@ -232,8 +244,18 @@ device_db = {
         "class": "CPLD",
         "arguments": {
             "spi_device": "spi_urukul1",
-            "refclk": 125e6,
+            "refclk": 100e6,
             "clk_sel": 0
+        }
+    },
+    "urukul1_dds": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 3,
+            "cpld_device": "urukul1_cpld",
         }
     },
 

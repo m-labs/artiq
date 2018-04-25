@@ -36,13 +36,8 @@ class DDS(spi.SPISimple):
                 )
         ]
 
-        io_update = pads.io_update
         # this assumes that the cycle time (1/125 MHz = 8 ns) is >1 SYNC_CLK
         # cycle (1/250 MHz = 4ns)
-        done = Signal()
-        self.sync += [
-                done.eq(self.done)
-        ]
-        self.comb += [
-                io_update.eq(self.done & ~done)
-        ]
+        done_old = Signal()
+        self.sync += done_old.eq(self.done)
+        self.comb += pads.io_update.eq(self.done & ~done_old)
