@@ -26,7 +26,7 @@ class Servo(Module):
         self.start = Signal()
         t_restart = t_cycle - t_adc
         assert t_restart > 0
-        cnt = Signal(max=t_restart)
+        cnt = Signal(max=t_restart + 1)
         cnt_done = Signal()
         token = Signal(2)
         self.done = Signal()
@@ -44,7 +44,7 @@ class Servo(Module):
                     cnt.eq(cnt - 1),
                 ),
                 If(self.adc.start,
-                    cnt.eq(t_restart - 1),
+                    cnt.eq(t_restart),
                 ),
                 If(self.adc.done,
                     token[0].eq(0)
