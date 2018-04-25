@@ -19,9 +19,9 @@ ADCParams = namedtuple("ADCParams", [
     "t_cnvh",   # CNVH duration (minimum)
     "t_conv",   # CONV duration (minimum)
     "t_rtt",    # upper estimate for clock round trip time from
-                # sck at the FPGA to clkout at the FPGA.
+                # sck at the FPGA to clkout at the FPGA (cycles)
                 # this avoids having synchronizers and another counter
-                # to signal end-of transfer (CLKOUT cycles)
+                # to signal end-of transfer
                 # and it ensures fixed latency early in the pipeline
 ])
 
@@ -51,11 +51,11 @@ class ADC(Module):
         assert p.lanes == len(sdo)
 
         # set up counters for the four states CNVH, CONV, READ, RTT
-        t_read = p.width*p.channels//p.lanes//2  # DDR
-        assert 2*p.lanes*t_read == p.width*p.channels
+        t_read = p.width*p.channels//p.lanes  # SDR
+        assert p.lanes*t_read == p.width*p.channels
         assert all(_ > 0 for _ in (p.t_cnvh, p.t_conv, p.t_rtt))
         assert p.t_conv > 1
-        count = Signal(max=max(p.t_cnvh, p.t_conv, t_read, p.t_rtt) - 1,
+        count = Signal(max=max(p.t_cnvh, p.t_conv - 1, t_read, p.t_rtt + 1) - 1,
                 reset_less=True)
         count_load = Signal.like(count)
         count_done = Signal()
@@ -92,7 +92,7 @@ class ADC(Module):
         )
         fsm.act("READ",
                 self.reading.eq(1),
-                count_load.eq(p.t_rtt),  # account for sck ODDR delay
+                count_load.eq(p.t_rtt),  # again account for sck ODDR delay
                 pads.sck_en.eq(1),
                 If(count_done,
                     NextState("RTT")
@@ -113,21 +113,20 @@ class ADC(Module):
         self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
         self.comb += [
                 # falling clkout makes two bits available
-                self.cd_ret.clk.eq(~pads.clkout)
+                self.cd_ret.clk.eq(pads.clkout)
         ]
 
         k = p.channels//p.lanes
-        assert 2*t_read == k*p.width
+        assert t_read == k*p.width
         for i, sdo in enumerate(sdo):
-            sdo_sr0 = Signal(t_read - 1)
-            sdo_sr1 = Signal(t_read - 1)
+            sdo_sr = Signal(2*t_read)
             self.sync.ret += [
                     If(self.reading & sck_en_ret,
-                        sdo_sr0.eq(Cat(sdo[0], sdo_sr0)),
-                        sdo_sr1.eq(Cat(sdo[1], sdo_sr1))
+                        sdo_sr[1:].eq(sdo_sr),
+                        sdo_sr[0].eq(sdo),
                     )
             ]
             self.comb += [
-                    Cat(reversed([self.data[i*k + j] for j in range(k)])).eq(
-                        Cat(sdo, zip(sdo_sr0, sdo_sr1)))
+                    Cat(reversed([self.data[i*k + j] for j in range(k)])
+                        ).eq(sdo_sr)
             ]

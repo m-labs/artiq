@@ -31,15 +31,15 @@ class TB(Module):
         srs = []
         for i in range(p.lanes):
             name = "sdo" + string.ascii_lowercase[i]
-            sdo = Signal(2, name=name, reset_less=True)
+            sdo = Signal(name=name, reset_less=True)
             self.sdo.append(sdo)
             setattr(self, name, sdo)
             sr = Signal(p.width*p.channels//p.lanes, reset_less=True)
             srs.append(sr)
             self.sync.adc += [
-                    sdo.eq(Cat(self._dly(sr[-1], 3), self._dly(sr[-2], 3))),
+                    sdo.eq(self._dly(sr[-1], -1)),
                     If(adc_sck_en,
-                        sr[2:].eq(sr)
+                        sr[1:].eq(sr)
                     )
             ]
             cnv_old = Signal(reset_less=True)
@@ -54,6 +54,7 @@ class TB(Module):
         self.comb += [
                 adc_sck_en.eq(self._dly(self.sck_en, 1)),
                 self.sck_en_ret.eq(self._dly(adc_sck_en)),
+
                 adc_clk_rec.eq(self._dly(self.sck, 1)),
                 self.clkout.eq(self._dly(adc_clk_rec)),
         ]

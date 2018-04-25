@@ -22,7 +22,7 @@ class SamplerPads(Module):
         self.specials += [
                 DifferentialOutput(self.cnv, cnv.p, cnv.n),
                 DifferentialOutput(1, sdr.p, sdr.n),
-                DDROutput(0, self.sck_en, sck),
+                DDROutput(self.sck_en, 0, sck),
                 DifferentialOutput(sck, spip.clk, spin.clk),
                 DifferentialInput(dp.clkout, dn.clkout, clkout_se),
                 Instance(
@@ -43,8 +43,7 @@ class SamplerPads(Module):
         # platform.add_period_constraint(sampler_pads.clkout_p, 8.)
         for i in "abcd":
             sdo_se = Signal()
-            sdo_d = Signal()
-            sdo = Signal(2)
+            sdo = Signal()
             setattr(self, "sdo{}".format(i), sdo)
             sdop = getattr(dp, "sdo{}".format(i))
             sdon = getattr(dn, "sdo{}".format(i))
@@ -53,24 +52,16 @@ class SamplerPads(Module):
                 Instance(
                     "IDELAYE2",
                     p_HIGH_PERFORMANCE_MODE="TRUE", p_IDELAY_TYPE="FIXED",
-                    p_SIGNAL_PATTERN="DATA", p_IDELAY_VALUE=31,
+                    p_SIGNAL_PATTERN="DATA", p_IDELAY_VALUE=15,
                     p_REFCLK_FREQUENCY=200.,
-                    i_IDATAIN=sdo_se, o_DATAOUT=sdo_d),
-                Instance("IDDR",
-                    p_DDR_CLK_EDGE="SAME_EDGE",
-                    i_C=~self.clkout, i_CE=1, i_S=0, i_R=0,
-                    i_D=sdo_d, o_Q1=sdo[0], o_Q2=sdo[1])  # sdo[1] older
+                    i_IDATAIN=sdo_se, o_DATAOUT=sdo),
             ]
-            # 4, -0+1.5 hold (t_HSDO_DDR), -0.2+0.2 skew
+            # 8, -0+1.5 hold (t_HSDO_DDR), -0.5+0.5 skew
             platform.add_platform_command(
                 "set_input_delay -clock {clk} "
-                "-max 1.6 [get_ports {port}]\n"
+                "-max 2 [get_ports {port}] -clock_fall\n"
                 "set_input_delay -clock {clk} "
-                "-min -0.1 [get_ports {port}]\n"
-                "set_input_delay -clock {clk} "
-                "-max 1.6 [get_ports {port}] -clock_fall -add_delay\n"
-                "set_input_delay -clock {clk} "
-                "-min -0.1 [get_ports {port}] -clock_fall -add_delay",
+                "-min -0.5 [get_ports {port}] -clock_fall",
                 clk=dp.clkout, port=sdop)
 
 

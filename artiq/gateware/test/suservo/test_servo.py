@@ -93,10 +93,6 @@ def main():
                 "adc":   (8, 0),
                 "ret":   (8, 0),
                 "async": (2, 0),
-            },
-            special_overrides={
-                io.DDROutput: test_adc.DDROutput,
-                io.DDRInput: test_adc.DDRInput
             })
 
 

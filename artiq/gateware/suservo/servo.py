@@ -16,14 +16,15 @@ class Servo(Module):
             self.comb += j.eq(i), l.eq(k)
 
         t_adc = (adc_p.t_cnvh + adc_p.t_conv + adc_p.t_rtt +
-            adc_p.channels*adc_p.width//2//adc_p.lanes) + 1
+            adc_p.channels*adc_p.width//adc_p.lanes) + 1
         t_iir = ((1 + 4 + 1) << iir_p.channel) + 1
         t_dds = (dds_p.width*2 + 1)*dds_p.clk + 1
+
         t_cycle = max(t_adc, t_iir, t_dds)
         assert t_iir + (2 << iir_p.channel) < t_cycle, "need shifting time"
 
         self.start = Signal()
-        t_restart = t_cycle - t_iir - t_adc
+        t_restart = t_cycle - t_adc
         assert t_restart > 0
         cnt = Signal(max=t_restart)
         cnt_done = Signal()
@@ -39,7 +40,7 @@ class Servo(Module):
                 self.done.eq(self.dds.done),
         ]
         self.sync += [
-                If(iir_done & ~cnt_done & ~token[0],
+                If(self.adc.done & ~cnt_done,
                     cnt.eq(cnt - 1),
                 ),
                 If(self.adc.start,
