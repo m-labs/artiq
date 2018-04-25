@@ -34,7 +34,9 @@ class RTServoMem(Module):
 
         # just expose the w.coeff (18) MSBs of state
         assert w.state >= w.coeff
+        # ensure that we can split the coefficient storage correctly
         assert len(m_coeff.dat_w) == 2*w.coeff
+        # ensure that the DDS word data fits into the coefficient mem
         assert w.coeff >= w.word
 
         self.rtlink = rtlink.Interface(
@@ -50,8 +52,27 @@ class RTServoMem(Module):
 
         # # #
 
+        config = Signal(1, reset=0)
+        status = Signal(2)
+        self.comb += [
+                Cat(servo.start).eq(config),
+                status.eq(Cat(servo.start, servo.done))
+        ]
+
+        assert len(self.rtlink.o.address) == (
+                1 +  # we
+                1 +  # state_sel
+                1 +  # high_coeff
+                len(m_coeff.adr))
+        # ensure that we can fit config/status into the state address space
+        assert len(self.rtlink.o.address) >= (
+                1 +  # we
+                1 +  # state_sel
+                1 +  # config_sel
+                len(m_state.adr))
         we = self.rtlink.o.address[-1]
         state_sel = self.rtlink.o.address[-2]
+        config_sel = self.rtlink.o.address[-3]
         high_coeff = self.rtlink.o.address[0]
         self.comb += [
                 self.rtlink.o.busy.eq(0),
@@ -63,7 +84,7 @@ class RTServoMem(Module):
                     we & ~state_sel),
                 m_state.adr.eq(self.rtlink.o.address),
                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
-                m_state.we.eq(self.rtlink.o.stb & we & state_sel),
+                m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
         ]
         read = Signal()
         read_sel = Signal()
@@ -78,14 +99,19 @@ class RTServoMem(Module):
                     read_high.eq(high_coeff),
                 )
         ]
+        self.sync.rio_phy += [
+                If(self.rtlink.o.stb & we & state_sel & config_sel,
+                    config.eq(self.rtlink.o.data)
+                )
+        ]
         self.comb += [
                 self.rtlink.i.stb.eq(read),
                 self.rtlink.i.data.eq(
-                    Mux(
-                        state_sel,
-                        m_state.dat_r[w.state - w.coeff:],
-                        Mux(
-                            read_high,
+                    Mux(state_sel,
+                        Mux(config_sel,
+                            status,
+                            m_state.dat_r[w.state - w.coeff:]),
+                        Mux(read_high,
                             m_coeff.dat_r[w.coeff:],
                             m_coeff.dat_r[:w.coeff])))
         ]
