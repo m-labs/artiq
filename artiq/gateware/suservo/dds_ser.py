@@ -36,7 +36,7 @@ class DDS(spi.SPISimple):
                 )
         ]
 
-        io_update = self._diff(pads, "io_update", output=True)
+        io_update = pads.io_update
         # this assumes that the cycle time (1/125 MHz = 8 ns) is >1 SYNC_CLK
         # cycle (1/250 MHz = 4ns)
         done = Signal()

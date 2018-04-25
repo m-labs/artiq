@@ -23,7 +23,6 @@ class ServoSim(servo.Servo):
 
         servo.Servo.__init__(self, self.adc_tb, self.dds_tb,
                 adc_p, iir_p, dds_p)
-        self.adc_tb.comb += self.adc.clkout_io.eq(self.adc_tb.clkout)
 
     def test(self):
         assert (yield self.done)

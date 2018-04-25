@@ -5,8 +5,6 @@ from collections import namedtuple
 from migen import *
 from migen.genlib import io
 
-from .tools import DiffMixin
-
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +26,7 @@ ADCParams = namedtuple("ADCParams", [
 ])
 
 
-class ADC(Module, DiffMixin):
+class ADC(Module):
     """Multi-lane, multi-channel, triggered, source-synchronous, serial
     ADC interface.
 
@@ -49,7 +47,7 @@ class ADC(Module, DiffMixin):
         # collect sdo lines
         sdo = []
         for i in string.ascii_lowercase[:p.lanes]:
-            sdo.append(self._diff(pads, "sdo" + i))
+            sdo.append(getattr(pads, "sdo" + i))
         assert p.lanes == len(sdo)
 
         # set up counters for the four states CNVH, CONV, READ, RTT
@@ -71,13 +69,6 @@ class ADC(Module, DiffMixin):
                 )
         ]
 
-        sck_en = Signal()
-        if hasattr(pads, "sck_en"):
-            self.sync += pads.sck_en.eq(sck_en)  # ODDR delay
-        self.specials += io.DDROutput(0, sck_en,
-                self._diff(pads, "sck", output=True))
-        cnv_b = Signal()
-        self.comb += self._diff(pads, "cnv_b", output=True).eq(cnv_b)
         self.submodules.fsm = fsm = FSM("IDLE")
         fsm.act("IDLE",
                 self.done.eq(1),
@@ -88,7 +79,7 @@ class ADC(Module, DiffMixin):
         )
         fsm.act("CNVH",
                 count_load.eq(p.t_conv - 2),  # account for sck ODDR delay
-                cnv_b.eq(1),
+                pads.cnv.eq(1),
                 If(count_done,
                     NextState("CONV")
                 )
@@ -102,7 +93,7 @@ class ADC(Module, DiffMixin):
         fsm.act("READ",
                 self.reading.eq(1),
                 count_load.eq(p.t_rtt),  # account for sck ODDR delay
-                sck_en.eq(1),
+                pads.sck_en.eq(1),
                 If(count_done,
                     NextState("RTT")
                 )
@@ -118,22 +109,25 @@ class ADC(Module, DiffMixin):
             sck_en_ret = pads.sck_en_ret
         except AttributeError:
             sck_en_ret = 1
-        self.clkout_io = Signal()
+
+        self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
+        self.comb += [
+                # falling clkout makes two bits available
+                self.cd_ret.clk.eq(~pads.clkout)
+        ]
+
         k = p.channels//p.lanes
         assert 2*t_read == k*p.width
         for i, sdo in enumerate(sdo):
             sdo_sr0 = Signal(t_read - 1)
             sdo_sr1 = Signal(t_read - 1)
-            sdo_ddr = Signal(2)
-            self.specials += io.DDRInput(sdo, sdo_ddr[1], sdo_ddr[0],
-                    ~self.clkout_io)
             self.sync.ret += [
                     If(self.reading & sck_en_ret,
-                        sdo_sr0.eq(Cat(sdo_ddr[0], sdo_sr0)),
-                        sdo_sr1.eq(Cat(sdo_ddr[1], sdo_sr1))
+                        sdo_sr0.eq(Cat(sdo[0], sdo_sr0)),
+                        sdo_sr1.eq(Cat(sdo[1], sdo_sr1))
                     )
             ]
             self.comb += [
                     Cat(reversed([self.data[i*k + j] for j in range(k)])).eq(
-                        Cat(sdo_ddr, zip(sdo_sr0, sdo_sr1)))
+                        Cat(sdo, zip(sdo_sr0, sdo_sr1)))
             ]

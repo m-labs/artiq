@@ -540,20 +540,6 @@ class SUServo(_StandaloneBase):
         su = ClockDomainsRenamer({"sys": "rio_phy"})(su)
         self.submodules += sampler_pads, urukul_pads, su
 
-        self.clock_domains.cd_ret = ClockDomain("ret", reset_less=True)
-        clkout = Signal()
-        clkout_fabric = Signal()
-        self.specials += [
-                DifferentialInput(
-                    sampler_pads.clkout_p, sampler_pads.clkout_n, clkout),
-                Instance("BUFH", i_I=clkout, o_O=clkout_fabric),
-                Instance("BUFIO", i_I=clkout, o_O=su.adc.clkout_io)
-        ]
-        self.comb += [
-                # falling clkout makes two bits available
-                self.cd_ret.clk.eq(~clkout_fabric)
-        ]
-
         ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
         self.submodules += ctrls
         rtio_channels.extend(rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
@@ -603,29 +589,12 @@ class SUServo(_StandaloneBase):
 
         self.add_rtio(rtio_channels)
 
-        platform.add_period_constraint(sampler_pads.clkout_p, 8.)
         platform.add_false_path_constraints(
             sampler_pads.clkout_p,
             self.rtio_crg.cd_rtio.clk)
         platform.add_false_path_constraints(
             sampler_pads.clkout_p,
             self.crg.cd_sys.clk)
-        for i in "abcd":
-            port = getattr(sampler_pads, "sdo{}_p".format(i))
-            platform.add_platform_command(
-                "set_input_delay -clock [get_clocks "
-                "-include_generated_clocks -of [get_nets {clk}]] "
-                "-max 6 [get_ports {port}]\n"
-                "set_input_delay -clock [get_clocks "
-                "-include_generated_clocks -of [get_nets {clk}]] "
-                "-min 3.5 [get_ports {port}]\n"
-                "set_input_delay -clock [get_clocks "
-                "-include_generated_clocks -of [get_nets {clk}]] "
-                "-max 6 [get_ports {port}] -clock_fall -add_delay\n"
-                "set_input_delay -clock [get_clocks "
-                "-include_generated_clocks -of [get_nets {clk}]] "
-                "-min 3.5 [get_ports {port}] -clock_fall -add_delay",
-                clk=sampler_pads.clkout_p, port=port)
 
 
 class SYSU(_StandaloneBase):

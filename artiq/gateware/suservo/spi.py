@@ -5,8 +5,6 @@ from migen import *
 from migen.genlib.fsm import FSM, NextState
 from migen.genlib import io
 
-from .tools import DiffMixin
-
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +17,7 @@ SPIParams = namedtuple("SPIParams", [
 ])
 
 
-class SPISimple(Module, DiffMixin):
+class SPISimple(Module):
     """Simple reduced SPI interface.
 
     * Multiple MOSI lines
@@ -39,9 +37,8 @@ class SPISimple(Module, DiffMixin):
 
         assert p.clk >= 1
 
-        cs_n = self._diff(pads, "cs_n", output=True)
-
-        clk = self._diff(pads, "clk", output=True)
+        cs_n = pads.cs_n
+        clk = pads.clk
         cnt = Signal(max=max(2, p.clk), reset_less=True)
         cnt_done = Signal()
         cnt_next = Signal()
@@ -58,7 +55,7 @@ class SPISimple(Module, DiffMixin):
 
         for i, d in enumerate(self.data):
             self.comb += [
-                    self._diff(pads, "mosi{}".format(i), output=True).eq(d[-1])
+                    getattr(pads, "mosi{}".format(i)).eq(d[-1])
             ]
 
         bits = Signal(max=p.width + 1, reset_less=True)
