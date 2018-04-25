@@ -547,6 +547,12 @@ class SUServo(_StandaloneBase):
         self.submodules += mem
         rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
 
+        # EEM3: Sampler
+        phy = spi2.SPIMaster(self.platform.request("eem3_pgia_spi_p"),
+                self.platform.request("eem3_pgia_spi_n"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
         # EEM5 + EEM4: Urukul
         phy = spi2.SPIMaster(self.platform.request("eem5_spi_p"),
                 self.platform.request("eem5_spi_n"))
