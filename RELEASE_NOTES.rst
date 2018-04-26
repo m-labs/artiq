@@ -22,6 +22,8 @@ ARTIQ-4
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
 * ``artiq_flash -m/--adapter`` has been changed to ``artiq_flash -V/--variant``.
+* The ``proxy`` action of ``artiq_flash`` is determined automatically and should
+  not be specified manually anymore.
 * ``kc705_dds`` has been renamed ``kc705``.
 * the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
 * SPI masters have been switched from misoc-spi to misoc-spi2. This affects
