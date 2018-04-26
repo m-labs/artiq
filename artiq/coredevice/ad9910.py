@@ -57,7 +57,7 @@ class AD9910:
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
-        assert 4 <= chip_select <= 7
+        assert 3 <= chip_select <= 7
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
@@ -124,21 +124,25 @@ class AD9910:
         self.bus.write(data_low)
 
     @kernel
-    def init(self):
+    def init(self, blind=False):
         """Initialize and configure the DDS.
 
         Sets up SPI mode, confirms chip presence, powers down unused blocks,
         configures the PLL, waits for PLL lock. Uses the
         IO_UPDATE signal multiple times.
+
+        :param blind: Do not read back DDS identity and do not wait for lock.
         """
         # Set SPI mode
         self.write32(_AD9910_REG_CFR1, 0x00000002)
         self.cpld.io_update.pulse(2*us)
-        # Use the AUX DAC setting to identify and confirm presence
-        aux_dac = self.read32(_AD9910_REG_AUX_DAC)
-        if aux_dac & 0xff != 0x7f:
-            raise ValueError("Urukul AD9910 AUX_DAC mismatch")
-        delay(50*us)  # slack
+        delay(1*ms)
+        if not blind:
+            # Use the AUX DAC setting to identify and confirm presence
+            aux_dac = self.read32(_AD9910_REG_AUX_DAC)
+            if aux_dac & 0xff != 0x7f:
+                raise ValueError("Urukul AD9910 AUX_DAC mismatch")
+            delay(50*us)  # slack
         # Configure PLL settings and bring up PLL
         self.write32(_AD9910_REG_CFR2, 0x01400020)
         self.cpld.io_update.pulse(2*us)
@@ -148,6 +152,9 @@ class AD9910:
         self.cpld.io_update.pulse(100*us)
         self.write32(_AD9910_REG_CFR3, cfr3)
         self.cpld.io_update.pulse(100*us)
+        if blind:
+            delay(100*ms)
+            return
         # Wait for PLL lock, up to 100 ms
         for i in range(100):
             sta = self.cpld.sta_read()

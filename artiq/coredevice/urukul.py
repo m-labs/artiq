@@ -95,6 +95,18 @@ def urukul_sta_proto_rev(sta):
     return (sta >> STA_PROTO_REV) & 0x7f
 
 
+class _RegIOUpdate:
+    def __init__(self, cpld):
+        self.cpld = cpld
+
+    @portable
+    def pulse(self, t):
+        cfg = self.cpld.cfg_reg
+        self.cpld.cfg_write(cfg | (1 << CFG_IO_UPDATE))
+        delay(t)
+        self.cpld.cfg_write(cfg)
+
+
 class CPLD:
     """Urukul CPLD SPI router and configuration interface.
 
@@ -122,6 +134,8 @@ class CPLD:
         self.bus = dmgr.get(spi_device)
         if io_update_device is not None:
             self.io_update = dmgr.get(io_update_device)
+        else:
+            self.io_update = _RegIOUpdate(self)
         if dds_reset_device is not None:
             self.dds_reset = dmgr.get(dds_reset_device)
 
@@ -164,20 +178,23 @@ class CPLD:
         return self.bus.read()
 
     @kernel
-    def init(self):
+    def init(self, blind=False):
         """Initialize and detect Urukul.
 
         Resets the DDS I/O interface and verifies correct CPLD gateware
         version.
         Does not pulse the DDS MASTER_RESET as that confuses the AD9910.
+
+        :param blind: Do not attempt to verify presence and compatibility.
         """
         cfg = self.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         self.cfg_reg = cfg | (0 << CFG_RST) | (1 << CFG_IO_RST)
-        proto_rev = urukul_sta_proto_rev(self.sta_read())
-        if proto_rev != STA_PROTO_REV_MATCH:
-            raise ValueError("Urukul proto_rev mismatch")
-        delay(20*us)  # slack, reset
+        if not blind:
+            proto_rev = urukul_sta_proto_rev(self.sta_read())
+            if proto_rev != STA_PROTO_REV_MATCH:
+                raise ValueError("Urukul proto_rev mismatch")
+        delay(100*us)  # reset, slack
         self.cfg_write(cfg)
         delay(1*ms)  # DDS wake up
 
