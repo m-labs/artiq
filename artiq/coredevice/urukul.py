@@ -99,7 +99,7 @@ class _RegIOUpdate:
     def __init__(self, cpld):
         self.cpld = cpld
 
-    @portable
+    @kernel
     def pulse(self, t):
         cfg = self.cpld.cfg_reg
         self.cpld.cfg_write(cfg | (1 << CFG_IO_UPDATE))
