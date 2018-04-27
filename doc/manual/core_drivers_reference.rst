@@ -132,3 +132,13 @@ DAC/ADC drivers
 
 .. automodule:: artiq.coredevice.novogorny
     :members:
+
+
+Compound drivers
+----------------
+
+:mod:`artiq.coredevice.suservo` module
+++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.suservo
+    :members:
