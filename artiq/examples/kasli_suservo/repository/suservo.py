@@ -30,11 +30,13 @@ class SUServo(EnvExperiment):
         self.suservo0.cpld0.set_att_mu(0, 64)
         delay(1*us)
         assert self.suservo0.get_status() == 2
+        delay(10*us)
 
         # set up profile 0 on channel 0
         self.suservo0_ch0.set_y_mu(0, 0)
         self.suservo0_ch0.set_iir_mu(
                 profile=0, adc=0, a1=-0x800, b0=0x1000, b1=0, delay=0)
+        delay(10*us)
         self.suservo0_ch0.set_dds_mu(
                 profile=0, ftw=0x12345667, offset=0x1, pow=0xaa55)
         # enable channel
@@ -50,6 +52,7 @@ class SUServo(EnvExperiment):
 
         # check servo status
         assert self.suservo0.get_status() == 1
+        delay(10*us)
 
         # reach back ADC data
         print(self.suservo0.get_adc_mu(0))

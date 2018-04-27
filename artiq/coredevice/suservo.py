@@ -95,10 +95,12 @@ class SUServo:
     def set_config(self, enable):
         """Set SU Servo configuration.
 
+        Disabling takes up to 2 Servo cycles (~2.2 µs) to clear
+        the processing pipeline.
+
         This method advances the timeline by one Servo memory access.
 
-        :param enable: Enable Servo operation. Disabling takes up to 2 Servo
-            cycles (~2.2 µs).
+        :param enable: Enable Servo operation.
         """
         self.write(CONFIG_ADDR, enable)
 
@@ -260,6 +262,10 @@ class Channel:
 
         The IIR state is also know as the "integrator", or the DDS amplitude
         scale factor. It is 18 bits wide and unsigned.
+
+        This method must not be used when the Servo
+        could be writing to the same location. Either deactivate the profile,
+        or deactivate IIR updates, or disable Servo iterations.
 
         This method advances the timeline by one Servo memory access.
 

@@ -344,7 +344,7 @@ class IIR(Module):
         ]
 
         m_coeff = self.m_coeff.get_port()
-        m_state = self.m_state.get_port(write_capable=True)
+        m_state = self.m_state.get_port(write_capable=True)  # mode=READ_FIRST
         self.specials += m_state, m_coeff
 
         dsp = DSP(w)

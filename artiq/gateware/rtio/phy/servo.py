@@ -28,9 +28,11 @@ class RTServoMem(Module):
     interface."""
     def __init__(self, w, servo):
         m_coeff = servo.iir.m_coeff.get_port(write_capable=True,
+                mode=READ_FIRST,
                 we_granularity=w.coeff, clock_domain="rio")
         assert len(m_coeff.we) == 2
         m_state = servo.iir.m_state.get_port(write_capable=True,
+                # mode=READ_FIRST,
                 clock_domain="rio")
         self.specials += m_state, m_coeff
 
