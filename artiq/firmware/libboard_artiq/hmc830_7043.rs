@@ -124,7 +124,7 @@ mod hmc830 {
     }
 }
 
-mod hmc7043 {
+pub mod hmc7043 {
     use board::csr;
 
     // To do: check which output channels we actually need
@@ -249,6 +249,20 @@ mod hmc7043 {
 
         Ok(())
     }
+
+    pub fn cfg_dac_sysref(dacno: u8, aphase: u8, cphase: u8) {
+        spi_setup();
+        if dacno == 0 {
+            write(0x00D5, aphase);
+            write(0x00D6, cphase);
+        } else if dacno == 1 {
+            write(0x00E9, aphase);
+            write(0x00EA, cphase);
+        } else {
+            unimplemented!();
+        }
+    }
+
 }
 
 pub fn init() -> Result<(), &'static str> {
