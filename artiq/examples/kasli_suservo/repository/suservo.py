@@ -38,7 +38,7 @@ class SUServo(EnvExperiment):
                 profile=0, adc=0, a1=-0x800, b0=0x1000, b1=0, delay=0)
         delay(10*us)
         self.suservo0_ch0.set_dds_mu(
-                profile=0, ftw=0x12345667, offset=0x1, pow=0xaa55)
+                profile=0, ftw=0x12345667, offset=0x1000, pow=0xaa55)
         # enable channel
         self.suservo0_ch0.set(en_out=1, en_iir=1, profile=0)
         # enable servo iterations
@@ -64,11 +64,15 @@ class SUServo(EnvExperiment):
 
         # repeatedly clear the IIR state/integrator
         # with the ADC yielding 0's and given the profile configuration,
-        # this will lead to a slow ram up of the amplitude over about 200ms
+        # this will lead to a slow ram up of the amplitude over about 40µs
         # followed by saturation and repetition.
         while True:
+            self.suservo0_ch0.set(1, 0, 0)
+            delay(1*us)
             self.suservo0_ch0.set_y_mu(0, 0)
-            delay(.2*s)
+            delay(1*us)
+            self.suservo0_ch0.set(1, 1, 0)
+            delay(60*us)
 
     @kernel
     def led(self):
