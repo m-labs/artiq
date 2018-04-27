@@ -1,6 +1,6 @@
 use board::{csr, clock};
 use ad9154_reg;
-use hmc830_7043::{hmc7043};
+use hmc830_7043::hmc7043;
 
 fn spi_setup(dacno: u8) {
     unsafe {
@@ -611,39 +611,39 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
 fn dac_sysref_cfg(dacno: u8) {
     let mut sync_error: u16 = 0;
     let mut sync_error_last: u16 = 0;
-    let mut cphase_min_found: bool = false;
-    let mut cphase_min: u8 = 0;
-    let mut cphase_max_found: bool = false;
-    let mut cphase_max: u8 = 0;
-    let mut cphase_opt: u8 = 0;
+    let mut phase_min_found: bool = false;
+    let mut phase_min: u16 = 0;
+    let mut phase_max_found: bool = false;
+    let mut phase_max: u16 = 0;
+    let mut phase_opt: u16 = 0;
 
     info!("AD9154-{} SYSREF scan/conf...", dacno);
-    for cphase in 0..32 {
-        hmc7043::cfg_dac_sysref(dacno, 0, cphase);
+    for phase in 0..512 {
+        hmc7043::cfg_dac_sysref(dacno, phase);
         clock::spin_us(10000);
         spi_setup(dacno);
         sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
                      ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
                      & 0x1ff;
-        info!("  cphase: {}, sync error: {}", cphase, sync_error);
+        info!("  phase: {}, sync error: {}", phase, sync_error);
         if sync_error != 0 {
-            if cphase_min_found {
+            if phase_min_found {
                 if sync_error != sync_error_last {
-                    cphase_max_found = true;
-                    cphase_max = cphase - 1;
+                    phase_max_found = true;
+                    phase_max = phase - 1;
                     break;
                 }
             } else {
-                cphase_min_found = true;
-                cphase_min = cphase;
+                phase_min_found = true;
+                phase_min = phase;
             }
         }
         sync_error_last = sync_error;
     }
 
-    cphase_opt = cphase_min + (cphase_max-cphase_min)/2;
-    info!("  cphase min: {}, cphase max: {}, cphase opt: {}", cphase_min, cphase_max, cphase_opt);
-    hmc7043::cfg_dac_sysref(dacno, 0, cphase_opt);
+    phase_opt = phase_min + (phase_max-phase_min)/2;
+    info!("  phase min: {}, phase max: {}, phase opt: {}", phase_min, phase_max, phase_opt);
+    hmc7043::cfg_dac_sysref(dacno, phase_opt);
 }
 
 pub fn init() -> Result<(), &'static str> {
