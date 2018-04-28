@@ -388,7 +388,7 @@ class Opticlock(_StandaloneBase):
     Opticlock extension variant configuration
     """
     def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, hw_rev="v1.0", **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -493,7 +493,7 @@ class SUServo(_StandaloneBase):
     SUServo (Sampler-Urukul-Servo) extension variant configuration
     """
     def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, hw_rev="v1.1", **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -605,7 +605,7 @@ class SUServo(_StandaloneBase):
 
 class SYSU(_StandaloneBase):
     def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, hw_rev="v1.1", **kwargs)
+        _StandaloneBase.__init__(self, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -659,8 +659,10 @@ class SYSU(_StandaloneBase):
 
 
 class MITLL(_StandaloneBase):
-    def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, hw_rev="v1.1", **kwargs)
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
