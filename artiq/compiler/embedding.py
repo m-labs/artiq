@@ -751,7 +751,7 @@ class Stitcher:
     def _function_loc(self, function):
         if isinstance(function, SpecializedFunction):
             function = function.host_function
-        if hasattr(function, 'artiq_embedded'):
+        if hasattr(function, 'artiq_embedded') and function.artiq_embedded.function:
             function = function.artiq_embedded.function
 
         filename = function.__code__.co_filename
