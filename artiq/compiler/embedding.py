@@ -749,6 +749,11 @@ class Stitcher:
                               quote_function=self._quote_function)
 
     def _function_loc(self, function):
+        if isinstance(function, SpecializedFunction):
+            function = function.host_function
+        if hasattr(function, 'artiq_embedded'):
+            function = function.artiq_embedded.function
+
         filename = function.__code__.co_filename
         line     = function.__code__.co_firstlineno
         name     = function.__code__.co_name
