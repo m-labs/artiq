@@ -58,7 +58,10 @@ class _SerdesMasterInit(Module):
         )
         fsm.act("SEND_PATTERN",
             If(~serdes.rx_idle,
-                NextState("WAIT_STABLE")
+                timer.wait.eq(1),
+                If(timer.done,
+                    NextState("CHECK_PATTERN")
+                )
             ),
             serdes.tx_comma.eq(1)
         )
