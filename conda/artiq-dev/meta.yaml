@@ -18,9 +18,9 @@ requirements:
     - misoc 0.11 py35_0+git3388e6ba
     - jesd204b 0.3
     - binutils-or1k-linux >=2.27
-    - llvm-or1k 4.0.1
-    - llvmlite-artiq 0.20.0
-    - rust-core-or1k 1.23.0 19
+    - llvm-or1k 6.0.0
+    - llvmlite-artiq 0.23.0.dev py35_2
+    - rust-core-or1k 1.25.0 20
     - openocd 0.10.0 1
     - lit
     - outputcheck

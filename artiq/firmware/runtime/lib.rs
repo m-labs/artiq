@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(compiler_builtins_lib, alloc, repr_simd, lang_items, const_fn, global_allocator)]
+#![feature(compiler_builtins_lib, lang_items, alloc, global_allocator)]
 
 extern crate compiler_builtins;
 extern crate alloc;
