@@ -2,4 +2,5 @@
 members = ["bootloader", "runtime", "ksupport", "satman"]
 
 [profile.dev]
-debug = 1 # either 0 or 2 cause an LLVM ICE
+incremental = false # incompatible with LTO
+debug = 2

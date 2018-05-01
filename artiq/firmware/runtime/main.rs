@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(alloc, lang_items, global_allocator, repr_align, attr_literals)]
+#![feature(lang_items, alloc, global_allocator)]
 
 extern crate alloc;
 extern crate cslice;

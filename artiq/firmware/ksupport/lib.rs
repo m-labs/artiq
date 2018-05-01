@@ -228,15 +228,12 @@ const DMA_BUFFER_SIZE: usize = 64 * 1024;
 
 struct DmaRecorder {
     active:   bool,
-    #[allow(dead_code)]
-    padding:  [u8; 3], //https://github.com/rust-lang/rust/issues/41315
     data_len: usize,
     buffer:   [u8; DMA_BUFFER_SIZE],
 }
 
 static mut DMA_RECORDER: DmaRecorder = DmaRecorder {
     active:   false,
-    padding:  [0; 3],
     data_len: 0,
     buffer:   [0; DMA_BUFFER_SIZE],
 };
