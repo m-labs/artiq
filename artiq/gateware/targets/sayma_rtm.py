@@ -22,7 +22,7 @@ from artiq import __version__ as artiq_version
 class CRG(Module):
     def __init__(self, platform):
         self.clock_domains.cd_sys = ClockDomain()
-        self.clock_domains.cd_sys4x = ClockDomain()
+        self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
 
         self.serwb_refclk = Signal()
@@ -55,7 +55,6 @@ class CRG(Module):
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
             AsyncResetSynchronizer(self.cd_sys, ~pll_locked | self.serwb_reset),
-            AsyncResetSynchronizer(self.cd_sys4x, ~pll_locked | self.serwb_reset),
             AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | self.serwb_reset)
         ]
 
