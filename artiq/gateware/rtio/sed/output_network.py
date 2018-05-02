@@ -45,7 +45,7 @@ def latency(lane_count):
 
 
 def cmp_wrap(a, b):
-    return Mux(a[-2:] == ~b[-2:], a[0], a[:-2] < b[:-2])
+    return Mux((a[-2] == a[-1]) & (b[-2] == b[-1]) & (a[-1] != b[-1]), a[-1], a < b)
 
 
 class OutputNetwork(Module):
