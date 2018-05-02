@@ -73,7 +73,7 @@ def simulate(input_events):
 
     run_simulation(dut, {"sys": [
         gen(), monitor(),
-        (None for _ in range(45))
+        (None for _ in range(max(ts for ts, _ in input_events) + 15))
     ]}, {"sys": 5, "rio": 5, "rio_phy": 5})
 
     return ttl_changes, access_results
@@ -85,4 +85,17 @@ class TestSED(unittest.TestCase):
         latency = 11
         ttl_changes, access_results = simulate(input_events)
         self.assertEqual(ttl_changes, [e[0] + latency for e in input_events])
+        self.assertEqual(access_results, [("ok", 0)]*len(input_events))
+
+    def test_replace(self):
+        input_events = []
+        now = 19
+        for i in range(5):
+            now += 10
+            input_events += [(now, 1)]
+            now += 10
+            input_events += [(now, 1), (now, 0)]
+
+        ttl_changes, access_results = simulate(input_events)
+        self.assertEqual(ttl_changes, list(range(40, 140, 10)))
         self.assertEqual(access_results, [("ok", 0)]*len(input_events))
