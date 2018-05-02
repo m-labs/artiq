@@ -32,16 +32,16 @@ class FIFOs(Module):
 
         fifos = []
         for input, output in zip(self.input, self.output):
-            fifo = fifo_cls(layout_len(layout_payload), fifo_depth)
+            fifo = fifo_cls(seqn_width + layout_len(layout_payload), fifo_depth)
             self.submodules += fifo
             fifos.append(fifo)
 
             self.comb += [
-                fifo.din.eq(input.payload.raw_bits()),
+                fifo.din.eq(Cat(input.seqn, input.payload.raw_bits())),
                 fifo.we.eq(input.we),
                 input.writable.eq(fifo.writable),
 
-                output.payload.raw_bits().eq(fifo.dout),
+                Cat(output.seqn, output.payload.raw_bits()).eq(fifo.dout),
                 output.readable.eq(fifo.readable),
                 fifo.re.eq(output.re)
             ]
