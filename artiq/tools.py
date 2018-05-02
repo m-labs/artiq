@@ -6,7 +6,6 @@ import collections
 import atexit
 import string
 import os
-from copy import copy
 
 import numpy as np
 
@@ -85,12 +84,8 @@ def file_import(filename, prefix="file_import_"):
     path = os.path.dirname(os.path.realpath(filename))
     sys.path.insert(0, path)
     try:
-        previous_modules = copy(sys.modules)
-        try:
-            loader = importlib.machinery.SourceFileLoader(modname, filename)
-            module = loader.load_module()
-        finally:
-            sys.modules = previous_modules
+        loader = importlib.machinery.SourceFileLoader(modname, filename)
+        module = loader.load_module()
     finally:
         sys.path.remove(path)
 
