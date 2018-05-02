@@ -4,7 +4,6 @@ import os
 import logging
 import traceback
 from collections import OrderedDict
-from copy import copy
 
 import h5py
 
@@ -153,11 +152,13 @@ class ExamineDatasetMgr:
 
 
 def examine(device_mgr, dataset_mgr, file):
-    previous_modules = copy(sys.modules)
+    previous_keys = set(sys.modules.keys())
     try:
         module = file_import(file)
     finally:
-        sys.modules = previous_modules
+        new_keys = set(sys.modules.keys())
+        for key in new_keys - previous_keys:
+            del sys.modules[key]
     for class_name, exp_class in module.__dict__.items():
         if class_name[0] == "_":
             continue
