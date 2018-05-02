@@ -155,26 +155,26 @@ def examine(device_mgr, dataset_mgr, file):
     previous_keys = set(sys.modules.keys())
     try:
         module = file_import(file)
+        for class_name, exp_class in module.__dict__.items():
+            if class_name[0] == "_":
+                continue
+            if is_experiment(exp_class):
+                if exp_class.__doc__ is None:
+                    name = class_name
+                else:
+                    name = exp_class.__doc__.splitlines()[0].strip()
+                    if name[-1] == ".":
+                        name = name[:-1]
+                argument_mgr = TraceArgumentManager()
+                exp_class((device_mgr, dataset_mgr, argument_mgr))
+                arginfo = OrderedDict(
+                    (k, (proc.describe(), group, tooltip))
+                    for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
+                register_experiment(class_name, name, arginfo)
     finally:
         new_keys = set(sys.modules.keys())
         for key in new_keys - previous_keys:
             del sys.modules[key]
-    for class_name, exp_class in module.__dict__.items():
-        if class_name[0] == "_":
-            continue
-        if is_experiment(exp_class):
-            if exp_class.__doc__ is None:
-                name = class_name
-            else:
-                name = exp_class.__doc__.splitlines()[0].strip()
-                if name[-1] == ".":
-                    name = name[:-1]
-            argument_mgr = TraceArgumentManager()
-            exp_class((device_mgr, dataset_mgr, argument_mgr))
-            arginfo = OrderedDict(
-                (k, (proc.describe(), group, tooltip))
-                for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
-            register_experiment(class_name, name, arginfo)
 
 
 def setup_diagnostics(experiment_file, repository_path):
