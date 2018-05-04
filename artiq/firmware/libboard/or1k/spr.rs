@@ -1,9 +1,11 @@
+#[inline(always)]
 pub unsafe fn mfspr(reg: u32) -> u32 {
     let value: u32;
     asm!("l.mfspr $0, $1, 0" : "=r"(value) : "r"(reg) : : "volatile");
     value
 }
 
+#[inline(always)]
 pub unsafe fn mtspr(reg: u32, value: u32) {
     asm!("l.mtspr $0, $1, 0" : : "r"(reg), "r"(value) : : "volatile")
 }
