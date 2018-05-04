@@ -14,6 +14,14 @@ pub enum Request {
     #[cfg(feature = "log")]
     SetUartLogFilter(log::LevelFilter),
 
+    StartProfiler {
+        interval_us: u32,
+        hits_size: u32,
+        edges_size: u32,
+    },
+    StopProfiler,
+    GetProfile,
+
     Hotswap(Vec<u8>),
     Reboot,
 
@@ -22,8 +30,11 @@ pub enum Request {
 
 pub enum Reply<'a> {
     Success,
+    Unavailable,
 
     LogContent(&'a str),
+
+    Profile,
 
     RebootImminent,
 }
@@ -52,6 +63,13 @@ impl Request {
             3 => Request::SetLogFilter(read_log_level_filter(reader)?),
             #[cfg(feature = "log")]
             6 => Request::SetUartLogFilter(read_log_level_filter(reader)?),
+            9 => Request::StartProfiler {
+                interval_us: reader.read_u32()?,
+                hits_size: reader.read_u32()?,
+                edges_size: reader.read_u32()?,
+            },
+            10 => Request::StopProfiler,
+            11 => Request::GetProfile,
             4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
             8 => Request::DebugAllocator,
@@ -65,16 +83,25 @@ impl<'a> Reply<'a> {
         match *self {
             Reply::Success => {
                 writer.write_u8(1)?;
-            },
+            }
+
+            Reply::Unavailable => {
+                writer.write_u8(4)?;
+            }
 
             Reply::LogContent(ref log) => {
                 writer.write_u8(2)?;
                 writer.write_string(log)?;
-            },
+            }
+
+            Reply::Profile => {
+                writer.write_u8(5)?;
+                // profile data follows
+            }
 
             Reply::RebootImminent => {
                 writer.write_u8(3)?;
-            },
+            }
         }
         Ok(())
     }

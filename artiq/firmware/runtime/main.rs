@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(lang_items, alloc, global_allocator)]
+#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll)]
 
 extern crate alloc;
 extern crate cslice;
@@ -7,6 +7,7 @@ extern crate cslice;
 extern crate log;
 extern crate byteorder;
 extern crate fringe;
+extern crate managed;
 extern crate smoltcp;
 
 extern crate alloc_list;
@@ -22,8 +23,10 @@ extern crate amp;
 #[cfg(has_drtio)]
 extern crate drtioaux;
 
+use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
+use board::irq;
 use board::config;
 #[cfg(has_ethmac)]
 use board::ethmac;
@@ -39,6 +42,7 @@ mod cache;
 mod rtio_dma;
 
 mod mgmt;
+mod profiler;
 mod kernel;
 mod kern_hwreq;
 mod watchdog;
@@ -49,6 +53,7 @@ mod moninj;
 mod analyzer;
 
 fn startup() {
+    irq::set_ie(true);
     board::clock::init();
     info!("ARTIQ runtime starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
@@ -271,7 +276,19 @@ pub extern fn main() -> i32 {
 
 #[no_mangle]
 pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+    let vect = irq::Exception::try_from(vect).expect("unknown exception");
+    match vect {
+        irq::Exception::Interrupt =>
+            while irq::pending_mask() != 0 {
+                match () {
+                    #[cfg(has_timer1)]
+                    () if irq::is_pending(::board::csr::TIMER1_INTERRUPT) =>
+                        profiler::sample(pc as usize),
+                    _ => panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
+                }
+            },
+        _ => panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+    }
 }
 
 #[no_mangle]

@@ -26,6 +26,7 @@ console_scripts = [
     "artiq_corelog = artiq.frontend.artiq_corelog:main",
     "artiq_coreboot = artiq.frontend.artiq_coreboot:main",
     "artiq_coredebug = artiq.frontend.artiq_coredebug:main",
+    "artiq_coreprofile = artiq.frontend.artiq_coreprofile:main",
     "artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main",
     "artiq_devtool = artiq.frontend.artiq_devtool:main",
     "artiq_pcap = artiq.frontend.artiq_pcap:main",

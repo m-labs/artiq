@@ -17,6 +17,7 @@ build_artiq = { path = "../libbuild_artiq" }
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false }
+managed = { version = "0.6", default-features = false, features = ["alloc", "map"] }
 board = { path = "../libboard", features = ["uart_console", "smoltcp"] }
 alloc_list = { path = "../liballoc_list" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }

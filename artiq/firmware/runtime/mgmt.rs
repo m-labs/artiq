@@ -6,6 +6,7 @@ use sched::Io;
 use sched::{TcpListener, TcpStream};
 use proto::WriteExt;
 use mgmt_proto::*;
+use profiler;
 
 fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
     const MAGIC: &'static [u8] = b"ARTIQ management\n";
@@ -30,7 +31,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Reply::LogContent(buffer.extract()).write_to(stream)
                 })?;
-            },
+            }
 
             Request::ClearLog => {
                 BufferLogger::with(|logger| -> io::Result<()> {
@@ -39,7 +40,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                 })?;
 
                 Reply::Success.write_to(stream)?;
-            },
+            }
 
             Request::PullLog => {
                 BufferLogger::with(|logger| -> io::Result<()> {
@@ -69,35 +70,79 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                         buffer.clear();
                     }
                 })?;
-            },
+            }
 
             Request::SetLogFilter(level) => {
                 info!("changing log level to {}", level);
                 log::set_max_level(level);
                 Reply::Success.write_to(stream)?;
-            },
+            }
 
             Request::SetUartLogFilter(level) => {
                 info!("changing UART log level to {}", level);
                 BufferLogger::with(|logger|
                     logger.set_uart_log_level(level));
                 Reply::Success.write_to(stream)?;
-            },
+            }
+
+            Request::StartProfiler { interval_us, hits_size, edges_size } => {
+                match profiler::start(interval_us as u64,
+                                      hits_size as usize, edges_size as usize) {
+                    Ok(()) => Reply::Success.write_to(stream)?,
+                    Err(()) => Reply::Unavailable.write_to(stream)?
+                }
+            }
+
+            Request::StopProfiler => {
+                profiler::stop();
+                Reply::Success.write_to(stream)?;
+            }
+
+            Request::GetProfile => {
+                profiler::pause(|profile| {
+                    let profile = match profile {
+                        None => return Reply::Unavailable.write_to(stream),
+                        Some(profile) => profile
+                    };
+
+                    Reply::Profile.write_to(stream)?;
+                    {
+                        let hits = profile.hits();
+                        stream.write_u32(hits.len() as u32)?;
+                        for (&addr, &count) in hits.iter() {
+                            stream.write_u32(addr.as_raw() as u32)?;
+                            stream.write_u32(count)?;
+                        }
+                    }
+                    {
+                        let edges = profile.edges();
+                        stream.write_u32(edges.len() as u32)?;
+                        for (&(caller, callee), &count) in edges.iter() {
+                            stream.write_u32(caller.as_raw() as u32)?;
+                            stream.write_u32(callee.as_raw() as u32)?;
+                            stream.write_u32(count)?;
+                        }
+                    }
+
+                    Ok(())
+                })?;
+            }
 
             Request::Hotswap(firmware) => {
+                profiler::stop();
                 warn!("hotswapping firmware");
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 stream.flush()?;
                 unsafe { boot::hotswap(&firmware) }
-            },
+            }
 
             Request::Reboot => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 warn!("restarting");
                 unsafe { boot::reset() }
-            },
+            }
 
             Request::DebugAllocator =>
                 unsafe { println!("{}", ::ALLOC) },

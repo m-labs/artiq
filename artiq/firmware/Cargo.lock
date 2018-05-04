@@ -194,6 +194,11 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "managed"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "proto"
 version = "0.0.0"
 dependencies = [
@@ -221,6 +226,7 @@ dependencies = [
  "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
+ "managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "proto 0.0.0",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
  "std_artiq 0.0.0",
@@ -300,6 +306,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "89f010e843f2b1a31dbd316b3b8d443758bc634bed37aabade59c686d644e0a2"
 "checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
 "checksum managed 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "43e2737ecabe4ae36a68061398bf27d2bfd0763f4c3c837a398478459494c4b7"
+"checksum managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5a31885241e61ba264d780d2e6686e7e59561c947b4581470364eb3e10102d86"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
 "checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)" = "<none>"
 "checksum walkdir 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)" = "bb08f9e670fab86099470b97cd2b252d6527f0b3cc1401acdb595ffc9dd288ff"

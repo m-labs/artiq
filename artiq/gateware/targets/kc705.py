@@ -10,7 +10,7 @@ from migen.build.xilinx.vivado import XilinxVivadoToolchain
 from migen.build.xilinx.ise import XilinxISEToolchain
 
 from misoc.interconnect.csr import *
-from misoc.cores import gpio
+from misoc.cores import gpio, timer
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 
@@ -230,6 +230,10 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             ])
         if isinstance(self.platform.toolchain, XilinxISEToolchain):
             self.platform.toolchain.bitgen_opt += " -g compress"
+
+        self.submodules.timer1 = timer.Timer()
+        self.csr_devices.append("timer1")
+        self.interrupt_devices.append("timer1")
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0),
