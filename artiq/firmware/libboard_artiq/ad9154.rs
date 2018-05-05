@@ -609,27 +609,25 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
 }
 
 fn dac_sysref_cfg(dacno: u8) {
-    let mut sync_error: u16 = 0;
-    let mut sync_error_last: u16 = 0;
-    let mut phase_min_found: bool = false;
-    let mut phase_min: u16 = 0;
-    let mut phase_max_found: bool = false;
-    let mut phase_max: u16 = 0;
-    let mut phase_opt: u16 = 0;
+    let mut sync_error_last = 0u16;
+    let mut phase_min_found = false;
+    let mut phase_min = 0u16;
+    let mut _phase_max_found = false;
+    let mut phase_max = 0u16;
 
     info!("AD9154-{} SYSREF scan/conf...", dacno);
     for phase in 0..512 {
         hmc7043::cfg_dac_sysref(dacno, phase);
         clock::spin_us(10000);
         spi_setup(dacno);
-        sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
-                     ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
-                     & 0x1ff;
+        let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
+                         ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
+                         & 0x1ff;
         info!("  phase: {}, sync error: {}", phase, sync_error);
         if sync_error != 0 {
             if phase_min_found {
                 if sync_error != sync_error_last {
-                    phase_max_found = true;
+                    _phase_max_found = true;
                     phase_max = phase - 1;
                     break;
                 }
@@ -641,7 +639,7 @@ fn dac_sysref_cfg(dacno: u8) {
         sync_error_last = sync_error;
     }
 
-    phase_opt = phase_min + (phase_max-phase_min)/2;
+    let phase_opt = phase_min + (phase_max-phase_min)/2;
     info!("  phase min: {}, phase max: {}, phase opt: {}", phase_min, phase_max, phase_opt);
     hmc7043::cfg_dac_sysref(dacno, phase_opt);
 }
