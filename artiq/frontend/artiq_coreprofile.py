@@ -123,7 +123,7 @@ def get_argparser():
                         help="file to save profile to, in Callgrind format")
     p_save.add_argument("firmware", metavar="FIRMWARE", type=str,
                         help="path to firmware ELF file")
-    p_save.add_argument("--no-compression", default=True, action='store_false',
+    p_save.add_argument("--no-compression", default=False, action='store_true',
                         help="disable profile compression")
 
     return parser
