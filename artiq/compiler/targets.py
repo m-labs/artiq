@@ -28,7 +28,8 @@ class RunTool:
         for argument in self._pattern:
             cmdline.append(argument.format(**self._tempnames))
 
-        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   universal_newlines=True)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             raise Exception("{} invocation failed: {}".
