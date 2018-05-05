@@ -46,6 +46,9 @@ def get_argparser():
     parser.add_argument("-H", "--host",
                         type=str, default="lab.m-labs.hk",
                         help="SSH host where the development board is located")
+    parser.add_argument("-J", "--jump",
+                        type=str, default=None,
+                        help="SSH host to jump through")
     parser.add_argument("-b", "--board",
                         type=str, default="{board_type}-1",
                         help="board to connect to on the development SSH host")
@@ -57,7 +60,7 @@ def get_argparser():
                         type=str, default="/dev/ttyUSB_{board}",
                         help="TTY device corresponding to the development board")
     parser.add_argument("-d", "--device",
-                        type=str, default="{board}.{host}",
+                        type=str, default="{board}",
                         help="address or domain corresponding to the development board")
     parser.add_argument("-w", "--wait", action="store_true",
                         help="wait for the board to unlock instead of aborting the actions")
@@ -96,7 +99,7 @@ def main():
     device     = args.device.format(board=board, host=args.host)
     serial     = args.serial.format(board=board)
 
-    client = SSHClient(args.host)
+    client = SSHClient(args.host, args.jump)
 
     flock_acquired = False
     flock_file = None # GC root
@@ -158,6 +161,8 @@ def main():
         for _ in range(args.verbose):
             flash_args.append("-v")
         flash_args += ["-H", args.host]
+        if args.jump:
+            flash_args += ["-J", args.jump]
         flash_args += ["-t", board_type]
         flash_args += ["-V", variant]
         flash_args += ["-I", "source {}".format(board_file)]

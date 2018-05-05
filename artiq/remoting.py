@@ -57,8 +57,9 @@ class LocalClient(Client):
 
 
 class SSHClient(Client):
-    def __init__(self, host):
+    def __init__(self, host, jump_host=None):
         self.host = host
+        self.jump_host = jump_host
         self.ssh = None
         self.sftp = None
         self._tmpr = "/tmp/artiq"
@@ -70,10 +71,19 @@ class SSHClient(Client):
         if self.ssh is None:
             import paramiko
             logging.getLogger("paramiko").setLevel(logging.WARNING)
+
+            if self.jump_host:
+                proxy_cmd = "ssh -W {}:22 {}".format(self.host, self.jump_host)
+                logger.debug("Using proxy command '{}'".format(proxy_cmd))
+                proxy = paramiko.proxy.ProxyCommand(proxy_cmd)
+            else:
+                proxy = None
+
             self.ssh = paramiko.SSHClient()
             self.ssh.load_system_host_keys()
             self.ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            self.ssh.connect(self.host)
+            self.ssh.connect(self.host, sock=proxy)
+
             logger.debug("Connecting to {}".format(self.host))
         return self.ssh
 

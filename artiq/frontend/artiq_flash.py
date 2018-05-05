@@ -48,6 +48,9 @@ Prerequisites:
     parser.add_argument("-H", "--host", metavar="HOSTNAME",
                         type=str, default=None,
                         help="SSH host where the development board is located")
+    parser.add_argument("-J", "--jump",
+                        type=str, default=None,
+                        help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kc705",
                         help="target board, default: %(default)s, one of: "
                              "kc705 kasli sayma")
@@ -299,7 +302,7 @@ def main():
     if args.host is None:
         client = LocalClient()
     else:
-        client = SSHClient(args.host)
+        client = SSHClient(args.host, args.jump)
 
     programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
