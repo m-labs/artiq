@@ -21,7 +21,7 @@ fn set_pins(card_index: usize, chan_index: usize, pins: u32) {
     clock::spin_us(100);
 }
 
-/// Attenuation is in units of 0.5dB, from 0dB (0) to 31.5dB (63).
+/// Attenuation is in units of 0.5 dB, from 0 dB (0) to 31.5 dB (63).
 pub fn program(card_index: usize, chan_index: usize, atten: u8) {
     assert!(card_index < 4 && chan_index < 2);
 
@@ -42,6 +42,10 @@ pub fn program(card_index: usize, chan_index: usize, atten: u8) {
         set_pins(sin | PIN_CLK);
     }
     set_pins(PIN_LE);
+
+    debug!("card {} channel {} set to {}{} dB",
+           card_index, chan_index,
+           atten / 2, if atten % 2 != 0 { ".5" } else { "" });
 }
 
 /// See `program`.
