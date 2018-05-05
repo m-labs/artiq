@@ -9,5 +9,5 @@ path = "lib.rs"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-log_buffer = { version = "1.0" }
+log_buffer = { version = "1.2", git = "https://github.com/whitequark/rust-log_buffer", rev = "rust-1.25" }
 board = { path = "../libboard" }

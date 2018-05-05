@@ -23,8 +23,8 @@ impl<'a> LogBufferRef<'a> {
         LogBufferRef { buffer, old_log_level }
     }
 
-    pub fn is_empty(&mut self) -> bool {
-        self.buffer.extract().len() == 0
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
     }
 
     pub fn clear(&mut self) {
