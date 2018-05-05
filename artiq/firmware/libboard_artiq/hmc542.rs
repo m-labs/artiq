@@ -43,9 +43,9 @@ pub fn program(card_index: usize, chan_index: usize, atten: u8) {
     }
     set_pins(PIN_LE);
 
-    debug!("card {} channel {} set to {}{} dB",
-           card_index, chan_index,
-           atten / 2, if atten % 2 != 0 { ".5" } else { "" });
+    info!("card {} channel {} set to {}{} dB",
+          card_index, chan_index,
+          atten / 2, if atten % 2 != 0 { ".5" } else { "" });
 }
 
 /// See `program`.
