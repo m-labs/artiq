@@ -129,17 +129,21 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
             }
 
             Request::Hotswap(firmware) => {
-                profiler::stop();
-                warn!("hotswapping firmware");
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 stream.flush()?;
+
+                profiler::stop();
+                warn!("hotswapping firmware");
                 unsafe { boot::hotswap(&firmware) }
             }
 
             Request::Reboot => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
+                stream.flush()?;
+
+                profiler::stop();
                 warn!("restarting");
                 unsafe { boot::reset() }
             }
