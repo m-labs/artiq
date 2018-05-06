@@ -114,8 +114,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "log_buffer"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "1.2.0"
+source = "git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25#ff84e565d9954d5864d60aec12b9e1381505d72a"
 
 [[package]]
 name = "logger_artiq"
@@ -123,7 +123,7 @@ version = "0.0.0"
 dependencies = [
  "board 0.0.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log_buffer 1.2.0 (git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25)",
 ]
 
 [[package]]
@@ -234,7 +234,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum libc 0.2.34 (registry+https://github.com/rust-lang/crates.io-index)" = "36fbc8a8929c632868295d0178dd8f63fc423fd7537ad0738372bd010b3ac9b0"
 "checksum log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "880f77541efa6e5cc74e76910c9884d9859683118839d6a1dc3b11e63512565b"
-"checksum log_buffer 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ec57723b84bbe7bdf76aa93169c9b59e67473317c6de3a83cb2a0f8ccb2aa493"
+"checksum log_buffer 1.2.0 (git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25)" = "<none>"
 "checksum managed 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "786bd3519bdfb0e1a57146a74b7584555dd6c4f1b6e1137c70e177d60dde8186"
 "checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
