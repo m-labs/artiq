@@ -27,7 +27,7 @@ requirements:
     - setuptools 33.1.1
   run:
     - python >=3.5.3,<3.6
-    - llvmlite-artiq 0.23.0.dev py35_2
+    - llvmlite-artiq 0.23.0.dev py35_4
     - binutils-or1k-linux >=2.27
     - pythonparser >=1.1
     - openocd 0.10.0 6
