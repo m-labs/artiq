@@ -387,8 +387,10 @@ class Opticlock(_StandaloneBase):
     """
     Opticlock extension variant configuration
     """
-    def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, **kwargs)
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.0"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -492,8 +494,10 @@ class SUServo(_StandaloneBase):
     """
     SUServo (Sampler-Urukul-Servo) extension variant configuration
     """
-    def __init__(self, **kwargs):
-        _StandaloneBase.__init__(self, **kwargs)
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
