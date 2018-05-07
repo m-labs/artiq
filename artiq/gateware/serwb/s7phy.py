@@ -216,8 +216,12 @@ class S7Serdes(Module):
             decoders[3].input.eq(rx_bitslip.o[30:40]),
             self.rx_k.eq(Cat(*[decoders[i].k for i in range(4)])),
             self.rx_d.eq(Cat(*[decoders[i].d for i in range(4)])),
-            self.rx_comma.eq((decoders[0].k == 1) & (decoders[0].d == K(28,5)))
-        ] 
+            self.rx_comma.eq(
+                (decoders[0].k == 1) & (decoders[0].d == K(28,5)) &
+                (decoders[1].k == 0) & (decoders[1].d == 0) &
+                (decoders[2].k == 0) & (decoders[2].d == 0) &
+                (decoders[3].k == 0) & (decoders[3].d == 0))
+        ]
 
         idle_timer = WaitTimer(32)
         self.submodules += idle_timer
