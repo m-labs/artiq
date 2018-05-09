@@ -14,7 +14,7 @@ const ADDRESS: u8 = 0x68;
           soc_platform = "kc705"))]
 fn pca9548_select(address: u8, channels: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (address << 1)).unwrap() {
+    if !i2c::write(BUSNO, address << 1).unwrap() {
         return Err("PCA9548 failed to ack write address")
     }
     if !i2c::write(BUSNO, channels).unwrap() {
@@ -106,7 +106,7 @@ fn map_frequency_settings(settings: &FrequencySettings) -> Result<FrequencySetti
 
 fn write(reg: u8, val: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
+    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
         return Err("Si5324 failed to ack write address")
     }
     if !i2c::write(BUSNO, reg).unwrap() {
@@ -122,7 +122,7 @@ fn write(reg: u8, val: u8) -> Result<()> {
 #[cfg(si5324_soft_reset)]
 fn write_no_ack_value(reg: u8, val: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
+    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
         return Err("Si5324 failed to ack write address")
     }
     if !i2c::write(BUSNO, reg).unwrap() {
@@ -135,7 +135,7 @@ fn write_no_ack_value(reg: u8, val: u8) -> Result<()> {
 
 fn read(reg: u8) -> Result<u8> {
     i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, (ADDRESS << 1)).unwrap() {
+    if !i2c::write(BUSNO, ADDRESS << 1).unwrap() {
         return Err("Si5324 failed to ack write address")
     }
     if !i2c::write(BUSNO, reg).unwrap() {
