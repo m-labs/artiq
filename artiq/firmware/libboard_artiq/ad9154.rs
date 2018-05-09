@@ -623,7 +623,9 @@ fn dac_sysref_cfg(dacno: u8) {
         let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
                          ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
                          & 0x1ff;
-        info!("  phase: {}, sync error: {}", phase, sync_error);
+        if sync_error != sync_error_last {
+            info!("  phase: {}, sync error: {}", phase, sync_error);
+        }
         if sync_error != 0 {
             if phase_min_found {
                 if sync_error != sync_error_last {
