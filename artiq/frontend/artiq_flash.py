@@ -281,7 +281,7 @@ def main():
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
             "firmware":     ("spi1", 0x050000),
-            "rtm_gateware": ("spi1", 0x150000),
+            "rtm_gateware": ("spi1", 0x200000),
         },
     }[args.target]
 
