@@ -238,6 +238,7 @@ class IIR(Module):
             ("profile", w.profile),
             ("en_out", 1),
             ("en_iir", 1),
+            ("clip", 1),
             ("stb", 1)])
             for i in range(1 << w.channel)]
         # only update during ~loading
@@ -266,6 +267,7 @@ class IIR(Module):
         profiles = Array([ch.profile for ch in self.ctrl])
         en_outs = Array([ch.en_out for ch in self.ctrl])
         en_iirs = Array([ch.en_iir for ch in self.ctrl])
+        clips = Array([ch.clip for ch in self.ctrl])
 
         # state counter
         state = Signal(w.channel + 2)
@@ -443,8 +445,10 @@ class IIR(Module):
                         en_out.eq(en_outs[channel[0]]),
                         en_iir.eq(en_iirs[channel[0]]),
                         If(stage[1],
-                            ddss[channel[1]][:w.word].eq(
-                                m_coeff.dat_r),
+                            ddss[channel[1]][:w.word].eq(m_coeff.dat_r)
+                        ),
+                        If(stage[2] & en[1] & dsp.clip,
+                            clips[channel[2]].eq(1)
                         )
                     ],
                     1: [

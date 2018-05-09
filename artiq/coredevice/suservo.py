@@ -109,8 +109,10 @@ class SUServo:
         """Get current SU Servo status.
 
         This method does not advance the timeline but consumes all slack.
+        This method returns and clears the clip indicator for all channels.
 
-        :return: Status. Bit 0: enabled, bit 1: done
+        :return: Status. Bit 0: enabled, bit 1: done,
+          bits 8-15: channel clip indicators.
         """
         return self.read(CONFIG_ADDR)
 

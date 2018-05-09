@@ -58,9 +58,11 @@ class RTServoMem(Module):
 
         config = Signal(w.coeff, reset=0)
         status = Signal(w.coeff)
+        pad = Signal(6)
         self.comb += [
                 Cat(servo.start).eq(config),
-                status.eq(Cat(servo.start, servo.done))
+                status.eq(Cat(servo.start, servo.done, pad,
+                    [_.clip for _ in servo.iir.ctrl]))
         ]
 
         assert len(self.rtlink.o.address) == (
@@ -108,6 +110,9 @@ class RTServoMem(Module):
         self.sync.rio_phy += [
                 If(self.rtlink.o.stb & we & state_sel & config_sel,
                     config.eq(self.rtlink.o.data)
+                ),
+                If(read & read_config & read_state,
+                    [_.clip.eq(0) for _ in servo.iir.ctrl]
                 )
         ]
         self.comb += [

@@ -29,7 +29,8 @@ class SUServo(EnvExperiment):
         # DDS attenuator
         self.suservo0.cpld0.set_att_mu(0, 64)
         delay(1*us)
-        assert self.suservo0.get_status() == 2
+        # Servo is done
+        assert self.suservo0.get_status() & 0xff == 2
         delay(10*us)
 
         # set up profile 0 on channel 0
@@ -51,16 +52,19 @@ class SUServo(EnvExperiment):
         delay(10*ms)
 
         # check servo status
-        assert self.suservo0.get_status() == 1
+        assert self.suservo0.get_status() & 0xff == 1
         delay(10*us)
 
         # reach back ADC data
-        print(self.suservo0.get_adc_mu(0))
-        delay(10*ms)
+        assert self.suservo0.get_adc_mu(0) == 0
+        delay(10*us)
 
         # read out IIR data
-        print(self.suservo0_ch0.get_y_mu(0))
-        delay(10*ms)
+        assert self.suservo0_ch0.get_y_mu(0) == 0x1ffff
+        delay(10*us)
+
+        assert self.suservo0.get_status() & 0xff00 == 0x0100
+        delay(10*us)
 
         # repeatedly clear the IIR state/integrator
         # with the ADC yielding 0's and given the profile configuration,
@@ -69,6 +73,10 @@ class SUServo(EnvExperiment):
         while True:
             self.suservo0_ch0.set(1, 0, 0)
             delay(1*us)
+            assert self.suservo0.get_status() & 0xff00 == 0x0100
+            delay(10*us)
+            assert self.suservo0.get_status() & 0xff00 == 0x0000
+            delay(10*us)
             self.suservo0_ch0.set_y_mu(0, 0)
             delay(1*us)
             self.suservo0_ch0.set(1, 1, 0)
