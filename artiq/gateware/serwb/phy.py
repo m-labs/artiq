@@ -21,7 +21,7 @@ from artiq.gateware.serwb.s7phy import S7Serdes
 
 @ResetInserter()
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=2**14):
+    def __init__(self, serdes, taps, timeout=2**15):
         self.ready = Signal()
         self.error = Signal()
 
@@ -154,7 +154,7 @@ class _SerdesMasterInit(Module):
 
 @ResetInserter()
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=2**14):
+    def __init__(self, serdes, taps, timeout=2**15):
         self.ready = Signal()
         self.error = Signal()
 
@@ -351,7 +351,7 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, device, pads, mode="master", init_timeout=2**14):
+    def __init__(self, device, pads, mode="master", init_timeout=2**15):
         self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
