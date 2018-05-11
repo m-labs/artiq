@@ -16,20 +16,23 @@ class SamplerPads(Module):
         dn = platform.request("{}_adc_data_n".format(eem))
 
         clkout_se = Signal()
+        clkout_inv = Signal()
         sck = Signal()
 
         self.specials += [
                 DifferentialOutput(self.cnv, cnv.p, cnv.n),
                 DifferentialOutput(1, sdr.p, sdr.n),
-                DDROutput(0, self.sck_en, sck, ClockSignal("rio_phy")),
+                DDROutput(self.sck_en, 0, sck, ClockSignal("rio_phy")),
                 DifferentialOutput(sck, spip.clk, spin.clk),
                 DifferentialInput(dp.clkout, dn.clkout, clkout_se),
-                Instance("BUFR", i_I=clkout_se, o_O=self.clkout)
+                # FIXME (hardware): CLKOUT is inverted
+                # (Sampler v2.0, v2.1) out on rising, in on falling
+                Instance("BUFR", i_I=clkout_se, o_O=clkout_inv)
         ]
+        self.comb += self.clkout.eq(~clkout_inv)
 
-        # here to be early before the input delays below to have the clock
-        # available
-        self.clkout_p = dp.clkout  # availabel for false paths
+        # define clock here before the input delays below
+        self.clkout_p = dp.clkout  # available for false paths
         platform.add_platform_command(
                 "create_clock -name {clk} -period 8 [get_nets {clk}]",
                 clk=dp.clkout)
@@ -37,17 +40,20 @@ class SamplerPads(Module):
         for i in "abcd":
             sdo = Signal()
             setattr(self, "sdo{}".format(i), sdo)
+            if i != "a":
+                # FIXME (hardware): sdob, sdoc, sdod are inverted
+                # (Sampler v2.0, v2.1)
+                sdo, sdo_inv = Signal(), sdo
+                self.comb += sdo_inv.eq(~sdo)
             sdop = getattr(dp, "sdo{}".format(i))
             sdon = getattr(dn, "sdo{}".format(i))
             self.specials += [
                 DifferentialInput(sdop, sdon, sdo),
             ]
-            # 8, -0+1.5 hold (t_HSDO_DDR), -0.5+0.5 skew
+            # -0+1.5 hold (t_HSDO_SDR), -0.5+0.5 skew
             platform.add_platform_command(
-                "set_input_delay -clock {clk} "
-                "-max 2 [get_ports {port}] -clock_fall\n"
-                "set_input_delay -clock {clk} "
-                "-min -0.5 [get_ports {port}] -clock_fall",
+                "set_input_delay -clock {clk} -max 2 [get_ports {port}]\n"
+                "set_input_delay -clock {clk} -min -0.5 [get_ports {port}]",
                 clk=dp.clkout, port=sdop)
 
 
