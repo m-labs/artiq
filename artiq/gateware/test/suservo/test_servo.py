@@ -28,7 +28,7 @@ class ServoSim(servo.Servo):
 
         adc = 1
         x0 = 0x0141
-        yield self.adc_tb.data[adc].eq(x0)
+        yield self.adc_tb.data[-adc-1].eq(x0)
         channel = 3
         yield self.iir.adc[channel].eq(adc)
         yield self.iir.ctrl[channel].en_iir.eq(1)

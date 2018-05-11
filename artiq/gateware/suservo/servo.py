@@ -11,7 +11,7 @@ class Servo(Module):
         self.submodules.iir = IIR(iir_p)
         self.submodules.dds = DDS(dds_pads, dds_p)
 
-        for i, j, k, l in zip(self.adc.data, self.iir.adc,
+        for i, j, k, l in zip(reversed(self.adc.data), self.iir.adc,
                 self.iir.dds, self.dds.profile):
             self.comb += j.eq(i), l.eq(k)
 
