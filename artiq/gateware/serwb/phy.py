@@ -104,6 +104,9 @@ class _SerdesMasterInit(Module):
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
+                    NextValue(delay_min, 0),
+                    NextValue(delay_max_found, 0),
+                    NextValue(delay_max, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -118,10 +121,12 @@ class _SerdesMasterInit(Module):
             If((delay_min == 0) |
                (delay_max == (taps - 1)) |
                ((delay_max - delay_min) < taps//16),
-               NextValue(delay_min_found, 0),
-               NextValue(delay_max_found, 0),
-               NextState("WAIT_STABLE")
+               # switch to next bitslip
+               NextValue(delay, taps - 1),
+               NextState("INC_DELAY_BITSLIP")
             ).Else(
+                NextValue(delay, 0),
+                serdes.rx_delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
             serdes.tx_comma.eq(1)
@@ -131,16 +136,7 @@ class _SerdesMasterInit(Module):
                 NextState("READY")
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1),
-                NextState("WAIT_SAMPLING_WINDOW")
-            ),
-            serdes.tx_comma.eq(1)
-        )
-        fsm.act("WAIT_SAMPLING_WINDOW",
-            timer.wait.eq(1),
-            If(timer.done,
-                timer.wait.eq(0),
-                NextState("CONFIGURE_SAMPLING_WINDOW")
+                serdes.rx_delay_inc.eq(1)
             ),
             serdes.tx_comma.eq(1)
         )
@@ -225,6 +221,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextState("ERROR")
                 ).Else(
                     NextValue(delay_min_found, 0),
+                    NextValue(delay_min, 0),
+                    NextValue(delay_max_found, 0),
+                    NextValue(delay_max, 0),
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
@@ -239,10 +238,12 @@ class _SerdesSlaveInit(Module, AutoCSR):
             If((delay_min == 0) |
                (delay_max == (taps - 1)) |
                ((delay_max - delay_min) < taps//16),
-               NextValue(delay_min_found, 0),
-               NextValue(delay_max_found, 0),
-               NextState("WAIT_STABLE")
+               # switch to next bitslip
+               NextValue(delay, taps - 1),
+               NextState("INC_DELAY_BITSLIP")
             ).Else(
+                NextValue(delay, 0),
+                serdes.rx_delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
             serdes.tx_idle.eq(1)
@@ -253,20 +254,13 @@ class _SerdesSlaveInit(Module, AutoCSR):
             ).Else(
                 NextValue(delay, delay + 1),
                 serdes.rx_delay_inc.eq(1),
-                NextState("WAIT_SAMPLING_WINDOW")
-            )
-        )
-        fsm.act("WAIT_SAMPLING_WINDOW",
-            timer.wait.eq(1),
-            If(timer.done,
-                timer.wait.eq(0),
-                NextState("CONFIGURE_SAMPLING_WINDOW")
-            )
+            ),
+            serdes.tx_idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
-            timer.wait.eq(1),
-            If(timer.done,
-                If(~serdes.rx_comma,
+            If(~serdes.rx_comma,
+                timer.wait.eq(1),
+                If(timer.done,
                     NextState("READY")
                 )
             ),
