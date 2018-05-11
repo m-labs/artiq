@@ -32,7 +32,6 @@ class KUSSerdes(Module):
         self.rx_bitslip_value = Signal(6)
         self.rx_delay_rst = Signal()
         self.rx_delay_inc = Signal()
-        self.rx_delay_en_vtc = Signal()
 
         # # #
 
@@ -174,7 +173,7 @@ class KUSSerdes(Module):
 
                 i_CLK=ClockSignal("sys"),
                 i_RST=self.rx_delay_rst, i_LOAD=0,
-                i_INC=1, i_EN_VTC=self.rx_delay_en_vtc,
+                i_INC=1, i_EN_VTC=0,
                 i_CE=self.rx_delay_inc,
 
                 i_IDATAIN=serdes_i_nodelay, o_DATAOUT=serdes_i_delayed

@@ -147,8 +147,6 @@ class _SerdesMasterInit(Module):
         fsm.act("READY",
             self.ready.eq(1)
         )
-        if hasattr(serdes, "rx_delay_en_vtc"):
-            self.comb += serdes.rx_delay_en_vtc.eq(self.ready)
         fsm.act("ERROR",
             self.error.eq(1)
         )
@@ -277,8 +275,6 @@ class _SerdesSlaveInit(Module, AutoCSR):
         fsm.act("READY",
             self.ready.eq(1)
         )
-        if hasattr(serdes, "rx_delay_en_vtc"):
-            self.comb += serdes.rx_delay_en_vtc.eq(self.ready)
         fsm.act("ERROR",
             self.error.eq(1)
         )
