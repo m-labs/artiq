@@ -608,7 +608,8 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     dac_cfg(dacno)
 }
 
-fn dac_sysref_cfg(dacno: u8) {
+#[allow(dead_code)]
+fn dac_sysref_scan(dacno: u8) {
     let mut sync_error_last = 0u16;
     let mut phase_min_found = false;
     let mut phase_min = 0u16;
@@ -646,6 +647,11 @@ fn dac_sysref_cfg(dacno: u8) {
     hmc7043::cfg_dac_sysref(dacno, phase_opt);
 }
 
+fn dac_sysref_cfg(dacno: u8, phase: u16) {
+    info!("AD9154-{} setting SYSREF phase to {}", dacno, phase);
+    hmc7043::cfg_dac_sysref(dacno, phase);
+}
+
 pub fn init() -> Result<(), &'static str> {
     // Release the JESD clock domain reset late, as we need to
     // set up clock chips before.
@@ -654,9 +660,9 @@ pub fn init() -> Result<(), &'static str> {
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
         debug!("setting up AD9154-{} DAC...", dacno);
+        dac_sysref_cfg(dacno, 88);
         dac_cfg_retry(dacno)?;
         dac_prbs(dacno)?;
-        dac_sysref_cfg(dacno);
         dac_cfg_retry(dacno)?;
     }
 
