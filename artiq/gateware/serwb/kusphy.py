@@ -215,4 +215,5 @@ class KUSSerdes(Module):
         idle_timer = WaitTimer(32)
         self.submodules += idle_timer
         self.comb += idle_timer.wait.eq(1)
-        self.sync += self.rx_idle.eq(idle_timer.done & (rx_bitslip.o == 0))
+        self.sync += self.rx_idle.eq(idle_timer.done &
+            ((rx_bitslip.o == 0) | (rx_bitslip.o == (2**40-1))))
