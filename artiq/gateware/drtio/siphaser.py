@@ -4,16 +4,17 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 
 
-# This code assumes 125MHz system clock and 150MHz RTIO frequency.
+# This code assumes 125/62.5MHz reference clock and 150MHz RTIO frequency.
 
 class SiPhaser7Series(Module, AutoCSR):
-    def __init__(self, si5324_clkin, si5324_clkout_fabric):
+    def __init__(self, si5324_clkin, si5324_clkout_fabric,
+                 ref_clk=None, ref_div2=False):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus(reset=1)
         self.sample_result = CSRStatus()
 
-        # 125MHz system clock to 150MHz. VCO @ 625MHz.
+        # 125MHz/62.5MHz reference clock to 150MHz. VCO @ 625MHz.
         # Used to provide a startup clock to the transceiver through the Si,
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
@@ -21,11 +22,12 @@ class SiPhaser7Series(Module, AutoCSR):
         mmcm_freerun_output = Signal()
         self.specials += \
             Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=1e9/125e6,
-                i_CLKIN1=ClockSignal("sys"),
-                i_RST=ResetSignal("sys"),
+                p_CLKIN1_PERIOD=16.0 if ref_div2 else 8.0,
+                i_CLKIN1=ClockSignal("sys") if ref_clk is None else ref_clk,
+                i_RST=ResetSignal("sys") if ref_clk is None else 0,
 
-                p_CLKFBOUT_MULT_F=6.0, p_DIVCLK_DIVIDE=1,
+                p_CLKFBOUT_MULT_F=12.0 if ref_div2 else 6.0,
+                p_DIVCLK_DIVIDE=1,
 
                 o_CLKFBOUT=mmcm_freerun_fb, i_CLKFBIN=mmcm_freerun_fb,
 
