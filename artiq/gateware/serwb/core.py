@@ -17,8 +17,8 @@ class SERWBCore(Module):
         self.submodules += depacketizer, packetizer
 
         # fifos
-        tx_fifo = stream.SyncFIFO([("data", 32)], 16)
-        rx_fifo = stream.SyncFIFO([("data", 32)], 16)
+        tx_fifo = stream.SyncFIFO([("data", 32)], 8, buffered=True)
+        rx_fifo = stream.SyncFIFO([("data", 32)], 8, buffered=True)
         self.submodules += tx_fifo, rx_fifo
 
         # modules connection
