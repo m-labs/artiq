@@ -6,21 +6,19 @@ from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
-from migen.build.xilinx.vivado import XilinxVivadoToolchain
-from migen.build.xilinx.ise import XilinxISEToolchain
-from migen.genlib.io import DifferentialOutput, DifferentialInput
+from migen.genlib.io import DifferentialOutput
 
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
 from misoc.cores.a7_gtp import *
-from misoc.targets.kasli import (BaseSoC, MiniSoC,
-    soc_kasli_args, soc_kasli_argdict)
+from misoc.targets.kasli import (
+    BaseSoC, MiniSoC, soc_kasli_args, soc_kasli_argdict)
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import (
-        ttl_simple, ttl_serdes_7series, spi2, servo as rtservo)
+    ttl_simple, ttl_serdes_7series, spi2, servo as rtservo)
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -214,6 +212,7 @@ def _sampler(eem, eem_aux=None):
                 Subsignal("sdob", Pins(_eem_pin(eem_aux, 2, "p"))),
                 Subsignal("sdoc", Pins(_eem_pin(eem_aux, 3, "p"))),
                 Subsignal("sdod", Pins(_eem_pin(eem_aux, 4, "p"))),
+                Misc("DIFF_TERM=TRUE"),
                 IOStandard("LVDS_25"),
             ),
             ("{}_adc_data_n".format(eem), 0,
@@ -222,6 +221,7 @@ def _sampler(eem, eem_aux=None):
                 Subsignal("sdob", Pins(_eem_pin(eem_aux, 2, "n"))),
                 Subsignal("sdoc", Pins(_eem_pin(eem_aux, 3, "n"))),
                 Subsignal("sdod", Pins(_eem_pin(eem_aux, 4, "n"))),
+                Misc("DIFF_TERM=TRUE"),
                 IOStandard("LVDS_25"),
             ),
         ]
