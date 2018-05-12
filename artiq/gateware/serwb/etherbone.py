@@ -414,7 +414,7 @@ class _EtherboneRecordDepacketizer(_Depacketizer):
 
 
 class _EtherboneRecordReceiver(Module):
-    def __init__(self, buffer_depth=16):
+    def __init__(self, buffer_depth=4):
         self.sink = sink = stream.Endpoint(etherbone_record_description(32))
         self.source = source = stream.Endpoint(etherbone_mmap_description(32))
 
@@ -497,7 +497,7 @@ class _EtherboneRecordReceiver(Module):
 
 
 class _EtherboneRecordSender(Module):
-    def __init__(self, buffer_depth=16):
+    def __init__(self, buffer_depth=4):
         self.sink = sink = stream.Endpoint(etherbone_mmap_description(32))
         self.source = source = stream.Endpoint(etherbone_record_description(32))
 
