@@ -107,7 +107,7 @@ class ADC(Module):
         )
 
         try:
-            sck_en_ret = pads.sck_en_ret
+            sck_en_ret = pads.sck_en_ret  # simulation
         except AttributeError:
             sck_en_ret = 1
 
@@ -119,7 +119,7 @@ class ADC(Module):
         for i, sdo in enumerate(sdo):
             sdo_sr = Signal(2*t_read)
             self.sync.ret += [
-                    If(self.reading & sck_en_ret,
+                    If(sck_en_ret,
                         sdo_sr[1:].eq(sdo_sr),
                         sdo_sr[0].eq(sdo),
                     )
