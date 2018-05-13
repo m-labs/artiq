@@ -172,8 +172,8 @@ class DDSChannel:
 
     The time cursor is not modified by any function in this class.
 
-    :param bus: name of the DDS bus device that this DDS is connected to.
-    :param channel: channel number of the DDS device to control.
+    :param bus_channel: RTIO channel number of the DDS bus.
+    :param channel: channel number (on the bus) of the DDS device to control.
     """
 
     kernel_invariants = {
