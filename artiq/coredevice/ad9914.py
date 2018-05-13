@@ -174,20 +174,18 @@ class AD9914:
         self.phase_mode = phase_mode
 
     @kernel
-    def set_mu(self, frequency, phase=0, phase_mode=_PHASE_MODE_DEFAULT,
-               amplitude=0x0fff, ref_time=-1):
+    def set_mu(self, ftw, pow=0, phase_mode=_PHASE_MODE_DEFAULT,
+               asf=0x0fff, ref_time=-1):
         """Sets the DDS channel to the specified frequency and phase.
 
         This uses machine units (FTW and POW). The frequency tuning word width
-        is 32, whereas the phase offset word width depends on the type of DDS
-        chip and can be retrieved via the ``pow_width`` attribute. The amplitude
-        width is 12.
+        is 32, and the phase offset word width is 16.
 
         The "frequency update" pulse is sent to the DDS with a fixed latency
         with respect to the current position of the time cursor.
 
-        :param frequency: frequency to generate.
-        :param phase: adds an offset, in turns, to the phase.
+        :param ftw: frequency to generate.
+        :param pow: adds an offset to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
             by ``set_phase_mode`` for this call.
         :param ref_time: reference time used to compute phase. Specifying this
@@ -223,7 +221,7 @@ class AD9914:
             self.continuous_phase_comp = pow
 
         self.write(AD9914_REG_POW,  pow)
-        self.write(AD9914_REG_ASF,  amplitude)
+        self.write(AD9914_REG_ASF,  asf)
         self.write(AD9914_FUD,      0)
 
     @portable(flags={"fast-math"})
