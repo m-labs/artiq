@@ -159,7 +159,7 @@ fn process_aux_packet(p: &drtioaux::Packet) {
             };
         }
 
-        _ => warn!("received unexpected aux packet {:?}", p)
+        _ => warn!("received unexpected aux packet")
     }
 }
 
