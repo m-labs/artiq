@@ -291,8 +291,8 @@ class DDSGroupAD9914(DDSGroup):
 
         self.write_duration_mu     = 5 * self.rtio_period_mu
         self.dac_cal_duration_mu   = 147000 * self.rtio_period_mu
-        self.init_duration_mu      = 8 * self.write_duration_mu + self.dac_cal_duration_mu
-        self.init_sync_duration_mu = 16 * self.write_duration_mu + 2 * self.dac_cal_duration_mu
+        self.init_duration_mu      = 9 * self.write_duration_mu + self.dac_cal_duration_mu
+        self.init_sync_duration_mu = 17 * self.write_duration_mu + 2 * self.dac_cal_duration_mu
         self.program_duration_mu   = 6 * self.write_duration_mu
 
         self.continuous_phase_comp = [0] * (self.dds_bus_count * self.dds_channel_count)
