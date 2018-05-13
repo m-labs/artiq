@@ -6,7 +6,6 @@ class DDSTest(EnvExperiment):
 
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("core_dds")
         self.setattr_device("dds0")
         self.setattr_device("dds1")
         self.setattr_device("dds2")
@@ -19,9 +18,9 @@ class DDSTest(EnvExperiment):
     def run(self):
         self.core.reset()
         delay(200*us)
-        with self.core_dds.batch:
-            self.dds1.set(120*MHz)
-            self.dds2.set(200*MHz)
+        self.dds1.set(120*MHz)
+        delay(10*us)
+        self.dds2.set(200*MHz)
         delay(1*us)
 
         for i in range(10000):

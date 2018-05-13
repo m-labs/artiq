@@ -27,17 +27,6 @@ device_db = {
         "module": "artiq.coredevice.dma",
         "class": "CoreDMA"
     },
-    "core_dds": {
-        "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSGroupAD9914",
-        "arguments": {
-            "sysclk": 3e9,
-            "first_dds_bus_channel": 39,
-            "dds_bus_count": 2,
-            "dds_channel_count": 3
-        }
-    },
 
     "i2c_switch": {
         "type": "local",
@@ -333,22 +322,22 @@ device_db = {
     # AD9914 DDS
     "dds0": {
         "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 39, "channel": 0},
+        "module": "artiq.coredevice.ad9914",
+        "class": "AD9914",
+        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "dds1": {
         "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 39, "channel": 1}
+        "module": "artiq.coredevice.ad9914",
+        "class": "AD9914",
+        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 1}
     },
     "dds2": {
         "type": "local",
-        "module": "artiq.coredevice.dds",
-        "class": "DDSChannelAD9914",
-        "arguments": {"bus_channel": 39, "channel": 2}
+        "module": "artiq.coredevice.ad9914",
+        "class": "AD9914",
+        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 2}
     },
 
     # Aliases

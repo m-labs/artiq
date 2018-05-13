@@ -211,9 +211,8 @@ class TTLClockGenHandler:
 
 
 class DDSHandler:
-    def __init__(self, vcd_manager, dds_type, onehot_sel, sysclk):
+    def __init__(self, vcd_manager, onehot_sel, sysclk):
         self.vcd_manager = vcd_manager
-        self.dds_type = dds_type
         self.onehot_sel = onehot_sel
         self.sysclk = sysclk
 
@@ -227,9 +226,8 @@ class DDSHandler:
                 self.vcd_manager.get_channel(name + "/frequency", 64)
             dds_channel["vcd_phase"] = \
                 self.vcd_manager.get_channel(name + "/phase", 64)
-        if self.dds_type == "DDSChannelAD9914":
-            dds_channel["ftw"] = [None, None]
-            dds_channel["pow"] = None
+        dds_channel["ftw"] = [None, None]
+        dds_channel["pow"] = None
         self.dds_channels[dds_channel_nr] = dds_channel
 
     def _gpio_to_channels(self, gpio):
@@ -252,9 +250,9 @@ class DDSHandler:
             self.selected_dds_channels = self._gpio_to_channels(message.data)
         for dds_channel_nr in self.selected_dds_channels:
             dds_channel = self.dds_channels[dds_channel_nr]
-            if message.address == 0x2d:
+            if message.address == 0x11:
                 dds_channel["ftw"][0] = message.data
-            elif message.address == 0x2f:
+            elif message.address == 0x13:
                 dds_channel["ftw"][1] = message.data
             elif message.address == 0x31:
                 dds_channel["pow"] = message.data
@@ -273,8 +271,7 @@ class DDSHandler:
             logger.debug("DDS write @%d 0x%04x to 0x%02x, selected channels: %s",
                          message.timestamp, message.data, message.address,
                          self.selected_dds_channels)
-            if self.dds_type == "DDSChannelAD9914":
-                self._decode_ad9914_write(message)
+            self._decode_ad9914_write(message)
 
 
 class WishboneHandler:
@@ -444,16 +441,17 @@ def get_vcd_log_channels(log_channel, messages):
 
 
 def get_single_device_argument(devices, module, cls, argument):
-    ref_period = None
+    found = None
     for desc in devices.values():
         if isinstance(desc, dict) and desc["type"] == "local":
             if (desc["module"] == module
                     and desc["class"] in cls):
-                if ref_period is None:
-                    ref_period = desc["arguments"][argument]
-                else:
-                    return None  # more than one device found
-    return ref_period
+                value = desc["arguments"][argument]
+                if found is None:
+                    found = value
+                elif value != found:
+                    return None  # more than one value/device found
+    return found
 
 
 def get_ref_period(devices):
@@ -462,8 +460,8 @@ def get_ref_period(devices):
 
 
 def get_dds_sysclk(devices):
-    return get_single_device_argument(devices, "artiq.coredevice.dds",
-                                      ("DDSGroupAD9914",), "sysclk")
+    return get_single_device_argument(devices, "artiq.coredevice.ad9914",
+                                      ("ad9914",), "sysclk")
 
 
 def create_channel_handlers(vcd_manager, devices, ref_period,
@@ -479,14 +477,12 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     and desc["class"] == "TTLClockGen"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
-            if (desc["module"] == "artiq.coredevice.dds"
-                    and desc["class"] in {"DDSChannelAD9914"}):
+            if (desc["module"] == "artiq.coredevice.ad9914"
+                    and desc["class"] == "AD9914"):
                 dds_bus_channel = desc["arguments"]["bus_channel"]
                 dds_channel = desc["arguments"]["channel"]
                 if dds_bus_channel in channel_handlers:
                     dds_handler = channel_handlers[dds_bus_channel]
-                    if dds_handler.dds_type != desc["class"]:
-                        raise ValueError("All DDS channels must have the same type")
                 else:
                     dds_handler = DDSHandler(vcd_manager, desc["class"],
                         dds_onehot_sel, dds_sysclk)

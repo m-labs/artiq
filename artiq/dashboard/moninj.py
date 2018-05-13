@@ -215,13 +215,11 @@ def setup_from_ddb(ddb):
                     force_out = v["class"] == "TTLOut"
                     widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
                     description.add(widget)
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSGroupAD9914"):
-                    dds_sysclk = v["arguments"]["sysclk"]
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSChannelAD9914"):
+                elif (v["module"] == "artiq.coredevice.ad9914"
+                        and v["class"] == "AD9914"):
                     bus_channel = v["arguments"]["bus_channel"]
                     channel = v["arguments"]["channel"]
+                    dds_sysclk = v["arguments"]["sysclk"]
                     widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
                     description.add(widget)
                 elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53XX")

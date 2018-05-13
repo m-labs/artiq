@@ -32,6 +32,9 @@ ARTIQ-4
   to the new bus.
 * The ``ad5360`` coredevice driver has been renamed to ``ad53xx`` and the API
   has changed to better support Zotino.
+* ``artiq.coredevice.dds`` has been renamed to ``artiq.coredevice.ad9914`` and
+  simplified. DDS batch mode is no longer supported. The ``core_dds`` device
+  is no longer necessary.
 
 
 ARTIQ-3

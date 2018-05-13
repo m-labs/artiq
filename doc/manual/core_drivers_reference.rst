@@ -75,16 +75,22 @@ RF generation drivers
 .. automodule:: artiq.coredevice.urukul
     :members:
 
+:mod:`artiq.coredevice.ad9910` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.ad9910
+    :members:
+
 :mod:`artiq.coredevice.ad9912` module
 +++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.ad9912
     :members:
 
-:mod:`artiq.coredevice.ad9910` module
-+++++++++++++++++++++++++++++++++++++
+:mod:`artiq.coredevice.ad9914` module
+++++++++++++++++++++++++++++++++++
 
-.. automodule:: artiq.coredevice.ad9910
+.. automodule:: artiq.coredevice.ad9914
     :members:
 
 :mod:`artiq.coredevice.spline` module
@@ -97,12 +103,6 @@ RF generation drivers
 +++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.sawg
-    :members:
-
-:mod:`artiq.coredevice.dds` module
-++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.dds
     :members:
 
 

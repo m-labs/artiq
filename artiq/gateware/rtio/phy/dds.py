@@ -4,8 +4,8 @@ from artiq.gateware import ad9_dds
 from artiq.gateware.rtio.phy.wishbone import RT2WB
 
 
-class _AD9_DDS(Module):
-    def __init__(self, ftw_base, pads, nchannels, onehot=False, **kwargs):
+class AD9914(Module):
+    def __init__(self, pads, nchannels, onehot=False, **kwargs):
         self.submodules._ll = ClockDomainsRenamer("rio_phy")(
             ad9_dds.AD9_DDS(pads, **kwargs))
         self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus)
@@ -38,13 +38,13 @@ class _AD9_DDS(Module):
             if len(pads.d) == 8:
                 self.sync.rio_phy += \
                     If(selected(c), [
-                        If(current_address == ftw_base+i,
+                        If(current_address == 0x11+i,
                            ftw[i*8:(i+1)*8].eq(current_data))
                         for i in range(4)])
             elif len(pads.d) == 16:
                 self.sync.rio_phy += \
                     If(selected(c), [
-                        If(current_address == ftw_base+2*i,
+                        If(current_address == 0x11+2*i,
                            ftw[i*16:(i+1)*16].eq(current_data))
                         for i in range(2)])
             else:
@@ -54,8 +54,3 @@ class _AD9_DDS(Module):
         self.sync.rio_phy += If(current_address == 2**len(pads.a), [
             If(selected(c), probe.eq(ftw))
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
-
-
-class AD9914(_AD9_DDS):
-    def __init__(self, *args, **kwargs):
-        _AD9_DDS.__init__(self, 0x2d, *args, **kwargs)

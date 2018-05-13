@@ -102,13 +102,6 @@ class DMAError(Exception):
     artiq_builtin = True
 
 
-class DDSError(Exception):
-    """Raised when attempting to start a DDS batch while already in a batch,
-    when too many commands are batched, and when DDS channel settings are
-    incorrect.
-    """
-
-
 class WatchdogExpired(Exception):
     """Raised when a watchdog expires."""
 

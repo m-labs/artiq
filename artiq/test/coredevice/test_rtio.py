@@ -127,7 +127,6 @@ class PulseRate(EnvExperiment):
 class PulseRateDDS(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("core_dds")
         self.setattr_device("dds0")
         self.setattr_device("dds1")
 
@@ -135,14 +134,15 @@ class PulseRateDDS(EnvExperiment):
     def run(self):
         self.core.reset()
         dt = self.core.seconds_to_mu(5*us)
-        freq = self.core_dds.frequency_to_ftw(100*MHz)
+        freq = self.dds0.frequency_to_ftw(100*MHz)
         while True:
             delay(10*ms)
             for i in range(1250):
                 try:
-                    with self.core_dds.batch:
-                        self.dds0.set_mu(freq)
-                        self.dds1.set_mu(freq)
+                    delay_mu(-self.dds0.set_duration_mu)
+                    self.dds0.set_mu(freq)
+                    delay_mu(self.dds0.set_duration_mu)
+                    self.dds1.set_mu(freq)
                     delay_mu(dt)
                 except RTIOUnderflow:
                     dt += 100
