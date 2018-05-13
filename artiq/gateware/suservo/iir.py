@@ -61,7 +61,7 @@ class DSP(Module):
                 If(self.offset_load,
                     d.eq(self.offset)
                 ),
-                ad.eq(d - a),
+                ad.eq(d + a),
                 b.eq(self.coeff),
                 m.eq(ad*b),
                 p.eq(p + m),
@@ -184,7 +184,7 @@ class IIR(Module):
     X0 = ADC * 2^(25 - 1 - 16)
     X1 = X0 delayed by one cycle
     A0 = 2^11
-    A0*Y0 = A1*Y1 - B0*(X0 - OFFSET) - B1*(X1 - OFFSET)
+    A0*Y0 = A1*Y1 + B0*(X0 + OFFSET) + B1*(X1 + OFFSET)
     Y1 = Y0 delayed by one cycle
     ASF = Y0 / 2^(25 - 14 - 1)
 
@@ -196,7 +196,7 @@ class IIR(Module):
 
                     B0 --/-   A0: 2^11
                         18 |         |
-    ADC -/-[<<]-/-(-)-/---(x)-(+)-/-[>>]-/-[_/^]-/---[>>]-/- ASF
+    ADC -/-[<<]-/-(+)-/---(x)-(+)-/-[>>]-/-[_/^]-/---[>>]-/- ASF
         16   8  24 | 25 |      |  48 11  37     25 |  10  15
         OFFSET --/-   [z^-1]   ^                 [z^-1]
                 24      |      |                   |
@@ -632,8 +632,8 @@ class IIR(Module):
             logger.debug("state y1[%d,%d]=%#x x0[%d]=%#x x1[%d]=%#x",
                     i, j, y1, k_j, x0, k_j, x1)
 
-            p = (0*(1 << w.shift - 1) + a1*(0 - y1) +
-                    b0*(offset - x0) + b1*(offset - x1))
+            p = (0*(1 << w.shift - 1) + a1*(y1 + 0) +
+                    b0*(x0 + offset) + b1*(x1 + offset))
             out = p >> w.shift
             y0 = min(max(0, out), (1 << w.state - 1) - 1)
             logger.debug("dsp[%d,%d] p=%#x out=%#x y0=%#x",

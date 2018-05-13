@@ -65,7 +65,7 @@ class ServoSim(servo.Servo):
         a1, b0, b1 = coeff["a1"], coeff["b0"], coeff["b1"]
         out = (
                 0*(1 << w.shift - 1) +  # rounding
-                a1*(0 - y1) + b0*(offset - x0) + b1*(offset - x1)
+                a1*(y1 + 0) + b0*(x0 + offset) + b1*(x1 + offset)
         ) >> w.shift
         y1 = min(max(0, out), (1 << w.state - 1) - 1)
 
