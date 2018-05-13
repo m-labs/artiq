@@ -30,8 +30,6 @@ AD9914_REG_DRGBL = 0x15
 AD9914_REG_DRGBH = 0x17
 AD9914_REG_DRGAL = 0x19
 AD9914_REG_DRGAH = 0x1b
-AD9914_REG_FTWL  = 0x2d
-AD9914_REG_FTWH  = 0x2f
 AD9914_REG_POW   = 0x31
 AD9914_REG_ASF   = 0x33
 AD9914_REG_USR0  = 0x6d
@@ -71,10 +69,11 @@ class AD9914:
 
         self.write_duration_mu     = 5 * self.rtio_period_mu
         self.dac_cal_duration_mu   = 147000 * self.rtio_period_mu
-        self.init_duration_mu      = 10 * self.write_duration_mu + self.dac_cal_duration_mu
-        self.init_sync_duration_mu = 18 * self.write_duration_mu + 2 * self.dac_cal_duration_mu
-        self.set_duration_mu       = 6 * self.write_duration_mu
+        self.init_duration_mu      = 13 * self.write_duration_mu + self.dac_cal_duration_mu
+        self.init_sync_duration_mu = 21 * self.write_duration_mu + 2 * self.dac_cal_duration_mu
+        self.set_duration_mu       = 7 * self.write_duration_mu
         self.set_x_duration_mu     = 7 * self.write_duration_mu
+        self.exit_x_duration_mu    = 3 * self.write_duration_mu
 
         self.continuous_phase_comp = 0
 
@@ -93,9 +92,14 @@ class AD9914:
         delay_mu(-self.init_duration_mu)
         self.write(AD9914_GPIO,      (1 << self.channel) << 1);
 
+        # Note another undocumented "feature" of the AD9914:
+        # Programmable modulus breaks if the digital ramp enable bit is
+        # not set at the same time.
         self.write(AD9914_REG_CFR1H, 0x0000) # Enable cosine output
         self.write(AD9914_REG_CFR2L, 0x8900) # Enable matched latency
-        self.write(AD9914_REG_CFR2H, 0x0080) # Enable profile mode
+        self.write(AD9914_REG_CFR2H, 0x0089) # Enable profile mode + programmable modulus + DRG
+        self.write(AD9914_REG_DRGAL, 0)      # Programmable modulus A = 0
+        self.write(AD9914_REG_DRGAH, 0)
         self.write(AD9914_REG_DRGBH, 0x8000) # Programmable modulus B == 2**31
         self.write(AD9914_REG_DRGBL, 0x0000)
         self.write(AD9914_REG_ASF,   0x0fff) # Set amplitude to maximum
@@ -141,7 +145,9 @@ class AD9914:
         self.write(AD9914_REG_CFR4H, 0x0005) # Disable DAC calibration
         self.write(AD9914_FUD,       0)
         self.write(AD9914_REG_CFR1H, 0x0000) # Enable cosine output
-        self.write(AD9914_REG_CFR2H, 0x0080) # Enable profile mode
+        self.write(AD9914_REG_CFR2H, 0x0089) # Enable profile mode + programmable modulus + DRG
+        self.write(AD9914_REG_DRGAL, 0)      # Programmable modulus A = 0
+        self.write(AD9914_REG_DRGAH, 0)
         self.write(AD9914_REG_DRGBH, 0x8000) # Programmable modulus B == 2**31
         self.write(AD9914_REG_DRGBL, 0x0000)
         self.write(AD9914_REG_ASF,   0x0fff) # Set amplitude to maximum
@@ -196,8 +202,8 @@ class AD9914:
 
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
 
-        self.write(AD9914_REG_FTWL,  ftw & 0xffff)
-        self.write(AD9914_REG_FTWH,  (ftw >> 16) & 0xffff)
+        self.write(AD9914_REG_DRGFL, ftw & 0xffff)
+        self.write(AD9914_REG_DRGFL, (ftw >> 16) & 0xffff)
 
         # We need the RTIO fine timestamp clock to be phase-locked
         # to DDS SYSCLK, and divided by an integer self.sysclk_per_mu.
@@ -265,18 +271,22 @@ class AD9914:
                     self.turns_to_pow(phase), phase_mode,
                     self.amplitude_to_asf(amplitude))
 
-    # Extended resolution functions
+    # Extended-resolution functions
     @kernel
     def set_mu_x(self, xftw, amplitude=0x0fff):
+        """Set the DDS frequency and amplitude with an extended-resolution
+        (63-bit) frequency tuning word.
+
+        Phase control is not implemented in this mode; the phase offset
+        can assume any value.
+
+        After this function has been called, exit extended-resolution mode
+        before calling functions that use standard-resolution mode.
+        """
         delay_mu(-self.set_x_duration_mu)
 
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
 
-        # Enable programmable modulus.
-        # Note another undocumented "feature" of the AD9914:
-        # Programmable modulus breaks if the digital ramp enable bit is
-        # not set at the same time.
-        self.write(AD9914_REG_CFR2H, 0x0089)
         self.write(AD9914_REG_DRGAL, xftw & 0xffff)
         self.write(AD9914_REG_DRGAH, (xftw >> 16) & 0x7fff)
         self.write(AD9914_REG_DRGFL, (xftw >> 31) & 0xffff)
@@ -284,6 +294,14 @@ class AD9914:
         self.write(AD9914_REG_ASF,   amplitude)
 
         self.write(AD9914_FUD,       0)
+
+    @kernel
+    def exit_x(self):
+        """Exits extended-resolution mode."""
+        delay_mu(-self.exit_x_duration_mu)
+        self.write(AD9914_GPIO,      (1 << self.channel) << 1)
+        self.write(AD9914_REG_DRGAL, 0)
+        self.write(AD9914_REG_DRGAH, 0)
 
     @portable(flags={"fast-math"})
     def frequency_to_xftw(self, frequency):
@@ -301,7 +319,10 @@ class AD9914:
 
     @kernel
     def set_x(self, frequency, amplitude=1.0):
-        """Like ``set_mu_x``, but uses Hz and turns."""
+        """Like ``set_mu_x``, but uses Hz and turns.
+
+        Note that the precision of ``float`` is less than the precision
+        of the extended frequency tuning word.
+        """
         self.set_mu_x(self.frequency_to_xftw(frequency),
                       self.amplitude_to_asf(amplitude))
-
