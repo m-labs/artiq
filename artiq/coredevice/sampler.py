@@ -16,17 +16,17 @@ SPI_CS_PGIA = 1  # separate SPI bus, CS used as RCLK
 
 
 @portable
-def adc_mu_to_volt(data, gain=0, v_ref=5.):
+def adc_mu_to_volt(data, gain=0):
     """Convert ADC data in machine units to Volts.
 
     :param data: 16 bit signed ADC word
     :param gain: PGIA gain setting (0: 1, ..., 3: 1000)
-    :param v_ref: Reference voltage in Volts
     :return: Voltage in Volts
     """
+    input_span = 20.
     for i in range(gain):
-        v_ref /= 10.
-    volt_per_lsb = v_ref/(1 << 15)
+        input_span /= 10.
+    volt_per_lsb = input_span/(1 << 16)
     return data*volt_per_lsb
 
 
@@ -42,7 +42,7 @@ class Sampler:
     :param div: SPI clock divider (default: 8)
     :param core_device: Core device name
     """
-    kernel_invariants = {"bus_adc", "bus_pgia", "core", "cnv", "div", "v_ref"}
+    kernel_invariants = {"bus_adc", "bus_pgia", "core", "cnv", "div"}
 
     def __init__(self, dmgr, spi_adc_device, spi_pgia_device, cnv_device,
                  div=8, core_device="core"):
@@ -52,7 +52,6 @@ class Sampler:
         self.cnv = dmgr.get(cnv_device)
         self.div = div
         self.gains = 0x0000
-        self.v_ref = 10.  # 5 Volt reference, 0.5 AFE diff gain
 
     @kernel
     def init(self):
@@ -135,4 +134,4 @@ class Sampler:
         for i in range(n):
             channel = i + 8 - len(data)
             gain = (self.gains >> (channel*2)) & 0b11
-            data[i] = adc_mu_to_volt(adc_data[i], gain, self.v_ref)
+            data[i] = adc_mu_to_volt(adc_data[i], gain)
