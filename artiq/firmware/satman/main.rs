@@ -274,7 +274,7 @@ pub extern fn main() -> i32 {
         }
         ALLOC.add_range(&mut _fheap, &mut _eheap);
 
-        static mut LOG_BUFFER: [u8; 65536] = [0; 65536];
+        static mut LOG_BUFFER: [u8; 1024] = [0; 1024];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
         0
     }

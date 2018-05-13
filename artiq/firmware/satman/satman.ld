@@ -46,10 +46,10 @@ SECTIONS
         _ebss = .;
     } > main_ram
 
-    .stack ALIGN(0x1000) :
+    .stack :
     {
         _estack = .;
-        . += 0x4000;
+        . += 0x1000;
         _fstack = . - 4;
     } > main_ram
 
