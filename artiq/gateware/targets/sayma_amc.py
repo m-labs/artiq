@@ -389,7 +389,6 @@ class Satellite(BaseSoC):
         self.submodules += Microscope(platform.request("serial", 1),
                                       self.clk_freq)
 
-        self.submodules.rtio_clkmul = _RTIOClockMultiplier(platform, rtio_clk_freq)
         rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
