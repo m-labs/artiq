@@ -3,7 +3,7 @@ mod imp {
     use core::ptr::{read_volatile, write_volatile};
     use cslice::CSlice;
 
-    use board::csr;
+    use board_misoc::csr;
     use ::send;
     use kernel_proto::*;
 

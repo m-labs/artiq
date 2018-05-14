@@ -3,12 +3,11 @@ use std::btree_map::BTreeMap;
 
 use sched::Io;
 use sched::{TcpListener, TcpStream};
-use board::{clock, csr};
+use board_misoc::{clock, csr};
 #[cfg(has_drtio)]
 use drtioaux;
 
 use moninj_proto::*;
-
 
 fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
     const MAGIC: &'static [u8] = b"ARTIQ moninj\n";

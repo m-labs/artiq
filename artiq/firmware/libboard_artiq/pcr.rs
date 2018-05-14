@@ -1,4 +1,4 @@
-use board::spr::*;
+use board_misoc::spr::*;
 
 bitflags! {
     pub struct Counters: u32 {

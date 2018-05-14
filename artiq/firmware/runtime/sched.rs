@@ -1,17 +1,16 @@
 #![allow(dead_code)]
 
-use std::mem;
-use std::result;
-use std::cell::{Cell, RefCell};
-use std::vec::Vec;
-use std::io::{Read, Write, Result, Error, ErrorKind};
+use core::mem;
+use core::result;
+use core::cell::{Cell, RefCell};
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
-
 use smoltcp::wire::IpEndpoint;
 use smoltcp::socket::{SocketHandle, SocketRef};
 
-use board;
+use std::vec::Vec;
+use std::io::{Read, Write, Result, Error, ErrorKind};
+use board_misoc::clock;
 use urc::Urc;
 
 type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
@@ -128,7 +127,7 @@ impl Scheduler {
         self.threads.append(&mut *self.spawned.borrow_mut());
         if self.threads.len() == 0 { return }
 
-        let now = board::clock::get_ms();
+        let now = clock::get_ms();
         let start_idx = self.run_idx;
         loop {
             self.run_idx = (self.run_idx + 1) % self.threads.len();
@@ -196,7 +195,7 @@ impl<'a> Io<'a> {
 
     pub fn sleep(&self, duration_ms: u64) -> Result<()> {
         let request = WaitRequest {
-            timeout: Some(board::clock::get_ms() + duration_ms),
+            timeout: Some(clock::get_ms() + duration_ms),
             event:   None
         };
 

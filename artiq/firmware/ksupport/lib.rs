@@ -9,7 +9,7 @@ extern crate libc;
 
 extern crate io;
 extern crate dyld;
-extern crate board;
+extern crate board_misoc;
 extern crate board_artiq;
 extern crate proto;
 
@@ -17,7 +17,7 @@ use core::{mem, ptr, slice, str};
 use cslice::{CSlice, AsCSlice};
 use io::Cursor;
 use dyld::Library;
-use board::csr;
+use board_misoc::csr;
 use board_artiq::{mailbox, rpc_queue};
 use proto::{kernel_proto, rpc_proto};
 use kernel_proto::*;

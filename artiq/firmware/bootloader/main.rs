@@ -5,15 +5,15 @@ extern crate crc;
 extern crate byteorder;
 extern crate smoltcp;
 #[macro_use]
-extern crate board;
+extern crate board_misoc;
 
 use core::{ptr, slice};
 use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
-use board::{boot, cache};
+use board_misoc::{ident, cache, sdram, boot, mem as board_mem};
 #[cfg(has_ethmac)]
-use board::{clock, config, ethmac};
-use board::uart_console::Console;
+use board_misoc::{clock, config, ethmac};
+use board_misoc::uart_console::Console;
 
 fn check_integrity() -> bool {
     extern {
@@ -31,7 +31,7 @@ fn check_integrity() -> bool {
 }
 
 fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
-    const MEMORY: *mut u32 = board::mem::MAIN_RAM_BASE as *mut u32;
+    const MEMORY: *mut u32 = board_mem::MAIN_RAM_BASE as *mut u32;
 
     *total = 0;
     *wrong = 0;
@@ -88,11 +88,11 @@ fn startup() -> bool {
         return false
     }
 
-    println!("Gateware ident {}", board::ident::read(&mut [0; 64]));
+    println!("Gateware ident {}", ident::read(&mut [0; 64]));
 
     println!("Initializing SDRAM...");
 
-    if unsafe { board::sdram::init(Some(&mut Console)) } {
+    if unsafe { sdram::init(Some(&mut Console)) } {
         println!("SDRAM initialized");
     } else {
         println!("SDRAM initialization failed");
@@ -111,8 +111,8 @@ fn startup() -> bool {
 }
 
 fn flash_boot() {
-    const FIRMWARE: *mut u8 = board::mem::FLASH_BOOT_ADDRESS as *mut u8;
-    const MAIN_RAM: *mut u8 = board::mem::MAIN_RAM_BASE as *mut u8;
+    const FIRMWARE: *mut u8 = board_mem::FLASH_BOOT_ADDRESS as *mut u8;
+    const MAIN_RAM: *mut u8 = board_mem::MAIN_RAM_BASE as *mut u8;
 
     println!("Booting from flash...");
 

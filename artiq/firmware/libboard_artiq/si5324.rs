@@ -1,7 +1,7 @@
 use core::result;
-use board::clock;
+use board_misoc::clock;
 #[cfg(not(si5324_soft_reset))]
-use board::csr;
+use board_misoc::csr;
 use i2c;
 
 type Result<T> = result::Result<T, &'static str>;
@@ -269,8 +269,7 @@ pub fn select_input(input: Input) -> Result<()> {
 #[cfg(has_siphaser)]
 pub mod siphaser {
     use super::*;
-    use board::csr;
-    use board::clock;
+    use board_misoc::{csr, clock};
 
     pub fn select_recovered_clock(rc: bool) -> Result<()> {
         write(3,   (read(3)? & 0xdf) | (1 << 5))?;  // DHOLD=1

@@ -1,5 +1,5 @@
 use core::ptr;
-use board::csr;
+use board_misoc::csr;
 use mailbox;
 use rpc_queue;
 

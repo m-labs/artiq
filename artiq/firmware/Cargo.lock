@@ -8,7 +8,22 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "board"
+name = "board_artiq"
+version = "0.0.0"
+dependencies = [
+ "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "board_misoc 0.0.0",
+ "build_artiq 0.0.0",
+ "build_misoc 0.0.0",
+ "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "io 0.0.0",
+ "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proto 0.0.0",
+]
+
+[[package]]
+name = "board_misoc"
 version = "0.0.0"
 dependencies = [
  "build_misoc 0.0.0",
@@ -20,25 +35,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "board_artiq"
-version = "0.0.0"
-dependencies = [
- "bitflags 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "board 0.0.0",
- "build_artiq 0.0.0",
- "build_misoc 0.0.0",
- "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "io 0.0.0",
- "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "proto 0.0.0",
-]
-
-[[package]]
 name = "bootloader"
 version = "0.0.0"
 dependencies = [
- "board 0.0.0",
+ "board_misoc 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -127,8 +127,8 @@ dependencies = [
 name = "ksupport"
 version = "0.0.0"
 dependencies = [
- "board 0.0.0",
  "board_artiq 0.0.0",
+ "board_misoc 0.0.0",
  "build_misoc 0.0.0",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
@@ -166,7 +166,7 @@ source = "git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25#ff84e5
 name = "logger_artiq"
 version = "0.0.0"
 dependencies = [
- "board 0.0.0",
+ "board_misoc 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log_buffer 1.2.0 (git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25)",
 ]
@@ -197,8 +197,8 @@ name = "runtime"
 version = "0.0.0"
 dependencies = [
  "alloc_list 0.0.0",
- "board 0.0.0",
  "board_artiq 0.0.0",
+ "board_misoc 0.0.0",
  "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -227,8 +227,8 @@ dependencies = [
 name = "satman"
 version = "0.0.0"
 dependencies = [
- "board 0.0.0",
  "board_artiq 0.0.0",
+ "board_misoc 0.0.0",
  "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -4,10 +4,10 @@
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate board;
+extern crate board_misoc;
 extern crate board_artiq;
 
-use board::csr;
+use board_misoc::{csr, ident, clock, uart_logger};
 use board_artiq::{i2c, spi, si5324, drtioaux};
 #[cfg(has_serwb_phy_amc)]
 use board_artiq::serwb;
@@ -67,8 +67,8 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::Result<()> {
             } else if errors & 4 != 0 {
                 let channel;
                 unsafe {
-                    channel = (board::csr::DRTIO[0].busy_channel_read)();
-                    (board::csr::DRTIO[0].rtio_error_write)(4);
+                    channel = (csr::DRTIO[0].busy_channel_read)();
+                    (csr::DRTIO[0].rtio_error_write)(4);
                 }
                 drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorBusyReply { channel })
@@ -240,12 +240,12 @@ fn drtio_link_rx_up() -> bool {
 
 #[no_mangle]
 pub extern fn main() -> i32 {
-    board::clock::init();
-    board::uart_logger::ConsoleLogger::register();
+    clock::init();
+    uart_logger::ConsoleLogger::register();
 
     info!("ARTIQ satellite manager starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
-    info!("gateware version {}", board::ident::read(&mut [0; 64]));
+    info!("gateware version {}", ident::read(&mut [0; 64]));
 
     #[cfg(has_serwb_phy_amc)]
     serwb::wait_init();

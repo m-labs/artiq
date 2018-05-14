@@ -1,9 +1,9 @@
-use board::{csr, config};
+use board_misoc::{csr, config};
 use sched::Io;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
-    use board::{clock, csr};
+    use board_misoc::{clock, csr};
 
     pub fn init() {
         unsafe { csr::rtio_crg::pll_reset_write(0) }
@@ -280,7 +280,7 @@ pub fn init_core(phy: bool) {
 
 #[cfg(has_drtio)]
 pub mod drtio_dbg {
-    use board::csr;
+    use board_misoc::csr;
 
     pub fn get_packet_counts(linkno: u8) -> (u32, u32) {
         let linkno = linkno as usize;

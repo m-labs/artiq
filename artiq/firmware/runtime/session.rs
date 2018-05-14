@@ -5,11 +5,11 @@ use std::io::{self, Read, Write};
 use std::error::Error;
 use byteorder::{ByteOrder, NetworkEndian};
 
+use board_misoc::{ident, cache, config};
+use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io};
 use sched::{TcpListener, TcpStream};
-use board::{self, config};
-use {mailbox, rpc_queue, kernel};
 #[cfg(has_rtio_core)]
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
@@ -227,7 +227,7 @@ fn process_host_message(io: &Io,
     match host_read(stream)? {
         host::Request::SystemInfo => {
             host_write(stream, host::Reply::SystemInfo {
-                ident: board::ident::read(&mut [0; 64]),
+                ident: ident::read(&mut [0; 64]),
                 finished_cleanly: session.congress.finished_cleanly.get()
             })?;
             session.congress.finished_cleanly.set(true);
@@ -413,7 +413,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             }
             &kern::DmaRecordStop { duration } => {
                 session.congress.dma_manager.record_stop(duration);
-                board::cache::flush_l2_cache();
+                cache::flush_l2_cache();
                 kern_acknowledge()
             }
             &kern::DmaEraseRequest { name } => {

@@ -7,8 +7,8 @@ extern crate byteorder;
 extern crate crc;
 #[macro_use]
 extern crate log;
-extern crate board;
 extern crate io;
+extern crate board_misoc;
 extern crate proto;
 
 pub mod pcr;
@@ -16,7 +16,9 @@ pub mod pcr;
 pub mod i2c;
 pub mod spi;
 
+#[cfg(has_kernel_cpu)]
 pub mod mailbox;
+#[cfg(has_kernel_cpu)]
 pub mod rpc_queue;
 
 #[cfg(has_si5324)]

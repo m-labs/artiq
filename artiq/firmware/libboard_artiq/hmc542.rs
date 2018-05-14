@@ -1,4 +1,4 @@
-use board::{csr, clock};
+use board_misoc::{csr, clock};
 
 const PIN_LE:    u32 = 1 << 0;
 const PIN_SIN:   u32 = 1 << 1;

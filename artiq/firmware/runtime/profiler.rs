@@ -88,7 +88,7 @@ impl Profile {
 
 #[cfg(has_timer1)]
 mod imp {
-    use board::{csr, irq};
+    use board_misoc::{csr, irq};
     use super::{Address, Profile};
 
     static mut PROFILE: Option<Profile> = None;

@@ -1,6 +1,6 @@
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
-use board::{mem, cache};
+use board_misoc::{mem, cache};
 
 const SEND_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 4) as *mut usize;
 const RECV_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 8) as *mut usize;

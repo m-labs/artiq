@@ -16,6 +16,6 @@ build_misoc = { path = "../libbuild_misoc" }
 cslice = { version = "0.3" }
 io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
-board = { path = "../libboard" }
+board_misoc = { path = "../libboard_misoc" }
 board_artiq = { path = "../libboard_artiq" }
 proto = { path = "../libproto" }

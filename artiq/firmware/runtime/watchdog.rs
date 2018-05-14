@@ -1,4 +1,4 @@
-use board::clock;
+use board_misoc::clock;
 
 #[derive(Debug, Clone, Copy)]
 struct Watchdog {

@@ -1,5 +1,5 @@
 use core::ptr::{read_volatile, write_volatile};
-use board::{mem, cache};
+use board_misoc::{mem, cache};
 
 const MAILBOX: *mut usize = mem::MAILBOX_BASE as *mut usize;
 static mut LAST: usize = 0;

@@ -1,5 +1,5 @@
 use core::{cmp, str};
-use board::{csr, clock};
+use board_misoc::{csr, clock};
 
 fn read_rtm_ident(buf: &mut [u8]) -> &str {
     unsafe {

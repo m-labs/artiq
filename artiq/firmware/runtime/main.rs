@@ -14,26 +14,25 @@ extern crate alloc_list;
 extern crate unwind_backtrace;
 extern crate io;
 #[macro_use]
+extern crate board_misoc;
+extern crate board_artiq;
+#[macro_use]
 extern crate std_artiq as std;
 extern crate logger_artiq;
-#[macro_use]
-extern crate board;
-extern crate board_artiq;
 extern crate proto;
 
 use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-use board::irq;
-use board::config;
+use board_misoc::{csr, irq, ident, clock, boot, config};
 #[cfg(has_ethmac)]
-use board::ethmac;
+use board_misoc::ethmac;
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
+use board_artiq::{mailbox, rpc_queue};
 use proto::{mgmt_proto, moninj_proto, rpc_proto, session_proto,kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto::analyzer_proto;
-use board_artiq::{mailbox, rpc_queue};
 
 #[cfg(has_rtio_core)]
 mod rtio_mgt;
@@ -56,10 +55,10 @@ mod analyzer;
 
 fn startup() {
     irq::set_ie(true);
-    board::clock::init();
+    clock::init();
     info!("ARTIQ runtime starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
-    info!("gateware version {}", board::ident::read(&mut [0; 64]));
+    info!("gateware version {}", ident::read(&mut [0; 64]));
 
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {
@@ -85,10 +84,10 @@ fn startup() {
     board_artiq::serwb::wait_init();
 
     #[cfg(has_uart)] {
-        let t = board::clock::get_ms();
+        let t = clock::get_ms();
         info!("press 'e' to erase startup and idle kernels...");
-        while board::clock::get_ms() < t + 1000 {
-            if unsafe { board::csr::uart::rxtx_read() == b'e' } {
+        while clock::get_ms() < t + 1000 {
+            if unsafe { csr::uart::rxtx_read() == b'e' } {
                 config::remove("startup_kernel").unwrap();
                 config::remove("idle_kernel").unwrap();
                 info!("startup and idle kernels erased");
@@ -242,7 +241,7 @@ fn startup_ethernet() {
         {
             let sockets = &mut *scheduler.sockets().borrow_mut();
             loop {
-                match interface.poll(sockets, board::clock::get_ms()) {
+                match interface.poll(sockets, clock::get_ms()) {
                     Ok(true) => (),
                     Ok(false) => break,
                     Err(smoltcp::Error::Unrecognized) => (),
@@ -284,7 +283,7 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
             while irq::pending_mask() != 0 {
                 match () {
                     #[cfg(has_timer1)]
-                    () if irq::is_pending(::board::csr::TIMER1_INTERRUPT) =>
+                    () if irq::is_pending(csr::TIMER1_INTERRUPT) =>
                         profiler::sample(pc as usize),
                     _ => panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
                 }
@@ -312,7 +311,7 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
 
     if config::read_str("panic_reset", |r| r == Ok("1")) {
         println!("restarting...");
-        unsafe { board::boot::reset() }
+        unsafe { boot::reset() }
     } else {
         println!("halting.");
         println!("use `artiq_coreconfig write -s panic_reset 1` to restart instead");

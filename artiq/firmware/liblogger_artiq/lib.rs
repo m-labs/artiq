@@ -3,13 +3,13 @@
 extern crate log;
 extern crate log_buffer;
 #[macro_use]
-extern crate board;
+extern crate board_misoc;
 
 use core::cell::{Cell, RefCell, RefMut};
 use core::fmt::Write;
 use log::{Log, LevelFilter};
 use log_buffer::LogBuffer;
-use board::clock;
+use board_misoc::clock;
 
 pub struct LogBufferRef<'a> {
     buffer:        RefMut<'a, LogBuffer<&'static mut [u8]>>,

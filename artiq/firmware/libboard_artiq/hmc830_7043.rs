@@ -11,7 +11,7 @@
  */
 
 mod clock_mux {
-    use board::csr;
+    use board_misoc::csr;
 
     const CLK_SRC_EXT_SEL : u8 = 1 << 0;
     const REF_CLK_SRC_SEL : u8 = 1 << 1;
@@ -28,7 +28,7 @@ mod clock_mux {
 }
 
 mod hmc830 {
-    use board::{csr, clock};
+    use board_misoc::{csr, clock};
 
     const HMC830_WRITES: [(u8, u32); 16] = [
         (0x0, 0x20),
@@ -131,7 +131,7 @@ mod hmc830 {
 }
 
 pub mod hmc7043 {
-    use board::csr;
+    use board_misoc::csr;
 
     // To do: check which output channels we actually need
     const DAC_CLK_DIV: u32 = 2;

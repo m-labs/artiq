@@ -18,8 +18,8 @@ byteorder = { version = "1.0", default-features = false }
 crc = { version = "1.7", default-features = false }
 log = { version = "0.4", default-features = false }
 io = { path = "../libio", features = ["byteorder"] }
+board_misoc = { path = "../libboard_misoc" }
 proto = { path = "../libproto" }
-board = { path = "../libboard" }
 
 [features]
 uart_console = []

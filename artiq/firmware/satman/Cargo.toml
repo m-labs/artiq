@@ -15,5 +15,5 @@ build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-board = { path = "../libboard", features = ["uart_console", "log"] }
+board_misoc = { path = "../libboard_misoc", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }

@@ -1,6 +1,6 @@
 #[cfg(has_i2c)]
 mod imp {
-    use board::{csr, clock};
+    use board_misoc::{csr, clock};
 
     fn half_period() { clock::spin_us(100) }
     fn sda_bit(busno: u8) -> u8 { 1 << (2 * busno + 1) }

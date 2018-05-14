@@ -1,5 +1,5 @@
 use std::io::{self, Write};
-use board::{csr, cache};
+use board_misoc::{csr, cache};
 use sched::{Io, TcpListener, TcpStream};
 use analyzer_proto::*;
 

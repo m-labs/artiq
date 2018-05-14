@@ -1,8 +1,8 @@
 use std::io::{self, Read, Write};
 use log::{self, LevelFilter};
 
+use board_misoc::boot;
 use io::proto::ProtoWrite;
-use board::boot;
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};

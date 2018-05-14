@@ -1,4 +1,4 @@
-use board::{csr, clock};
+use board_misoc::{csr, clock};
 use ad9154_reg;
 use hmc830_7043::hmc7043;
 

@@ -1,6 +1,6 @@
 #[cfg(has_converter_spi)]
 mod imp {
-    use board::csr;
+    use board_misoc::csr;
 
     pub fn set_config(busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
         if busno != 0 {
