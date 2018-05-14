@@ -191,8 +191,8 @@ class IIR(Module):
     ADC: input value from the ADC
     ASF: output amplitude scale factor to DDS
     OFFSET: setpoint
-    A0: fixed factor
-    A1/B0/B1: coefficients
+    A0: fixed factor (normalization)
+    A1/B0/B1: coefficients (integers)
 
                     B0 --/-   A0: 2^11
                         18 |         |
