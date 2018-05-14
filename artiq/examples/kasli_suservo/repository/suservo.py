@@ -16,7 +16,7 @@ class SUServo(EnvExperiment):
         mask = 1 << 18 - 1
         for name, val in zip("ftw1 b1 pow cfg offset a1 ftw0 b0".split(), d):
             val = -(val & mask) + (val & ~mask)
-            print("{}: {:x} = {}".format(name, val, val))
+            print("{}: {:#x} = {}".format(name, val, val))
 
     @rpc(flags={"async"})
     def p1(self, adc, asf, st):

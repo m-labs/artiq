@@ -11,7 +11,7 @@ WE = 1 << COEFF_DEPTH + 1
 STATE_SEL = 1 << COEFF_DEPTH
 CONFIG_SEL = 1 << COEFF_DEPTH - 1
 CONFIG_ADDR = CONFIG_SEL | STATE_SEL
-F_CYCLE = 1/((2*(8 + 64) + 2 + 1)*8*ns)
+T_CYCLE = (2*(8 + 64) + 2 + 1)*8*ns
 COEFF_SHIFT = 11
 
 
@@ -277,7 +277,7 @@ class Channel:
         :param b1: 18 bit signed B1 coefficient (old,
             X1 coefficient, feed forward, proportional gain)
         :param dly: IIR update suppression time. In units of IIR cycles
-            (~1.1 µs)
+            (~1.2 µs, 0-255)
         """
         base = (self.servo_channel << 8) | (profile << 3)
         self.servo.write(base + 3, adc | (dly << 8))
@@ -305,45 +305,55 @@ class Channel:
         Where:
             * :math:`s = \\sigma + i\\omega` is the complex frequency
             * :math:`K` is the proportional gain
-            * :math:`\\omega_0` is the integrator corner frequency
+            * :math:`\\omega_0 = 2\\pi f_0` is the integrator corner frequency
             * :math:`g` is the integrator gain limit
 
         :param profile: Profile number (0-31)
         :param adc: ADC channel to take IIR input from (0-7)
         :param gain: Proportional gain (1). This is usually negative (closed
-            loop, positive ADC voltage, positive setpoint).
+            loop, positive ADC voltage, positive setpoint). When 0, this
+            implements a pure I controller with unit gain frequency at
+            `corner` (use the sign of `corner` for overall gain sign).
         :param corner: Integrator corner frequency (Hz). When 0 (the default)
             this implements a pure P controller.
         :param limit: Integrator gain limit (1). When 0 (the default) the
-            integrator gain limit is infinite.
-        :param delay: Delay (in seconds) before allowing IIR updates after
-            invoking :meth:`set`.
+            integrator gain limit is infinite. Positive.
+        :param delay: Delay (in seconds, 0-300 µs) before allowing IIR updates
+            after invoking :meth:`set`.
         """
         B_NORM = 1 << COEFF_SHIFT + 1
         A_NORM = 1 << COEFF_SHIFT
-        PI_TS = 3.1415927/F_CYCLE
+        PI_TS = 3.1415927*T_CYCLE
         COEFF_MAX = 1 << COEFF_WIDTH - 1
 
-        k = B_NORM*gain
-        if corner == 0.:
-            a1_ = 0
-            b0_ = int(round(k))
-            b1_ = 0
-        else:
-            q = PI_TS*corner
-            kq = k*q
+        gain *= B_NORM
+        corner *= PI_TS
 
+        if corner == 0.:
+            # pure P
+            a1_ = 0
+            b1_ = 0
+            b0_ = int(round(gain))
+        else:
             a1_ = A_NORM
-            b0 = kq + k
-            b1 = kq - k
-            if limit != 0.:
-                ql = q/limit
-                qlr = 1./(1. + ql)
-                a1_ = int(round(a1_*(1. - ql)*qlr))
-                b0 *= qlr
-                b0 *= qlr
+            if gain == 0.:
+                # pure I
+                b0 = (2*B_NORM)*corner
+                b1_ = 0
+            else:
+                # PI
+                k = gain*corner
+                b1 = k - gain
+                b0 = k + gain
+                if limit != 0.:
+                    # PI with limit
+                    q = corner/limit
+                    qr = 1./(1. + q)
+                    a1_ = int(round(a1_*(1. - q)*qr))
+                    b0 *= qr
+                    b1 *= qr
+                b1_ = int(round(b1))
             b0_ = int(round(b0))
-            b1_ = int(round(b1))
 
             if b1_ == -b0_:
                 raise ValueError("low corner, gain, limit")
@@ -352,7 +362,7 @@ class Channel:
                 b1_ >= COEFF_MAX or b1_ < -COEFF_MAX):
             raise ValueError("high corner, gain, limit")
 
-        dly = int(round(delay*F_CYCLE))
+        dly = int(round(delay/T_CYCLE))
         self.set_iir_mu(profile, adc, a1_, b0_, b1_, dly)
 
     @kernel
