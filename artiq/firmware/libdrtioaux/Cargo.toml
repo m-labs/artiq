@@ -14,6 +14,5 @@ build_misoc = { path = "../libbuild_misoc" }
 [dependencies]
 log = { version = "0.4", default-features = false }
 crc = { version = "1.7", default-features = false }
-std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+io = { path = "../libio", features = ["byteorder"] }
 board = { path = "../libboard" }
-byteorder = { version = "1.0", default-features = false }

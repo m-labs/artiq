@@ -107,10 +107,9 @@ version = "0.0.0"
 dependencies = [
  "board 0.0.0",
  "build_misoc 0.0.0",
- "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "std_artiq 0.0.0",
 ]
 
 [[package]]
@@ -123,6 +122,13 @@ version = "1.1.0"
 source = "git+https://github.com/m-labs/libfringe?rev=bd23494#bd2349467157969324ca7da5d2ae033c7ffac0c0"
 dependencies = [
  "libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "io"
+version = "0.0.0"
+dependencies = [
+ "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
