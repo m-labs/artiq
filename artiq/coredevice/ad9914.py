@@ -11,6 +11,12 @@ from artiq.coredevice.rtio import rtio_output
 from numpy import int32, int64
 
 
+__all__ = [
+    "AD9914",
+    "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING"
+]
+
+
 _PHASE_MODE_DEFAULT   = -1
 PHASE_MODE_CONTINUOUS = 0
 PHASE_MODE_ABSOLUTE   = 1
@@ -54,7 +60,7 @@ class AD9914:
     kernel_invariants = {"core", "sysclk", "bus_channel", "channel",
         "rtio_period_mu", "sysclk_per_mu", "write_duration_mu",
         "dac_cal_duration_mu", "init_duration_mu", "init_sync_duration_mu",
-        "set_duration_mu", "set_x_duration_mu"
+        "set_duration_mu", "set_x_duration_mu", "exit_x_duration_mu",
         "continuous_phase_comp"}
 
     def __init__(self, dmgr, sysclk, bus_channel, channel, core_device="core"):
@@ -179,7 +185,8 @@ class AD9914:
         """Sets the DDS channel to the specified frequency and phase.
 
         This uses machine units (FTW and POW). The frequency tuning word width
-        is 32, and the phase offset word width is 16.
+        is 32, the phase offset word width is 16, and the amplitude scale factor
+        width is 12.
 
         The "frequency update" pulse is sent to the DDS with a fixed latency
         with respect to the current position of the time cursor.
