@@ -1,4 +1,4 @@
-use std::io;
+use io;
 use kernel_proto as kern;
 use sched::Io;
 use session::{kern_acknowledge, kern_send};
@@ -291,7 +291,7 @@ mod spi {
     }
 }
 
-pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> {
+pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool, ::std::io::Error> {
     match request {
         #[cfg(has_rtio_core)]
         &kern::RtioInitRequest => {

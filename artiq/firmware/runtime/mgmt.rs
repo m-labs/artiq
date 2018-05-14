@@ -1,27 +1,26 @@
-use std::io::{self, Read, Write};
 use log::{self, LevelFilter};
 
+use io::{self, Read, Write, proto::ProtoWrite};
 use board_misoc::boot;
-use io::proto::ProtoWrite;
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
 use mgmt_proto::*;
 use profiler;
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
+fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     const MAGIC: &'static [u8] = b"ARTIQ management\n";
 
     let mut magic: [u8; 17] = [0; 17];
     stream.read_exact(&mut magic)?;
     if magic != MAGIC {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "unrecognized magic"))
+        Err(io::Error::Unrecognized)
     } else {
         Ok(())
     }
 }
 
-fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
+fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     check_magic(stream)?;
     info!("new connection from {}", stream.remote_endpoint());
 
@@ -35,7 +34,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
             }
 
             Request::ClearLog => {
-                BufferLogger::with(|logger| -> io::Result<()> {
+                BufferLogger::with(|logger| -> io::Result<(), ::std::io::Error> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Ok(buffer.clear())
                 })?;
@@ -44,7 +43,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
             }
 
             Request::PullLog => {
-                BufferLogger::with(|logger| -> io::Result<()> {
+                BufferLogger::with(|logger| -> io::Result<(), ::std::io::Error> {
                     loop {
                         // Do this *before* acquiring the buffer, since that sets the log level
                         // to OFF.
@@ -166,8 +165,7 @@ pub fn thread(io: Io) {
             let mut stream = TcpStream::from_handle(&io, stream);
             match worker(&io, &mut stream) {
                 Ok(()) => (),
-                Err(ref err) if err.kind() == io::ErrorKind::UnexpectedEof => (),
-                Err(ref err) if err.kind() == io::ErrorKind::WriteZero => (),
+                Err(io::Error::UnexpectedEof) => (),
                 Err(err) => error!("aborted: {}", err)
             }
         });

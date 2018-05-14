@@ -8,9 +8,6 @@ extern crate alloc;
 #[cfg(feature = "byteorder")]
 extern crate byteorder;
 
-#[cfg(feature = "std_artiq")]
-extern crate std_artiq;
-
 use core::result;
 use core::fmt;
 
@@ -67,6 +64,14 @@ pub trait Read {
     }
 }
 
+impl<'a, T: Read> Read for &'a mut T {
+    type ReadError = T::ReadError;
+
+    fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError> {
+        T::read(self, buf)
+    }
+}
+
 pub trait Write {
     type WriteError;
     type FlushError;
@@ -99,7 +104,23 @@ pub trait Write {
     fn size_hint(&mut self, _min: usize, _max: Option<usize>) {}
 }
 
-#[cfg(not(feature = "std_artiq"))]
+impl<'a, T: Write> Write for &'a mut T {
+    type WriteError = T::WriteError;
+    type FlushError = T::FlushError;
+
+    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+        T::write(self, buf)
+    }
+
+    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+        T::flush(self)
+    }
+
+    fn size_hint(&mut self, min: usize, max: Option<usize>) {
+        T::size_hint(self, min, max)
+    }
+}
+
 impl<'a> Write for &'a mut [u8] {
     type WriteError = !;
     type FlushError = !;
@@ -108,6 +129,22 @@ impl<'a> Write for &'a mut [u8] {
         let len = buf.len().min(self.len());
         self[..len].copy_from_slice(&buf[..len]);
         Ok(len)
+    }
+
+    #[inline]
+    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+        Ok(())
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<'a> Write for alloc::Vec<u8> {
+    type WriteError = !;
+    type FlushError = !;
+
+    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+        self.extend_from_slice(buf);
+        Ok(buf.len())
     }
 
     #[inline]
@@ -196,53 +233,12 @@ impl Write for Cursor<::alloc::Vec<u8>> {
 
     #[inline]
     fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
-        self.inner.extend(buf);
+        self.inner.extend_from_slice(buf);
         Ok(buf.len())
     }
 
     #[inline]
     fn flush(&mut self) -> result::Result<(), Self::FlushError> {
         Ok(())
-    }
-}
-
-#[cfg(feature = "std_artiq")]
-impl<T> Read for T where T: std_artiq::io::Read + ?Sized {
-    type ReadError = std_artiq::io::Error;
-
-    fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError> {
-        std_artiq::io::Read::read(self, buf)
-    }
-}
-
-#[cfg(feature = "std_artiq")]
-impl<T> Write for T where T: std_artiq::io::Write + ?Sized {
-    type WriteError = std_artiq::io::Error;
-    type FlushError = std_artiq::io::Error;
-
-    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
-        std_artiq::io::Write::write(self, buf)
-    }
-
-    fn flush(&mut self) -> result::Result<(), Self::WriteError> {
-        std_artiq::io::Write::flush(self)
-    }
-}
-
-#[cfg(feature = "std_artiq")]
-impl<T> From<Error<T>> for std_artiq::io::Error
-    where T: Into<std_artiq::io::Error>
-{
-    fn from(value: Error<T>) -> std_artiq::io::Error {
-        match value {
-            Error::UnexpectedEof =>
-                std_artiq::io::Error::new(std_artiq::io::ErrorKind::UnexpectedEof,
-                                          "unexpected end of stream"),
-            Error::Unrecognized =>
-                std_artiq::io::Error::new(std_artiq::io::ErrorKind::InvalidData,
-                                          "unrecognized data"),
-            Error::Other(err) =>
-                err.into()
-        }
     }
 }

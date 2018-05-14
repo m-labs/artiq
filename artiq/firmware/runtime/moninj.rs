@@ -1,6 +1,6 @@
 use alloc::btree_map::BTreeMap;
 
-use std::io::{self, Read};
+use io::{self, Read};
 use sched::Io;
 use sched::{TcpListener, TcpStream};
 use board_misoc::{clock, csr};
@@ -9,13 +9,13 @@ use drtioaux;
 
 use moninj_proto::*;
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
+fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     const MAGIC: &'static [u8] = b"ARTIQ moninj\n";
 
     let mut magic: [u8; 13] = [0; 13];
     stream.read_exact(&mut magic)?;
     if magic != MAGIC {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "unrecognized magic"))
+        Err(io::Error::Unrecognized)
     } else {
         Ok(())
     }
@@ -159,7 +159,7 @@ fn read_injection_status(channel: u32, probe: u8) -> u8 {
     0
 }
 
-fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<()> {
+fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     let mut watch_list = BTreeMap::new();
     let mut next_check = 0;
 

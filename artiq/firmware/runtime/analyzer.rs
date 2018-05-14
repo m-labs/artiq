@@ -1,4 +1,4 @@
-use std::io::{self, Write};
+use io::{self, Write};
 use board_misoc::{csr, cache};
 use sched::{Io, TcpListener, TcpStream};
 use analyzer_proto::*;
@@ -35,7 +35,7 @@ fn disarm() {
     }
 }
 
-fn worker(stream: &mut TcpStream) -> io::Result<()> {
+fn worker(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     let data = unsafe { &BUFFER.data[..] };
     let overflow_occurred = unsafe { csr::rtio_analyzer::message_encoder_overflow_read() != 0 };
     let total_byte_count = unsafe { csr::rtio_analyzer::dma_byte_count_read() };

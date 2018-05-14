@@ -9,8 +9,9 @@ use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::wire::IpEndpoint;
 use smoltcp::socket::{SocketHandle, SocketRef};
 
+use io::{Read, Write};
 use board_misoc::clock;
-use std::io::{Read, Write, Result, Error, ErrorKind};
+use std::io::{Result, Error, ErrorKind};
 use urc::Urc;
 
 type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
@@ -446,6 +447,8 @@ impl<'a> TcpStream<'a> {
 }
 
 impl<'a> Read for TcpStream<'a> {
+    type ReadError = Error;
+
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         // Only borrow the underlying socket for the span of the next statement.
         let result = self.with_lower(|mut s| s.recv_slice(buf));
@@ -470,6 +473,9 @@ impl<'a> Read for TcpStream<'a> {
 }
 
 impl<'a> Write for TcpStream<'a> {
+    type WriteError = Error;
+    type FlushError = Error;
+
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         // Only borrow the underlying socket for the span of the next statement.
         let result = self.with_lower(|mut s| s.send_slice(buf));

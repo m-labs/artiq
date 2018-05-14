@@ -36,21 +36,6 @@ impl<T> From<ReadStringError<IoError<T>>> for IoError<T>
     }
 }
 
-#[cfg(feature = "alloc")]
-#[cfg(feature = "std_artiq")]
-impl<T> From<ReadStringError<T>> for ::std_artiq::io::Error
-        where T: Into<::std_artiq::io::Error>
-{
-    fn from(value: ReadStringError<T>) -> ::std_artiq::io::Error {
-        match value {
-            ReadStringError::Utf8Error(_) =>
-                ::std_artiq::io::Error::new(::std_artiq::io::ErrorKind::InvalidData,
-                                            "invalid UTF-8"),
-            ReadStringError::Other(err) => err.into()
-        }
-    }
-}
-
 pub trait ProtoRead {
     type ReadError;
 
