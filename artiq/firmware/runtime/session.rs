@@ -1,11 +1,9 @@
-use std::prelude::v1::*;
-use std::{mem, str};
-use std::cell::{Cell, RefCell};
-use std::io::{self, Read, Write};
-use std::error::Error;
+use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
+use alloc::{Vec, String};
 use byteorder::{ByteOrder, NetworkEndian};
 
 use board_misoc::{ident, cache, config};
+use std::io::{self, Read, Write};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io};
@@ -289,7 +287,9 @@ fn process_host_message(io: &Io,
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted),
                 Err(error) => {
-                    host_write(stream, host::Reply::LoadFailed(error.description()))?;
+                    let mut description = String::new();
+                    write!(&mut description, "{}", error).unwrap();
+                    host_write(stream, host::Reply::LoadFailed(&description))?;
                     kern_acknowledge()
                 }
             },

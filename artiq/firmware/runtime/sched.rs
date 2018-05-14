@@ -3,14 +3,14 @@
 use core::mem;
 use core::result;
 use core::cell::{Cell, RefCell};
+use alloc::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::wire::IpEndpoint;
 use smoltcp::socket::{SocketHandle, SocketRef};
 
-use std::vec::Vec;
-use std::io::{Read, Write, Result, Error, ErrorKind};
 use board_misoc::clock;
+use std::io::{Read, Write, Result, Error, ErrorKind};
 use urc::Urc;
 
 type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;

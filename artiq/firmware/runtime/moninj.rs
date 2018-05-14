@@ -1,6 +1,6 @@
-use std::io::{self, Read};
-use std::btree_map::BTreeMap;
+use alloc::btree_map::BTreeMap;
 
+use std::io::{self, Read};
 use sched::Io;
 use sched::{TcpListener, TcpStream};
 use board_misoc::{clock, csr};

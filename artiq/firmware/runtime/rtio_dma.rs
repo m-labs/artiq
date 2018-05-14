@@ -1,7 +1,6 @@
-use std::mem;
-use std::vec::Vec;
-use std::string::String;
-use std::btree_map::BTreeMap;
+use core::mem;
+use alloc::{Vec, String, BTreeMap};
+
 use std::io::Write;
 
 const ALIGNMENT: usize = 64;

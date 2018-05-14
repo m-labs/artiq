@@ -1,6 +1,4 @@
-use std::vec::Vec;
-use std::string::String;
-use std::btree_map::BTreeMap;
+use alloc::{Vec, String, BTreeMap};
 
 #[derive(Debug)]
 struct Entry {
