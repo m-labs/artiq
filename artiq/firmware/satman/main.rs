@@ -1,8 +1,6 @@
 #![feature(lang_items, global_allocator)]
 #![no_std]
 
-extern crate alloc_list;
-extern crate std_artiq as std;
 #[macro_use]
 extern crate log;
 extern crate logger_artiq;
@@ -262,18 +260,9 @@ fn startup() {
     }
 }
 
-#[global_allocator]
-static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
-
 #[no_mangle]
 pub extern fn main() -> i32 {
     unsafe {
-        extern {
-            static mut _fheap: u8;
-            static mut _eheap: u8;
-        }
-        ALLOC.add_range(&mut _fheap, &mut _eheap);
-
         static mut LOG_BUFFER: [u8; 1024] = [0; 1024];
         logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
         0

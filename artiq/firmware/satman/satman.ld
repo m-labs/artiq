@@ -52,11 +52,4 @@ SECTIONS
         . += 0x1000;
         _fstack = . - 4;
     } > main_ram
-
-    .heap :
-    {
-        _fheap = .;
-        . = ORIGIN(main_ram) + LENGTH(main_ram);
-        _eheap = .;
-    } > main_ram
 }
