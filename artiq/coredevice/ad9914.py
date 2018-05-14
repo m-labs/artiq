@@ -207,7 +207,7 @@ class AD9914:
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
 
         self.write(AD9914_REG_DRGFL, ftw & 0xffff)
-        self.write(AD9914_REG_DRGFL, (ftw >> 16) & 0xffff)
+        self.write(AD9914_REG_DRGFH, (ftw >> 16) & 0xffff)
 
         # We need the RTIO fine timestamp clock to be phase-locked
         # to DDS SYSCLK, and divided by an integer self.sysclk_per_mu.
