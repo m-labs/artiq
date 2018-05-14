@@ -1,5 +1,4 @@
-use alloc::vec::Vec;
-use alloc::string::String;
+use alloc::{Vec, String};
 
 use io::{Read, Write, Error, Result};
 use io::proto::{ProtoRead, ProtoWrite};

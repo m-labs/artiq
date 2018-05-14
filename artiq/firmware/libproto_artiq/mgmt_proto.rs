@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::Vec;
 #[cfg(feature = "log")]
 use log;
 
