@@ -312,14 +312,14 @@ class AD9914:
         """Returns the frequency tuning word corresponding to the given
         frequency (extended resolution mode).
         """
-        return round(float(int64(2)**63*frequency/self.sysclk))
+        return int64(round(2.0*float(int64(2)**62)*frequency/self.sysclk))
 
     @portable(flags={"fast-math"})
     def xftw_to_frequency(self, xftw):
         """Returns the frequency corresponding to the given frequency tuning
         word (extended resolution mode).
         """
-        return xftw*self.sysclk/int64(2)**63
+        return xftw*self.sysclk/(2.0*float(int64(2)**62))
 
     @kernel
     def set_x(self, frequency, amplitude=1.0):
