@@ -11,7 +11,7 @@ extern crate io;
 extern crate dyld;
 extern crate board_misoc;
 extern crate board_artiq;
-extern crate proto;
+extern crate proto_artiq;
 
 use core::{mem, ptr, slice, str};
 use cslice::{CSlice, AsCSlice};
@@ -19,7 +19,7 @@ use io::Cursor;
 use dyld::Library;
 use board_misoc::csr;
 use board_artiq::{mailbox, rpc_queue};
-use proto::{kernel_proto, rpc_proto};
+use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 
 fn send(request: &Message) {

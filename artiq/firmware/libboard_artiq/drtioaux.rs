@@ -5,7 +5,7 @@ use io::{Cursor, Error as IoError};
 use io::proto::{ProtoRead, ProtoWrite};
 use board_misoc::{csr::DRTIO, mem::DRTIO_AUX, clock};
 
-pub use proto::drtioaux_proto::Packet;
+pub use proto_artiq::drtioaux_proto::Packet;
 
 pub type Result<T> = result::Result<T, Error>;
 

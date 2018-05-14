@@ -18,4 +18,4 @@ io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
 board_misoc = { path = "../libboard_misoc" }
 board_artiq = { path = "../libboard_artiq" }
-proto = { path = "../libproto" }
+proto_artiq = { path = "../libproto_artiq" }

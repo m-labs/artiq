@@ -19,7 +19,7 @@ crc = { version = "1.7", default-features = false }
 log = { version = "0.4", default-features = false }
 io = { path = "../libio", features = ["byteorder"] }
 board_misoc = { path = "../libboard_misoc" }
-proto = { path = "../libproto" }
+proto_artiq = { path = "../libproto_artiq" }
 
 [features]
 uart_console = []

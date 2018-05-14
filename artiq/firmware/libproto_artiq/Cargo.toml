@@ -1,10 +1,10 @@
 [package]
 authors = ["M-Labs"]
-name = "proto"
+name = "proto_artiq"
 version = "0.0.0"
 
 [lib]
-name = "proto"
+name = "proto_artiq"
 path = "lib.rs"
 
 [dependencies]

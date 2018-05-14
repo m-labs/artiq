@@ -19,7 +19,7 @@ dependencies = [
  "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "proto 0.0.0",
+ "proto_artiq 0.0.0",
 ]
 
 [[package]]
@@ -133,7 +133,7 @@ dependencies = [
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
  "io 0.0.0",
- "proto 0.0.0",
+ "proto_artiq 0.0.0",
 ]
 
 [[package]]
@@ -182,7 +182,7 @@ version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "proto"
+name = "proto_artiq"
 version = "0.0.0"
 dependencies = [
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -208,7 +208,7 @@ dependencies = [
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
  "managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "proto 0.0.0",
+ "proto_artiq 0.0.0",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
  "std_artiq 0.0.0",
  "unwind_backtrace 0.0.0",

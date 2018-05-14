@@ -9,7 +9,7 @@ extern crate crc;
 extern crate log;
 extern crate io;
 extern crate board_misoc;
-extern crate proto;
+extern crate proto_artiq;
 
 pub mod pcr;
 
