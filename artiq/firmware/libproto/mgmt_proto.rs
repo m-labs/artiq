@@ -1,8 +1,9 @@
-use std::vec::Vec;
-use std::io::{self, Read, Write};
-use {ReadExt, WriteExt};
+use alloc::vec::Vec;
 #[cfg(feature = "log")]
 use log;
+
+use io::{Read, Write, Error, Result};
+use io::proto::{ProtoRead, ProtoWrite};
 
 #[derive(Debug)]
 pub enum Request {
@@ -40,9 +41,10 @@ pub enum Reply<'a> {
 }
 
 impl Request {
-    pub fn read_from(reader: &mut Read) -> io::Result<Request> {
+    pub fn read_from<T: Read>(reader: &mut T) -> Result<Request, T::ReadError> {
         #[cfg(feature = "log")]
-        fn read_log_level_filter(reader: &mut Read) -> io::Result<log::LevelFilter> {
+        fn read_log_level_filter<T: Read>(reader: &mut T) ->
+                Result<log::LevelFilter, T::ReadError> {
             Ok(match reader.read_u8()? {
                 0 => log::LevelFilter::Off,
                 1 => log::LevelFilter::Error,
@@ -50,8 +52,7 @@ impl Request {
                 3 => log::LevelFilter::Info,
                 4 => log::LevelFilter::Debug,
                 5 => log::LevelFilter::Trace,
-                _ => return Err(io::Error::new(io::ErrorKind::InvalidData,
-                                               "invalid log level"))
+                _ => return Err(Error::Unrecognized)
             })
         }
 
@@ -73,13 +74,13 @@ impl Request {
             4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
             8 => Request::DebugAllocator,
-            _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
+            _  => return Err(Error::Unrecognized)
         })
     }
 }
 
 impl<'a> Reply<'a> {
-    pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
         match *self {
             Reply::Success => {
                 writer.write_u8(1)?;

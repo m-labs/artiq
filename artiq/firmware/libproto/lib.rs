@@ -1,5 +1,7 @@
 #![no_std]
+#![feature(alloc)]
 
+extern crate alloc;
 extern crate byteorder;
 extern crate cslice;
 #[cfg(feature = "log")]

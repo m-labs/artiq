@@ -154,12 +154,12 @@ impl<T: AsRef<[u8]>> Read for Cursor<T> {
     }
 }
 
-impl<T: AsMut<[u8]>> Write for Cursor<T> {
+impl<'a> Write for Cursor<&'a mut [u8]> {
     type WriteError = !;
     type FlushError = !;
 
     fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
-        let data = &mut self.inner.as_mut()[self.pos..];
+        let data = &mut self.inner[self.pos..];
         let len  = buf.len().min(data.len());
         data[..len].copy_from_slice(&buf[..len]);
         self.pos += len;
@@ -173,7 +173,7 @@ impl<T: AsMut<[u8]>> Write for Cursor<T> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: ::alloc::Vec<[u8]>> Write for Cursor<T> {
+impl Write for Cursor<::alloc::Vec<u8>> {
     type WriteError = !;
     type FlushError = !;
 
