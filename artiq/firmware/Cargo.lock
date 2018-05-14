@@ -26,6 +26,7 @@ dependencies = [
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=ca06a5e)",
+ "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
 ]
 
@@ -253,7 +254,6 @@ dependencies = [
  "build_misoc 0.0.0",
  "drtioaux 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "logger_artiq 0.0.0",
 ]
 
 [[package]]

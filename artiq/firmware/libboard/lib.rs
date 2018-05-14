@@ -3,6 +3,8 @@
 
 extern crate compiler_builtins;
 extern crate byteorder;
+#[cfg(feature = "log")]
+extern crate log;
 #[cfg(feature = "smoltcp")]
 extern crate smoltcp;
 
@@ -25,5 +27,7 @@ pub mod spiflash;
 pub mod config;
 #[cfg(feature = "uart_console")]
 pub mod uart_console;
+#[cfg(all(feature = "uart_console", feature = "log"))]
+pub mod uart_logger;
 #[cfg(all(has_ethmac, feature = "smoltcp"))]
 pub mod ethmac;

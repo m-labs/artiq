@@ -1,9 +1,8 @@
-#![feature(lang_items, global_allocator)]
+#![feature(lang_items)]
 #![no_std]
 
 #[macro_use]
 extern crate log;
-extern crate logger_artiq;
 #[macro_use]
 extern crate board;
 extern crate board_artiq;
@@ -170,7 +169,6 @@ fn process_aux_packets() {
     }
 }
 
-
 fn process_errors() {
     let errors;
     unsafe {
@@ -221,8 +219,11 @@ fn drtio_link_rx_up() -> bool {
     }
 }
 
-fn startup() {
+#[no_mangle]
+pub extern fn main() -> i32 {
     board::clock::init();
+    board::uart_logger::ConsoleLogger::register();
+
     info!("ARTIQ satellite manager starting...");
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", board::ident::read(&mut [0; 64]));
@@ -257,15 +258,6 @@ fn startup() {
         drtio_reset(true);
         info!("link is down, switching to local crystal clock");
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
-    }
-}
-
-#[no_mangle]
-pub extern fn main() -> i32 {
-    unsafe {
-        static mut LOG_BUFFER: [u8; 1024] = [0; 1024];
-        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
-        0
     }
 }
 

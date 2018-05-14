@@ -15,7 +15,6 @@ build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-drtioaux = { path = "../libdrtioaux" }
-board = { path = "../libboard", features = ["uart_console"] }
+board = { path = "../libboard", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }
-logger_artiq = { path = "../liblogger_artiq" }
+drtioaux = { path = "../libdrtioaux" }
