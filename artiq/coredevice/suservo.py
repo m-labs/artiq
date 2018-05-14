@@ -16,6 +16,18 @@ COEFF_SHIFT = 11
 
 
 class SUServo:
+    """Sampler-Urukul Servo configuration device.
+
+    :param channel: RTIO channel number
+    :param pgia_device: Name of the Sampler PGIA gain setting SPI bus
+    :param cpld0_device: Name of the first Urukul CPLD SPI bus
+    :param cpld1_device: Name of the second Urukul CPLD SPI bus
+    :param dds0_device: Name of the AD9910 device for the DDS on the first
+        Urukul
+    :param dds1_device: Name of the AD9910 device for the DDS on the second
+        Urukul
+    :param core_device: Core device name
+    """
     kernel_invariants = {"channel", "core", "pgia", "cpld0", "cpld1",
                          "dds0", "dds1", "ref_period_mu"}
 
@@ -162,14 +174,16 @@ class SUServo:
 
 
 class Channel:
-    """SU-Servo channel"""
+    """Sampler-Urukul Servo channel
 
+    :param channel: RTIO channel number
+    :param servo_device: Name of the parent SUServo device
+    """
     kernel_invariants = {"channel", "core", "servo", "servo_channel"}
 
-    def __init__(self, dmgr, channel, servo_device,
-                 core_device="core"):
-        self.core = dmgr.get(core_device)
+    def __init__(self, dmgr, channel, servo_device):
         self.servo = dmgr.get(servo_device)
+        self.core = self.servo.core
         self.channel = channel
         # FIXME: this assumes the mem channel is right after the control
         # channels
@@ -243,14 +257,14 @@ class Channel:
         Where:
 
             * :math:`y_n` and :math:`y_{n-1}` are the current and previous
-                filter outputs, clipped to :math:`[0, 1]`.
+              filter outputs, clipped to :math:`[0, 1]`.
             * :math:`x_n` and :math:`x_{n-1}` are the current and previous
-                filter inputs
+              filter inputs
             * :math:`o` is the offset
             * :math:`a_0` is the normalization factor :math:`2^{11}`
             * :math:`a_1` is the feedback gain
             * :math:`b_0` and :math:`b_1` are the feedforward gains for the two
-                delays
+              delays
 
         .. seealso:: :meth:`set_iir`
 
