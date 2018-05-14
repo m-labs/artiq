@@ -11,10 +11,10 @@ extern crate managed;
 extern crate smoltcp;
 
 extern crate alloc_list;
+extern crate unwind_backtrace;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate logger_artiq;
-extern crate backtrace_artiq;
 #[macro_use]
 extern crate board;
 extern crate board_artiq;
@@ -304,7 +304,7 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
 
     println!("backtrace for software version {}:",
              include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
-    let _ = backtrace_artiq::backtrace(|ip| {
+    let _ = unwind_backtrace::backtrace(|ip| {
         println!("{:#08x}", ip);
     });
 

@@ -14,10 +14,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "backtrace_artiq"
-version = "0.0.0"
-
-[[package]]
 name = "bitflags"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -215,7 +211,6 @@ version = "0.0.0"
 dependencies = [
  "alloc_list 0.0.0",
  "amp 0.0.0",
- "backtrace_artiq 0.0.0",
  "board 0.0.0",
  "board_artiq 0.0.0",
  "build_artiq 0.0.0",
@@ -230,6 +225,7 @@ dependencies = [
  "proto 0.0.0",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
  "std_artiq 0.0.0",
+ "unwind_backtrace 0.0.0",
 ]
 
 [[package]]
@@ -268,6 +264,10 @@ dependencies = [
 
 [[package]]
 name = "std_artiq"
+version = "0.0.0"
+
+[[package]]
+name = "unwind_backtrace"
 version = "0.0.0"
 
 [[package]]
