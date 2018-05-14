@@ -29,7 +29,7 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=ca06a5e)",
+ "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
 ]
@@ -79,7 +79,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "compiler_builtins"
 version = "0.1.0"
-source = "git+https://github.com/m-labs/compiler-builtins?rev=ca06a5e#ca06a5e3d5ff9a17210f22401fdf6325f632c59e"
+source = "git+https://github.com/rust-lang-nursery/compiler-builtins#28daccd9159d33fac5e36394e4f9618db8870dc0"
 
 [[package]]
 name = "crc"
@@ -277,7 +277,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "73b5bdfe7ee3ad0b99c9801d58807a9dbc9e09196365b0203853b99889ab3c87"
 "checksum cc 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)" = "2b4911e4bdcb4100c7680e7e854ff38e23f1b34d4d9e079efae3da2801341ffc"
 "checksum cfg-if 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d4c819a1287eb618df47cc647173c5c4c66ba19d888a6e50d605672aed3140de"
-"checksum compiler_builtins 0.1.0 (git+https://github.com/m-labs/compiler-builtins?rev=ca06a5e)" = "<none>"
+"checksum compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins)" = "<none>"
 "checksum crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bd5d02c0aac6bd68393ed69e00bbc2457f3e89075c6349db7189618dc4ddc1d7"
 "checksum cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0f8cb7306107e4b10e64994de6d3274bd08996a7c1322a27b86482392f96be0a"
 "checksum fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)" = "<none>"
