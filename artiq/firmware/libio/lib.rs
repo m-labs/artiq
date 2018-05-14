@@ -105,27 +105,32 @@ pub struct Cursor<T> {
 }
 
 impl<T> Cursor<T> {
+    #[inline]
     pub fn new(inner: T) -> Cursor<T> {
         Cursor { inner, pos: 0 }
     }
 
+    #[inline]
     pub fn into_inner(self) -> T {
         self.inner
     }
 
+    #[inline]
     pub fn get_ref(&self) -> &T {
         &self.inner
     }
 
+    #[inline]
     pub fn get_mut(&mut self) -> &mut T {
         &mut self.inner
     }
 
+    #[inline]
     pub fn position(&self) -> usize {
         self.pos
-
     }
 
+    #[inline]
     pub fn set_position(&mut self, pos: usize) {
         self.pos = pos
     }
@@ -155,6 +160,7 @@ impl<T: AsMut<[u8]>> Write for Cursor<T> {
         Ok(len)
     }
 
+    #[inline]
     fn flush(&mut self) -> result::Result<(), Self::FlushError> {
         Ok(())
     }
@@ -165,11 +171,13 @@ impl<T: ::alloc::Vec<[u8]>> Write for Cursor<T> {
     type WriteError = !;
     type FlushError = !;
 
+    #[inline]
     fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
         self.inner.extend(buf);
         Ok(buf.len())
     }
 
+    #[inline]
     fn flush(&mut self) -> result::Result<(), Self::FlushError> {
         Ok(())
     }
