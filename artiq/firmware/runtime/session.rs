@@ -313,12 +313,12 @@ fn process_host_message(io: &Io,
             })?;
             rpc::recv_return(stream, &tag, slot, &|size| {
                 kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
-                kern_recv(io, |reply| {
+                Ok(kern_recv(io, |reply| {
                     match reply {
                         &kern::RpcRecvRequest(slot) => Ok(slot),
                         other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
                     }
-                })
+                })?)
             })?;
             kern_send(io, &kern::RpcRecvReply(Ok(0)))?;
 

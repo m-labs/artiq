@@ -12,6 +12,7 @@ extern crate smoltcp;
 
 extern crate alloc_list;
 extern crate unwind_backtrace;
+extern crate io;
 #[macro_use]
 extern crate std_artiq as std;
 extern crate logger_artiq;

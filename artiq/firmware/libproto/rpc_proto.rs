@@ -1,11 +1,16 @@
-use std::io::{self, Read, Write};
-use std::str;
+use core::str;
 use cslice::{CSlice, CMutSlice};
-use {ReadExt, WriteExt};
+
+use io::{Read, Write, Result};
+use io::proto::{ProtoRead, ProtoWrite};
+
 use self::tag::{Tag, TagIterator, split_tag};
 
-unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
-                     alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
+unsafe fn recv_value<T>(reader: &mut T, tag: Tag, data: &mut *mut (),
+                        alloc: &Fn(usize) -> Result<*mut (), T::ReadError>)
+                       -> Result<(), T::ReadError>
+    where T: Read + ?Sized
+{
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
             let $ptr = (*data) as *mut $ty;
@@ -71,8 +76,11 @@ unsafe fn recv_value(reader: &mut Read, tag: Tag, data: &mut *mut (),
     }
 }
 
-pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
-                   alloc: &Fn(usize) -> io::Result<*mut ()>) -> io::Result<()> {
+pub fn recv_return<T>(reader: &mut T, tag_bytes: &[u8], data: *mut (),
+                      alloc: &Fn(usize) -> Result<*mut (), T::ReadError>)
+                     -> Result<(), T::ReadError>
+    where T: Read + ?Sized
+{
     let mut it = TagIterator::new(tag_bytes);
     #[cfg(feature = "log")]
     debug!("recv ...->{}", it);
@@ -84,7 +92,10 @@ pub fn recv_return(reader: &mut Read, tag_bytes: &[u8], data: *mut (),
     Ok(())
 }
 
-unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::Result<()> {
+unsafe fn send_value<T>(writer: &mut T, tag: Tag, data: &mut *const ())
+                       -> Result<(), T::WriteError>
+    where T: Write + ?Sized
+{
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
             let $ptr = (*data) as *const $ty;
@@ -158,8 +169,10 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
     }
 }
 
-pub fn send_args(writer: &mut Write, service: u32, tag_bytes: &[u8],
-                 data: *const *const ()) -> io::Result<()> {
+pub fn send_args<T>(writer: &mut T, service: u32, tag_bytes: &[u8], data: *const *const ())
+                   -> Result<(), T::WriteError>
+    where T: Write + ?Sized
+{
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);
 
     let mut args_it = TagIterator::new(arg_tags_bytes);

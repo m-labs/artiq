@@ -99,6 +99,23 @@ pub trait Write {
     fn size_hint(&mut self, _min: usize, _max: Option<usize>) {}
 }
 
+#[cfg(not(feature = "std_artiq"))]
+impl<'a> Write for &'a mut [u8] {
+    type WriteError = !;
+    type FlushError = !;
+
+    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+        let len = buf.len().min(self.len());
+        self[..len].copy_from_slice(&buf[..len]);
+        Ok(len)
+    }
+
+    #[inline]
+    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorError {
     EndOfBuffer

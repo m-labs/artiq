@@ -3,10 +3,6 @@ name = "alloc_list"
 version = "0.0.0"
 
 [[package]]
-name = "alloc_stub"
-version = "0.0.0"
-
-[[package]]
 name = "amp"
 version = "0.0.0"
 dependencies = [
@@ -146,15 +142,13 @@ dependencies = [
 name = "ksupport"
 version = "0.0.0"
 dependencies = [
- "alloc_stub 0.0.0",
  "amp 0.0.0",
  "board 0.0.0",
  "build_misoc 0.0.0",
- "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
+ "io 0.0.0",
  "proto 0.0.0",
- "std_artiq 0.0.0",
 ]
 
 [[package]]
@@ -211,7 +205,6 @@ dependencies = [
  "dyld 0.0.0",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "std_artiq 0.0.0",
 ]
 
 [[package]]

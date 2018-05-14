@@ -1,15 +1,19 @@
+#[cfg(feature = "alloc")]
 use core::fmt;
+#[cfg(feature = "alloc")]
 use alloc::string;
 use byteorder::{ByteOrder, NetworkEndian};
 
 use ::{Read, Write, Error as IoError};
 
+#[cfg(feature = "alloc")]
 #[derive(Debug)]
 pub enum ReadStringError<T> {
     Utf8Error(string::FromUtf8Error),
     Other(T)
 }
 
+#[cfg(feature = "alloc")]
 impl<T: fmt::Display> fmt::Display for ReadStringError<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -21,6 +25,7 @@ impl<T: fmt::Display> fmt::Display for ReadStringError<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T> From<ReadStringError<IoError<T>>> for IoError<T>
 {
     fn from(value: ReadStringError<IoError<T>>) -> IoError<T> {
@@ -31,6 +36,7 @@ impl<T> From<ReadStringError<IoError<T>>> for IoError<T>
     }
 }
 
+#[cfg(feature = "alloc")]
 #[cfg(feature = "std_artiq")]
 impl<T> From<ReadStringError<T>> for ::std_artiq::io::Error
         where T: Into<::std_artiq::io::Error>

@@ -11,6 +11,8 @@ path = "lib.rs"
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false, optional = true }
-io = { path = "../libio", features = ["byteorder", "alloc"] }
-std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
+io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
+
+[features]
+alloc = ["io/alloc"]

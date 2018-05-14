@@ -1,10 +1,11 @@
-use board::boot;
 use std::io::{self, Read, Write};
 use log::{self, LevelFilter};
+
+use io::proto::ProtoWrite;
+use board::boot;
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
-use proto::WriteExt;
 use mgmt_proto::*;
 use profiler;
 

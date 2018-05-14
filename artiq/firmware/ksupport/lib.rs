@@ -1,30 +1,26 @@
-#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator)]
+#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator,
+           needs_panic_runtime)]
 #![no_std]
+#![needs_panic_runtime]
 
-extern crate byteorder;
 extern crate cslice;
 extern crate unwind;
 extern crate libc;
 
-extern crate alloc_stub;
-extern crate std_artiq as std;
+extern crate io;
 extern crate board;
 extern crate dyld;
 extern crate proto;
 extern crate amp;
 
 use core::{mem, ptr, slice, str};
-use std::io::Cursor;
 use cslice::{CSlice, AsCSlice};
-use alloc_stub::StubAlloc;
+use io::Cursor;
 use board::csr;
 use dyld::Library;
 use proto::{kernel_proto, rpc_proto};
 use proto::kernel_proto::*;
 use amp::{mailbox, rpc_queue};
-
-#[global_allocator]
-static mut ALLOC: StubAlloc = StubAlloc;
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -131,9 +127,9 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
             rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
-        proto::WriteExt::write_u32(&mut slice, length as u32)
+        io::proto::ProtoWrite::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
-        assert!(err.kind() == std::io::ErrorKind::WriteZero);
+        assert!(err == io::Error::UnexpectedEof);
 
         while !rpc_queue::empty() {}
         send(&RpcSend {
