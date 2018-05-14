@@ -13,6 +13,7 @@ extern crate dyld;
 
 // Internal protocols.
 pub mod kernel_proto;
+pub mod drtioaux_proto;
 
 // External protocols.
 #[cfg(feature = "alloc")]

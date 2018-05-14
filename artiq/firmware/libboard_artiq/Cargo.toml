@@ -15,7 +15,10 @@ build_artiq = { path = "../libbuild_artiq" }
 [dependencies]
 bitflags = "1.0"
 byteorder = { version = "1.0", default-features = false }
+crc = { version = "1.7", default-features = false }
 log = { version = "0.4", default-features = false }
+io = { path = "../libio", features = ["byteorder"] }
+proto = { path = "../libproto" }
 board = { path = "../libboard" }
 
 [features]

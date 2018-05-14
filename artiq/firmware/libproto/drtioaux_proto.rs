@@ -1,11 +1,3 @@
-#![no_std]
-#![feature(never_type)]
-
-extern crate crc;
-
-extern crate io;
-extern crate board;
-
 use io::{Read, Write, Error, Result};
 use io::proto::{ProtoRead, ProtoWrite};
 
@@ -264,6 +256,3 @@ impl Packet {
         Ok(())
     }
 }
-
-#[cfg(has_drtio)]
-pub mod hw;

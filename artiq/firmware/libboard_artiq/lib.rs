@@ -1,12 +1,15 @@
-#![feature(asm, lang_items)]
+#![feature(asm, lang_items, never_type)]
 #![no_std]
 
 #[macro_use]
 extern crate bitflags;
 extern crate byteorder;
+extern crate crc;
 #[macro_use]
 extern crate log;
 extern crate board;
+extern crate io;
+extern crate proto;
 
 pub mod pcr;
 
@@ -28,3 +31,6 @@ mod ad9154_reg;
 pub mod ad9154;
 #[cfg(has_allaki_atts)]
 pub mod hmc542;
+
+#[cfg(has_drtio)]
+pub mod drtioaux;

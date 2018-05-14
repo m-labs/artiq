@@ -6,10 +6,9 @@ extern crate log;
 #[macro_use]
 extern crate board;
 extern crate board_artiq;
-extern crate drtioaux;
 
 use board::csr;
-use board_artiq::{i2c, spi, si5324};
+use board_artiq::{i2c, spi, si5324, drtioaux};
 #[cfg(has_serwb_phy_amc)]
 use board_artiq::serwb;
 #[cfg(has_hmc830_7043)]
@@ -27,12 +26,12 @@ fn drtio_reset_phy(reset: bool) {
     }
 }
 
-fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
+fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::Result<()> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
     match packet {
         drtioaux::Packet::EchoRequest =>
-            drtioaux::hw::send_link(0, &drtioaux::Packet::EchoReply),
+            drtioaux::send_link(0, &drtioaux::Packet::EchoReply),
         drtioaux::Packet::ResetRequest { phy } => {
             if phy {
                 drtio_reset_phy(true);
@@ -41,7 +40,7 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
                 drtio_reset(true);
                 drtio_reset(false);
             }
-            drtioaux::hw::send_link(0, &drtioaux::Packet::ResetAck)
+            drtioaux::send_link(0, &drtioaux::Packet::ResetAck)
         },
 
         drtioaux::Packet::RtioErrorRequest => {
@@ -55,7 +54,7 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
                     channel = (csr::DRTIO[0].sequence_error_channel_read)();
                     (csr::DRTIO[0].rtio_error_write)(1);
                 }
-                drtioaux::hw::send_link(0,
+                drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorSequenceErrorReply { channel })
             } else if errors & 2 != 0 {
                 let channel;
@@ -63,7 +62,7 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
                     channel = (csr::DRTIO[0].collision_channel_read)();
                     (csr::DRTIO[0].rtio_error_write)(2);
                 }
-                drtioaux::hw::send_link(0,
+                drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorCollisionReply { channel })
             } else if errors & 4 != 0 {
                 let channel;
@@ -71,11 +70,11 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
                     channel = (board::csr::DRTIO[0].busy_channel_read)();
                     (board::csr::DRTIO[0].rtio_error_write)(4);
                 }
-                drtioaux::hw::send_link(0,
+                drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorBusyReply { channel })
             }
             else {
-                drtioaux::hw::send_link(0, &drtioaux::Packet::RtioNoErrorReply)
+                drtioaux::send_link(0, &drtioaux::Packet::RtioNoErrorReply)
             }
         }
 
@@ -93,7 +92,7 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
                 value = 0;
             }
             let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
-            drtioaux::hw::send_link(0, &reply)
+            drtioaux::send_link(0, &reply)
         },
         drtioaux::Packet::InjectionRequest { channel, overrd, value } => {
             #[cfg(has_rtio_moninj)]
@@ -116,53 +115,53 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
             {
                 value = 0;
             }
-            drtioaux::hw::send_link(0, &drtioaux::Packet::InjectionStatusReply { value: value })
+            drtioaux::send_link(0, &drtioaux::Packet::InjectionStatusReply { value: value })
         },
 
         drtioaux::Packet::I2cStartRequest { busno } => {
             let succeeded = i2c::start(busno).is_ok();
-            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
+            drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
         drtioaux::Packet::I2cRestartRequest { busno } => {
             let succeeded = i2c::restart(busno).is_ok();
-            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
+            drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
         drtioaux::Packet::I2cStopRequest { busno } => {
             let succeeded = i2c::stop(busno).is_ok();
-            drtioaux::hw::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
+            drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
         drtioaux::Packet::I2cWriteRequest { busno, data } => {
             match i2c::write(busno, data) {
-                Ok(ack) => drtioaux::hw::send_link(0,
+                Ok(ack) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }),
-                Err(_) => drtioaux::hw::send_link(0,
+                Err(_) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false })
             }
         }
         drtioaux::Packet::I2cReadRequest { busno, ack } => {
             match i2c::read(busno, ack) {
-                Ok(data) => drtioaux::hw::send_link(0,
+                Ok(data) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cReadReply { succeeded: true, data: data }),
-                Err(_) => drtioaux::hw::send_link(0,
+                Err(_) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff })
             }
         }
 
         drtioaux::Packet::SpiSetConfigRequest { busno, flags, length, div, cs } => {
             let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
-            drtioaux::hw::send_link(0,
+            drtioaux::send_link(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         },
         drtioaux::Packet::SpiWriteRequest { busno, data } => {
             let succeeded = spi::write(busno, data).is_ok();
-            drtioaux::hw::send_link(0,
+            drtioaux::send_link(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         }
         drtioaux::Packet::SpiReadRequest { busno } => {
             match spi::read(busno) {
-                Ok(data) => drtioaux::hw::send_link(0,
+                Ok(data) => drtioaux::send_link(0,
                     &drtioaux::Packet::SpiReadReply { succeeded: true, data: data }),
-                Err(_) => drtioaux::hw::send_link(0,
+                Err(_) => drtioaux::send_link(0,
                     &drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 })
             }
         }
@@ -176,7 +175,7 @@ fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::hw::Result<()> {
 
 fn process_aux_packets() {
     let result =
-        drtioaux::hw::recv_link(0).and_then(|packet| {
+        drtioaux::recv_link(0).and_then(|packet| {
             if let Some(packet) = packet {
                 process_aux_packet(packet)
             } else {
@@ -267,7 +266,7 @@ pub extern fn main() -> i32 {
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(32).expect("failed to calibrate skew");
-        drtioaux::hw::reset(0);
+        drtioaux::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);
         while drtio_link_rx_up() {

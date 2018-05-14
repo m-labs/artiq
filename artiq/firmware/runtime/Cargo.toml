@@ -27,7 +27,6 @@ logger_artiq = { path = "../liblogger_artiq" }
 board_artiq = { path = "../libboard_artiq" }
 proto = { path = "../libproto", features = ["log", "alloc"] }
 amp = { path = "../libamp" }
-drtioaux = { path = "../libdrtioaux" }
 
 [dependencies.fringe]
 git = "https://github.com/m-labs/libfringe"

@@ -17,4 +17,3 @@ build_artiq = { path = "../libbuild_artiq" }
 log = { version = "0.4", default-features = false }
 board = { path = "../libboard", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }
-drtioaux = { path = "../libdrtioaux" }

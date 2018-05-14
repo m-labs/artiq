@@ -21,8 +21,6 @@ extern crate board;
 extern crate board_artiq;
 extern crate proto;
 extern crate amp;
-#[cfg(has_drtio)]
-extern crate drtioaux;
 
 use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
@@ -31,7 +29,11 @@ use board::irq;
 use board::config;
 #[cfg(has_ethmac)]
 use board::ethmac;
-use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
+#[cfg(has_drtio)]
+use board_artiq::drtioaux;
+use proto::{mgmt_proto, moninj_proto, rpc_proto, session_proto,kernel_proto};
+#[cfg(has_rtio_analyzer)]
+use proto::analyzer_proto;
 use amp::{mailbox, rpc_queue};
 
 #[cfg(has_rtio_core)]

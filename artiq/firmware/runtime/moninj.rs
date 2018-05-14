@@ -35,14 +35,14 @@ fn read_probe_local(channel: u16, probe: u8) -> u32 {
 #[cfg(has_drtio)]
 fn read_probe_drtio(nodeno: u8, channel: u16, probe: u8) -> u32 {
     let request = drtioaux::Packet::MonitorRequest { channel: channel, probe: probe };
-    match drtioaux::hw::send(nodeno, &request) {
+    match drtioaux::send(nodeno, &request) {
         Ok(_) => (),
         Err(e) => {
             error!("aux packet error ({})", e);
             return 0;
         }
     }
-    match drtioaux::hw::recv_timeout(nodeno, None) {
+    match drtioaux::recv_timeout(nodeno, None) {
         Ok(drtioaux::Packet::MonitorReply { value }) => return value,
         Ok(_) => error!("received unexpected aux packet"),
         Err(e) => error!("aux packet error ({})", e)
@@ -85,7 +85,7 @@ fn inject_drtio(nodeno: u8, channel: u16, overrd: u8, value: u8) {
         overrd: overrd,
         value: value
     };
-    match drtioaux::hw::send(nodeno, &request) {
+    match drtioaux::send(nodeno, &request) {
         Ok(_) => (),
         Err(e) => error!("aux packet error ({})", e)
     }
@@ -126,14 +126,14 @@ fn read_injection_status_drtio(nodeno: u8, channel: u16, overrd: u8) -> u8 {
         channel: channel,
         overrd: overrd
     };
-    match drtioaux::hw::send(nodeno, &request) {
+    match drtioaux::send(nodeno, &request) {
         Ok(_) => (),
         Err(e) => {
             error!("aux packet error ({})", e);
             return 0;
         }
     }
-    match drtioaux::hw::recv_timeout(nodeno, None) {
+    match drtioaux::recv_timeout(nodeno, None) {
         Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
         Ok(_) => error!("received unexpected aux packet"),
         Err(e) => error!("aux packet error ({})", e)

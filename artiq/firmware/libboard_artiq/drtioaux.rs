@@ -1,8 +1,11 @@
-use core::fmt;
-use io::{Cursor, Error as IoError};
-use io::proto::ProtoRead;
+use core::{slice, fmt, result};
+use crc;
 
-use super::*;
+use io::{Cursor, Error as IoError};
+use io::proto::{ProtoRead, ProtoWrite};
+use board;
+
+pub use proto::drtioaux_proto::Packet;
 
 pub type Result<T> = result::Result<T, Error>;
 

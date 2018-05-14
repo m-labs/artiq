@@ -99,9 +99,9 @@ pub mod drtio {
                 return 0
             }
             count += 1;
-            drtioaux::hw::send_link(linkno, &drtioaux::Packet::EchoRequest).unwrap();
+            drtioaux::send_link(linkno, &drtioaux::Packet::EchoRequest).unwrap();
             io.sleep(100).unwrap();
-            let pr = drtioaux::hw::recv_link(linkno);
+            let pr = drtioaux::recv_link(linkno);
             match pr {
                 Ok(Some(drtioaux::Packet::EchoReply)) => return count,
                 _ => {}
@@ -131,8 +131,8 @@ pub mod drtio {
     }
 
     fn process_aux_errors(linkno: u8) {
-        drtioaux::hw::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
-        match drtioaux::hw::recv_timeout_link(linkno, None) {
+        drtioaux::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
+        match drtioaux::recv_timeout_link(linkno, None) {
             Ok(drtioaux::Packet::RtioNoErrorReply) => (),
             Ok(drtioaux::Packet::RtioErrorSequenceErrorReply { channel }) =>
                 error!("[LINK#{}] RTIO sequence error involving channel {}", linkno, channel),
@@ -144,7 +144,7 @@ pub mod drtio {
             Err(e) => error!("[LINK#{}] aux packet error ({})", linkno, e)
         }
     }
-    
+
     pub fn link_thread(io: Io) {
         loop {
             for linkno in 0..csr::DRTIO.len() {
@@ -183,9 +183,9 @@ pub mod drtio {
         for linkno in 0..csr::DRTIO.len() {
             let linkno = linkno as u8;
             if link_up(linkno) {
-                drtioaux::hw::send_link(linkno,
+                drtioaux::send_link(linkno,
                     &drtioaux::Packet::ResetRequest { phy: false }).unwrap();
-                match drtioaux::hw::recv_timeout_link(linkno, None) {
+                match drtioaux::recv_timeout_link(linkno, None) {
                     Ok(drtioaux::Packet::ResetAck) => (),
                     Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
                     Err(e) => error!("[LINK#{}] reset failed, aux packet error ({})", linkno, e)

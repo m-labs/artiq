@@ -35,7 +35,10 @@ dependencies = [
  "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proto 0.0.0",
 ]
 
 [[package]]
@@ -97,17 +100,6 @@ dependencies = [
 name = "cslice"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "drtioaux"
-version = "0.0.0"
-dependencies = [
- "board 0.0.0",
- "build_misoc 0.0.0",
- "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "io 0.0.0",
- "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "dyld"
@@ -219,7 +211,6 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "drtioaux 0.0.0",
  "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -248,7 +239,6 @@ dependencies = [
  "board_artiq 0.0.0",
  "build_artiq 0.0.0",
  "build_misoc 0.0.0",
- "drtioaux 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
