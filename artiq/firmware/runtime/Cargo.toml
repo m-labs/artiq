@@ -26,7 +26,6 @@ std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
 board_artiq = { path = "../libboard_artiq" }
 proto = { path = "../libproto", features = ["log", "alloc"] }
-amp = { path = "../libamp" }
 
 [dependencies.fringe]
 git = "https://github.com/m-labs/libfringe"

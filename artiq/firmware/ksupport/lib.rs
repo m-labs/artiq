@@ -8,19 +8,19 @@ extern crate unwind;
 extern crate libc;
 
 extern crate io;
-extern crate board;
 extern crate dyld;
+extern crate board;
+extern crate board_artiq;
 extern crate proto;
-extern crate amp;
 
 use core::{mem, ptr, slice, str};
 use cslice::{CSlice, AsCSlice};
 use io::Cursor;
-use board::csr;
 use dyld::Library;
+use board::csr;
+use board_artiq::{mailbox, rpc_queue};
 use proto::{kernel_proto, rpc_proto};
-use proto::kernel_proto::*;
-use amp::{mailbox, rpc_queue};
+use kernel_proto::*;
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }

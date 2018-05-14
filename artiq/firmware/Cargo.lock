@@ -3,13 +3,6 @@ name = "alloc_list"
 version = "0.0.0"
 
 [[package]]
-name = "amp"
-version = "0.0.0"
-dependencies = [
- "board 0.0.0",
-]
-
-[[package]]
 name = "bitflags"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -134,8 +127,8 @@ dependencies = [
 name = "ksupport"
 version = "0.0.0"
 dependencies = [
- "amp 0.0.0",
  "board 0.0.0",
+ "board_artiq 0.0.0",
  "build_misoc 0.0.0",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
@@ -204,7 +197,6 @@ name = "runtime"
 version = "0.0.0"
 dependencies = [
  "alloc_list 0.0.0",
- "amp 0.0.0",
  "board 0.0.0",
  "board_artiq 0.0.0",
  "build_artiq 0.0.0",

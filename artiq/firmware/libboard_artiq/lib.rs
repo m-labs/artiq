@@ -16,6 +16,9 @@ pub mod pcr;
 pub mod i2c;
 pub mod spi;
 
+pub mod mailbox;
+pub mod rpc_queue;
+
 #[cfg(has_si5324)]
 pub mod si5324;
 

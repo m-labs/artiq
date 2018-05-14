@@ -20,7 +20,6 @@ extern crate logger_artiq;
 extern crate board;
 extern crate board_artiq;
 extern crate proto;
-extern crate amp;
 
 use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
@@ -34,7 +33,7 @@ use board_artiq::drtioaux;
 use proto::{mgmt_proto, moninj_proto, rpc_proto, session_proto,kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto::analyzer_proto;
-use amp::{mailbox, rpc_queue};
+use board_artiq::{mailbox, rpc_queue};
 
 #[cfg(has_rtio_core)]
 mod rtio_mgt;
