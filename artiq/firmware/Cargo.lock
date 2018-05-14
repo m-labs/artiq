@@ -130,6 +130,7 @@ name = "io"
 version = "0.0.0"
 dependencies = [
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "std_artiq 0.0.0",
 ]
 
 [[package]]
@@ -208,6 +209,7 @@ dependencies = [
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
+ "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "std_artiq 0.0.0",
 ]
@@ -226,6 +228,7 @@ dependencies = [
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "drtioaux 0.0.0",
  "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)",
+ "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
  "managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",

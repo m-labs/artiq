@@ -8,6 +8,9 @@ extern crate alloc;
 #[cfg(feature = "byteorder")]
 extern crate byteorder;
 
+#[cfg(feature = "std_artiq")]
+extern crate std_artiq;
+
 use core::result;
 use core::fmt;
 
@@ -183,5 +186,46 @@ impl<T: ::alloc::Vec<[u8]>> Write for Cursor<T> {
     #[inline]
     fn flush(&mut self) -> result::Result<(), Self::FlushError> {
         Ok(())
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl<T> Read for T where T: std_artiq::io::Read {
+    type ReadError = std_artiq::io::Error;
+
+    fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError> {
+        std_artiq::io::Read::read(self, buf)
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl<T> Write for T where T: std_artiq::io::Write {
+    type WriteError = std_artiq::io::Error;
+    type FlushError = std_artiq::io::Error;
+
+    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+        std_artiq::io::Write::write(self, buf)
+    }
+
+    fn flush(&mut self) -> result::Result<(), Self::WriteError> {
+        std_artiq::io::Write::flush(self)
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl<T> From<Error<T>> for std_artiq::io::Error
+    where T: Into<std_artiq::io::Error>
+{
+    fn from(value: Error<T>) -> std_artiq::io::Error {
+        match value {
+            Error::UnexpectedEof =>
+                std_artiq::io::Error::new(std_artiq::io::ErrorKind::UnexpectedEof,
+                                          "unexpected end of stream"),
+            Error::Unrecognized =>
+                std_artiq::io::Error::new(std_artiq::io::ErrorKind::InvalidData,
+                                          "unrecognized data"),
+            Error::Other(err) =>
+                err.into()
+        }
     }
 }

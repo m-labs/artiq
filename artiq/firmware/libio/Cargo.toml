@@ -9,6 +9,7 @@ path = "lib.rs"
 
 [dependencies]
 byteorder = { version = "1.0", default-features = false, optional = true }
+std_artiq = { path = "../libstd_artiq", optional = true }
 
 [features]
 alloc = []
