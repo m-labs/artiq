@@ -60,8 +60,7 @@ class AD9914:
     kernel_invariants = {"core", "sysclk", "bus_channel", "channel",
         "rtio_period_mu", "sysclk_per_mu", "write_duration_mu",
         "dac_cal_duration_mu", "init_duration_mu", "init_sync_duration_mu",
-        "set_duration_mu", "set_x_duration_mu", "exit_x_duration_mu",
-        "continuous_phase_comp"}
+        "set_duration_mu", "set_x_duration_mu", "exit_x_duration_mu"}
 
     def __init__(self, dmgr, sysclk, bus_channel, channel, core_device="core"):
         self.core        = dmgr.get(core_device)
