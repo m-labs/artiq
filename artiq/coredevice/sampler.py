@@ -23,10 +23,16 @@ def adc_mu_to_volt(data, gain=0):
     :param gain: PGIA gain setting (0: 1, ..., 3: 1000)
     :return: Voltage in Volts
     """
-    input_span = 20.
-    for i in range(gain):
-        input_span /= 10.
-    volt_per_lsb = input_span/(1 << 16)
+    if gain == 0:
+        volt_per_lsb = 20./(1 << 16)
+    elif gain == 1:
+        volt_per_lsb = 2./(1 << 16)
+    elif gain == 2:
+        volt_per_lsb = .2/(1 << 16)
+    elif gain == 3:
+        volt_per_lsb = .02/(1 << 16)
+    else:
+        raise ValueError("invalid gain")
     return data*volt_per_lsb
 
 
