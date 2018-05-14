@@ -88,7 +88,7 @@ RF generation drivers
     :members:
 
 :mod:`artiq.coredevice.ad9914` module
-++++++++++++++++++++++++++++++++++
++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.ad9914
     :members:
