@@ -1,5 +1,5 @@
-use std::io::{self, Read, Write};
-use {ReadExt, WriteExt};
+use io::{Read, Write, Error, Result};
+use io::proto::{ProtoRead, ProtoWrite};
 
 #[derive(Debug)]
 pub enum HostMessage {
@@ -15,7 +15,7 @@ pub enum DeviceMessage {
 }
 
 impl HostMessage {
-    pub fn read_from(reader: &mut Read) -> io::Result<HostMessage> {
+    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, T::ReadError> {
         Ok(match reader.read_u8()? {
             0 => HostMessage::Monitor {
                 enable: if reader.read_u8()? == 0 { false } else { true },
@@ -31,13 +31,13 @@ impl HostMessage {
                 channel: reader.read_u32()?,
                 overrd: reader.read_u8()?
             },
-            _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown packet type"))
+            _ => return Err(Error::Unrecognized)
         })
     }
 }
 
 impl DeviceMessage {
-    pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
         match *self {
             DeviceMessage::MonitorStatus { channel, probe, value } => {
                 writer.write_u8(0)?;

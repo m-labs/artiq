@@ -41,7 +41,7 @@ pub enum Reply<'a> {
 }
 
 impl Request {
-    pub fn read_from<T: Read>(reader: &mut T) -> Result<Request, T::ReadError> {
+    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, T::ReadError> {
         #[cfg(feature = "log")]
         fn read_log_level_filter<T: Read>(reader: &mut T) ->
                 Result<log::LevelFilter, T::ReadError> {

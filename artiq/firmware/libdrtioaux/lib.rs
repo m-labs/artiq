@@ -45,7 +45,7 @@ pub enum Packet {
 }
 
 impl Packet {
-    pub fn read_from<T: Read>(reader: &mut T) -> Result<Packet, T::ReadError> {
+    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, T::ReadError> {
         Ok(match reader.read_u8()? {
             0x00 => Packet::EchoRequest,
             0x01 => Packet::EchoReply,
