@@ -277,7 +277,7 @@ class AD9914:
 
     # Extended-resolution functions
     @kernel
-    def set_mu_x(self, xftw, amplitude=0x0fff):
+    def set_x_mu(self, xftw, amplitude=0x0fff):
         """Set the DDS frequency and amplitude with an extended-resolution
         (63-bit) frequency tuning word.
 
@@ -323,10 +323,10 @@ class AD9914:
 
     @kernel
     def set_x(self, frequency, amplitude=1.0):
-        """Like ``set_mu_x``, but uses Hz and turns.
+        """Like ``set_x_mu``, but uses Hz and turns.
 
         Note that the precision of ``float`` is less than the precision
         of the extended frequency tuning word.
         """
-        self.set_mu_x(self.frequency_to_xftw(frequency),
+        self.set_x_mu(self.frequency_to_xftw(frequency),
                       self.amplitude_to_asf(amplitude))
