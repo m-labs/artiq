@@ -1,5 +1,5 @@
-use std::io::{self, Write};
-use WriteExt;
+use io::{Write, Result};
+use io::proto::{ProtoWrite};
 
 #[derive(Debug)]
 pub struct Header {
@@ -11,7 +11,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
         writer.write_u32(self.sent_bytes)?;
         writer.write_u64(self.total_byte_count)?;
         writer.write_u8(self.overflow_occurred as u8)?;

@@ -6,6 +6,7 @@ extern crate cslice;
 #[macro_use]
 extern crate log;
 
+extern crate io;
 extern crate dyld;
 extern crate std_artiq as std;
 
