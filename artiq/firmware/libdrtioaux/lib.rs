@@ -6,58 +6,8 @@ extern crate crc;
 extern crate io;
 extern crate board;
 
-use core::slice;
-use core::result;
-use core::fmt;
-
-use io::{Read, Write, Error as IoError};
+use io::{Read, Write, Error, Result};
 use io::proto::{ProtoRead, ProtoWrite};
-
-pub type Result<T, E> = result::Result<T, Error<E>>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error<T> {
-    UnknownPacket(u8),
-    CorruptedPacket,
-    TimedOut,
-    NoRoute,
-    GatewareError,
-    Io(IoError<T>),
-    Other(T)
-}
-
-impl<T: fmt::Display> fmt::Display for Error<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Error::UnknownPacket(ty) =>
-                write!(f, "unknown packet type {:#02x}", ty),
-            &Error::CorruptedPacket =>
-                write!(f, "packet CRC failed"),
-            &Error::TimedOut =>
-                write!(f, "timed out waiting for data"),
-            &Error::NoRoute =>
-                write!(f, "invalid node number"),
-            &Error::GatewareError =>
-                write!(f, "gateware reported error"),
-            &Error::Io(ref io) =>
-                write!(f, "I/O error ({})", io),
-            &Error::Other(ref err) =>
-                write!(f, "{}", err)
-        }
-    }
-}
-
-impl<T> From<T> for Error<T> {
-    fn from(value: T) -> Error<T> {
-        Error::Other(value)
-    }
-}
-
-impl<T> From<IoError<T>> for Error<T> {
-    fn from(value: IoError<T>) -> Error<T> {
-        Error::Io(value)
-    }
-}
 
 #[derive(Debug)]
 pub enum Packet {
@@ -188,7 +138,7 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
 
-            ty => return Err(Error::UnknownPacket(ty))
+            _ => return Err(Error::Unrecognized)
         })
     }
 

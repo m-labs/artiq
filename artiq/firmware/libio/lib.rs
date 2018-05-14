@@ -19,6 +19,7 @@ pub type Result<T, E> = result::Result<T, Error<E>>;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Error<T> {
     UnexpectedEof,
+    Unrecognized,
     Other(T)
 }
 
@@ -27,6 +28,8 @@ impl<T: fmt::Display> fmt::Display for Error<T> {
         match self {
             &Error::UnexpectedEof =>
                 write!(f, "unexpected end of stream"),
+            &Error::Unrecognized =>
+                write!(f, "unrecognized input"),
             &Error::Other(ref err) =>
                 write!(f, "{}", err)
         }
