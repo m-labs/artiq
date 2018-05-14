@@ -16,11 +16,12 @@ class SUServo(EnvExperiment):
         mask = 1 << 18 - 1
         for name, val in zip("ftw1 b1 pow cfg offset a1 ftw0 b0".split(), d):
             val = -(val & mask) + (val & ~mask)
-            print(name, hex(val), val)
+            print("{}: {:x} = {}".format(name, val, val))
 
     @rpc(flags={"async"})
     def p1(self, adc, asf, st):
-        print("{:10s}".format("#"*int(adc*10)))
+        print("ADC: {:10s}, ASF: {:10s}, clipped: {}".format(
+            "#"*int(adc), "#"*int(asf*10), (st >> 8) & 1), end="\r")
 
     @kernel
     def init(self):
@@ -40,27 +41,42 @@ class SUServo(EnvExperiment):
         # Servo is done and disabled
         assert self.suservo0.get_status() & 0xff == 2
 
-        # set up profile 0 on channel 0
+        # set up profile 0 on channel 0:
         delay(100*us)
-        self.suservo0_ch0.set_y(0, 0.)
+        self.suservo0_ch0.set_y(
+            profile=0,
+            y=0.  # clear integrator
+        )
         self.suservo0_ch0.set_iir(
-                profile=0, adc=7, gain=-.1, corner=7000*Hz, limit=0., delay=0.)
+            profile=0,
+            adc=7,  # take data from Sampler channel 7
+            gain=-.1,  # -0.1 P gain
+            corner=70*Hz,  # very low corner frequency
+            limit=0.,  # unlimited integrator gain
+            delay=0.  # no IIR update delay after enabling
+        )
+        # setpoint 0.5 (5 V with above PGIA gain setting)
+        # 71 MHz
+        # 0 phase
         self.suservo0_ch0.set_dds(
-                profile=0, offset=-.5, frequency=71*MHz, phase=0.)
-        # enable channel
+            profile=0,
+            offset=-.5,  # 5 V with above PGIA settings
+            frequency=71*MHz,
+            phase=0.)
+        # enable RF, IIR updates and profile 0
         self.suservo0_ch0.set(en_out=1, en_iir=1, profile=0)
-        # enable servo iterations
+        # enable global servo iterations
         self.suservo0.set_config(enable=1)
+
+        # check servo enabled
+        assert self.suservo0.get_status() & 0x01 == 1
+        delay(10*us)
 
         # read back profile data
         data = [0] * 8
         self.suservo0_ch0.get_profile_mu(0, data)
         self.p(data)
         delay(10*ms)
-
-        # check servo enabled
-        assert self.suservo0.get_status() & 0x01 == 1
-        delay(10*us)
 
         while True:
             self.suservo0.set_config(0)
@@ -73,7 +89,7 @@ class SUServo(EnvExperiment):
             delay(10*us)
             self.suservo0.set_config(1)
             self.p1(v, w, x)
-            delay(200*ms)
+            delay(20*ms)
 
     @kernel
     def led(self):
