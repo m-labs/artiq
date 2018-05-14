@@ -1,9 +1,10 @@
-use std::io::{self, Read, Write};
-use std::vec::Vec;
-use std::string::String;
-use {ReadExt, WriteExt};
+use alloc::vec::Vec;
+use alloc::string::String;
 
-fn read_sync(reader: &mut Read) -> io::Result<()> {
+use io::{Read, Write, Error, Result};
+use io::proto::{ProtoRead, ProtoWrite};
+
+fn read_sync<T: Read + ?Sized>(reader: &mut T) -> Result<(), T::ReadError> {
     let mut sync = [0; 4];
     for i in 0.. {
         sync[i % 4] = reader.read_u8()?;
@@ -12,7 +13,7 @@ fn read_sync(reader: &mut Read) -> io::Result<()> {
     Ok(())
 }
 
-fn write_sync(writer: &mut Write) -> io::Result<()> {
+fn write_sync<T: Write + ?Sized>(writer: &mut T) -> Result<(), T::WriteError> {
     writer.write_all(&[0x5a; 4])
 }
 
@@ -42,7 +43,7 @@ pub enum Request {
 }
 
 impl Request {
-    pub fn read_from(reader: &mut Read) -> io::Result<Request> {
+    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, T::ReadError> {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
             3  => Request::SystemInfo,
@@ -74,7 +75,7 @@ impl Request {
             12 => Request::FlashRemove {
                 key: reader.read_string()?
             },
-            _  => return Err(io::Error::new(io::ErrorKind::InvalidData, "unknown request type"))
+            _  => return Err(Error::Unrecognized)
         })
     }
 }
@@ -115,7 +116,7 @@ pub enum Reply<'a> {
 }
 
 impl<'a> Reply<'a> {
-    pub fn write_to(&self, writer: &mut Write) -> io::Result<()> {
+    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), T::WriteError> {
         write_sync(writer)?;
         match *self {
             Reply::SystemInfo { ident, finished_cleanly } => {

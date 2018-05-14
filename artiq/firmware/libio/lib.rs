@@ -190,7 +190,7 @@ impl Write for Cursor<::alloc::Vec<u8>> {
 }
 
 #[cfg(feature = "std_artiq")]
-impl<T> Read for T where T: std_artiq::io::Read {
+impl<T> Read for T where T: std_artiq::io::Read + ?Sized {
     type ReadError = std_artiq::io::Error;
 
     fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError> {
@@ -199,7 +199,7 @@ impl<T> Read for T where T: std_artiq::io::Read {
 }
 
 #[cfg(feature = "std_artiq")]
-impl<T> Write for T where T: std_artiq::io::Write {
+impl<T> Write for T where T: std_artiq::io::Write + ?Sized {
     type WriteError = std_artiq::io::Error;
     type FlushError = std_artiq::io::Error;
 

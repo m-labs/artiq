@@ -1,6 +1,49 @@
+use core::fmt;
+use alloc::string;
 use byteorder::{ByteOrder, NetworkEndian};
 
 use ::{Read, Write, Error as IoError};
+
+#[derive(Debug)]
+pub enum ReadStringError<T> {
+    Utf8Error(string::FromUtf8Error),
+    Other(T)
+}
+
+impl<T: fmt::Display> fmt::Display for ReadStringError<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &ReadStringError::Utf8Error(ref err) =>
+                write!(f, "invalid UTF-8 ({})", err),
+            &ReadStringError::Other(ref err) =>
+                write!(f, "{}", err)
+        }
+    }
+}
+
+impl<T> From<ReadStringError<IoError<T>>> for IoError<T>
+{
+    fn from(value: ReadStringError<IoError<T>>) -> IoError<T> {
+        match value {
+            ReadStringError::Utf8Error(_) => IoError::Unrecognized,
+            ReadStringError::Other(err) => err
+        }
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl<T> From<ReadStringError<T>> for ::std_artiq::io::Error
+        where T: Into<::std_artiq::io::Error>
+{
+    fn from(value: ReadStringError<T>) -> ::std_artiq::io::Error {
+        match value {
+            ReadStringError::Utf8Error(_) =>
+                ::std_artiq::io::Error::new(::std_artiq::io::ErrorKind::InvalidData,
+                                            "invalid UTF-8"),
+            ReadStringError::Other(err) => err.into()
+        }
+    }
+}
 
 pub trait ProtoRead {
     type ReadError;
@@ -49,11 +92,18 @@ pub trait ProtoRead {
         Ok(value)
     }
 
-//     fn read_string(&mut self) -> Result<String, Self::ReadError> {
-//         let bytes = self.read_bytes()?;
-//         String::from_utf8(bytes)
-//                .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "invalid UTF-8"))
-//     }
+    #[cfg(feature = "alloc")]
+    #[inline]
+    fn read_string(&mut self) -> Result<::alloc::String, ReadStringError<Self::ReadError>> {
+        match self.read_bytes() {
+            Ok(bytes) =>
+                match ::alloc::String::from_utf8(bytes) {
+                    Ok(string) => Ok(string),
+                    Err(err) => Err(ReadStringError::Utf8Error(err))
+                },
+            Err(err) => Err(ReadStringError::Other(err))
+        }
+    }
 }
 
 pub trait ProtoWrite {
@@ -132,7 +182,7 @@ pub trait ProtoWrite {
     }
 }
 
-impl<T> ProtoRead for T where T: Read {
+impl<T> ProtoRead for T where T: Read + ?Sized {
     type ReadError = IoError<T::ReadError>;
 
     fn read_exact(&mut self, buf: &mut [u8]) -> Result<(), Self::ReadError> {
@@ -140,7 +190,7 @@ impl<T> ProtoRead for T where T: Read {
     }
 }
 
-impl<T> ProtoWrite for T where T: Write {
+impl<T> ProtoWrite for T where T: Write + ?Sized {
     type WriteError = IoError<T::WriteError>;
 
     fn write_all(&mut self, buf: &[u8]) -> Result<(), Self::WriteError> {

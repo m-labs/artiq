@@ -41,9 +41,9 @@ pub enum Reply<'a> {
 }
 
 impl Request {
-    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, T::ReadError> {
+    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, T::ReadError> {
         #[cfg(feature = "log")]
-        fn read_log_level_filter<T: Read>(reader: &mut T) ->
+        fn read_log_level_filter<T: Read + ?Sized>(reader: &mut T) ->
                 Result<log::LevelFilter, T::ReadError> {
             Ok(match reader.read_u8()? {
                 0 => log::LevelFilter::Off,
@@ -80,7 +80,7 @@ impl Request {
 }
 
 impl<'a> Reply<'a> {
-    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
+    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), T::WriteError> {
         match *self {
             Reply::Success => {
                 writer.write_u8(1)?;

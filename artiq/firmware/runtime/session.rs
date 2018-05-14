@@ -127,7 +127,7 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
 
 fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
     debug!("comm->host {:?}", reply);
-    reply.write_to(stream)
+    Ok(reply.write_to(stream)?)
 }
 
 pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
