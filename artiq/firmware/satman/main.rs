@@ -298,11 +298,3 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u3
     println!("panic at {}:{}: {}", file, line, args);
     loop {}
 }
-
-// Allow linking with crates that are built as -Cpanic=unwind even if we use -Cpanic=abort.
-// This is never called.
-#[allow(non_snake_case)]
-#[no_mangle]
-pub extern "C" fn _Unwind_Resume() -> ! {
-    loop {}
-}
