@@ -2,16 +2,16 @@
 
 use core::mem;
 use core::fmt;
-use core::nonzero::NonZero;
+use core::num::NonZeroUsize;
 use alloc::Vec;
 use managed::ManagedMap;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Address(NonZero<usize>);
+pub struct Address(NonZeroUsize);
 
 impl Address {
     pub fn new(raw: usize) -> Option<Address> {
-        NonZero::new(raw).map(Address)
+        NonZeroUsize::new(raw).map(Address)
     }
 
     pub fn as_raw(&self) -> usize {
