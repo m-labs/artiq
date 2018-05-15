@@ -1,7 +1,6 @@
 use alloc::{Vec, String};
 
-use io::{Read, Write, Error, Result};
-use io::proto::{ProtoRead, ProtoWrite};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error, Result};
 
 fn read_sync<T: Read + ?Sized>(reader: &mut T) -> Result<(), T::ReadError> {
     let mut sync = [0; 4];

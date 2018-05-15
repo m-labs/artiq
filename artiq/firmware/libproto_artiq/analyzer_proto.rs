@@ -1,5 +1,4 @@
-use io::{Write, Result};
-use io::proto::{ProtoWrite};
+use io::{Write, ProtoWrite, Result};
 
 #[derive(Debug)]
 pub struct Header {

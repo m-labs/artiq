@@ -1,6 +1,6 @@
 use log::{self, LevelFilter};
 
-use io::{self, Read, Write, proto::ProtoWrite};
+use io::{self, Read, Write, ProtoWrite};
 use board_misoc::boot;
 use logger_artiq::BufferLogger;
 use sched::Io;

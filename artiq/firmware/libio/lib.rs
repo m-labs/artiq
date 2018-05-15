@@ -15,9 +15,11 @@ use core::result;
 
 mod cursor;
 #[cfg(feature = "byteorder")]
-pub mod proto;
+mod proto;
 
 pub use cursor::Cursor;
+#[cfg(feature = "byteorder")]
+pub use proto::{ProtoRead, ProtoWrite};
 
 pub type Result<T, E> = result::Result<T, Error<E>>;
 

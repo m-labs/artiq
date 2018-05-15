@@ -2,8 +2,7 @@ use alloc::Vec;
 #[cfg(feature = "log")]
 use log;
 
-use io::{Read, Write, Error, Result};
-use io::proto::{ProtoRead, ProtoWrite};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error, Result};
 
 #[derive(Debug)]
 pub enum Request {

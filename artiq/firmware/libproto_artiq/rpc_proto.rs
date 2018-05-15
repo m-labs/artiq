@@ -1,9 +1,7 @@
 use core::str;
 use cslice::{CSlice, CMutSlice};
 
-use io::{Read, Write, Result};
-use io::proto::{ProtoRead, ProtoWrite};
-
+use io::{ProtoRead, Read, Write, ProtoWrite, Result};
 use self::tag::{Tag, TagIterator, split_tag};
 
 unsafe fn recv_value<T>(reader: &mut T, tag: Tag, data: &mut *mut (),

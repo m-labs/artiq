@@ -127,7 +127,7 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
             rpc_proto::send_args(&mut writer, service, tag.as_ref(), data)?;
             writer.position()
         };
-        io::proto::ProtoWrite::write_u32(&mut slice, length as u32)
+        io::ProtoWrite::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
         assert!(err == io::Error::UnexpectedEof);
 
