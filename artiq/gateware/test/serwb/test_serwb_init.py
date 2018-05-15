@@ -8,14 +8,17 @@ from artiq.gateware.serwb.phy import _SerdesMasterInit, _SerdesSlaveInit
 
 class SerdesModel(Module):
     def __init__(self, taps, mode="slave"):
-        self.tx_idle = Signal()
-        self.tx_comma = Signal()
-        self.rx_idle = Signal()
-        self.rx_comma = Signal()
+        self.tx = Module()
+        self.rx = Module()
 
-        self.rx_bitslip_value = Signal(6)
-        self.rx_delay_rst = Signal()
-        self.rx_delay_inc = Signal()
+        self.tx.idle = Signal()
+        self.tx.comma = Signal()
+        self.rx.idle = Signal()
+        self.rx.comma = Signal()
+
+        self.rx.bitslip_value = Signal(6)
+        self.rx.delay_rst = Signal()
+        self.rx.delay_inc = Signal()
 
         self.valid_bitslip = Signal(6)
         self.valid_delays = Signal(taps)
@@ -30,29 +33,29 @@ class SerdesModel(Module):
             self.comb += valid_delays[taps-1-i].eq(self.valid_delays[i])
 
         self.sync += [
-            bitslip.eq(self.rx_bitslip_value),
-            If(self.rx_delay_rst,
+            bitslip.eq(self.rx.bitslip_value),
+            If(self.rx.delay_rst,
                 delay.eq(0)
-            ).Elif(self.rx_delay_inc,
+            ).Elif(self.rx.delay_inc,
                 delay.eq(delay + 1)
             )
         ]
 
         if mode == "master":
             self.submodules.fsm = fsm = ResetInserter()(FSM(reset_state="IDLE"))
-            self.comb += self.fsm.reset.eq(self.tx_idle)
+            self.comb += self.fsm.reset.eq(self.tx.idle)
             fsm.act("IDLE",
-                If(self.tx_comma,
+                If(self.tx.comma,
                     NextState("SEND_COMMA")
                 ),
-                self.rx_idle.eq(1)
+                self.rx.idle.eq(1)
             )
             fsm.act("SEND_COMMA",
                 If(valid_delays[delay] &
                    (bitslip == self.valid_bitslip),
-                        self.rx_comma.eq(1)
+                        self.rx.comma.eq(1)
                 ),
-                If(~self.tx_comma,
+                If(~self.tx.comma,
                     NextState("READY")
                 )
             )
@@ -60,15 +63,15 @@ class SerdesModel(Module):
         elif mode == "slave":
             self.submodules.fsm = fsm = FSM(reset_state="IDLE")
             fsm.act("IDLE",
-                self.rx_idle.eq(1),
+                self.rx.idle.eq(1),
                 NextState("SEND_COMMA")
             )
             fsm.act("SEND_COMMA",
                 If(valid_delays[delay] &
                    (bitslip == self.valid_bitslip),
-                        self.rx_comma.eq(1)
+                        self.rx.comma.eq(1)
                 ),
-                If(~self.tx_idle,
+                If(~self.tx.idle,
                     NextState("READY")
                 )
             )
