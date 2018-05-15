@@ -1,1 +1,1 @@
-from artiq.gateware.serwb import s7phy, kusphy, genphy, phy, core, packet, etherbone
+from artiq.gateware.serwb import s7serdes, kuserdes, genphy, phy, core, packet, etherbone

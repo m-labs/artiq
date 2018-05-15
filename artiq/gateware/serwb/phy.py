@@ -1,13 +1,12 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from migen.genlib.misc import WaitTimer
 
 from misoc.interconnect import stream
 from misoc.interconnect.csr import *
 
 from artiq.gateware.serwb.scrambler import Scrambler, Descrambler
-from artiq.gateware.serwb.kusphy import KUSSerdes
-from artiq.gateware.serwb.s7phy import S7Serdes
+from artiq.gateware.serwb.kuserdes import KUSerdes
+from artiq.gateware.serwb.s7serdes import S7Serdes
 
 
 # Master <--> Slave synchronization:
@@ -21,7 +20,7 @@ from artiq.gateware.serwb.s7phy import S7Serdes
 
 @ResetInserter()
 class _SerdesMasterInit(Module):
-    def __init__(self, serdes, taps, timeout=2**15):
+    def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
 
@@ -43,10 +42,10 @@ class _SerdesMasterInit(Module):
             NextValue(delay_min_found, 0),
             NextValue(delay_max, 0),
             NextValue(delay_max_found, 0),
-            serdes.rx_delay_rst.eq(1),
+            serdes.rx.delay_rst.eq(1),
             NextValue(bitslip, 0),
             NextState("RESET_SLAVE"),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("RESET_SLAVE",
             timer.wait.eq(1),
@@ -54,16 +53,16 @@ class _SerdesMasterInit(Module):
                 timer.wait.eq(0),
                 NextState("SEND_PATTERN")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
-            If(~serdes.rx_idle,
+            If(~serdes.rx.idle,
                 timer.wait.eq(1),
                 If(timer.done,
                     NextState("CHECK_PATTERN")
                 )
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("WAIT_STABLE",
             timer.wait.eq(1),
@@ -71,11 +70,11 @@ class _SerdesMasterInit(Module):
                 timer.wait.eq(0),
                 NextState("CHECK_PATTERN")
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("CHECK_PATTERN",
             If(~delay_min_found,
-                If(serdes.rx_comma,
+                If(serdes.rx.comma,
                     timer.wait.eq(1),
                     If(timer.done,
                         timer.wait.eq(0),
@@ -86,7 +85,7 @@ class _SerdesMasterInit(Module):
                     NextState("INC_DELAY_BITSLIP")
                 ),
             ).Else(
-                If(~serdes.rx_comma,
+                If(~serdes.rx.comma,
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
                     NextState("CHECK_SAMPLING_WINDOW")
@@ -94,9 +93,9 @@ class _SerdesMasterInit(Module):
                     NextState("INC_DELAY_BITSLIP")
                 )
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
-        self.comb += serdes.rx_bitslip_value.eq(bitslip)
+        self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_DELAY_BITSLIP",
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
@@ -110,12 +109,12 @@ class _SerdesMasterInit(Module):
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
-                serdes.rx_delay_rst.eq(1)
+                serdes.rx.delay_rst.eq(1)
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1)
+                serdes.rx.delay_inc.eq(1)
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
             If((delay_min == 0) |
@@ -126,19 +125,19 @@ class _SerdesMasterInit(Module):
                NextState("WAIT_STABLE")
             ).Else(
                 NextValue(delay, 0),
-                serdes.rx_delay_rst.eq(1),
+                serdes.rx.delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
             If(delay == (delay_min + (delay_max - delay_min)[1:]),
                 NextState("READY")
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1)
+                serdes.rx.delay_inc.eq(1)
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
             self.ready.eq(1)
@@ -150,7 +149,7 @@ class _SerdesMasterInit(Module):
 
 @ResetInserter()
 class _SerdesSlaveInit(Module, AutoCSR):
-    def __init__(self, serdes, taps, timeout=2**15):
+    def __init__(self, serdes, taps, timeout):
         self.ready = Signal()
         self.error = Signal()
 
@@ -173,14 +172,14 @@ class _SerdesSlaveInit(Module, AutoCSR):
             NextValue(delay_min_found, 0),
             NextValue(delay_max, 0),
             NextValue(delay_max_found, 0),
-            serdes.rx_delay_rst.eq(1),
+            serdes.rx.delay_rst.eq(1),
             NextValue(bitslip, 0),
             timer.wait.eq(1),
             If(timer.done,
                 timer.wait.eq(0),
                 NextState("WAIT_STABLE"),
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("WAIT_STABLE",
             timer.wait.eq(1),
@@ -188,11 +187,11 @@ class _SerdesSlaveInit(Module, AutoCSR):
                 timer.wait.eq(0),
                 NextState("CHECK_PATTERN")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("CHECK_PATTERN",
             If(~delay_min_found,
-                If(serdes.rx_comma,
+                If(serdes.rx.comma,
                     timer.wait.eq(1),
                     If(timer.done,
                         timer.wait.eq(0),
@@ -203,7 +202,7 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextState("INC_DELAY_BITSLIP")
                 ),
             ).Else(
-                If(~serdes.rx_comma,
+                If(~serdes.rx.comma,
                     NextValue(delay_max, delay),
                     NextValue(delay_max_found, 1),
                     NextState("CHECK_SAMPLING_WINDOW")
@@ -211,9 +210,9 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextState("INC_DELAY_BITSLIP")
                 )
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
-        self.comb += serdes.rx_bitslip_value.eq(bitslip)
+        self.comb += serdes.rx.bitslip_value.eq(bitslip)
         fsm.act("INC_DELAY_BITSLIP",
             NextState("WAIT_STABLE"),
             If(delay == (taps - 1),
@@ -227,12 +226,12 @@ class _SerdesSlaveInit(Module, AutoCSR):
                     NextValue(bitslip, bitslip + 1)
                 ),
                 NextValue(delay, 0),
-                serdes.rx_delay_rst.eq(1)
+                serdes.rx.delay_rst.eq(1)
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1)
+                serdes.rx.delay_inc.eq(1)
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("CHECK_SAMPLING_WINDOW",
             If((delay_min == 0) |
@@ -243,28 +242,28 @@ class _SerdesSlaveInit(Module, AutoCSR):
                NextState("WAIT_STABLE")
             ).Else(
                 NextValue(delay, 0),
-                serdes.rx_delay_rst.eq(1),
+                serdes.rx.delay_rst.eq(1),
                 NextState("CONFIGURE_SAMPLING_WINDOW")
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("CONFIGURE_SAMPLING_WINDOW",
             If(delay == (delay_min + (delay_max - delay_min)[1:]),
                 NextState("SEND_PATTERN")
             ).Else(
                 NextValue(delay, delay + 1),
-                serdes.rx_delay_inc.eq(1),
+                serdes.rx.delay_inc.eq(1),
             ),
-            serdes.tx_idle.eq(1)
+            serdes.tx.idle.eq(1)
         )
         fsm.act("SEND_PATTERN",
             timer.wait.eq(1),
             If(timer.done,
-                If(~serdes.rx_comma,
+                If(~serdes.rx.comma,
                     NextState("READY")
                 )
             ),
-            serdes.tx_comma.eq(1)
+            serdes.tx.comma.eq(1)
         )
         fsm.act("READY",
             self.ready.eq(1)
@@ -288,8 +287,6 @@ class _SerdesControl(Module, AutoCSR):
         self.delay_max = CSRStatus(9)
         self.bitslip = CSRStatus(6)
 
-        self.scrambling_enable = CSRStorage()
-
         self.prbs_error = Signal()
         self.prbs_start = CSR()
         self.prbs_cycles = CSRStorage(32)
@@ -307,8 +304,8 @@ class _SerdesControl(Module, AutoCSR):
             # Master reset the Slave by putting the link
             # in idle.
             self.sync += [
-                init.reset.eq(serdes.rx_idle),
-                serdes.reset.eq(serdes.rx_idle)
+                init.reset.eq(serdes.rx.idle),
+                serdes.reset.eq(serdes.rx.idle)
             ]
         self.comb += [
             self.ready.status.eq(init.ready),
@@ -364,31 +361,26 @@ class SERWBPHY(Module, AutoCSR):
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
         # scrambling
-        scrambler =  Scrambler()
-        descrambler = Descrambler()
-        self.submodules += scrambler, descrambler
-        self.comb += [
-            scrambler.enable.eq(self.control.scrambling_enable.storage),
-            descrambler.enable.eq(self.control.scrambling_enable.storage)
-        ]
+        self.submodules.scrambler = scrambler = Scrambler()
+        self.submodules.descrambler = descrambler = Descrambler()
 
         # tx dataflow
         self.comb += \
             If(self.init.ready,
                 sink.connect(scrambler.sink),
-                scrambler.source.ack.eq(self.serdes.tx_ce),
+                scrambler.source.ack.eq(self.serdes.tx.ce),
                 If(scrambler.source.stb,
-                    self.serdes.tx_d.eq(scrambler.source.d),
-                    self.serdes.tx_k.eq(scrambler.source.k)
+                    self.serdes.tx.d.eq(scrambler.source.d),
+                    self.serdes.tx.k.eq(scrambler.source.k)
                 )
             )
 
         # rx dataflow
         self.comb += [
             If(self.init.ready,
-                descrambler.sink.stb.eq(self.serdes.rx_ce),
-                descrambler.sink.d.eq(self.serdes.rx_d),
-                descrambler.sink.k.eq(self.serdes.rx_k),
+                descrambler.sink.stb.eq(self.serdes.rx.ce),
+                descrambler.sink.d.eq(self.serdes.rx.d),
+                descrambler.sink.k.eq(self.serdes.rx.k),
                 descrambler.source.connect(source)
             ),
             # For PRBS test we are using the scrambler/descrambler as PRBS,
