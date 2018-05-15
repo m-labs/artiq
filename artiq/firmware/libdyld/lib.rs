@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(untagged_unions)]
 
 use core::{mem, ptr, fmt, slice, str, convert};
 use elf::*;
