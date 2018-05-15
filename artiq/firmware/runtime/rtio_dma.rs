@@ -1,8 +1,6 @@
 use core::mem;
 use alloc::{Vec, String, BTreeMap};
 
-use io::Write;
-
 const ALIGNMENT: usize = 64;
 
 #[derive(Debug)]
@@ -37,7 +35,7 @@ impl Manager {
     }
 
     pub fn record_append(&mut self, data: &[u8]) {
-        self.recording_trace.write_all(data).unwrap();
+        self.recording_trace.extend_from_slice(data)
     }
 
     pub fn record_stop(&mut self, duration: u64) {

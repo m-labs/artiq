@@ -1,5 +1,6 @@
 use alloc::btree_map::BTreeMap;
 
+use io::Error as IoError;
 use moninj_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use board_misoc::{clock, csr};
@@ -184,7 +185,7 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<Sc
         if clock::get_ms() > next_check {
             for (&(channel, probe), previous) in watch_list.iter_mut() {
                 let current = read_probe(channel, probe);
-                if previous.is_none() || (previous.unwrap() != current) {
+                if previous.is_none() || previous.unwrap() != current {
                     let message = DeviceMessage::MonitorStatus {
                         channel: channel,
                         probe: probe,
@@ -200,7 +201,7 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<Sc
             next_check = clock::get_ms() + 200;
         }
 
-        io.relinquish().unwrap();
+        io.relinquish().map_err(|err| Error::Io(IoError::Other(err)))?;
     }
 }
 
