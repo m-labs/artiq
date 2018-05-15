@@ -1,43 +1,36 @@
-use core::{slice, fmt, result};
+use core::slice;
 use crc;
 
-use io::{Cursor, Error as IoError};
-use io::proto::{ProtoRead, ProtoWrite};
+use io::{ProtoRead, ProtoWrite, Cursor, Error as IoError};
 use board_misoc::{csr::DRTIO, mem::DRTIO_AUX, clock};
+use proto_artiq::drtioaux_proto::Error as ProtocolError;
 
 pub use proto_artiq::drtioaux_proto::Packet;
 
-pub type Result<T> = result::Result<T, Error>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
+// this is parametric over T because there's no impl Fail for !.
+#[derive(Fail, Debug)]
+pub enum Error<T> {
+    #[fail(display = "packet CRC failed")]
     CorruptedPacket,
+    #[fail(display = "timed out waiting for data")]
     TimedOut,
+    #[fail(display = "invalid node number")]
     NoRoute,
+    #[fail(display = "gateware reported error")]
     GatewareError,
-    Io(IoError<!>)
+    #[fail(display = "protocol error: {}", _0)]
+    Protocol(#[cause] ProtocolError<T>)
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Error::CorruptedPacket =>
-                write!(f, "packet CRC failed"),
-            &Error::TimedOut =>
-                write!(f, "timed out waiting for data"),
-            &Error::NoRoute =>
-                write!(f, "invalid node number"),
-            &Error::GatewareError =>
-                write!(f, "gateware reported error"),
-            &Error::Io(ref io) =>
-                write!(f, "I/O error ({})", io)
-        }
+impl<T> From<ProtocolError<T>> for Error<T> {
+    fn from(value: ProtocolError<T>) -> Error<T> {
+        Error::Protocol(value)
     }
 }
 
-impl From<IoError<!>> for Error {
-    fn from(value: IoError<!>) -> Error {
-        Error::Io(value)
+impl<T> From<IoError<T>> for Error<T> {
+    fn from(value: IoError<T>) -> Error<T> {
+        Error::Protocol(ProtocolError::Io(value))
     }
 }
 
@@ -63,8 +56,8 @@ fn has_rx_error(linkno: u8) -> bool {
     }
 }
 
-fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>>
-    where F: FnOnce(&[u8]) -> Result<T>
+fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>, Error<!>>
+    where F: FnOnce(&[u8]) -> Result<T, Error<!>>
 {
     let linkidx = linkno as usize;
     unsafe {
@@ -80,14 +73,14 @@ fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>>
     }
 }
 
-pub fn recv_link(linkno: u8) -> Result<Option<Packet>> {
+pub fn recv_link(linkno: u8) -> Result<Option<Packet>, Error<!>> {
     if has_rx_error(linkno) {
         return Err(Error::GatewareError)
     }
 
     receive(linkno, |buffer| {
         if buffer.len() < 8 {
-            return Err(Error::Io(IoError::UnexpectedEof))
+            return Err(IoError::UnexpectedEnd.into())
         }
 
         let mut reader = Cursor::new(buffer);
@@ -104,7 +97,7 @@ pub fn recv_link(linkno: u8) -> Result<Option<Packet>> {
     })
 }
 
-pub fn recv_timeout_link(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet> {
+pub fn recv_timeout_link(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
     let timeout_ms = timeout_ms.unwrap_or(10);
     let limit = clock::get_ms() + timeout_ms;
     while clock::get_ms() < limit {
@@ -116,8 +109,8 @@ pub fn recv_timeout_link(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet> 
     Err(Error::TimedOut)
 }
 
-fn transmit<F>(linkno: u8, f: F) -> Result<()>
-    where F: FnOnce(&mut [u8]) -> Result<usize>
+fn transmit<F>(linkno: u8, f: F) -> Result<(), Error<!>>
+    where F: FnOnce(&mut [u8]) -> Result<usize, Error<!>>
 {
     let linkno = linkno as usize;
     unsafe {
@@ -131,7 +124,7 @@ fn transmit<F>(linkno: u8, f: F) -> Result<()>
     }
 }
 
-pub fn send_link(linkno: u8, packet: &Packet) -> Result<()> {
+pub fn send_link(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
     transmit(linkno, |buffer| {
         let mut writer = Cursor::new(buffer);
 
@@ -152,24 +145,24 @@ pub fn send_link(linkno: u8, packet: &Packet) -> Result<()> {
 }
 
 // TODO: routing
-fn get_linkno(nodeno: u8) -> Result<u8> {
+fn get_linkno(nodeno: u8) -> Result<u8, Error<!>> {
     if nodeno == 0 || nodeno as usize > DRTIO.len() {
         return Err(Error::NoRoute)
     }
     Ok(nodeno - 1)
 }
 
-pub fn recv(nodeno: u8) -> Result<Option<Packet>> {
+pub fn recv(nodeno: u8) -> Result<Option<Packet>, Error<!>> {
     let linkno = get_linkno(nodeno)?;
     recv_link(linkno)
 }
 
-pub fn recv_timeout(nodeno: u8, timeout_ms: Option<u64>) -> Result<Packet> {
+pub fn recv_timeout(nodeno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
     let linkno = get_linkno(nodeno)?;
     recv_timeout_link(linkno, timeout_ms)
 }
 
-pub fn send(nodeno: u8, packet: &Packet) -> Result<()> {
+pub fn send(nodeno: u8, packet: &Packet) -> Result<(), Error<!>> {
     let linkno = get_linkno(nodeno)?;
     send_link(linkno, packet)
 }

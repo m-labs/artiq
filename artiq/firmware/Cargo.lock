@@ -17,6 +17,8 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "proto_artiq 0.0.0",
@@ -176,7 +178,7 @@ dependencies = [
 [[package]]
 name = "log_buffer"
 version = "1.2.0"
-source = "git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25#ff84e565d9954d5864d60aec12b9e1381505d72a"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "logger_artiq"
@@ -184,7 +186,7 @@ version = "0.0.0"
 dependencies = [
  "board_misoc 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "log_buffer 1.2.0 (git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25)",
+ "log_buffer 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -340,7 +342,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)" = "6fd41f331ac7c5b8ac259b8bf82c75c0fb2e469bbf37d2becbba9a6a2221965b"
 "checksum log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
 "checksum log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "89f010e843f2b1a31dbd316b3b8d443758bc634bed37aabade59c686d644e0a2"
-"checksum log_buffer 1.2.0 (git+https://github.com/whitequark/rust-log_buffer?rev=rust-1.25)" = "<none>"
+"checksum log_buffer 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f033173c9486b7fe97a79c895c0a3483ae395ab6744c985d10078950e2492419"
 "checksum managed 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "43e2737ecabe4ae36a68061398bf27d2bfd0763f4c3c837a398478459494c4b7"
 "checksum managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5a31885241e61ba264d780d2e6686e7e59561c947b4581470364eb3e10102d86"
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"

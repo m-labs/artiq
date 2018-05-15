@@ -26,7 +26,7 @@ fn drtio_reset_phy(reset: bool) {
     }
 }
 
-fn process_aux_packet(packet: drtioaux::Packet) -> drtioaux::Result<()> {
+fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
     match packet {
