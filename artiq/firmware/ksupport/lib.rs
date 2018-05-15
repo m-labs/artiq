@@ -129,7 +129,7 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
         };
         io::ProtoWrite::write_u32(&mut slice, length as u32)
     }).unwrap_or_else(|err| {
-        assert!(err == io::Error::UnexpectedEof);
+        assert!(err == io::Error::UnexpectedEnd);
 
         while !rpc_queue::empty() {}
         send(&RpcSend {

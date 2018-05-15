@@ -26,7 +26,7 @@ pub type Result<T, E> = result::Result<T, Error<E>>;
 #[derive(Fail, Debug, Clone, PartialEq)]
 pub enum Error<T> {
     #[fail(display = "unexpected end of stream")]
-    UnexpectedEof,
+    UnexpectedEnd,
     #[fail(display = "unrecognized input")]
     Unrecognized,
     #[fail(display = "{}", _0)]
@@ -51,7 +51,7 @@ pub trait Read {
         while !buf.is_empty() {
             let read_bytes = self.read(buf)?;
             if read_bytes == 0 {
-                return Err(Error::UnexpectedEof)
+                return Err(Error::UnexpectedEnd)
             }
 
             buf = &mut { buf }[read_bytes..];
@@ -85,7 +85,7 @@ pub trait Write {
         while buf.len() > 0 {
             let written_bytes = self.write(buf)?;
             if written_bytes == 0 {
-                return Err(Error::UnexpectedEof)
+                return Err(Error::UnexpectedEnd)
             }
 
             buf = &buf[written_bytes..];

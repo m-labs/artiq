@@ -165,7 +165,7 @@ pub fn thread(io: Io) {
             let mut stream = TcpStream::from_handle(&io, stream);
             match worker(&io, &mut stream) {
                 Ok(()) => (),
-                Err(io::Error::UnexpectedEof) => (),
+                Err(io::Error::UnexpectedEnd) => (),
                 Err(err) => error!("aborted: {}", err)
             }
         });

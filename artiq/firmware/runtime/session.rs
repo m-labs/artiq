@@ -674,7 +674,7 @@ pub fn thread(io: Io) {
                 let mut stream = TcpStream::from_handle(&io, stream);
                 match host_kernel_worker(&io, &mut stream, &mut *congress) {
                     Ok(()) => (),
-                    Err(io::Error::UnexpectedEof) => {
+                    Err(io::Error::UnexpectedEnd) => {
                         info!("connection closed");
                     }
                     Err(io::Error::Other(ref err))
