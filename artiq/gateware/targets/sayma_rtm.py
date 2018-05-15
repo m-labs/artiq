@@ -28,6 +28,11 @@ class CRG(Module):
         self.serwb_refclk = Signal()
         self.serwb_reset = Signal()
 
+        serwb_refclk_bufr = Signal()
+        serwb_refclk_bufg = Signal()
+        self.specials += Instance("BUFR", i_I=self.serwb_refclk, o_O=serwb_refclk_bufr)
+        self.specials += Instance("BUFG", i_I=serwb_refclk_bufr, o_O=serwb_refclk_bufg)  
+
         pll_locked = Signal()
         pll_fb = Signal()
         pll_sys4x = Signal()
@@ -37,9 +42,9 @@ class CRG(Module):
                 p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                 # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT_F=10, p_DIVCLK_DIVIDE=1,
-                i_CLKIN1=self.serwb_refclk, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
+                p_CLKFBOUT_MULT_F=8, p_DIVCLK_DIVIDE=1,
+                i_CLKIN1=serwb_refclk_bufg, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
                 # 500MHz
                 p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=pll_sys4x,
@@ -145,11 +150,11 @@ class SaymaRTM(Module):
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
-        platform.add_period_constraint(serwb_pads.clk_p, 10.)
-        serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="slave")
+        platform.add_period_constraint(serwb_pads.clk_p, 8.)
+        serwb_phy_rtm = serwb.genphy.SERWBPHY(serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
         self.comb += [
-            self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.refclk),
+            self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.clocking.refclk),
             self.crg.serwb_reset.eq(serwb_phy_rtm.serdes.reset)
         ]
         csr_devices.append("serwb_phy_rtm")

@@ -16,22 +16,12 @@ fn read_rtm_ident(buf: &mut [u8]) -> &str {
 
 unsafe fn debug_print(rtm: bool) {
     info!("AMC serwb settings:");
-    info!("  delay_min_found: {}", csr::serwb_phy_amc::control_delay_min_found_read());
-    info!("  delay_min: {}", csr::serwb_phy_amc::control_delay_min_read());
-    info!("  delay_max_found: {}", csr::serwb_phy_amc::control_delay_max_found_read());
-    info!("  delay_max: {}", csr::serwb_phy_amc::control_delay_max_read());
-    info!("  delay: {}", csr::serwb_phy_amc::control_delay_read());
     info!("  bitslip: {}", csr::serwb_phy_amc::control_bitslip_read());
     info!("  ready: {}", csr::serwb_phy_amc::control_ready_read());
     info!("  error: {}", csr::serwb_phy_amc::control_error_read());
 
     if rtm {
         info!("RTM serwb settings:");
-        info!("  delay_min_found: {}", csr::serwb_phy_rtm::control_delay_min_found_read());
-        info!("  delay_min: {}", csr::serwb_phy_rtm::control_delay_min_read());
-        info!("  delay_max_found: {}", csr::serwb_phy_rtm::control_delay_max_found_read());
-        info!("  delay_max: {}", csr::serwb_phy_rtm::control_delay_max_read());
-        info!("  delay: {}", csr::serwb_phy_rtm::control_delay_read());
         info!("  bitslip: {}", csr::serwb_phy_rtm::control_bitslip_read());
         info!("  ready: {}", csr::serwb_phy_rtm::control_ready_read());
         info!("  error: {}", csr::serwb_phy_rtm::control_error_read());
