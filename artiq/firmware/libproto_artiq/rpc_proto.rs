@@ -1,12 +1,12 @@
 use core::str;
 use cslice::{CSlice, CMutSlice};
 
-use io::{ProtoRead, Read, Write, ProtoWrite, Result};
+use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
 unsafe fn recv_value<T>(reader: &mut T, tag: Tag, data: &mut *mut (),
-                        alloc: &Fn(usize) -> Result<*mut (), T::ReadError>)
-                       -> Result<(), T::ReadError>
+                        alloc: &Fn(usize) -> Result<*mut (), Error<T::ReadError>>)
+                       -> Result<(), Error<T::ReadError>>
     where T: Read + ?Sized
 {
     macro_rules! consume_value {
@@ -75,8 +75,8 @@ unsafe fn recv_value<T>(reader: &mut T, tag: Tag, data: &mut *mut (),
 }
 
 pub fn recv_return<T>(reader: &mut T, tag_bytes: &[u8], data: *mut (),
-                      alloc: &Fn(usize) -> Result<*mut (), T::ReadError>)
-                     -> Result<(), T::ReadError>
+                      alloc: &Fn(usize) -> Result<*mut (), Error<T::ReadError>>)
+                     -> Result<(), Error<T::ReadError>>
     where T: Read + ?Sized
 {
     let mut it = TagIterator::new(tag_bytes);
@@ -91,7 +91,7 @@ pub fn recv_return<T>(reader: &mut T, tag_bytes: &[u8], data: *mut (),
 }
 
 unsafe fn send_value<T>(writer: &mut T, tag: Tag, data: &mut *const ())
-                       -> Result<(), T::WriteError>
+                       -> Result<(), Error<T::WriteError>>
     where T: Write + ?Sized
 {
     macro_rules! consume_value {
@@ -168,7 +168,7 @@ unsafe fn send_value<T>(writer: &mut T, tag: Tag, data: &mut *const ())
 }
 
 pub fn send_args<T>(writer: &mut T, service: u32, tag_bytes: &[u8], data: *const *const ())
-                   -> Result<(), T::WriteError>
+                   -> Result<(), Error<T::WriteError>>
     where T: Write + ?Sized
 {
     let (arg_tags_bytes, return_tag_bytes) = split_tag(tag_bytes);

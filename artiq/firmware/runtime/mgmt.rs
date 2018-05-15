@@ -8,7 +8,7 @@ use sched::{TcpListener, TcpStream};
 use mgmt_proto::*;
 use profiler;
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn check_magic(stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     const MAGIC: &'static [u8] = b"ARTIQ management\n";
 
     let mut magic: [u8; 17] = [0; 17];
@@ -20,7 +20,7 @@ fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     }
 }
 
-fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     check_magic(stream)?;
     info!("new connection from {}", stream.remote_endpoint());
 
@@ -34,7 +34,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
             }
 
             Request::ClearLog => {
-                BufferLogger::with(|logger| -> io::Result<(), ::std::io::Error> {
+                BufferLogger::with(|logger| -> Result<(), io::Error<::std::io::Error>> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Ok(buffer.clear())
                 })?;
@@ -43,7 +43,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
             }
 
             Request::PullLog => {
-                BufferLogger::with(|logger| -> io::Result<(), ::std::io::Error> {
+                BufferLogger::with(|logger| -> Result<(), io::Error<::std::io::Error>> {
                     loop {
                         // Do this *before* acquiring the buffer, since that sets the log level
                         // to OFF.

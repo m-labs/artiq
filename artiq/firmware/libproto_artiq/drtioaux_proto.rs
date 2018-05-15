@@ -1,4 +1,4 @@
-use io::{Read, ProtoRead, Write, ProtoWrite, Error, Result};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error};
 
 #[derive(Debug)]
 pub enum Packet {
@@ -36,7 +36,7 @@ pub enum Packet {
 }
 
 impl Packet {
-    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, T::ReadError> {
+    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, Error<T::ReadError>> {
         Ok(match reader.read_u8()? {
             0x00 => Packet::EchoRequest,
             0x01 => Packet::EchoReply,
@@ -133,7 +133,7 @@ impl Packet {
         })
     }
 
-    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
         match *self {
             Packet::EchoRequest =>
                 writer.write_u8(0x00)?,

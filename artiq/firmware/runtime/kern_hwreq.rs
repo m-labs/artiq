@@ -291,7 +291,7 @@ mod spi {
     }
 }
 
-pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool, ::std::io::Error> {
+pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> Result<bool, io::Error<::std::io::Error>> {
     match request {
         #[cfg(has_rtio_core)]
         &kern::RtioInitRequest => {

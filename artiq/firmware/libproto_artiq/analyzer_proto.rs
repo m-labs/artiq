@@ -1,4 +1,4 @@
-use io::{Write, ProtoWrite, Result};
+use io::{Write, ProtoWrite, Error};
 
 #[derive(Debug)]
 pub struct Header {
@@ -10,7 +10,7 @@ pub struct Header {
 }
 
 impl Header {
-    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), T::WriteError> {
+    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
         writer.write_u32(self.sent_bytes)?;
         writer.write_u64(self.total_byte_count)?;
         writer.write_u8(self.overflow_occurred as u8)?;

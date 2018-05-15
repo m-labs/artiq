@@ -9,7 +9,7 @@ use drtioaux;
 
 use moninj_proto::*;
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn check_magic(stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     const MAGIC: &'static [u8] = b"ARTIQ moninj\n";
 
     let mut magic: [u8; 13] = [0; 13];
@@ -159,7 +159,7 @@ fn read_injection_status(channel: u32, probe: u8) -> u8 {
     0
 }
 
-fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     let mut watch_list = BTreeMap::new();
     let mut next_check = 0;
 

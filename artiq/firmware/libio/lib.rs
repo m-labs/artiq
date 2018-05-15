@@ -11,8 +11,6 @@ extern crate alloc;
 #[cfg(feature = "byteorder")]
 extern crate byteorder;
 
-use core::result;
-
 mod cursor;
 #[cfg(feature = "byteorder")]
 mod proto;
@@ -20,8 +18,6 @@ mod proto;
 pub use cursor::Cursor;
 #[cfg(feature = "byteorder")]
 pub use proto::{ProtoRead, ProtoWrite};
-
-pub type Result<T, E> = result::Result<T, Error<E>>;
 
 #[derive(Fail, Debug, Clone, PartialEq)]
 pub enum Error<T> {
@@ -44,10 +40,10 @@ pub trait Read {
 
     /// Pull some bytes from this source into the specified buffer, returning
     /// how many bytes were read.
-    fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError>;
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::ReadError>;
 
     /// Read the exact number of bytes required to fill `buf`.
-    fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<(), Self::ReadError> {
+    fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<(), Error<Self::ReadError>> {
         while !buf.is_empty() {
             let read_bytes = self.read(buf)?;
             if read_bytes == 0 {
@@ -64,7 +60,7 @@ pub trait Read {
 impl<'a, T: Read> Read for &'a mut T {
     type ReadError = T::ReadError;
 
-    fn read(&mut self, buf: &mut [u8]) -> result::Result<usize, Self::ReadError> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::ReadError> {
         T::read(self, buf)
     }
 }
@@ -74,14 +70,14 @@ pub trait Write {
     type FlushError;
 
     /// Write a buffer into this object, returning how many bytes were written.
-    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError>;
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::WriteError>;
 
     /// Flush this output stream, ensuring that all intermediately buffered contents
     /// reach their destination.
-    fn flush(&mut self) -> result::Result<(), Self::FlushError>;
+    fn flush(&mut self) -> Result<(), Self::FlushError>;
 
     /// Attempts to write an entire buffer into `self`.
-    fn write_all(&mut self, mut buf: &[u8]) -> Result<(), Self::WriteError> {
+    fn write_all(&mut self, mut buf: &[u8]) -> Result<(), Error<Self::WriteError>> {
         while buf.len() > 0 {
             let written_bytes = self.write(buf)?;
             if written_bytes == 0 {
@@ -105,11 +101,11 @@ impl<'a, T: Write> Write for &'a mut T {
     type WriteError = T::WriteError;
     type FlushError = T::FlushError;
 
-    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::WriteError> {
         T::write(self, buf)
     }
 
-    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+    fn flush(&mut self) -> Result<(), Self::FlushError> {
         T::flush(self)
     }
 
@@ -122,14 +118,14 @@ impl<'a> Write for &'a mut [u8] {
     type WriteError = !;
     type FlushError = !;
 
-    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::WriteError> {
         let len = buf.len().min(self.len());
         self[..len].copy_from_slice(&buf[..len]);
         Ok(len)
     }
 
     #[inline]
-    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+    fn flush(&mut self) -> Result<(), Self::FlushError> {
         Ok(())
     }
 }
@@ -139,13 +135,13 @@ impl<'a> Write for alloc::Vec<u8> {
     type WriteError = !;
     type FlushError = !;
 
-    fn write(&mut self, buf: &[u8]) -> result::Result<usize, Self::WriteError> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::WriteError> {
         self.extend_from_slice(buf);
         Ok(buf.len())
     }
 
     #[inline]
-    fn flush(&mut self) -> result::Result<(), Self::FlushError> {
+    fn flush(&mut self) -> Result<(), Self::FlushError> {
         Ok(())
     }
 }

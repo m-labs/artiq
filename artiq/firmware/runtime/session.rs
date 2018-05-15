@@ -102,7 +102,7 @@ impl<'a> Drop for Session<'a> {
     }
 }
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn check_magic(stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
 
     let mut magic: [u8; 14] = [0; 14];
@@ -114,7 +114,7 @@ fn check_magic(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
     }
 }
 
-fn host_read(stream: &mut TcpStream) -> io::Result<host::Request, ::std::io::Error> {
+fn host_read(stream: &mut TcpStream) -> Result<host::Request, io::Error<::std::io::Error>> {
     let request = host::Request::read_from(stream)?;
     match &request {
         &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
@@ -123,12 +123,12 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request, ::std::io::Err
     Ok(request)
 }
 
-fn host_write(stream: &mut TcpStream, reply: host::Reply) -> io::Result<(), ::std::io::Error> {
+fn host_write(stream: &mut TcpStream, reply: host::Reply) -> Result<(), io::Error<::std::io::Error>> {
     debug!("comm->host {:?}", reply);
     reply.write_to(stream)
 }
 
-pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<(), ::std::io::Error> {
+pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), io::Error<::std::io::Error>> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
         &kern::DmaRetrieveReply { trace, duration } => {
@@ -144,8 +144,8 @@ pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<(), ::std::io::
     Ok(io.until(mailbox::acknowledged)?)
 }
 
-fn kern_recv_notrace<R, F>(io: &Io, f: F) -> io::Result<R, ::std::io::Error>
-        where F: FnOnce(&kern::Message) -> io::Result<R, ::std::io::Error> {
+fn kern_recv_notrace<R, F>(io: &Io, f: F) -> Result<R, io::Error<::std::io::Error>>
+        where F: FnOnce(&kern::Message) -> Result<R, io::Error<::std::io::Error>> {
     io.until(|| mailbox::receive() != 0)?;
     if !kernel::validate(mailbox::receive()) {
         let message = format!("invalid kernel CPU pointer 0x{:x}", mailbox::receive());
@@ -171,20 +171,20 @@ fn kern_recv_dotrace(reply: &kern::Message) {
 }
 
 #[inline(always)]
-fn kern_recv<R, F>(io: &Io, f: F) -> io::Result<R, ::std::io::Error>
-        where F: FnOnce(&kern::Message) -> io::Result<R, ::std::io::Error> {
+fn kern_recv<R, F>(io: &Io, f: F) -> Result<R, io::Error<::std::io::Error>>
+        where F: FnOnce(&kern::Message) -> Result<R, io::Error<::std::io::Error>> {
     kern_recv_notrace(io, |reply| {
         kern_recv_dotrace(reply);
         f(reply)
     })
 }
 
-pub fn kern_acknowledge() -> io::Result<(), ::std::io::Error> {
+pub fn kern_acknowledge() -> Result<(), io::Error<::std::io::Error>> {
     mailbox::acknowledge();
     Ok(())
 }
 
-unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Result<(), ::std::io::Error> {
+unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> Result<(), io::Error<::std::io::Error>> {
     if session.running() {
         unexpected!("attempted to load a new kernel while a kernel was running")
     }
@@ -209,7 +209,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Resul
     })
 }
 
-fn kern_run(session: &mut Session) -> io::Result<(), ::std::io::Error> {
+fn kern_run(session: &mut Session) -> Result<(), io::Error<::std::io::Error>> {
     if session.kernel_state != KernelState::Loaded {
         unexpected!("attempted to run a kernel while not in Loaded state")
     }
@@ -221,7 +221,7 @@ fn kern_run(session: &mut Session) -> io::Result<(), ::std::io::Error> {
 
 fn process_host_message(io: &Io,
                         stream: &mut TcpStream,
-                        session: &mut Session) -> io::Result<(), ::std::io::Error> {
+                        session: &mut Session) -> Result<(), io::Error<::std::io::Error>> {
     match host_read(stream)? {
         host::Request::SystemInfo => {
             host_write(stream, host::Reply::SystemInfo {
@@ -359,7 +359,7 @@ fn process_host_message(io: &Io,
 }
 
 fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
-                        session: &mut Session) -> io::Result<bool, ::std::io::Error> {
+                        session: &mut Session) -> Result<bool, io::Error<::std::io::Error>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) |
@@ -516,7 +516,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 }
 
 fn process_kern_queued_rpc(stream: &mut TcpStream,
-                           _session: &mut Session) -> io::Result<(), ::std::io::Error> {
+                           _session: &mut Session) -> Result<(), io::Error<::std::io::Error>> {
     rpc_queue::dequeue(|slice| {
         debug!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
@@ -529,7 +529,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
 
 fn host_kernel_worker(io: &Io,
                       stream: &mut TcpStream,
-                      congress: &mut Congress) -> io::Result<(), ::std::io::Error> {
+                      congress: &mut Congress) -> Result<(), io::Error<::std::io::Error>> {
     let mut session = Session::new(congress);
 
     loop {
@@ -568,7 +568,7 @@ fn host_kernel_worker(io: &Io,
 
 fn flash_kernel_worker(io: &Io,
                        congress: &mut Congress,
-                       config_key: &str) -> io::Result<(), ::std::io::Error> {
+                       config_key: &str) -> Result<(), io::Error<::std::io::Error>> {
     let mut session = Session::new(congress);
 
     config::read(config_key, |result| {

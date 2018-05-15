@@ -35,7 +35,7 @@ fn disarm() {
     }
 }
 
-fn worker(stream: &mut TcpStream) -> io::Result<(), ::std::io::Error> {
+fn worker(stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
     let data = unsafe { &BUFFER.data[..] };
     let overflow_occurred = unsafe { csr::rtio_analyzer::message_encoder_overflow_read() != 0 };
     let total_byte_count = unsafe { csr::rtio_analyzer::dma_byte_count_read() };

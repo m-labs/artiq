@@ -1,4 +1,4 @@
-use io::{Read, ProtoRead, Write, ProtoWrite, Error, Result};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error};
 
 #[derive(Debug)]
 pub enum HostMessage {
@@ -14,7 +14,7 @@ pub enum DeviceMessage {
 }
 
 impl HostMessage {
-    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, T::ReadError> {
+    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, Error<T::ReadError>> {
         Ok(match reader.read_u8()? {
             0 => HostMessage::Monitor {
                 enable: if reader.read_u8()? == 0 { false } else { true },
@@ -36,7 +36,7 @@ impl HostMessage {
 }
 
 impl DeviceMessage {
-    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), T::WriteError> {
+    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
         match *self {
             DeviceMessage::MonitorStatus { channel, probe, value } => {
                 writer.write_u8(0)?;
