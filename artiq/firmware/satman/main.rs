@@ -293,7 +293,8 @@ pub extern fn abort() {
 
 #[no_mangle]
 #[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("panic at {}:{}: {}", file, line, args);
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
+                        line: u32, column: u32) -> ! {
+    println!("panic at {}:{}:{}: {}", file, line, column, args);
     loop {}
 }

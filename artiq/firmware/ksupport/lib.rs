@@ -49,8 +49,9 @@ macro_rules! recv {
 
 #[no_mangle]
 #[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    send(&Log(format_args!("panic at {}:{}: {}\n", file, line, args)));
+pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
+                        line: u32, column: u32) -> ! {
+    send(&Log(format_args!("panic at {}:{}:{}: {}\n", file, line, column, args)));
     send(&RunAborted);
     loop {}
 }
