@@ -295,7 +295,7 @@ fn process_host_message(io: &Io,
             }
 
             #[cfg(not(has_rtio_core))]
-            host_write(stream, host::Reply::ClockSwitchFailed)
+            host_write(stream, host::Reply::ClockSwitchFailed)?
         }
 
         host::Request::LoadKernel(kernel) =>
