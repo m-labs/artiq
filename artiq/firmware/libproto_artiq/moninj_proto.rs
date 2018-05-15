@@ -1,4 +1,41 @@
-use io::{Read, ProtoRead, Write, ProtoWrite, Error};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
+
+#[derive(Fail, Debug)]
+pub enum Error<T> {
+    #[fail(display = "incorrect magic")]
+    WrongMagic,
+    #[fail(display = "unknown packet {:#02x}", _0)]
+    UnknownPacket(u8),
+    #[fail(display = "{}", _0)]
+    Io(#[cause] IoError<T>)
+}
+
+impl<T> From<IoError<T>> for Error<T> {
+    fn from(value: IoError<T>) -> Error<T> {
+        Error::Io(value)
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl From<::std_artiq::io::Error> for Error<::std_artiq::io::Error> {
+    fn from(value: ::std_artiq::io::Error) -> Error<::std_artiq::io::Error> {
+        Error::Io(IoError::Other(value))
+    }
+}
+
+pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
+    where R: Read + ?Sized
+{
+    const MAGIC: &'static [u8] = b"ARTIQ moninj\n";
+
+    let mut magic: [u8; 13] = [0; 13];
+    reader.read_exact(&mut magic)?;
+    if magic != MAGIC {
+        Err(Error::WrongMagic)
+    } else {
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub enum HostMessage {
@@ -14,7 +51,9 @@ pub enum DeviceMessage {
 }
 
 impl HostMessage {
-    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, Error<T::ReadError>> {
+    pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
+        where R: Read + ?Sized
+    {
         Ok(match reader.read_u8()? {
             0 => HostMessage::Monitor {
                 enable: if reader.read_u8()? == 0 { false } else { true },
@@ -30,13 +69,15 @@ impl HostMessage {
                 channel: reader.read_u32()?,
                 overrd: reader.read_u8()?
             },
-            _ => return Err(Error::Unrecognized)
+            ty => return Err(Error::UnknownPacket(ty))
         })
     }
 }
 
 impl DeviceMessage {
-    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
+    pub fn write_to<W>(&self, writer: &mut W) -> Result<(), IoError<W::WriteError>>
+        where W: Write + ?Sized
+    {
         match *self {
             DeviceMessage::MonitorStatus { channel, probe, value } => {
                 writer.write_u8(0)?;

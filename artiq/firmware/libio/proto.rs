@@ -8,20 +8,9 @@ use ::{Read, Write, Error as IoError};
 #[derive(Fail, Debug, Clone, PartialEq)]
 pub enum ReadStringError<T> {
     #[fail(display = "invalid UTF-8: {}", _0)]
-    Utf8Error(Utf8Error),
+    Utf8(Utf8Error),
     #[fail(display = "{}", _0)]
     Other(T)
-}
-
-#[cfg(feature = "alloc")]
-impl<T> From<ReadStringError<IoError<T>>> for IoError<T>
-{
-    fn from(value: ReadStringError<IoError<T>>) -> IoError<T> {
-        match value {
-            ReadStringError::Utf8Error(_) => IoError::Unrecognized,
-            ReadStringError::Other(err) => err
-        }
-    }
 }
 
 pub trait ProtoRead {
@@ -75,7 +64,7 @@ pub trait ProtoRead {
     #[inline]
     fn read_string(&mut self) -> Result<::alloc::String, ReadStringError<Self::ReadError>> {
         let bytes = self.read_bytes().map_err(ReadStringError::Other)?;
-        String::from_utf8(bytes).map_err(|err| ReadStringError::Utf8Error(err.utf8_error()))
+        String::from_utf8(bytes).map_err(|err| ReadStringError::Utf8(err.utf8_error()))
     }
 }
 

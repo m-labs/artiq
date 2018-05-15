@@ -38,10 +38,12 @@ impl WatchdogSet {
         }
     }
 
-    pub fn expired(&self) -> bool {
-        self.watchdogs.iter()
-            .filter(|wd| wd.active)
-            .min_by_key(|wd| wd.threshold)
-            .map_or(false, |wd| clock::get_ms() > wd.threshold)
+    pub fn expired(&self) -> Option<usize> {
+        self.watchdogs
+            .iter()
+            .enumerate()
+            .filter(|(_, wd)| wd.active && clock::get_ms() > wd.threshold)
+            .min_by_key(|(_, wd)| wd.threshold)
+            .map_or(None, |(i, _)| Some(i))
     }
 }

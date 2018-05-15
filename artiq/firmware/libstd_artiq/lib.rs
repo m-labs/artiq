@@ -8,6 +8,7 @@ extern crate std_unicode;
 #[macro_use]
 #[macro_reexport(vec, format)]
 extern crate alloc;
+extern crate failure;
 
 pub use core::{any, cell, clone, cmp, convert, default, hash, iter, marker, mem, num,
     ops, option, ptr, result, sync,
@@ -38,3 +39,5 @@ impl<T> FakeBox<T> {
         val
     }
 }
+
+impl failure::Fail for error::Error + Send + Sync {}

@@ -1,6 +1,9 @@
 #![no_std]
 #![cfg_attr(feature = "alloc", feature(alloc))]
 
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 extern crate cslice;
@@ -8,6 +11,8 @@ extern crate cslice;
 #[macro_use]
 extern crate log;
 
+#[cfg(feature = "std_artiq")]
+extern crate std_artiq;
 extern crate io;
 extern crate dyld;
 

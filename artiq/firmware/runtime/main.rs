@@ -2,6 +2,9 @@
 #![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll)]
 
 extern crate alloc;
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 extern crate cslice;
 #[macro_use]
 extern crate log;

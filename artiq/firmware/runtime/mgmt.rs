@@ -1,27 +1,15 @@
 use log::{self, LevelFilter};
 
-use io::{self, Read, Write, ProtoWrite};
+use io::{Write, ProtoWrite, Error as IoError};
 use board_misoc::boot;
 use logger_artiq::BufferLogger;
+use mgmt_proto::*;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
-use mgmt_proto::*;
 use profiler;
 
-fn check_magic(stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
-    const MAGIC: &'static [u8] = b"ARTIQ management\n";
-
-    let mut magic: [u8; 17] = [0; 17];
-    stream.read_exact(&mut magic)?;
-    if magic != MAGIC {
-        Err(io::Error::Unrecognized)
-    } else {
-        Ok(())
-    }
-}
-
-fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Error>> {
-    check_magic(stream)?;
+fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<::std::io::Error>> {
+    read_magic(stream)?;
     info!("new connection from {}", stream.remote_endpoint());
 
     loop {
@@ -34,7 +22,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Er
             }
 
             Request::ClearLog => {
-                BufferLogger::with(|logger| -> Result<(), io::Error<::std::io::Error>> {
+                BufferLogger::with(|logger| -> Result<(), Error<::std::io::Error>> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Ok(buffer.clear())
                 })?;
@@ -43,7 +31,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), io::Error<::std::io::Er
             }
 
             Request::PullLog => {
-                BufferLogger::with(|logger| -> Result<(), io::Error<::std::io::Error>> {
+                BufferLogger::with(|logger| -> Result<(), Error<::std::io::Error>> {
                     loop {
                         // Do this *before* acquiring the buffer, since that sets the log level
                         // to OFF.
@@ -165,7 +153,7 @@ pub fn thread(io: Io) {
             let mut stream = TcpStream::from_handle(&io, stream);
             match worker(&io, &mut stream) {
                 Ok(()) => (),
-                Err(io::Error::UnexpectedEnd) => (),
+                Err(Error::Io(IoError::UnexpectedEnd)) => (),
                 Err(err) => error!("aborted: {}", err)
             }
         });

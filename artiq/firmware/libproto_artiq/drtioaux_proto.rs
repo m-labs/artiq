@@ -1,4 +1,18 @@
-use io::{Read, ProtoRead, Write, ProtoWrite, Error};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
+
+#[derive(Fail, Debug)]
+pub enum Error<T> {
+    #[fail(display = "unknown packet {:#02x}", _0)]
+    UnknownPacket(u8),
+    #[fail(display = "{}", _0)]
+    Io(#[cause] IoError<T>)
+}
+
+impl<T> From<IoError<T>> for Error<T> {
+    fn from(value: IoError<T>) -> Error<T> {
+        Error::Io(value)
+    }
+}
 
 #[derive(Debug)]
 pub enum Packet {
@@ -36,7 +50,9 @@ pub enum Packet {
 }
 
 impl Packet {
-    pub fn read_from<T: Read>(reader: &mut T) -> Result<Self, Error<T::ReadError>> {
+    pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
+        where R: Read + ?Sized
+    {
         Ok(match reader.read_u8()? {
             0x00 => Packet::EchoRequest,
             0x01 => Packet::EchoReply,
@@ -129,11 +145,13 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
 
-            _ => return Err(Error::Unrecognized)
+            ty => return Err(Error::UnknownPacket(ty))
         })
     }
 
-    pub fn write_to<T: Write>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
+    pub fn write_to<W>(&self, writer: &mut W) -> Result<(), IoError<W::WriteError>>
+        where W: Write + ?Sized
+    {
         match *self {
             Packet::EchoRequest =>
                 writer.write_u8(0x00)?,

@@ -1,8 +1,59 @@
+use core::str::Utf8Error;
 use alloc::{Vec, String};
 
-use io::{Read, ProtoRead, Write, ProtoWrite, Error};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
 
-fn read_sync<T: Read + ?Sized>(reader: &mut T) -> Result<(), Error<T::ReadError>> {
+#[derive(Fail, Debug)]
+pub enum Error<T> {
+    #[fail(display = "incorrect magic")]
+    WrongMagic,
+    #[fail(display = "unknown packet {:#02x}", _0)]
+    UnknownPacket(u8),
+    #[fail(display = "invalid UTF-8: {}", _0)]
+    Utf8(Utf8Error),
+    #[fail(display = "{}", _0)]
+    Io(#[cause] IoError<T>)
+}
+
+impl<T> From<IoError<T>> for Error<T> {
+    fn from(value: IoError<T>) -> Error<T> {
+        Error::Io(value)
+    }
+}
+
+impl<T> From<ReadStringError<IoError<T>>> for Error<T> {
+    fn from(value: ReadStringError<IoError<T>>) -> Error<T> {
+        match value {
+            ReadStringError::Utf8(err) => Error::Utf8(err),
+            ReadStringError::Other(err) => Error::Io(err)
+        }
+    }
+}
+
+#[cfg(feature = "std_artiq")]
+impl From<::std_artiq::io::Error> for Error<::std_artiq::io::Error> {
+    fn from(value: ::std_artiq::io::Error) -> Error<::std_artiq::io::Error> {
+        Error::Io(IoError::Other(value))
+    }
+}
+
+pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
+    where R: Read + ?Sized
+{
+    const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
+
+    let mut magic: [u8; 14] = [0; 14];
+    reader.read_exact(&mut magic)?;
+    if magic != MAGIC {
+        Err(Error::WrongMagic)
+    } else {
+        Ok(())
+    }
+}
+
+fn read_sync<R>(reader: &mut R) -> Result<(), IoError<R::ReadError>>
+    where R: Read + ?Sized
+{
     let mut sync = [0; 4];
     for i in 0.. {
         sync[i % 4] = reader.read_u8()?;
@@ -11,7 +62,9 @@ fn read_sync<T: Read + ?Sized>(reader: &mut T) -> Result<(), Error<T::ReadError>
     Ok(())
 }
 
-fn write_sync<T: Write + ?Sized>(writer: &mut T) -> Result<(), Error<T::WriteError>> {
+fn write_sync<W>(writer: &mut W) -> Result<(), IoError<W::WriteError>>
+    where W: Write + ?Sized
+{
     writer.write_all(&[0x5a; 4])
 }
 
@@ -41,7 +94,9 @@ pub enum Request {
 }
 
 impl Request {
-    pub fn read_from<T: Read + ?Sized>(reader: &mut T) -> Result<Self, Error<T::ReadError>> {
+    pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
+        where R: Read + ?Sized
+    {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
             3  => Request::SystemInfo,
@@ -73,7 +128,7 @@ impl Request {
             12 => Request::FlashRemove {
                 key: reader.read_string()?
             },
-            _  => return Err(Error::Unrecognized)
+            ty  => return Err(Error::UnknownPacket(ty))
         })
     }
 }
@@ -114,7 +169,9 @@ pub enum Reply<'a> {
 }
 
 impl<'a> Reply<'a> {
-    pub fn write_to<T: Write + ?Sized>(&self, writer: &mut T) -> Result<(), Error<T::WriteError>> {
+    pub fn write_to<W>(&self, writer: &mut W) -> Result<(), IoError<W::WriteError>>
+        where W: Write + ?Sized
+    {
         write_sync(writer)?;
         match *self {
             Reply::SystemInfo { ident, finished_cleanly } => {

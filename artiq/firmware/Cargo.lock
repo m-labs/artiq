@@ -208,6 +208,7 @@ dependencies = [
  "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "std_artiq 0.0.0",
 ]
 
 [[package]]
@@ -226,6 +227,8 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -270,6 +273,9 @@ dependencies = [
 [[package]]
 name = "std_artiq"
 version = "0.0.0"
+dependencies = [
+ "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "syn"

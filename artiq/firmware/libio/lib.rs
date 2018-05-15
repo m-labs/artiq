@@ -18,13 +18,13 @@ mod proto;
 pub use cursor::Cursor;
 #[cfg(feature = "byteorder")]
 pub use proto::{ProtoRead, ProtoWrite};
+#[cfg(all(feature = "byteorder", feature = "alloc"))]
+pub use proto::ReadStringError;
 
 #[derive(Fail, Debug, Clone, PartialEq)]
 pub enum Error<T> {
     #[fail(display = "unexpected end of stream")]
     UnexpectedEnd,
-    #[fail(display = "unrecognized input")]
-    Unrecognized,
     #[fail(display = "{}", _0)]
     Other(#[cause] T)
 }
