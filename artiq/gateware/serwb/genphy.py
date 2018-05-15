@@ -317,8 +317,6 @@ class _SerdesControl(Module, AutoCSR):
 
         self.bitslip = CSRStatus(6)
 
-        self.scrambling_enable = CSRStorage()
-
         self.prbs_error = Signal()
         self.prbs_start = CSR()
         self.prbs_cycles = CSRStorage(32)
@@ -369,7 +367,7 @@ class _SerdesControl(Module, AutoCSR):
 
 
 class SERWBPHY(Module, AutoCSR):
-    def __init__(self, pads, mode="master", init_timeout=2**16):
+    def __init__(self, device, pads, mode="master", init_timeout=2**16):
         self.sink = sink = stream.Endpoint([("data", 32)])
         self.source = source = stream.Endpoint([("data", 32)])
         assert mode in ["master", "slave"]
@@ -381,13 +379,8 @@ class SERWBPHY(Module, AutoCSR):
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
         # scrambling
-        scrambler =  Scrambler()
-        descrambler = Descrambler()
-        self.submodules += scrambler, descrambler
-        self.comb += [
-            scrambler.enable.eq(self.control.scrambling_enable.storage),
-            descrambler.enable.eq(self.control.scrambling_enable.storage)
-        ]
+        self.submodules.scrambler = scrambler = Scrambler()
+        self.submodules.descrambler = descrambler = Descrambler()
 
         # tx dataflow
         self.comb += \
