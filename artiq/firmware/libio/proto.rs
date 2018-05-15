@@ -1,28 +1,16 @@
 #[cfg(feature = "alloc")]
-use core::fmt;
-#[cfg(feature = "alloc")]
-use alloc::string;
+use {core::str::Utf8Error, alloc::String};
 use byteorder::{ByteOrder, NetworkEndian};
 
 use ::{Read, Write, Error as IoError};
 
 #[cfg(feature = "alloc")]
-#[derive(Debug)]
+#[derive(Fail, Debug, Clone, PartialEq)]
 pub enum ReadStringError<T> {
-    Utf8Error(string::FromUtf8Error),
+    #[fail(display = "invalid UTF-8: {}", _0)]
+    Utf8Error(Utf8Error),
+    #[fail(display = "{}", _0)]
     Other(T)
-}
-
-#[cfg(feature = "alloc")]
-impl<T: fmt::Display> fmt::Display for ReadStringError<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &ReadStringError::Utf8Error(ref err) =>
-                write!(f, "invalid UTF-8 ({})", err),
-            &ReadStringError::Other(ref err) =>
-                write!(f, "{}", err)
-        }
-    }
 }
 
 #[cfg(feature = "alloc")]
@@ -86,14 +74,8 @@ pub trait ProtoRead {
     #[cfg(feature = "alloc")]
     #[inline]
     fn read_string(&mut self) -> Result<::alloc::String, ReadStringError<Self::ReadError>> {
-        match self.read_bytes() {
-            Ok(bytes) =>
-                match ::alloc::String::from_utf8(bytes) {
-                    Ok(string) => Ok(string),
-                    Err(err) => Err(ReadStringError::Utf8Error(err))
-                },
-            Err(err) => Err(ReadStringError::Other(err))
-        }
+        let bytes = self.read_bytes().map_err(ReadStringError::Other)?;
+        String::from_utf8(bytes).map_err(|err| ReadStringError::Utf8Error(err.utf8_error()))
     }
 }
 

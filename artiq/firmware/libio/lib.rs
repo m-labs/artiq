@@ -2,6 +2,9 @@
 #![feature(never_type)]
 #![cfg_attr(feature = "alloc", feature(alloc))]
 
+extern crate failure;
+#[macro_use]
+extern crate failure_derive;
 #[cfg(feature = "alloc")]
 #[macro_use]
 extern crate alloc;
@@ -9,7 +12,6 @@ extern crate alloc;
 extern crate byteorder;
 
 use core::result;
-use core::fmt;
 
 mod cursor;
 #[cfg(feature = "byteorder")]
@@ -19,24 +21,14 @@ pub use cursor::Cursor;
 
 pub type Result<T, E> = result::Result<T, Error<E>>;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Fail, Debug, Clone, PartialEq)]
 pub enum Error<T> {
+    #[fail(display = "unexpected end of stream")]
     UnexpectedEof,
+    #[fail(display = "unrecognized input")]
     Unrecognized,
-    Other(T)
-}
-
-impl<T: fmt::Display> fmt::Display for Error<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Error::UnexpectedEof =>
-                write!(f, "unexpected end of stream"),
-            &Error::Unrecognized =>
-                write!(f, "unrecognized input"),
-            &Error::Other(ref err) =>
-                write!(f, "{}", err)
-        }
-    }
+    #[fail(display = "{}", _0)]
+    Other(#[cause] T)
 }
 
 impl<T> From<T> for Error<T> {
