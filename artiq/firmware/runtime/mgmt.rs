@@ -4,11 +4,16 @@ use io::{Write, ProtoWrite, Error as IoError};
 use board_misoc::boot;
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
-use sched::Io;
-use sched::{TcpListener, TcpStream};
+use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use profiler;
 
-fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<::std::io::Error>> {
+impl From<SchedError> for Error<SchedError> {
+    fn from(value: SchedError) -> Error<SchedError> {
+        Error::Io(IoError::Other(value))
+    }
+}
+
+fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
     read_magic(stream)?;
     info!("new connection from {}", stream.remote_endpoint());
 
@@ -22,7 +27,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<::std::io::Error>
             }
 
             Request::ClearLog => {
-                BufferLogger::with(|logger| -> Result<(), Error<::std::io::Error>> {
+                BufferLogger::with(|logger| -> Result<(), Error<SchedError>> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Ok(buffer.clear())
                 })?;
@@ -31,7 +36,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<::std::io::Error>
             }
 
             Request::PullLog => {
-                BufferLogger::with(|logger| -> Result<(), Error<::std::io::Error>> {
+                BufferLogger::with(|logger| -> Result<(), Error<SchedError>> {
                     loop {
                         // Do this *before* acquiring the buffer, since that sets the log level
                         // to OFF.

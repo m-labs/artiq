@@ -6,13 +6,29 @@ use core::cell::{Cell, RefCell};
 use alloc::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
+use smoltcp::Error as NetworkError;
 use smoltcp::wire::IpEndpoint;
 use smoltcp::socket::{SocketHandle, SocketRef};
 
 use io::{Read, Write};
 use board_misoc::clock;
-use std::io::{Result, Error, ErrorKind};
 use urc::Urc;
+
+#[derive(Fail, Debug)]
+pub enum Error {
+    #[fail(display = "interrupted")]
+    Interrupted,
+    #[fail(display = "timed out")]
+    TimedOut,
+    #[fail(display = "network error: {}", _0)]
+    Network(NetworkError)
+}
+
+impl From<NetworkError> for Error {
+    fn from(value: NetworkError) -> Error {
+        Error::Network(value)
+    }
+}
 
 type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
@@ -194,7 +210,7 @@ impl<'a> Io<'a> {
         self.yielder.expect("cannot suspend the scheduler thread")
     }
 
-    pub fn sleep(&self, duration_ms: u64) -> Result<()> {
+    pub fn sleep(&self, duration_ms: u64) -> Result<(), Error> {
         let request = WaitRequest {
             timeout: Some(clock::get_ms() + duration_ms),
             event:   None
@@ -202,27 +218,27 @@ impl<'a> Io<'a> {
 
         match self.yielder().suspend(request) {
             WaitResult::TimedOut => Ok(()),
-            WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, "")),
+            WaitResult::Interrupted => Err(Error::Interrupted),
             _ => unreachable!()
         }
     }
 
-    fn suspend(&self, request: WaitRequest) -> Result<()> {
+    fn suspend(&self, request: WaitRequest) -> Result<(), Error> {
         match self.yielder().suspend(request) {
             WaitResult::Completed => Ok(()),
-            WaitResult::TimedOut => Err(Error::new(ErrorKind::TimedOut, "")),
-            WaitResult::Interrupted => Err(Error::new(ErrorKind::Interrupted, ""))
+            WaitResult::TimedOut => Err(Error::TimedOut),
+            WaitResult::Interrupted => Err(Error::Interrupted)
         }
     }
 
-    pub fn relinquish(&self) -> Result<()> {
+    pub fn relinquish(&self) -> Result<(), Error> {
         self.suspend(WaitRequest {
             timeout: None,
             event:   None
         })
     }
 
-    pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<()> {
+    pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<(), Error> {
         let f = unsafe { mem::transmute::<&mut FnMut() -> bool, *mut FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
             timeout: None,
@@ -230,7 +246,9 @@ impl<'a> Io<'a> {
         })
     }
 
-    pub fn until_ok<T, E, F: FnMut() -> result::Result<T, E>>(&self, mut f: F) -> Result<T> {
+    pub fn until_ok<T, E, F>(&self, mut f: F) -> Result<T, Error>
+        where F: FnMut() -> result::Result<T, E>
+    {
         let mut value = None;
         self.until(|| {
             if let Ok(result) = f() {
@@ -241,7 +259,7 @@ impl<'a> Io<'a> {
         Ok(value.unwrap())
     }
 
-    pub fn join(&self, handle: ThreadHandle) -> Result<()> {
+    pub fn join(&self, handle: ThreadHandle) -> Result<(), Error> {
         self.until(move || handle.terminated())
     }
 }
@@ -256,11 +274,6 @@ macro_rules! until {
         })
     })
 }
-
-
-use ::smoltcp::Error as ErrorLower;
-// https://github.com/rust-lang/rust/issues/26264
-// type ErrorLower = ::smoltcp::Error;
 
 type TcpSocketBuffer = ::smoltcp::socket::TcpSocketBuffer<'static>;
 type TcpSocketLower  = ::smoltcp::socket::TcpSocket<'static>;
@@ -313,25 +326,17 @@ impl<'a> TcpListener<'a> {
         self.with_lower(|s| s.local_endpoint())
     }
 
-    pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<()> {
+    pub fn listen<T: Into<IpEndpoint>>(&self, endpoint: T) -> Result<(), Error> {
         let endpoint = endpoint.into();
         self.with_lower(|mut s| s.listen(endpoint))
             .map(|()| {
                 self.endpoint.set(endpoint);
                 ()
             })
-            .map_err(|err| {
-                match err {
-                    ErrorLower::Illegal =>
-                        Error::new(ErrorKind::Other, "already listening"),
-                    ErrorLower::Unaddressable =>
-                        Error::new(ErrorKind::InvalidInput, "port cannot be zero"),
-                    _ => unreachable!()
-                }
-            })
+            .map_err(|err| err.into())
     }
 
-    pub fn accept(&self) -> Result<TcpStream<'a>> {
+    pub fn accept(&self) -> Result<TcpStream<'a>, Error> {
         // We're waiting until at least one half of the connection becomes open.
         // This handles the case where a remote socket immediately sends a FIN--
         // that still counts as accepting even though nothing may be sent.
@@ -436,7 +441,7 @@ impl<'a> TcpStream<'a> {
         self.with_lower(|mut s| s.set_keep_alive(value))
     }
 
-    pub fn close(&self) -> Result<()> {
+    pub fn close(&self) -> Result<(), Error> {
         self.with_lower(|mut s| s.close());
         until!(self, TcpSocketLower, |s| !s.is_open())?;
         // right now the socket may be in TIME-WAIT state. if we don't give it a chance to send
@@ -449,7 +454,7 @@ impl<'a> TcpStream<'a> {
 impl<'a> Read for TcpStream<'a> {
     type ReadError = Error;
 
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, Self::ReadError> {
         // Only borrow the underlying socket for the span of the next statement.
         let result = self.with_lower(|mut s| s.recv_slice(buf));
         match result {
@@ -458,14 +463,14 @@ impl<'a> Read for TcpStream<'a> {
                 until!(self, TcpSocketLower, |s| s.can_recv() || !s.may_recv())?;
                 match self.with_lower(|mut s| s.recv_slice(buf)) {
                     Ok(length) => Ok(length),
-                    Err(ErrorLower::Illegal) => Ok(0),
+                    Err(NetworkError::Illegal) => Ok(0),
                     _ => unreachable!()
                 }
             }
             // Fast path: we had data in buffer.
             Ok(length) => Ok(length),
             // Error path: the receive half of the socket is not open.
-            Err(ErrorLower::Illegal) => Ok(0),
+            Err(NetworkError::Illegal) => Ok(0),
             // No other error may be returned.
             Err(_) => unreachable!()
         }
@@ -476,7 +481,7 @@ impl<'a> Write for TcpStream<'a> {
     type WriteError = Error;
     type FlushError = Error;
 
-    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, Self::WriteError> {
         // Only borrow the underlying socket for the span of the next statement.
         let result = self.with_lower(|mut s| s.send_slice(buf));
         match result {
@@ -485,25 +490,25 @@ impl<'a> Write for TcpStream<'a> {
                 until!(self, TcpSocketLower, |s| s.can_send() || !s.may_send())?;
                 match self.with_lower(|mut s| s.send_slice(buf)) {
                     Ok(length) => Ok(length),
-                    Err(ErrorLower::Illegal) => Ok(0),
+                    Err(NetworkError::Illegal) => Ok(0),
                     _ => unreachable!()
                 }
             }
             // Fast path: we had space in buffer.
             Ok(length) => Ok(length),
             // Error path: the transmit half of the socket is not open.
-            Err(ErrorLower::Illegal) => Ok(0),
+            Err(NetworkError::Illegal) => Ok(0),
             // No other error may be returned.
             Err(_) => unreachable!()
         }
     }
 
-    fn flush(&mut self) -> Result<()> {
+    fn flush(&mut self) -> Result<(), Self::FlushError> {
         until!(self, TcpSocketLower, |s|  s.send_queue() == 0 || !s.may_send())?;
         if self.with_lower(|s| s.send_queue()) == 0 {
             Ok(())
         } else {
-            Err(Error::new(ErrorKind::ConnectionAborted, "connection aborted"))
+            Err(Error::Network(NetworkError::Illegal))
         }
     }
 }

@@ -1,6 +1,8 @@
+#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll, needs_panic_runtime)]
 #![no_std]
-#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll)]
+#![needs_panic_runtime]
 
+#[macro_use]
 extern crate alloc;
 extern crate failure;
 #[macro_use]
@@ -19,8 +21,6 @@ extern crate io;
 #[macro_use]
 extern crate board_misoc;
 extern crate board_artiq;
-#[macro_use]
-extern crate std_artiq as std;
 extern crate logger_artiq;
 extern crate proto_artiq;
 

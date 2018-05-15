@@ -11,8 +11,6 @@ extern crate cslice;
 #[macro_use]
 extern crate log;
 
-#[cfg(feature = "std_artiq")]
-extern crate std_artiq;
 extern crate io;
 extern crate dyld;
 

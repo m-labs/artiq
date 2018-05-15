@@ -16,13 +16,6 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-#[cfg(feature = "std_artiq")]
-impl From<::std_artiq::io::Error> for Error<::std_artiq::io::Error> {
-    fn from(value: ::std_artiq::io::Error) -> Error<::std_artiq::io::Error> {
-        Error::Io(IoError::Other(value))
-    }
-}
-
 pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
     where R: Read + ?Sized
 {

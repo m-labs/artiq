@@ -2,12 +2,11 @@ use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
 use alloc::{Vec, String};
 use byteorder::{ByteOrder, NetworkEndian};
 
-use io::{self, Read, Write, Error as IoError};
+use io::{Read, Write, Error as IoError};
 use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
-use sched::{ThreadHandle, Io};
-use sched::{TcpListener, TcpStream};
+use sched::{ThreadHandle, Io, TcpListener, TcpStream, Error as SchedError};
 #[cfg(has_rtio_core)]
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
@@ -45,14 +44,14 @@ impl<T> From<host::Error<T>> for Error<T> {
     }
 }
 
-impl From<::std::io::Error> for Error<::std::io::Error> {
-    fn from(value: ::std::io::Error) -> Error<::std::io::Error> {
-        Error::Protocol(host::Error::Io(io::Error::Other(value)))
+impl From<SchedError> for Error<SchedError> {
+    fn from(value: SchedError) -> Error<SchedError> {
+        Error::Protocol(host::Error::Io(IoError::Other(value)))
     }
 }
 
-impl From<io::Error<::std::io::Error>> for Error<::std::io::Error> {
-    fn from(value: io::Error<::std::io::Error>) -> Error<::std::io::Error> {
+impl From<IoError<SchedError>> for Error<SchedError> {
+    fn from(value: IoError<SchedError>) -> Error<SchedError> {
         Error::Protocol(host::Error::Io(value))
     }
 }
@@ -149,7 +148,7 @@ fn host_write<W>(writer: &mut W, reply: host::Reply) -> Result<(), IoError<W::Wr
     reply.write_to(writer)
 }
 
-pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<::std::io::Error>> {
+pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<SchedError>> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
         &kern::DmaRetrieveReply { trace, duration } => {
@@ -165,8 +164,8 @@ pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<::std::io
     Ok(io.until(mailbox::acknowledged)?)
 }
 
-fn kern_recv_notrace<R, F>(io: &Io, f: F) -> Result<R, Error<::std::io::Error>>
-        where F: FnOnce(&kern::Message) -> Result<R, Error<::std::io::Error>> {
+fn kern_recv_notrace<R, F>(io: &Io, f: F) -> Result<R, Error<SchedError>>
+        where F: FnOnce(&kern::Message) -> Result<R, Error<SchedError>> {
     io.until(|| mailbox::receive() != 0)?;
     if !kernel::validate(mailbox::receive()) {
         return Err(Error::InvalidPointer(mailbox::receive()))
@@ -191,21 +190,21 @@ fn kern_recv_dotrace(reply: &kern::Message) {
 }
 
 #[inline(always)]
-fn kern_recv<R, F>(io: &Io, f: F) -> Result<R, Error<::std::io::Error>>
-        where F: FnOnce(&kern::Message) -> Result<R, Error<::std::io::Error>> {
+fn kern_recv<R, F>(io: &Io, f: F) -> Result<R, Error<SchedError>>
+        where F: FnOnce(&kern::Message) -> Result<R, Error<SchedError>> {
     kern_recv_notrace(io, |reply| {
         kern_recv_dotrace(reply);
         f(reply)
     })
 }
 
-pub fn kern_acknowledge() -> Result<(), Error<::std::io::Error>> {
+pub fn kern_acknowledge() -> Result<(), Error<SchedError>> {
     mailbox::acknowledge();
     Ok(())
 }
 
 unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8])
-                   -> Result<(), Error<::std::io::Error>> {
+                   -> Result<(), Error<SchedError>> {
     if session.running() {
         unexpected!("attempted to load a new kernel while a kernel was running")
     }
@@ -229,7 +228,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8])
     })
 }
 
-fn kern_run(session: &mut Session) -> Result<(), Error<::std::io::Error>> {
+fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     if session.kernel_state != KernelState::Loaded {
         unexpected!("attempted to run a kernel while not in Loaded state")
     }
@@ -241,7 +240,7 @@ fn kern_run(session: &mut Session) -> Result<(), Error<::std::io::Error>> {
 
 fn process_host_message(io: &Io,
                         stream: &mut TcpStream,
-                        session: &mut Session) -> Result<(), Error<::std::io::Error>> {
+                        session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
         host::Request::SystemInfo => {
             host_write(stream, host::Reply::SystemInfo {
@@ -326,7 +325,7 @@ fn process_host_message(io: &Io,
                     other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
                 }
             })?;
-            rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<::std::io::Error>> {
+            rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
                 kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
                 Ok(kern_recv(io, |reply| {
                     match reply {
@@ -374,7 +373,7 @@ fn process_host_message(io: &Io,
 }
 
 fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
-                        session: &mut Session) -> Result<bool, Error<::std::io::Error>> {
+                        session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) |
@@ -397,7 +396,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 
         match request {
             &kern::Log(args) => {
-                use std::fmt::Write;
+                use core::fmt::Write;
                 session.log_buffer
                        .write_fmt(args)
                        .unwrap_or_else(|_| warn!("cannot append to session log buffer"));
@@ -529,7 +528,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 }
 
 fn process_kern_queued_rpc(stream: &mut TcpStream,
-                           _session: &mut Session) -> Result<(), Error<::std::io::Error>> {
+                           _session: &mut Session) -> Result<(), Error<SchedError>> {
     rpc_queue::dequeue(|slice| {
         debug!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
@@ -542,7 +541,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
 
 fn host_kernel_worker(io: &Io,
                       stream: &mut TcpStream,
-                      congress: &mut Congress) -> Result<(), Error<::std::io::Error>> {
+                      congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     loop {
@@ -581,7 +580,7 @@ fn host_kernel_worker(io: &Io,
 
 fn flash_kernel_worker(io: &Io,
                        congress: &mut Congress,
-                       config_key: &str) -> Result<(), Error<::std::io::Error>> {
+                       config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     config::read(config_key, |result| {
@@ -686,10 +685,10 @@ pub fn thread(io: Io) {
                 let mut stream = TcpStream::from_handle(&io, stream);
                 match host_kernel_worker(&io, &mut stream, &mut *congress) {
                     Ok(()) => (),
-                    Err(Error::Protocol(host::Error::Io(io::Error::UnexpectedEnd))) =>
+                    Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
-                    Err(Error::Protocol(host::Error::Io(io::Error::Other(ref err))))
-                            if err.kind() == ::std::io::ErrorKind::Interrupted =>
+                    Err(Error::Protocol(host::Error::Io(
+                            IoError::Other(SchedError::Interrupted)))) =>
                         info!("kernel interrupted"),
                     Err(err) => {
                         congress.finished_cleanly.set(false);
@@ -708,10 +707,9 @@ pub fn thread(io: Io) {
                 match flash_kernel_worker(&io, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
-                    Err(Error::Protocol(host::Error::Io(io::Error::Other(ref err))))
-                            if err.kind() == ::std::io::ErrorKind::Interrupted => {
-                        info!("idle kernel interrupted");
-                    }
+                    Err(Error::Protocol(host::Error::Io(
+                            IoError::Other(SchedError::Interrupted)))) =>
+                        info!("idle kernel interrupted"),
                     Err(Error::KernelNotFound) => {
                         info!("no idle kernel found");
                         while io.relinquish().is_ok() {}

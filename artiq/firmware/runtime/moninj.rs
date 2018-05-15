@@ -1,8 +1,7 @@
 use alloc::btree_map::BTreeMap;
 
 use moninj_proto::*;
-use sched::Io;
-use sched::{TcpListener, TcpStream};
+use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use board_misoc::{clock, csr};
 #[cfg(has_drtio)]
 use drtioaux;
@@ -145,7 +144,7 @@ fn read_injection_status(channel: u32, probe: u8) -> u8 {
     0
 }
 
-fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<::std::io::Error>> {
+fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
     let mut watch_list = BTreeMap::new();
     let mut next_check = 0;
 
