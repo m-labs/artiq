@@ -29,13 +29,13 @@ AD53XX_SPECIAL_OFS0 = 2 << 16
 AD53XX_SPECIAL_OFS1 = 3 << 16
 AD53XX_SPECIAL_READ = 5 << 16
 
-AD53XX_READ_X1A = 0X000 << 7
-AD53XX_READ_X1B = 0X040 << 7
-AD53XX_READ_OFFSET = 0X080 << 7
-AD53XX_READ_GAIN = 0X0C0 << 7
-AD53XX_READ_CONTROL = 0X101 << 7
-AD53XX_READ_OFS0 = 0X102 << 7
-AD53XX_READ_OFS1 = 0X103 << 7
+AD53XX_READ_X1A = 0x008 << 7
+AD53XX_READ_X1B = 0x048 << 7
+AD53XX_READ_OFFSET = 0x088 << 7
+AD53XX_READ_GAIN = 0x0C8 << 7
+AD53XX_READ_CONTROL = 0x101 << 7
+AD53XX_READ_OFS0 = 0x102 << 7
+AD53XX_READ_OFS1 = 0x103 << 7
 
 
 @portable
@@ -60,12 +60,11 @@ def ad53xx_cmd_read_ch(channel, op):
 
     :param channel: DAC channel to read (8 bits)
     :param op: The channel register to read, one of
-      :const:`AD53XX_CMD_DATA`, :const:`AD53XX_CMD_OFFSET` or
-      :const:`AD53XX_CMD_GAIN`
-    :return: The 24-bit word to be written to the DAC
+      :const:`AD53XX_READ_X1A`, :const:`AD53XX_READ_X1B`,
+      :const:`AD53XX_READ_OFFSET`, :const:`AD53XX_CMD_GAIN` etc.
+    :return: The 24-bit word to be written to the DAC to initiate read
     """
-    return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | op |
-            ((channel + 8) << 7))
+    return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | (op + (channel << 7)))
 
 
 @portable
@@ -119,7 +118,7 @@ class AD53xx:
                          "div_read", "vref", "core"}
 
     def __init__(self, dmgr, spi_device, ldac_device=None, clr_device=None,
-                 chip_select=1, div_write=4, div_read=8, vref=5.,
+                 chip_select=1, div_write=4, div_read=16, vref=5.,
                  offset_dacs=8192, core="core"):
         self.bus = dmgr.get(spi_device)
         if ldac_device is None:
@@ -157,12 +156,12 @@ class AD53xx:
         """Read a DAC register.
 
         This method advances the timeline by the duration of two SPI transfers
-        plus two RTIO coarse cycles.
+        plus two RTIO coarse cycles plus 270 ns and consumes all slack.
 
-        :param channel: Channel number to read from (default :0)
+        :param channel: Channel number to read from (default: 0)
         :param op: Operation to perform, one of :const:`AD53XX_READ_X1A`,
           :const:`AD53XX_READ_X1B`, :const:`AD53XX_READ_OFFSET`,
-          :const:`AD53XX_READ_GAIN` (default: :const:`AD53XX_READ_X1A`).
+          :const:`AD53XX_READ_GAIN` etc. (default: :const:`AD53XX_READ_X1A`).
         :return: The 16 bit register value
         """
         self.bus.write(ad53xx_cmd_read_ch(channel, op) << 8)
@@ -170,10 +169,9 @@ class AD53xx:
                                self.div_read, self.chip_select)
         delay(270*ns)  # t_21 min sync high in readback
         self.bus.write((AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_NOP) << 8)
-
         self.bus.set_config_mu(SPI_AD53XX_CONFIG, 24, self.div_write,
                                self.chip_select)
-        return self.bus.read()
+        return self.bus.read() & 0xffff
 
     @kernel
     def write_offset_dacs_mu(self, value):
