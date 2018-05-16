@@ -18,6 +18,7 @@ import shlex
 
 from artiq.tools import verbosity_args, init_logger
 from artiq.remoting import SSHClient
+from artiq.coredevice.comm_mgmt import CommMgmt
 
 logger = logging.getLogger(__name__)
 
@@ -264,10 +265,15 @@ def main():
             client.run_command(["flterm", serial, "--output-only"])
 
         elif action == "hotswap":
+            lock()
+
             logger.info("Hotswapping firmware")
             firmware = build_dir(variant, "software", firmware, firmware + ".bin")
-            command("artiq_coreboot", "hotswap", firmware,
-                    on_failure="Hotswapping failed")
+
+            mgmt = CommMgmt(device)
+            mgmt.open(ssh_transport=client.get_transport())
+            with open(firmware, "rb") as f:
+                mgmt.hotswap(f.read())
 
         else:
             logger.error("Unknown action {}".format(action))

@@ -1,7 +1,5 @@
 import struct
 import logging
-import socket
-import sys
 import traceback
 import numpy
 from enum import Enum
@@ -9,6 +7,7 @@ from fractions import Fraction
 from collections import namedtuple
 
 from artiq.coredevice import exceptions
+from artiq.coredevice.comm import initialize_connection
 from artiq import __version__ as software_version
 
 
@@ -85,30 +84,6 @@ class RPCReturnValueError(ValueError):
 RPCKeyword = namedtuple('RPCKeyword', ['name', 'value'])
 
 
-def set_keepalive(sock, after_idle, interval, max_fails):
-    if sys.platform.startswith("linux"):
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, after_idle)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, interval)
-        sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, max_fails)
-    elif sys.platform.startswith("win") or sys.platform.startswith("cygwin"):
-        # setting max_fails is not supported, typically ends up being 5 or 10
-        # depending on Windows version
-        sock.ioctl(socket.SIO_KEEPALIVE_VALS,
-                   (1, after_idle*1000, interval*1000))
-    else:
-        logger.warning("TCP keepalive not supported on platform '%s', ignored",
-                       sys.platform)
-
-
-def initialize_connection(host, port):
-    sock = socket.create_connection((host, port), 5.0)
-    sock.settimeout(None)
-    set_keepalive(sock, 3, 2, 3)
-    logger.debug("connected to host %s on port %d", host, port)
-    return sock
-
-
 class CommKernelDummy:
     def __init__(self):
         pass
@@ -143,10 +118,10 @@ class CommKernel:
         self.host = host
         self.port = port
 
-    def open(self):
+    def open(self, **kwargs):
         if hasattr(self, "socket"):
             return
-        self.socket = initialize_connection(self.host, self.port)
+        self.socket = initialize_connection(self.host, self.port, **kwargs)
         self.socket.sendall(b"ARTIQ coredev\n")
 
     def close(self):
