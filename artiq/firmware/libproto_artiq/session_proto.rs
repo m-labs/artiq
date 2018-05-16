@@ -118,6 +118,8 @@ impl Request {
     {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
+            // 1-2, 13 were log requests
+
             3  => Request::SystemInfo,
             4  => Request::SwitchClock(reader.read_u8()?),
 
@@ -141,6 +143,8 @@ impl Request {
 
             // 9-12 were flash requests
 
+            // 14 was hotswap request
+
             ty  => return Err(Error::UnknownPacket(ty))
         })
     }
@@ -152,6 +156,8 @@ impl<'a> Reply<'a> {
     {
         write_sync(writer)?;
         match *self {
+            // 1 was log reply
+
             Reply::SystemInfo { ident, finished_cleanly } => {
                 writer.write_u8(2)?;
                 writer.write(b"AROR")?;
@@ -211,6 +217,8 @@ impl<'a> Reply<'a> {
             Reply::ClockFailure => {
                 writer.write_u8(15)?;
             },
+
+            // 16 was hotswap imminent reply
         }
         Ok(())
     }

@@ -14,52 +14,33 @@ from artiq import __version__ as software_version
 logger = logging.getLogger(__name__)
 
 
-class _H2DMsgType(Enum):
-    LOG_REQUEST = 1
-    LOG_CLEAR = 2
-    LOG_FILTER = 13
+class Request(Enum):
+    SystemInfo = 3
+    SwitchClock = 4
 
-    SYSTEM_INFO_REQUEST = 3
-    SWITCH_CLOCK = 4
+    LoadKernel = 5
+    RunKernel = 6
 
-    LOAD_KERNEL = 5
-    RUN_KERNEL = 6
-
-    RPC_REPLY = 7
-    RPC_EXCEPTION = 8
-
-    HOTSWAP = 14
+    RPCReply = 7
+    RPCException = 8
 
 
-class _D2HMsgType(Enum):
-    LOG_REPLY = 1
+class Reply(Enum):
+    SystemInfo = 2
+    ClockSwitchCompleted = 3
+    ClockSwitchFailed = 4
 
-    SYSTEM_INFO_REPLY = 2
-    CLOCK_SWITCH_COMPLETED = 3
-    CLOCK_SWITCH_FAILED = 4
+    LoadCompleted = 5
+    LoadFailed = 6
 
-    LOAD_COMPLETED = 5
-    LOAD_FAILED = 6
+    KernelFinished = 7
+    KernelStartupFailed = 8
+    KernelException = 9
 
-    KERNEL_FINISHED = 7
-    KERNEL_STARTUP_FAILED = 8
-    KERNEL_EXCEPTION = 9
+    RPCRequest = 10
 
-    RPC_REQUEST = 10
-
-    WATCHDOG_EXPIRED = 14
-    CLOCK_FAILURE = 15
-
-    HOTSWAP_IMMINENT = 16
-
-
-class _LogLevel(Enum):
-    OFF = 0
-    ERROR = 1
-    WARN = 2
-    INFO = 3
-    DEBUG = 4
-    TRACE = 5
+    WatchdogExpired = 14
+    ClockFailure = 15
 
 
 class UnsupportedDevice(Exception):
@@ -92,12 +73,6 @@ class CommKernelDummy:
         pass
 
     def check_system_info(self):
-        pass
-
-    def get_log(self):
-        return ""
-
-    def clear_log(self):
         pass
 
 
@@ -152,7 +127,7 @@ class CommKernel:
 
         # Read message header.
         (raw_type, ) = struct.unpack("B", self.read(1))
-        self._read_type = _D2HMsgType(raw_type)
+        self._read_type = Reply(raw_type)
 
         logger.debug("receiving message: type=%r",
                      self._read_type)
@@ -242,10 +217,10 @@ class CommKernel:
         self.write(struct.pack(">ll", 0x5a5a5a5a, 0))
 
     def check_system_info(self):
-        self._write_empty(_H2DMsgType.SYSTEM_INFO_REQUEST)
+        self._write_empty(Request.SystemInfo)
 
         self._read_header()
-        self._read_expect(_D2HMsgType.SYSTEM_INFO_REPLY)
+        self._read_expect(Reply.SystemInfo)
         runtime_id = self._read_chunk(4)
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
@@ -263,23 +238,23 @@ class CommKernel:
             logger.warning("Previous kernel did not cleanly finish")
 
     def switch_clock(self, external):
-        self._write_header(_H2DMsgType.SWITCH_CLOCK)
+        self._write_header(Request.SwitchClock)
         self._write_int8(external)
 
-        self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
+        self._read_empty(Reply.ClockSwitchCompleted)
 
     def load(self, kernel_library):
-        self._write_header(_H2DMsgType.LOAD_KERNEL)
+        self._write_header(Request.LoadKernel)
         self._write_bytes(kernel_library)
 
         self._read_header()
-        if self._read_type == _D2HMsgType.LOAD_FAILED:
+        if self._read_type == Reply.LoadFailed:
             raise LoadError(self._read_string())
         else:
-            self._read_expect(_D2HMsgType.LOAD_COMPLETED)
+            self._read_expect(Reply.LoadCompleted)
 
     def run(self):
-        self._write_empty(_H2DMsgType.RUN_KERNEL)
+        self._write_empty(Request.RunKernel)
         logger.debug("running kernel")
 
     _rpc_sentinel = object()
@@ -460,7 +435,7 @@ class CommKernel:
             result = service(*args, **kwargs)
             logger.debug("rpc service: %d %r %r = %r", service_id, args, kwargs, result)
 
-            self._write_header(_H2DMsgType.RPC_REPLY)
+            self._write_header(Request.RPCReply)
             self._write_bytes(return_tags)
             self._send_rpc_value(bytearray(return_tags), result, result, service)
         except RPCReturnValueError as exn:
@@ -468,7 +443,7 @@ class CommKernel:
         except Exception as exn:
             logger.debug("rpc service: %d %r %r ! %r", service_id, args, kwargs, exn)
 
-            self._write_header(_H2DMsgType.RPC_EXCEPTION)
+            self._write_header(Request.RPCException)
 
             if hasattr(exn, "artiq_core_exception"):
                 exn = exn.artiq_core_exception
@@ -536,14 +511,14 @@ class CommKernel:
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
             self._read_header()
-            if self._read_type == _D2HMsgType.RPC_REQUEST:
+            if self._read_type == Reply.RPCRequest:
                 self._serve_rpc(embedding_map)
-            elif self._read_type == _D2HMsgType.KERNEL_EXCEPTION:
+            elif self._read_type == Reply.KernelException:
                 self._serve_exception(embedding_map, symbolizer, demangler)
-            elif self._read_type == _D2HMsgType.WATCHDOG_EXPIRED:
+            elif self._read_type == Reply.WatchdogExpired:
                 raise exceptions.WatchdogExpired
-            elif self._read_type == _D2HMsgType.CLOCK_FAILURE:
+            elif self._read_type == Reply.ClockFailure:
                 raise exceptions.ClockFailure
             else:
-                self._read_expect(_D2HMsgType.KERNEL_FINISHED)
+                self._read_expect(Reply.KernelFinished)
                 return
