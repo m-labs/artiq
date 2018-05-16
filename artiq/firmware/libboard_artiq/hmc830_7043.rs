@@ -52,8 +52,6 @@ mod hmc830 {
     fn spi_setup() {
         unsafe {
             while csr::converter_spi::idle_read() == 0 {}
-            // rising egde on CS since cs_polarity still 0
-            // selects "HMC Mode"
             csr::converter_spi::offline_write(0);
             csr::converter_spi::end_write(1);
             csr::converter_spi::cs_polarity_write(0b0001);
@@ -61,14 +59,21 @@ mod hmc830 {
             csr::converter_spi::clk_phase_write(0);
             csr::converter_spi::lsb_first_write(0);
             csr::converter_spi::half_duplex_write(0);
+            csr::converter_spi::length_write(32 - 1);
             csr::converter_spi::div_write(16 - 2);
             csr::converter_spi::cs_write(1 << csr::CONFIG_CONVERTER_SPI_HMC830_CS);
+        }
+    }
 
+    pub fn select_spi_mode() {
+        spi_setup();
+        unsafe {
+            // rising egde on CS since cs_polarity still 0
+            // selects "HMC Mode"
             // do a dummy cycle with cs still high to clear CS
             csr::converter_spi::length_write(0);
             csr::converter_spi::data_write(0);
             while csr::converter_spi::writable_read() == 0 {}
-
             csr::converter_spi::length_write(32 - 1);
         }
     }
@@ -111,7 +116,7 @@ mod hmc830 {
         for &(addr, data) in HMC830_WRITES.iter() {
             write(addr, data);
         }
-        info("...done");
+        info!("...done");
 
         let t = clock::get_ms();
         info!("waiting for lock...");
@@ -295,7 +300,8 @@ pub mod hmc7043 {
 
 pub fn init() -> Result<(), &'static str> {
     clock_mux::init();
-    /* must be the first SPI init because of HMC830 SPI mode selection */
+    /* do not use other SPI devices before HMC830 SPI mode selection */
+    hmc830::select_spi_mode();
     hmc830::detect()?;
     hmc7043::detect()?;
     hmc7043::shutdown()?;
