@@ -190,7 +190,9 @@ class CPLD:
         cfg = self.cfg_reg
         # Don't pulse MASTER_RESET (m-labs/artiq#940)
         self.cfg_reg = cfg | (0 << CFG_RST) | (1 << CFG_IO_RST)
-        if not blind:
+        if blind:
+            self.cfg_write(self.cfg_reg)
+        else:
             proto_rev = urukul_sta_proto_rev(self.sta_read())
             if proto_rev != STA_PROTO_REV_MATCH:
                 raise ValueError("Urukul proto_rev mismatch")
