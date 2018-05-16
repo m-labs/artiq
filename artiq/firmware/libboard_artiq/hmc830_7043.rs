@@ -116,22 +116,22 @@ mod hmc830 {
         for &(addr, data) in HMC830_WRITES.iter() {
             write(addr, data);
         }
-        info!("...done");
+        info!("  ...done");
 
         let t = clock::get_ms();
         info!("waiting for lock...");
         while read(0x12) & 0x02 == 0 {
             if clock::get_ms() > t + 2000 {
-                error!("HMC830 lock timeout. Register dump:");
+                error!("  lock timeout. Register dump:");
                 for addr in 0x00..0x14 {
                     // These registers don't exist (in the data sheet at least)
                     if addr == 0x0d || addr == 0x0e { continue; }
-                    error!("[0x{:02x}] = 0x{:04x}", addr, read(addr));
+                    error!("  [0x{:02x}] = 0x{:04x}", addr, read(addr));
                 }
-                return Err("HMC830 lock timeout");
+                return Err("lock timeout");
             }
         }
-        info!("...locked");
+        info!("  ...locked");
 
         Ok(())
     }
@@ -274,7 +274,7 @@ pub mod hmc7043 {
             write(channel_base + 0x8, 0x08)
         }
 
-        info!("...done");
+        info!("  ...done");
 
         Ok(())
     }

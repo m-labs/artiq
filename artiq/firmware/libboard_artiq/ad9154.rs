@@ -146,12 +146,12 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
     clock::spin_us(100);
     if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
-        return Err("AD9154 not found");
+        return Err("invalid AD9154 identification");
     } else {
         info!("AD9154-{} found", dacno);
     }
 
-    info!("AD9154-{} configuration...", dacno);
+    info!("AD9154-{} initializing...", dacno);
     write(ad9154_reg::PWRCNTRL0,
             0*ad9154_reg::PD_DAC0 | 0*ad9154_reg::PD_DAC1 |
             0*ad9154_reg::PD_DAC2 | 0*ad9154_reg::PD_DAC3 |
@@ -348,7 +348,7 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     let t = clock::get_ms();
     while read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB == 0 {
         if clock::get_ms() > t + 200 {
-            return Err("AD9154 SERDES PLL lock timeout");
+            return Err("SERDES PLL lock timeout");
         }
     }
 
@@ -375,13 +375,13 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             0*ad9154_reg::SYNCCLRLAST);
     clock::spin_us(1000); // ensure at least one sysref edge
     if read(ad9154_reg::SYNC_CONTROL) & ad9154_reg::SYNCARM != 0 {
-        return Err("AD9154 no sysref edge");
+        return Err("no sysref edge");
     }
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
-        return Err("AD9154 no sync lock");
+        return Err("no sync lock");
     }
     if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_WLIM != 0 {
-        return Err("AD9154 sysref phase error");
+        return Err("sysref phase error");
     }
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
@@ -395,6 +395,7 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::GENERAL_JRX_CTRL_0,
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
             0*ad9154_reg::LINK_MODE | 0*ad9154_reg::CHECKSUM_MODE);
+    info!("  ...done");
     Ok(())
 }
 
@@ -498,7 +499,7 @@ fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
     let mut prbs_errors: u32 = 0;
 
     /* follow phy prbs testing (p58 of ad9154 datasheet) */
-    info!("AD9154-{} PRBS test", dacno);
+    info!("AD9154-{} running PRBS test...", dacno);
 
     /* step 1: start sending prbs7 pattern from the transmitter */
     jesd_prbs(dacno, true);
@@ -546,7 +547,7 @@ fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
                           ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_MIDBITS) as u32) << 8) |
                           ((read(ad9154_reg::PHY_PRBS_TEST_ERRCNT_HIBITS) as u32) << 16);
         if lane_errors > 0 {
-            warn!("AD9154-{} PRBS errors on lane{}: {:06x}", dacno, i, lane_errors);
+            warn!("  PRBS errors on lane{}: {:06x}", i, lane_errors);
         }
         prbs_errors += lane_errors
     }
@@ -554,8 +555,9 @@ fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
     jesd_prbs(dacno, false);
 
     if prbs_errors > 0 {
-        return Err("AD9154 PRBS failed")
+        return Err("PRBS failed")
     }
+    info!("  ...passed");
     Ok(())
 }
 
@@ -613,7 +615,7 @@ fn dac_sysref_scan(dacno: u8) {
     let mut phase_min = None;
     let mut phase_max = None;
 
-    info!("AD9154-{} SYSREF scan/conf...", dacno);
+    info!("AD9154-{} SYSREF scan:", dacno);
     for phase in 0..512 {
         hmc7043::cfg_dac_sysref(dacno, phase);
         clock::spin_us(10000);
@@ -652,7 +654,6 @@ pub fn init() -> Result<(), &'static str> {
 
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
-        debug!("setting up AD9154-{} DAC...", dacno);
         dac_sysref_scan(dacno);
         dac_sysref_cfg(dacno, 88);
         dac_cfg_retry(dacno)?;
