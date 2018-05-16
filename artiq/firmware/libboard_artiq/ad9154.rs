@@ -608,13 +608,10 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     dac_cfg(dacno)
 }
 
-#[allow(dead_code)]
 fn dac_sysref_scan(dacno: u8) {
-    let mut sync_error_last = 0u16;
-    let mut phase_min_found = false;
-    let mut phase_min = 0u16;
-    let mut _phase_max_found = false;
-    let mut phase_max = 0u16;
+    let mut sync_error_last = 0;
+    let mut phase_min = None;
+    let mut phase_max = None;
 
     info!("AD9154-{} SYSREF scan/conf...", dacno);
     for phase in 0..512 {
@@ -628,23 +625,19 @@ fn dac_sysref_scan(dacno: u8) {
             info!("  phase: {}, sync error: {}", phase, sync_error);
         }
         if sync_error != 0 {
-            if phase_min_found {
+            if phase_min.is_some() {
                 if sync_error != sync_error_last {
-                    _phase_max_found = true;
-                    phase_max = phase - 1;
+                    phase_max = Some(phase - 1);
                     break;
                 }
             } else {
-                phase_min_found = true;
-                phase_min = phase;
+                phase_min = Some(phase);
             }
         }
         sync_error_last = sync_error;
     }
 
-    let phase_opt = phase_min + (phase_max-phase_min)/2;
-    info!("  phase min: {}, phase max: {}, phase opt: {}", phase_min, phase_max, phase_opt);
-    hmc7043::cfg_dac_sysref(dacno, phase_opt);
+    info!("  phase min: {:?}, phase max: {:?}", phase_min, phase_max);
 }
 
 fn dac_sysref_cfg(dacno: u8, phase: u16) {
@@ -660,6 +653,7 @@ pub fn init() -> Result<(), &'static str> {
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
         debug!("setting up AD9154-{} DAC...", dacno);
+        dac_sysref_scan(dacno);
         dac_sysref_cfg(dacno, 88);
         dac_cfg_retry(dacno)?;
         dac_prbs(dacno)?;
