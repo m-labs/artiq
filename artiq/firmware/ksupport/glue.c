@@ -22,6 +22,12 @@ void send_to_rtio_log(long long int timestamp, struct slice data);
 FILE *stderr;
 
 /* called by libunwind */
+char *getenv(const char *var)
+{
+    return NULL;
+}
+
+/* called by libunwind */
 int fprintf(FILE *stream, const char *fmt, ...)
 {
     va_list args;

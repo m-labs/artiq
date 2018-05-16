@@ -10,8 +10,8 @@ use managed::ManagedMap;
 pub struct Address(NonZeroUsize);
 
 impl Address {
-    pub fn new(raw: usize) -> Option<Address> {
-        NonZeroUsize::new(raw).map(Address)
+    pub fn new(raw: usize) -> Address {
+        Address(NonZeroUsize::new(raw).expect("null address"))
     }
 
     pub fn as_raw(&self) -> usize {
@@ -48,6 +48,10 @@ impl Profile {
         let edge_size = mem::size_of::<Option<(Address, u32)>>();
         self.hits.capacity() * hit_size +
             self.edges.capacity() * edge_size
+    }
+
+    pub fn has_edges(&self) -> bool {
+        self.edges.is_empty()
     }
 
     pub fn hits<'a>(&'a mut self) -> ManagedMap<'a, Address, u32> {
@@ -88,6 +92,7 @@ impl Profile {
 
 #[cfg(has_timer1)]
 mod imp {
+    use unwind_backtrace::backtrace;
     use board_misoc::{csr, irq};
     use super::{Address, Profile};
 
@@ -192,22 +197,46 @@ mod imp {
         }
     }
 
+    // Skip frames: ::profiler::sample, ::exception, exception vector.
+    const SKIP_FRAMES: i32 = 3;
+
     #[inline(always)] // make the top of backtrace predictable
     fn record(profile: &mut Profile, pc: usize) -> Result<(), ()> {
-        let callee = Address::new(pc).expect("null code address");
-        profile.record_hit(callee)?;
+        let mut result = Ok(());
+        let mut frame = -SKIP_FRAMES;
 
-        // TODO: record edges
+        // If we have storage for edges, use the DWARF unwinder.
+        // Otherwise, don't bother and use a much faster path that just looks at EPCR.
+        // Also, acquiring a meaningful backtrace requires libunwind
+        // with the https://reviews.llvm.org/D46971 patch applied.
+        if profile.has_edges() {
+            let mut prev_pc = 0;
+            let _ = backtrace(|pc| {
+                if frame == 0 {
+                    result = result.and_then(|()|
+                        profile.record_hit(Address::new(pc)));
+                    prev_pc = pc;
+                } else if frame > 0 {
+                    result = result.and_then(|()|
+                        profile.record_edge(Address::new(pc),
+                                            Address::new(prev_pc)));
+                }
+                prev_pc = pc;
+                frame += 1;
+            });
+        }
 
-        Ok(())
+        // If we couldn't get anything useful out of a backtrace, at least
+        // record a hit at the exception PC.
+        if frame <= 0 {
+            result = profile.record_hit(Address::new(pc));
+        }
+
+        result
     }
 
     #[inline(never)] // see above
     pub fn sample(pc: usize) {
-        unsafe {
-            csr::timer1::ev_pending_write(1);
-        }
-
         let result = {
             let mut profile = Lock::take().expect("cannot lock");
             record(profile.as_mut().expect("profiler not running"), pc)
@@ -216,6 +245,10 @@ mod imp {
         if result.is_err() {
             warn!("out of space");
             stop();
+        } else {
+            unsafe {
+                csr::timer1::ev_pending_write(1);
+            }
         }
     }
 }

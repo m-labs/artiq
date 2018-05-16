@@ -98,8 +98,8 @@ def get_argparser():
                          help="sampling interval, in microseconds")
     p_start.add_argument("--hits-size", metavar="ENTRIES", type=int, default=8192,
                          help="hit buffer size")
-    p_start.add_argument("--edges-size", metavar="ENTRIES", type=int, default=0,
-                         help="edge buffer size (edge profiling not implemented)")
+    p_start.add_argument("--edges-size", metavar="ENTRIES", type=int, default=8192,
+                         help="edge buffer size")
 
     p_stop = subparsers.add_parser("stop",
                                    help="stop profiling")
@@ -113,6 +113,9 @@ def get_argparser():
     p_save.add_argument("--no-compression",
                         dest="compression", default=True, action="store_false",
                         help="disable profile compression")
+    p_save.add_argument("--no-demangle",
+                        dest="demangle", default=True, action="store_false",
+                        help="disable symbol demangling")
 
     # misc debug
     t_debug = tools.add_parser("debug",
@@ -178,8 +181,8 @@ def main():
                 mgmt.stop_profiler()
             elif args.action == "save":
                 hits, edges = mgmt.get_profile()
-                writer = CallgrindWriter(args.output, args.firmware,
-                                         "or1k-linux", args.compression)
+                writer = CallgrindWriter(args.output, args.firmware, "or1k-linux",
+                                         args.compression, args.demangle)
                 writer.header()
                 for addr, count in hits.items():
                     writer.hit(addr, count)

@@ -3,11 +3,15 @@ import subprocess
 
 
 class Symbolizer:
-    def __init__(self, binary, triple):
-        self._addr2line = subprocess.Popen([
+    def __init__(self, binary, triple, demangle=True):
+        cmdline = [
             triple + "-addr2line", "--exe=" + binary,
-            "--addresses", "--demangle=rust", "--functions", "--inlines"
-        ], stdin=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+            "--addresses", "--functions", "--inlines"
+        ]
+        if demangle:
+            cmdline.append("--demangle=rust")
+        self._addr2line = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                           universal_newlines=True)
 
     def symbolize(self, addr):
         self._addr2line.stdin.write("0x{:08x}\n0\n".format(addr))
@@ -26,17 +30,17 @@ class Symbolizer:
 
             file, line = self._addr2line.stdout.readline().rstrip().split(":")
 
-            result.append((function, file, line))
+            result.append((function, file, line, addr))
 
 
 class CallgrindWriter:
-    def __init__(self, output, binary, triple, compression=True):
+    def __init__(self, output, binary, triple, compression=True, demangle=True):
         self._output = output
         self._binary = binary
         self._current = defaultdict(lambda: None)
         self._ids = defaultdict(lambda: {})
         self._compression = compression
-        self._symbolizer = Symbolizer(binary, triple)
+        self._symbolizer = Symbolizer(binary, triple, demangle=demangle)
 
     def _write(self, fmt, *args, **kwargs):
         self._output.write(fmt.format(*args, **kwargs))
@@ -69,18 +73,20 @@ class CallgrindWriter:
         self._spec("cob", self._binary)
 
     def hit(self, addr, count):
-        for function, file, line in self._symbolizer.symbolize(addr):
-            self._spec("fn", function)
+        for function, file, line, addr in self._symbolizer.symbolize(addr):
             self._spec("fl", file)
+            self._spec("fn", function)
             self._write("0x{:08x} {} {}", addr, line, count)
 
     def edge(self, caller, callee, count):
-        function, file, line = next(self._symbolizer.symbolize(callee))
-        self._spec("cfn", function)
-        self._spec("cfl", file)
-        self._write("calls={} 0x{:08x} {}", count, callee, line)
+        edges = self._symbolizer.symbolize(callee) + self._symbolizer.symbolize(caller)
+        for (callee, caller) in zip(edges, edges[1:]):
+            function, file, line, addr = callee
+            self._spec("cfl", file)
+            self._spec("cfn", function)
+            self._write("calls={} 0x{:08x} {}", count, addr, line)
 
-        function, file, line = next(self._symbolizer.symbolize(caller))
-        self._spec("fn", function)
-        self._spec("fl", file)
-        self._write("0x{:08x} {} {}", caller, line, count)
+            function, file, line, addr = caller
+            self._spec("fl", file)
+            self._spec("fn", function)
+            self._write("0x{:08x} {} {}", addr, line, count)

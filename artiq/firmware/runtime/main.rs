@@ -57,6 +57,7 @@ mod moninj;
 mod analyzer;
 
 fn startup() {
+    irq::set_mask(0);
     irq::set_ie(true);
     clock::init();
     info!("ARTIQ runtime starting...");
@@ -305,6 +306,8 @@ pub extern fn abort() {
 #[lang = "panic_fmt"]
 pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
                         line: u32, column: u32) -> ! {
+    irq::set_ie(false);
+
     println!("panic at {}:{}:{}: {}", file, line, column, args);
 
     println!("backtrace for software version {}:",

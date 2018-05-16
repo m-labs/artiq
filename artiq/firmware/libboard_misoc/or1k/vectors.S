@@ -171,35 +171,70 @@ _crt0:
      l.nop
 
 _exception_handler:
+    .cfi_startproc
+    .cfi_return_column 32
+    .cfi_signal_frame
+    .cfi_def_cfa_offset EXCEPTION_STACK_SIZE
     l.sw    0x00(r1), r2
+    .cfi_offset 2, 0x00-EXCEPTION_STACK_SIZE
     l.sw    0x04(r1), r3
+    .cfi_offset 3, 0x04-EXCEPTION_STACK_SIZE
     l.sw    0x08(r1), r4
+    .cfi_offset 4, 0x08-EXCEPTION_STACK_SIZE
     l.sw    0x0c(r1), r5
+    .cfi_offset 5, 0x0c-EXCEPTION_STACK_SIZE
     l.sw    0x10(r1), r6
+    .cfi_offset 6, 0x10-EXCEPTION_STACK_SIZE
     l.sw    0x14(r1), r7
+    .cfi_offset 7, 0x14-EXCEPTION_STACK_SIZE
     l.sw    0x18(r1), r8
+    .cfi_offset 8, 0x18-EXCEPTION_STACK_SIZE
+    /* r9 saved in HANDLE_EXCEPTION */
+    .cfi_offset 9, 0x1c-EXCEPTION_STACK_SIZE
     l.sw    0x20(r1), r10
+    .cfi_offset 10, 0x20-EXCEPTION_STACK_SIZE
     l.sw    0x24(r1), r11
+    .cfi_offset 11, 0x24-EXCEPTION_STACK_SIZE
     l.sw    0x28(r1), r12
+    .cfi_offset 12, 0x28-EXCEPTION_STACK_SIZE
     l.sw    0x2c(r1), r13
+    .cfi_offset 13, 0x2c-EXCEPTION_STACK_SIZE
     l.sw    0x30(r1), r14
+    .cfi_offset 14, 0x30-EXCEPTION_STACK_SIZE
     l.sw    0x34(r1), r15
+    .cfi_offset 15, 0x34-EXCEPTION_STACK_SIZE
     l.sw    0x38(r1), r16
+    .cfi_offset 16, 0x38-EXCEPTION_STACK_SIZE
     l.sw    0x3c(r1), r17
+    .cfi_offset 17, 0x3c-EXCEPTION_STACK_SIZE
     l.sw    0x40(r1), r18
+    .cfi_offset 18, 0x40-EXCEPTION_STACK_SIZE
     l.sw    0x44(r1), r19
+    .cfi_offset 19, 0x44-EXCEPTION_STACK_SIZE
     l.sw    0x48(r1), r20
+    .cfi_offset 20, 0x48-EXCEPTION_STACK_SIZE
     l.sw    0x4c(r1), r21
+    .cfi_offset 21, 0x4c-EXCEPTION_STACK_SIZE
     l.sw    0x50(r1), r22
+    .cfi_offset 22, 0x50-EXCEPTION_STACK_SIZE
     l.sw    0x54(r1), r23
+    .cfi_offset 23, 0x54-EXCEPTION_STACK_SIZE
     l.sw    0x58(r1), r24
+    .cfi_offset 24, 0x58-EXCEPTION_STACK_SIZE
     l.sw    0x5c(r1), r25
+    .cfi_offset 25, 0x5c-EXCEPTION_STACK_SIZE
     l.sw    0x60(r1), r26
+    .cfi_offset 26, 0x60-EXCEPTION_STACK_SIZE
     l.sw    0x64(r1), r27
+    .cfi_offset 27, 0x64-EXCEPTION_STACK_SIZE
     l.sw    0x68(r1), r28
+    .cfi_offset 28, 0x68-EXCEPTION_STACK_SIZE
     l.sw    0x6c(r1), r29
+    .cfi_offset 29, 0x6c-EXCEPTION_STACK_SIZE
     l.sw    0x70(r1), r30
+    .cfi_offset 30, 0x70-EXCEPTION_STACK_SIZE
     l.sw    0x74(r1), r31
+    .cfi_offset 31, 0x74-EXCEPTION_STACK_SIZE
 
     /* Save return address */
     l.or    r14, r0, r9
@@ -210,6 +245,9 @@ _exception_handler:
     l.or    r4, r0, r1
     /* Extract exception PC */
     l.mfspr r5, r0, SPR_EPCR_BASE
+    /* Tell exception PC to the unwinder */
+    l.sw    0x78(r1), r5
+    .cfi_offset 32, 0x78-EXCEPTION_STACK_SIZE
     /* Extract exception effective address */
     l.mfspr r6, r0, SPR_EEAR_BASE
     /* Extract exception SR */
@@ -252,6 +290,7 @@ _exception_handler:
     l.lwz   r31, 0x74(r1)
     l.jr    r9
      l.nop
+    .cfi_endproc
 
 .global _cache_init
 _cache_init:
