@@ -38,8 +38,6 @@ def main():
             core.compile(testcase_vars["entrypoint"], (), {})
         else:
             core.run(testcase_vars["entrypoint"], (), {})
-            print(core.comm.get_log())
-            core.comm.clear_log()
     except CompileError as error:
         if not diag:
             exit(1)
