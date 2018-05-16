@@ -34,7 +34,7 @@ requirements:
     - sphinx-argparse
     - sphinxcontrib-wavedrom
     - sphinx_rtd_theme
-    - h5py
+    - h5py 2.8
     - python-dateutil
     - pyqt >=5.5
     - quamash
