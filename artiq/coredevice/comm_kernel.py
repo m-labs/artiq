@@ -28,11 +28,6 @@ class _H2DMsgType(Enum):
     RPC_REPLY = 7
     RPC_EXCEPTION = 8
 
-    FLASH_READ_REQUEST = 9
-    FLASH_WRITE_REQUEST = 10
-    FLASH_ERASE_REQUEST = 11
-    FLASH_REMOVE_REQUEST = 12
-
     HOTSWAP = 14
 
 
@@ -51,10 +46,6 @@ class _D2HMsgType(Enum):
     KERNEL_EXCEPTION = 9
 
     RPC_REQUEST = 10
-
-    FLASH_READ_REPLY = 11
-    FLASH_OK_REPLY = 12
-    FLASH_ERROR_REPLY = 13
 
     WATCHDOG_EXPIRED = 14
     CLOCK_FAILURE = 15
@@ -276,36 +267,6 @@ class CommKernel:
         self._write_int8(external)
 
         self._read_empty(_D2HMsgType.CLOCK_SWITCH_COMPLETED)
-
-    def flash_storage_read(self, key):
-        self._write_header(_H2DMsgType.FLASH_READ_REQUEST)
-        self._write_string(key)
-
-        self._read_header()
-        self._read_expect(_D2HMsgType.FLASH_READ_REPLY)
-        return self._read_string()
-
-    def flash_storage_write(self, key, value):
-        self._write_header(_H2DMsgType.FLASH_WRITE_REQUEST)
-        self._write_string(key)
-        self._write_bytes(value)
-
-        self._read_header()
-        if self._read_type == _D2HMsgType.FLASH_ERROR_REPLY:
-            raise IOError("Flash storage is full")
-        else:
-            self._read_expect(_D2HMsgType.FLASH_OK_REPLY)
-
-    def flash_storage_erase(self):
-        self._write_empty(_H2DMsgType.FLASH_ERASE_REQUEST)
-
-        self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
-
-    def flash_storage_remove(self, key):
-        self._write_header(_H2DMsgType.FLASH_REMOVE_REQUEST)
-        self._write_string(key)
-
-        self._read_empty(_D2HMsgType.FLASH_OK_REPLY)
 
     def load(self, kernel_library):
         self._write_header(_H2DMsgType.LOAD_KERNEL)

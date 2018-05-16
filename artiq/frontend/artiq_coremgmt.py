@@ -67,11 +67,11 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    p_delete = subparsers.add_parser("delete",
-                                     help="delete key from core device config")
-    p_delete.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
+    p_remove = subparsers.add_parser("remove",
+                                     help="remove key from core device config")
+    p_remove.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
                           default=[], type=str,
-                          help="key to be deleted from core device config")
+                          help="key to be removed from core device config")
 
     subparsers.add_parser("erase", help="fully erase core device config")
 
@@ -134,10 +134,7 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
-        kern = CommKernel(core_addr)
         mgmt = CommMgmt(core_addr)
-
-        kern.check_system_info()
 
         if args.tool == "log":
             if args.action == "set_level":
@@ -151,22 +148,22 @@ def main():
 
         if args.tool == "config":
             if args.action == "read":
-                value = kern.flash_storage_read(args.key)
+                value = mgmt.config_read(args.key)
                 if not value:
                     print("Key {} does not exist".format(args.key))
                 else:
                     print(value)
             if args.action == "write":
                 for key, value in args.string:
-                    kern.flash_storage_write(key, value.encode("utf-8"))
+                    mgmt.config_write(key, value.encode("utf-8"))
                 for key, filename in args.file:
                     with open(filename, "rb") as fi:
-                        kern.flash_storage_write(key, fi.read())
-            if args.action == "delete":
+                        mgmt.config_write(key, fi.read())
+            if args.action == "remove":
                 for key in args.key:
-                    kern.flash_storage_remove(key)
+                    mgmt.config_remove(key)
             if args.action == "erase":
-                kern.flash_storage_erase()
+                mgmt.config_erase()
 
         if args.tool == "reboot":
             mgmt.reboot()

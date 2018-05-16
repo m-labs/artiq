@@ -250,36 +250,6 @@ fn process_host_message(io: &Io,
             session.congress.finished_cleanly.set(true)
         }
 
-        // artiq_coreconfig
-        host::Request::FlashRead { ref key } => {
-            config::read(key, |result| {
-                match result {
-                    Ok(value) => host_write(stream, host::Reply::FlashRead(&value)),
-                    Err(_)    => host_write(stream, host::Reply::FlashError)
-                }
-            })?;
-        }
-        host::Request::FlashWrite { ref key, ref value } => {
-            match config::write(key, value) {
-                Ok(_)  => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError)
-            }?;
-        }
-        host::Request::FlashRemove { ref key } => {
-            match config::remove(key) {
-                Ok(()) => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError),
-            }?;
-
-        }
-        host::Request::FlashErase => {
-            match config::erase() {
-                Ok(()) => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError),
-            }?;
-        }
-
-        // artiq_run/artiq_master
         host::Request::SwitchClock(clk) => {
             if session.running() {
                 unexpected!("attempted to switch RTIO clock while a kernel was running")

@@ -1,7 +1,7 @@
 use log::{self, LevelFilter};
 
 use io::{Write, ProtoWrite, Error as IoError};
-use board_misoc::boot;
+use board_misoc::{config, boot};
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
@@ -25,7 +25,6 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                     Reply::LogContent(buffer.extract()).write_to(stream)
                 })?;
             }
-
             Request::ClearLog => {
                 BufferLogger::with(|logger| -> Result<(), Error<SchedError>> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
@@ -34,7 +33,6 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
 
                 Reply::Success.write_to(stream)?;
             }
-
             Request::PullLog => {
                 BufferLogger::with(|logger| -> Result<(), Error<SchedError>> {
                     loop {
@@ -64,18 +62,44 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                     }
                 })?;
             }
-
             Request::SetLogFilter(level) => {
                 info!("changing log level to {}", level);
                 log::set_max_level(level);
                 Reply::Success.write_to(stream)?;
             }
-
             Request::SetUartLogFilter(level) => {
                 info!("changing UART log level to {}", level);
                 BufferLogger::with(|logger|
                     logger.set_uart_log_level(level));
                 Reply::Success.write_to(stream)?;
+            }
+
+            Request::ConfigRead { ref key } => {
+                config::read(key, |result| {
+                    match result {
+                        Ok(value) => Reply::ConfigData(&value).write_to(stream),
+                        Err(_)    => Reply::Error.write_to(stream)
+                    }
+                })?;
+            }
+            Request::ConfigWrite { ref key, ref value } => {
+                match config::write(key, value) {
+                    Ok(_)  => Reply::Success.write_to(stream),
+                    Err(_) => Reply::Error.write_to(stream)
+                }?;
+            }
+            Request::ConfigRemove { ref key } => {
+                match config::remove(key) {
+                    Ok(()) => Reply::Success.write_to(stream),
+                    Err(_) => Reply::Error.write_to(stream)
+                }?;
+
+            }
+            Request::ConfigErase => {
+                match config::erase() {
+                    Ok(()) => Reply::Success.write_to(stream),
+                    Err(_) => Reply::Error.write_to(stream)
+                }?;
             }
 
             Request::StartProfiler { interval_us, hits_size, edges_size } => {
@@ -85,12 +109,10 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                     Err(()) => Reply::Unavailable.write_to(stream)?
                 }
             }
-
             Request::StopProfiler => {
                 profiler::stop();
                 Reply::Success.write_to(stream)?;
             }
-
             Request::GetProfile => {
                 profiler::pause(|profile| {
                     let profile = match profile {
@@ -130,7 +152,6 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                 warn!("hotswapping firmware");
                 unsafe { boot::hotswap(&firmware) }
             }
-
             Request::Reboot => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;

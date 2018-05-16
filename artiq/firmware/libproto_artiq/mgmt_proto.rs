@@ -1,8 +1,9 @@
-use alloc::Vec;
+use core::str::Utf8Error;
+use alloc::{Vec, String};
 #[cfg(feature = "log")]
 use log;
 
-use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
+use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -12,6 +13,8 @@ pub enum Error<T> {
     UnknownPacket(u8),
     #[fail(display = "unknown log level {}", _0)]
     UnknownLogLevel(u8),
+    #[fail(display = "invalid UTF-8: {}", _0)]
+    Utf8(Utf8Error),
     #[fail(display = "{}", _0)]
     Io(#[cause] IoError<T>)
 }
@@ -19,6 +22,15 @@ pub enum Error<T> {
 impl<T> From<IoError<T>> for Error<T> {
     fn from(value: IoError<T>) -> Error<T> {
         Error::Io(value)
+    }
+}
+
+impl<T> From<ReadStringError<IoError<T>>> for Error<T> {
+    fn from(value: ReadStringError<IoError<T>>) -> Error<T> {
+        match value {
+            ReadStringError::Utf8(err) => Error::Utf8(err),
+            ReadStringError::Other(err) => Error::Io(err)
+        }
     }
 }
 
@@ -46,6 +58,11 @@ pub enum Request {
     #[cfg(feature = "log")]
     SetUartLogFilter(log::LevelFilter),
 
+    ConfigRead   { key: String },
+    ConfigWrite  { key: String, value: Vec<u8> },
+    ConfigRemove { key: String },
+    ConfigErase,
+
     StartProfiler {
         interval_us: u32,
         hits_size: u32,
@@ -62,9 +79,12 @@ pub enum Request {
 
 pub enum Reply<'a> {
     Success,
+    Error,
     Unavailable,
 
     LogContent(&'a str),
+
+    ConfigData(&'a [u8]),
 
     Profile,
 
@@ -97,6 +117,19 @@ impl Request {
             3 => Request::SetLogFilter(read_log_level_filter(reader)?),
             #[cfg(feature = "log")]
             6 => Request::SetUartLogFilter(read_log_level_filter(reader)?),
+
+            12 => Request::ConfigRead {
+                key: reader.read_string()?
+            },
+            13 => Request::ConfigWrite {
+                key:   reader.read_string()?,
+                value: reader.read_bytes()?
+            },
+            14 => Request::ConfigRemove {
+                key: reader.read_string()?
+            },
+            15 => Request::ConfigErase,
+
             9 => Request::StartProfiler {
                 interval_us: reader.read_u32()?,
                 hits_size: reader.read_u32()?,
@@ -104,9 +137,12 @@ impl Request {
             },
             10 => Request::StopProfiler,
             11 => Request::GetProfile,
+
             4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
+
             8 => Request::DebugAllocator,
+
             ty => return Err(Error::UnknownPacket(ty))
         })
     }
@@ -120,6 +156,9 @@ impl<'a> Reply<'a> {
             Reply::Success => {
                 writer.write_u8(1)?;
             }
+            Reply::Error => {
+                writer.write_u8(6)?;
+            }
 
             Reply::Unavailable => {
                 writer.write_u8(4)?;
@@ -129,6 +168,11 @@ impl<'a> Reply<'a> {
                 writer.write_u8(2)?;
                 writer.write_string(log)?;
             }
+
+            Reply::ConfigData(ref bytes) => {
+                writer.write_u8(7)?;
+                writer.write_bytes(bytes)?;
+            },
 
             Reply::Profile => {
                 writer.write_u8(5)?;
