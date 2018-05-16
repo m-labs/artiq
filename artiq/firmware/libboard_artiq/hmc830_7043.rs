@@ -107,10 +107,11 @@ mod hmc830 {
 
     pub fn init() -> Result<(), &'static str> {
         spi_setup();
-        info!("HMC830 configuration...");
+        info!("loading configuration...");
         for &(addr, data) in HMC830_WRITES.iter() {
             write(addr, data);
         }
+        info("...done");
 
         let t = clock::get_ms();
         info!("waiting for lock...");
@@ -125,6 +126,7 @@ mod hmc830 {
                 return Err("HMC830 lock timeout");
             }
         }
+        info!("...locked");
 
         Ok(())
     }
@@ -217,7 +219,7 @@ pub mod hmc7043 {
 
     pub fn shutdown() -> Result<(), &'static str> {
         spi_setup();
-        info!("HMC7043 shutdown...");
+        info!("shutting down");
         write(0x1, 0x1);   // Sleep mode
 
         Ok(())
@@ -225,7 +227,7 @@ pub mod hmc7043 {
 
     pub fn init() -> Result<(), &'static str> {
         spi_setup();
-        info!("HMC7043 configuration...");
+        info!("loading configuration...");
 
         write(0x0, 0x1);   // Software reset
         write(0x0, 0x0);
@@ -266,6 +268,8 @@ pub mod hmc7043 {
 
             write(channel_base + 0x8, 0x08)
         }
+
+        info!("...done");
 
         Ok(())
     }
