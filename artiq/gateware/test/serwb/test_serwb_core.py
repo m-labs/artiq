@@ -115,7 +115,7 @@ class TestSERWBCore(unittest.TestCase):
                 yield dut.scrambler.sink.data.eq(i)
 
                 # check
-                yield dut.descrambler.source.ack.eq(prng.randrange(prng.randrange(100) > rand_level)
+                yield dut.descrambler.source.ack.eq(prng.randrange(100) > rand_level)
                 if (yield dut.descrambler.source.stb) & (yield dut.descrambler.source.ack):
                     current_data = (yield dut.descrambler.source.data)
                     if (current_data != (last_data + 1)):
