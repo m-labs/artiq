@@ -201,7 +201,7 @@ mod imp {
     const SKIP_FRAMES: i32 = 3;
 
     #[inline(always)] // make the top of backtrace predictable
-    fn record(profile: &mut Profile, pc: usize) -> Result<(), ()> {
+    fn record(profile: &mut Profile, exn_pc: usize) -> Result<(), ()> {
         let mut result = Ok(());
         let mut frame = -SKIP_FRAMES;
 
@@ -212,6 +212,12 @@ mod imp {
         if profile.has_edges() {
             let mut prev_pc = 0;
             let _ = backtrace(|pc| {
+                // Backtrace gives us the return address, i.e. the address after the delay slot,
+                // but we're interested in the call instruction, *except* when going through
+                // the frame directly below the exception frame, which has the address that's
+                // being executed.
+                let pc = if pc != exn_pc { pc - 2 * 4 } else { pc };
+
                 if frame == 0 {
                     result = result.and_then(|()|
                         profile.record_hit(Address::new(pc)));
@@ -221,6 +227,7 @@ mod imp {
                         profile.record_edge(Address::new(pc),
                                             Address::new(prev_pc)));
                 }
+
                 prev_pc = pc;
                 frame += 1;
             });
@@ -229,7 +236,7 @@ mod imp {
         // If we couldn't get anything useful out of a backtrace, at least
         // record a hit at the exception PC.
         if frame <= 0 {
-            result = profile.record_hit(Address::new(pc));
+            result = profile.record_hit(Address::new(exn_pc));
         }
 
         result

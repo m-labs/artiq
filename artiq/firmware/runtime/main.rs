@@ -313,7 +313,9 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
     println!("backtrace for software version {}:",
              include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     let _ = unwind_backtrace::backtrace(|ip| {
-        println!("{:#08x}", ip);
+        // Backtrace gives us the return address, i.e. the address after the delay slot,
+        // but we're interested in the call instruction.
+        println!("{:#08x}", ip - 2 * 4);
     });
 
     if config::read_str("panic_reset", |r| r == Ok("1")) {

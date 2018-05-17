@@ -32,9 +32,7 @@ pub fn backtrace<F>(f: F) -> Result<(), uw::_Unwind_Reason_Code>
                 trace_context.prev_sp = cur_sp;
             }
 
-            // GetIP gives us the return address, i.e. the address after the delay slot,
-            // but we're interested in the call instruction.
-            (trace_context.step_fn)(uw::_Unwind_GetIP(context) - 2 * 4);
+            (trace_context.step_fn)(uw::_Unwind_GetIP(context));
             uw::_URC_NO_REASON
         }
     }
