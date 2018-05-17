@@ -11,7 +11,7 @@ const CHANNELS: usize = 2;
 
 fn set_pins(card_index: usize, chan_index: usize, pins: u32) {
     let pins = pins ^ PIN_RST_N;
-    let shift = card_index * 2 + chan_index;
+    let shift = (card_index * 2 + chan_index)*4;
     unsafe {
         let state = csr::allaki_atts::out_read();
         let state = state & !(0xf << shift);
