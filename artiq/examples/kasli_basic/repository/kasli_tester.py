@@ -25,6 +25,11 @@ def is_enter_pressed() -> TBool:
 
 class KasliTester(EnvExperiment):
     def build(self):
+        # hack to detect artiq_run
+        if self.get_device("scheduler").__class__.__name__ != "DummyScheduler":
+            raise NotImplementedError(
+                "must be run with artiq_run to support keyboard interaction")
+
         self.setattr_device("core")
 
         self.leds = dict()
