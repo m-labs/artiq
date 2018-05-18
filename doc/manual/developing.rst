@@ -1,6 +1,9 @@
 Developing ARTIQ
 ^^^^^^^^^^^^^^^^
 
+.. warning::
+    This section is only for software or FPGA developers who want to modify ARTIQ. The steps described here are not required if you simply want to run experiments with ARTIQ.
+
 We describe two different approaches to creating a development environment for ARTIQ.
 
 The first method uses existing pre-compiled Anaconda packages and the ``artiq-dev`` meta-package for the development environment.
