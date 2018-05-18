@@ -156,14 +156,28 @@ class KasliTester(EnvExperiment):
         channel.sw.on()
         channel.set_att(6.)
 
+    @kernel
+    def rf_switch_wave(self, channels):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for channel in channels:
+                channel.sw.pulse(100*ms)
+                delay(100*ms)
+
     # We assume that RTIO channels for switches are grouped by card.
     def test_urukuls(self):
         print("*** Testing Urukul DDSes.")
+
         print("Initializing CPLDs...")
         for name, cpld in sorted(self.urukul_cplds.items(), key=lambda x: x[0]):
             print(name + "...")
             self.init_urukul(cpld)
         print("...done")
+
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.urukuls, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
@@ -172,6 +186,9 @@ class KasliTester(EnvExperiment):
                 self.setup_urukul(channel_dev, frequency)
         print("Press ENTER when done.")
         input()
+
+        print("Testing RF switch control. Press ENTER when done.")
+        self.rf_switch_wave([channel_dev for channel_name, channel_dev in self.urukuls])
 
     def run(self):
         print("****** Kasli system tester ******")
