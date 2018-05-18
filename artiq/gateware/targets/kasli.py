@@ -750,7 +750,11 @@ class USTC(_StandaloneBase):
         for i in range(24):
             eem_offset, port = divmod(i, 8)
             pads = platform.request("eem{}".format(5 + eem_offset), port)
-            phy = ttl_serdes_7series.InOut_8X(pads.p, pads.n)
+            if i < 4:
+                cls = ttl_serdes_7series.InOut_8X
+            else:
+                cls = ttl_serdes_7series.Output_8X
+            phy = cls(pads.p, pads.n)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
