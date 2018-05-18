@@ -1,6 +1,9 @@
 Developing ARTIQ
 ^^^^^^^^^^^^^^^^
 
+.. warning::
+    This section is only for software or FPGA developers who want to modify ARTIQ. The steps described here are not required if you simply want to run experiments with ARTIQ.
+
 .. note::
     Developing ARTIQ is currently only possible on Linux.
 
