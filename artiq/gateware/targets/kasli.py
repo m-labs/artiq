@@ -29,25 +29,22 @@ from artiq import __version__ as artiq_version
 
 
 class _RTIOCRG(Module, AutoCSR):
-    def __init__(self, platform, rtio_internal_clk):
-        self._clock_sel = CSRStorage()
+    def __init__(self, platform):
         self._pll_reset = CSRStorage(reset=1)
         self._pll_locked = CSRStatus()
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
-        rtio_external_clk = Signal()
-        clk_synth_se = Signal()
         clk_synth = platform.request("si5324_clkout_fabric")
+        clk_synth_se = Signal()
+        clk_synth_buffered = Signal()
         platform.add_period_constraint(clk_synth.p, 8.0)
         self.specials += [
             Instance("IBUFGDS",
                 p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="TRUE",
                 i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se),
-            Instance("BUFG", i_I=clk_synth_se, o_O=rtio_external_clk),
+            Instance("BUFG", i_I=clk_synth_se, o_O=clk_synth_buffered),
         ]
-        platform.add_false_path_constraints(
-                rtio_external_clk, rtio_internal_clk)
 
         pll_locked = Signal()
         rtio_clk = Signal()
@@ -59,9 +56,9 @@ class _RTIOCRG(Module, AutoCSR):
 
                      p_REF_JITTER1=0.01,
                      p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
-                     i_CLKIN1=rtio_internal_clk, i_CLKIN2=rtio_external_clk,
+                     i_CLKIN2=clk_synth_buffered,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
-                     i_CLKINSEL=~self._clock_sel.storage,
+                     i_CLKINSEL=0,
 
                      # VCO @ 1GHz when using 125MHz input
                      p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
@@ -123,7 +120,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.config["SI5324_SOFT_RESET"] = None
 
     def add_rtio(self, rtio_channels):
-        self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
+        self.submodules.rtio_crg = _RTIOCRG(self.platform)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
         self.submodules.rtio_core = rtio.Core(rtio_channels)

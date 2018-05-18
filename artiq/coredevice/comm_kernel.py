@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 
 class Request(Enum):
     SystemInfo = 3
-    SwitchClock = 4
 
     LoadKernel = 5
     RunKernel = 6
@@ -27,8 +26,6 @@ class Request(Enum):
 
 class Reply(Enum):
     SystemInfo = 2
-    ClockSwitchCompleted = 3
-    ClockSwitchFailed = 4
 
     LoadCompleted = 5
     LoadFailed = 6
@@ -58,9 +55,6 @@ RPCKeyword = namedtuple('RPCKeyword', ['name', 'value'])
 
 class CommKernelDummy:
     def __init__(self):
-        pass
-
-    def switch_clock(self, external):
         pass
 
     def load(self, kernel_library):
@@ -236,12 +230,6 @@ class CommKernel:
         finished_cleanly = self._read_bool()
         if not finished_cleanly:
             logger.warning("Previous kernel did not cleanly finish")
-
-    def switch_clock(self, external):
-        self._write_header(Request.SwitchClock)
-        self._write_int8(external)
-
-        self._read_empty(Reply.ClockSwitchCompleted)
 
     def load(self, kernel_library):
         self._write_header(Request.LoadKernel)

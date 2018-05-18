@@ -1,28 +1,32 @@
-use board_misoc::{csr, config};
+use board_misoc::csr;
+#[cfg(has_rtio_clock_switch)]
+use board_misoc::config;
 use sched::Io;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
     use board_misoc::{clock, csr};
 
-    pub fn init() {
-        unsafe { csr::rtio_crg::pll_reset_write(0) }
-    }
-
     pub fn check() -> bool {
         unsafe { csr::rtio_crg::pll_locked_read() != 0 }
     }
 
-    pub fn switch_clock(clk: u8) -> bool {
+    #[cfg(has_rtio_clock_switch)]
+    pub fn init(clk: u8) -> bool {
         unsafe {
-            let cur_clk = csr::rtio_crg::clock_sel_read();
-            if clk != cur_clk {
-                csr::rtio_crg::pll_reset_write(1);
-                csr::rtio_crg::clock_sel_write(clk);
-                csr::rtio_crg::pll_reset_write(0);
-            }
+            csr::rtio_crg::pll_reset_write(1);
+            csr::rtio_crg::clock_sel_write(clk);
+            csr::rtio_crg::pll_reset_write(0);
         }
+        clock::spin_us(150);
+        return check()
+    }
 
+    #[cfg(not(has_rtio_clock_switch))]
+    pub fn init() -> bool {
+        unsafe {
+            csr::rtio_crg::pll_reset_write(0);
+        }
         clock::spin_us(150);
         return check()
     }
@@ -30,9 +34,7 @@ pub mod crg {
 
 #[cfg(not(has_rtio_crg))]
 pub mod crg {
-    pub fn init() {}
     pub fn check() -> bool { true }
-    pub fn switch_clock(_clk: u8) -> bool { true }
 }
 
 #[cfg(has_drtio)]
@@ -227,40 +229,43 @@ fn async_error_thread(io: Io) {
 }
 
 pub fn startup(io: &Io) {
-    crg::init();
+    #[cfg(has_rtio_crg)]
+    {
+        #[cfg(has_rtio_clock_switch)]
+        {
+            #[derive(Debug)]
+            enum RtioClock {
+                Internal = 0,
+                External = 1
+            };
 
-    #[derive(Debug)]
-    enum RtioClock {
-        Internal = 0,
-        External = 1
-    };
+            let clk = config::read("rtio_clock", |result| {
+                match result {
+                    Ok(b"i") => {
+                        info!("using internal RTIO clock");
+                        RtioClock::Internal
+                    },
+                    Ok(b"e") => {
+                        info!("using external RTIO clock");
+                        RtioClock::External
+                    },
+                    _ => {
+                        info!("using internal RTIO clock (by default)");
+                        RtioClock::Internal
+                    },
+                }
+            });
 
-    let clk = config::read("startup_clock", |result| {
-        match result {
-            Ok(b"i") => {
-                info!("using internal startup RTIO clock");
-                RtioClock::Internal
-            },
-            Ok(b"e") => {
-                info!("using external startup RTIO clock");
-                RtioClock::External
-            },
-            Err(_) => {
-                info!("using internal startup RTIO clock (by default)");
-                RtioClock::Internal
-            },
-            Ok(_) => {
-                error!("unrecognized startup_clock configuration entry, \
-                        using internal RTIO clock");
-                RtioClock::Internal
+            if !crg::init(clk as u8) {
+                error!("RTIO clock failed");
             }
         }
-    });
-
-    if !crg::switch_clock(clk as u8) {
-        error!("startup RTIO clock failed");
-        warn!("this may cause the system initialization to fail");
-        warn!("fix clocking and reset the device");
+        #[cfg(not(has_rtio_clock_switch))]
+        {
+            if !crg::init() {
+                error!("RTIO clock failed");
+            }
+        }
     }
 
     drtio::startup(io);

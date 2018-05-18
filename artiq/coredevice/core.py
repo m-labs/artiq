@@ -62,8 +62,6 @@ class Core:
         clocked at 125MHz and a SERDES multiplication factor of 8, the
         reference period is 1ns.
         The time machine unit is equal to this period.
-    :param external_clock: whether the core device should switch to its
-        external RTIO clock input instead of using its internal oscillator.
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
@@ -71,13 +69,10 @@ class Core:
 
     kernel_invariants = {
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
-        "external_clock",
     }
 
-    def __init__(self, dmgr, host, ref_period, external_clock=False,
-                 ref_multiplier=8):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8):
         self.ref_period = ref_period
-        self.external_clock = external_clock
         self.ref_multiplier = ref_multiplier
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
@@ -129,7 +124,6 @@ class Core:
 
         if self.first_run:
             self.comm.check_system_info()
-            self.comm.switch_clock(self.external_clock)
             self.first_run = False
 
         self.comm.load(kernel_library)

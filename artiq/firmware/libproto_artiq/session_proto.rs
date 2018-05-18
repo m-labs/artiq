@@ -64,7 +64,6 @@ fn write_sync<W>(writer: &mut W) -> Result<(), IoError<W::WriteError>>
 #[derive(Debug)]
 pub enum Request {
     SystemInfo,
-    SwitchClock(u8),
 
     LoadKernel(Vec<u8>),
     RunKernel,
@@ -87,8 +86,6 @@ pub enum Reply<'a> {
         ident: &'a str,
         finished_cleanly: bool
     },
-    ClockSwitchCompleted,
-    ClockSwitchFailed,
 
     LoadCompleted,
     LoadFailed(&'a str),
@@ -118,10 +115,7 @@ impl Request {
     {
         read_sync(reader)?;
         Ok(match reader.read_u8()? {
-            // 1-2, 13 were log requests
-
             3  => Request::SystemInfo,
-            4  => Request::SwitchClock(reader.read_u8()?),
 
             5  => Request::LoadKernel(reader.read_bytes()?),
             6  => Request::RunKernel,
@@ -141,10 +135,6 @@ impl Request {
                 function: reader.read_string()?
             },
 
-            // 9-12 were flash requests
-
-            // 14 was hotswap request
-
             ty  => return Err(Error::UnknownPacket(ty))
         })
     }
@@ -156,19 +146,11 @@ impl<'a> Reply<'a> {
     {
         write_sync(writer)?;
         match *self {
-            // 1 was log reply
-
             Reply::SystemInfo { ident, finished_cleanly } => {
                 writer.write_u8(2)?;
                 writer.write(b"AROR")?;
                 writer.write_string(ident)?;
                 writer.write_u8(finished_cleanly as u8)?;
-            },
-            Reply::ClockSwitchCompleted => {
-                writer.write_u8(3)?;
-            },
-            Reply::ClockSwitchFailed => {
-                writer.write_u8(4)?;
             },
 
             Reply::LoadCompleted => {
@@ -209,16 +191,12 @@ impl<'a> Reply<'a> {
                 writer.write_u8(async as u8)?;
             },
 
-            // 11-13 were flash requests
-
             Reply::WatchdogExpired => {
                 writer.write_u8(14)?;
             },
             Reply::ClockFailure => {
                 writer.write_u8(15)?;
             },
-
-            // 16 was hotswap imminent reply
         }
         Ok(())
     }

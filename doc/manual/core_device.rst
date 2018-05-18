@@ -159,6 +159,11 @@ To avoid I/O contention, the startup kernel should first program the TCA6424A ex
 
 See :mod:`artiq.coredevice.i2c` for more details.
 
+Clocking
+++++++++
+
+The KC705 supports an internal 125MHz RTIO clock (based on its crystal oscillator) and an external clock, that can be selected using the ``rtio_clock`` configuration entry.
+
 Kasli
 -----
 

@@ -256,6 +256,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
+        self.config["HAS_RTIO_CLOCK_SWITCH"] = None
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()
@@ -502,6 +503,7 @@ class SMA_SPI(_StandaloneBase):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk,
                                             use_sma=False)
         self.csr_devices.append("rtio_crg")
+        self.config["HAS_RTIO_CLOCK_SWITCH"] = None
         self.submodules.rtio_core = rtio.Core(rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator()

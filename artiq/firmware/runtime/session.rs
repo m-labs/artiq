@@ -250,24 +250,6 @@ fn process_host_message(io: &Io,
             session.congress.finished_cleanly.set(true)
         }
 
-        host::Request::SwitchClock(clk) => {
-            if session.running() {
-                unexpected!("attempted to switch RTIO clock while a kernel was running")
-            }
-
-            #[cfg(has_rtio_core)]
-            {
-                if rtio_mgt::crg::switch_clock(clk) {
-                    host_write(stream, host::Reply::ClockSwitchCompleted)?;
-                } else {
-                    host_write(stream, host::Reply::ClockSwitchFailed)?;
-                }
-            }
-
-            #[cfg(not(has_rtio_core))]
-            host_write(stream, host::Reply::ClockSwitchFailed)?
-        }
-
         host::Request::LoadKernel(kernel) =>
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted)?,
