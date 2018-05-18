@@ -30,6 +30,8 @@ class KasliTester(EnvExperiment):
         self.leds = dict()
         self.ttl_outs = dict()
         self.ttl_ins = dict()
+        self.urukul_cplds = dict()
+        self.urukuls = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -43,6 +45,10 @@ class KasliTester(EnvExperiment):
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
                     self.ttl_ins[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
+                    self.urukul_cplds[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
+                    self.urukuls[name] = self.get_device(name)
 
         # Remove Urukul control signals from TTL outs (tested separately)
         ddb = self.get_device_db()
@@ -61,6 +67,7 @@ class KasliTester(EnvExperiment):
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
         self.ttl_outs = sorted(self.ttl_outs.items(), key=lambda x: x[1].channel)
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
+        self.urukuls = sorted(self.urukuls.items(), key=lambda x: x[1].sw.channel)
 
     @kernel
     def test_led(self, led):
@@ -102,8 +109,7 @@ class KasliTester(EnvExperiment):
         print("pulses corresponds to its number in the group.")
         print("Press ENTER when done.")
 
-        ttl_outs = list(self.ttl_outs)
-        for ttl_chunk in chunker(ttl_outs, 4):
+        for ttl_chunk in chunker(self.ttl_outs, 4):
             print("Testing TTL outputs: {}.".format(", ".join(name for name, dev in ttl_chunk)))
             self.test_ttl_out_chunk([dev for name, dev in ttl_chunk])
 
@@ -133,9 +139,39 @@ class KasliTester(EnvExperiment):
             else:
                 print("FAILED")
 
+    @kernel
+    def init_urukul(self, cpld):
+        self.core.break_realtime()
+        cpld.init()
+
+    @kernel
+    def setup_urukul(self, channel, frequency):
+        self.core.break_realtime()
+        channel.set(frequency*MHz)
+        channel.sw.on()
+        channel.set_att(6.)
+
+    # We assume that RTIO channels for switches are grouped by card.
+    def test_urukuls(self):
+        print("*** Testing Urukul DDSes.")
+        print("Initializing CPLDs...")
+        for name, cpld in sorted(self.urukul_cplds.items(), key=lambda x: x[0]):
+            print(name + "...")
+            self.init_urukul(cpld)
+        print("...done")
+        print("Frequencies:")
+        for card_n, channels in enumerate(chunker(self.urukuls, 4)):
+            for channel_n, (channel_name, channel_dev) in enumerate(channels):
+                frequency = 10*(card_n + 1) + channel_n
+                print("{}\t{}MHz".format(channel_name, frequency))
+                self.setup_urukul(channel_dev, frequency)
+        print("Press ENTER when done.")
+        input()
+
     def run(self):
         print("****** Kasli system tester ******")
         print("")
         self.test_leds()
         self.test_ttl_outs()
         self.test_ttl_ins()
+        self.test_urukuls()
