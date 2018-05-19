@@ -60,6 +60,7 @@ class Module:
                                                          ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
+        local_demoter = transforms.LocalDemoter()
         devirtualization = analyses.Devirtualization()
         interleaver = transforms.Interleaver(engine=self.engine)
         invariant_detection = analyses.InvariantDetection(engine=self.engine)
@@ -77,6 +78,7 @@ class Module:
         dead_code_eliminator.process(self.artiq_ir)
         interleaver.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
+        local_demoter.process(self.artiq_ir)
         if remarks:
             invariant_detection.process(self.artiq_ir)
 
