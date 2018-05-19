@@ -1,5 +1,5 @@
 import os, sys, tempfile, subprocess, io
-from artiq.compiler import types
+from artiq.compiler import types, ir
 from llvmlite_artiq import ir as ll, binding as llvm
 
 llvm.initialize()
@@ -130,6 +130,9 @@ class Target:
         if os.getenv("ARTIQ_DUMP_SIG"):
             print("====== MODULE_SIGNATURE DUMP ======", file=sys.stderr)
             print(module, file=sys.stderr)
+
+        if os.getenv("ARTIQ_IR_NO_LOC") is not None:
+            ir.BasicBlock._dump_loc = False
 
         type_printer = types.TypePrinter()
         _dump(os.getenv("ARTIQ_DUMP_IR"), "ARTIQ IR", ".txt",

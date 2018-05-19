@@ -303,6 +303,7 @@ class BasicBlock(NamedValue):
 
     :ivar instructions: (list of :class:`Instruction`)
     """
+    _dump_loc = True
 
     def __init__(self, instructions, name=""):
         super().__init__(TBasicBlock(), name)
@@ -383,7 +384,7 @@ class BasicBlock(NamedValue):
         # Annotated instructions
         loc = None
         for insn in self.instructions:
-            if loc != insn.loc:
+            if self._dump_loc and loc != insn.loc:
                 loc = insn.loc
 
                 if loc is None:
