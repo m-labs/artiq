@@ -379,7 +379,7 @@ class BasicBlock(NamedValue):
         lines = ["{}:".format(escape_name(self.name))]
         if self.function is not None:
             lines[0] += " ; predecessors: {}".format(
-                ", ".join([escape_name(pred.name) for pred in self.predecessors()]))
+                ", ".join(sorted([escape_name(pred.name) for pred in self.predecessors()])))
 
         # Annotated instructions
         loc = None
