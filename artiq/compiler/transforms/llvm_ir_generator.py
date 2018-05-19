@@ -731,7 +731,7 @@ class LLVMIRGenerator:
             llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                        inbounds=True)
             llouterenv = self.llbuilder.load(llptr)
-            llouterenv.set_metadata('unconditionally.invariant.load', self.empty_metadata)
+            llouterenv.set_metadata('invariant.load', self.empty_metadata)
             llouterenv.set_metadata('nonnull', self.empty_metadata)
             return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
 
@@ -739,7 +739,7 @@ class LLVMIRGenerator:
         assert isinstance(load, ll.LoadInstr) and isinstance(load.type, ll.PointerType)
         pointee_size = load.type.pointee.get_abi_size(self.lldatalayout, context=self.llcontext)
         metadata = self.llmodule.add_metadata([ll.Constant(lli64, pointee_size)])
-        load.set_metadata('unconditionally_dereferenceable', metadata)
+        load.set_metadata('dereferenceable', metadata)
 
     def process_GetLocal(self, insn):
         env = insn.environment()
@@ -875,7 +875,7 @@ class LLVMIRGenerator:
                                            inbounds=True, name="ptr.{}".format(insn.name))
                 llvalue = self.llbuilder.load(llptr, name="val.{}".format(insn.name))
                 if types.is_instance(typ) and attr in typ.constant_attributes:
-                    llvalue.set_metadata('unconditionally.invariant.load', self.empty_metadata)
+                    llvalue.set_metadata('invariant.load', self.empty_metadata)
                 if isinstance(llvalue.type, ll.PointerType):
                     self.mark_dereferenceable(llvalue)
                 return llvalue
@@ -1118,7 +1118,7 @@ class LLVMIRGenerator:
                     llptr = self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(outer_index)],
                                                inbounds=True)
                     llouterenv = self.llbuilder.load(llptr)
-                    llouterenv.set_metadata('unconditionally.invariant.load', self.empty_metadata)
+                    llouterenv.set_metadata('invariant.load', self.empty_metadata)
                     llouterenv.set_metadata('nonnull', self.empty_metadata)
                     return self.llptr_to_var(llouterenv, env_ty.params["$outer"], var_name)
                 else:
