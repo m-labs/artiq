@@ -57,16 +57,20 @@ class SPIMaster:
     register.
 
     :param channel: RTIO channel number of the SPI bus to control.
+    :param div: Initial CLK divider, see also: :meth:`update_xfer_duration_mu`
+    :param length: Initial transfer length, see also:
+        :meth:`update_xfer_duration_mu`
+    :param core_device: Core device name
     """
     kernel_invariants = {"core", "ref_period_mu", "channel"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, div=0, length=0, core_device="core"):
         self.core = dmgr.get(core_device)
         self.ref_period_mu = self.core.seconds_to_mu(
                 self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier
         self.channel = channel
-        self.xfer_duration_mu = 2*self.ref_period_mu
+        self.update_xfer_duration_mu(div, length)
 
     @portable
     def frequency_to_div(self, f):
@@ -162,10 +166,30 @@ class SPIMaster:
             raise ValueError("Invalid SPI transfer length")
         if div > 257 or div < 2:
             raise ValueError("Invalid SPI clock divider")
-        self.xfer_duration_mu = ((length + 1)*div + 1)*self.ref_period_mu
         rtio_output(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
                 ((length - 1) << 8) | ((div - 2) << 16) | (cs << 24))
+        self.update_xfer_duration_mu(div, length)
         delay_mu(self.ref_period_mu)
+
+    @portable
+    def update_xfer_duration_mu(self, div, length):
+        """Calculate and set the transfer duration.
+
+        This method updates the SPI transfer duration which is used
+        in :meth:`write` to advance the timeline.
+
+        Use this method (and avoid having to call :meth:`set_config_mu`)
+        when the divider and transfer length have been configured
+        (using :meth:`set_config` or :meth:`set_config_mu`) by previous
+        experiments and are known.
+
+        This method is portable and can also be called from e.g.
+        ``__init__``.
+
+        :param div: SPI clock divider (see: :meth:`set_config_mu`)
+        :param length: SPI transfer length (see: :meth:`set_config_mu`)
+        """
+        self.xfer_duration_mu = ((length + 1)*div + 1)*self.ref_period_mu
 
     @kernel
     def write(self, data):

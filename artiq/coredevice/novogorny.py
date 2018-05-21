@@ -69,17 +69,20 @@ class Novogorny:
     :param spi_device: SPI bus device name
     :param cnv_device: CNV RTIO TTLOut channel name
     :param div: SPI clock divider (default: 8)
+    :param gains: Initial value for PGIA gains shift register
+        (default: 0x0000). Knowledge of this state is not transferred
+        between experiments.
     :param core_device: Core device name
     """
     kernel_invariants = {"bus", "core", "cnv", "div", "v_ref"}
 
-    def __init__(self, dmgr, spi_device, cnv_device, div=8,
+    def __init__(self, dmgr, spi_device, cnv_device, div=8, gains=0x0000,
                  core_device="core"):
         self.bus = dmgr.get(spi_device)
         self.core = dmgr.get(core_device)
         self.cnv = dmgr.get(cnv_device)
         self.div = div
-        self.gains = 0x0000
+        self.gains = gains
         self.v_ref = 5.  # 5 Volt reference
 
     @kernel

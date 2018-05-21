@@ -45,18 +45,23 @@ class Sampler:
     :param spi_pgia_device: PGIA SPI bus device name
     :param cnv_device: CNV RTIO TTLOut channel name
     :param div: SPI clock divider (default: 8)
+    :param gains: Initial value for PGIA gains shift register
+        (default: 0x0000). Knowledge of this state is not transferred
+        between experiments.
     :param core_device: Core device name
     """
     kernel_invariants = {"bus_adc", "bus_pgia", "core", "cnv", "div"}
 
     def __init__(self, dmgr, spi_adc_device, spi_pgia_device, cnv_device,
-                 div=8, core_device="core"):
+                 div=8, gains=0x0000, core_device="core"):
         self.bus_adc = dmgr.get(spi_adc_device)
+        self.bus_adc.update_xfer_duration_mu(div, 32)
         self.bus_pgia = dmgr.get(spi_pgia_device)
+        self.bus_pgia.update_xfer_duration_mu(div, 16)
         self.core = dmgr.get(core_device)
         self.cnv = dmgr.get(cnv_device)
         self.div = div
-        self.gains = 0x0000
+        self.gains = gains
 
     @kernel
     def init(self):

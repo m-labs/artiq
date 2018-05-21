@@ -26,6 +26,9 @@ class SUServo:
         Urukul
     :param dds1_device: Name of the AD9910 device for the DDS on the second
         Urukul
+    :param gains: Initial value for PGIA gains shift register
+        (default: 0x0000). Knowledge of this state is not transferred
+        between experiments.
     :param core_device: Core device name
     """
     kernel_invariants = {"channel", "core", "pgia", "cpld0", "cpld1",
@@ -34,16 +37,17 @@ class SUServo:
     def __init__(self, dmgr, channel, pgia_device,
                  cpld0_device, cpld1_device,
                  dds0_device, dds1_device,
-                 core_device="core"):
+                 gains=0x0000, core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.pgia = dmgr.get(pgia_device)
+        self.pgia.update_xfer_duration_mu(div=4, length=16)
         self.dds0 = dmgr.get(dds0_device)
         self.dds1 = dmgr.get(dds1_device)
         self.cpld0 = dmgr.get(cpld0_device)
         self.cpld1 = dmgr.get(cpld1_device)
         self.channel = channel
-        self.gains = 0x0000
+        self.gains = gains
         self.ref_period_mu = self.core.seconds_to_mu(
                 self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier

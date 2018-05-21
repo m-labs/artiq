@@ -110,7 +110,8 @@ class AD53xx:
       valid)
     :param vref: DAC reference voltage (default: 5.)
     :param offset_dacs: Initial register value for the two offset DACs, device
-      dependent and must be set correctly for correct voltage to mu conversions
+      dependent and must be set correctly for correct voltage to mu conversions.
+      Knowledge of his state is not transferred between experiments.
       (default: 8192)
     :param core_device: Core device name (default: "core")
     """
@@ -121,6 +122,7 @@ class AD53xx:
                  chip_select=1, div_write=4, div_read=16, vref=5.,
                  offset_dacs=8192, core="core"):
         self.bus = dmgr.get(spi_device)
+        self.bus.update_xfer_duration_mu(div_write, 24)
         if ldac_device is None:
             self.ldac = _DummyTTL()
         else:

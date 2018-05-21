@@ -119,14 +119,18 @@ class CPLD:
         MMCX or ob-board XO clock. 1 corresponds to the front panel SMA.
     :param sync_sel: SYNC clock selection. 0 corresponds to SYNC clock over EEM
         from FPGA. 1 corresponds to SYNC clock from DDS0.
+    :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
+        Knowledge of this state is not transferred between experiments.
+    :param att: Initial attenuator setting shift register (default:
+        0x00000000). See also: :meth:`set_all_att_mu`. Knowledge of this state
+        is not transferred between experiments.
     :param core_device: Core device name
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
-            dds_reset_device=None,
-            sync_sel=0, clk_sel=0,
-            refclk=125e6, core_device="core"):
+            dds_reset_device=None, sync_sel=0, clk_sel=0, rf_sw=0,
+            refclk=125e6, att=0x00000000, core_device="core"):
 
         self.core   = dmgr.get(core_device)
         self.refclk = refclk
@@ -139,10 +143,10 @@ class CPLD:
         if dds_reset_device is not None:
             self.dds_reset = dmgr.get(dds_reset_device)
 
-        self.cfg_reg = urukul_cfg(rf_sw=0, led=0, profile=0,
+        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
             io_update=0, mask_nu=0, clk_sel=clk_sel,
             sync_sel=sync_sel, rst=0, io_rst=0)
-        self.att_reg = 0
+        self.att_reg = att
 
     @kernel
     def cfg_write(self, cfg):
@@ -226,16 +230,28 @@ class CPLD:
     def set_att_mu(self, channel, att):
         """Set digital step attenuator in machine units.
 
+        This method will write the attenuator settings of all four channels.
+
         :param channel: Attenuator channel (0-3).
         :param att: Digital attenuation setting:
             255 minimum attenuation, 0 maximum attenuation (31.5 dB)
         """
         a = self.att_reg & ~(0xff << (channel * 8))
         a |= att << (channel * 8)
+        self.set_all_att_mu(a)
+
+    @kernel
+    def set_all_att_mu(self, att_reg):
+        """Set all four digital step attenuators (in machine units).
+
+        .. seealso:: :meth:`set_att_mu`
+
+        :param att_reg: Attenuator setting string (32 bit)
+        """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
                 SPIT_ATT_WR, CS_ATT)
-        self.bus.write(a)
-        self.att_reg = a
+        self.bus.write(att_reg)
+        self.att_reg = att_reg
 
     @kernel
     def set_att(self, channel, att):
@@ -250,6 +266,9 @@ class CPLD:
     @kernel
     def get_att_mu(self):
         """Return the digital step attenuator settings in machine units.
+
+        This method will also (as a side effect) write the attenuator
+        settings of all four channels.
 
         :return: 32 bit attenuator settings
         """
