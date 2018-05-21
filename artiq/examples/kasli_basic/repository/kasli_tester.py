@@ -193,6 +193,7 @@ class KasliTester(EnvExperiment):
     def run(self):
         print("****** Kasli system tester ******")
         print("")
+        self.core.reset()
         self.test_leds()
         self.test_ttl_outs()
         self.test_ttl_ins()
