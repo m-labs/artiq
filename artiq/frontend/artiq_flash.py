@@ -269,7 +269,7 @@ def main():
         "kasli": {
             "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
             "variants":     ["opticlock", "suservo", "sysu", "mitll", "ustc",
-                             "master", "satellite"],
+                             "tester", "master", "satellite"],
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
             "storage":      ("spi0", 0x440000),
