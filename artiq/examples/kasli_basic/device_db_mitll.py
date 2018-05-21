@@ -115,19 +115,19 @@ for i in range(2):
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
         "arguments": {"channel": 14+3*i+0}
-    },
+    }
     device_db["ttl_zotino{}_ldac".format(i)] = {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 14+3*i+1}
-    },
+    }
     device_db["ttl_zotino{}_clr".format(i)] = {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 14+3*i+2}
-    },
+    }
     device_db["zotino{}".format(i)] = {
         "type": "local",
         "module": "artiq.coredevice.zotino",

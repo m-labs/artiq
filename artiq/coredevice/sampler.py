@@ -1,4 +1,3 @@
-
 from artiq.language.core import kernel, delay, portable
 from artiq.language.units import ns
 
