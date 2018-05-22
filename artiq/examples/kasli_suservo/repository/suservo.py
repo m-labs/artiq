@@ -42,7 +42,7 @@ class SUServo(EnvExperiment):
         assert self.suservo0.get_status() & 0xff == 2
 
         # set up profile 0 on channel 0:
-        delay(100*us)
+        delay(120*us)
         self.suservo0_ch0.set_y(
             profile=0,
             y=0.  # clear integrator
