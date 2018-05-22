@@ -208,6 +208,9 @@ class Filter:
         """Show existing patterns."""
         return self.patterns
 
+    def ping(self):
+        return True
+
 
 def main():
     args = get_argparser().parse_args()
