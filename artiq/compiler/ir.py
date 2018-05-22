@@ -410,7 +410,13 @@ class BasicBlock(NamedValue):
 class Argument(NamedValue):
     """
     A function argument.
+
+    :ivar loc: (:class:`pythonparser.source.Range` or None)
+        source location
     """
+    def __init__(self, typ, name):
+        super().__init__(typ, name)
+        self.loc = None
 
     def as_entity(self, type_printer):
         return self.as_operand(type_printer)

@@ -268,6 +268,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.current_args[arg_name] = arg
                 optargs.append(arg)
 
+            for (arg, arg_node) in zip(args + optargs, node.args.args):
+                arg.loc = arg_node.loc
+
             func = ir.Function(typ, ".".join(self.name), [env_arg] + args + optargs,
                                loc=node.lambda_loc if is_lambda else node.keyword_loc)
             func.is_internal = is_internal
