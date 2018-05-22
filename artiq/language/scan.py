@@ -42,12 +42,10 @@ class NoScan(ScanObject):
         self.value = value
         self.repetitions = repetitions
 
-    @portable
     def _gen(self):
         for i in range(self.repetitions):
             yield self.value
 
-    @portable
     def __iter__(self):
         return self._gen()
 
@@ -81,7 +79,6 @@ class RangeScan(ScanObject):
             rng = random.Random(seed)
             random.shuffle(self.sequence, rng.random)
 
-    @portable
     def __iter__(self):
         return iter(self.sequence)
 
@@ -101,7 +98,6 @@ class ExplicitScan(ScanObject):
     def __init__(self, sequence):
         self.sequence = sequence
 
-    @portable
     def __iter__(self):
         return iter(self.sequence)
 
