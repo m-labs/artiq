@@ -117,12 +117,12 @@ To read core device logs::
 
     $ artiq_coremgmt log
 
-To set core device log level and UART log level (possible levels are ``DEBUG``, ``INFO``, ``WARN`` and ``ERROR``)::
+To set core device log level and UART log level (possible levels are ``TRACE``, ``DEBUG``, ``INFO``, ``WARN`` and ``ERROR``)::
 
     $ artiq_coremgmt log set_level LEVEL
     $ artiq_coremgmt log set_uart_level LEVEL
 
-Note that enabling the ``DEBUG`` log level results in small core device slowdown, and printing large amounts of log messages to the UART results in significant core device slowdown.
+Note that enabling the ``TRACE`` log level results in small core device slowdown, and printing large amounts of log messages to the UART results in significant core device slowdown.
 
 To read the record whose key is ``mac``::
 
