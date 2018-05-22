@@ -106,62 +106,66 @@ Flashing/Loading tool
 
 .. _core-device-configuration-tool:
 
-Core device configuration tool
-------------------------------
+Core device management tool
+---------------------------
 
-The artiq_coreconfig utility gives remote access to the :ref:`core-device-flash-storage`.
+The artiq_coremgmt utility gives remote access to the core device logs, the :ref:`core-device-flash-storage`, and other management functions.
 
-To use this tool, you need to specify a ``device_db.py`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.py``). This tells the tool how to connect to the core device and with which parameters (e.g. IP address, TCP port). When not specified, the artiq_coreconfig utility will assume that there is a file named ``device_db.py`` in the current directory.
+To use this tool, you need to specify a ``device_db.py`` device database file which contains a ``comm`` device (an example is provided in ``examples/master/device_db.py``). This tells the tool how to connect to the core device and with which parameters (e.g. IP address, TCP port). When not specified, the artiq_coremgmt utility will assume that there is a file named ``device_db.py`` in the current directory.
+
+To read core device logs::
+
+    $ artiq_coremgmt log
+
+To set core device log level and UART log level (possible levels are ``DEBUG``, ``INFO``, ``WARN`` and ``ERROR``)::
+
+    $ artiq_coremgmt log set_level LEVEL
+    $ artiq_coremgmt log set_uart_level LEVEL
+
+Note that enabling the ``DEBUG`` log level results in small core device slowdown, and printing large amounts of log messages to the UART results in significant core device slowdown.
 
 To read the record whose key is ``mac``::
 
-    $ artiq_coreconfig read mac
+    $ artiq_coremgmt config read mac
 
 To write the value ``test_value`` in the key ``my_key``::
 
-    $ artiq_coreconfig write -s my_key test_value
-    $ artiq_coreconfig read my_key
+    $ artiq_coremgmt config write -s my_key test_value
+    $ artiq_coremgmt config read my_key
     b'test_value'
 
 You can also write entire files in a record using the ``-f`` parameter. This is useful for instance to write the startup and idle kernels in the flash storage::
 
-    $ artiq_coreconfig write -f idle_kernel idle.elf
-    $ artiq_coreconfig read idle_kernel | head -c9
+    $ artiq_coremgmt config write -f idle_kernel idle.elf
+    $ artiq_coremgmt config read idle_kernel | head -c9
     b'\x7fELF
 
 You can write several records at once::
 
-    $ artiq_coreconfig write -s key1 value1 -f key2 filename -s key3 value3
+    $ artiq_coremgmt config write -s key1 value1 -f key2 filename -s key3 value3
 
 To remove the previously written key ``my_key``::
 
-    $ artiq_coreconfig delete my_key
+    $ artiq_coremgmt config delete my_key
 
 You can remove several keys at once::
 
-    $ artiq_coreconfig delete key1 key2
+    $ artiq_coremgmt config delete key1 key2
 
 To erase the entire flash storage area::
 
-    $ artiq_coreconfig erase
+    $ artiq_coremgmt config erase
 
 You do not need to remove a record in order to change its value, just overwrite it::
 
-    $ artiq_coreconfig write -s my_key some_value
-    $ artiq_coreconfig write -s my_key some_other_value
-    $ artiq_coreconfig read my_key
+    $ artiq_coremgmt config write -s my_key some_value
+    $ artiq_coremgmt config write -s my_key some_other_value
+    $ artiq_coremgmt config read my_key
     b'some_other_value'
 
 .. argparse::
-   :ref: artiq.frontend.artiq_coreconfig.get_argparser
-   :prog: artiq_coreconfig
-
-Core device log download tool
------------------------------
-
-.. argparse::
-   :ref: artiq.frontend.artiq_corelog.get_argparser
-   :prog: artiq_corelog
+   :ref: artiq.frontend.artiq_coremgmt.get_argparser
+   :prog: artiq_coremgmt
 
 .. _core-device-rtio-analyzer-tool:
 
