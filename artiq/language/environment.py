@@ -395,7 +395,7 @@ class EnvExperiment(Experiment, HasEnvironment):
     """Base class for top-level experiments that use the ``HasEnvironment``
     environment manager.
 
-    Most experiment should derive from this class."""
+    Most experiments should derive from this class."""
     def prepare(self):
         """The default prepare method calls prepare for all children, in the
         order of instantiation, if the child has a prepare method."""
