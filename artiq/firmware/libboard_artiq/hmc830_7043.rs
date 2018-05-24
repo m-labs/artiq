@@ -30,7 +30,7 @@ mod clock_mux {
 mod hmc830 {
     use board_misoc::{csr, clock};
 
-    const HMC830_WRITES: [(u8, u32); 16] = [
+    const HMC830_WRITES: [(u8, u32); 17] = [
         (0x0, 0x20),
         (0x1, 0x2),
         (0x2, 0x2), // r_divider
@@ -38,6 +38,7 @@ mod hmc830 {
         (0x5, 0x60a0),
         (0x5, 0xe110),
         (0x5, 0x2818),
+        (0x5, 0xf88),
         (0x5, 0x0),
         (0x6, 0x303ca),
         (0x7, 0x14d),
