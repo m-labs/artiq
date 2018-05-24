@@ -131,7 +131,8 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     jesdv: 1
 };
 
-fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
+fn dac_reset(dacno: u8) {
+    spi_setup(dacno);
     // reset
     write(ad9154_reg::SPI_INTFCONFA,
             1*ad9154_reg::SOFTRESET_M | 1*ad9154_reg::SOFTRESET |
@@ -145,12 +146,20 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             0*ad9154_reg::ADDRINC_M | 0*ad9154_reg::ADDRINC |
             1*ad9154_reg::SDOACTIVE_M | 1*ad9154_reg::SDOACTIVE);
     clock::spin_us(100);
+}
+
+fn dac_detect(dacno: u8) -> Result<(), &'static str> {
+    spi_setup(dacno);
     if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
         return Err("invalid AD9154 identification");
     } else {
         info!("AD9154-{} found", dacno);
     }
+    Ok(())
+}
 
+fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
+    spi_setup(dacno);
     info!("AD9154-{} initializing...", dacno);
     write(ad9154_reg::PWRCNTRL0,
             0*ad9154_reg::PD_DAC0 | 0*ad9154_reg::PD_DAC1 |
@@ -336,7 +345,7 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             0x5*ad9154_reg::SPI_CP_LEVEL_THRESHOLD_LOW |
             0*ad9154_reg::SPI_CP_LEVEL_DET_PD);
     write(ad9154_reg::VCO_VARACTOR_CTRL_0,
-            0xe*ad9154_reg::SPI_VCO_VARACTOR_OFFSET |
+            0xe*ad9154_reg::SPI_VCO_VARACTOR_OFFSET | 
             0x7*ad9154_reg::SPI_VCO_VARACTOR_REF_TCF);
     write(ad9154_reg::VCO_VARACTOR_CTRL_1,
             0x6*ad9154_reg::SPI_VCO_VARACTOR_REF);
@@ -400,7 +409,8 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
 }
 
 #[allow(dead_code)]
-fn dac_status() {
+fn dac_status(dacno: u8) {
+    spi_setup(dacno);
     info!("SERDES_PLL_LOCK: {}",
         (read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB));
     info!("");
@@ -452,7 +462,8 @@ fn dac_status() {
     info!("NITDISPARITY: 0x{:02x}", read(ad9154_reg::NIT_W));
 }
 
-fn dac_monitor() {
+fn dac_monitor(dacno: u8) {
+    spi_setup(dacno);
     write(ad9154_reg::IRQ_STATUS0, 0x00);
     write(ad9154_reg::IRQ_STATUS1, 0x00);
     write(ad9154_reg::IRQ_STATUS2, 0x00);
@@ -497,6 +508,7 @@ fn dac_monitor() {
 
 fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
     let mut prbs_errors: u32 = 0;
+    spi_setup(dacno);
 
     /* follow phy prbs testing (p58 of ad9154 datasheet) */
     info!("AD9154-{} running PRBS test...", dacno);
@@ -572,7 +584,7 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     jesd_enable(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
-    dac_monitor();
+    dac_monitor(dacno);
     clock::spin_us(50000);
     let t = clock::get_ms();
     while !jesd_ready(dacno) {
@@ -654,10 +666,15 @@ pub fn init() -> Result<(), &'static str> {
 
     for dacno in 0..csr::AD9154.len() {
         let dacno = dacno as u8;
-        dac_sysref_scan(dacno);
-        dac_sysref_cfg(dacno, 88);
+        // Reset the DAC, detect and configure it
+        dac_reset(dacno);
+        dac_detect(dacno)?;
         dac_cfg_retry(dacno)?;
+        // Run the PRBS and SYSREF scan tests
         dac_prbs(dacno)?;
+        dac_sysref_scan(dacno);
+        // Set SYSREF phase and reconfigure the DAC
+        dac_sysref_cfg(dacno, 88);
         dac_cfg_retry(dacno)?;
     }
 
