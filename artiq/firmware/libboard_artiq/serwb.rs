@@ -43,16 +43,19 @@ pub fn wait_init() {
     info!("done.");
 
     unsafe {
+        let prbs_test_cycles : u32 = 1<<22;
+        let prbs_test_us : u64 = ((prbs_test_cycles as u64)*40)/125; // 40 bits @125MHz linerate
+
         info!("RTM to AMC Link test");
-        csr::serwb_phy_amc::control_prbs_cycles_write(1<<20);
+        csr::serwb_phy_amc::control_prbs_cycles_write(prbs_test_cycles);
         csr::serwb_phy_amc::control_prbs_start_write(1);
-        clock::spin_us(1000000);
+        clock::spin_us(prbs_test_us*110/100); // PRBS test time + 10%
         info!("{} errors", csr::serwb_phy_amc::control_prbs_errors_read());
 
         info!("AMC to RTM Link test");
-        csr::serwb_phy_rtm::control_prbs_cycles_write(1<<20);
+        csr::serwb_phy_rtm::control_prbs_cycles_write(prbs_test_cycles);
         csr::serwb_phy_rtm::control_prbs_start_write(1);
-        clock::spin_us(1000000);
+        clock::spin_us(prbs_test_us*110/100); // PRBS test time + 10%
         info!("{} errors", csr::serwb_phy_rtm::control_prbs_errors_read());
     }
 
