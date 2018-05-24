@@ -76,6 +76,32 @@ class RTMMagic(Module, AutoCSR):
         self.comb += self.magic.status.eq(0x5352544d)  # "SRTM"
 
 
+class RTMScratch(Module, AutoCSR):
+    def __init__(self):
+        self.write_stb = write_stb = CSR()
+        self.write_ack = write_ack = CSRStatus()
+        self.write_data = write_data = CSRStorage(32)
+
+        self.read_stb = read_stb = CSRStatus()
+        self.read_ack = read_ack = CSR()
+        self.read_data = read_data = CSRStatus(32)
+
+        # # #
+
+        fifo = stream.SyncFIFO([("data", 32)], 512, buffered=True)
+        self.submodules += fifo
+        self.comb += [
+            # Connect registers to FIFO Sink
+            fifo.sink.stb.eq(write_stb.re),
+            write_ack.status.eq(fifo.sink.ack),
+            fifo.sink.data.eq(write_data.storage),
+
+            # Connect FIFO Source to registers
+            read_stb.status.eq(fifo.source.stb),
+            fifo.source.ack.eq(read_ack.re),
+            read_data.status.eq(fifo.source.data)
+        ]
+
 CSR_RANGE_SIZE = 0x800
 
 
@@ -90,6 +116,8 @@ class SaymaRTM(Module):
         csr_devices.append("rtm_magic")
         self.submodules.rtm_identifier = identifier.Identifier(artiq_version)
         csr_devices.append("rtm_identifier")
+        self.submodules.rtm_scratch = RTMScratch()
+        csr_devices.append("rtm_scratch")
 
         # clock mux: 100MHz ext SMA clock to HMC830 input
         self.submodules.clock_mux = gpio.GPIOOut(Cat(
