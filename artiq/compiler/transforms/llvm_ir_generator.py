@@ -9,6 +9,7 @@ from pythonparser import ast, diagnostic
 from llvmlite_artiq import ir as ll, binding as llvm
 from ...language import core as language_core
 from .. import types, builtins, ir
+from ..embedding import SpecializedFunction
 
 
 llvoid     = ll.VoidType()
@@ -1549,8 +1550,16 @@ class LLVMIRGenerator:
             # RPC and C functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
-            return self.get_function_with_undef_env(typ.find(),
-                                                    self.embedding_map.retrieve_function(value))
+            try:
+                func = self.embedding_map.retrieve_function(value)
+            except KeyError:
+                # If a class function was embedded directly (e.g. by a `C.f(...)` call),
+                # but it also appears in a class hierarchy, we might need to fall back
+                # to the non-specialized one, since direct invocations do not cause
+                # monomorphization.
+                assert isinstance(value, SpecializedFunction)
+                func = self.embedding_map.retrieve_function(value.host_function)
+            return self.get_function_with_undef_env(typ.find(), func)
         elif types.is_method(typ):
             llclosure = self._quote(value.__func__, types.get_method_function(typ),
                                     lambda: path() + ['__func__'])
