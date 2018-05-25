@@ -38,7 +38,6 @@ class ConstantHoister:
                 insn.remove_from_parent()
                 entry.instructions.insert(index_in_entry, insn)
                 moved.add(insn)
-                print(insn)
 
                 for use in insn.uses:
                     worklist.add(use)
