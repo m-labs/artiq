@@ -2,7 +2,7 @@
 
 set -e
 
-SOC_PREFIX=$SP_DIR/artiq/binaries/${ARTIQ_TARGET}-${ARTIQ_VARIANT}
+SOC_PREFIX=$PREFIX/site-packages/artiq/binaries/${ARTIQ_TARGET}-${ARTIQ_VARIANT}
 mkdir -p ${SOC_PREFIX}
 
 V=1 $PYTHON -m artiq.gateware.targets.${ARTIQ_TARGET} -V ${ARTIQ_VARIANT}
