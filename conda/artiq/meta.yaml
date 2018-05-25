@@ -18,7 +18,6 @@ build:
     - {{ entry_point }}
     {% endfor %}
     {% endfor %}
-  script: $PYTHON setup.py install --no-compile --single-version-externally-managed --record=record.txt
   ignore_prefix_files: True
 
 requirements:
