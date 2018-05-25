@@ -243,7 +243,8 @@ class AsyncioClient:
 
         No further method calls should be done after this method is called.
         """
-        self.__writer.close()
+        if self.__writer is not None:
+            self.__writer.close()
         self.__reader = None
         self.__writer = None
         self.__target_names = None

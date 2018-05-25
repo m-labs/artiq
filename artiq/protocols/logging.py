@@ -168,6 +168,7 @@ class LogForwarder(logging.Handler, TaskObject):
         self._queue.put_nowait(record.source + ":" + self.format(record))
 
     async def _do(self):
+        reader = writer = None
         while True:
             try:
                 reader, writer = await asyncio.open_connection(self.host,
@@ -182,4 +183,5 @@ class LogForwarder(logging.Handler, TaskObject):
             except:
                 await asyncio.sleep(self.reconnect_timer)
             finally:
-                writer.close()
+                if writer is not None:
+                    writer.close()
