@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOC_PREFIX=$SP_DIR/artiq/binaries/${ARTIQ_TARGET}-${ARTIQ_VARIANT}
+SOC_PREFIX=$PREFIX/site-packages/artiq/binaries/${ARTIQ_TARGET}-${ARTIQ_VARIANT}
 mkdir -p ${SOC_PREFIX}
 
 if [ "${ARTIQ_VARIANT}" = "phaser" ]; then
