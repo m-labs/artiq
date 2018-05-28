@@ -152,6 +152,7 @@ class KasliTester(EnvExperiment):
     @kernel
     def setup_urukul(self, channel, frequency):
         self.core.break_realtime()
+        channel.init()
         channel.set(frequency*MHz)
         channel.sw.on()
         channel.set_att(6.)
