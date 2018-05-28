@@ -347,3 +347,85 @@ class Zotino(_EEM):
             phy = ttl_out_cls(pads.p, pads.n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+
+class Grabber(_EEM):
+    @staticmethod
+    def io(eem, eem_aux):
+        ios = [
+            ("grabber{}_video".format(eem), 0,
+                Subsignal("xclk_p", Pins(_eem_pin(eem, 0, "p"))),
+                Subsignal("xclk_n", Pins(_eem_pin(eem, 0, "n"))),
+                Subsignal("x0_p", Pins(_eem_pin(eem, 1, "p"))),
+                Subsignal("x0_n", Pins(_eem_pin(eem, 1, "n"))),
+                Subsignal("x1_p", Pins(_eem_pin(eem, 2, "p"))),
+                Subsignal("x1_n", Pins(_eem_pin(eem, 2, "n"))),
+                Subsignal("x2_p", Pins(_eem_pin(eem, 3, "p"))),
+                Subsignal("x2_n", Pins(_eem_pin(eem, 3, "n"))),
+                Subsignal("x3_p", Pins(_eem_pin(eem, 4, "p"))),
+                Subsignal("x3_n", Pins(_eem_pin(eem, 4, "n"))),
+                IOStandard("LVDS_25")
+            ),
+            ("grabber{}_cc0".format(eem), 0,
+                Subsignal("p", Pins(_eem_pin(eem_aux, 5, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem_aux, 5, "n"))),
+                IOStandard("LVDS_25")
+            ),
+            ("grabber{}_cc1".format(eem), 0,
+                Subsignal("p", Pins(_eem_pin(eem_aux, 6, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem_aux, 6, "n"))),
+                IOStandard("LVDS_25")
+            ),
+            ("grabber{}_cc2".format(eem), 0,
+                Subsignal("p", Pins(_eem_pin(eem_aux, 7, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem_aux, 7, "n"))),
+                IOStandard("LVDS_25")
+            ),
+        ]
+        if eem_aux is not None:
+            ios += [
+                ("grabber{}_video_m".format(eem), 0,
+                    Subsignal("yclk_p", Pins(_eem_pin(eem_aux, 0, "p"))),
+                    Subsignal("yclk_n", Pins(_eem_pin(eem_aux, 0, "n"))),
+                    Subsignal("y0_p", Pins(_eem_pin(eem_aux, 1, "p"))),
+                    Subsignal("y0_n", Pins(_eem_pin(eem_aux, 1, "n"))),
+                    Subsignal("y1_p", Pins(_eem_pin(eem_aux, 2, "p"))),
+                    Subsignal("y1_n", Pins(_eem_pin(eem_aux, 2, "n"))),
+                    Subsignal("y2_p", Pins(_eem_pin(eem_aux, 3, "p"))),
+                    Subsignal("y2_n", Pins(_eem_pin(eem_aux, 3, "n"))),
+                    Subsignal("y3_p", Pins(_eem_pin(eem_aux, 4, "p"))),
+                    Subsignal("y3_n", Pins(_eem_pin(eem_aux, 4, "n"))),
+                    IOStandard("LVDS_25")
+                ),
+                ("grabber{}_serrx".format(eem), 0,
+                    Subsignal("p", Pins(_eem_pin(eem_aux, 5, "p"))),
+                    Subsignal("n", Pins(_eem_pin(eem_aux, 5, "n"))),
+                    IOStandard("LVDS_25")
+                ),
+                ("grabber{}_sertx".format(eem), 0,
+                    Subsignal("p", Pins(_eem_pin(eem_aux, 6, "p"))),
+                    Subsignal("n", Pins(_eem_pin(eem_aux, 6, "n"))),
+                    IOStandard("LVDS_25")
+                ),
+                ("grabber{}_cc3".format(eem), 0,
+                    Subsignal("p", Pins(_eem_pin(eem_aux, 7, "p"))),
+                    Subsignal("n", Pins(_eem_pin(eem_aux, 7, "n"))),
+                    IOStandard("LVDS_25")
+                ),
+            ]
+        return ios
+
+    @classmethod
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls):
+        cls.add_extension(target, eem, eem_aux)
+
+        for signal in "cc0 cc1 cc2".split():
+            pads = target.platform.request("grabber{}_{}".format(eem, signal))
+            phy = ttl_out_cls(pads.p, pads.n)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if eem_aux is not None:
+            pads = target.platform.request("grabber{}_cc3".format(eem))
+            phy = ttl_out_cls(pads.p, pads.n)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))

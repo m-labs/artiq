@@ -511,7 +511,7 @@ class LUH(_StandaloneBase):
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 4, None, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 5, None, ttl_serdes_7series.Output_8X)
-        eem.Grabber.add_std(self, 6, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 6, None, ttl_simple.Output)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
