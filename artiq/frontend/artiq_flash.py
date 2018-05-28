@@ -260,7 +260,7 @@ def main():
     config = {
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
-            "variants":     ["nist_clock", "nist_qc2"],
+            "def_variant":  "nist_clock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0xaf0000),
             "storage":      ("spi0", 0xb30000),
@@ -268,8 +268,7 @@ def main():
         },
         "kasli": {
             "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
-            "variants":     ["opticlock", "suservo", "sysu", "mitll", "ustc",
-                             "tester", "master", "satellite"],
+            "def_variant":  "opticlock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
             "storage":      ("spi0", 0x440000),
@@ -277,7 +276,7 @@ def main():
         },
         "sayma": {
             "programmer":   ProgrammerSayma,
-            "variants":     ["standalone", "master", "satellite"],
+            "def_variant":  "standalone",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
@@ -287,11 +286,8 @@ def main():
     }[args.target]
 
     variant = args.variant
-    if "variants" in config:
-        if variant is not None and variant not in config["variants"]:
-            raise SystemExit("Invalid variant for this board")
-        if variant is None:
-            variant = config["variants"][0]
+    if variant is None:
+        variant = config["def_variant"]
 
     bin_dir = args.dir
     if bin_dir is None:
