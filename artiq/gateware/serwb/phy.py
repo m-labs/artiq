@@ -348,7 +348,7 @@ class SERWBPHY(Module, AutoCSR):
         assert mode in ["master", "slave"]
         if device[:4] == "xcku":
             taps = 512
-            self.submodules.serdes = KUSSerdes(pads, mode)
+            self.submodules.serdes = KUSerdes(pads, mode)
         elif device[:4] == "xc7a":
             taps = 32
             self.submodules.serdes = S7Serdes(pads, mode)
