@@ -71,7 +71,7 @@ class Urukul(_EEM):
                     *(_eem_pin(eem, i + 3, "n") for i in range(3)))),
                 IOStandard("LVDS_25"),
             ),
-            ]
+        ]
         ttls = [(6, eem, "io_update"),
                 (7, eem, "dds_reset")]
         if eem_aux is not None:
@@ -109,7 +109,7 @@ class Urukul(_EEM):
                     _eem_pin(eem0, 3, "n"), _eem_pin(eem0, 4, "n"))),
                 IOStandard("LVDS_25"),
             ),
-            ]
+        ]
         ttls = [(6, eem0, "io_update"),
                 (7, eem0, "dds_reset"),
                 (4, eem1, "sw0"),
@@ -321,7 +321,7 @@ class Zotino(_EEM):
                     _eem_pin(eem, 3, "n"), _eem_pin(eem, 4, "n"))),
                 IOStandard("LVDS_25"),
             ),
-            ] + [
+        ] + [
             ("zotino{}_{}".format(eem, sig), 0,
                     Subsignal("p", Pins(_eem_pin(j, i, "p"))),
                     Subsignal("n", Pins(_eem_pin(j, i, "n"))),
@@ -331,7 +331,7 @@ class Zotino(_EEM):
                 (6, eem, "busy"),
                 (7, eem, "clr_n"),
                 ]
-            ]
+        ]
 
     @classmethod
     def add_std(cls, target, eem, ttl_out_cls):
