@@ -1,5 +1,5 @@
 use core::fmt::Write;
-use log::{Log, Metadata, Record, set_logger};
+use log::{Log, LevelFilter, Metadata, Record, set_logger, set_max_level};
 
 use clock;
 use uart_console::Console;
@@ -10,6 +10,7 @@ impl ConsoleLogger {
     pub fn register() {
         static LOGGER: ConsoleLogger = ConsoleLogger;
         set_logger(&LOGGER).expect("global logger can only be initialized once")
+        set_max_level(LevelFilter::Trace);
     }
 }
 
