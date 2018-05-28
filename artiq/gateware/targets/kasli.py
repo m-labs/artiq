@@ -339,12 +339,13 @@ class MITLL(_StandaloneBase):
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
-        # TODO: grabber on eem0->eemB eem1->eemA
+        self.grabber_csr_group = []
         eem.DIO.add_std(self, 4,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
         eem.Urukul.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 5, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 6, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 1, 0)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -357,6 +358,8 @@ class MITLL(_StandaloneBase):
         self.rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(self.rtio_channels)
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
 
 
 class USTC(_StandaloneBase):
@@ -372,7 +375,7 @@ class USTC(_StandaloneBase):
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
-        # TODO: grabber on eem0->eemA
+        self.grabber_csr_group = []
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
         eem.DIO.add_std(self, 6,
@@ -381,6 +384,7 @@ class USTC(_StandaloneBase):
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 2, 1, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 4, 3, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 0)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -393,6 +397,8 @@ class USTC(_StandaloneBase):
         self.rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(self.rtio_channels)
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
 
 
 class PTB(_StandaloneBase):
@@ -502,6 +508,7 @@ class LUH(_StandaloneBase):
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
+        self.grabber_csr_group = []
         eem.DIO.add_std(self, 0,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
         eem.DIO.add_std(self, 1,
@@ -526,6 +533,8 @@ class LUH(_StandaloneBase):
         self.rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(self.rtio_channels)
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
 
 
 class Tester(_StandaloneBase):

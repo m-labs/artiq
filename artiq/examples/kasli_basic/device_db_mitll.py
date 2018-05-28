@@ -144,12 +144,12 @@ device_db.update(
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 20}
+        "arguments": {"channel": 22}
     },
     led1={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 21}
+        "arguments": {"channel": 23}
     },
 )
