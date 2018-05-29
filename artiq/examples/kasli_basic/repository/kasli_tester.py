@@ -37,6 +37,8 @@ class KasliTester(EnvExperiment):
         self.ttl_ins = dict()
         self.urukul_cplds = dict()
         self.urukuls = dict()
+        self.samplers = dict()
+        self.zotinos = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -54,8 +56,13 @@ class KasliTester(EnvExperiment):
                     self.urukul_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
                     self.urukuls[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
+                    self.samplers[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.zotino", "Zotino"):
+                    self.zotinos[name] = self.get_device(name)
 
-        # Remove Urukul control signals from TTL outs (tested separately)
+        # Remove Urukul, Sampler and Zotino control signals
+        # from TTL outs (tested separately)
         ddb = self.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
@@ -64,15 +71,25 @@ class KasliTester(EnvExperiment):
                     or (module, cls) == ("artiq.coredevice.ad9912", "AD9912")):
                     sw_device = desc["arguments"]["sw_device"]
                     del self.ttl_outs[sw_device]
-                if (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
+                elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
                     io_update_device = desc["arguments"]["io_update_device"]
                     del self.ttl_outs[io_update_device]
+                elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
+                    cnv_device = desc["arguments"]["cnv_device"]
+                    del self.ttl_outs[cnv_device]
+                elif (module, cls) == ("artiq.coredevice.zotino", "Zotino"):
+                    ldac_device = desc["arguments"]["ldac_device"]
+                    clr_device = desc["arguments"]["clr_device"]
+                    del self.ttl_outs[ldac_device]
+                    del self.ttl_outs[clr_device]
 
         # Sort everything by RTIO channel number
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
         self.ttl_outs = sorted(self.ttl_outs.items(), key=lambda x: x[1].channel)
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: x[1].sw.channel)
+        self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
+        self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
 
     @kernel
     def test_led(self, led):
@@ -191,6 +208,69 @@ class KasliTester(EnvExperiment):
         print("Testing RF switch control. Press ENTER when done.")
         self.rf_switch_wave([channel_dev for channel_name, channel_dev in self.urukuls])
 
+    @kernel
+    def get_sampler_voltages(self, sampler, cb):
+        self.core.break_realtime()
+        sampler.init()
+        delay(5*ms)
+        for i in range(8):
+            sampler.set_gain_mu(i, 0)
+            delay(100*us)
+        smp = [0.0]*8
+        sampler.sample(smp)
+        cb(smp)
+
+    def test_samplers(self):
+        print("*** Testing Sampler ADCs.")
+        for card_name, card_dev in self.samplers:
+            print("Testing: ", card_name)
+
+            for channel in range(8):
+                print("Apply 1.5V to channel {}. Press ENTER when done.".format(channel))
+                input()
+
+                voltages = []
+                def setv(x):
+                    nonlocal voltages
+                    voltages = x
+                self.get_sampler_voltages(card_dev, setv)
+
+                passed = True
+                for n, voltage in enumerate(voltages):
+                    if n == channel:
+                        if abs(voltage - 1.5) > 0.2:
+                            passed = False
+                    else:
+                        if abs(voltage) > 0.2:
+                            passed = False
+                if passed:
+                    print("PASSED")
+                else:
+                    print("FAILED")
+                    print(" ".join(["{:.1f}".format(x) for x in voltages]))
+
+    @kernel
+    def set_zotino_voltages(self, zotino, voltages):
+        self.core.break_realtime()
+        zotino.init()
+        delay(100*us)
+        i = 0
+        for voltage in voltages:
+            zotino.write_dac(i, voltage)
+            delay(100*us)
+            i += 1
+        zotino.load()
+
+    def test_zotinos(self):
+        print("*** Testing Zotino DACs.")
+        print("Voltages:")
+        for card_n, (card_name, card_dev) in enumerate(self.zotinos):
+            voltages = [2*card_n + (-1)**i*0.1*(i//2+1) for i in range(32)]
+            print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
+            self.set_zotino_voltages(card_dev, voltages)
+        print("Press ENTER when done.")
+        input()
+
     def run(self):
         print("****** Kasli system tester ******")
         print("")
@@ -199,3 +279,5 @@ class KasliTester(EnvExperiment):
         self.test_ttl_outs()
         self.test_ttl_ins()
         self.test_urukuls()
+        self.test_samplers()
+        self.test_zotinos()
