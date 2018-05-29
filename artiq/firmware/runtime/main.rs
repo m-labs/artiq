@@ -168,6 +168,14 @@ fn setup_si5324_as_synthesizer()
         board_artiq::si5324::Input::Ckin2).expect("cannot initialize Si5324");
 }
 
+#[cfg(has_grabber)]
+fn grabber_thread(io: sched::Io) {
+    loop {
+        board_artiq::grabber::tick();
+        io.sleep(200).unwrap();
+    }
+}
+
 #[cfg(has_ethmac)]
 fn startup_ethernet() {
     let hardware_addr;
@@ -237,6 +245,8 @@ fn startup_ethernet() {
     io.spawn(4096, moninj::thread);
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
+    #[cfg(has_grabber)]
+    io.spawn(4096, grabber_thread);
 
     let mut net_stats = ethmac::EthernetStatistics::new();
     loop {

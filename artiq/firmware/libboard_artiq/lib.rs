@@ -40,6 +40,8 @@ mod ad9154_reg;
 pub mod ad9154;
 #[cfg(has_allaki_atts)]
 pub mod hmc542;
+#[cfg(has_grabber)]
+pub mod grabber;
 
 #[cfg(has_drtio)]
 pub mod drtioaux;
