@@ -834,7 +834,7 @@ class Master(_MasterBase):
             phy = ttl_simple.Output(sc.led)
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X)
+        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
@@ -856,7 +856,7 @@ class Satellite(_SatelliteBase):
             phy = ttl_simple.Output(self.platform.request("sfp_ctl", i).led)
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X)
+        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
 
         self.add_rtio(self.rtio_channels)
 
