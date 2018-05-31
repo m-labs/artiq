@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, delay, now_mu, delay_mu
+from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
@@ -13,6 +13,21 @@ CONFIG_SEL = 1 << COEFF_DEPTH - 1
 CONFIG_ADDR = CONFIG_SEL | STATE_SEL
 T_CYCLE = (2*(8 + 64) + 2 + 1)*8*ns
 COEFF_SHIFT = 11
+
+
+@portable
+def y_mu_to_full_scale(y):
+    """Convert Servo Y data from machine units to units of full scale."""
+    return y*(1./(1 << COEFF_WIDTH - 1))
+
+
+@portable
+def adc_mu_to_volts(x, gain):
+    """Convert Servo ADC data from machine units to Volt."""
+    val = (x >> 1) & 0xffff
+    mask = 1 << 15
+    val = -(val & mask) + (val & ~mask)
+    return sampler.adc_mu_to_volt(val, gain)
 
 
 class SUServo:
@@ -69,7 +84,7 @@ class SUServo:
         self.channel = channel
         self.gains = gains
         self.ref_period_mu = self.core.seconds_to_mu(
-                self.core.coarse_ref_period)
+            self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier
 
     @kernel
@@ -206,11 +221,9 @@ class SUServo:
         :param adc: ADC channel number (0-7)
         :return: ADC voltage
         """
-        val = (self.get_adc_mu(channel) >> 1) & 0xffff
-        mask = 1 << 15
-        val = -(val & mask) + (val & ~mask)
+        val = self.get_adc_mu(channel)
         gain = (self.gains >> (channel*2)) & 0b11
-        return sampler.adc_mu_to_volt(val, gain)
+        return adc_mu_to_volts(val, gain)
 
 
 class Channel:
@@ -449,7 +462,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: IIR filter output in Y0 units of full scale
         """
-        return self.get_y_mu(profile)*(1./(1 << COEFF_WIDTH - 1))
+        return y_mu_to_full_scale(self.get_y_mu(profile))
 
     @kernel
     def set_y_mu(self, profile, y):
