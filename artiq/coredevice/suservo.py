@@ -199,6 +199,10 @@ class SUServo:
 
         This method does not advance the timeline but consumes all slack.
 
+        The PGIA gain setting must be known prior to using this method, either
+        by setting the gain (:meth:`set_pgia_mu`) or by supplying it
+        (:attr:`gains` or via the constructor/device database).
+
         :param adc: ADC channel number (0-7)
         :return: ADC voltage
         """
