@@ -130,12 +130,15 @@ class SUServo:
     def set_config(self, enable):
         """Set SU Servo configuration.
 
-        Disabling takes up to 2 Servo cycles (~2.2 µs) to clear
-        the processing pipeline.
-
         This method advances the timeline by one Servo memory access.
+        It does not support RTIO event replacement.
 
-        :param enable: Enable Servo operation.
+        :param enable (int): Enable Servo operation. Enabling starts servo
+            iterations beginning with the ADC sampling stage. This also
+            provides a mean for synchronization of Servo updates to other RTIO
+            activity.
+            Disabling takes up to 2 Servo cycles (~2.2 µs) to clear the
+            processing pipeline.
         """
         self.write(CONFIG_ADDR, enable)
 
@@ -144,7 +147,16 @@ class SUServo:
         """Get current SU Servo status.
 
         This method does not advance the timeline but consumes all slack.
+
+        The ``done`` bit indicates that a SUServo cycle has completed.
+        It is pulsed for one RTIO cycle every SUServo cycle and asserted
+        continuously when the servo is not ``enabled`` and the pipeline has
+        drained (the last DDS update is done).
+
         This method returns and clears the clip indicator for all channels.
+        An asserted clip indicator corresponds to the servo having encountered
+        an input signal on an active channel that would have resulted in the
+        IIR state exceeding the output range.
 
         :return: Status. Bit 0: enabled, bit 1: done,
           bits 8-15: channel clip indicators.
