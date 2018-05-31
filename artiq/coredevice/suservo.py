@@ -16,7 +16,27 @@ COEFF_SHIFT = 11
 
 
 class SUServo:
-    """Sampler-Urukul Servo configuration device.
+    """Sampler-Urukul Servo parent and configuration device.
+
+    Sampler-Urukul Servo is a integrated device controlling one
+    8-channel ADC (Sampler) and two 4-channel DDS (Urukuls) with a DSP engine
+    connecting the ADC data and the DDS output amplitudes to enable
+    feedback. SUServo can for example be used to implement intensity
+    stabilization of laser beams with an AOM and a photodetector.
+
+    Additionally SUServo supports multiple preconfigured profiles per channel
+    and features like automatic integrator hold.
+
+    Notes:
+
+        * See the SUServo variant of the Kasli target for an example of how to
+          connect the gateware and the devices. Sampler and each Urukul need
+          two EEM connections.
+        * Ensure that both Urukuls are AD9910 variants and have the on-board
+          dip switches set to 1100 (first two on, last two off).
+        * Refer to the Sampler and Urukul documentation and the SUServo
+          example device database for runtime configuration of the devices
+          (PLLs, gains, clock routing etc.)
 
     :param channel: RTIO channel number
     :param pgia_device: Name of the Sampler PGIA gain setting SPI bus
