@@ -287,6 +287,8 @@ class Channel:
         :param frequency: DDS frequency in Hz
         :param offset: IIR offset (negative setpoint) in units of full scale.
             For positive ADC voltages as setpoints, this should be negative.
+            Due to rounding and representation as two's complement,
+            ``offset=1`` can not be represented while ``offset=-1`` can.
         :param phase: DDS phase in turns
         """
         if self.servo_channel < 4:
@@ -310,9 +312,9 @@ class Channel:
         Where:
 
             * :math:`y_n` and :math:`y_{n-1}` are the current and previous
-              filter outputs, clipped to :math:`[0, 1]`.
+              filter outputs, clipped to :math:`[0, 1[`.
             * :math:`x_n` and :math:`x_{n-1}` are the current and previous
-              filter inputs
+              filter inputs in :math:`[-1, 1[`.
             * :math:`o` is the offset
             * :math:`a_0` is the normalization factor :math:`2^{11}`
             * :math:`a_1` is the feedback gain
