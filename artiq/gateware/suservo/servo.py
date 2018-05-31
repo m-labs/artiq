@@ -26,7 +26,7 @@ class Servo(Module):
 
         self.start = Signal()
         t_restart = t_cycle - t_adc + 1
-        assert t_restart > 0
+        assert t_restart > 1
         cnt = Signal(max=t_restart)
         cnt_done = Signal()
         active = Signal(3)
