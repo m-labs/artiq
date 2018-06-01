@@ -253,7 +253,7 @@ class KasliTester(EnvExperiment):
     def set_zotino_voltages(self, zotino, voltages):
         self.core.break_realtime()
         zotino.init()
-        delay(100*us)
+        delay(200*us)
         i = 0
         for voltage in voltages:
             zotino.write_dac(i, voltage)

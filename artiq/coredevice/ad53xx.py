@@ -8,9 +8,11 @@ time is an error.
 # Designed from the data sheets and somewhat after the linux kernel
 # iio driver.
 
+from numpy import int32
+
 from artiq.language.core import (kernel, portable, delay_mu, delay, now_mu,
                                  at_mu)
-from artiq.language.units import ns
+from artiq.language.units import ns, us
 from artiq.coredevice import spi2 as spi
 
 SPI_AD53XX_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
@@ -28,14 +30,25 @@ AD53XX_SPECIAL_CONTROL = 1 << 16
 AD53XX_SPECIAL_OFS0 = 2 << 16
 AD53XX_SPECIAL_OFS1 = 3 << 16
 AD53XX_SPECIAL_READ = 5 << 16
+AD53XX_SPECIAL_AB0 = 6 << 16
+AD53XX_SPECIAL_AB1 = 7 << 16
+AD53XX_SPECIAL_AB2 = 8 << 16
+AD53XX_SPECIAL_AB3 = 9 << 16
+AD53XX_SPECIAL_AB = 11 << 16
 
+# incorporate the channel offset (8, table 17) here
 AD53XX_READ_X1A = 0x008 << 7
 AD53XX_READ_X1B = 0x048 << 7
 AD53XX_READ_OFFSET = 0x088 << 7
 AD53XX_READ_GAIN = 0x0C8 << 7
+
 AD53XX_READ_CONTROL = 0x101 << 7
 AD53XX_READ_OFS0 = 0x102 << 7
 AD53XX_READ_OFS1 = 0x103 << 7
+AD53XX_READ_AB0 = 0x106 << 7
+AD53XX_READ_AB1 = 0x107 << 7
+AD53XX_READ_AB2 = 0x108 << 7
+AD53XX_READ_AB3 = 0x109 << 7
 
 
 @portable
@@ -61,10 +74,10 @@ def ad53xx_cmd_read_ch(channel, op):
     :param channel: DAC channel to read (8 bits)
     :param op: The channel register to read, one of
       :const:`AD53XX_READ_X1A`, :const:`AD53XX_READ_X1B`,
-      :const:`AD53XX_READ_OFFSET`, :const:`AD53XX_CMD_GAIN` etc.
+      :const:`AD53XX_READ_OFFSET`, :const:`AD53XX_READ_GAIN` etc.
     :return: The 24-bit word to be written to the DAC to initiate read
     """
-    return (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | (op + (channel << 7)))
+    return AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | (op + (channel << 7))
 
 
 @portable
@@ -110,9 +123,9 @@ class AD53xx:
       valid)
     :param vref: DAC reference voltage (default: 5.)
     :param offset_dacs: Initial register value for the two offset DACs, device
-      dependent and must be set correctly for correct voltage to mu conversions.
-      Knowledge of his state is not transferred between experiments.
-      (default: 8192)
+      dependent and must be set correctly for correct voltage to mu
+      conversions. Knowledge of his state is not transferred between
+      experiments. (default: 8192)
     :param core_device: Core device name (default: "core")
     """
     kernel_invariants = {"bus", "ldac", "clr", "chip_select", "div_write",
@@ -139,19 +152,32 @@ class AD53xx:
         self.core = dmgr.get(core)
 
     @kernel
-    def init(self):
-        """Configures the SPI bus, drives LDAC and CLR high and programmes
-        the offset DACss.
+    def init(self, blind=False):
+        """Configures the SPI bus, drives LDAC and CLR high, programmes
+        the offset DACs, and enables overtemperature shutdown.
 
         This method must be called before any other method at start-up or if
         the SPI bus has been accessed by another device.
-        This method advances the timeline by one coarse RTIO cycle.
+        This method advances the timeline by several SPI transfers plus 10 µs.
+
+        :param blind: If ``True``, do not attempt to read back control register
+            or check for overtemperature.
         """
         self.ldac.on()
         self.clr.on()
         self.bus.set_config_mu(SPI_AD53XX_CONFIG, 24, self.div_write,
                                self.chip_select)
         self.write_offset_dacs_mu(self.offset_dacs)
+        self.bus.write(  # enable overtemperature shutdown
+            (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
+        if blind:
+            return
+        ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
+        if ctrl & 0b10000:
+            raise ValueError("DAC over temperature")
+        if ctrl != 0b0010:
+            raise ValueError("DAC CONTROL readback mismatch")
+        delay(10*us)
 
     @kernel
     def read_reg(self, channel=0, op=AD53XX_READ_X1A):
@@ -173,7 +199,8 @@ class AD53xx:
         self.bus.write((AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_NOP) << 8)
         self.bus.set_config_mu(SPI_AD53XX_CONFIG, 24, self.div_write,
                                self.chip_select)
-        return self.bus.read() & 0xffff
+        # FIXME: the int32 should not be needed to resolve unification
+        return self.bus.read() & int32(0xffff)
 
     @kernel
     def write_offset_dacs_mu(self, value):
