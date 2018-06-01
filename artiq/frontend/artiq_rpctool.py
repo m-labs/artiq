@@ -6,6 +6,7 @@ import sys
 import traceback
 import numpy as np  # Needed to use numpy in RPC call arguments on cmd line
 import pprint
+import inspect
 
 from artiq.protocols.pc_rpc import AutoTarget, Client
 
@@ -46,33 +47,7 @@ def list_methods(remote):
         print(doc["docstring"])
         print()
     for name, (argspec, docstring) in sorted(doc["methods"].items()):
-        args = ""
-        for arg in argspec["args"]:
-            args += arg
-            if argspec["defaults"] is not None:
-                kword_index = len(argspec["defaults"]) - len(argspec["args"])\
-                    + argspec["args"].index(arg)
-                if kword_index >= 0:
-                    if argspec["defaults"][kword_index] == Ellipsis:
-                        args += "=..."
-                    else:
-                        args += "={}".format(argspec["defaults"][kword_index])
-            if argspec["args"].index(arg) < len(argspec["args"]) - 1:
-                args += ", "
-        if argspec["varargs"] is not None:
-            args += ", *{}".format(argspec["varargs"])
-        elif len(argspec["kwonlyargs"]) > 0:
-                args += ", *"
-        for kwonlyarg in argspec["kwonlyargs"]:
-            args += ", {}".format(kwonlyarg)
-            if kwonlyarg in argspec["kwonlydefaults"]:
-                if argspec["kwonlydefaults"][kwonlyarg] == Ellipsis:
-                    args += "=..."
-                else:
-                    args += "={}".format(argspec["kwonlydefaults"][kwonlyarg])
-        if argspec["varkw"] is not None:
-            args += ", **{}".format(argspec["varkw"])
-        print("{}({})".format(name, args))
+        print(name + inspect.formatargspec(**argspec))
         if docstring is not None:
             print(textwrap.indent(docstring, "    "))
         print()
