@@ -1,7 +1,7 @@
 # This is an example device database that needs to be adapted to your setup.
 # The list of devices here is not exhaustive.
 
-core_addr = "vettel.ber.quartiq.de"
+core_addr = "hunt.ptb.quartiq.de"
 
 device_db = {
     "core": {
