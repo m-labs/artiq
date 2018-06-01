@@ -1,4 +1,4 @@
-#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll, needs_panic_runtime)]
+#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll, needs_panic_runtime, asm)]
 #![no_std]
 #![needs_panic_runtime]
 
@@ -302,7 +302,24 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
                     _ => panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
                 }
             },
-        _ => panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+        _ => {
+            fn hexdump(addr: u32) {
+                let addr = (addr - addr % 4) as *const u32;
+                let mut ptr  = addr;
+                println!("@ {:08p}", ptr);
+                for _ in 0..4 {
+                    print!("+{:04x}: ", ptr as usize - addr as usize);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                }
+            }
+
+            hexdump(pc);
+            hexdump(ea);
+            panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+        }
     }
 }
 
