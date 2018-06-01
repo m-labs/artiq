@@ -4,6 +4,8 @@ from migen.genlib.io import DifferentialOutput
 
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, grabber
+from artiq.gateware.suservo import servo, pads as servo_pads
+from artiq.gateware.rtio.phy import servo as rtservo
 
 
 def _eem_signal(i):
@@ -429,3 +431,79 @@ class Grabber(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+
+class SUServo(_EEM):
+    @staticmethod
+    def io(*eems):
+        assert len(eems) == 6
+        return (Sampler.io(*eems[0:2])
+                + Urukul.io_qspi(*eems[2:4])
+                + Urukul.io_qspi(*eems[4:6]))
+
+    @classmethod
+    def add_std(cls, target, eems_sampler, eems_urukul0, eems_urukul1,
+                t_rtt=4, clk=1, shift=11, profile=5):
+        cls.add_extension(
+            target, *(eems_sampler + eems_urukul0 + eems_urukul1))
+        eem_sampler = "sampler{}".format(eems_sampler[0])
+        eem_urukul0 = "urukul{}".format(eems_urukul0[0])
+        eem_urukul1 = "urukul{}".format(eems_urukul1[0])
+
+        sampler_pads = servo_pads.SamplerPads(target.platform, eem_sampler)
+        urukul_pads = servo_pads.UrukulPads(
+                target.platform, eem_urukul0, eem_urukul1)
+        # timings in units of RTIO coarse period
+        adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
+                                # account for SCK pipeline latency
+                                t_conv=57 - 4, t_rtt=t_rtt + 4)
+        iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
+                                accu=48, shift=shift, channel=3,
+                                profile=profile)
+        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
+                                channels=adc_p.channels, clk=clk)
+        su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
+        su = ClockDomainsRenamer("rio_phy")(su)
+        target.submodules += sampler_pads, urukul_pads, su
+
+        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
+        target.submodules += ctrls
+        target.rtio_channels.extend(
+            rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
+        mem = rtservo.RTServoMem(iir_p, su)
+        target.submodules += mem
+        target.rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
+
+        phy = spi2.SPIMaster(
+            target.platform.request("{}_pgia_spi_p".format(eem_sampler)),
+            target.platform.request("{}_pgia_spi_n".format(eem_sampler)))
+        target.submodules += phy
+        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        phy = spi2.SPIMaster(
+            target.platform.request("{}_spi_p".format(eem_urukul0)),
+            target.platform.request("{}_spi_n".format(eem_urukul0)))
+        target.submodules += phy
+        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        pads = target.platform.request("{}_dds_reset".format(eem_urukul0))
+        target.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
+            pads = target.platform.request("{}_{}".format(eem_urukul0, signal))
+            target.specials += DifferentialOutput(
+                su.iir.ctrl[i].en_out, pads.p, pads.n)
+
+        phy = spi2.SPIMaster(
+            target.platform.request("{}_spi_p".format(eem_urukul1)),
+            target.platform.request("{}_spi_n".format(eem_urukul1)))
+        target.submodules += phy
+        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        pads = target.platform.request("{}_dds_reset".format(eem_urukul1))
+        target.specials += DifferentialOutput(0, pads.p, pads.n)
+
+        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
+            pads = target.platform.request("{}_{}".format(eem_urukul1, signal))
+            target.specials += DifferentialOutput(
+                su.iir.ctrl[i + 4].en_out, pads.p, pads.n)

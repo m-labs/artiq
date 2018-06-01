@@ -1,4 +1,4 @@
-core_addr = "10.0.16.119"
+core_addr = "10.0.16.121"
 
 device_db = {
     "core": {
@@ -135,20 +135,6 @@ device_db = {
         "arguments": {"channel": 15},
     },
 
-    "suservo0": {
-        "type": "local",
-        "module": "artiq.coredevice.suservo",
-        "class": "SUServo",
-        "arguments": {
-            "channel": 24,
-            "pgia_device": "spi_sampler0_pgia",
-            "cpld0_device": "urukul0_cpld",
-            "cpld1_device": "urukul1_cpld",
-            "dds0_device": "urukul0_dds",
-            "dds1_device": "urukul1_dds"
-        }
-    },
-
     "suservo0_ch0": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
@@ -196,6 +182,20 @@ device_db = {
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 23, "servo_device": "suservo0"}
+    },
+
+    "suservo0": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "SUServo",
+        "arguments": {
+            "channel": 24,
+            "pgia_device": "spi_sampler0_pgia",
+            "cpld0_device": "urukul0_cpld",
+            "cpld1_device": "urukul1_cpld",
+            "dds0_device": "urukul0_dds",
+            "dds1_device": "urukul1_dds"
+        }
     },
 
     "spi_sampler0_pgia": {

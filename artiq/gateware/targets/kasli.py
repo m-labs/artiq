@@ -16,9 +16,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import (
-    ttl_simple, ttl_serdes_7series, spi2, servo as rtservo)
-from artiq.gateware.suservo import servo, pads as servo_pads
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -211,67 +209,10 @@ class SUServo(_StandaloneBase):
         eem.DIO.add_std(self, 1,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
 
-        # EEM3, EEM2: Sampler
-        self.platform.add_extension(eem.Sampler.io(3, 2))
-        sampler_pads = servo_pads.SamplerPads(self.platform, "sampler3")
-        # EEM5, EEM4 and EEM7, EEM6: Urukul
-        self.platform.add_extension(eem.Urukul.io_qspi(5, 4))
-        self.platform.add_extension(eem.Urukul.io_qspi(7, 6))
-        urukul_pads = servo_pads.UrukulPads(self.platform,
-                "urukul5", "urukul7")
-        adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
-                # account for SCK pipeline latency
-                t_conv=57 - 4, t_rtt=4 + 4)
-        iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
-                accu=48, shift=11, channel=3, profile=5)
-        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
-                channels=adc_p.channels, clk=1)
-        su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
-        su = ClockDomainsRenamer("rio_phy")(su)
-        self.submodules += sampler_pads, urukul_pads, su
-
-        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
-        self.submodules += ctrls
-        self.rtio_channels.extend(rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
-        mem = rtservo.RTServoMem(iir_p, su)
-        self.submodules += mem
-        self.rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
-
-        # EEM3: Sampler
-        phy = spi2.SPIMaster(self.platform.request("sampler3_pgia_spi_p"),
-                self.platform.request("sampler3_pgia_spi_n"))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-        # EEM5 + EEM4: Urukul
-        phy = spi2.SPIMaster(self.platform.request("urukul5_spi_p"),
-                self.platform.request("urukul5_spi_n"))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-        pads = self.platform.request("urukul5_dds_reset")
-        self.specials += DifferentialOutput(0, pads.p, pads.n)
-
-        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
-            pads = self.platform.request("urukul5_{}".format(signal))
-            self.specials += DifferentialOutput(
-                    su.iir.ctrl[i].en_out,
-                    pads.p, pads.n)
-
-        # EEM7 + EEM6: Urukul
-        phy = spi2.SPIMaster(self.platform.request("urukul7_spi_p"),
-                self.platform.request("urukul7_spi_n"))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-        pads = self.platform.request("urukul7_dds_reset")
-        self.specials += DifferentialOutput(0, pads.p, pads.n)
-
-        for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
-            pads = self.platform.request("urukul7_{}".format(signal))
-            self.specials += DifferentialOutput(
-                    su.iir.ctrl[i + 4].en_out,
-                    pads.p, pads.n)
+        # EEM3/2: Sampler, EEM5/4: Urukul, EEM7/6: Urukul
+        eem.SUServo.add_std(
+            self, eems_sampler=(3, 2),
+            eems_urukul0=(5, 4), eems_urukul1=(7, 6))
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -285,12 +226,11 @@ class SUServo(_StandaloneBase):
 
         self.add_rtio(self.rtio_channels)
 
+        pads = self.platform.lookup_request("sampler3_adc_data_p")
         self.platform.add_false_path_constraints(
-            sampler_pads.clkout_p,
-            self.rtio_crg.cd_rtio.clk)
+            pads.clkout, self.rtio_crg.cd_rtio.clk)
         self.platform.add_false_path_constraints(
-            sampler_pads.clkout_p,
-            self.crg.cd_sys.clk)
+            pads.clkout, self.crg.cd_sys.clk)
 
 
 class SYSU(_StandaloneBase):
