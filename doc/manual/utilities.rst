@@ -176,6 +176,9 @@ Core device RTIO analyzer tool
    :ref: artiq.frontend.artiq_coreanalyzer.get_argparser
    :prog: artiq_coreanalyzer
 
+.. note::
+    The RTIO analyzer does not support SAWG.
+
 Data to InfluxDB bridge
 -----------------------
 
