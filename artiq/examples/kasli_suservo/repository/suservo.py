@@ -50,9 +50,9 @@ class SUServo(EnvExperiment):
         self.suservo0_ch0.set_iir(
             profile=0,
             adc=7,  # take data from Sampler channel 7
-            gain=-.1,  # -0.1 P gain
-            corner=70*Hz,  # very low corner frequency
-            limit=0.,  # unlimited integrator gain
+            kp=-.1,  # -0.1 P gain
+            ki=-300./s,  # low integrator gain
+            g=0.,  # no integrator gain limit
             delay=0.  # no IIR update delay after enabling
         )
         # setpoint 0.5 (5 V with above PGIA gain setting)

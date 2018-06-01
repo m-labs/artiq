@@ -348,7 +348,7 @@ class Channel:
         self.servo.write(base + 7, b0)
 
     @kernel
-    def set_iir(self, profile, adc, gain, corner=0., limit=0., delay=0.):
+    def set_iir(self, profile, adc, kp, ki=0., g=0., delay=0.):
         """Set profile IIR coefficients.
 
         This method advances the timeline by four servo memory accesses.
@@ -361,25 +361,23 @@ class Channel:
         coefficient quantization errors):
 
         .. math::
-            H(s) = K \\frac{1 + \\frac{s}{\\omega_0}}
-                {\\frac{1}{g} + \\frac{s}{\\omega_0}}
+            H(s) = k_p + \\frac{k_i}{s + \\frac{k_i}{g}}
 
         Where:
             * :math:`s = \\sigma + i\\omega` is the complex frequency
-            * :math:`K` is the proportional gain
-            * :math:`\\omega_0 = 2\\pi f_0` is the integrator corner frequency
+            * :math:`k_p` is the proportional gain
+            * :math:`k_i` is the integrator gain
             * :math:`g` is the integrator gain limit
 
         :param profile: Profile number (0-31)
         :param adc: ADC channel to take IIR input from (0-7)
-        :param gain: Proportional gain (1). This is usually negative (closed
+        :param kp: Proportional gain (1). This is usually negative (closed
             loop, positive ADC voltage, positive setpoint). When 0, this
-            implements a pure I controller with unit gain frequency at
-            `corner` (use the sign of `corner` for overall gain sign).
-        :param corner: Integrator corner frequency (Hz). When 0 (the default)
-            this implements a pure P controller.
-        :param limit: Integrator gain limit (1). When 0 (the default) the
-            integrator gain limit is infinite. Positive.
+            implements a pure I controller.
+        :param ki: Integrator gain (rad/s). When 0 (the default)
+            this implements a pure P controller. Same sign as ``kp``.
+        :param g: Integrator gain limit (1). When 0 (the default) the
+            integrator gain limit is infinite. Same sign as ``ki``.
         :param delay: Delay (in seconds, 0-300 µs) before allowing IIR updates
             after invoking :meth:`set`. This is rounded to the nearest number
             of servo cycles (~1.2 µs). Since the RF switch (:meth:`set`) can be
@@ -390,47 +388,34 @@ class Channel:
         """
         B_NORM = 1 << COEFF_SHIFT + 1
         A_NORM = 1 << COEFF_SHIFT
-        PI_TS = 3.1415927*T_CYCLE
         COEFF_MAX = 1 << COEFF_WIDTH - 1
 
-        gain *= B_NORM
-        corner *= PI_TS
-
-        if corner == 0.:
+        kp *= B_NORM
+        if ki == 0.:
             # pure P
-            a1_ = 0
-            b1_ = 0
-            b0_ = int(round(gain))
+            a1 = 0
+            b1 = 0
+            b0 = int(round(kp))
         else:
-            a1_ = A_NORM
-            if gain == 0.:
-                # pure I
-                b0 = (2*B_NORM)*corner
-                b1_ = 0
+            # I or PI
+            ki *= B_NORM*T_CYCLE/2.
+            if g == 0.:
+                c = 1.
+                a1 = A_NORM
             else:
-                # PI
-                k = gain*corner
-                b1 = k - gain
-                b0 = k + gain
-                if limit != 0.:
-                    # PI with limit
-                    q = corner/limit
-                    qr = 1./(1. + q)
-                    a1_ = int(round(a1_*(1. - q)*qr))
-                    b0 *= qr
-                    b1 *= qr
-                b1_ = int(round(b1))
-            b0_ = int(round(b0))
+                c = 1./(1. + ki/(g*B_NORM))
+                a1 = int(round((2.*c - 1.)*A_NORM))
+            b0 = int(round(kp + ki*c))
+            b1 = int(round(kp + (ki - 2.*kp)*c))
+            if b1 == -b0:
+                raise ValueError("low integrator gain and/or gain limit")
 
-            if b1_ == -b0_:
-                raise ValueError("low corner, gain, limit")
-
-        if (b0_ >= COEFF_MAX or b0_ < -COEFF_MAX or
-                b1_ >= COEFF_MAX or b1_ < -COEFF_MAX):
-            raise ValueError("high corner, gain, limit")
+        if (b0 >= COEFF_MAX or b0 < -COEFF_MAX or
+                b1 >= COEFF_MAX or b1 < -COEFF_MAX):
+            raise ValueError("high gains")
 
         dly = int(round(delay/T_CYCLE))
-        self.set_iir_mu(profile, adc, a1_, b0_, b1_, dly)
+        self.set_iir_mu(profile, adc, a1, b0, b1, dly)
 
     @kernel
     def get_profile_mu(self, profile, data):
