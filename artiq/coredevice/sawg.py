@@ -342,7 +342,7 @@ class SAWG:
         settings.
 
         This method advances the timeline by the time required to perform all
-        seven writes to the configuration channel.
+        7 writes to the configuration channel, plus 9 coarse RTIO cycles.
         """
         self.config.set_div(0, 0)
         self.config.set_clr(1, 1, 1)
@@ -352,11 +352,20 @@ class SAWG:
         self.config.set_out_min(-1.)
         self.config.set_out_max(1.)
         self.frequency0.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.frequency1.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.frequency2.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.phase0.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.phase1.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.phase2.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.amplitude1.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.amplitude2.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
         self.offset.set_mu(0)
+        delay_mu(self.core.ref_multiplier)
