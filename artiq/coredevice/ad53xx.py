@@ -158,7 +158,6 @@ class AD53xx:
 
         This method must be called before any other method at start-up or if
         the SPI bus has been accessed by another device.
-        This method advances the timeline by several SPI transfers plus 10 µs.
 
         :param blind: If ``True``, do not attempt to read back control register
             or check for overtemperature.
@@ -168,16 +167,18 @@ class AD53xx:
         self.bus.set_config_mu(SPI_AD53XX_CONFIG, 24, self.div_write,
                                self.chip_select)
         self.write_offset_dacs_mu(self.offset_dacs)
-        self.bus.write(  # enable overtemperature shutdown
+        if not blind:
+            ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
+            if ctrl & 0b10000:
+                raise ValueError("DAC over temperature")
+            delay(10*us)
+        self.bus.write(  # enable power and overtemperature shutdown
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
-        if blind:
-            return
-        ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
-        if ctrl & 0b10000:
-            raise ValueError("DAC over temperature")
-        if ctrl != 0b0010:
-            raise ValueError("DAC CONTROL readback mismatch")
-        delay(10*us)
+        if not blind:
+            ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
+            if ctrl != 0b0010:
+                raise ValueError("DAC CONTROL readback mismatch")
+            delay(10*us)
 
     @kernel
     def read_reg(self, channel=0, op=AD53XX_READ_X1A):
