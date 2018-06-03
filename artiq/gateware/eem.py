@@ -451,7 +451,7 @@ class SUServo(_EEM):
             cycles (default: 8). This is the sum of the round-trip cabling
             delay and the 8ns max propagation delay on Sampler. With all
             other parameters at their default values, increasing t_rtt beyond 8
-            increases the servo cycle duration
+            increases the servo latency
         :param clk: DDS SPI clock cycle half-width in RTIO coarse cycles
             (default: 1)
         :param shift: fixed-point scaling factor for IIR coefficients
