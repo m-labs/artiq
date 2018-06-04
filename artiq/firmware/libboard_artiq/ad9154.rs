@@ -613,6 +613,7 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
 
 fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     for i in 0..99 {
+        dac_reset(dacno);
         let outcome = dac_cfg(dacno);
         match outcome {
             Ok(_) => return outcome,
