@@ -443,7 +443,23 @@ class SUServo(_EEM):
 
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul0, eems_urukul1,
-                t_rtt=4, clk=1, shift=11, profile=5):
+                t_rtt=8, clk=1, shift=11, profile=5):
+        """ Adds an 8-channel Sampler-Urukul servo to target.
+
+        :param t_rtt: upper estimate for clock round-trip propagation time from
+            sck at the FPGA to clkout at the FPGA, measured in RTIO coarse
+            cycles (default: 8). This is the sum of the round-trip cabling
+            delay and the 8ns max propagation delay on Sampler. With all
+            other parameters at their default values, increasing t_rtt beyond 8
+            increases the servo latency
+        :param clk: DDS SPI clock cycle half-width in RTIO coarse cycles
+            (default: 1)
+        :param shift: fixed-point scaling factor for IIR coefficients
+            (default: 11)
+        :param profile: log2 of the number of profiles for each DDS channel
+            (default: 5)
+        """
+
         cls.add_extension(
             target, *(eems_sampler + eems_urukul0 + eems_urukul1))
         eem_sampler = "sampler{}".format(eems_sampler[0])
@@ -456,7 +472,7 @@ class SUServo(_EEM):
         # timings in units of RTIO coarse period
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
                                 # account for SCK pipeline latency
-                                t_conv=57 - 4, t_rtt=t_rtt + 4)
+                                t_conv=57 - 4, t_rtt=t_rtt)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
                                 accu=48, shift=shift, channel=3,
                                 profile=profile)
