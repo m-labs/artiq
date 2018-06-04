@@ -14,7 +14,7 @@ class SiPhaser7Series(Module, AutoCSR):
         self.phase_shift_done = CSRStatus(reset=1)
         self.sample_result = CSRStatus()
 
-        # 125MHz/62.5MHz reference clock to 150MHz. VCO @ 625MHz.
+        # 125MHz/62.5MHz reference clock to 150MHz. VCO @ 750MHz.
         # Used to provide a startup clock to the transceiver through the Si,
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
