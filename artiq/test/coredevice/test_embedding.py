@@ -212,6 +212,10 @@ class _RPCCalls(EnvExperiment):
         return numpy.full(10, 20)
 
     @kernel
+    def numpy_nan(self):
+        return numpy.full(10, numpy.nan)
+
+    @kernel
     def builtin(self):
         sleep(1.0)
 
@@ -229,6 +233,7 @@ class RPCCallsTest(ExperimentCase):
         self.assertEqual(exp.numpy_things(),
                          (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
         self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
+        self.assertTrue(numpy.isnan(exp.numpy_nan()).all())
         exp.builtin()
 
 

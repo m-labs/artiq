@@ -605,6 +605,14 @@ def is_builtin(typ, name=None):
         return isinstance(typ, TBuiltin) and \
             typ.name == name
 
+def is_builtin_function(typ, name=None):
+    typ = typ.find()
+    if name is None:
+        return isinstance(typ, TBuiltinFunction)
+    else:
+        return isinstance(typ, TBuiltinFunction) and \
+            typ.name == name
+
 def is_constructor(typ, name=None):
     typ = typ.find()
     if name is not None:
