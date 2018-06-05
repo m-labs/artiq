@@ -573,6 +573,64 @@ fn dac_prbs(dacno: u8) -> Result<(), &'static str> {
     Ok(())
 }
 
+fn dac_stpl(dacno: u8, m: u8, s: u8) -> Result<(), &'static str> {
+    spi_setup(dacno);
+
+    info!("AD9154-{} running STPL test...", dacno);
+
+    fn prng(seed: u32) -> u32 {
+        return ((seed + 1)*0x31415979 + 1) & 0xffff;
+    }
+
+    jesd_stpl(dacno, true);
+    for i in 0..m {
+        let mut data: u32;
+        let mut errors: u8 = 0;
+        for j in 0..s {
+            /* select converter */
+            write(ad9154_reg::SHORT_TPL_TEST_0,
+                0b0*ad9154_reg::SHORT_TPL_TEST_EN |
+                0b0*ad9154_reg::SHORT_TPL_TEST_RESET |
+                i*ad9154_reg::SHORT_TPL_DAC_SEL |
+                j*ad9154_reg::SHORT_TPL_SP_SEL);
+
+            /* set expected value */
+            data = prng(((i as u32) << 8) | (j as u32));
+            write(ad9154_reg::SHORT_TPL_TEST_1, (data & 0x00ff) as u8);
+            write(ad9154_reg::SHORT_TPL_TEST_2, ((data & 0xff00) >> 8) as u8);
+
+            /* enable stpl */
+            write(ad9154_reg::SHORT_TPL_TEST_0,
+                0b1*ad9154_reg::SHORT_TPL_TEST_EN |
+                0b0*ad9154_reg::SHORT_TPL_TEST_RESET |
+                i*ad9154_reg::SHORT_TPL_DAC_SEL |
+                j*ad9154_reg::SHORT_TPL_SP_SEL);
+
+            /* reset stpl */
+            write(ad9154_reg::SHORT_TPL_TEST_0,
+                0b1*ad9154_reg::SHORT_TPL_TEST_EN |
+                0b1*ad9154_reg::SHORT_TPL_TEST_RESET |
+                i*ad9154_reg::SHORT_TPL_DAC_SEL |
+                j*ad9154_reg::SHORT_TPL_SP_SEL);
+
+            /* release reset stpl */
+            write(ad9154_reg::SHORT_TPL_TEST_0,
+                0b1*ad9154_reg::SHORT_TPL_TEST_EN |
+                0b0*ad9154_reg::SHORT_TPL_TEST_RESET |
+                i*ad9154_reg::SHORT_TPL_DAC_SEL |
+                j*ad9154_reg::SHORT_TPL_SP_SEL);
+            errors += read(ad9154_reg::SHORT_TPL_TEST_3);
+        }
+        info!("  c{} errors: {}", i, errors);
+        if errors > 0 {
+            return Err("STPL failed")
+        }
+    }
+    jesd_stpl(dacno, false);
+    info!("  ...passed");
+    Ok(())
+}
+
 fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     spi_setup(dacno);
     jesd_enable(dacno, false);
@@ -671,8 +729,9 @@ pub fn init() -> Result<(), &'static str> {
         dac_reset(dacno);
         dac_detect(dacno)?;
         dac_cfg_retry(dacno)?;
-        // Run the PRBS and SYSREF scan tests
+        // Run the PRBS, STPL and SYSREF scan tests
         dac_prbs(dacno)?;
+        dac_stpl(dacno, 4, 2)?;
         dac_sysref_scan(dacno);
         // Set SYSREF phase and reconfigure the DAC
         dac_sysref_cfg(dacno, 88);
