@@ -270,8 +270,8 @@ pub mod hmc7043 {
                 else { write(channel_base, 0x51); }
             }
             else { write(channel_base, 0x10); }
-            write(channel_base + 0x1, (divider & 0x0ff) as u8);
-            write(channel_base + 0x2, ((divider & 0x700) >> 8) as u8);
+            write(channel_base + 0x1, (divider & 0xff) as u8);
+            write(channel_base + 0x2, ((divider & 0x0f) >> 8) as u8);
             write(channel_base + 0x3, aphase & 0x1f);
             write(channel_base + 0x4, dphase & 0x1f);
 
