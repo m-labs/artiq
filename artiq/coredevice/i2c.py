@@ -66,6 +66,19 @@ class PCA9548:
             i2c_stop(self.busno)
 
     @kernel
+    def unset(self):
+        """Deselect all channels.
+        """
+        i2c_start(self.busno)
+        try:
+            if not i2c_write(self.busno, self.address):
+                raise I2CError("PCA9548 failed to ack address")
+            if not i2c_write(self.busno, 0x00):
+                raise I2CError("PCA9548 failed to ack control word")
+        finally:
+            i2c_stop(self.busno)
+
+    @kernel
     def readback(self):
         i2c_start(self.busno)
         r = 0
