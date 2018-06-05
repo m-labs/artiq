@@ -229,7 +229,7 @@ pub mod hmc7043 {
         info!("enabling hmc7043");
 
         unsafe {
-        csr::crg::hmc7043_rst_write(0);
+            csr::hmc7043_reset::out_write(0);
         }
 
         spi_setup();

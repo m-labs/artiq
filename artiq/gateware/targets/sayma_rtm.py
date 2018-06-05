@@ -19,11 +19,8 @@ from artiq.gateware import serwb
 from artiq import __version__ as artiq_version
 
 
-class CRG(Module, AutoCSR):
+class CRG(Module):
     def __init__(self, platform):
-
-        self.hmc7043_rst = CSRStorage(reset=1)
-
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
@@ -113,7 +110,6 @@ class SaymaRTM(Module):
         csr_devices = []
 
         self.submodules.crg = CRG(platform)
-        csr_devices.append("crg")
 
         clk_freq = 125e6
 
@@ -179,7 +175,9 @@ class SaymaRTM(Module):
             platform.request("ad9154_spi", 0),
             platform.request("ad9154_spi", 1)))
         csr_devices.append("converter_spi")
-        self.comb += platform.request("hmc7043_reset").eq(self.crg.hmc7043_rst.storage)
+        self.submodules.hmc7043_reset = gpio.GPIOOut(
+            platform.request("hmc7043_reset"), reset_out=1)
+        csr_devices.append("hmc7043_reset")
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
