@@ -200,7 +200,7 @@ class Standalone(MiniSoC, AMPSoC):
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
-        serwb_phy_amc = serwb.genphy.SERWBPHY(platform.device, serwb_pads, mode="master")
+        serwb_phy_amc = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="master")
         self.submodules.serwb_phy_amc = serwb_phy_amc
         self.csr_devices.append("serwb_phy_amc")
 
