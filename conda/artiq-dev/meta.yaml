@@ -14,7 +14,7 @@ requirements:
   run:
     - python >=3.5.3,<3.6
     - setuptools 33.1.1
-    - migen 0.7 py35_35+git9bc084a
+    - migen 0.7 py35_43+git6425844
     - misoc 0.11 py35_19+git86c6fcb3
     - jesd204b 0.7
     - microscope
