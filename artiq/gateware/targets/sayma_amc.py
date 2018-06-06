@@ -122,11 +122,37 @@ class AD9154NoSAWG(Module, AutoCSR):
 
         self.sawgs = []
 
-        for i, conv in enumerate(self.jesd.core.sink.flatten()):
-            ramp = Signal(16)
-            self.sync.rtio += ramp.eq(ramp + (1 << 9 + i))
-            self.comb += conv.eq(Cat(ramp
-                for i in range(len(conv) // len(ramp))))
+        ramp = Signal(4)
+        self.sync.rtio += ramp.eq(ramp + 1)
+
+        samples = [[Signal(16) for i in range(4)] for j in range(4)]
+        self.comb += [
+            a.eq(Cat(b)) for a, b in zip(
+                self.jesd.core.sink.flatten(), samples)
+        ]
+        # ch0: 16-step ramp with big carry toggles
+        for i in range(4):
+            self.comb += [
+                samples[0][i][-4:].eq(ramp),
+                samples[0][i][:-4].eq(0x7ff if i % 2 else 0x800)
+            ]
+        # ch1: 50 MHz
+        from math import pi, cos
+        data = [int(round(cos(i/12*2*pi)*((1 << 15) - 1)))
+                for i in range(12)]
+        k = Signal(2)
+        self.sync.rtio += If(k == 2, k.eq(0)).Else(k.eq(k + 1))
+        self.comb += [
+            Case(k, {
+                i: [samples[1][j].eq(data[i*4 + j]) for j in range(4)]
+                for i in range(3)
+            })
+        ]
+        # ch2: ch0, ch3: ch1
+        self.comb += [
+            Cat(samples[2]).eq(Cat(samples[0])),
+            Cat(samples[3]).eq(Cat(samples[1]))
+        ]
 
 
 class Standalone(MiniSoC, AMPSoC):
