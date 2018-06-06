@@ -203,8 +203,12 @@ class Channel(Module, SatAddMixin):
             o_y = Signal.like(y)
             self.comb += [
                 o_offset.eq(u.o.a0[-len(o):]),
-                o_x.eq(Mux(cfg.iq_en[0], x, 0)),
-                o_y.eq(Mux(cfg.iq_en[1], y, 0)),
+                If(cfg.iq_en[0],
+                    o_x.eq(x)
+                ),
+                If(cfg.iq_en[1],
+                    o_y.eq(y)
+                ),
             ]
             self.sync += [
                 o.eq(self.sat_add((o_offset, o_x, o_y),
