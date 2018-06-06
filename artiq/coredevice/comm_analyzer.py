@@ -381,7 +381,8 @@ class SPIMaster2Handler(WishboneHandler):
             else:
                 raise ValueError("bad address", address)
             # process untimed reads and insert them here
-            while self._reads[0].rtio_counter < message.timestamp:
+            while (self._reads and
+                   self._reads[0].rtio_counter < message.timestamp):
                 read = self._reads.pop(0)
                 logger.debug("SPI read @%d data=0x%08x",
                             read.rtio_counter, read.data)
