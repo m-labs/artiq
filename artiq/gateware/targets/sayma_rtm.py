@@ -42,8 +42,8 @@ class CRG(Module):
                 p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
 
                 # VCO @ 1GHz
-                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                p_CLKFBOUT_MULT_F=10, p_DIVCLK_DIVIDE=1,
+                p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=8.0,
+                p_CLKFBOUT_MULT_F=8, p_DIVCLK_DIVIDE=1,
                 i_CLKIN1=serwb_refclk_bufg, i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
 
                 # 500MHz
@@ -181,8 +181,8 @@ class SaymaRTM(Module):
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
-        platform.add_period_constraint(serwb_pads.clk_p, 10.)
-        serwb_phy_rtm = serwb.phy.SERWBPHY(platform.device, serwb_pads, mode="slave")
+        platform.add_period_constraint(serwb_pads.clk_p, 8.)
+        serwb_phy_rtm = serwb.genphy.SERWBPHY(platform.device, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
         self.comb += [
             self.crg.serwb_refclk.eq(serwb_phy_rtm.serdes.clocking.refclk),
