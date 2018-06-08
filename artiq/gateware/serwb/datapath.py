@@ -185,11 +185,13 @@ class RXDatapath(Module):
             ]
 
         # idle decoding
-        idle_timer = WaitTimer(256)
+        idle_timer = WaitTimer(32)
         self.submodules += idle_timer
-        self.comb += [
-            idle_timer.wait.eq(1),
-            idle.eq(idle_timer.done & ((converter.source.data == 0) | (converter.source.data == (2**40-1))))
+        self.sync += [
+            If(converter.source.stb,
+                idle_timer.wait.eq((converter.source.data == 0) | (converter.source.data == (2**40-1)))
+            ),
+            idle.eq(idle_timer.done)
         ]
         # comma decoding
         self.sync += \

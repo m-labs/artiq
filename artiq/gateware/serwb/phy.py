@@ -362,7 +362,9 @@ class SERWBPHY(Module, AutoCSR):
         # tx/rx dataflow
         self.comb += [
             If(self.init.ready,
-                sink.connect(self.serdes.tx.sink),
+                If(sink.stb,
+                    sink.connect(self.serdes.tx.sink),
+                ),
                 self.serdes.rx.source.connect(source)
             ).Else(
                 self.serdes.rx.source.ack.eq(1)
