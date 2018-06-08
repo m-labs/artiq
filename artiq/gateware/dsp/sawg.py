@@ -194,7 +194,7 @@ class Channel(Module, SatAddMixin):
                 limits=cfg.limits[1], clipped=cfg.clipped[1])),
             hbf[1].i.eq(self.sat_add((a1.yo[0], a2.yo[0]),
                 width=len(hbf[1].i),
-                limits=cfg.limits[1], clipped=cfg.clipped[1])),
+                limits=cfg.limits[1])),
         ]
         # wire up outputs and q_{i,o} exchange
         for o, x, y in zip(self.o, b.xo, self.y_in):
