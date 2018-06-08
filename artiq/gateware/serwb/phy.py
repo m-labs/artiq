@@ -4,14 +4,13 @@ from migen.genlib.misc import WaitTimer
 from misoc.interconnect import stream
 from misoc.interconnect.csr import *
 
-from artiq.gateware.serwb.scrambler import Scrambler, Descrambler
 from artiq.gateware.serwb.kuserdes import KUSerdes
 from artiq.gateware.serwb.s7serdes import S7Serdes
 
 
-# Master <--> Slave synchronization:
-# 1) Master sends idle pattern (zeroes) to reset Slave.
-# 2) Master sends K28.5 commas to allow Slave to calibrate, Slave sends idle pattern.
+# SERWB Master <--> Slave physical synchronization process:
+# 1) Master sends idle patterns (zeroes) to Slave to reset it.
+# 2) Master sends K28.5 commas to allow Slave to calibrate, Slave sends idle patterns.
 # 3) Slave sends K28.5 commas to allow Master to calibrate, Master sends K28.5 commas.
 # 4) Master stops sending K28.5 commas.
 # 5) Slave stops sending K28.5 commas.
@@ -360,34 +359,21 @@ class SERWBPHY(Module, AutoCSR):
             self.submodules.init = _SerdesSlaveInit(self.serdes, taps, init_timeout)
         self.submodules.control = _SerdesControl(self.serdes, self.init, mode)
 
-        # scrambling
-        self.submodules.scrambler = scrambler = Scrambler()
-        self.submodules.descrambler = descrambler = Descrambler()
-
-        # tx dataflow
-        self.comb += \
-            If(self.init.ready,
-                sink.connect(scrambler.sink),
-                scrambler.source.ack.eq(self.serdes.tx.ce),
-                If(scrambler.source.stb,
-                    self.serdes.tx.d.eq(scrambler.source.d),
-                    self.serdes.tx.k.eq(scrambler.source.k)
-                )
-            )
-
-        # rx dataflow
+        # tx/rx dataflow
         self.comb += [
             If(self.init.ready,
-                descrambler.sink.stb.eq(self.serdes.rx.ce),
-                descrambler.sink.d.eq(self.serdes.rx.d),
-                descrambler.sink.k.eq(self.serdes.rx.k),
-                descrambler.source.connect(source)
+                sink.connect(self.serdes.tx.sink),
+                self.serdes.rx.source.connect(source)
+            ).Else(
+                self.serdes.rx.source.ack.eq(1)
             ),
-            # For PRBS test we are using the scrambler/descrambler as PRBS,
-            # sending 0 to the scrambler and checking that descrambler
-            # output is always 0.
-            self.control.prbs_error.eq(
-                descrambler.source.stb &
-                descrambler.source.ack &
-                (descrambler.source.data != 0))
+            self.serdes.tx.sink.stb.eq(1) # always transmitting
         ]
+
+        # For PRBS test we are using the scrambler/descrambler as PRBS,
+        # sending 0 to the scrambler and checking that descrambler
+        # output is always 0.
+        self.comb += self.control.prbs_error.eq(
+                source.stb &
+                source.ack &
+                (source.data != 0))

@@ -5,9 +5,7 @@ from migen.genlib.misc import BitSlip, WaitTimer
 from misoc.interconnect import stream
 from misoc.cores.code_8b10b import Encoder, Decoder
 
-
-def K(x, y):
-    return (y << 5) | x
+from artiq.gateware.serwb.datapath import TXDatapath, RXDatapath
 
 
 class _KUSerdesClocking(Module):
@@ -45,52 +43,27 @@ class _KUSerdesClocking(Module):
 
 
 class _KUSerdesTX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.idle = idle = Signal()
         self.comma = comma = Signal()
 
         # Datapath
-        self.ce = ce = Signal()
-        self.k = k = Signal(4)
-        self.d = d = Signal(32)
+        self.sink = sink = stream.Endpoint([("data", 32)])
 
         # # #
 
-        # 8b10b encoder
-        self.submodules.encoder = encoder = CEInserter()(Encoder(4, True))
-        self.comb += encoder.ce.eq(ce)
 
-        # 40 --> 8 converter
-        converter = stream.Converter(40, 8)
-        self.submodules += converter
+        # Datapath
+        self.submodules.datapath = datapath = TXDatapath(8)
         self.comb += [
-            converter.sink.stb.eq(1),
-            converter.source.ack.eq(1),
-            # Enable pipeline when converter accepts the 40 bits
-            ce.eq(converter.sink.ack),
-            # If not idle, connect encoder to converter
-            If(~idle,
-                converter.sink.data.eq(Cat(*[encoder.output[i] for i in range(4)]))
-            ),
-            # If comma, send K28.5
-            If(comma,
-                encoder.k[0].eq(1),
-                encoder.d[0].eq(K(28,5)),
-            # Else connect TX to encoder
-            ).Else(
-                encoder.k[0].eq(k[0]),
-                encoder.k[1].eq(k[1]),
-                encoder.k[2].eq(k[2]),
-                encoder.k[3].eq(k[3]),
-                encoder.d[0].eq(d[0:8]),
-                encoder.d[1].eq(d[8:16]),
-                encoder.d[2].eq(d[16:24]),
-                encoder.d[3].eq(d[24:32])
-            )
+            sink.connect(datapath.sink),
+            datapath.source.ack.eq(1),
+            datapath.idle.eq(idle),
+            datapath.comma.eq(comma)
         ]
 
-        # Data output (DDR with sys4x)
+        # Output  Data(DDR with sys4x)
         data = Signal()
         self.specials += [
               Instance("OSERDESE3",
@@ -100,14 +73,14 @@ class _KUSerdesTX(Module):
                 o_OQ=data,
                 i_RST=ResetSignal("sys"),
                 i_CLK=ClockSignal("sys4x"), i_CLKDIV=ClockSignal("sys"),
-                i_D=converter.source.data
+                i_D=datapath.source.data
             ),
             DifferentialOutput(data, pads.tx_p, pads.tx_n)
         ]
 
 
 class _KUSerdesRX(Module):
-    def __init__(self, pads, mode="master"):
+    def __init__(self, pads):
         # Control
         self.delay_rst = Signal()
         self.delay_inc = Signal()
@@ -118,9 +91,7 @@ class _KUSerdesRX(Module):
         self.comma = comma = Signal()
 
         # Datapath
-        self.ce = ce = Signal()
-        self.k = k = Signal(4)
-        self.d = d = Signal(32)
+        self.source = source = stream.Endpoint([("data", 32)])
 
         # # #
 
@@ -158,50 +129,15 @@ class _KUSerdesRX(Module):
             )
         ]
 
-        # 8 --> 40 converter and bitslip
-        converter = stream.Converter(8, 40)
-        self.submodules += converter
-        bitslip = CEInserter()(BitSlip(40))
-        self.submodules += bitslip
+        # Datapath
+        self.submodules.datapath = datapath = RXDatapath(8)
         self.comb += [
-            converter.sink.stb.eq(1),
-            converter.source.ack.eq(1),
-            # Enable pipeline when converter outputs the 40 bits
-            ce.eq(converter.source.stb),
-            # Connect input data to converter
-            converter.sink.data.eq(data_deserialized),
-            # Connect converter to bitslip
-            bitslip.ce.eq(ce),
-            bitslip.value.eq(bitslip_value),
-            bitslip.i.eq(converter.source.data)
-        ]
-
-        # 8b10b decoder
-        self.submodules.decoders = decoders = [CEInserter()(Decoder(True)) for _ in range(4)]
-        self.comb += [decoders[i].ce.eq(ce) for i in range(4)]
-        self.comb += [
-            # Connect bitslip to decoder
-            decoders[0].input.eq(bitslip.o[0:10]),
-            decoders[1].input.eq(bitslip.o[10:20]),
-            decoders[2].input.eq(bitslip.o[20:30]),
-            decoders[3].input.eq(bitslip.o[30:40]),
-            # Connect decoder to output
-            self.k.eq(Cat(*[decoders[i].k for i in range(4)])),
-            self.d.eq(Cat(*[decoders[i].d for i in range(4)])),
-        ]
-
-        # Status
-        idle_timer = WaitTimer(256)
-        self.submodules += idle_timer
-        self.comb += [
-            idle_timer.wait.eq(1),
-            self.idle.eq(idle_timer.done &
-                 ((bitslip.o == 0) | (bitslip.o == (2**40-1)))),
-            self.comma.eq(
-                (decoders[0].k == 1) & (decoders[0].d == K(28,5)) &
-                (decoders[1].k == 0) & (decoders[1].d == 0) &
-                (decoders[2].k == 0) & (decoders[2].d == 0) &
-                (decoders[3].k == 0) & (decoders[3].d == 0))
+            datapath.sink.stb.eq(1),
+            datapath.sink.data.eq(data_deserialized),
+            datapath.bitslip_value.eq(bitslip_value),
+            datapath.source.connect(source),
+            idle.eq(datapath.idle),
+            comma.eq(datapath.comma)
         ]
 
 
@@ -209,5 +145,5 @@ class _KUSerdesRX(Module):
 class KUSerdes(Module):
     def __init__(self, pads, mode="master"):
         self.submodules.clocking = _KUSerdesClocking(pads, mode)
-        self.submodules.tx = _KUSerdesTX(pads, mode)
-        self.submodules.rx = _KUSerdesRX(pads, mode)
+        self.submodules.tx = _KUSerdesTX(pads)
+        self.submodules.rx = _KUSerdesRX(pads)
