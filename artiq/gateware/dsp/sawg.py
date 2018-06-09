@@ -183,8 +183,8 @@ class Channel(Module, SatAddMixin):
             b.ce.eq(cfg.ce),
             u.o.ack.eq(cfg.ce),
             Cat(b.clr, a1.clr, a2.clr).eq(cfg.clr),
-            Cat(b.xi).eq(Cat(hbf[0].o)),
-            Cat(b.yi).eq(Cat(hbf[1].o)),
+            [i.eq(j) for i, j in zip(b.xi, hbf[0].o)],
+            [i.eq(j) for i, j in zip(b.yi, hbf[1].o)],
         ]
         hbf[0].i.reset_less = True
         hbf[1].i.reset_less = True
@@ -217,4 +217,4 @@ class Channel(Module, SatAddMixin):
             ]
 
     def connect_y(self, buddy):
-        self.comb += Cat(buddy.y_in).eq(Cat(self.b.yo))
+        self.comb += [i.eq(j) for i, j in zip(buddy.y_in, self.b.yo)]
