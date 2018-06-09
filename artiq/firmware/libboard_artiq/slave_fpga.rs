@@ -1,4 +1,4 @@
-use board::{csr, clock};
+use board_misoc::{csr, clock};
 use core::slice;
 use byteorder::{ByteOrder, BigEndian};
 
