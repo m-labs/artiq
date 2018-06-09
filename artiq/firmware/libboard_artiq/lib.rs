@@ -28,7 +28,7 @@ pub mod rpc_queue;
 #[cfg(has_si5324)]
 pub mod si5324;
 
-#[cfg(has_slave_fpga)]
+#[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;
 #[cfg(has_serwb_phy_amc)]
 pub mod serwb;

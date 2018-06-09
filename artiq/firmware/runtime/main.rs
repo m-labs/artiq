@@ -82,7 +82,7 @@ fn startup() {
         _ => info!("UART log level set to INFO by default")
     }
 
-    #[cfg(has_slave_fpga)]
+    #[cfg(has_slave_fpga_cfg)]
     board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
     #[cfg(has_serwb_phy_amc)]
     board_artiq::serwb::wait_init();
