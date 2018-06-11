@@ -142,7 +142,6 @@ mod hmc830 {
 pub mod hmc7043 {
     use board_misoc::csr;
 
-    // To do: check which output channels we actually need
     const DAC_CLK_DIV: u32 = 2;
     const FPGA_CLK_DIV: u32 = 8;
     const SYSREF_DIV: u32 = 128;
@@ -156,11 +155,11 @@ pub mod hmc7043 {
         (true, SYSREF_DIV, 0x0, 0x0),   // 3: DAC1_SYSREF
         (false, 0, 0x0, 0x0),           // 4: ADC2_CLK
         (false, 0, 0x0, 0x0),           // 5: ADC2_SYSREF
-        (true, FPGA_CLK_DIV, 0x0, 0x0), // 6: GTP_CLK2
+        (false, 0, 0x0, 0x0),           // 6: GTP_CLK2
         (true, SYSREF_DIV, 0x0, 0x0),   // 7: FPGA_DAC_SYSREF
         (true, FPGA_CLK_DIV, 0x0, 0x0), // 8: GTP_CLK1
-        (true, FPGA_CLK_DIV, 0x0, 0x0), // 9: AMC_MASTER_AUX_CLK
-        (true, FPGA_CLK_DIV, 0x0, 0x0), // 10: RTM_MASTER_AUX_CLK
+        (false, 0, 0x0, 0x0),           // 9: AMC_MASTER_AUX_CLK
+        (false, 0, 0x0, 0x0),           // 10: RTM_MASTER_AUX_CLK
         (false, 0, 0x0, 0x0),           // 11: FPGA_ADC_SYSREF
         (false, 0, 0x0, 0x0),           // 12: ADC1_CLK
         (false, 0, 0x0, 0x0),           // 13: ADC1_SYSREF
