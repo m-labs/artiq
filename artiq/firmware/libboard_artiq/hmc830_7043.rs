@@ -79,7 +79,7 @@ mod hmc830 {
         Ok(())
     }
 
-    pub fn init() -> Result<(), &'static str> {
+    pub fn init() {
         // Configure HMC830 for integer-N operation
         // See "PLLs with integrated VCO- RF Applications Product & Operating
         // Guide"
@@ -105,11 +105,10 @@ mod hmc830 {
         write(0x5, 0x7fb0);  // 6: HMC830 magic value
         write(0x5, 0x0);     // ready for VCO auto-cal
 
-        info!("  ...done");
-        Ok(())
+        info!("...done");
     }
 
-    pub fn set_dividers(r_div: u32, n_div: u32, m_div: u32, out_div: u32) -> Result<(), &'static str> {
+    pub fn set_dividers(r_div: u32, n_div: u32, m_div: u32, out_div: u32) {
         // VCO frequency: f_vco = (f_ref/r_div)*(n_int + n_frac/2**24)
         // VCO frequency range [1.5GHz, 3GHz]
         // Output frequency: f_out = f_vco/out_div
@@ -131,7 +130,6 @@ mod hmc830 {
         write(0x3, n_div);
 
         info!("done");
-        Ok(())
     }
 
     pub fn check_locked() -> Result<(), &'static str> {
@@ -331,8 +329,8 @@ pub fn init() -> Result<(), &'static str> {
     /* do not use other SPI devices before HMC830 SPI mode selection */
     hmc830::select_spi_mode();
     hmc830::detect()?;
-    hmc830::init()?;
-    hmc830::set_dividers(1, 24, 0, 2)?; // 100MHz ref, 1.2GHz out
+    hmc830::init();
+    hmc830::set_dividers(1, 24, 0, 2); // 100MHz ref, 1.2GHz out
     hmc830::check_locked()?;
 
     hmc7043::enable()?;
