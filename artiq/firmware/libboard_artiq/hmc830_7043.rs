@@ -156,10 +156,11 @@ pub mod hmc7043 {
     use board_misoc::csr;
 
     // To do: check which output channels we actually need
-    const DAC_CLK_DIV: u32 = 2;
-    const FPGA_CLK_DIV: u32 = 8;
-    const SYSREF_DIV: u32 = 128;
-    const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // Must be <= 4MHz
+    // All frequencies assume 1.2GHz HMC830 output
+    const DAC_CLK_DIV: u32 = 2;               // 600MHz
+    const FPGA_CLK_DIV: u32 = 8;              // 150MHz
+    const SYSREF_DIV: u32 = 128;              // 9.375MHz
+    const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
 
     // enabled, divider, analog phase shift, digital phase shift
     const OUTPUT_CONFIG: [(bool, u32, u8, u8); 14] = [
