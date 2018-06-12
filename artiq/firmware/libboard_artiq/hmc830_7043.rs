@@ -288,8 +288,11 @@ pub mod hmc7043 {
             write(channel_base + 0x3, aphase & 0x1f);
             write(channel_base + 0x4, dphase & 0x1f);
 
-            // No analog phase shift on clock channels
-            if (channel % 2) == 0 { write(channel_base + 0x7, 0x00); }
+            // bypass analog phase shift on clock channels to reduce noise
+            if (channel % 2) == 0 {
+                if divider != 0 { write(channel_base + 0x7, 0x00); }  // enable divider
+                else  { write(channel_base + 0x7, 0x03); } // bypass divider for lowest noise
+            }
             else { write(channel_base + 0x7, 0x01); }
 
             write(channel_base + 0x8, 0x08)
