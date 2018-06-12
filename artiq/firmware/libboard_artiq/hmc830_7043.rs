@@ -1,15 +1,3 @@
-/*
- * HMC830 config:
- * 100MHz input, 1.2GHz output
- * fvco = (refclk / r_divider) * n_divider
- * fout = fvco/2
- *
- * HMC7043 config:
- * dac clock: 600MHz (div=2)
- * fpga clock: 150MHz (div=8)
- * sysref clock: 9.375MHz (div=128)
- */
-
 mod clock_mux {
     use board_misoc::csr;
 
@@ -29,27 +17,6 @@ mod clock_mux {
 
 mod hmc830 {
     use board_misoc::{csr, clock};
-
-    const HMC830_WRITES: [(u8, u32); 18] = [
-        (0x0, 0x20),
-        (0x1, 0x2),
-        (0x2, 0x2), // r_divider
-        (0x5, 0x1628),
-        (0x5, 0x60a0),
-        (0x5, 0xe110),
-        (0x5, 0x2818),
-        (0x5, 0xf88),
-        (0x5, 0x7fb0),
-        (0x5, 0x0),
-        (0x6, 0x303ca),
-        (0x7, 0x14d),
-        (0x8, 0xc1beff),
-        (0x9, 0x153fff),
-        (0xa, 0x2046),
-        (0xb, 0x7c061),
-        (0xf, 0x81),
-        (0x3, 0x30), // n_divider
-    ];
 
     fn spi_setup() {
         unsafe {
@@ -112,19 +79,65 @@ mod hmc830 {
         Ok(())
     }
 
-    pub fn init() -> Result<(), &'static str> {
+    pub fn init() {
+        // Configure HMC830 for integer-N operation
+        // See "PLLs with integrated VCO- RF Applications Product & Operating
+        // Guide"
         spi_setup();
-        info!("loading configuration...");
-        for &(addr, data) in HMC830_WRITES.iter() {
-            write(addr, data);
-        }
-        info!("  ...done");
+        info!("loading HMC830 configuration...");
 
+        write(0x0, 0x20);    // software reset
+        write(0x0, 0x00);    // normal operation
+        write(0x6, 0x307ca); // integer-N mode (NB data sheet table 5.8 not self-consistent)
+        write(0x7, 0x4d);    // digital lock detect, 1/2 cycle window (6.5ns window)
+        write(0x9, 0x2850);  // charge pump: 1.6mA, no offset
+        write(0xa, 0x2045);  // for wideband devices like the HMC830
+        write(0xb, 0x7c061); // for HMC830
+
+        // VCO subsystem registers
+        // NB software reset does not seem to reset these registers, so always
+        // program them all!
+        write(0x5, 0xf88);   // 1: defaults
+        write(0x5, 0x6010);  // 2: mute output until output divider set
+        write(0x5, 0x2818);  // 3: wideband PLL defaults
+        write(0x5, 0x60a0);  // 4: HMC830 magic value
+        write(0x5, 0x1628);  // 5: HMC830 magic value
+        write(0x5, 0x7fb0);  // 6: HMC830 magic value
+        write(0x5, 0x0);     // ready for VCO auto-cal
+
+        info!("  ...done");
+    }
+
+    pub fn set_dividers(r_div: u32, n_div: u32, m_div: u32, out_div: u32) {
+        // VCO frequency: f_vco = (f_ref/r_div)*(n_int + n_frac/2**24)
+        // VCO frequency range [1.5GHz, 3GHz]
+        // Output frequency: f_out = f_vco/out_div
+        // Max PFD frequency: 125MHz for integer-N, 100MHz for fractional
+        // (mode B)
+        // Max reference frequency: 350MHz, however f_ref >= 200MHz requires
+        //     setting 0x08[21]=1
+        //
+        // :param r_div: reference divider [1, 16383]
+        // :param n_div: VCO divider, integer part. Integer-N mode: [16, 2**19-1]
+        //    fractional mode: [20, 2**19-4]
+        // :param m_div: VCO divider, fractional part [0, 2**24-1]
+        // :param out_div: output divider [1, 62] (0 mutes output)
+        info!("setting HMC830 dividers...");
+        write(0x5, 0x6010 + (out_div << 7) + (((out_div <= 2) as u32) << 15));
+        write(0x5, 0x0);     // ready for VCO auto-cal
+        write(0x2, r_div);
+        write(0x4, m_div);
+        write(0x3, n_div);
+
+        info!("  ...done");
+    }
+
+    pub fn check_locked() -> Result<(), &'static str> {
+        info!("waiting for HMC830 lock...");
         let t = clock::get_ms();
-        info!("waiting for lock...");
         while read(0x12) & 0x02 == 0 {
             if clock::get_ms() > t + 2000 {
-                error!("  lock timeout. Register dump:");
+                error!("lock timeout. Register dump:");
                 for addr in 0x00..0x14 {
                     // These registers don't exist (in the data sheet at least)
                     if addr == 0x0d || addr == 0x0e { continue; }
@@ -142,10 +155,11 @@ mod hmc830 {
 pub mod hmc7043 {
     use board_misoc::csr;
 
-    const DAC_CLK_DIV: u32 = 2;
-    const FPGA_CLK_DIV: u32 = 8;
-    const SYSREF_DIV: u32 = 128;
-    const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // Must be <= 4MHz
+    // All frequencies assume 1.2GHz HMC830 output
+    const DAC_CLK_DIV: u32 = 2;               // 600MHz
+    const FPGA_CLK_DIV: u32 = 8;              // 150MHz
+    const SYSREF_DIV: u32 = 128;              // 9.375MHz
+    const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
 
     // enabled, divider, analog phase shift, digital phase shift
     const OUTPUT_CONFIG: [(bool, u32, u8, u8); 14] = [
@@ -315,7 +329,9 @@ pub fn init() -> Result<(), &'static str> {
     /* do not use other SPI devices before HMC830 SPI mode selection */
     hmc830::select_spi_mode();
     hmc830::detect()?;
-    hmc830::init()?;
+    hmc830::init();
+    hmc830::set_dividers(1, 24, 0, 2); // 100MHz ref, 1.2GHz out
+    hmc830::check_locked()?;
 
     hmc7043::enable()?;
     hmc7043::detect()?;
