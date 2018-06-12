@@ -1,4 +1,4 @@
-use board::{csr, clock};
+use board_misoc::{csr, clock};
 use core::slice;
 use byteorder::{ByteOrder, BigEndian};
 
@@ -60,6 +60,9 @@ pub fn load() -> Result<(), &'static str> {
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
             return Err("Did not exit INIT after releasing PROGRAM");
         }
+        if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
+            return Err("DONE high despite PROGRAM");
+        }
 
         for i in slice::from_raw_parts(GATEWARE.offset(8), length) {
             shift_u8(*i);
@@ -72,7 +75,6 @@ pub fn load() -> Result<(), &'static str> {
         while csr::slave_fpga_cfg::in_read() & DONE_BIT == 0 {
             if clock::get_ms() > t + 100 {
                 error!("Timeout wating for DONE after loading");
-                error!("Boards not populated correctly?");
                 return Err("Not DONE");
             }
             shift_u8(0xff);
