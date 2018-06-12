@@ -114,6 +114,8 @@ class Programmer:
         self._loaded = defaultdict(lambda: None)
         self._script = ["init"]
 
+        add_commands(self._script, "source xilinx-stat.cfg")
+
     def _transfer_script(self, script):
         if isinstance(self._client, LocalClient):
             return "[find {}]".format(script)
@@ -143,6 +145,13 @@ class Programmer:
         add_commands(self._script,
             "pld load {pld} {{{filename}}}",
             pld=pld, filename=bitfile)
+
+    def check_done(self, tap):
+        add_commands(self._script,
+            "set stat [xilinx_get_stat {tap}]",
+            "echo [format {{{tap} stat: 0b%032b}} $stat]",
+            "if ![expr $stat & 0x1000] {{echo \"not DONE\"; exit 1;}}",
+            tap=tap)
 
     def load_proxy(self):
         raise NotImplementedError
@@ -355,8 +364,10 @@ def main():
             if args.target == "sayma":
                 rtm_gateware_bit = artifact_path("rtm_gateware", "rtm.bit")
                 programmer.load(rtm_gateware_bit, 0)
+                programmer.check_done("xc7.tap")
                 gateware_bit = artifact_path(variant, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
+                programmer.check_done("xcu.tap")
             else:
                 gateware_bit = artifact_path(variant, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
