@@ -4,13 +4,15 @@ mod clock_mux {
     const CLK_SRC_EXT_SEL : u8 = 1 << 0;
     const REF_CLK_SRC_SEL : u8 = 1 << 1;
     const DAC_CLK_SRC_SEL : u8 = 1 << 2;
+    const REF_LO_CLK_SEL  : u8 = 1 << 3;
 
     pub fn init() {
         unsafe {
             csr::clock_mux::out_write(
                 1*CLK_SRC_EXT_SEL |  // use ext clk from sma
                 1*REF_CLK_SRC_SEL |
-                1*DAC_CLK_SRC_SEL);
+                1*DAC_CLK_SRC_SEL |
+                0*REF_LO_CLK_SEL);
         }
     }
 }

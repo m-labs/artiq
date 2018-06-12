@@ -124,7 +124,9 @@ class SaymaRTM(Module):
         self.submodules.clock_mux = gpio.GPIOOut(Cat(
             platform.request("clk_src_ext_sel"),
             platform.request("ref_clk_src_sel"),
-            platform.request("dac_clk_src_sel")))
+            platform.request("dac_clk_src_sel"),
+            platform.request("ref_lo_clk_sel")),
+            reset_out=0b0111)
         csr_devices.append("clock_mux")
 
         # UART loopback
