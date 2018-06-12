@@ -105,7 +105,7 @@ mod hmc830 {
         write(0x5, 0x7fb0);  // 6: HMC830 magic value
         write(0x5, 0x0);     // ready for VCO auto-cal
 
-        info!("...done");
+        info!("  ...done");
     }
 
     pub fn set_dividers(r_div: u32, n_div: u32, m_div: u32, out_div: u32) {
@@ -129,7 +129,7 @@ mod hmc830 {
         write(0x4, m_div);
         write(0x3, n_div);
 
-        info!("done");
+        info!("  ...done");
     }
 
     pub fn check_locked() -> Result<(), &'static str> {
@@ -146,7 +146,7 @@ mod hmc830 {
                 return Err("lock timeout");
             }
         }
-        info!("...locked");
+        info!("  ...locked");
 
         Ok(())
     }
