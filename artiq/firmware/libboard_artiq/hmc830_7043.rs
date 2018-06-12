@@ -238,7 +238,7 @@ pub mod hmc7043 {
         Ok(())
     }
 
-    pub fn enable() -> Result<(), &'static str> {
+    pub fn enable() {
         info!("enabling hmc7043");
 
         unsafe {
@@ -249,11 +249,9 @@ pub mod hmc7043 {
         write(0x0, 0x1);   // Software reset
         write(0x0, 0x0);   // Normal operation
         write(0x1, 0x48);  // mute all outputs
-
-        Ok(())
     }
 
-    pub fn init() -> Result<(), &'static str> {
+    pub fn init() {
         spi_setup();
         info!("loading configuration...");
 
@@ -304,8 +302,6 @@ pub mod hmc7043 {
         write(0x1, 0x40);  // Unmute, high-performace/low-noise mode
 
         info!("  ...done");
-
-        Ok(())
     }
 
     pub fn cfg_dac_sysref(dacno: u8, phase: u16) {
@@ -336,7 +332,9 @@ pub fn init() -> Result<(), &'static str> {
     hmc830::set_dividers(1, 24, 0, 2); // 100MHz ref, 1.2GHz out
     hmc830::check_locked()?;
 
-    hmc7043::enable()?;
+    hmc7043::enable();
     hmc7043::detect()?;
-    hmc7043::init()
+    hmc7043::init();
+
+    Ok(())
 }
