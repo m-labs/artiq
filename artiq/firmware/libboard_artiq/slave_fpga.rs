@@ -81,6 +81,7 @@ pub fn load() -> Result<(), &'static str> {
         }
         shift_u8(0xff);  // "Compensate for Special Startup Conditions"
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
+        csr::slave_fpga_cfg::oe_write(PROGRAM_B_BIT);
     }
 
     Ok(())
