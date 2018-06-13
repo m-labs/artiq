@@ -18,10 +18,18 @@ class _SerdesClocking(Module):
         # can use this clock to sample data
         if mode == "master":
             self.specials += DDROutput(0, 1, self.refclk)
-            self.specials += DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
+            if hasattr(pads, "clk_p"):
+                self.specials += DifferentialOutput(self.refclk, pads.clk_p, pads.clk_n)
+            else:
+                self.comb += pads.clk.eq(self.refclk)
         # In Slave mode, use the clock provided by Master
         elif mode == "slave":
-            self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
+            if hasattr(pads, "clk_p"):
+                self.specials += DifferentialInput(pads.clk_p, pads.clk_n, self.refclk)
+            else:
+                self.comb += self.refclk.eq(pads.clk)
+        else:
+            raise ValueError
 
 
 class _SerdesTX(Module):
@@ -47,7 +55,10 @@ class _SerdesTX(Module):
         # Output data (on rising edge of sys_clk)
         data = Signal()
         self.sync += data.eq(datapath.source.data)
-        self.specials += DifferentialOutput(data, pads.tx_p, pads.tx_n)
+        if hasattr(pads, "tx_p"):
+            self.specials += DifferentialOutput(data, pads.tx_p, pads.tx_n)
+        else:
+            self.comb += pads.tx.eq(data)
 
 
 class _SerdesRX(Module):
@@ -67,7 +78,10 @@ class _SerdesRX(Module):
         # Input data (on rising edge of sys_clk)
         data = Signal()
         data_d = Signal()
-        self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data)
+        if hasattr(pads, "rx_p"):
+            self.specials += DifferentialInput(pads.rx_p, pads.rx_n, data)
+        else:
+            self.comb += data.eq(pads.rx)
         self.sync += data_d.eq(data)
 
         # Datapath
