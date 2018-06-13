@@ -168,8 +168,6 @@ class SaymaRTM(Module):
         # HMC clock chip and DAC control
         self.comb += [
             platform.request("ad9154_rst_n").eq(1),
-            platform.request("ad9154_txen", 0).eq(0b11),
-            platform.request("ad9154_txen", 1).eq(0b11)
         ]
 
         self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
