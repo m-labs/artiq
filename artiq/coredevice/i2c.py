@@ -48,22 +48,27 @@ class PCA9548:
         self.address = address
 
     @kernel
-    def set(self, channel):
-        """Select one channel.
+    def select(self, mask):
+        """Enable/disable channels.
 
-        Selecting multiple channels at the same time is not supported by this
-        driver.
-
-        :param channel: channel number (0-7)
+        :param mask: Bit mask of enabled channels
         """
         i2c_start(self.busno)
         try:
             if not i2c_write(self.busno, self.address):
                 raise I2CError("PCA9548 failed to ack address")
-            if not i2c_write(self.busno, 1 << channel):
+            if not i2c_write(self.busno, mask):
                 raise I2CError("PCA9548 failed to ack control word")
         finally:
             i2c_stop(self.busno)
+
+    @kernel
+    def set(self, channel):
+        """Enable one channel.
+
+        :param channel: channel number (0-7)
+        """
+        self.select(1 << channel)
 
     @kernel
     def readback(self):
