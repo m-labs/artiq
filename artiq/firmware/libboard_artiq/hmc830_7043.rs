@@ -267,8 +267,7 @@ pub mod hmc7043 {
         write(0x4, (1 << 0) |
                    (1 << 1) |
                    (1 << 3) |
-                   (1 << 4) |
-                   (1 << 5));
+                   (1 << 4));
 
         write(0x5c, (HMC_SYSREF_DIV & 0xff) as u8);  // Set SYSREF timer divider
         write(0x5d, ((HMC_SYSREF_DIV & 0x0f) >> 8) as u8);
