@@ -7,15 +7,12 @@ import warnings
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.io import DifferentialInput
 
 from microscope import *
 
 from misoc.cores import gpio
-from misoc.cores.slave_fpga import SlaveFPGA
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
-from misoc.interconnect import stream
 from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import BaseSoC, MiniSoC
 
