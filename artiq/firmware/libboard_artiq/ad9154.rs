@@ -167,7 +167,9 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             0*ad9154_reg::PD_BG);
     clock::spin_us(100);
     write(ad9154_reg::TXENMASK1, 0*ad9154_reg::DACA_MASK |
-            0*ad9154_reg::DACB_MASK); // TX not controlled by TXEN pins
+            0*ad9154_reg::DACB_MASK); // DAC PD not controlled by TXEN pins
+    write(ad9154_reg::PWRCNTRL3, 1*ad9154_reg::ENA_SPI_TXEN |
+            1*ad9154_reg::SPI_TXEN);
     write(ad9154_reg::CLKCFG0,
             0*ad9154_reg::REF_CLKDIV_EN | 1*ad9154_reg::RF_SYNC_EN |
             1*ad9154_reg::DUTY_EN | 0*ad9154_reg::PD_CLK_REC |
