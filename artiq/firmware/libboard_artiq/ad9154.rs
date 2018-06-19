@@ -689,36 +689,58 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     }
 }
 
-fn dac_sysref_scan(dacno: u8) {
-    let mut sync_error_last = 0;
-    let mut phase_min = None;
-    let mut phase_max = None;
+fn dac_get_sync_error(dacno: u8) -> u16 {
+    spi_setup(dacno);
+    let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
+                     ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
+                     & 0x1ff;
+    sync_error
+}
 
-    info!("AD9154-{} SYSREF scan:", dacno);
-    for phase in 0..512 {
-        hmc7043::cfg_dac_sysref(dacno, phase);
+fn dac_sysref_scan(dacno: u8, center_phase: u16) {
+    let mut margin_minus = None;
+    let mut margin_plus = None;
+
+    info!("AD9154-{} SYSREF scan...", dacno);
+
+    hmc7043::cfg_dac_sysref(dacno, center_phase);
+    clock::spin_us(10000);
+    let mut sync_error_last = dac_get_sync_error(dacno);
+    for d in 0..128 {
+        hmc7043::cfg_dac_sysref(dacno, center_phase - d);
         clock::spin_us(10000);
-        spi_setup(dacno);
-        let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
-                         ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
-                         & 0x1ff;
+        let sync_error = dac_get_sync_error(dacno);
         if sync_error != sync_error_last {
-            info!("  phase: {}, sync error: {}", phase, sync_error);
+            info!("  sync error-: {} -> {}", sync_error_last, sync_error);
+            margin_minus = Some(d);
+            break;
         }
-        if sync_error != 0 {
-            if phase_min.is_some() {
-                if sync_error != sync_error_last {
-                    phase_max = Some(phase - 1);
-                    break;
-                }
-            } else {
-                phase_min = Some(phase);
-            }
-        }
-        sync_error_last = sync_error;
     }
 
-    info!("  phase min: {:?}, phase max: {:?}", phase_min, phase_max);
+    hmc7043::cfg_dac_sysref(dacno, center_phase);
+    clock::spin_us(10000);
+    sync_error_last = dac_get_sync_error(dacno);
+    for d in 0..128 {
+        hmc7043::cfg_dac_sysref(dacno, center_phase + d);
+        clock::spin_us(10000);
+        let sync_error = dac_get_sync_error(dacno);
+        if sync_error != sync_error_last {
+            info!("  sync error+: {} -> {}", sync_error_last, sync_error);
+            margin_plus = Some(d);
+            break;
+        }
+    }
+
+    if margin_minus.is_some() && margin_plus.is_some() {
+        let margin_minus = margin_minus.unwrap();
+        let margin_plus = margin_plus.unwrap();
+        info!("  margins: -{} +{}", margin_minus, margin_plus);
+        if margin_minus < 10 || margin_plus < 10 {
+            error!("SYSREF margins are too small");
+        }
+    } else {
+        error!("Unable to determine SYSREF margins");
+    }
 }
 
 fn dac_sysref_cfg(dacno: u8, phase: u16) {
@@ -735,9 +757,10 @@ fn init_dac(dacno: u8) -> Result<(), &'static str> {
     // Run the PRBS, STPL and SYSREF scan tests
     dac_prbs(dacno)?;
     dac_stpl(dacno, 4, 2)?;
-    dac_sysref_scan(dacno);
+    let sysref_phase = 58;
+    dac_sysref_scan(dacno, sysref_phase);
     // Set SYSREF phase and reconfigure the DAC
-    dac_sysref_cfg(dacno, 88);
+    dac_sysref_cfg(dacno, sysref_phase);
     dac_cfg_retry(dacno)?;
     Ok(())
 }
