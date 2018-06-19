@@ -227,10 +227,16 @@ pub mod hmc7043 {
         }
     }
 
-    pub fn detect() -> Result<(), &'static str> {
+    pub const CHIP_ID: u32 = 0xf17904;
+
+    pub fn get_id() -> u32 {
         spi_setup();
-        let id = (read(0x78) as u32) << 16 | (read(0x79) as u32) << 8 | read(0x7a) as u32;
-        if id != 0xf17904 {
+        (read(0x78) as u32) << 16 | (read(0x79) as u32) << 8 | read(0x7a) as u32
+    }
+
+    pub fn detect() -> Result<(), &'static str> {
+        let id = get_id();
+        if id != CHIP_ID {
             error!("invalid HMC7043 ID: 0x{:08x}", id);
             return Err("invalid HMC7043 identification");
         } else {
@@ -340,6 +346,9 @@ pub fn init() -> Result<(), &'static str> {
 
     hmc830::check_locked()?;
 
+    if hmc7043::get_id() == hmc7043::CHIP_ID {
+        error!("HMC7043 detected while in reset (board rework missing?)");
+    }
     hmc7043::enable();
     hmc7043::detect()?;
     hmc7043::init();
