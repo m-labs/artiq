@@ -134,3 +134,19 @@ device_db = {
         "arguments": {"spi_device": "rconverter_spi", "chip_select": 3}
     },
 }
+
+for i in range(8):
+    device_db["sawg" + str(i)] = {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": i*10+6, "parallelism": 4}
+    }
+
+for i in range(8):
+    device_db["sawg" + str(8+i)] = {
+        "type": "local",
+        "module": "artiq.coredevice.sawg",
+        "class": "SAWG",
+        "arguments": {"channel_base": i*10+0x010006, "parallelism": 4}
+    }
