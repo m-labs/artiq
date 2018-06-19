@@ -247,17 +247,20 @@ pub extern fn main() -> i32 {
     info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     info!("gateware version {}", ident::read(&mut [0; 64]));
 
+    #[cfg(has_slave_fpga_cfg)]
+    board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
     #[cfg(has_serwb_phy_amc)]
     serwb::wait_init();
 
-    #[cfg(has_hmc830_7043)]
-    /* must be the first SPI init because of HMC830 SPI mode selection */
-    hmc830_7043::init().expect("cannot initialize HMC830/7043");
     i2c::init();
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
+
+    #[cfg(has_hmc830_7043)]
+    /* must be the first SPI init because of HMC830 SPI mode selection */
+    hmc830_7043::init().expect("cannot initialize HMC830/7043");
 
     loop {
         while !drtio_link_rx_up() {

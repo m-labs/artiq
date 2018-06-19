@@ -8,8 +8,6 @@ import warnings
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
 
-from microscope import *
-
 from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
@@ -152,26 +150,8 @@ class AD9154NoSAWG(Module, AutoCSR):
         ]
 
 
-class Standalone(MiniSoC, AMPSoC):
-    mem_map = {
-        "cri_con":       0x10000000,
-        "rtio":          0x11000000,
-        "rtio_dma":      0x12000000,
-        "serwb":         0x13000000,
-        "mailbox":       0x70000000
-    }
-    mem_map.update(MiniSoC.mem_map)
-
-    def __init__(self, with_sawg, **kwargs):
-        MiniSoC.__init__(self,
-                         cpu_type="or1k",
-                         sdram_controller_type="minicon",
-                         l2_size=128*1024,
-                         ident=artiq_version,
-                         ethmac_nrxslots=4,
-                         ethmac_ntxslots=4,
-                         **kwargs)
-        AMPSoC.__init__(self)
+class RTMCommon:
+    def __init__(self):
         platform = self.platform
 
         # forward RTM UART to second FTDI UART channel
@@ -204,7 +184,31 @@ class Standalone(MiniSoC, AMPSoC):
         self.submodules += serwb_core
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
+
+class Standalone(MiniSoC, AMPSoC, RTMCommon):
+    mem_map = {
+        "cri_con":       0x10000000,
+        "rtio":          0x11000000,
+        "rtio_dma":      0x12000000,
+        "serwb":         0x13000000,
+        "mailbox":       0x70000000
+    }
+    mem_map.update(MiniSoC.mem_map)
+
+    def __init__(self, with_sawg, **kwargs):
+        MiniSoC.__init__(self,
+                         cpu_type="or1k",
+                         sdram_controller_type="minicon",
+                         l2_size=128*1024,
+                         ident=artiq_version,
+                         ethmac_nrxslots=4,
+                         ethmac_ntxslots=4,
+                         **kwargs)
+        AMPSoC.__init__(self)
+        RTMCommon.__init__(self)
         self.config["HMC830_REF"] = "100"
+
+        platform = self.platform
 
         # RTIO
         rtio_channels = []
@@ -270,12 +274,13 @@ class Standalone(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class Master(MiniSoC, AMPSoC):
+class Master(MiniSoC, AMPSoC, RTMCommon):
     mem_map = {
         "cri_con":       0x10000000,
-        "rtio":          0x20000000,
-        "rtio_dma":      0x30000000,
-        "drtio_aux":     0x50000000,
+        "rtio":          0x11000000,
+        "rtio_dma":      0x12000000,
+        "serwb":         0x13000000,
+        "drtio_aux":     0x14000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
@@ -290,15 +295,14 @@ class Master(MiniSoC, AMPSoC):
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
+        RTMCommon.__init__(self)
+        self.config["HMC830_REF"] = "150"
 
         if with_sawg:
             warnings.warn("SAWG is not implemented yet with DRTIO, ignoring.")
 
         platform = self.platform
         rtio_clk_freq = 150e6
-
-        self.submodules += Microscope(platform.request("serial", 1),
-                                      self.clk_freq)
 
         # Si5324 used as a free-running oscillator, to avoid dependency on RTM.
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
@@ -390,9 +394,10 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("cri_con")
 
 
-class Satellite(BaseSoC):
+class Satellite(BaseSoC, RTMCommon):
     mem_map = {
-        "drtio_aux": 0x50000000,
+        "serwb":         0x13000000,
+        "drtio_aux":     0x14000000,
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -403,15 +408,14 @@ class Satellite(BaseSoC):
                  l2_size=128*1024,
                  ident=artiq_version,
                  **kwargs)
+        RTMCommon.__init__(self)
+        self.config["HMC830_REF"] = "150"
 
         if with_sawg:
             warnings.warn("SAWG is not implemented yet with DRTIO, ignoring.")
 
         platform = self.platform
         rtio_clk_freq = 150e6
-
-        self.submodules += Microscope(platform.request("serial", 1),
-                                      self.clk_freq)
 
         rtio_channels = []
         for i in range(4):
@@ -508,18 +512,16 @@ def main():
         raise SystemExit("Invalid variant (-V/--variant)")
     soc = cls(with_sawg=not args.without_sawg, **soc_sdram_argdict(args))
 
-    # DRTIO variants do not use the RTM yet.
-    if variant not in {"master", "satellite"}:
-        remote_csr_regions = remote_csr.get_remote_csr_regions(
-            soc.mem_map["serwb"] | soc.shadow_base,
-            args.rtm_csr_csv)
-        for name, origin, busword, csrs in remote_csr_regions:
-            soc.add_csr_region(name, origin, busword, csrs)
-        # Configuration for RTM peripherals. Keep in sync with sayma_rtm.py!
-        soc.config["HAS_HMC830_7043"] = None
-        soc.config["CONVERTER_SPI_HMC830_CS"] = 0
-        soc.config["CONVERTER_SPI_HMC7043_CS"] = 1
-        soc.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
+    remote_csr_regions = remote_csr.get_remote_csr_regions(
+        soc.mem_map["serwb"] | soc.shadow_base,
+        args.rtm_csr_csv)
+    for name, origin, busword, csrs in remote_csr_regions:
+        soc.add_csr_region(name, origin, busword, csrs)
+    # Configuration for RTM peripherals. Keep in sync with sayma_rtm.py!
+    soc.config["HAS_HMC830_7043"] = None
+    soc.config["CONVERTER_SPI_HMC830_CS"] = 0
+    soc.config["CONVERTER_SPI_HMC7043_CS"] = 1
+    soc.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
 
     build_artiq_soc(soc, builder_argdict(args))
 
