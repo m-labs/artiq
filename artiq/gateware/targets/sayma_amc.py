@@ -43,23 +43,27 @@ class AD9154CRG(Module, AutoCSR):
     linerate = int(6e9)
     refclk_freq = int(150e6)
     fabric_freq = int(125e6)
-    def __init__(self, platform):
+
+    def __init__(self, platform, use_rtio_clock=False):
         self.jreset = CSRStorage(reset=1)
         self.jref = Signal()
-
         self.refclk = Signal()
-        refclk2 = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
-        refclk_pads = platform.request("dac_refclk", 0)
 
+        refclk2 = Signal()
+        refclk_pads = platform.request("dac_refclk", 0)
         platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
         self.specials += [
             Instance("IBUFDS_GTE3", i_CEB=self.jreset.storage, p_REFCLK_HROW_CK_SEL=0b00,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n,
                      o_O=self.refclk, o_ODIV2=refclk2),
-            Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk),
             AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
         ]
+
+        if use_rtio_clock:
+            self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
+        else:
+            self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
 
         jref = platform.request("dac_sysref")
         self.specials += Instance("IBUFDS_IBUFDISABLE",
@@ -227,12 +231,11 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        self.submodules.ad9154_crg = AD9154CRG(platform)
         if with_sawg:
             cls = AD9154
         else:
             cls = AD9154NoSAWG
-
-        self.submodules.ad9154_crg = AD9154CRG(platform)
         self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
         self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
         self.csr_devices.append("ad9154_crg")
@@ -299,7 +302,7 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
         self.config["HMC830_REF"] = "150"
 
         if with_sawg:
-            warnings.warn("SAWG is not implemented yet with DRTIO, ignoring.")
+            warnings.warn("SAWG is not implemented yet, ignoring.")
 
         platform = self.platform
         rtio_clk_freq = 150e6
@@ -411,9 +414,6 @@ class Satellite(BaseSoC, RTMCommon):
         RTMCommon.__init__(self)
         self.config["HMC830_REF"] = "150"
 
-        if with_sawg:
-            warnings.warn("SAWG is not implemented yet with DRTIO, ignoring.")
-
         platform = self.platform
         rtio_clk_freq = 150e6
 
@@ -432,6 +432,24 @@ class Satellite(BaseSoC, RTMCommon):
         phy = ttl_simple.InOut(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.submodules.ad9154_crg = AD9154CRG(platform, use_rtio_clock=True)
+        if with_sawg:
+            cls = AD9154
+        else:
+            cls = AD9154NoSAWG
+        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
+        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
+        self.csr_devices.append("ad9154_crg")
+        self.csr_devices.append("ad9154_0")
+        self.csr_devices.append("ad9154_1")
+        self.config["HAS_AD9154"] = None
+        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
+        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.extend(rtio.Channel.from_phy(phy)
+                                for sawg in self.ad9154_0.sawgs +
+                                            self.ad9154_1.sawgs
+                                for phy in sawg.phys)
 
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
