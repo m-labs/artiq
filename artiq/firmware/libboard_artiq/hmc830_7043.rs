@@ -155,7 +155,7 @@ mod hmc830 {
 }
 
 pub mod hmc7043 {
-    use board_misoc::csr;
+    use board_misoc::{csr, clock};
 
     // All frequencies assume 1.2GHz HMC830 output
     const DAC_CLK_DIV: u32 = 2;               // 600MHz
@@ -241,11 +241,12 @@ pub mod hmc7043 {
     }
 
     pub fn enable() {
-        info!("enabling hmc7043");
+        info!("enabling HMC7043");
 
         unsafe {
             csr::hmc7043_reset::out_write(0);
         }
+        clock::spin_us(10_000);
 
         spi_setup();
         write(0x0, 0x1);   // Software reset
