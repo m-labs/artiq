@@ -494,7 +494,7 @@ def main():
     parser.add_argument("--without-sawg",
         default=False, action="store_true",
         help="Remove SAWG RTIO channels feeding the JESD links (speeds up "
-        "compilation time). Replaces them with fixed sawtooth generators.")
+        "compilation time). Replaces them with fixed pattern generators.")
     args = parser.parse_args()
 
     variant = args.variant.lower()
