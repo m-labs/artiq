@@ -177,7 +177,7 @@ fn locked() -> Result<bool> {
 }
 
 fn monitor_lock() -> Result<()> {
-    info!("waiting for Si5324 lock...")
+    info!("waiting for Si5324 lock...");
     let t = clock::get_ms();
     while !locked()? {
         // Yes, lock can be really slow.
