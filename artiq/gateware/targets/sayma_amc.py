@@ -204,6 +204,8 @@ class Standalone(MiniSoC, AMPSoC):
         self.submodules += serwb_core
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
+        self.config["HMC830_REF"] = "100"
+
         # RTIO
         rtio_channels = []
         for i in range(4):

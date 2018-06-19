@@ -330,7 +330,13 @@ pub fn init() -> Result<(), &'static str> {
     hmc830::select_spi_mode();
     hmc830::detect()?;
     hmc830::init();
-    hmc830::set_dividers(1, 24, 0, 2); // 100MHz ref, 1.2GHz out
+
+    // 1.2GHz out
+    #[cfg(hmc830_ref = "100")]
+    hmc830::set_dividers(1, 24, 0, 2);
+    #[cfg(hmc830_ref = "150")]
+    hmc830::set_dividers(2, 32, 0, 2);
+
     hmc830::check_locked()?;
 
     hmc7043::enable();
