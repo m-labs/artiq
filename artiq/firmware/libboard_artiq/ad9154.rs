@@ -672,15 +672,21 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
 }
 
 fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
-    for i in 0..99 {
+    let mut attempt =  0;
+    loop {
+        attempt += 1;
         dac_reset(dacno);
         let outcome = dac_cfg(dacno);
         match outcome {
             Ok(_) => return outcome,
-            Err(e) => warn!("AD9154-{} config attempt #{} failed ({}), retrying", dacno, i, e)
+            Err(e) => {
+                warn!("AD9154-{} config attempt #{} failed ({})", dacno, attempt, e);
+                if attempt >= 10 {
+                    return outcome;
+                }
+            }
         }
     }
-    dac_cfg(dacno)
 }
 
 fn dac_sysref_scan(dacno: u8) {
