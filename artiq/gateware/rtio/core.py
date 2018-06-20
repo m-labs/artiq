@@ -73,6 +73,7 @@ class Core(Module, AutoCSR):
             coarse_ts_cdc.i.eq(coarse_ts),
             self.cri.counter.eq(coarse_ts_cdc.o << glbl_fine_ts_width)
         ]
+        self.coarse_ts = coarse_ts
 
         # Outputs/Inputs
         quash_channels = [n for n, c in enumerate(channels) if isinstance(c, LogChannel)]

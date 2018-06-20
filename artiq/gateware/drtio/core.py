@@ -90,6 +90,7 @@ class DRTIOSatellite(Module):
                 coarse_ts.eq(coarse_ts + 1)
             )
         self.comb += self.rt_packet.cri.counter.eq(coarse_ts << fine_ts_width)
+        self.coarse_ts = coarse_ts
 
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, fine_ts_width, "sync",
