@@ -15,7 +15,7 @@ class SAWGTest(EnvExperiment):
             delay(1*ms)
             sawg.amplitude1.set(.4)
             # Do not use a sub-multiple of oscilloscope sample rates.
-            sawg.frequency0.set(49*MHz)
+            sawg.frequency0.set(9*MHz)
 
         while True:
             delay(0.5*ms)
