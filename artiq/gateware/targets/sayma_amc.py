@@ -2,11 +2,9 @@
 
 import argparse
 import os
-from collections import namedtuple
 import warnings
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.cores import gpio
 from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
@@ -14,18 +12,11 @@ from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import BaseSoC, MiniSoC
 
-from jesd204b.common import (JESD204BTransportSettings,
-                             JESD204BPhysicalSettings,
-                             JESD204BSettings)
-from jesd204b.phy.gth import GTHChannelPLL as JESD204BGTHChannelPLL
-from jesd204b.phy import JESD204BPhyTX
-from jesd204b.core import JESD204BCoreTX
-from jesd204b.core import JESD204BCoreTXControl
-
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import serwb
 from artiq.gateware import remote_csr
 from artiq.gateware import rtio
+from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -35,77 +26,10 @@ from artiq.build_soc import build_artiq_soc
 from artiq import __version__ as artiq_version
 
 
-PhyPads = namedtuple("PhyPads", "txp txn")
-to_jesd = ClockDomainsRenamer("jesd")
-
-
-class AD9154CRG(Module, AutoCSR):
-    linerate = int(6e9)
-    refclk_freq = int(150e6)
-    fabric_freq = int(125e6)
-
-    def __init__(self, platform, use_rtio_clock=False):
-        self.jreset = CSRStorage(reset=1)
-        self.jref = Signal()
-        self.refclk = Signal()
-        self.clock_domains.cd_jesd = ClockDomain()
-
-        refclk2 = Signal()
-        refclk_pads = platform.request("dac_refclk", 0)
-        platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
-        self.specials += [
-            Instance("IBUFDS_GTE3", i_CEB=self.jreset.storage, p_REFCLK_HROW_CK_SEL=0b00,
-                     i_I=refclk_pads.p, i_IB=refclk_pads.n,
-                     o_O=self.refclk, o_ODIV2=refclk2),
-            AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
-        ]
-
-        if use_rtio_clock:
-            self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
-        else:
-            self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
-
-        jref = platform.request("dac_sysref")
-        self.specials += Instance("IBUFDS_IBUFDISABLE",
-            p_USE_IBUFDISABLE="TRUE", p_SIM_DEVICE="ULTRASCALE",
-            i_IBUFDISABLE=self.jreset.storage,
-            i_I=jref.p, i_IB=jref.n,
-            o_O=self.jref)
-
-
-class AD9154JESD(Module, AutoCSR):
-    def __init__(self, platform, sys_crg, jesd_crg, dac):
-        ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
-        ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
-        settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
-
-        jesd_pads = platform.request("dac_jesd", dac)
-        phys = []
-        for i in range(len(jesd_pads.txp)):
-            cpll = JESD204BGTHChannelPLL(
-                    jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate)
-            self.submodules += cpll
-            phy = JESD204BPhyTX(
-                    cpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
-                    jesd_crg.fabric_freq, transceiver="gth")
-            platform.add_period_constraint(phy.transmitter.cd_tx.clk,
-                    40*1e9/jesd_crg.linerate)
-            platform.add_false_path_constraints(
-                sys_crg.cd_sys.clk,
-                jesd_crg.cd_jesd.clk,
-                phy.transmitter.cd_tx.clk)
-            phys.append(phy)
-
-        self.submodules.core = core = to_jesd(JESD204BCoreTX(
-            phys, settings, converter_data_width=64))
-        self.submodules.control = control = to_jesd(JESD204BCoreTXControl(core))
-        core.register_jsync(platform.request("dac_sync", dac))
-        core.register_jref(jesd_crg.jref)
-
-
 class AD9154(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
-        self.submodules.jesd = AD9154JESD(platform, sys_crg, jesd_crg, dac)
+        self.submodules.jesd = jesd204_tools.UltrascaleTX(
+            platform, sys_crg, jesd_crg, dac)
 
         self.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
         self.submodules += self.sawgs
@@ -117,7 +41,8 @@ class AD9154(Module, AutoCSR):
 
 class AD9154NoSAWG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
-        self.submodules.jesd = AD9154JESD(platform, sys_crg, jesd_crg, dac)
+        self.submodules.jesd = jesd204_tools.UltrascaleTX(
+            platform, sys_crg, jesd_crg, dac)
 
         self.sawgs = []
 
@@ -231,7 +156,7 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.ad9154_crg = AD9154CRG(platform)
+        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
         if with_sawg:
             cls = AD9154
         else:
@@ -275,6 +200,10 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
+
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            self.rtio_core.coarse_ts, self.ad9154_crg.jref)
+        self.csr_devices.append("sysref_sampler")
 
 
 class Master(MiniSoC, AMPSoC, RTMCommon):
@@ -433,7 +362,8 @@ class Satellite(BaseSoC, RTMCommon):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.ad9154_crg = AD9154CRG(platform, use_rtio_clock=True)
+        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(
+            platform, use_rtio_clock=True)
         if with_sawg:
             cls = AD9154
         else:
@@ -490,6 +420,10 @@ class Satellite(BaseSoC, RTMCommon):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
+
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            self.drtio0.coarse_ts, self.ad9154_crg.jref)
+        self.csr_devices.append("sysref_sampler")
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
