@@ -318,12 +318,14 @@ pub mod hmc7043 {
          *  Digital delay resolution: 1/2 input clock cycle = 416ps for 1.2GHz
          *  16*25ps = 400ps: limit analog delay to 16 steps instead of 32.
          */
+        let analog_delay = (phase % 17) as u8;
+        let digital_delay = (phase / 17) as u8;
         if dacno == 0 {
-            write(0x00d5, (phase & 0xf) as u8);
-            write(0x00d6, ((phase >> 4) & 0x1f) as u8);
+            write(0x00d5, analog_delay);
+            write(0x00d6, digital_delay);
         } else if dacno == 1 {
-            write(0x00e9, (phase & 0xf) as u8);
-            write(0x00ea, ((phase >> 4) & 0x1f) as u8);
+            write(0x00e9, analog_delay);
+            write(0x00ea, digital_delay);
         } else {
             unimplemented!();
         }

@@ -757,7 +757,7 @@ fn init_dac(dacno: u8) -> Result<(), &'static str> {
     // Run the PRBS, STPL and SYSREF scan tests
     dac_prbs(dacno)?;
     dac_stpl(dacno, 4, 2)?;
-    let sysref_phase = 58;
+    let sysref_phase = 61;
     dac_sysref_scan(dacno, sysref_phase);
     // Set SYSREF phase and reconfigure the DAC
     dac_sysref_cfg(dacno, sysref_phase);
