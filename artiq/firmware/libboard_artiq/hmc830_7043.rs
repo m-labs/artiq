@@ -179,7 +179,7 @@ pub mod hmc7043 {
         (false, 0, 0x0, 0x0, 0x10),           // 11: FPGA_ADC_SYSREF, LVDS
         (false, 0, 0x0, 0x0, 0x08),           // 12: ADC1_CLK
         (false, 0, 0x0, 0x0, 0x08),           // 13: ADC1_SYSREF
-        ];
+    ];
 
 
     fn spi_setup() {
@@ -307,7 +307,7 @@ pub mod hmc7043 {
         write(0x1, 0x4a);  // Reset dividers and FSMs
         write(0x1, 0x48);
         write(0x1, 0xc8);  // Synchronize dividers
-        write(0x1, 0x40);  // Unmute, high-performace/low-noise mode
+        write(0x1, 0x40);  // Unmute, high-performance/low-noise mode
 
         info!("  ...done");
     }
