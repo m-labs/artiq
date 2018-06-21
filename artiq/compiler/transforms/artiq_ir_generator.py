@@ -1637,7 +1637,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 assert False
         elif (types.is_builtin(typ, "list") or types.is_builtin(typ, "array") or
-              types.is_builtin(typ, "bytearray")):
+              types.is_builtin(typ, "bytearray") or types.is_builtin(typ, "bytes")):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 length = ir.Constant(0, builtins.TInt32())
                 return self.append(ir.Alloc([length], node.type))
@@ -1648,6 +1648,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 def body_gen(index):
                     elt = self.iterable_get(arg, index)
+                    elt = self.append(ir.Coerce(elt, builtins.get_iterable_elt(node.type)))
                     self.append(ir.SetElem(result, index, elt))
                     return self.append(ir.Arith(ast.Add(loc=None), index,
                                                 ir.Constant(1, length.type)))
