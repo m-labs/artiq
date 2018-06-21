@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.cdc import PulseSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio.sed.core import *
@@ -34,6 +35,7 @@ class DRTIOSatellite(Module):
                  lane_count=8, fifo_depth=128):
         self.reset = CSRStorage(reset=1)
         self.reset_phy = CSRStorage(reset=1)
+        self.tsc_loaded = CSR()
 
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
@@ -92,6 +94,14 @@ class DRTIOSatellite(Module):
         self.comb += self.rt_packet.cri.counter.eq(coarse_ts << fine_ts_width)
         self.coarse_ts = coarse_ts
 
+        ps_tsc_load = PulseSynchronizer("rtio", "sys")
+        self.submodules += ps_tsc_load
+        self.comb += ps_tsc_load.i.eq(self.rt_packet.tsc_load)
+        self.sync += [
+            If(self.tsc_loaded.re, self.tsc_loaded.w.eq(0)),
+            If(ps_tsc_load.o, self.tsc_loaded.w.eq(1))
+        ]
+
         self.submodules.outputs = ClockDomainsRenamer("rio")(
             SED(channels, fine_ts_width, "sync",
                 lane_count=lane_count, fifo_depth=fifo_depth,
@@ -112,7 +122,7 @@ class DRTIOSatellite(Module):
             self.link_layer)
 
     def get_csrs(self):
-        return ([self.reset, self.reset_phy] +
+        return ([self.reset, self.reset_phy, self.tsc_loaded] +
                 self.link_layer.get_csrs() + self.link_stats.get_csrs() +
                 self.rt_errors.get_csrs() + self.aux_controller.get_csrs())
 

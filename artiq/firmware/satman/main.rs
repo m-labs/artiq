@@ -26,6 +26,16 @@ fn drtio_reset_phy(reset: bool) {
     }
 }
 
+fn drtio_tsc_loaded() -> bool {
+    unsafe {
+        let tsc_loaded = (csr::DRTIO[0].tsc_loaded_read)() == 1;
+        if tsc_loaded {
+            (csr::DRTIO[0].tsc_loaded_write)(1);
+        }
+        tsc_loaded
+    }
+}
+
 fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
@@ -238,6 +248,12 @@ fn drtio_link_rx_up() -> bool {
     }
 }
 
+const SIPHASER_PHASE: u16 = 32;
+#[cfg(has_ad9154)]
+const SYSREF_PHASE_FPGA: u16 = 32;
+#[cfg(has_ad9154)]
+const SYSREF_PHASE_DAC: u16 = 61;
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     clock::init();
@@ -262,7 +278,7 @@ pub extern fn main() -> i32 {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board_artiq::ad9154::init(32, 61);
+    board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
@@ -272,16 +288,23 @@ pub extern fn main() -> i32 {
         }
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
-        si5324::siphaser::calibrate_skew(32).expect("failed to calibrate skew");
+        si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
         drtioaux::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);
         while drtio_link_rx_up() {
             process_errors();
             process_aux_packets();
+            #[cfg(has_hmc830_7043)]
+            {
+                if drtio_tsc_loaded() {
+                    hmc830_7043::hmc7043::sysref_rtio_align(SYSREF_PHASE_FPGA);
+                }
+            }
         }
         drtio_reset_phy(true);
         drtio_reset(true);
+        drtio_tsc_loaded();
         info!("link is down, switching to local crystal clock");
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
     }

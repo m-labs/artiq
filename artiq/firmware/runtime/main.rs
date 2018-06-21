@@ -56,6 +56,11 @@ mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
 
+#[cfg(has_ad9154)]
+const SYSREF_PHASE_FPGA: u16 = 32;
+#[cfg(has_ad9154)]
+const SYSREF_PHASE_DAC: u16 = 61;
+
 fn startup() {
     irq::set_mask(0);
     irq::set_ie(true);
@@ -109,7 +114,7 @@ fn startup() {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board_artiq::ad9154::init(44, 61);
+    board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
