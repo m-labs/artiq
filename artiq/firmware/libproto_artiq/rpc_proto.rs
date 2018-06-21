@@ -256,8 +256,8 @@ mod tag {
                 Tag::Int64 => 8,
                 Tag::Float64 => 8,
                 Tag::String => 4,
-                Tag::Bytes => 4,
-                Tag::ByteArray => 4,
+                Tag::Bytes => 8,
+                Tag::ByteArray => 8,
                 Tag::Tuple(it, arity) => {
                     let mut size = 0;
                     for _ in 0..arity {
