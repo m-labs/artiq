@@ -26,7 +26,7 @@ class UltrascaleCRG(Module, AutoCSR):
         self.clock_domains.cd_jesd = ClockDomain()
 
         refclk2 = Signal()
-        refclk_pads = platform.request("dac_refclk", 0)
+        refclk_pads = platform.request("dac_refclk", 1)
         platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
         self.specials += [
             Instance("IBUFDS_GTE3", i_CEB=self.jreset.storage, p_REFCLK_HROW_CK_SEL=0b00,
