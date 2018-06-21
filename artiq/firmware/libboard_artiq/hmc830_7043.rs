@@ -181,7 +181,6 @@ pub mod hmc7043 {
         (false, 0,            0x08),  // 13: ADC1_SYSREF
     ];
 
-
     fn spi_setup() {
         unsafe {
             while csr::converter_spi::idle_read() == 0 {}
@@ -279,25 +278,33 @@ pub mod hmc7043 {
         write(0x5c, (HMC_SYSREF_DIV & 0xff) as u8);  // Set SYSREF timer divider
         write(0x5d, ((HMC_SYSREF_DIV & 0x0f) >> 8) as u8);
 
-        for channel in 0..14 {
+        for channel in 0..OUTPUT_CONFIG.len() {
             let channel_base = 0xc8 + 0x0a*(channel as u16);
             let (enabled, divider, outcfg) = OUTPUT_CONFIG[channel];
 
             if enabled {
                 // Only clock channels need to be high-performance
-                if (channel % 2) == 0 { write(channel_base, 0xd1); }
-                else { write(channel_base, 0x51); }
+                if channel % 2 == 0 {
+                    write(channel_base, 0xd1);
+                } else {
+                    write(channel_base, 0x51);
+                }
+            } else {
+                write(channel_base, 0x10);
             }
-            else { write(channel_base, 0x10); }
             write(channel_base + 0x1, (divider & 0xff) as u8);
             write(channel_base + 0x2, ((divider & 0x0f) >> 8) as u8);
 
-            // bypass analog phase shift on clock channels to reduce noise
-            if (channel % 2) == 0 {
-                if divider != 0 { write(channel_base + 0x7, 0x00); }  // enable divider
-                else  { write(channel_base + 0x7, 0x03); } // bypass divider for lowest noise
+            // bypass analog phase shift on DCLK channels to reduce noise
+            if channel % 2 == 0 {
+                if divider != 0 {
+                    write(channel_base + 0x7, 0x00); // enable divider
+                } else {
+                    write(channel_base + 0x7, 0x03); // bypass divider for lowest noise
+                }
+            } else {
+                write(channel_base + 0x7, 0x01);
             }
-            else { write(channel_base + 0x7, 0x01); }
 
             write(channel_base + 0x8, outcfg)
         }
@@ -311,13 +318,13 @@ pub mod hmc7043 {
     }
 
     pub fn cfg_dac_sysref(dacno: u8, phase: u16) {
-        spi_setup();
         /*  Analog delay resolution: 25ps
          *  Digital delay resolution: 1/2 input clock cycle = 416ps for 1.2GHz
          *  16*25ps = 400ps: limit analog delay to 16 steps instead of 32.
          */
         let analog_delay = (phase % 17) as u8;
         let digital_delay = (phase / 17) as u8;
+        spi_setup();
         if dacno == 0 {
             write(0x00d5, analog_delay);
             write(0x00d6, digital_delay);
