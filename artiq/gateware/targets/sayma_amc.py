@@ -230,9 +230,6 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
         RTMCommon.__init__(self)
         self.config["HMC830_REF"] = "150"
 
-        if with_sawg:
-            warnings.warn("SAWG is not implemented yet, ignoring.")
-
         platform = self.platform
         rtio_clk_freq = 150e6
 
@@ -299,10 +296,22 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
+        if with_sawg:
+            cls = AD9154
+        else:
+            cls = AD9154NoSAWG
+        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
+        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
         self.csr_devices.append("ad9154_crg")
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.ad9154_crg.cd_jesd.clk)
+        self.csr_devices.append("ad9154_0")
+        self.csr_devices.append("ad9154_1")
+        self.config["HAS_AD9154"] = None
+        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
+        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.extend(rtio.Channel.from_phy(phy)
+                                for sawg in self.ad9154_0.sawgs +
+                                            self.ad9154_1.sawgs
+                                for phy in sawg.phys)
 
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")

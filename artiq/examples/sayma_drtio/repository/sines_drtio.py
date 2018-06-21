@@ -5,7 +5,7 @@ class SAWGTestDRTIO(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_sma_out")
-        self.sawgs = [self.get_device("sawg"+str(8+i)) for i in range(8)]
+        self.sawgs = [self.get_device("sawg"+str(i)) for i in range(16)]
 
     @kernel
     def run(self):
