@@ -309,6 +309,12 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
+        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
+        self.csr_devices.append("ad9154_crg")
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.ad9154_crg.cd_jesd.clk)
+
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
@@ -324,6 +330,10 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri] + drtio_cri)
         self.register_kernel_cpu_csrdevice("cri_con")
+
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            self.rtio_core.coarse_ts, self.ad9154_crg.jref)
+        self.csr_devices.append("sysref_sampler")
 
 
 class Satellite(BaseSoC, RTMCommon):
