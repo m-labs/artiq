@@ -318,13 +318,13 @@ pub mod hmc7043 {
         info!("  ...done");
     }
 
-    pub fn cfg_dac_sysref(dacno: u8, phase: u16) {
+    pub fn sysref_offset_dac(dacno: u8, phase_offset: u16) {
         /*  Analog delay resolution: 25ps
          *  Digital delay resolution: 1/2 input clock cycle = 416ps for 1.2GHz
          *  16*25ps = 400ps: limit analog delay to 16 steps instead of 32.
          */
-        let analog_delay = (phase % 17) as u8;
-        let digital_delay = (phase / 17) as u8;
+        let analog_delay = (phase_offset % 17) as u8;
+        let digital_delay = (phase_offset / 17) as u8;
         spi_setup();
         if dacno == 0 {
             write(0x00d5, analog_delay);
@@ -337,9 +337,9 @@ pub mod hmc7043 {
         }
     }
 
-    fn cfg_fpga_sysref(phase: u16) {
-        let analog_delay = (phase % 17) as u8;
-        let digital_delay = (phase / 17) as u8;
+    fn sysref_offset_fpga(phase_offset: u16) {
+        let analog_delay = (phase_offset % 17) as u8;
+        let digital_delay = (phase_offset / 17) as u8;
         spi_setup();
         write(0x0111, analog_delay);
         write(0x0112, digital_delay);
@@ -355,15 +355,13 @@ pub mod hmc7043 {
         unsafe { csr::sysref_sampler::sample_result_read() == 1 }
     }
 
-    pub fn sysref_rtio_align() {
+    pub fn sysref_rtio_align(phase_offset: u16) {
         info!("aligning SYSREF with RTIO...");
 
-        let phase_offset = 44;
         let mut slips0 = 0;
         let mut slips1 = 0;
-
         // meet setup/hold (assuming FPGA timing margins are OK)
-        cfg_fpga_sysref(phase_offset);
+        sysref_offset_fpga(phase_offset);
         // if we are already in the 1 zone, get out of it
         while sysref_sample() {
             sysref_slip();
@@ -374,12 +372,11 @@ pub mod hmc7043 {
             sysref_slip();
             slips1 += 1;
         }
-
         info!("  ...done ({}/{} slips), verifying timing margin", slips0, slips1);
 
         let mut margin = None;
         for d in 0..phase_offset {
-            cfg_fpga_sysref(phase_offset - d);
+            sysref_offset_fpga(phase_offset - d);
             if !sysref_sample() {
                 margin = Some(d);
                 break;
@@ -387,7 +384,7 @@ pub mod hmc7043 {
         }
 
         // meet setup/hold
-        cfg_fpga_sysref(phase_offset);
+        sysref_offset_fpga(phase_offset);
 
         if margin.is_some() {
             let margin = margin.unwrap();

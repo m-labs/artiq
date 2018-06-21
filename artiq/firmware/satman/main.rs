@@ -262,7 +262,7 @@ pub extern fn main() -> i32 {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board_artiq::ad9154::init();
+    board_artiq::ad9154::init(32, 61);
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 

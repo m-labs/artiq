@@ -703,11 +703,11 @@ fn dac_sysref_scan(dacno: u8, center_phase: u16) {
 
     info!("AD9154-{} SYSREF scan...", dacno);
 
-    hmc7043::cfg_dac_sysref(dacno, center_phase);
+    hmc7043::sysref_offset_dac(dacno, center_phase);
     clock::spin_us(10000);
     let mut sync_error_last = dac_get_sync_error(dacno);
     for d in 0..128 {
-        hmc7043::cfg_dac_sysref(dacno, center_phase - d);
+        hmc7043::sysref_offset_dac(dacno, center_phase - d);
         clock::spin_us(10000);
         let sync_error = dac_get_sync_error(dacno);
         if sync_error != sync_error_last {
@@ -717,11 +717,11 @@ fn dac_sysref_scan(dacno: u8, center_phase: u16) {
         }
     }
 
-    hmc7043::cfg_dac_sysref(dacno, center_phase);
+    hmc7043::sysref_offset_dac(dacno, center_phase);
     clock::spin_us(10000);
     sync_error_last = dac_get_sync_error(dacno);
     for d in 0..128 {
-        hmc7043::cfg_dac_sysref(dacno, center_phase + d);
+        hmc7043::sysref_offset_dac(dacno, center_phase + d);
         clock::spin_us(10000);
         let sync_error = dac_get_sync_error(dacno);
         if sync_error != sync_error_last {
@@ -743,12 +743,7 @@ fn dac_sysref_scan(dacno: u8, center_phase: u16) {
     }
 }
 
-fn dac_sysref_cfg(dacno: u8, phase: u16) {
-    info!("AD9154-{} setting SYSREF phase to {}", dacno, phase);
-    hmc7043::cfg_dac_sysref(dacno, phase);
-}
-
-fn init_dac(dacno: u8) -> Result<(), &'static str> {
+fn init_dac(dacno: u8, sysref_phase: u16) -> Result<(), &'static str> {
     let dacno = dacno as u8;
     // Reset the DAC, detect and configure it
     dac_reset(dacno);
@@ -757,15 +752,14 @@ fn init_dac(dacno: u8) -> Result<(), &'static str> {
     // Run the PRBS, STPL and SYSREF scan tests
     dac_prbs(dacno)?;
     dac_stpl(dacno, 4, 2)?;
-    let sysref_phase = 61;
     dac_sysref_scan(dacno, sysref_phase);
     // Set SYSREF phase and reconfigure the DAC
-    dac_sysref_cfg(dacno, sysref_phase);
+    hmc7043::sysref_offset_dac(dacno, sysref_phase);
     dac_cfg_retry(dacno)?;
     Ok(())
 }
 
-pub fn init() {
+pub fn init(sysref_phase_fpga: u16, sysref_phase_dac: u16) {
     // Release the JESD clock domain reset late, as we need to
     // set up clock chips before.
     jesd_unreset();
@@ -774,10 +768,12 @@ pub fn init() {
     // the HMC7043 input clock (which defines slip resolution)
     // is 2x the DAC clock, so there are two possible phases from
     // the divider states. This deterministically selects one.
-    hmc7043::sysref_rtio_align();
+    hmc7043::sysref_rtio_align(sysref_phase_fpga);
 
     for dacno in 0..csr::AD9154.len() {
-        match init_dac(dacno as u8) {
+        // We assume DCLK and SYSREF traces are matched on the PCB
+        // (they are on Sayma) so only one phase is needed.
+        match init_dac(dacno as u8, sysref_phase_dac) {
             Ok(_) => (),
             Err(e) => error!("failed to initialize AD9154-{}: {}", dacno, e)
         }
