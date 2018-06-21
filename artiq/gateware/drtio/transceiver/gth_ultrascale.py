@@ -637,8 +637,9 @@ class GTH(Module, TransceiverInterface):
         # # #
 
         refclk = Signal()
+        ibufds_ceb = Signal()
         self.specials += Instance("IBUFDS_GTE3",
-            i_CEB=0,
+            i_CEB=ibufds_ceb,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk)
@@ -664,8 +665,10 @@ class GTH(Module, TransceiverInterface):
         self.submodules.tx_phase_alignment = GTHTXPhaseAlignement(self.gths)
 
         TransceiverInterface.__init__(self, channel_interfaces)
-        # GTH PLLs recover on their own from an interrupted clock input.
-        # stable_clkin can be ignored.
+        # GTH PLLs recover on their own from an interrupted clock input,
+        # but be paranoid about HMC7043 noise.
+        self.stable_clkin.storage.attr.add("no_retiming")
+        self.comb += ibufds_ceb.eq(~self.stable_clkin.storage)
 
         self.comb += [
             self.cd_rtio.clk.eq(self.gths[master].cd_rtio_tx.clk),
