@@ -313,6 +313,10 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
                                             self.ad9154_1.sawgs
                                 for phy in sawg.phys)
 
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.append(rtio.LogChannel())
+
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
