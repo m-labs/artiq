@@ -1,24 +1,21 @@
 extern crate walkdir;
 
 use std::env;
-use std::fs::File;
-use std::io::Write;
+use std::fs;
 use std::path::Path;
 use std::process::Command;
 
 use walkdir::WalkDir;
 
 pub fn git_describe() {
-    let git_dir = Path::new("../../../.git");
-
-    println!("cargo:rerun-if-changed={}", git_dir.join("HEAD").display());
-    for entry in WalkDir::new(git_dir.join("refs")) {
+    let git_checkout = Path::new("../../..");
+    for entry in WalkDir::new(git_checkout) {
         let entry = entry.unwrap();
         println!("cargo:rerun-if-changed={}", entry.path().display());
     }
 
     let version;
-    if git_dir.exists() {
+    if git_checkout.join(".git").exists() {
         let git_describe =
             Command::new("git")
                     .arg("describe")
@@ -43,6 +40,6 @@ pub fn git_describe() {
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let mut f = File::create(Path::new(&out_dir).join("git-describe")).unwrap();
-    write!(f, "{}", version).unwrap();
+    let git_describe = Path::new(&out_dir).join("git-describe");
+    fs::write(&git_describe, version).unwrap();
 }
