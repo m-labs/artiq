@@ -163,22 +163,22 @@ pub mod hmc7043 {
     const SYSREF_DIV: u32 = 128;              // 9.375MHz
     const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
 
-    // enabled, divider, analog phase shift, digital phase shift, output config
-    const OUTPUT_CONFIG: [(bool, u32, u8, u8, u8); 14] = [
-        (true, DAC_CLK_DIV, 0x0, 0x0, 0x08),  // 0: DAC2_CLK
-        (true, SYSREF_DIV, 0x0, 0x0, 0x08),   // 1: DAC2_SYSREF
-        (true, DAC_CLK_DIV, 0x0, 0x0, 0x08),  // 2: DAC1_CLK
-        (true, SYSREF_DIV, 0x0, 0x0, 0x08),   // 3: DAC1_SYSREF
-        (false, 0, 0x0, 0x0, 0x08),           // 4: ADC2_CLK
-        (false, 0, 0x0, 0x0, 0x08),           // 5: ADC2_SYSREF
-        (false, 0, 0x0, 0x0, 0x08),           // 6: GTP_CLK2
-        (true, SYSREF_DIV, 0x0, 0x2, 0x10),   // 7: FPGA_DAC_SYSREF, LVDS
-        (true, FPGA_CLK_DIV, 0x0, 0x0, 0x08), // 8: GTP_CLK1
-        (false, 0, 0x0, 0x0, 0x10),           // 9: AMC_MASTER_AUX_CLK
-        (false, 0, 0x0, 0x0, 0x10),           // 10: RTM_MASTER_AUX_CLK
-        (false, 0, 0x0, 0x0, 0x10),           // 11: FPGA_ADC_SYSREF, LVDS
-        (false, 0, 0x0, 0x0, 0x08),           // 12: ADC1_CLK
-        (false, 0, 0x0, 0x0, 0x08),           // 13: ADC1_SYSREF
+    // enabled, divider, output config
+    const OUTPUT_CONFIG: [(bool, u32, u8); 14] = [
+        (true,  DAC_CLK_DIV,  0x08),  // 0: DAC2_CLK
+        (true,  SYSREF_DIV,   0x08),  // 1: DAC2_SYSREF
+        (true,  DAC_CLK_DIV,  0x08),  // 2: DAC1_CLK
+        (true,  SYSREF_DIV,   0x08),  // 3: DAC1_SYSREF
+        (false, 0,            0x08),  // 4: ADC2_CLK
+        (false, 0,            0x08),  // 5: ADC2_SYSREF
+        (false, 0,            0x08),  // 6: GTP_CLK2
+        (true,  SYSREF_DIV,   0x10),  // 7: FPGA_DAC_SYSREF, LVDS
+        (true,  FPGA_CLK_DIV, 0x08),  // 8: GTP_CLK1
+        (false, 0,            0x10),  // 9: AMC_MASTER_AUX_CLK
+        (false, 0,            0x10),  // 10: RTM_MASTER_AUX_CLK
+        (false, 0,            0x10),  // 11: FPGA_ADC_SYSREF, LVDS
+        (false, 0,            0x08),  // 12: ADC1_CLK
+        (false, 0,            0x08),  // 13: ADC1_SYSREF
     ];
 
 
@@ -281,7 +281,7 @@ pub mod hmc7043 {
 
         for channel in 0..14 {
             let channel_base = 0xc8 + 0x0a*(channel as u16);
-            let (enabled, divider, aphase, dphase, outcfg) = OUTPUT_CONFIG[channel];
+            let (enabled, divider, outcfg) = OUTPUT_CONFIG[channel];
 
             if enabled {
                 // Only clock channels need to be high-performance
@@ -291,8 +291,6 @@ pub mod hmc7043 {
             else { write(channel_base, 0x10); }
             write(channel_base + 0x1, (divider & 0xff) as u8);
             write(channel_base + 0x2, ((divider & 0x0f) >> 8) as u8);
-            write(channel_base + 0x3, aphase & 0x1f);
-            write(channel_base + 0x4, dphase & 0x1f);
 
             // bypass analog phase shift on clock channels to reduce noise
             if (channel % 2) == 0 {

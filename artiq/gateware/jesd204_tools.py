@@ -49,7 +49,8 @@ class UltrascaleCRG(Module, AutoCSR):
                 i_I=jref.p, i_IB=jref.n,
                 o_O=jref_se),
             # SYSREF normally meets s/h at the FPGA, except during margin
-            # scan. Be paranoid and use a double-register anyway.
+            # scan and before full initialization.
+            # Be paranoid and use a double-register anyway.
             MultiReg(jref_se, self.jref, "jesd")
         ]
 
