@@ -283,11 +283,12 @@ pub mod hmc7043 {
             let (enabled, divider, outcfg) = OUTPUT_CONFIG[channel];
 
             if enabled {
-                // Only clock channels need to be high-performance
                 if channel % 2 == 0 {
+                    // DCLK channel: enable high-performance mode
                     write(channel_base, 0xd1);
                 } else {
-                    write(channel_base, 0x51);
+                    // SYSREF channel: disable hi-perf mode, enable slip
+                    write(channel_base, 0x71);
                 }
             } else {
                 write(channel_base, 0x10);
@@ -336,6 +337,68 @@ pub mod hmc7043 {
         }
     }
 
+    fn cfg_fpga_sysref(phase: u16) {
+        let analog_delay = (phase % 17) as u8;
+        let digital_delay = (phase / 17) as u8;
+        spi_setup();
+        write(0x0111, analog_delay);
+        write(0x0112, digital_delay);
+    }
+
+    fn sysref_slip() {
+        spi_setup();
+        write(0x0002, 0x02);
+        write(0x0002, 0x00);
+    }
+
+    fn sysref_sample() -> bool {
+        unsafe { csr::sysref_sampler::sample_result_read() == 1 }
+    }
+
+    pub fn sysref_rtio_align() {
+        info!("aligning SYSREF with RTIO...");
+
+        let phase_offset = 44;
+        let mut slips0 = 0;
+        let mut slips1 = 0;
+
+        // meet setup/hold (assuming FPGA timing margins are OK)
+        cfg_fpga_sysref(phase_offset);
+        // if we are already in the 1 zone, get out of it
+        while sysref_sample() {
+            sysref_slip();
+            slips0 += 1;
+        }
+        // get to the edge of the 0->1 transition (our final setpoint)
+        while !sysref_sample() {
+            sysref_slip();
+            slips1 += 1;
+        }
+
+        info!("  ...done ({}/{} slips), verifying timing margin", slips0, slips1);
+
+        let mut margin = None;
+        for d in 0..phase_offset {
+            cfg_fpga_sysref(phase_offset - d);
+            if !sysref_sample() {
+                margin = Some(d);
+                break;
+            }
+        }
+
+        // meet setup/hold
+        cfg_fpga_sysref(phase_offset);
+
+        if margin.is_some() {
+            let margin = margin.unwrap();
+            info!("  margin at FPGA: {}", margin);
+            if margin < 10 {
+                error!("SYSREF margin at FPGA is too small");
+            }
+        } else {
+            error!("unable to determine SYSREF margin at FPGA");
+        }
+    }
 }
 
 pub fn init() -> Result<(), &'static str> {

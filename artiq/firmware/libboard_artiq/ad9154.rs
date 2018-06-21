@@ -770,6 +770,12 @@ pub fn init() {
     // set up clock chips before.
     jesd_unreset();
 
+    // This needs to take place once before DAC SYSREF scan, as
+    // the HMC7043 input clock (which defines slip resolution)
+    // is 2x the DAC clock, so there are two possible phases from
+    // the divider states. This deterministically selects one.
+    hmc7043::sysref_rtio_align();
+
     for dacno in 0..csr::AD9154.len() {
         match init_dac(dacno as u8) {
             Ok(_) => (),
