@@ -140,6 +140,8 @@ class _RPCTypes(EnvExperiment):
         self.accept("foo")
         self.accept(b"foo")
         self.accept(bytearray(b"foo"))
+        self.accept(bytes([1, 2]))
+        self.accept(bytearray([1, 2]))
         self.accept((2, 3))
         self.accept([1, 2])
         self.accept(range(10))
