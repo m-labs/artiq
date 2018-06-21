@@ -236,23 +236,12 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
         platform = self.platform
         rtio_clk_freq = 150e6
 
-        # Si5324 used as a free-running oscillator, to avoid dependency on RTM.
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
-        self.csr_devices.append("si5324_rst_n")
-        i2c = self.platform.request("i2c")
-        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-        self.csr_devices.append("i2c")
-        self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-
         self.comb += [
             platform.request("sfp_tx_disable", i).eq(0)
             for i in range(2)
         ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("si5324_clkout"),
+            clock_pads=platform.request("dac_refclk", 0),
             data_pads=[platform.request("sfp", i) for i in range(2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
