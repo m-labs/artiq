@@ -36,7 +36,8 @@ fn read(addr: u16) -> u8 {
 
 fn jesd_unreset() {
     unsafe {
-        csr::ad9154_crg::jreset_write(0)
+        csr::ad9154_crg::ibuf_disable_write(0);
+        csr::ad9154_crg::jreset_write(0);
     }
 }
 
