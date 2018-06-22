@@ -228,7 +228,7 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
                          **kwargs)
         AMPSoC.__init__(self)
         RTMCommon.__init__(self)
-        self.config["HMC830_REF"] = "150"
+        self.config["HMC830_REF"] = "100"
 
         platform = self.platform
         rtio_clk_freq = 150e6
