@@ -42,6 +42,7 @@ class UltrascaleCRG(Module, AutoCSR):
 
         jref = platform.request("dac_sysref")
         jref_se = Signal()
+        jref_r = Signal()
         self.specials += [
             Instance("IBUFDS_IBUFDISABLE",
                 p_USE_IBUFDISABLE="TRUE", p_SIM_DEVICE="ULTRASCALE",
@@ -51,7 +52,9 @@ class UltrascaleCRG(Module, AutoCSR):
             # SYSREF normally meets s/h at the FPGA, except during margin
             # scan and before full initialization.
             # Be paranoid and use a double-register anyway.
-            MultiReg(jref_se, self.jref, "jesd")
+            Instance("FD", i_C=ClockSignal("jesd"), i_D=jref_se, o_Q=jref_r,
+                     attr={("IOB", "TRUE")}),
+            Instance("FD", i_C=ClockSignal("jesd"), i_D=jref_r, o_Q=self.jref)
         ]
 
 
