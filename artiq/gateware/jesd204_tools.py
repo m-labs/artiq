@@ -108,5 +108,5 @@ class SysrefSampler(Module, AutoCSR):
         self.sample_result = CSRStatus()
 
         sample = Signal()
-        self.sync.rtio += If(coarse_ts[:4] == 0, sample.eq(jref))
+        self.sync.jesd += If(coarse_ts[:4] == 0, sample.eq(jref))
         self.specials += MultiReg(sample, self.sample_result.status)
