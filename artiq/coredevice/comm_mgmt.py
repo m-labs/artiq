@@ -181,7 +181,7 @@ class CommMgmt:
         self._read_expect(Reply.Success)
 
     def config_erase(self):
-        self._write_empty(Request.ConfigErase)
+        self._write_header(Request.ConfigErase)
         self._read_expect(Reply.Success)
 
     def start_profiler(self, interval, edges_size, hits_size):
