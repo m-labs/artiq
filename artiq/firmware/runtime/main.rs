@@ -131,7 +131,7 @@ fn startup() {
 fn setup_si5324_as_synthesizer()
 {
     // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz
-    #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref))]
+    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", si5324_ext_ref))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 10,
@@ -144,7 +144,7 @@ fn setup_si5324_as_synthesizer()
         crystal_ref: false
     };
     // 125MHz output, from crystal, 7 Hz
-    #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
+    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", not(si5324_ext_ref)))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 10,
@@ -157,11 +157,24 @@ fn setup_si5324_as_synthesizer()
         crystal_ref: true
     };
     // 150MHz output, from crystal
-    #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
+    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "150.0", not(si5324_ext_ref)))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 9,
         nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 33732,
+        n31    : 9370,
+        n32    : 7139,
+        bwsel  : 3,
+        crystal_ref: true
+    };
+    // 100MHz output, from crystal (reference for HMC830)
+    #[cfg(si5324_sayma_ref)]
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
+        n1_hs  : 9,
+        nc1_ls : 6,
         n2_hs  : 10,
         n2_ls  : 33732,
         n31    : 9370,

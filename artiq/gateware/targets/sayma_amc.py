@@ -139,6 +139,16 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
 
         platform = self.platform
 
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["SI5324_SAYMA_REF"] = None
+
         # RTIO
         rtio_channels = []
         for i in range(4):
@@ -232,6 +242,16 @@ class Master(MiniSoC, AMPSoC, RTMCommon):
 
         platform = self.platform
         rtio_clk_freq = 150e6
+
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["SI5324_SAYMA_REF"] = None
 
         self.comb += [
             platform.request("sfp_tx_disable", i).eq(0)
