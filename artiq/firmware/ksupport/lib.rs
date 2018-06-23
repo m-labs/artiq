@@ -17,7 +17,6 @@ use core::{mem, ptr, slice, str};
 use cslice::{CSlice, AsCSlice};
 use io::Cursor;
 use dyld::Library;
-use board_misoc::csr;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
@@ -365,11 +364,13 @@ extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     })
 }
 
-#[cfg(has_rtio)]
+#[cfg(has_rtio_dma)]
 extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
     unsafe {
+        use board_misoc::csr;
+
         csr::rtio_dma::base_address_write(ptr as u64);
         csr::rtio_dma::time_offset_write(timestamp as u64);
 
@@ -397,9 +398,9 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
     }
 }
 
-#[cfg(not(has_rtio))]
-extern fn dma_playback(timestamp: i64, ptr: i32) {
-    unimplemented!("not(has_rtio)")
+#[cfg(not(has_rtio_dma))]
+extern fn dma_playback(_timestamp: i64, _ptr: i32) {
+    unimplemented!("not(has_rtio_dma)")
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
