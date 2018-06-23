@@ -129,17 +129,23 @@ fn flash_boot() {
     }
 
     let firmware_in_flash = unsafe { slice::from_raw_parts(FIRMWARE.offset(8), length) };
-    let actual_crc = crc32::checksum_ieee(firmware_in_flash);
+    let actual_crc_flash = crc32::checksum_ieee(firmware_in_flash);
 
-    if actual_crc == expected_crc {
+    if actual_crc_flash == expected_crc {
         let firmware_in_sdram = unsafe { slice::from_raw_parts_mut(MAIN_RAM, length) };
         firmware_in_sdram.copy_from_slice(firmware_in_flash);
 
-        println!("Starting firmware.");
-        unsafe { boot::jump(MAIN_RAM as usize) }
+        let actual_crc_sdram = crc32::checksum_ieee(firmware_in_sdram);
+        if actual_crc_sdram == expected_crc {
+            println!("Starting firmware.");
+            unsafe { boot::jump(MAIN_RAM as usize) }
+        } else {
+            println!("Firmware CRC failed in SDRAM (actual {:08x}, expected {:08x})",
+                     actual_crc_sdram, expected_crc);
+        }
     } else {
-        println!("Firmware CRC failed (actual {:08x}, expected {:08x})",
-                 actual_crc, expected_crc);
+        println!("Firmware CRC failed in flash (actual {:08x}, expected {:08x})",
+                 actual_crc_flash, expected_crc);
     }
 }
 
