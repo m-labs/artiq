@@ -32,6 +32,9 @@ class TestExperiment(EnvExperiment):
     def set(self, key, value, **kwargs):
         self.set_dataset(key, value, **kwargs)
 
+    def append(self, key, value):
+        self.append_to_dataset(key, value)
+
 
 KEY = "foo"
 
@@ -67,3 +70,35 @@ class ExperimentDatasetCase(unittest.TestCase):
         self.assertEqual(self.exp.get(KEY), 1)
         with self.assertRaises(KeyError):
             self.dataset_db.get(KEY)
+
+    def test_append_local(self):
+        self.exp.set(KEY, [])
+        self.exp.append(KEY, 0)
+        self.assertEqual(self.exp.get(KEY), [0])
+        self.exp.append(KEY, 1)
+        self.assertEqual(self.exp.get(KEY), [0, 1])
+
+    def test_append_broadcast(self):
+        self.exp.set(KEY, [], broadcast=True)
+        self.exp.append(KEY, 0)
+        self.assertEqual(self.dataset_db.data[KEY][1], [0])
+        self.exp.append(KEY, 1)
+        self.assertEqual(self.dataset_db.data[KEY][1], [0, 1])
+
+    def test_append_array(self):
+        for broadcast in (True, False):
+            self.exp.set(KEY, [], broadcast=broadcast)
+            self.exp.append(KEY, [])
+            self.exp.append(KEY, [])
+            self.assertEqual(self.exp.get(KEY), [[], []])
+
+    def test_append_scalar_fails(self):
+        for broadcast in (True, False):
+            with self.assertRaises(AttributeError):
+                self.exp.set(KEY, 0, broadcast=broadcast)
+                self.exp.append(KEY, 1)
+
+    def test_append_nonexistent_fails(self):
+        with self.assertRaises(KeyError):
+            self.exp.append(KEY, 0)
+
