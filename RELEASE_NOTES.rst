@@ -20,6 +20,8 @@ ARTIQ-5
   edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
   the core device driver and :mod:`artiq.gateware.rtio.phy.edge_counter`/
   :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
+* List datasets can now be efficiently appended to from experiments using
+  :meth:`artiq.language.environment.HasEnvironment.append_to_dataset`.
 * The controller manager now ignores device database entries without the
   ``"command"`` key set to facilitate sharing of devices between multiple
   masters.

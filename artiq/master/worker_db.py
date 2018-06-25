@@ -136,23 +136,27 @@ class DatasetManager:
         elif key in self.local:
             del self.local[key]
 
-    def mutate(self, key, index, value):
-        target = None
-        if key in self.local:
-            target = self.local[key]
+    def _get_mutation_target(self, key):
+        target = self.local.get(key, None)
         if key in self._broadcaster.raw_view:
             if target is not None:
                 assert target is self._broadcaster.raw_view[key][1]
-            target = self._broadcaster[key][1]
+            return self._broadcaster[key][1]
         if target is None:
-            raise KeyError("Cannot mutate non-existing dataset")
+            raise KeyError("Cannot mutate nonexistent dataset '{}'".format(key))
+        return target
 
+    def mutate(self, key, index, value):
+        target = self._get_mutation_target(key)
         if isinstance(index, tuple):
             if isinstance(index[0], tuple):
                 index = tuple(slice(*e) for e in index)
             else:
                 index = slice(*index)
         setitem(target, index, value)
+
+    def append_to(self, key, value):
+        self._get_mutation_target(key).append(value)
 
     def get(self, key, archive=False):
         if key in self.local:
