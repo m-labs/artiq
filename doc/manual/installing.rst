@@ -117,11 +117,14 @@ Configuring OpenOCD
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
-On Linux, first ensure that the current user belongs to the ``plugdev`` group. If it does not, run ``sudo adduser $USER plugdev`` and relogin. Afterwards::
+On Linux, first ensure that the current user belongs to the ``plugdev`` group. If it does not, run ``sudo adduser $USER plugdev`` and relogin. Afterwards if you installed OpenOCD using conda::
 
-    $ wget https://raw.githubusercontent.com/ntfreak/openocd/406f4d1c68330e3bf8d9db4e402fd8802a5c79e2/contrib/99-openocd.rules
-    $ sudo cp 99-openocd.rules /etc/udev/rules.d
-    $ sudo adduser $USER plugdev
+    $ sudo cp ~/.conda/envs/artiq-main/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
+    $ sudo udevadm trigger
+
+if you installed it from source:: Assuming you installed OpenOCD in ``/usr/local``, otherwise please substitute the install directory::
+
+    $ sudo cp /usr/local/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
     $ sudo udevadm trigger
 
 On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
