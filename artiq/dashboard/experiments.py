@@ -216,6 +216,15 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 pass
         self.verticalScrollBar().setValue(state["scroll"])
 
+    # Hooks that allow user-supplied argument editors to react to imminent user
+    # actions. Here, we always keep the manager-stored submission arguments
+    # up-to-date, so no further action is required.
+    def about_to_submit(self):
+        pass
+
+    def about_to_close(self):
+        pass
+
 
 log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -369,6 +378,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.hdf5_load_directory = os.path.expanduser("~")
 
     def submit_clicked(self):
+        self.argeditor.about_to_submit()
         try:
             self.manager.submit(self.expurl)
         except:
@@ -473,6 +483,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         await self._recompute_arguments_task(arguments)
 
     def closeEvent(self, event):
+        self.argeditor.about_to_close()
         self.sigClosed.emit()
         QtWidgets.QMdiSubWindow.closeEvent(self, event)
 
