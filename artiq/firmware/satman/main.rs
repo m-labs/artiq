@@ -278,7 +278,7 @@ pub extern fn main() -> i32 {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
+    let mut ad9154_initialized = false;
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
@@ -289,6 +289,13 @@ pub extern fn main() -> i32 {
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
+        #[cfg(has_ad9154)]
+        {
+            if !ad9154_initialized {
+                board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
+                ad9154_initialized = true;
+            }
+        }
         drtioaux::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);

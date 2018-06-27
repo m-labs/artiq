@@ -573,7 +573,7 @@ class Satellite(BaseSoC, RTMCommon):
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
-            si5324_clkout_fabric=platform.request("si5324_clkout_fabric"))
+            si5324_clkout_fabric=platform.request("adc_sysref"))
         platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {mmcm_ps}]",
             mmcm_ps=self.siphaser.mmcm_ps_output)
         platform.add_false_path_constraints(
