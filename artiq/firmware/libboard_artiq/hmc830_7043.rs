@@ -382,24 +382,23 @@ pub mod hmc7043 {
         }
         info!("  ...done ({}/{} slips), verifying timing margin", slips0, slips1);
 
-        let mut margin_plus = None;
+        let mut margin_minus = None;
         for d in 0..phase_offset {
             sysref_offset_fpga(phase_offset - d);
             if !sysref_sample() {
-                margin_plus = Some(d);
+                margin_minus = Some(d);
                 break;
             }
         }
-
         // meet setup/hold
         sysref_offset_fpga(phase_offset);
 
-        if margin_plus.is_some() {
-            let margin_plus = margin_plus.unwrap();
+        if margin_minus.is_some() {
+            let margin_minus = margin_minus.unwrap();
             // one phase slip (period of the 1.2GHz input clock)
             let period = 2*17; // approximate: 2 digital coarse delay steps
-            let margin_minus = if period > margin_plus { period - margin_plus } else { 0 };
-            info!("  margin at FPGA: -{} +{}", margin_minus, margin_plus);
+            let margin_plus = if period > margin_minus { period - margin_minus } else { 0 };
+            info!("  margins at FPGA: -{} +{}", margin_minus, margin_plus);
             if margin_minus < 10 || margin_plus < 10 {
                 error!("SYSREF margin at FPGA is too small");
             }
