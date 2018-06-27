@@ -158,13 +158,13 @@ pub mod hmc7043 {
     use board_misoc::{csr, clock};
 
     // All frequencies assume 1.2GHz HMC830 output
-    const DAC_CLK_DIV: u32 = 2;               // 600MHz
-    const FPGA_CLK_DIV: u32 = 8;              // 150MHz
-    const SYSREF_DIV: u32 = 128;              // 9.375MHz
-    const HMC_SYSREF_DIV: u32 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
+    pub const DAC_CLK_DIV: u16 = 2;               // 600MHz
+    pub const FPGA_CLK_DIV: u16 = 8;              // 150MHz
+    pub const SYSREF_DIV: u16 = 128;              // 9.375MHz
+    pub const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
 
     // enabled, divider, output config
-    const OUTPUT_CONFIG: [(bool, u32, u8); 14] = [
+    const OUTPUT_CONFIG: [(bool, u16, u8); 14] = [
         (true,  DAC_CLK_DIV,  0x08),  // 0: DAC2_CLK
         (true,  SYSREF_DIV,   0x08),  // 1: DAC2_SYSREF
         (true,  DAC_CLK_DIV,  0x08),  // 2: DAC1_CLK
@@ -355,7 +355,7 @@ pub mod hmc7043 {
         unsafe { csr::sysref_sampler::sample_result_read() == 1 }
     }
 
-    pub fn sysref_rtio_align(phase_offset: u16) {
+    pub fn sysref_rtio_align(phase_offset: u16, expected_align: u16) {
         info!("aligning SYSREF with RTIO...");
 
         let mut slips0 = 0;
@@ -380,7 +380,10 @@ pub mod hmc7043 {
                 break;
             }
         }
-        info!("  ...done ({}/{} slips), verifying timing margin", slips0, slips1);
+        info!("  ...done ({}/{} slips)", slips0, slips1);
+        if (slips0 + slips1) % expected_align != 0 {
+            error!("  unexpected slip alignment");
+        }
 
         let mut margin_minus = None;
         for d in 0..phase_offset {

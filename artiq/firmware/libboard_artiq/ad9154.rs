@@ -769,7 +769,7 @@ pub fn init(sysref_phase_fpga: u16, sysref_phase_dac: u16) {
     // the HMC7043 input clock (which defines slip resolution)
     // is 2x the DAC clock, so there are two possible phases from
     // the divider states. This deterministically selects one.
-    hmc7043::sysref_rtio_align(sysref_phase_fpga);
+    hmc7043::sysref_rtio_align(sysref_phase_fpga, 1);
 
     for dacno in 0..csr::AD9154.len() {
         // We assume DCLK and SYSREF traces are matched on the PCB

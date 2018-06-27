@@ -298,7 +298,10 @@ pub extern fn main() -> i32 {
             #[cfg(has_hmc830_7043)]
             {
                 if drtio_tsc_loaded() {
-                    hmc830_7043::hmc7043::sysref_rtio_align(SYSREF_PHASE_FPGA);
+                    // Expected alignment: 1 RTIO clock period
+                    hmc830_7043::hmc7043::sysref_rtio_align(
+                        SYSREF_PHASE_FPGA,
+                        hmc830_7043::hmc7043::FPGA_CLK_DIV);
                 }
             }
         }
