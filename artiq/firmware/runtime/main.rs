@@ -57,9 +57,9 @@ mod moninj;
 mod analyzer;
 
 #[cfg(has_ad9154)]
-const SYSREF_PHASE_FPGA: u16 = 20;
+const SYSREF_PHASE_FPGA: u16 = 35;
 #[cfg(has_ad9154)]
-const SYSREF_PHASE_DAC: u16 = 31;
+const SYSREF_PHASE_DAC: u16 = 64;
 
 fn startup() {
     irq::set_mask(0);
