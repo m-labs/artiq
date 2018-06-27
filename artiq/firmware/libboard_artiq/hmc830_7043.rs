@@ -366,11 +366,19 @@ pub mod hmc7043 {
         while sysref_sample() {
             sysref_slip();
             slips0 += 1;
+            if slips0 > 1024 {
+                error!("  failed to reach 1->0 transition");
+                break;
+            }
         }
         // get to the edge of the 0->1 transition (our final setpoint)
         while !sysref_sample() {
             sysref_slip();
             slips1 += 1;
+            if slips1 > 1024 {
+                error!("  failed to reach 0->1 transition");
+                break;
+            }
         }
         info!("  ...done ({}/{} slips), verifying timing margin", slips0, slips1);
 
