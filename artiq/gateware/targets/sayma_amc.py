@@ -552,7 +552,7 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("si5324_clkout"),
+            clock_pads=platform.request("dac_refclk", 0),
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)

@@ -270,13 +270,13 @@ pub extern fn main() -> i32 {
 
     i2c::init();
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+    #[cfg(has_hmc830_7043)]
+    /* must be the first SPI init because of HMC830 SPI mode selection */
+    hmc830_7043::init().expect("cannot initialize HMC830/7043");
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
 
-    #[cfg(has_hmc830_7043)]
-    /* must be the first SPI init because of HMC830 SPI mode selection */
-    hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
     let mut ad9154_initialized = false;
     #[cfg(has_allaki_atts)]
