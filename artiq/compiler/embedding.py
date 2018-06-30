@@ -950,6 +950,9 @@ class Stitcher:
         return function_node
 
     def _extract_annot(self, function, annot, kind, call_loc, fn_kind):
+        if annot is None:
+            annot = builtins.TNone()
+
         if not isinstance(annot, types.Type):
             diag = diagnostic.Diagnostic("error",
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
