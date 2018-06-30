@@ -311,9 +311,11 @@ def is_collection(typ):
         types.is_mono(typ, "list")
 
 def is_allocated(typ):
+    if types.is_tuple(typ):
+        return any(is_allocated(e.find()) for e in typ.elts)
     return not (is_none(typ) or is_bool(typ) or is_int(typ) or
                   is_float(typ) or is_range(typ) or
                   types._is_pointer(typ) or types.is_function(typ) or
                   types.is_c_function(typ) or types.is_rpc(typ) or
-                  types.is_method(typ) or types.is_tuple(typ) or
+                  types.is_method(typ) or
                   types.is_value(typ))
