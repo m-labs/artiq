@@ -4,9 +4,9 @@
 from artiq.experiment import *
 
 class c():
-# CHECK-L: ${LINE:+2}: error: type annotation for argument 'x', 'None', is not an ARTIQ type
+# CHECK-L: ${LINE:+2}: error: type annotation for argument 'x', '<class 'float'>', is not an ARTIQ type
     @kernel
-    def hello(self, x: None):
+    def hello(self, x: float):
         pass
 
     @kernel
