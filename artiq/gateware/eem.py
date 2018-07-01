@@ -360,7 +360,7 @@ class Grabber(_EEM):
                 Subsignal("clk_n", Pins(_eem_pin(eem, 0, "n"))),
                 Subsignal("sdi_p", Pins(*[_eem_pin(eem, i, "p") for i in range(1, 5)])),
                 Subsignal("sdi_n", Pins(*[_eem_pin(eem, i, "n") for i in range(1, 5)])),
-                IOStandard("LVDS_25")
+                IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
             ),
             ("grabber{}_cc0".format(eem), 0,
                 Subsignal("p", Pins(_eem_pin(eem_aux, 5, "p"))),
@@ -385,12 +385,12 @@ class Grabber(_EEM):
                     Subsignal("clk_n", Pins(_eem_pin(eem_aux, 0, "n"))),
                     Subsignal("sdi_p", Pins(*[_eem_pin(eem_aux, i, "p") for i in range(1, 5)])),
                     Subsignal("sdi_n", Pins(*[_eem_pin(eem_aux, i, "n") for i in range(1, 5)])),
-                    IOStandard("LVDS_25")
+                    IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
                 ),
                 ("grabber{}_serrx".format(eem), 0,
                     Subsignal("p", Pins(_eem_pin(eem_aux, 5, "p"))),
                     Subsignal("n", Pins(_eem_pin(eem_aux, 5, "n"))),
-                    IOStandard("LVDS_25")
+                    IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
                 ),
                 ("grabber{}_sertx".format(eem), 0,
                     Subsignal("p", Pins(_eem_pin(eem_aux, 6, "p"))),
