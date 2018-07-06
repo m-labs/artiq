@@ -56,6 +56,8 @@ class KasliTester(EnvExperiment):
                     self.urukul_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
                     self.urukuls[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
+                    self.urukuls[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     self.samplers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.zotino", "Zotino"):
