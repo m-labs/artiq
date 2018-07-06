@@ -185,7 +185,7 @@ class KasliTester(EnvExperiment):
             while self.core.get_rtio_counter_mu() < t:
                 pass
             for channel in channels:
-                channel.sw.pulse(100*ms)
+                channel.pulse(100*ms)
                 delay(100*ms)
 
     # We assume that RTIO channels for switches are grouped by card.
@@ -208,7 +208,7 @@ class KasliTester(EnvExperiment):
         input()
 
         print("Testing RF switch control. Press ENTER when done.")
-        self.rf_switch_wave([channel_dev for channel_name, channel_dev in self.urukuls])
+        self.rf_switch_wave([channel_dev.sw for channel_name, channel_dev in self.urukuls])
 
     @kernel
     def get_sampler_voltages(self, sampler, cb):
