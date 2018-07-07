@@ -1,4 +1,5 @@
 import asyncio
+import tokenize
 
 from artiq.protocols.sync_struct import Notifier, process_mod
 from artiq.protocols import pyon
@@ -7,7 +8,7 @@ from artiq.tools import TaskObject
 
 def device_db_from_file(filename):
     glbs = dict()
-    with open(filename, "r") as f:
+    with tokenize.open(filename) as f:
         exec(f.read(), glbs)
     return glbs["device_db"]
 
