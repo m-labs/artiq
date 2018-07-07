@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, tokenize
 
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
@@ -27,7 +27,7 @@ def main():
     ddb_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.py")
     dmgr = DeviceManager(DeviceDB(ddb_path))
 
-    with open(sys.argv[1]) as f:
+    with tokenize.open(sys.argv[1]) as f:
         testcase_code = compile(f.read(), f.name, "exec")
         testcase_vars = {'__name__': 'testbench', 'dmgr': dmgr}
         exec(testcase_code, testcase_vars)
