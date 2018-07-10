@@ -80,7 +80,6 @@ class DefaultArgTest(ExperimentCase):
 class _RPCTypes(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("led")
 
     def return_bool(self) -> TBool:
         return True
