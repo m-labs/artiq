@@ -107,9 +107,10 @@ def get_experiment(module, experiment=None):
 
 def verbosity_args(parser):
     group = parser.add_argument_group("verbosity")
-    group.add_argument("-v", "--verbose", default=0, action="count",
+    mutually_exclusive_group = group.add_mutually_exclusive_group(required=False)
+    mutually_exclusive_group.add_argument("-v", "--verbose", default=0, action="count",
                        help="increase logging level")
-    group.add_argument("-q", "--quiet", default=0, action="count",
+    mutually_exclusive_group.add_argument("-q", "--quiet", default=0, action="count",
                        help="decrease logging level")
 
 
