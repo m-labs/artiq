@@ -134,8 +134,13 @@ def verbosity_args(parser: argparse.ArgumentParser):
     decrease default logging level (see Python standard library *Logging->Logging Levels*
     for more information).
 
+<<<<<<< HEAD
     Using ``-v`` will increase the logging level (e.g. ERROR -> WARNING), and ``-q``
     will decrease the logging level (e.g. WARNING -> ERROR)
+=======
+    Using ``-v`` will increase the logging level (i.e. ERROR -> WARNING), and ``-q``
+    will decrease the logging level (i.e. WARNING -> ERROR)
+>>>>>>> 05d4cd607fcee37d8be98a2d63ef9b497c8effcd
 
     Args:
         parser (argparse.ArgumentParser): command line parser to be supplemented
