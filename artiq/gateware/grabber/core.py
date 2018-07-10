@@ -34,8 +34,8 @@ class Parser(Module, AutoCSR):
             ("a", 8),
             ("b", 8),
             ("c", 8),
-            ("stb", 1),  # dval
-            ("eop", 1),  # ~fval (i.e. not together with stb)
+            ("stb", 1),
+            ("eop", 1),
         ])
 
         # # #
@@ -46,14 +46,14 @@ class Parser(Module, AutoCSR):
         lval = Signal()
         fval = Signal()
         dval = Signal()
+        last_lval = Signal()
+        last_fval = Signal()
         self.comb += [
             Cat(dval, fval, lval).eq(cl[14:17]),
             pix.stb.eq(dval),
-            pix.eop.eq(~fval),
+            pix.eop.eq(~fval & last_fval),
             Cat(pix.a, pix.b, pix.c).eq(Cat(cl[i] for i in bitseq))
         ]
-        last_lval = Signal()
-        last_fval = Signal()
         self.sync.cl += [
             last_lval.eq(lval),
             last_fval.eq(fval),
