@@ -58,6 +58,9 @@ class RoundtripTest(ExperimentCase):
     def test_object_list(self):
         self.assertRoundtrip([object(), object()])
 
+    def test_list_tuple(self):
+        self.assertRoundtrip(([1, 2], [3, 4]))
+
 
 class _DefaultArg(EnvExperiment):
     def build(self):
@@ -295,4 +298,41 @@ class _Payload1MB(EnvExperiment):
 class LargePayloadTest(ExperimentCase):
     def test_1MB(self):
         exp = self.create(_Payload1MB)
+        exp.run()
+
+
+class _ListTuple(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        # Make sure lifetime for the array data in tuples of lists is managed
+        # correctly. This is written in a somewhat convoluted fashion to provoke
+        # memory corruption even in the face of compiler optimizations.
+        for _ in range(self.get_num_iters()):
+            a, b = self.get_values(0, 1, 32)
+            c, d = self.get_values(2, 3, 64)
+            self.verify(a)
+            self.verify(c)
+            self.verify(b)
+            self.verify(d)
+
+    @kernel
+    def verify(self, data):
+        for i in range(len(data)):
+            if data[i] != data[0] + i:
+                raise ValueError
+
+    def get_num_iters(self) -> TInt32:
+        return 2
+
+    def get_values(self, base_a, base_b, n) -> TTuple([TList(TInt32), TList(TInt32)]):
+        return [numpy.int32(base_a + i) for i in range(n)], \
+            [numpy.int32(base_b + i) for i in range(n)]
+
+
+class ListTupleTest(ExperimentCase):
+    def test_list_tuple(self):
+        exp = self.create(_ListTuple)
         exp.run()

@@ -1384,7 +1384,7 @@ class LLVMIRGenerator:
 
         self.llbuilder.position_at_end(lltail)
         llret = self.llbuilder.load(llslot, name="rpc.ret")
-        if not builtins.is_allocated(fun_type.ret):
+        if not fun_type.ret.fold(False, lambda r, t: r or builtins.is_allocated(t)):
             # We didn't allocate anything except the slot for the value itself.
             # Don't waste stack space.
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
