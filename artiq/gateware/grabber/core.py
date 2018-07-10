@@ -71,6 +71,8 @@ class Parser(Module, AutoCSR):
             )
         ]
 
+        last_x.attr.add("no_retiming")
+        last_y.attr.add("no_retiming")
         self.specials += [
             MultiReg(last_x, self.last_x.status),
             MultiReg(last_y, self.last_y.status)
