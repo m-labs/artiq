@@ -77,3 +77,63 @@ class Parser(Module, AutoCSR):
             MultiReg(last_x, self.last_x.status),
             MultiReg(last_y, self.last_y.status)
         ]
+
+
+class ROI(Module):
+    """ROI Engine. For each frame, accumulates pixels values within a
+    rectangular region of interest, and reports the total."""
+    def __init__(self, pix, shift=0):
+        cnt_len = len(pix.x) + len(pix.y) + 16 - shift
+
+        self.cfg = cfg = Record([
+            ("x0", len(pix.x)),
+            ("x1", len(pix.x)),
+            ("y0", len(pix.y)),
+            ("y1", len(pix.y)),
+        ])
+        self.out = out = Record([
+            ("update", 1),
+            # register output - can be used as CDC input
+            ("cnt", cnt_len),
+        ])
+
+        # # #
+
+        # stage 1 - generate "good" (in-ROI) signals
+        y_good = Signal()
+        x_good = Signal()
+        stb = Signal()
+        eop = Signal()
+        gray = Signal(16)
+        self.sync.cl += [
+            If(pix.y == cfg.y0,
+                y_good.eq(1)
+            ),
+            If(pix.y == cfg.y1,
+                y_good.eq(0)
+            ),
+            If(pix.x == cfg.x0,
+                x_good.eq(1)
+            ),
+            If(pix.x == cfg.x1,
+                x_good.eq(0)
+            ),
+            gray.eq(Cat(pix.a, pix.b)[shift:]),
+            stb.eq(pix.stb),
+            eop.eq(pix.eop)
+        ]
+
+        # stage 2 - accumulate
+        cnt = Signal(cnt_len)
+        self.sync.cl += [
+            If(stb & x_good & y_good,
+                cnt.eq(cnt + gray),
+            ),
+
+            out.update.eq(0),
+            If(eop,
+                cnt.eq(0),
+                out.update.eq(1),
+                out.cnt.eq(cnt)
+            )
+        ]
