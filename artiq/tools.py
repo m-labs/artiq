@@ -1,19 +1,20 @@
+import argparse
+import asyncio
+import atexit
+import collections
 import importlib.machinery
 import logging
-import sys
-import asyncio
-import collections
-import atexit
-import string
 import os
+import string
+import sys
+from typing import Iterable, Dict, Union, NamedTuple, Sequence, Awaitable
 
 import numpy as np
 
+from artiq import __version__ as artiq_version
+from artiq.appdirs import user_config_dir
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
-from artiq.appdirs import user_config_dir
-from artiq import __version__ as artiq_version
-
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "verbosity_args", "simple_network_args",
@@ -22,11 +23,19 @@ __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "asyncio_wait_or_cancel", "TaskObject", "Condition",
            "get_windows_drives", "get_user_config_dir"]
 
-
 logger = logging.getLogger(__name__)
 
 
-def parse_arguments(arguments):
+def parse_arguments(arguments: Iterable[str]) -> Dict:
+    """
+    Parse arguments separated by ``=`` into a dictionary. Arguments are in format ``name=value``
+
+    Args:
+        arguments: iterable (e.g. list) of strings, containing {name, value} pairs separated by "="
+
+    Returns:
+        Dictionary mapping names to values
+    """
     d = {}
     for argument in arguments:
         name, eq, value = argument.partition("=")
@@ -34,7 +43,19 @@ def parse_arguments(arguments):
     return d
 
 
-def elide(s, maxlen):
+def elide(s: str, maxlen: int):
+    """
+    Cuts a string to a certain size, and adds ellipses (``...``) if the string is
+    cut down.
+
+    Args:
+        s (str): string to be cut down
+        maxlen: Maximum length in characters of the output string.
+
+    Returns:
+        String that has been cut to length *maxlen*. Note: ellipses count towards
+        character count
+    """
     elided = False
     if len(s) > maxlen:
         s = s[:maxlen]
@@ -75,7 +96,7 @@ def file_import(filename, prefix="file_import_"):
     modname = filename
     i = modname.rfind("/")
     if i > 0:
-        modname = modname[i+1:]
+        modname = modname[i + 1:]
     i = modname.find(".")
     if i > 0:
         modname = modname[:i]
@@ -105,7 +126,23 @@ def get_experiment(module, experiment=None):
     return exps[0][1]
 
 
-def verbosity_args(parser):
+def verbosity_args(parser: argparse.ArgumentParser):
+    """
+    Adds verbosity (i.e. logging level) arguments to a command-line argument parser.
+
+    Adds the ``-v/--verbose`` and ``-q/--quiet`` option, which can be repeated multiple times to increase or
+    decrease default logging level (see Python standard library *Logging->Logging Levels*
+    for more information).
+
+    Using ``-v`` will increase the logging level (e.g. ERROR -> WARNING), and ``-q``
+    will decrease the logging level (e.g. WARNING -> ERROR)
+
+    Args:
+        parser (argparse.ArgumentParser): command line parser to be supplemented
+
+    Return:
+        No return value. Only adds arguments to existing argument ``parser``
+    """
     group = parser.add_argument_group("verbosity")
     group.add_argument("-v", "--verbose", default=0, action="count",
                        help="increase logging level")
@@ -113,12 +150,36 @@ def verbosity_args(parser):
                        help="decrease logging level")
 
 
-def simple_network_args(parser, default_port):
+NetworkPort = NamedTuple('NetworkPort', [('name', str), ('purpose', str), ('default_port', int)])
+
+
+def simple_network_args(parser: argparse.ArgumentParser, default_port: Union[int, Iterable[NetworkPort]]):
+    """
+    Adds basic network configuration arguments to a command-line argument parser.
+
+    This is primarily useful for command-line applications like creating network support packages,
+    drivers or controllers.
+
+    Adds the following arguments:
+        * ``--bind``: additional hostname or IP addresses to bind to;
+            use '*' to bind to all interfaces (default: %(default)s)"
+        *
+
+    Args:
+        parser (argparse.ArgumentParser): command line parser to be supplemented
+        default_port: which port the application should bind to if none is provided
+            on the command-line at runtime. Should be either an ``int``, or a list of tuples
+            indicating which ports to listen on. Tuples should be of form (name, purpose, default).
+            Example: ``("incoming", "incoming data", 4000)``
+
+    Return:
+        No return value. Only adds arguments to existing argument ``parser``
+    """
     group = parser.add_argument_group("network server")
     group.add_argument(
         "--bind", default=[], action="append",
-        help="additional hostname or IP addresse to bind to; "
-        "use '*' to bind to all interfaces (default: %(default)s)")
+        help="additional hostname or IP addresses to bind to; "
+             "use '*' to bind to all interfaces (default: %(default)s)")
     group.add_argument(
         "--no-localhost-bind", default=False, action="store_true",
         help="do not implicitly also bind to localhost addresses")
@@ -134,6 +195,9 @@ def simple_network_args(parser, default_port):
 
 
 class MultilineFormatter(logging.Formatter):
+    """
+    Logging formatter to insert number of linebreaks into the log output
+    """
     def __init__(self):
         logging.Formatter.__init__(
             self, "%(levelname)s:%(name)s:%(message)s")
@@ -147,7 +211,19 @@ class MultilineFormatter(logging.Formatter):
         return r
 
 
-def multiline_log_config(level):
+def multiline_log_config(level: int) -> None:
+    """
+    Creates a multiline logger (see :class:`.MultilineFormatter` for the format)
+
+    Will default to sending data to StreamHandler(), which streams to stderr by default.
+
+    Args:
+        level: logging level to start logger with. See :func:`.init_logger` for generating this from command line,
+            otherwise use default Python standard library logging levels.
+
+    Return:
+        None
+    """
     root_logger = logging.getLogger()
     root_logger.setLevel(level)
     handler = logging.StreamHandler()
@@ -155,12 +231,43 @@ def multiline_log_config(level):
     root_logger.addHandler(handler)
 
 
-def init_logger(args):
+def init_logger(args: argparse.Namespace) -> None:
+    """
+    Initializes a basic logger with a logging level set by a command line parser.
+
+    For setting up the parser, see :func:`.verbosity_args`.
+
+    Defaults to logging WARNING and above, but level is changed by the number of ``-v/-q``
+    arguments provided on command line.
+
+    Args:
+        args (argparse.Namespace): namespace containing parsed command-line arguments. Should call parser.parse_args()
+            before inputting to this function.
+
+    Returns:
+        None
+    """
     multiline_log_config(
-        level=logging.WARNING + args.quiet*10 - args.verbose*10)
+        level=logging.WARNING + args.quiet * 10 - args.verbose * 10)
 
 
-def bind_address_from_args(args):
+def bind_address_from_args(args: argparse.Namespace) -> Union[None, Sequence[str]]:
+    """
+    Generates network bind address(es) from parsed command-line arguments
+
+    For setting up the parser, see :func:`.simple_network_args`.
+
+    Depending on the input, will either return None, just the given bind arguments, or local addresses (IPv4 & IPv6) + bind arguments
+
+    Args:
+        args (argparse.Namespace): namespace containing parsed command-line arguments. Should call parser.parse_args()
+            before inputting to this function.
+            Should contain ``args.bind``, and ``args.no_localhost_bind`` attributes.
+
+    Returns:
+        If ``args.bind == '*'``, returns None. Otherwise, will return bind arguments.
+        If ``not args.no_localhost_bind``, then adds the local IPv4/IPv6 addresses (i.e. ``127.0.0.1, ::1``)
+    """
     if "*" in args.bind:
         return None
     if args.no_localhost_bind:
@@ -175,9 +282,19 @@ def atexit_register_coroutine(coroutine, loop=None):
     atexit.register(lambda: loop.run_until_complete(coroutine()))
 
 
-async def exc_to_warning(coro):
+async def exc_to_warning(coroutine: Awaitable):
+    """
+    Runs a coroutine (or awaitable). If there is an exception, logs it as a warning
+    and continues
+
+    Args:
+        coroutine: a coroutine or awaitable function to be run and wrapped
+
+    Return:
+        None
+    """
     try:
-        await coro
+        await coroutine
     except:
         logger.warning("asyncio coroutine terminated with exception",
                        exc_info=True)
@@ -236,7 +353,15 @@ class Condition:
                 fut.set_result(False)
 
 
-def get_windows_drives():
+def get_windows_drives() -> Sequence[str]:
+    """
+    Returns the drive letters corresponding to drives on Windows (i.e. ``['C', 'D', ...]``)
+
+    Returns:
+        List of letters corresponding to logical (i.e. including mapped) drives on Windows
+    """
+    # seems to be from
+    # https://stackoverflow.com/questions/827371/is-there-a-way-to-list-all-the-available-drive-letters-in-python
     from ctypes import windll
 
     drives = []
