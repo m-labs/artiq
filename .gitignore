@@ -32,3 +32,6 @@ __pycache__/
 /dataset_db.pyon
 /device_db*.py
 /test*
+
+# Pycharm/Jetbrains Development
+.idea/

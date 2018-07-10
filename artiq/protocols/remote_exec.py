@@ -7,10 +7,10 @@ large amounts of data with it, and only exchange higher-level, processed data
 with the experiment (and over the network).
 
 Controllers with support for remote execution contain an additional target
-that gives RPC access to instances of ``RemoteExecServer``. One such instance
+that gives RPC access to instances of :class:`.RemoteExecServer`. One such instance
 is created per client (experiment) connection and manages one Python namespace
 in which the experiment can execute arbitrary code by calling the methods of
-``RemoteExecServer``.
+:class:`.RemoteExecServer`.
 
 The namespaces are initialized with the following global values:
 

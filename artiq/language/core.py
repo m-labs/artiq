@@ -28,19 +28,20 @@ def kernel(arg=None, flags={}):
     This decorator marks an object's method for execution on the core
     device.
 
-    When a decorated method is called from the Python interpreter, the ``core``
+    When a decorated method is called from the Python interpreter, the :attr:`core`
     attribute of the object is retrieved and used as core device driver. The
     core device driver will typically compile, transfer and run the method
     (kernel) on the device.
 
     When kernels call another method:
-        - if the method is a kernel for the same core device, is it compiled
+
+        - if the method is a kernel for the same core device, it is compiled
           and sent in the same binary. Calls between kernels happen entirely on
           the device.
         - if the method is a regular Python method (not a kernel), it generates
           a remote procedure call (RPC) for execution on the host.
 
-    The decorator takes an optional parameter that defaults to ``core`` and
+    The decorator takes an optional parameter that defaults to :attr`core` and
     specifies the name of the attribute to use as core device driver.
 
     This decorator must be present in the global namespace of all modules using

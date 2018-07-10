@@ -1,5 +1,5 @@
-Developing a network device support package
-===========================================
+Developing a Network Device Support Package (NDSP)
+==================================================
 
 Most ARTIQ devices are interfaced through "controllers" that expose RPC interfaces to the network (based on :class:`artiq.protocols.pc_rpc`). The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
 
