@@ -78,9 +78,7 @@ class Deserializer(Module, AutoCSR):
         mmcm_fb = Signal()
         mmcm_locked = Signal()
         mmcm_ps_psdone = Signal()
-        cl_clk = Signal()
         cl7x_clk = Signal()
-        phase = 257.0
         self.specials += [
             Instance("MMCME2_ADV",
                 p_CLKIN1_PERIOD=18.0,
@@ -94,14 +92,9 @@ class Deserializer(Module, AutoCSR):
 
                 o_CLKFBOUT=mmcm_fb, i_CLKFBIN=mmcm_fb,
 
-                p_CLKOUT0_USE_FINE_PS="TRUE",
-                p_CLKOUT0_DIVIDE_F=21.0,
-                p_CLKOUT0_PHASE=phase,
-                o_CLKOUT0=cl_clk,
-
                 p_CLKOUT1_USE_FINE_PS="TRUE",
                 p_CLKOUT1_DIVIDE=3,
-                p_CLKOUT1_PHASE=phase*7 % 360.0,
+                p_CLKOUT1_PHASE=0.0,
                 o_CLKOUT1=cl7x_clk,
 
                 i_PSCLK=ClockSignal(),
@@ -109,8 +102,9 @@ class Deserializer(Module, AutoCSR):
                 i_PSINCDEC=self.phase_shift.r,
                 o_PSDONE=mmcm_ps_psdone,
             ),
-            Instance("BUFG", i_I=cl_clk, o_O=self.cd_cl.clk),
-            Instance("BUFG", i_I=cl7x_clk, o_O=self.cd_cl7x.clk),
+            Instance("BUFR", p_BUFR_DIVIDE="7", i_CLR=~mmcm_locked,
+                             i_I=cl7x_clk, o_O=self.cd_cl.clk),
+            Instance("BUFIO", i_I=cl7x_clk, o_O=self.cd_cl7x.clk),
             AsyncResetSynchronizer(self.cd_cl, ~mmcm_locked),
         ]
         self.sync += [
