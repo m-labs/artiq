@@ -409,8 +409,9 @@ class Grabber(_EEM):
     def add_std(cls, target, eem, eem_aux=None, ttl_out_cls=None):
         cls.add_extension(target, eem, eem_aux)
 
-        phy = grabber.Grabber(target.platform.request(
-            "grabber{}_video".format(eem)))
+        pads = target.platform.request("grabber{}_video".format(eem))
+        target.platform.add_period_constraint(pads.clk_p, 14.71)
+        phy = grabber.Grabber(pads)
         name = "grabber{}".format(len(target.grabber_csr_group))
         setattr(target.submodules, name, phy)
         target.grabber_csr_group.append(name)
