@@ -172,6 +172,9 @@ class SaymaRTM(Module):
         self.submodules.hmc7043_reset = gpio.GPIOOut(
             platform.request("hmc7043_reset"), reset_out=1)
         csr_devices.append("hmc7043_reset")
+        self.submodules.hmc7043_gpo = gpio.GPIOIn(
+            platform.request("hmc7043_gpo"))
+        csr_devices.append("hmc7043_gpo")
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
