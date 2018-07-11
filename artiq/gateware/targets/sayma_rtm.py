@@ -102,6 +102,7 @@ class RTMScratch(Module, AutoCSR):
             read_data.status.eq(fifo.source.data)
         ]
 
+
 CSR_RANGE_SIZE = 0x800
 
 
@@ -162,10 +163,7 @@ class SaymaRTM(Module):
         csr_devices.append("allaki_atts")
 
         # HMC clock chip and DAC control
-        self.comb += [
-            platform.request("ad9154_rst_n").eq(1),
-        ]
-
+        self.comb += platform.request("ad9154_rst_n").eq(1)
         self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
             platform.request("hmc_spi"),
             platform.request("ad9154_spi", 0),
