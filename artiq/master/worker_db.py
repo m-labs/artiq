@@ -227,9 +227,9 @@ class DatasetManager:
         else:
             data = self.ddb.get(key)
             if archive:
-                if key in self.archive:
-                    logger.warning("Dataset '%s' is already in archive, "
-                                   "overwriting", key, stack_info=True)
+                if self.archive.get(key, data) != data:
+                    logger.warning("Older value of dataset '%s' is already in "
+                                   "archive, overwriting", key, stack_info=True)
                 self.archive[key] = data
             return data
 
