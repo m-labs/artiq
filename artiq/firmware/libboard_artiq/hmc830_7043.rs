@@ -197,6 +197,12 @@ pub mod hmc7043 {
         }
     }
 
+    fn spi_wait_idle() {
+        unsafe {
+            while csr::converter_spi::idle_read() == 0 {}
+        }
+    }
+
     fn write(addr: u16, data: u8) {
         let cmd = (0 << 15) | addr;
         let val = ((cmd as u32) << 8) | data as u32;
@@ -259,6 +265,17 @@ pub mod hmc7043 {
         write(0x1, 0x48);  // mute all outputs
     }
 
+    /* Read an HMC7043 internal status bit through the GPO interface.
+     * This method is required to work around bugs in the register interface.
+     */
+    fn gpo_indirect_read(mux_setting: u8) -> bool {
+        write(0x50, (mux_setting << 2) | 0x3);
+        spi_wait_idle();
+        unsafe {
+            csr::hmc7043_gpo::in_read() == 1
+        }
+    }
+
     pub fn init() {
         spi_setup();
         info!("loading configuration...");
@@ -266,7 +283,6 @@ pub mod hmc7043 {
         write(0x3, 0x14);  // Disable the REFSYNCIN reseeder
         write(0xA, 0x06);  // Disable the REFSYNCIN input buffer
         write(0xB, 0x07);  // Enable the CLKIN input as LVPECL
-        write(0x50, 0x1f); // Disable GPO pin
         write(0x9F, 0x4d); // Unexplained high-performance mode
         write(0xA0, 0xdf); // Unexplained high-performance mode
 
@@ -318,6 +334,19 @@ pub mod hmc7043 {
         write(0x1, 0x40);  // Unmute, high-performance/low-noise mode
 
         info!("  ...done");
+    }
+
+    pub fn check_phased() -> Result<(), &'static str> {
+        if !gpo_indirect_read(3) {
+            return Err("GPO reported phases did not align");
+        }
+        // Should be the same as the GPO read
+        let sysref_fsm_status = read(0x91);
+        if sysref_fsm_status != 0x2 {
+            error!("Bad SYSREF FSM status: {:02x}", sysref_fsm_status);
+            return Err("Bad SYSREF FSM status");
+        }
+        Ok(())
     }
 
     pub fn sysref_offset_dac(dacno: u8, phase_offset: u16) {
@@ -434,6 +463,7 @@ pub fn init() -> Result<(), &'static str> {
     hmc7043::enable();
     hmc7043::detect()?;
     hmc7043::init();
+    hmc7043::check_phased()?;
 
     Ok(())
 }
