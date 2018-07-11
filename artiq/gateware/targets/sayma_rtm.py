@@ -102,6 +102,7 @@ class RTMScratch(Module, AutoCSR):
             read_data.status.eq(fifo.source.data)
         ]
 
+
 CSR_RANGE_SIZE = 0x800
 
 
@@ -128,10 +129,6 @@ class SaymaRTM(Module):
             platform.request("ref_lo_clk_sel")),
             reset_out=0b0111)
         csr_devices.append("clock_mux")
-
-        # UART loopback
-        serial = platform.request("serial")
-        self.comb += serial.tx.eq(serial.rx)
 
         # Allaki: enable RF output, GPIO access to attenuator
         self.comb += [
@@ -166,10 +163,7 @@ class SaymaRTM(Module):
         csr_devices.append("allaki_atts")
 
         # HMC clock chip and DAC control
-        self.comb += [
-            platform.request("ad9154_rst_n").eq(1),
-        ]
-
+        self.comb += platform.request("ad9154_rst_n").eq(1)
         self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
             platform.request("hmc_spi"),
             platform.request("ad9154_spi", 0),
@@ -178,6 +172,9 @@ class SaymaRTM(Module):
         self.submodules.hmc7043_reset = gpio.GPIOOut(
             platform.request("hmc7043_reset"), reset_out=1)
         csr_devices.append("hmc7043_reset")
+        self.submodules.hmc7043_gpo = gpio.GPIOIn(
+            platform.request("hmc7043_gpo"))
+        csr_devices.append("hmc7043_gpo")
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")

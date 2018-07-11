@@ -1,6 +1,13 @@
 use board_misoc::csr;
 
-static mut GRABBER_UP: &'static mut [bool] = &mut [false; csr::GRABBER_LEN];
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum State {
+    Down,
+    WaitResolution,
+    Up
+}
+
+static mut GRABBER_STATE: &'static mut [State] = &mut [State::Down; csr::GRABBER_LEN];
 
 fn get_pll_reset(g: usize) -> bool {
     unsafe { (csr::GRABBER[g].pll_reset_read)() != 0 }
@@ -64,13 +71,24 @@ fn clock_align(g: usize) -> bool {
     true
 }
 
+fn get_last_pixels(g: usize) -> (u16, u16) {
+    unsafe { ((csr::GRABBER[g].last_x_read)(),
+              (csr::GRABBER[g].last_y_read)()) }
+}
+
 pub fn tick() {
     for g in 0..csr::GRABBER.len() {
-        if unsafe { GRABBER_UP[g] } {
+        if unsafe { GRABBER_STATE[g] != State::Down } {
             if !clock_pattern_ok(g) || !pll_locked(g) {
                 set_pll_reset(g, true);
-                unsafe { GRABBER_UP[g] = false; }
+                unsafe { GRABBER_STATE[g] = State::Down; }
                 info!("grabber{} is down", g);
+            }
+            if unsafe { GRABBER_STATE[g] == State::WaitResolution } {
+                let (last_x, last_y) = get_last_pixels(g);
+                info!("grabber{} detected frame size: {}x{}",
+                    g, last_x + 1, last_y + 1);
+                unsafe { GRABBER_STATE[g] = State::Up; }
             }
         } else {
             if get_pll_reset(g) {
@@ -80,7 +98,7 @@ pub fn tick() {
                     info!("grabber{} PLL is locked", g);
                     if clock_align(g) {
                         info!("grabber{} is up", g);
-                        unsafe { GRABBER_UP[g] = true; }
+                        unsafe { GRABBER_STATE[g] = State::WaitResolution; }
                     } else {
                         set_pll_reset(g, true);
                     }

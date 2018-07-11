@@ -2,6 +2,7 @@ from migen import *
 
 from artiq.gateware.rtio import rtlink
 from artiq.gateware.grabber import deserializer_7series
+from artiq.gateware.grabber.core import *
 
 
 class Grabber(Module):
@@ -11,6 +12,8 @@ class Grabber(Module):
                                           rtlink.IInterface(10))
 
         self.submodules.deserializer = deserializer_7series.Deserializer(pins)
+        self.submodules.parser = Parser()
+        self.comb += self.parser.cl.eq(self.deserializer.q)
 
     def get_csrs(self):
-        return self.deserializer.get_csrs()
+        return self.deserializer.get_csrs() + self.parser.get_csrs()

@@ -409,10 +409,19 @@ class Grabber(_EEM):
     def add_std(cls, target, eem, eem_aux=None, ttl_out_cls=None):
         cls.add_extension(target, eem, eem_aux)
 
-        phy = grabber.Grabber(target.platform.request(
-            "grabber{}_video".format(eem)))
+        pads = target.platform.request("grabber{}_video".format(eem))
+        target.platform.add_period_constraint(pads.clk_p, 14.71)
+        phy = grabber.Grabber(pads)
         name = "grabber{}".format(len(target.grabber_csr_group))
         setattr(target.submodules, name, phy)
+
+        target.platform.add_false_path_constraints(
+            target.crg.cd_sys.clk, phy.deserializer.cd_cl.clk)
+        # Avoid bogus s/h violations at the clock input being sampled
+        # by the ISERDES. This uses dynamic calibration.
+        target.platform.add_false_path_constraints(
+            pads.clk_p, phy.deserializer.cd_cl7x.clk)
+
         target.grabber_csr_group.append(name)
         target.csr_devices.append(name)
         target.rtio_channels += [
