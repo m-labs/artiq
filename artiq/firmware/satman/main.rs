@@ -250,9 +250,9 @@ fn drtio_link_rx_up() -> bool {
 
 const SIPHASER_PHASE: u16 = 32;
 #[cfg(has_ad9154)]
-const SYSREF_PHASE_FPGA: u16 = 53;
+const SYSREF_PHASE_FPGA: u16 = 54;
 #[cfg(has_ad9154)]
-const SYSREF_PHASE_DAC: u16 = 64;
+const SYSREF_PHASE_DAC: u16 = 61;
 
 #[no_mangle]
 pub extern fn main() -> i32 {
