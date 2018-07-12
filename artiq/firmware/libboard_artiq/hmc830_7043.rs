@@ -131,8 +131,6 @@ mod hmc830 {
         write(0x4, m_div);
         write(0x3, n_div);
 
-        clock::spin_us(10_000);
-
         info!("  ...done");
     }
 
@@ -338,6 +336,8 @@ pub mod hmc7043 {
         write(0x1, 0x48);
         write(0x1, 0xc8);  // Synchronize dividers
         write(0x1, 0x40);  // Unmute, high-performance/low-noise mode
+
+        clock::spin_us(10_000);
 
         info!("  ...done");
     }
