@@ -265,6 +265,10 @@ pub mod hmc7043 {
         write(0x1, 0x48);  // mute all outputs
     }
 
+    const GPO_MUX_CLK_OUT_PHASE: u8 = 3;
+    const GPO_MUX_FORCE1: u8 = 10;
+    const GPO_MUX_FORCE0: u8 = 11;
+
     /* Read an HMC7043 internal status bit through the GPO interface.
      * This method is required to work around bugs in the register interface.
      */
@@ -336,8 +340,24 @@ pub mod hmc7043 {
         info!("  ...done");
     }
 
+    pub fn test_gpo() -> Result<(), &'static str> {
+        info!("testing GPO...");
+        for trial in 0..10 {
+            if !gpo_indirect_read(GPO_MUX_FORCE1) {
+                info!("  ...failed. GPO I/O did not go high (#{})", trial + 1);
+                return Err("GPO is not functioning");
+            }
+            if gpo_indirect_read(GPO_MUX_FORCE0) {
+                info!("  ...failed. GPO I/O did not return low (#{})", trial + 1);
+                return Err("GPO is not functioning");
+            }
+        }
+        info!("  ...passed");
+        Ok(())
+    }
+
     pub fn check_phased() -> Result<(), &'static str> {
-        if !gpo_indirect_read(3) {
+        if !gpo_indirect_read(GPO_MUX_CLK_OUT_PHASE) {
             return Err("GPO reported phases did not align");
         }
         // Should be the same as the GPO read
@@ -463,6 +483,7 @@ pub fn init() -> Result<(), &'static str> {
     hmc7043::enable();
     hmc7043::detect()?;
     hmc7043::init();
+    hmc7043::test_gpo()?;
     hmc7043::check_phased()?;
 
     Ok(())
