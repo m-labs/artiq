@@ -76,6 +76,13 @@ fn get_last_pixels(g: usize) -> (u16, u16) {
               (csr::GRABBER[g].last_y_read)()) }
 }
 
+fn get_video_clock(g: usize) -> u32 {
+    let freq_count = unsafe {
+        (csr::GRABBER[g].freq_count_read)()
+    } as u32;
+    2*freq_count*(csr::CONFIG_CLOCK_FREQUENCY/1000000)/255
+}
+
 pub fn tick() {
     for g in 0..csr::GRABBER.len() {
         if unsafe { GRABBER_STATE[g] != State::Down } {
@@ -86,8 +93,9 @@ pub fn tick() {
             }
             if unsafe { GRABBER_STATE[g] == State::WaitResolution } {
                 let (last_x, last_y) = get_last_pixels(g);
-                info!("grabber{} detected frame size: {}x{}",
+                info!("grabber{} frame size: {}x{}",
                     g, last_x + 1, last_y + 1);
+                info!("grabber{} video clock: {}MHz", g, get_video_clock(g));
                 unsafe { GRABBER_STATE[g] = State::Up; }
             }
         } else {

@@ -3,6 +3,34 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 
 
+class FrequencyCounter(Module, AutoCSR):
+    def __init__(self, width=8):
+        self.freq_count = CSRStatus(width)
+
+        # # #
+
+        toggle = Signal(reset_less=True)
+        toggle_sys = Signal()
+        toggle.attr.add("no_retiming")
+        self.sync.cl += toggle.eq(~toggle)
+        self.specials += MultiReg(toggle, toggle_sys)
+
+        timer = Signal(width+1)
+        tick = Signal(reset=1)
+        count = Signal(width)
+        toggle_sys_r = Signal()
+        self.sync += [
+            Cat(timer, tick).eq(timer + 1),
+            toggle_sys_r.eq(toggle_sys),
+            If(tick,
+                self.freq_count.status.eq(count),
+                count.eq(0)
+            ).Else(
+                If(toggle_sys & ~toggle_sys_r, count.eq(count + 1))
+            )
+        ]
+
+
 bitseq = [
     #  0   1   2   3   4   5   6
        6,  5,  4,  3,  2,  1, 27,
