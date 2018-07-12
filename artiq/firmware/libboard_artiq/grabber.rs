@@ -80,7 +80,7 @@ fn get_video_clock(g: usize) -> u32 {
     let freq_count = unsafe {
         (csr::GRABBER[g].freq_count_read)()
     } as u32;
-    2*freq_count*(csr::CONFIG_CLOCK_FREQUENCY/1000000)/255
+    2*freq_count*(csr::CONFIG_CLOCK_FREQUENCY/1000)/(511*1000)
 }
 
 pub fn tick() {
