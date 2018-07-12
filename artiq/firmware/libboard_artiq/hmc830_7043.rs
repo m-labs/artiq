@@ -131,6 +131,8 @@ mod hmc830 {
         write(0x4, m_div);
         write(0x3, n_div);
 
+        clock::spin_us(10_000);
+
         info!("  ...done");
     }
 
