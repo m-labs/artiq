@@ -386,6 +386,7 @@ pub mod hmc7043 {
         } else {
             unimplemented!();
         }
+        clock::spin_us(100);
     }
 
     fn sysref_offset_fpga(phase_offset: u16) {
@@ -394,12 +395,14 @@ pub mod hmc7043 {
         spi_setup();
         write(0x0111, analog_delay);
         write(0x0112, digital_delay);
+        clock::spin_us(100);
     }
 
     fn sysref_slip() {
         spi_setup();
         write(0x0002, 0x02);
         write(0x0002, 0x00);
+        clock::spin_us(100);
     }
 
     fn sysref_sample() -> bool {
