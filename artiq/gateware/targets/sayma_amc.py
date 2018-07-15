@@ -379,7 +379,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, with_sawg, **kwargs):
+    def __init__(self, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -624,7 +624,7 @@ def main():
     elif variant == "masterdac":
         cls = MasterDAC
     elif variant == "master":
-        cls = Master
+        cls = lambda dummy_with_sawg, **kwargs: Master(**kwargs)
     elif variant == "satellite":
         cls = Satellite
     else:
