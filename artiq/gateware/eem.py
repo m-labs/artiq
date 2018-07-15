@@ -3,7 +3,7 @@ from migen.build.generic_platform import *
 from migen.genlib.io import DifferentialOutput
 
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import spi2, grabber
+from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo
 
@@ -339,16 +339,24 @@ class Zotino(_EEM):
     def add_std(cls, target, eem, ttl_out_cls):
         cls.add_extension(target, eem)
 
-        phy = spi2.SPIMaster(target.platform.request("zotino{}_spi_p".format(eem)),
+        spi_phy = spi2.SPIMaster(target.platform.request("zotino{}_spi_p".format(eem)),
             target.platform.request("zotino{}_spi_n".format(eem)))
-        target.submodules += phy
-        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+        target.submodules += spi_phy
+        target.rtio_channels.append(rtio.Channel.from_phy(spi_phy, ififo_depth=4))
 
-        for signal in "ldac_n clr_n".split():
-            pads = target.platform.request("zotino{}_{}".format(eem, signal))
-            phy = ttl_out_cls(pads.p, pads.n)
-            target.submodules += phy
-            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+        pads = target.platform.request("zotino{}_ldac_n".format(eem))
+        ldac_phy = ttl_out_cls(pads.p, pads.n)
+        target.submodules += ldac_phy
+        target.rtio_channels.append(rtio.Channel.from_phy(ldac_phy))
+
+        pads = target.platform.request("zotino{}_clr_n".format(eem))
+        clr_phy = ttl_out_cls(pads.p, pads.n)
+        target.submodules += clr_phy
+        target.rtio_channels.append(rtio.Channel.from_phy(clr_phy))
+
+        dac_monitor = ad53xx_monitor.AD53XXMonitor(spi_phy.rtlink, ldac_phy.rtlink)
+        target.submodules += dac_monitor
+        spi_phy.probes.extend(dac_monitor.probes)
 
 
 class Grabber(_EEM):
