@@ -260,7 +260,7 @@ pub extern fn main() -> i32 {
     uart_logger::ConsoleLogger::register();
 
     info!("ARTIQ satellite manager starting...");
-    info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
+    info!("software version {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware version {}", ident::read(&mut [0; 64]));
 
     #[cfg(has_slave_fpga_cfg)]

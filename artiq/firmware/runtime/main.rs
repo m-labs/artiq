@@ -66,7 +66,7 @@ fn startup() {
     irq::set_ie(true);
     clock::init();
     info!("ARTIQ runtime starting...");
-    info!("software version {}", include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
+    info!("software version {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware version {}", ident::read(&mut [0; 64]));
 
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
@@ -355,8 +355,7 @@ pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
 
     println!("panic at {}:{}:{}: {}", file, line, column, args);
 
-    println!("backtrace for software version {}:",
-             include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
+    println!("backtrace for software version {}:", csr::CONFIG_IDENTIFIER_STR);
     let _ = unwind_backtrace::backtrace(|ip| {
         // Backtrace gives us the return address, i.e. the address after the delay slot,
         // but we're interested in the call instruction.

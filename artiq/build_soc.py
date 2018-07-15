@@ -1,10 +1,34 @@
 import os
 import subprocess
 
+from misoc.cores import identifier
 from misoc.integration.builder import *
 
 from artiq.gateware.amp import AMPSoC
+from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
+
+
+__all__ = ["add_identifier", "build_artiq_soc"]
+
+
+def get_identifier_string(soc, suffix="", add_class_name=True):
+    r = artiq_version
+    if suffix or add_class_name:
+        r += ";"
+    if add_class_name:
+        r += soc.__class__.__name__.lower()
+    r += suffix
+    return r
+
+
+def add_identifier(soc, *args, **kwargs):
+    if hasattr(soc, "identifier"):
+        raise ValueError
+    identifier_str = get_identifier_string(soc, *args, **kwargs)
+    soc.submodules.identifier = identifier.Identifier(identifier_str)
+    soc.config["IDENTIFIER_STR"] = identifier_str
+
 
 
 def build_artiq_soc(soc, argdict):

@@ -18,8 +18,7 @@ from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
                                      dds, spi2, ad53xx_monitor)
-from artiq.build_soc import build_artiq_soc
-from artiq import __version__ as artiq_version
+from artiq.build_soc import *
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -219,11 +218,12 @@ class _StandaloneBase(MiniSoC, AMPSoC):
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
-                         ident=artiq_version,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
+        add_identifier(self)
+
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
                 "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",

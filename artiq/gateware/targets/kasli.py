@@ -22,8 +22,7 @@ from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
-from artiq.build_soc import build_artiq_soc
-from artiq import __version__ as artiq_version
+from artiq.build_soc import *
 
 
 class _RTIOCRG(Module, AutoCSR):
@@ -100,11 +99,11 @@ class _StandaloneBase(MiniSoC, AMPSoC):
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
-                         ident=artiq_version,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
+        add_identifier(self)
 
         self.submodules.leds = gpio.GPIOOut(Cat(
             self.platform.request("user_led", 0)))
@@ -622,11 +621,11 @@ class _MasterBase(MiniSoC, AMPSoC):
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
-                         ident=artiq_version,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
+        add_identifier(self)
 
         platform = self.platform
         rtio_clk_freq = 150e6
@@ -754,8 +753,8 @@ class _SatelliteBase(BaseSoC):
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
-                 ident=artiq_version,
                  **kwargs)
+        add_identifier(self)
 
         platform = self.platform
         rtio_clk_freq = 150e6

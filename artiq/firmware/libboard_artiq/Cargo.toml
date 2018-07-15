@@ -10,7 +10,6 @@ path = "lib.rs"
 
 [build-dependencies]
 build_misoc = { path = "../libbuild_misoc" }
-build_artiq = { path = "../libbuild_artiq" }
 
 [dependencies]
 failure = { version = "0.1", default-features = false }

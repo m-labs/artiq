@@ -13,7 +13,6 @@ version = "0.0.0"
 dependencies = [
  "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "board_misoc 0.0.0",
- "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -45,13 +44,6 @@ dependencies = [
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
-]
-
-[[package]]
-name = "build_artiq"
-version = "0.0.0"
-dependencies = [
- "walkdir 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -224,7 +216,6 @@ dependencies = [
  "alloc_list 0.0.0",
  "board_artiq 0.0.0",
  "board_misoc 0.0.0",
- "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -255,7 +246,6 @@ version = "0.0.0"
 dependencies = [
  "board_artiq 0.0.0",
  "board_misoc 0.0.0",
- "build_artiq 0.0.0",
  "build_misoc 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

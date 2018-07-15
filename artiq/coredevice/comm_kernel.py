@@ -220,7 +220,7 @@ class CommKernel:
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
 
-        gateware_version = self._read_string()
+        gateware_version = self._read_string().split(";")[0]
         if gateware_version != software_version and not self.warned_of_mismatch:
             logger.warning("Mismatch between gateware (%s) "
                            "and software (%s) versions",
