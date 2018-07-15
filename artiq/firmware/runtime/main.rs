@@ -66,8 +66,8 @@ fn startup() {
     irq::set_ie(true);
     clock::init();
     info!("ARTIQ runtime starting...");
-    info!("software version {}", csr::CONFIG_IDENTIFIER_STR);
-    info!("gateware version {}", ident::read(&mut [0; 64]));
+    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
+    info!("gateware ident {}", ident::read(&mut [0; 64]));
 
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {

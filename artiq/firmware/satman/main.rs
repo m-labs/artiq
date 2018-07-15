@@ -260,8 +260,8 @@ pub extern fn main() -> i32 {
     uart_logger::ConsoleLogger::register();
 
     info!("ARTIQ satellite manager starting...");
-    info!("software version {}", csr::CONFIG_IDENTIFIER_STR);
-    info!("gateware version {}", ident::read(&mut [0; 64]));
+    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
+    info!("gateware ident {}", ident::read(&mut [0; 64]));
 
     #[cfg(has_slave_fpga_cfg)]
     board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
