@@ -17,6 +17,7 @@ function call syntax to express special data types.
 """
 
 
+from operator import itemgetter
 import base64
 from fractions import Fraction
 from collections import OrderedDict
@@ -113,15 +114,20 @@ class _Encoder:
         return r
 
     def encode_dict(self, x):
+        if self.pretty and all(k.__class__ == str for k in x.keys()):
+            items = lambda: sorted(x.items(), key=itemgetter(0))
+        else:
+            items = x.items
+
         r = "{"
         if not self.pretty or len(x) < 2:
             r += ", ".join([self.encode(k) + ": " + self.encode(v)
-                           for k, v in x.items()])
+                           for k, v in items()])
         else:
             self.indent_level += 1
             r += "\n"
             first = True
-            for k, v in x.items():
+            for k, v in items():
                 if not first:
                     r += ",\n"
                 first = False
