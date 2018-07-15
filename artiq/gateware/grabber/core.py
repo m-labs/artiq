@@ -146,6 +146,10 @@ class ROI(Module):
             If(pix.x == cfg.x1,
                 x_good.eq(0)
             ),
+            If(pix.eop,
+                y_good.eq(0),
+                x_good.eq(0)
+            ),
             gray.eq(Cat(pix.a, pix.b)[shift:]),
             stb.eq(pix.stb),
             eop.eq(pix.eop)
