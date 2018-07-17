@@ -6,7 +6,7 @@ io = [
         Subsignal("clk", Pins("LPC:LA32_N")),
         Subsignal("ser", Pins("LPC:LA33_P")),
         Subsignal("latch", Pins("LPC:LA32_P")),
-        IOStandard("LVCMOS25")
+        IOStandard("LVCMOS18")
     ),
 ]
 
