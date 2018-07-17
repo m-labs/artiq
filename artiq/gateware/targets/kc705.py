@@ -16,8 +16,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
-from artiq.gateware.rtio.phy import (ttl_simple, ttl_serdes_7series,
-                                     dds, spi2, ad53xx_monitor)
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi2
 from artiq.build_soc import *
 
 
@@ -109,99 +108,6 @@ _sdcard_spi_33 = [
     )
 ]
 
-_zotino = [
-    ("fmcdio_dirctl", 0,
-        Subsignal("clk", Pins("HPC:LA32_N")),
-        Subsignal("ser", Pins("HPC:LA33_P")),
-        Subsignal("latch", Pins("HPC:LA32_P")),
-        IOStandard("LVCMOS25")
-    ),
-    ("zotino_spi_p", 0,
-        Subsignal("clk", Pins("HPC:LA08_P")),
-        Subsignal("mosi", Pins("HPC:LA09_P")),
-        Subsignal("miso", Pins("HPC:LA10_P")),
-        Subsignal("cs_n", Pins("HPC:LA11_P")),
-        IOStandard("LVDS_25")
-    ),
-    ("zotino_spi_n", 0,
-        Subsignal("clk", Pins("HPC:LA08_N")),
-        Subsignal("mosi", Pins("HPC:LA09_N")),
-        Subsignal("miso", Pins("HPC:LA10_N")),
-        Subsignal("cs_n", Pins("HPC:LA11_N")),
-        IOStandard("LVDS_25")
-    ),
-    ("zotino_ldac", 0,
-        Subsignal("p", Pins("HPC:LA13_P")),
-        Subsignal("n", Pins("HPC:LA13_N")),
-        IOStandard("LVDS_25"), Misc("DIFF_TERM=TRUE")
-    )
-]
-
-
-# FMC DIO 32ch LVDS a v1.2 on HPC to VHDCI-Carrier v1.1
-# uring the upper/right VHDCI connector: LVDS7 and LVDS8
-# using the lower/left VHDCI connector: LVDS3 and LVDS4
-_urukul = [
-    ("urukul_spi_p", 0,
-        Subsignal("clk", Pins("HPC:LA17_CC_P")),
-        Subsignal("mosi", Pins("HPC:LA16_P")),
-        Subsignal("miso", Pins("HPC:LA24_P")),
-        Subsignal("cs_n", Pins("HPC:LA19_P HPC:LA20_P HPC:LA21_P")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_spi_n", 0,
-        Subsignal("clk", Pins("HPC:LA17_CC_N")),
-        Subsignal("mosi", Pins("HPC:LA16_N")),
-        Subsignal("miso", Pins("HPC:LA24_N")),
-        Subsignal("cs_n", Pins("HPC:LA19_N HPC:LA20_N HPC:LA21_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_io_update", 0,
-        Subsignal("p", Pins("HPC:LA22_P")),
-        Subsignal("n", Pins("HPC:LA22_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_dds_reset", 0,
-        Subsignal("p", Pins("HPC:LA23_P")),
-        Subsignal("n", Pins("HPC:LA23_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sync_clk", 0,
-        Subsignal("p", Pins("HPC:LA18_CC_P")),
-        Subsignal("n", Pins("HPC:LA18_CC_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sync_in", 0,
-        Subsignal("p", Pins("HPC:LA25_P")),
-        Subsignal("n", Pins("HPC:LA25_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_io_update_ret", 0,
-        Subsignal("p", Pins("HPC:LA26_P")),
-        Subsignal("n", Pins("HPC:LA26_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sw0", 0,
-        Subsignal("p", Pins("HPC:LA28_P")),
-        Subsignal("n", Pins("HPC:LA28_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sw1", 0,
-        Subsignal("p", Pins("HPC:LA29_P")),
-        Subsignal("n", Pins("HPC:LA29_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sw2", 0,
-        Subsignal("p", Pins("HPC:LA30_P")),
-        Subsignal("n", Pins("HPC:LA30_N")),
-        IOStandard("LVDS_25"),
-    ),
-    ("urukul_sw3", 0,
-        Subsignal("p", Pins("HPC:LA31_P")),
-        Subsignal("n", Pins("HPC:LA31_N")),
-        IOStandard("LVDS_25"),
-    )
-]
 
 
 class _StandaloneBase(MiniSoC, AMPSoC):
@@ -243,8 +149,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.platform.add_extension(_sma33_io)
         self.platform.add_extension(_ams101_dac)
         self.platform.add_extension(_sdcard_spi_33)
-        self.platform.add_extension(_zotino)
-        self.platform.add_extension(_urukul)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -339,37 +243,6 @@ class NIST_CLOCK(_StandaloneBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(
             phy, ififo_depth=4))
-
-        fmcdio_dirctl = self.platform.request("fmcdio_dirctl")
-        for s in fmcdio_dirctl.clk, fmcdio_dirctl.ser, fmcdio_dirctl.latch:
-            phy = ttl_simple.Output(s)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        sdac_phy = spi2.SPIMaster(self.platform.request("zotino_spi_p"),
-                                  self.platform.request("zotino_spi_n"))
-        self.submodules += sdac_phy
-        rtio_channels.append(rtio.Channel.from_phy(sdac_phy, ififo_depth=4))
-
-        pads = platform.request("zotino_ldac")
-        ldac_phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-        self.submodules += ldac_phy
-        rtio_channels.append(rtio.Channel.from_phy(ldac_phy))
-
-        dac_monitor = ad53xx_monitor.AD53XXMonitor(sdac_phy.rtlink, ldac_phy.rtlink)
-        self.submodules += dac_monitor
-        sdac_phy.probes.extend(dac_monitor.probes)
-
-        phy = spi2.SPIMaster(self.platform.request("urukul_spi_p"),
-                             self.platform.request("urukul_spi_n"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-        for signal in "io_update dds_reset sw0 sw1 sw2 sw3".split():
-            pads = platform.request("urukul_{}".format(signal))
-            phy = ttl_serdes_7series.Output_8X(pads.p, pads.n)
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         phy = dds.AD9914(platform.request("dds"), 11, onehot=True)
         self.submodules += phy
