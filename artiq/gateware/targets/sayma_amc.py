@@ -624,7 +624,7 @@ def main():
     elif variant == "masterdac":
         cls = MasterDAC
     elif variant == "master":
-        cls = lambda dummy_with_sawg, **kwargs: Master(**kwargs)
+        cls = lambda with_sawg, **kwargs: Master(**kwargs)
     elif variant == "satellite":
         cls = Satellite
     else:
