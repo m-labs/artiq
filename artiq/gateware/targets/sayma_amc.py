@@ -474,12 +474,12 @@ class Master(MiniSoC, AMPSoC):
             phy = ttl_simple.Output(s)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
-        eem.Urukul.add_std(self, 1, 0, ttl_simple.Output,
-                           iostandard="LVDS")
+        #eem.Urukul.add_std(self, 1, 0, ttl_simple.Output,
+        #                   iostandard="LVDS")
         eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
                         iostandard="LVDS")
-        eem.Zotino.add_std(self, 3, ttl_simple.Output,
-                           iostandard="LVDS")
+        #eem.Zotino.add_std(self, 3, ttl_simple.Output,
+        #                   iostandard="LVDS")
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
