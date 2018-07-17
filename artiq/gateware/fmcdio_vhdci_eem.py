@@ -51,8 +51,8 @@ connectors = [
     }),
 
     ("eem2", {
-        "d0_cc_n": "LPC:LA17_CC_P",
-        "d0_cc_p": "LPC:LA17_CC_N",
+        "d0_cc_n": "LPC:LA17_CC_N",
+        "d0_cc_p": "LPC:LA17_CC_P",
         "d1_n": "LPC:LA16_N",
         "d1_p": "LPC:LA16_P",
         "d2_n": "LPC:LA24_N",
@@ -71,7 +71,7 @@ connectors = [
 
     ("eem3", {
         "d0_cc_n": "LPC:LA18_CC_N",
-        "d0_cc_p": "LPC:LA18_CC_N",
+        "d0_cc_p": "LPC:LA18_CC_P",
         "d1_n": "LPC:LA25_N",
         "d1_p": "LPC:LA25_P",
         "d2_n": "LPC:LA26_N",
