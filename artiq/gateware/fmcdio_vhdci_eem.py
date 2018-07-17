@@ -1,5 +1,7 @@
 from migen.build.generic_platform import *
 
+from artiq.coredevice.fmcdio_vhdci_eem import *
+
 
 io = [
     ("fmcdio_dirctl", 0,
@@ -10,81 +12,17 @@ io = [
     ),
 ]
 
+def _get_connectors():
+    connectors = []
+    for i in range(4):
+        connections = dict()
+        for j, pair in enumerate(eem_fmc_connections[i]):
+            for pn in "n", "p":
+                cc = "cc_" if j == 0 else ""
+                connections["d{}_{}{}".format(j, cc, pn)] = \
+                    "LPC:LA{:02d}_{}{}".format(pair, cc.upper(), pn.upper())
+        connectors.append(("eem{}".format(i), connections))
+    return connectors
 
-connectors = [
-    ("eem0", {
-        "d0_cc_n": "LPC:LA00_CC_N",
-        "d0_cc_p": "LPC:LA00_CC_P",
-        "d1_n": "LPC:LA08_N",
-        "d1_p": "LPC:LA08_P",
-        "d2_n": "LPC:LA02_N",
-        "d2_p": "LPC:LA02_P",
-        "d3_n": "LPC:LA03_N",
-        "d3_p": "LPC:LA03_P",
-        "d4_n": "LPC:LA04_N",
-        "d4_p": "LPC:LA04_P",
-        "d5_n": "LPC:LA05_N",
-        "d5_p": "LPC:LA05_P",
-        "d6_n": "LPC:LA06_N",
-        "d6_p": "LPC:LA06_P",
-        "d7_n": "LPC:LA07_N",
-        "d7_p": "LPC:LA07_P",
-    }),
 
-    ("eem1", {
-        "d0_cc_n": "LPC:LA01_CC_N",
-        "d0_cc_p": "LPC:LA01_CC_P",
-        "d1_n": "LPC:LA09_N",
-        "d1_p": "LPC:LA09_P",
-        "d2_n": "LPC:LA10_N",
-        "d2_p": "LPC:LA10_P",
-        "d3_n": "LPC:LA11_N",
-        "d3_p": "LPC:LA11_P",
-        "d4_n": "LPC:LA12_N",
-        "d4_p": "LPC:LA12_P",
-        "d5_n": "LPC:LA13_N",
-        "d5_p": "LPC:LA13_P",
-        "d6_n": "LPC:LA14_N",
-        "d6_p": "LPC:LA14_P",
-        "d7_n": "LPC:LA15_N",
-        "d7_p": "LPC:LA15_P",
-    }),
-
-    ("eem2", {
-        "d0_cc_n": "LPC:LA17_CC_N",
-        "d0_cc_p": "LPC:LA17_CC_P",
-        "d1_n": "LPC:LA16_N",
-        "d1_p": "LPC:LA16_P",
-        "d2_n": "LPC:LA24_N",
-        "d2_p": "LPC:LA24_P",
-        "d3_n": "LPC:LA19_N",
-        "d3_p": "LPC:LA19_P",
-        "d4_n": "LPC:LA20_N",
-        "d4_p": "LPC:LA20_P",
-        "d5_n": "LPC:LA21_N",
-        "d5_p": "LPC:LA21_P",
-        "d6_n": "LPC:LA22_N",
-        "d6_p": "LPC:LA22_P",
-        "d7_n": "LPC:LA23_N",
-        "d7_p": "LPC:LA23_P",
-    }),
-
-    ("eem3", {
-        "d0_cc_n": "LPC:LA18_CC_N",
-        "d0_cc_p": "LPC:LA18_CC_P",
-        "d1_n": "LPC:LA25_N",
-        "d1_p": "LPC:LA25_P",
-        "d2_n": "LPC:LA26_N",
-        "d2_p": "LPC:LA26_P",
-        "d3_n": "LPC:LA27_N",
-        "d3_p": "LPC:LA27_P",
-        "d4_n": "LPC:LA28_N",
-        "d4_p": "LPC:LA28_P",
-        "d5_n": "LPC:LA29_N",
-        "d5_p": "LPC:LA29_P",
-        "d6_n": "LPC:LA30_N",
-        "d6_p": "LPC:LA30_P",
-        "d7_n": "LPC:LA31_N",
-        "d7_p": "LPC:LA31_P",
-    }),
-]
+connectors = _get_connectors()
