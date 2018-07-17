@@ -13,8 +13,9 @@ from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import BaseSoC, MiniSoC
 
 from artiq.gateware.amp import AMPSoC
-from artiq.gateware import serwb
-from artiq.gateware import remote_csr
+from artiq.gateware import eem
+from artiq.gateware import fmcdio_vhdci_eem
+from artiq.gateware import serwb, remote_csr
 from artiq.gateware import rtio
 from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, sawg
@@ -450,7 +451,7 @@ class Master(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gth.rxoutclk)
 
-        rtio_channels = []
+        self.rtio_channels = rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
@@ -465,6 +466,20 @@ class Master(MiniSoC, AMPSoC):
         phy = ttl_simple.InOut(sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        platform.add_extension(fmcdio_vhdci_eem.io)
+        platform.add_connectors(fmcdio_vhdci_eem.connectors)
+        fmcdio_dirctl = platform.request("fmcdio_dirctl")
+        for s in fmcdio_dirctl.clk, fmcdio_dirctl.ser, fmcdio_dirctl.latch:
+            phy = ttl_simple.Output(s)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        eem.Urukul.add_std(self, 1, 0, ttl_simple.Output,
+                           iostandard="LVDS")
+        eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
+                        iostandard="LVDS")
+        eem.Zotino.add_std(self, 3, ttl_simple.Output,
+                           iostandard="LVDS")
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
