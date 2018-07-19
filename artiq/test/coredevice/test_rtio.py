@@ -663,3 +663,43 @@ class DMATest(ExperimentCase):
         for mode in [0, 1]:
             with self.assertRaises(exceptions.DMAError):
                 exp.invalidate(mode)
+
+
+class _DMALoopback(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("core_dma")
+        self.setattr_device("loop_out")
+        self.setattr_device("loop_in")
+
+    @kernel
+    def run(self):
+        self.core.reset()
+        self.loop_in.input()
+        self.loop_out.off()
+
+        with self.core_dma.record("loop"):
+            with parallel:
+                self.loop_in.gate_rising(2*us)
+                with sequential:
+                    delay(1*us)
+                    self.loop_out.pulse(1*us)
+        handle = self.core_dma.get_handle("loop")
+
+        self.loop_in.count()
+
+        self.core.break_realtime()
+        for i in range(100):
+            # Gratuituously long delay; playback latency is already covered
+            # by DMATest.
+            delay(50*us)
+
+            self.core_dma.playback_handle(handle)
+            if self.loop_in.count() != 1:
+                raise PulseNotReceived()
+
+
+class DMALoopbackTest(ExperimentCase):
+    def test_loopback(self):
+        exp = self.create(_DMALoopback)
+        exp.run()
