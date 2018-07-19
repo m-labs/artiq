@@ -33,7 +33,7 @@ urukul_out_pins = {
     6,       # io_update
     7,       # dds_reset
 }
-urukul_out_pins_aux = {
+urukul_aux_out_pins = {
     4,       # sw0
     5,       # sw1
     6,       # sw2
