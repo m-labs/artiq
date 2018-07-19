@@ -6,11 +6,20 @@ eem_fmc_connections = {
 }
 
 
+fmcdio_shiftreg_permutation = [
+    1, 0, 3, 2, 5, 4, 7, 6,
+    9, 8, 11, 10, 13, 12, 15, 14,
+    17, 16, 19, 18, 21, 20, 23, 22,
+    25, 24, 27, 26, 29, 28, 31, 30
+]
+
+
 def shiftreg_bits(eem, out_pins):
     r = 0
     for i in range(8):
-        if i in out_pins:
-            shift = eem_fmc_connections[eem][i]
+        if i not in out_pins:
+            lvds_line = eem_fmc_connections[eem][i]
+            shift = fmcdio_shiftreg_permutation.index(lvds_line)
             r |= 1 << shift
     return r
 
