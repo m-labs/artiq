@@ -1,3 +1,5 @@
+# Definitions for using the "FMC DIO 32ch LVDS a" card with the VHDCI-EEM breakout v1.1
+
 eem_fmc_connections = {
     0: [0, 8, 2, 3, 4, 5, 6, 7],
     1: [1, 9, 10, 11, 12, 13, 14, 15],
@@ -6,20 +8,21 @@ eem_fmc_connections = {
 }
 
 
-fmcdio_shiftreg_permutation = [
-    1, 0, 3, 2, 5, 4, 7, 6,
-    9, 8, 11, 10, 13, 12, 15, 14,
-    17, 16, 19, 18, 21, 20, 23, 22,
-    25, 24, 27, 26, 29, 28, 31, 30
-]
-
-
 def shiftreg_bits(eem, out_pins):
+    """
+    Returns the bits that have to be set in the FMC card direction
+    shift register for the given EEM.
+
+    Takes a set of pin numbers (0-7) at the EEM. Return values
+    of this function for different EEMs should be ORed together.
+    """
     r = 0
     for i in range(8):
         if i not in out_pins:
             lvds_line = eem_fmc_connections[eem][i]
-            shift = fmcdio_shiftreg_permutation.index(lvds_line)
+            # lines are swapped in pairs to ease PCB routing
+            # at the shift register
+            shift = lvds_line ^ 1
             r |= 1 << shift
     return r
 
