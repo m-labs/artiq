@@ -104,7 +104,7 @@ Flashing/Loading tool
    :ref: artiq.frontend.artiq_flash.get_argparser
    :prog: artiq_flash
 
-.. _core-device-configuration-tool:
+.. _core-device-management-tool:
 
 Core device management tool
 ---------------------------

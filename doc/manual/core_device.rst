@@ -17,7 +17,7 @@ This storage area is used to store the core device MAC address, IP address and e
 
 The flash storage area is one sector (typically 64 kB) large and is organized as a list of key-value records.
 
-This flash storage space can be accessed by using ``artiq_coreconfig`` (see: :ref:`core-device-configuration-tool`).
+This flash storage space can be accessed by using ``artiq_coremgmt`` (see: :ref:`core-device-management-tool`).
 
 .. _board-ports:
 

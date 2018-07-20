@@ -182,13 +182,13 @@ To flash the idle kernel:
 
         * Write it into the core device configuration flash storage: ::
 
-                $ artiq_coreconfig write -f idle_kernel idle.elf
+                $ artiq_coremgmt config -f idle_kernel idle.elf
 
-.. note:: You can find more information about how to use the ``artiq_coreconfig`` utility on the :ref:`Utilities <core-device-configuration-tool>` page.
+.. note:: You can find more information about how to use the ``artiq_coremgmt`` utility on the :ref:`Utilities <core-device-management-tool>` page.
 
 * (optional) Flash the startup kernel
 
-The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in ``artiq_coreconfig``.
+The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in the ``artiq_coremgmt`` command.
 
 For DRTIO systems, the startup kernel should wait until the desired links are up, using :meth:`artiq.coredevice.Core.get_drtio_link_status`.
 
@@ -196,8 +196,8 @@ For DRTIO systems, the startup kernel should wait until the desired links are up
 
 Some core devices may use either an external clock signal or their internal clock. The clock is selected at power-up. Use one of these commands: ::
 
-    $ artiq_coreconfig write -s rtio_clock i  # internal clock (default)
-    $ artiq_coreconfig write -s rtio_clock e  # external clock
+    $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
+    $ artiq_coremgmt config write -s rtio_clock e  # external clock
 
 
 .. rubric:: Footnotes
