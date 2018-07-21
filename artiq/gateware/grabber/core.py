@@ -170,7 +170,7 @@ class ROI(Module):
 
             out.update.eq(0),
             If(eop,
-                cnt.eq(0),
+                count.eq(0),
                 out.update.eq(1),
                 out.count.eq(count)
             )
