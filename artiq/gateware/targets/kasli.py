@@ -299,6 +299,8 @@ class MITLL(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
         self.config["HAS_GRABBER"] = None
         self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class USTC(_StandaloneBase):
@@ -338,6 +340,8 @@ class USTC(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
         self.config["HAS_GRABBER"] = None
         self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class Tsinghua(_StandaloneBase):
@@ -374,6 +378,8 @@ class Tsinghua(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
         self.config["HAS_GRABBER"] = None
         self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class WIPM(_StandaloneBase):
@@ -543,6 +549,8 @@ class LUH(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
         self.config["HAS_GRABBER"] = None
         self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class Tester(_StandaloneBase):
