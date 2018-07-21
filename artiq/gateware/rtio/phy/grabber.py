@@ -84,8 +84,11 @@ class Grabber(Module):
         for n, roi_engine in enumerate(self.roi_engines):
             for offset, target in enumerate([roi_engine.cfg.x0, roi_engine.cfg.x1,
                                              roi_engine.cfg.y0, roi_engine.cfg.y1]):
+                roi_boundary = Signal.like(target)
+                roi_boundary.attr.add("no_retiming")
                 self.sync.rtio += If(self.config.o.stb & (self.config.o.address == 4*n+offset),
-                    target.eq(self.config.o.data))
+                    roi_boundary.eq(self.config.o.data))
+                self.specials += MultiReg(roi_boundary, target, "cl")
 
         self.sync.rio += If(self.gate_data.o.stb,
             self.serializer.gate.eq(self.gate_data.o.data))
