@@ -50,7 +50,7 @@ assert len(set(bitseq)) == 24
 
 class Parser(Module, AutoCSR):
     """Parses 28 bit encoded words and track pixel coordinates."""
-    def __init__(self, width=12):
+    def __init__(self, width):
         self.cl = cl = Signal(28)
 
         self.last_x = CSRStatus(width)
@@ -110,8 +110,14 @@ class Parser(Module, AutoCSR):
 class ROI(Module):
     """ROI Engine. For each frame, accumulates pixels values within a
     rectangular region of interest, and reports the total."""
-    def __init__(self, pix, shift=0):
-        cnt_len = len(pix.x) + len(pix.y) + 16 - shift
+
+    @staticmethod
+    def count_len(width, shift):
+        # limit width to 31 to avoid problems with CPUs and RTIO inputs
+        return min(31, 2*width + 16 - shift)
+
+    def __init__(self, pix, shift):
+        count_len = ROI.count_len(len(pix.x), shift)
 
         self.cfg = cfg = Record([
             ("x0", len(pix.x)),
@@ -121,8 +127,8 @@ class ROI(Module):
         ])
         self.out = out = Record([
             ("update", 1),
-            # register output - can be used as CDC input
-            ("cnt", cnt_len),
+            # registered output - can be used as CDC input
+            ("count", count_len),
         ])
 
         # # #
@@ -156,16 +162,16 @@ class ROI(Module):
         ]
 
         # stage 2 - accumulate
-        cnt = Signal(cnt_len)
+        count = Signal(count_len)
         self.sync.cl += [
             If(stb & x_good & y_good,
-                cnt.eq(cnt + gray),
+                count.eq(count + gray),
             ),
 
             out.update.eq(0),
             If(eop,
                 cnt.eq(0),
                 out.update.eq(1),
-                out.cnt.eq(cnt)
+                out.count.eq(count)
             )
         ]
