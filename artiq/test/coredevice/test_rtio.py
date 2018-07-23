@@ -29,6 +29,23 @@ class RTIOCounter(EnvExperiment):
         self.set_dataset("dt", self.core.mu_to_seconds(t1 - t0))
 
 
+class InvalidCounter(Exception):
+    pass
+
+
+class WaitForRTIOCounter(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        self.core.break_realtime()
+        target_mu = now_mu() + 10000
+        self.core.wait_until_mu(target_mu)
+        if self.core.get_rtio_counter_mu() < target_mu:
+            raise InvalidCounter
+
+
 class PulseNotReceived(Exception):
     pass
 
@@ -374,6 +391,9 @@ class CoredeviceTest(ExperimentCase):
         print(dt)
         self.assertGreater(dt, 50*ns)
         self.assertLess(dt, 1*us)
+
+    def test_wait_for_rtio_counter(self):
+        self.execute(WaitForRTIOCounter)
 
     def test_loopback(self):
         self.execute(Loopback)
