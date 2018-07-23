@@ -378,8 +378,6 @@ class TTLClockGen:
         self.core = dmgr.get(core_device)
         self.channel = channel
 
-        # in RTIO cycles
-        self.previous_timestamp = numpy.int64(0)
         self.acc_width = numpy.int64(24)
 
     @portable
@@ -415,7 +413,6 @@ class TTLClockGen:
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output."""
         rtio_output(now_mu(), self.channel, 0, frequency)
-        self.previous_timestamp = now_mu()
 
     @kernel
     def set(self, frequency):
@@ -426,10 +423,3 @@ class TTLClockGen:
     def stop(self):
         """Stop the toggling of the clock and set the output level to 0."""
         self.set_mu(0)
-
-    @kernel
-    def sync(self):
-        """Busy-wait until all programmed frequency switches and stops have
-        been effected."""
-        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
-            pass
