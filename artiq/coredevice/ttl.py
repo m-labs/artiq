@@ -113,7 +113,6 @@ class TTLInOut:
         self.channel = channel
 
         self.i_previous_timestamp = numpy.int64(0)
-        self.queued_samples = 0
 
     @kernel
     def set_oe(self, oe):
