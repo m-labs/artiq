@@ -38,13 +38,13 @@ class PhotonHistogram(EnvExperiment):
         self.bd_dds.set(self.detect_f)
         with parallel:
             self.bd_sw.pulse(self.detect_t)
-            self.pmt.gate_rising(self.detect_t)
+            gate_end_mu = self.pmt.gate_rising(self.detect_t)
 
         self.program_cooling()
         self.bd_sw.on()
         self.bdd_sw.on()
 
-        return self.pmt.count()
+        return self.pmt.count(gate_end_mu)
 
     @kernel
     def run(self):

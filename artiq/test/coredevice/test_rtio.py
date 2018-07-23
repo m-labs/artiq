@@ -68,7 +68,7 @@ class RTT(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.ttl_inout.pulse(1*us)
-        t1 = self.ttl_inout.timestamp_mu()
+        t1 = self.ttl_inout.timestamp_mu(now_mu())
         if t1 < 0:
             raise PulseNotReceived()
         self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
@@ -92,7 +92,7 @@ class Loopback(EnvExperiment):
                 delay(1*us)
                 t0 = now_mu()
                 self.loop_out.pulse(1*us)
-        t1 = self.loop_in.timestamp_mu()
+        t1 = self.loop_in.timestamp_mu(now_mu())
         if t1 < 0:
             raise PulseNotReceived()
         self.set_dataset("rtt", self.core.mu_to_seconds(t1 - t0))
@@ -115,7 +115,7 @@ class ClockGeneratorLoopback(EnvExperiment):
             with sequential:
                 delay(200*ns)
                 self.loop_clock_out.set(1*MHz)
-        self.set_dataset("count", self.loop_clock_in.count())
+        self.set_dataset("count", self.loop_clock_in.count(now_mu()))
 
 
 class PulseRate(EnvExperiment):
@@ -203,7 +203,7 @@ class LoopbackCount(EnvExperiment):
                 for i in range(self.npulses):
                     delay(25*ns)
                     self.loop_out.pulse(25*ns)
-        self.set_dataset("count", self.loop_in.count())
+        self.set_dataset("count", self.loop_in.count(now_mu()))
 
 
 class IncorrectLevel(Exception):

@@ -21,11 +21,10 @@ class CreateTTLPulse(EnvExperiment):
     def run(self):
         self.core.break_realtime()
         with parallel:
-            self.loop_in.gate_both_mu(1200)
             with sequential:
                 delay_mu(100)
                 self.loop_out.pulse_mu(1000)
-        self.loop_in.count()
+            self.loop_in.count(self.loop_in.gate_both_mu(1200))
 
 
 class WriteLog(EnvExperiment):

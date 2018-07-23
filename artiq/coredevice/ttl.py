@@ -112,8 +112,6 @@ class TTLInOut:
         self.core = dmgr.get(core_device)
         self.channel = channel
 
-        self.i_previous_timestamp = numpy.int64(0)
-
     @kernel
     def set_oe(self, oe):
         rtio_output(now_mu(), self.channel, 1, 1 if oe else 0)
@@ -184,88 +182,112 @@ class TTLInOut:
     @kernel
     def _set_sensitivity(self, value):
         rtio_output(now_mu(), self.channel, 2, value)
-        self.i_previous_timestamp = now_mu()
 
     @kernel
     def gate_rising_mu(self, duration):
         """Register rising edge events for the specified duration
         (in machine units).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(1)
         delay_mu(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
     def gate_falling_mu(self, duration):
         """Register falling edge events for the specified duration
         (in machine units).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(2)
         delay_mu(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
     def gate_both_mu(self, duration):
         """Register both rising and falling edge events for the specified
         duration (in machine units).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(3)
         delay_mu(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
     def gate_rising(self, duration):
         """Register rising edge events for the specified duration
         (in seconds).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(1)
         delay(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
     def gate_falling(self, duration):
         """Register falling edge events for the specified duration
         (in seconds).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(2)
         delay(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
     def gate_both(self, duration):
         """Register both rising and falling edge events for the specified
         duration (in seconds).
 
-        The time cursor is advanced by the specified duration."""
+        The time cursor is advanced by the specified duration.
+
+        :return: The timeline cursor at the end of the gate window.
+        """
         self._set_sensitivity(3)
         delay(duration)
         self._set_sensitivity(0)
+        return now_mu()
 
     @kernel
-    def count(self):
-        """Poll the RTIO input during all the previously programmed gate
-        openings, and returns the number of registered events.
+    def count(self, up_to_timestamp_mu):
+        """Poll the RTIO input up to the specified timestamp, and returns the
+        number of registered events.
 
-        This function does not interact with the time cursor."""
+        This function does not interact with the timeline cursor."""
         count = 0
-        while rtio_input_timestamp(self.i_previous_timestamp, self.channel) >= 0:
+        while rtio_input_timestamp(up_to_timestamp_mu, self.channel) >= 0:
             count += 1
         return count
 
     @kernel
-    def timestamp_mu(self):
+    def timestamp_mu(self, up_to_timestamp_mu):
         """Poll the RTIO input and returns an event timestamp (in machine
-        units), according to the gating.
+        units) according to the selected gates, or -1 if no event occured before
+        the specified timestamp.
 
         If the gate is permanently closed, returns a negative value.
 
-        This function does not interact with the time cursor."""
-        return rtio_input_timestamp(self.i_previous_timestamp, self.channel)
+        This function does not interact with the timeline cursor."""
+        return rtio_input_timestamp(up_to_timestamp_mu, self.channel)
 
     # Input API: sampling
     @kernel
