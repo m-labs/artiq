@@ -35,9 +35,6 @@ class TTLOut:
         self.core = dmgr.get(core_device)
         self.channel = channel
 
-        # in RTIO cycles
-        self.o_previous_timestamp = numpy.int64(0)
-
     @kernel
     def output(self):
         pass
@@ -45,14 +42,6 @@ class TTLOut:
     @kernel
     def set_o(self, o):
         rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
-        self.o_previous_timestamp = now_mu()
-
-    @kernel
-    def sync(self):
-        """Busy-wait until all programmed level switches have been
-        effected."""
-        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
-            pass
 
     @kernel
     def on(self):
@@ -123,8 +112,6 @@ class TTLInOut:
         self.core = dmgr.get(core_device)
         self.channel = channel
 
-        # in RTIO cycles
-        self.o_previous_timestamp = numpy.int64(0)
         self.i_previous_timestamp = numpy.int64(0)
         self.queued_samples = 0
 
@@ -153,14 +140,6 @@ class TTLInOut:
     @kernel
     def set_o(self, o):
         rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
-        self.o_previous_timestamp = now_mu()
-
-    @kernel
-    def sync(self):
-        """Busy-wait until all programmed level switches have been
-        effected."""
-        while self.core.get_rtio_counter_mu() < self.o_previous_timestamp:
-            pass
 
     @kernel
     def on(self):
