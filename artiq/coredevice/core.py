@@ -154,6 +154,17 @@ class Core:
         return rtio_get_counter()
 
     @kernel
+    def wait_until_mu(self, cursor_mu):
+        """Block execution until the hardware RTIO counter reaches the given
+        value (see :meth:`get_rtio_counter_mu`).
+
+        If the hardware counter has already passed the given time, the function
+        returns immediately.
+        """
+        while self.get_rtio_counter_mu() < cursor_mu:
+            pass
+
+    @kernel
     def get_drtio_link_status(self, linkno):
         """Returns whether the specified DRTIO link is up.
 
