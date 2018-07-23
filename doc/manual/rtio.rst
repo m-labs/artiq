@@ -159,8 +159,7 @@ Input channels detect events, timestamp them, and place them in a buffer for the
 The following example counts the rising edges occurring during a precisely timed 500 ns interval.
 If more than 20 rising edges were received it outputs a pulse::
 
-  input.gate_rising(500*ns)
-  if input.count() > 20:
+  if input.count(input.gate_rising(500*ns)) > 20:
       delay(2*us)
       output.pulse(500*ns)
 

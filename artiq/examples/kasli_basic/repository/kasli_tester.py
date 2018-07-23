@@ -152,7 +152,7 @@ class KasliTester(EnvExperiment):
                 for _ in range(n):
                     ttl_out.pulse(2*us)
                     delay(2*us)
-        return ttl_in.count() == n
+        return ttl_in.count(now_mu()) == n
 
     def test_ttl_ins(self):
         print("*** Testing TTL inputs.")
