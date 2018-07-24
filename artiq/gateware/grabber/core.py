@@ -78,7 +78,7 @@ class Parser(Module, AutoCSR):
         last_fval = Signal()
         self.comb += [
             Cat(dval, fval, lval).eq(cl[14:17]),
-            pix.stb.eq(dval),
+            pix.stb.eq(dval & fval & lval),
             pix.eop.eq(~fval & last_fval),
             Cat(pix.a, pix.b, pix.c).eq(Cat(cl[i] for i in bitseq))
         ]
