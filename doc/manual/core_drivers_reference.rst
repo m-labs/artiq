@@ -134,11 +134,18 @@ DAC/ADC drivers
     :members:
 
 
-Compound drivers
-----------------
+Miscellaneous
+-------------
 
 :mod:`artiq.coredevice.suservo` module
 ++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.suservo
+    :members:
+
+
+:mod:`artiq.coredevice.grabber` module
+++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.grabber
     :members:
