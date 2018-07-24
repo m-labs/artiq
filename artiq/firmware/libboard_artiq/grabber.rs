@@ -7,7 +7,7 @@ enum State {
     Up
 }
 
-static mut GRABBER_STATE: &'static mut [State] = &mut [State::Down; csr::GRABBER_LEN];
+static mut GRABBER_STATE: [State; csr::GRABBER_LEN] = [State::Down; csr::GRABBER_LEN];
 
 fn get_pll_reset(g: usize) -> bool {
     unsafe { (csr::GRABBER[g].pll_reset_read)() != 0 }
