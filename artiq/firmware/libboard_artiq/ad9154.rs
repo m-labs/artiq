@@ -153,8 +153,6 @@ fn dac_detect(dacno: u8) -> Result<(), &'static str> {
     spi_setup(dacno);
     if (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16) != 0x9154 {
         return Err("invalid AD9154 identification");
-    } else {
-        info!("AD9154-{} found", dacno);
     }
     Ok(())
 }

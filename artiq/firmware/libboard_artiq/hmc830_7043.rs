@@ -74,8 +74,6 @@ mod hmc830 {
         if id != 0xa7975 {
             error!("invalid HMC830 ID: 0x{:08x}", id);
             return Err("invalid HMC830 identification");
-        } else {
-            info!("HMC830 found");
         }
 
         Ok(())
@@ -244,8 +242,6 @@ pub mod hmc7043 {
         if id != CHIP_ID {
             error!("invalid HMC7043 ID: 0x{:08x}", id);
             return Err("invalid HMC7043 identification");
-        } else {
-            info!("HMC7043 found");
         }
 
         Ok(())
