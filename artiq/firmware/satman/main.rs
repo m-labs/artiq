@@ -249,10 +249,6 @@ fn drtio_link_rx_up() -> bool {
 }
 
 const SIPHASER_PHASE: u16 = 32;
-#[cfg(has_ad9154)]
-const SYSREF_PHASE_FPGA: u16 = 54;
-#[cfg(has_ad9154)]
-const SYSREF_PHASE_DAC: u16 = 61;
 
 #[no_mangle]
 pub extern fn main() -> i32 {
@@ -292,7 +288,14 @@ pub extern fn main() -> i32 {
         #[cfg(has_ad9154)]
         {
             if !ad9154_initialized {
-                board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
+                board_artiq::ad9154::jesd_unreset();
+                board_artiq::ad9154::init();
+                if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(1) {
+                    error!("failed to align SYSREF at FPGA: {}", e);
+                }
+                if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
+                    error!("failed to align SYSREF at DAC: {}", e);
+                }
                 ad9154_initialized = true;
             }
         }
@@ -306,9 +309,10 @@ pub extern fn main() -> i32 {
             {
                 if drtio_tsc_loaded() {
                     // Expected alignment: 1 RTIO clock period
-                    hmc830_7043::hmc7043::sysref_rtio_align(
-                        SYSREF_PHASE_FPGA,
-                        hmc830_7043::hmc7043::FPGA_CLK_DIV);
+                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(
+                            hmc830_7043::hmc7043::FPGA_CLK_DIV) {
+                        error!("failed to align SYSREF at FPGA: {}", e);
+                    }
                 }
             }
         }
