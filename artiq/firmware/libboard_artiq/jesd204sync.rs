@@ -67,8 +67,8 @@ fn sysref_cal_fpga() -> Result<u16, &'static str> {
     return Err("failed to reach 1->0 transition with fine delay");
 }
 
-fn sysref_rtio_align(phase_offset: u16, expected_align: u16) -> Result<(), &'static str> {
-    // This needs to take place once before DAC SYSREF scan, as
+fn sysref_rtio_align(phase_offset: u16) -> Result<(), &'static str> {
+    // This needs to take place before DAC SYSREF scan, as
     // the HMC7043 input clock (which defines slip resolution)
     // is 2x the DAC clock, so there are two possible phases from
     // the divider states. This deterministically selects one.
@@ -96,9 +96,6 @@ fn sysref_rtio_align(phase_offset: u16, expected_align: u16) -> Result<(), &'sta
         }
     }
     info!("  ...done ({}/{} slips)", slips0, slips1);
-    if (slips0 + slips1) % expected_align != 0 {
-        return Err("unexpected slip alignment");
-    }
 
     let mut margin_minus = None;
     for d in 0..phase_offset {
@@ -127,7 +124,7 @@ fn sysref_rtio_align(phase_offset: u16, expected_align: u16) -> Result<(), &'sta
     Ok(())
 }
 
-pub fn sysref_auto_rtio_align(expected_align: u16) -> Result<(), &'static str> {
+pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     let entry = config::read_str("sysref_phase_fpga", |r| r.map(|s| s.parse()));
     let phase_offset = match entry {
         Ok(Ok(phase)) => phase,
@@ -139,7 +136,7 @@ pub fn sysref_auto_rtio_align(expected_align: u16) -> Result<(), &'static str> {
             phase
         }
     };
-    sysref_rtio_align(phase_offset, expected_align)
+    sysref_rtio_align(phase_offset)
 }
 
 fn sysref_cal_dac(dacno: u8) -> Result<u16, &'static str> {

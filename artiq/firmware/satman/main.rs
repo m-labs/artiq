@@ -274,7 +274,10 @@ pub extern fn main() -> i32 {
     }
 
     #[cfg(has_ad9154)]
-    let mut ad9154_initialized = false;
+    {
+        board_artiq::ad9154::jesd_unreset();
+        board_artiq::ad9154::init();
+    }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
@@ -285,33 +288,20 @@ pub extern fn main() -> i32 {
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
-        #[cfg(has_ad9154)]
-        {
-            if !ad9154_initialized {
-                board_artiq::ad9154::jesd_unreset();
-                board_artiq::ad9154::init();
-                if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(1) {
-                    error!("failed to align SYSREF at FPGA: {}", e);
-                }
-                if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
-                    error!("failed to align SYSREF at DAC: {}", e);
-                }
-                ad9154_initialized = true;
-            }
-        }
         drtioaux::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);
         while drtio_link_rx_up() {
             process_errors();
             process_aux_packets();
-            #[cfg(has_hmc830_7043)]
+            #[cfg(has_ad9154)]
             {
                 if drtio_tsc_loaded() {
-                    // Expected alignment: 1 RTIO clock period
-                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(
-                            hmc830_7043::hmc7043::FPGA_CLK_DIV) {
+                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
                         error!("failed to align SYSREF at FPGA: {}", e);
+                    }
+                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
+                        error!("failed to align SYSREF at DAC: {}", e);
                     }
                 }
             }
