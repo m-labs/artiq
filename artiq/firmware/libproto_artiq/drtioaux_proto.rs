@@ -20,6 +20,7 @@ pub enum Packet {
     EchoReply,
     ResetRequest { phy: bool },
     ResetAck,
+    TSCAck,
 
     RtioErrorRequest,
     RtioNoErrorReply,
@@ -60,6 +61,7 @@ impl Packet {
                 phy: reader.read_bool()?
             },
             0x03 => Packet::ResetAck,
+            0x04 => Packet::TSCAck,
 
             0x20 => Packet::RtioErrorRequest,
             0x21 => Packet::RtioNoErrorReply,
@@ -163,6 +165,8 @@ impl Packet {
             },
             Packet::ResetAck =>
                 writer.write_u8(0x03)?,
+            Packet::TSCAck =>
+                writer.write_u8(0x04)?,
 
             Packet::RtioErrorRequest =>
                 writer.write_u8(0x20)?,

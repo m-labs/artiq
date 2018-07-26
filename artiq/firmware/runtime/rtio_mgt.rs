@@ -114,6 +114,27 @@ pub mod drtio {
         }
     }
 
+    fn wait_tsc_ack(linkno: u8, io: &Io) -> bool {
+        loop {
+            let mut count = 0;
+            if !link_rx_up(linkno) {
+                return false;
+            }
+            count += 1;
+            if count > 200 {
+                return false;
+            }
+            io.sleep(100).unwrap();
+            // TSCAck is the only aux packet that is sent spontaneously
+            // by the satellite, in response to a TSC set on the RT link.
+            let pr = drtioaux::recv_link(linkno);
+            match pr {
+                Ok(Some(drtioaux::Packet::TSCAck)) => return true,
+                _ => {}
+            }
+        }
+    }
+
     fn process_local_errors(linkno: u8) {
         let errors;
         let linkidx = linkno as usize;
@@ -173,7 +194,11 @@ pub mod drtio {
                             set_link_up(linkno, true);
                             init_buffer_space(linkno);
                             sync_tsc(linkno);
-                            info!("[LINK#{}] link initialization completed", linkno);
+                            if !wait_tsc_ack(linkno, &io) {
+                                info!("[LINK#{}] remote failed to ack TSC", linkno);
+                            } else {
+                                info!("[LINK#{}] link initialization completed", linkno);
+                            }
                         } else {
                             info!("[LINK#{}] ping failed", linkno);
                         }

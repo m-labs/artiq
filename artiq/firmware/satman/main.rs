@@ -294,15 +294,18 @@ pub extern fn main() -> i32 {
         while drtio_link_rx_up() {
             process_errors();
             process_aux_packets();
-            #[cfg(has_ad9154)]
-            {
-                if drtio_tsc_loaded() {
+            if drtio_tsc_loaded() {
+                #[cfg(has_ad9154)]
+                {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
                         error!("failed to align SYSREF at FPGA: {}", e);
                     }
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
                         error!("failed to align SYSREF at DAC: {}", e);
                     }
+                }
+                if let Err(e) = drtioaux::send_link(0, &drtioaux::Packet::TSCAck) {
+                    error!("aux packet error: {}", e);
                 }
             }
         }
