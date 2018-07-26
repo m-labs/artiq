@@ -29,6 +29,35 @@ impl fmt::Display for Error {
     }
 }
 
+struct FmtWrapper<'a> {
+    buf: &'a mut [u8],
+    offset: usize,
+}
+
+impl<'a> FmtWrapper<'a> {
+    fn new(buf: &'a mut [u8]) -> Self {
+        FmtWrapper {
+            buf: buf,
+            offset: 0,
+        }
+    }
+
+    fn contents(&self) -> &[u8] {
+        &self.buf[..self.offset]
+    }
+}
+
+impl<'a> fmt::Write for FmtWrapper<'a> {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        let bytes = s.as_bytes();
+        let remainder = &mut self.buf[self.offset..];
+        let remainder = &mut remainder[..bytes.len()];
+        remainder.copy_from_slice(bytes);
+        self.offset += bytes.len();
+        Ok(())
+    }
+}
+
 #[cfg(has_spiflash)]
 mod imp {
     use core::str;
@@ -36,6 +65,8 @@ mod imp {
     use cache;
     use spiflash;
     use super::Error;
+    use core::fmt::Write;
+    use super::FmtWrapper;
 
     // One flash sector immediately before the firmware.
     const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::SECTOR_SIZE;
@@ -222,6 +253,13 @@ mod imp {
             }
             res => res
         }
+    }
+
+    pub fn write_int(key: &str, value: u32) -> Result<(), Error> {
+        let mut buf = [0; 16];
+        let mut wrapper = FmtWrapper::new(&mut buf);
+        write!(&mut wrapper, "{}", value).unwrap();
+        write(key, wrapper.contents())
     }
 
     pub fn remove(key: &str) -> Result<(), Error> {
