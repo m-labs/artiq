@@ -1,6 +1,5 @@
 use board_misoc::{csr, clock};
 use ad9154_reg;
-use hmc830_7043::hmc7043;
 
 fn spi_setup(dacno: u8) {
     unsafe {
@@ -688,7 +687,7 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     }
 }
 
-fn dac_get_sync_error(dacno: u8) -> u16 {
+pub fn dac_get_sync_error(dacno: u8) -> u16 {
     spi_setup(dacno);
     let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
                      ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
@@ -696,73 +695,24 @@ fn dac_get_sync_error(dacno: u8) -> u16 {
     sync_error
 }
 
-fn dac_sysref_scan(dacno: u8, center_phase: u16) {
-    let mut margin_minus = None;
-    let mut margin_plus = None;
-
-    info!("AD9154-{} SYSREF scan...", dacno);
-
-    hmc7043::sysref_offset_dac(dacno, center_phase);
-    clock::spin_us(10000);
-    let mut sync_error_last = dac_get_sync_error(dacno);
-    for d in 0..128 {
-        hmc7043::sysref_offset_dac(dacno, center_phase - d);
-        clock::spin_us(10000);
-        let sync_error = dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
-            info!("  sync error-: {} -> {}", sync_error_last, sync_error);
-            margin_minus = Some(d);
-            break;
-        }
-    }
-
-    hmc7043::sysref_offset_dac(dacno, center_phase);
-    clock::spin_us(10000);
-    sync_error_last = dac_get_sync_error(dacno);
-    for d in 0..128 {
-        hmc7043::sysref_offset_dac(dacno, center_phase + d);
-        clock::spin_us(10000);
-        let sync_error = dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
-            info!("  sync error+: {} -> {}", sync_error_last, sync_error);
-            margin_plus = Some(d);
-            break;
-        }
-    }
-
-    if margin_minus.is_some() && margin_plus.is_some() {
-        let margin_minus = margin_minus.unwrap();
-        let margin_plus = margin_plus.unwrap();
-        info!("  margins: -{} +{}", margin_minus, margin_plus);
-        if margin_minus < 10 || margin_plus < 10 {
-            error!("SYSREF margins are too small");
-        }
-    } else {
-        error!("Unable to determine SYSREF margins");
-    }
-}
-
-fn init_dac(dacno: u8, sysref_phase: u16) -> Result<(), &'static str> {
+fn init_dac(dacno: u8) -> Result<(), &'static str> {
     let dacno = dacno as u8;
-    // Reset the DAC, detect and configure it
+
     dac_reset(dacno);
     dac_detect(dacno)?;
     dac_cfg_retry(dacno)?;
-    // Run the PRBS, STPL and SYSREF scan tests
+
     dac_prbs(dacno)?;
     dac_stpl(dacno, 4, 2)?;
-    dac_sysref_scan(dacno, sysref_phase);
-    // Set SYSREF phase and reconfigure the DAC
-    hmc7043::sysref_offset_dac(dacno, sysref_phase);
+
     dac_cfg_retry(dacno)?;
+
     Ok(())
 }
 
-pub fn init(sysref_phase_dac: u16) {
+pub fn init() {
     for dacno in 0..csr::AD9154.len() {
-        // We assume DCLK and SYSREF traces are matched on the PCB
-        // (they are on Sayma) so only one phase is needed.
-        match init_dac(dacno as u8, sysref_phase_dac) {
+        match init_dac(dacno as u8) {
             Ok(_) => (),
             Err(e) => error!("failed to initialize AD9154-{}: {}", dacno, e)
         }

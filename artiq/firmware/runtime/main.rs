@@ -56,9 +56,6 @@ mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
 
-#[cfg(has_ad9154)]
-const SYSREF_PHASE_DAC: u16 = 94;
-
 fn startup() {
     irq::set_mask(0);
     irq::set_ie(true);
@@ -114,10 +111,13 @@ fn startup() {
     #[cfg(has_ad9154)]
     {
         board_artiq::ad9154::jesd_unreset();
+        board_artiq::ad9154::init();
         if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(1) {
             error!("failed to align SYSREF at FPGA: {}", e);
         }
-        board_artiq::ad9154::init(SYSREF_PHASE_DAC);
+        if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
+            error!("failed to align SYSREF at DAC: {}", e);
+        }
     }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
