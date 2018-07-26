@@ -57,8 +57,6 @@ mod moninj;
 mod analyzer;
 
 #[cfg(has_ad9154)]
-const SYSREF_PHASE_FPGA: u16 = 41;
-#[cfg(has_ad9154)]
 const SYSREF_PHASE_DAC: u16 = 94;
 
 fn startup() {
@@ -114,7 +112,13 @@ fn startup() {
     /* must be the first SPI init because of HMC830 SPI mode selection */
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
-    board_artiq::ad9154::init(SYSREF_PHASE_FPGA, SYSREF_PHASE_DAC);
+    {
+        board_artiq::ad9154::jesd_unreset();
+        if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align(1) {
+            error!("failed to align SYSREF at FPGA: {}", e);
+        }
+        board_artiq::ad9154::init(SYSREF_PHASE_DAC);
+    }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 

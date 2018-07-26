@@ -391,7 +391,7 @@ pub mod hmc7043 {
         clock::spin_us(100);
     }
 
-    fn sysref_offset_fpga(phase_offset: u16) {
+    pub fn sysref_offset_fpga(phase_offset: u16) {
         let analog_delay = (phase_offset % 17) as u8;
         let digital_delay = (phase_offset / 17) as u8;
         spi_setup();
@@ -400,70 +400,11 @@ pub mod hmc7043 {
         clock::spin_us(100);
     }
 
-    fn sysref_slip() {
+    pub fn sysref_slip() {
         spi_setup();
         write(0x0002, 0x02);
         write(0x0002, 0x00);
         clock::spin_us(100);
-    }
-
-    fn sysref_sample() -> bool {
-        unsafe { csr::sysref_sampler::sample_result_read() == 1 }
-    }
-
-    pub fn sysref_rtio_align(phase_offset: u16, expected_align: u16) {
-        info!("aligning SYSREF with RTIO...");
-
-        let mut slips0 = 0;
-        let mut slips1 = 0;
-        // meet setup/hold (assuming FPGA timing margins are OK)
-        sysref_offset_fpga(phase_offset);
-        // if we are already in the 1 zone, get out of it
-        while sysref_sample() {
-            sysref_slip();
-            slips0 += 1;
-            if slips0 > 1024 {
-                error!("  failed to reach 1->0 transition");
-                break;
-            }
-        }
-        // get to the edge of the 0->1 transition (our final setpoint)
-        while !sysref_sample() {
-            sysref_slip();
-            slips1 += 1;
-            if slips1 > 1024 {
-                error!("  failed to reach 0->1 transition");
-                break;
-            }
-        }
-        info!("  ...done ({}/{} slips)", slips0, slips1);
-        if (slips0 + slips1) % expected_align != 0 {
-            error!("  unexpected slip alignment");
-        }
-
-        let mut margin_minus = None;
-        for d in 0..phase_offset {
-            sysref_offset_fpga(phase_offset - d);
-            if !sysref_sample() {
-                margin_minus = Some(d);
-                break;
-            }
-        }
-        // meet setup/hold
-        sysref_offset_fpga(phase_offset);
-
-        if margin_minus.is_some() {
-            let margin_minus = margin_minus.unwrap();
-            // one phase slip (period of the 1.2GHz input clock)
-            let period = 2*17; // approximate: 2 digital coarse delay steps
-            let margin_plus = if period > margin_minus { period - margin_minus } else { 0 };
-            info!("  margins at FPGA: -{} +{}", margin_minus, margin_plus);
-            if margin_minus < 10 || margin_plus < 10 {
-                error!("SYSREF margin at FPGA is too small");
-            }
-        } else {
-            error!("unable to determine SYSREF margin at FPGA");
-        }
     }
 }
 

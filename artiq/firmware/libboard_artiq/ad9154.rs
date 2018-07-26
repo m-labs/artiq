@@ -34,7 +34,7 @@ fn read(addr: u16) -> u8 {
     }
 }
 
-fn jesd_unreset() {
+pub fn jesd_unreset() {
     unsafe {
         csr::ad9154_crg::ibuf_disable_write(0);
         csr::ad9154_crg::jreset_write(0);
@@ -760,17 +760,7 @@ fn init_dac(dacno: u8, sysref_phase: u16) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn init(sysref_phase_fpga: u16, sysref_phase_dac: u16) {
-    // Release the JESD clock domain reset late, as we need to
-    // set up clock chips before.
-    jesd_unreset();
-
-    // This needs to take place once before DAC SYSREF scan, as
-    // the HMC7043 input clock (which defines slip resolution)
-    // is 2x the DAC clock, so there are two possible phases from
-    // the divider states. This deterministically selects one.
-    hmc7043::sysref_rtio_align(sysref_phase_fpga, 1);
-
+pub fn init(sysref_phase_dac: u16) {
     for dacno in 0..csr::AD9154.len() {
         // We assume DCLK and SYSREF traces are matched on the PCB
         // (they are on Sayma) so only one phase is needed.
