@@ -101,6 +101,9 @@ pub mod drtio {
                 return 0
             }
             count += 1;
+            if count > 200 {
+                return 0;
+            }
             drtioaux::send_link(linkno, &drtioaux::Packet::EchoRequest).unwrap();
             io.sleep(100).unwrap();
             let pr = drtioaux::recv_link(linkno);
