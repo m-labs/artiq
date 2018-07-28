@@ -171,7 +171,7 @@ class AD53xx:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
             if ctrl & 0b10000:
                 raise ValueError("DAC over temperature")
-            delay(10*us)
+            delay(15*us)
         self.bus.write(  # enable power and overtemperature shutdown
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
         if not blind:
