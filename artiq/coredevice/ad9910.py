@@ -39,7 +39,8 @@ class AD9910:
     the digital step attenuator, and the RF switch.
 
     :param chip_select: Chip select configuration. On Urukul this is an
-        encoded chip select and not "one-hot".
+        encoded chip select and not "one-hot": 3 to address multiple chips
+        (as configured through CFG_MASK_NU), 4-7 for individual channels.
     :param cpld_device: Name of the Urukul CPLD this device is on.
     :param sw_device: Name of the RF switch device. The RF switch is a
         TTLOut channel available as the :attr:`sw` attribute of this instance.
