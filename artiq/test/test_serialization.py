@@ -26,6 +26,8 @@ class PYON(unittest.TestCase):
             with self.subTest(enc=enc):
                 self.assertEqual(pyon.decode(enc(_pyon_test_object)),
                                  _pyon_test_object)
+                # NaNs don't compare equal, so test separately.
+                assert np.isnan(pyon.decode(enc(np.nan)))
 
     def test_encdec_array(self):
         orig = {k: (np.array(v), np.array([v]))
