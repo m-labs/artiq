@@ -188,6 +188,7 @@ _eval_dict = {
     "false": False,
     "true": True,
     "slice": slice,
+    "nan": numpy.nan,
 
     "Fraction": Fraction,
     "OrderedDict": OrderedDict,
