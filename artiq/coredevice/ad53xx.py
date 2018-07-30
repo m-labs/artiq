@@ -178,7 +178,7 @@ class AD53xx:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
             if ctrl != 0b0010:
                 raise ValueError("DAC CONTROL readback mismatch")
-            delay(10*us)
+            delay(15*us)
 
     @kernel
     def read_reg(self, channel=0, op=AD53XX_READ_X1A):
