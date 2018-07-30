@@ -146,7 +146,8 @@ fn read_injection_status(channel: u32, probe: u8) -> u8 {
 }
 
 fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
-    let mut watch_list = BTreeMap::new();
+    let mut probe_watch_list = BTreeMap::new();
+    let mut inject_watch_list = BTreeMap::new();
     let mut next_check = 0;
 
     read_magic(&mut stream)?;
@@ -158,11 +159,18 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<Sc
             trace!("moninj<-host {:?}", request);
 
             match request {
-                HostMessage::Monitor { enable, channel, probe } => {
+                HostMessage::MonitorProbe { enable, channel, probe } => {
                     if enable {
-                        let _ = watch_list.entry((channel, probe)).or_insert(None);
+                        let _ = probe_watch_list.entry((channel, probe)).or_insert(None);
                     } else {
-                        let _ = watch_list.remove(&(channel, probe));
+                        let _ = probe_watch_list.remove(&(channel, probe));
+                    }
+                },
+                HostMessage::MonitorInjection { enable, channel, overrd } => {
+                    if enable {
+                        let _ = inject_watch_list.entry((channel, overrd)).or_insert(None);
+                    } else {
+                        let _ = inject_watch_list.remove(&(channel, overrd));
                     }
                 },
                 HostMessage::Inject { channel, overrd, value } => inject(channel, overrd, value),
@@ -183,12 +191,27 @@ fn connection_worker(io: &Io, mut stream: &mut TcpStream) -> Result<(), Error<Sc
         }
 
         if clock::get_ms() > next_check {
-            for (&(channel, probe), previous) in watch_list.iter_mut() {
+            for (&(channel, probe), previous) in probe_watch_list.iter_mut() {
                 let current = read_probe(channel, probe);
                 if previous.is_none() || previous.unwrap() != current {
                     let message = DeviceMessage::MonitorStatus {
                         channel: channel,
                         probe: probe,
+                        value: current
+                    };
+
+                    trace!("moninj->host {:?}", message);
+                    message.write_to(stream)?;
+
+                    *previous = Some(current);
+                }
+            }
+            for (&(channel, overrd), previous) in inject_watch_list.iter_mut() {
+                let current = read_injection_status(channel, overrd);
+                if previous.is_none() || previous.unwrap() != current {
+                    let message = DeviceMessage::InjectionStatus {
+                        channel: channel,
+                        overrd: overrd,
                         value: current
                     };
 

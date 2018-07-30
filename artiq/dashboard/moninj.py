@@ -339,18 +339,20 @@ class _DeviceManager:
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, channel, TTLProbe.level.value)
-            self.core_connection.monitor(enable, channel, TTLProbe.oe.value)
+            self.core_connection.monitor_probe(enable, channel, TTLProbe.level.value)
+            self.core_connection.monitor_probe(enable, channel, TTLProbe.oe.value)
+            self.core_connection.monitor_injection(enable, channel, TTLOverride.en.value)
+            self.core_connection.monitor_injection(enable, channel, TTLOverride.level.value)
             if enable:
                 self.core_connection.get_injection_status(channel, TTLOverride.en.value)
 
     def setup_dds_monitoring(self, enable, bus_channel, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, bus_channel, channel)
+            self.core_connection.monitor_probe(enable, bus_channel, channel)
 
     def setup_dac_monitoring(self, enable, spi_channel, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, spi_channel, channel)
+            self.core_connection.monitor_probe(enable, spi_channel, channel)
 
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
@@ -371,7 +373,12 @@ class _DeviceManager:
 
     def injection_status_cb(self, channel, override, value):
         if channel in self.ttl_widgets:
-            self.ttl_widgets[channel].cur_override = bool(value)
+            widget = self.ttl_widgets[channel]
+            if override == TTLOverride.en.value:
+                widget.cur_override = bool(value)
+            if override == TTLOverride.level.value:
+                widget.cur_level = bool(value)
+            widget.refresh_display()
 
     async def core_connector(self):
         while True:
