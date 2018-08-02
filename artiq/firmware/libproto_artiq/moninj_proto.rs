@@ -54,17 +54,17 @@ impl HostMessage {
                 channel: reader.read_u32()?,
                 probe: reader.read_u8()?
             },
-            1 => HostMessage::MonitorInjection {
-                enable: if reader.read_u8()? == 0 { false } else { true },
-                channel: reader.read_u32()?,
-                overrd: reader.read_u8()?
-            },
-            2 => HostMessage::Inject {
+            1 => HostMessage::Inject {
                 channel: reader.read_u32()?,
                 overrd: reader.read_u8()?,
                 value: reader.read_u8()?
             },
-            3 => HostMessage::GetInjectionStatus {
+            2 => HostMessage::GetInjectionStatus {
+                channel: reader.read_u32()?,
+                overrd: reader.read_u8()?
+            },
+            3 => HostMessage::MonitorInjection {
+                enable: if reader.read_u8()? == 0 { false } else { true },
                 channel: reader.read_u32()?,
                 overrd: reader.read_u8()?
             },
