@@ -158,6 +158,13 @@ class AD9912:
         return int64(round(self.ftw_per_hz*frequency))
 
     @portable(flags={"fast-math"})
+    def ftw_to_frequency(self, ftw):
+        """Returns the frequency corresponding to the given
+        frequency tuning word.
+        """
+        return ftw/self.ftw_per_hz
+
+    @portable(flags={"fast-math"})
     def turns_to_pow(self, phase):
         """Returns the phase offset word corresponding to the given
         phase.
