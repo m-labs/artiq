@@ -149,14 +149,19 @@ mod imp {
         // This is worst-case quadratic, but we're limited by a small SPI flash sector size,
         // so it does not really matter.
         let mut iter = Iter::new(old_data);
-        while let Some(result) = iter.next() {
+        'iter: while let Some(result) = iter.next() {
             let (key, mut value) = result?;
+            if value.is_empty() {
+                // This is a removed entry, ignore it.
+                continue
+            }
 
             let mut next_iter = iter.clone();
             while let Some(next_result) = next_iter.next() {
-                let (next_key, next_value) = next_result?;
+                let (next_key, _) = next_result?;
                 if key == next_key {
-                    value = next_value
+                    // There's another entry that overwrites this one, ignore this one.
+                    continue 'iter
                 }
             }
             data = unsafe { append_at(data, key, value)? };
