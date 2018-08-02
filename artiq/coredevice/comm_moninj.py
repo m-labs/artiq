@@ -56,15 +56,15 @@ class CommMonInj:
         self._writer.write(packet)
 
     def monitor_injection(self, enable, channel, overrd):
-        packet = struct.pack(">bblb", 1, enable, channel, overrd)
+        packet = struct.pack(">bblb", 3, enable, channel, overrd)
         self._writer.write(packet)
 
     def inject(self, channel, override, value):
-        packet = struct.pack(">blbb", 2, channel, override, value)
+        packet = struct.pack(">blbb", 1, channel, override, value)
         self._writer.write(packet)
 
     def get_injection_status(self, channel, override):
-        packet = struct.pack(">blb", 3, channel, override)
+        packet = struct.pack(">blb", 2, channel, override)
         self._writer.write(packet)
 
     async def _receive_cr(self):
