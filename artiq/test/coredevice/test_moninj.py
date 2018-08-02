@@ -25,7 +25,9 @@ class MonInjTest(ExperimentCase):
             loop.run_until_complete(moninj_comm.connect(core_host))
             try:
                 moninj_comm.get_injection_status(loop_out_channel, TTLOverride.en.value)
-                moninj_comm.monitor(True, loop_in_channel, TTLProbe.level.value)
+                moninj_comm.monitor_probe(True, loop_in_channel, TTLProbe.level.value)
+                moninj_comm.monitor_injection(True, loop_out_channel, TTLOverride.level.en.value)
+                loop.run_until_complete(asyncio.sleep(0.5))
                 moninj_comm.inject(loop_out_channel, TTLOverride.level.value, 0)
                 moninj_comm.inject(loop_out_channel, TTLOverride.level.en.value, 1)
                 loop.run_until_complete(asyncio.sleep(0.5))
@@ -50,5 +52,7 @@ class MonInjTest(ExperimentCase):
         ])
         self.assertEqual(injection_statuses, [
             (loop_out_channel, TTLOverride.en.value, 0),
+            (loop_out_channel, TTLOverride.en.value, 0),
+            (loop_out_channel, TTLOverride.en.value, 1),
             (loop_out_channel, TTLOverride.en.value, 1)
         ])
