@@ -269,6 +269,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
+        self.config["HMC7043_ENABLE_CLK1"] = None
 
         drtio_csr_group = []
         drtio_memory_group = []
@@ -571,6 +572,8 @@ class Satellite(BaseSoC, RTMCommon):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
+        self.config["HMC7043_ENABLE_CLK1"] = None
+
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
         self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
         self.submodules.drtio0 = rx0(DRTIOSatellite(
