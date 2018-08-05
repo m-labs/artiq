@@ -371,27 +371,9 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::LMFC_VAR_1, 0x0a);
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
     write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 0*ad9154_reg::SYNCENABLE |
-            0*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY |
+            0x2*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
             1*ad9154_reg::SYNCCLRLAST);
-    write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
-            0*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY |
-            1*ad9154_reg::SYNCCLRLAST);
-    write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
-            1*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY |
-            0*ad9154_reg::SYNCCLRLAST);
-    clock::spin_us(1000); // ensure at least one sysref edge
-    if read(ad9154_reg::SYNC_CONTROL) & ad9154_reg::SYNCARM != 0 {
-        return Err("no sysref edge");
-    }
-    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
-        return Err("no sync lock");
-    }
-    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_WLIM != 0 {
-        return Err("sysref phase error");
-    }
+
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
     write(ad9154_reg::XBAR_LN_2_3,
@@ -689,9 +671,12 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
 
 pub fn dac_get_sync_error(dacno: u8) -> u16 {
     spi_setup(dacno);
-    let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
-                     ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
+    let sync_error = ((read(ad9154_reg::SYNC_LASTERR_L) as u16) |
+                     ((read(ad9154_reg::SYNC_LASTERR_H) as u16) << 8))
                      & 0x1ff;
+    write(ad9154_reg::SYNC_CONTROL,
+            0x2*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
+            1*ad9154_reg::SYNCCLRLAST);
     sync_error
 }
 
