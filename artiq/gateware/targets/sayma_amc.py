@@ -151,6 +151,11 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["SI5324_SAYMA_REF"] = None
+        # ensure pins are properly biased and terminated
+        si5324_clkout = platform.request("si5324_clkout", 0)
+        self.specials += Instance(
+            "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
+            attr={("DONT_TOUCH", "true")})
 
         # RTIO
         rtio_channels = []
@@ -258,6 +263,11 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["SI5324_SAYMA_REF"] = None
+        # ensure pins are properly biased and terminated
+        si5324_clkout = platform.request("si5324_clkout", 0)
+        self.specials += Instance(
+            "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
+            attr={("DONT_TOUCH", "true")})
 
         self.comb += [
             platform.request("sfp_tx_disable", i).eq(0)
@@ -603,6 +613,11 @@ class Satellite(BaseSoC, RTMCommon):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
+        # ensure pins are properly biased and terminated
+        si5324_clkout = platform.request("si5324_clkout", 0)
+        self.specials += Instance(
+            "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
+            attr={("DONT_TOUCH", "true")})
 
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             self.drtio0.coarse_ts, self.ad9154_crg.jref)
