@@ -148,13 +148,13 @@ fn sysref_cal_dac(dacno: u8) -> Result<u16, &'static str> {
 
     hmc7043::sysref_offset_dac(dacno, d);
     clock::spin_us(10000);
-    ad9154::dac_get_sync_error(dacno);  // clear SYNC_LASTERR
+    let sync_error_last = ad9154::dac_get_sync_error(dacno);
 
     loop {
         hmc7043::sysref_offset_dac(dacno, d);
         clock::spin_us(10000);
         let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != 0 {
+        if sync_error != sync_error_last {
             dmin = d;
             break;
         }
@@ -165,16 +165,16 @@ fn sysref_cal_dac(dacno: u8) -> Result<u16, &'static str> {
         }
     }
 
-    d += 17;  // get away from jitter
+    d += 5;  // get away from jitter
     hmc7043::sysref_offset_dac(dacno, d);
     clock::spin_us(10000);
-    ad9154::dac_get_sync_error(dacno);  // clear SYNC_LASTERR
+    let sync_error_last = ad9154::dac_get_sync_error(dacno);
 
     loop {
         hmc7043::sysref_offset_dac(dacno, d);
         clock::spin_us(10000);
         let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != 0 {
+        if sync_error != sync_error_last {
             dmax = d;
             break;
         }
@@ -198,13 +198,13 @@ fn sysref_dac_align(dacno: u8, phase: u16) -> Result<(), &'static str> {
 
     hmc7043::sysref_offset_dac(dacno, phase);
     clock::spin_us(10000);
-    ad9154::dac_get_sync_error(dacno);  // clear SYNC_LASTERR
+    let sync_error_last = ad9154::dac_get_sync_error(dacno);
     for d in 0..128 {
         hmc7043::sysref_offset_dac(dacno, phase - d);
         clock::spin_us(10000);
         let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != 0 {
-            info!("  sync error-: {}", sync_error);
+        if sync_error != sync_error_last {
+            info!("  sync error-: {} -> {}", sync_error_last, sync_error);
             margin_minus = Some(d);
             break;
         }
@@ -212,13 +212,13 @@ fn sysref_dac_align(dacno: u8, phase: u16) -> Result<(), &'static str> {
 
     hmc7043::sysref_offset_dac(dacno, phase);
     clock::spin_us(10000);
-    ad9154::dac_get_sync_error(dacno);  // clear SYNC_LASTERR
+    let sync_error_last = ad9154::dac_get_sync_error(dacno);
     for d in 0..128 {
         hmc7043::sysref_offset_dac(dacno, phase + d);
         clock::spin_us(10000);
         let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != 0 {
-            info!("  sync error+: {}", sync_error);
+        if sync_error != sync_error_last {
+            info!("  sync error+: {} -> {}", sync_error_last, sync_error);
             margin_plus = Some(d);
             break;
         }
