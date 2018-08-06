@@ -850,7 +850,10 @@ class Master(_MasterBase):
             phy = ttl_simple.Output(sc.led)
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
+        # matches Tester EEM numbers
+        eem.DIO.add_std(self, 5,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 1, 0, ttl_serdes_7series.Output_8X)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
@@ -863,7 +866,6 @@ class Satellite(_SatelliteBase):
     def __init__(self, *args, **kwargs):
         _SatelliteBase.__init__(self, *args, **kwargs)
 
-
         self.rtio_channels = []
         phy = ttl_simple.Output(self.platform.request("user_led", 0))
         self.submodules += phy
@@ -872,7 +874,9 @@ class Satellite(_SatelliteBase):
             phy = ttl_simple.Output(self.platform.request("sfp_ctl", i).led)
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        eem.DIO.add_std(self, 0, ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
+        # matches Tester EEM numbers
+        eem.DIO.add_std(self, 5,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
 
         self.add_rtio(self.rtio_channels)
 

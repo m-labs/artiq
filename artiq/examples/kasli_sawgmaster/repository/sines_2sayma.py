@@ -1,7 +1,7 @@
 from artiq.experiment import *
 
 
-class SAWGTestDRTIO(EnvExperiment):
+class Sines2Sayma(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.sawgs = [self.get_device("sawg"+str(i)) for i in range(16)]
