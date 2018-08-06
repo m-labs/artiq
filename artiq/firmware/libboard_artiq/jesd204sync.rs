@@ -1,4 +1,4 @@
-use board_misoc::{csr, clock, config};
+use board_misoc::{csr, config};
 
 use hmc830_7043::hmc7043;
 use ad9154;
@@ -147,14 +147,12 @@ fn sysref_cal_dac(dacno: u8) -> Result<u16, &'static str> {
     let dmax;
 
     hmc7043::sysref_offset_dac(dacno, d);
-    clock::spin_us(10000);
-    let sync_error_last = ad9154::dac_get_sync_error(dacno);
+    ad9154::dac_sync(dacno)?;
 
     loop {
         hmc7043::sysref_offset_dac(dacno, d);
-        clock::spin_us(10000);
-        let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
+        let realign_occured = ad9154::dac_sync(dacno)?;
+        if realign_occured {
             dmin = d;
             break;
         }
@@ -165,16 +163,14 @@ fn sysref_cal_dac(dacno: u8) -> Result<u16, &'static str> {
         }
     }
 
-    d += 5;  // get away from jitter
+    d += 17;  // get away from jitter
     hmc7043::sysref_offset_dac(dacno, d);
-    clock::spin_us(10000);
-    let sync_error_last = ad9154::dac_get_sync_error(dacno);
+    ad9154::dac_sync(dacno)?;
 
     loop {
         hmc7043::sysref_offset_dac(dacno, d);
-        clock::spin_us(10000);
-        let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
+        let realign_occured = ad9154::dac_sync(dacno)?;
+        if realign_occured {
             dmax = d;
             break;
         }
@@ -197,28 +193,22 @@ fn sysref_dac_align(dacno: u8, phase: u16) -> Result<(), &'static str> {
     info!("verifying SYSREF margins at DAC-{}...", dacno);
 
     hmc7043::sysref_offset_dac(dacno, phase);
-    clock::spin_us(10000);
-    let sync_error_last = ad9154::dac_get_sync_error(dacno);
+    ad9154::dac_sync(dacno)?;
     for d in 0..128 {
         hmc7043::sysref_offset_dac(dacno, phase - d);
-        clock::spin_us(10000);
-        let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
-            info!("  sync error-: {} -> {}", sync_error_last, sync_error);
+        let realign_occured = ad9154::dac_sync(dacno)?;
+        if realign_occured {
             margin_minus = Some(d);
             break;
         }
     }
 
     hmc7043::sysref_offset_dac(dacno, phase);
-    clock::spin_us(10000);
-    let sync_error_last = ad9154::dac_get_sync_error(dacno);
+    ad9154::dac_sync(dacno)?;
     for d in 0..128 {
         hmc7043::sysref_offset_dac(dacno, phase + d);
-        clock::spin_us(10000);
-        let sync_error = ad9154::dac_get_sync_error(dacno);
-        if sync_error != sync_error_last {
-            info!("  sync error+: {} -> {}", sync_error_last, sync_error);
+        let realign_occured = ad9154::dac_sync(dacno)?;
+        if realign_occured {
             margin_plus = Some(d);
             break;
         }
@@ -235,8 +225,9 @@ fn sysref_dac_align(dacno: u8, phase: u16) -> Result<(), &'static str> {
         return Err("Unable to determine SYSREF margins at DAC");
     }
 
-    // Leave SYSREF at the correct setting
+    // Put SYSREF at the correct phase and sync DAC
     hmc7043::sysref_offset_dac(dacno, phase);
+    ad9154::dac_sync(dacno)?;
 
     Ok(())
 }

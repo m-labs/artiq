@@ -370,28 +370,7 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::LMFC_VAR_0, 0x0a); // receive buffer delay
     write(ad9154_reg::LMFC_VAR_1, 0x0a);
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
-    write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 0*ad9154_reg::SYNCENABLE |
-            0*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY |
-            1*ad9154_reg::SYNCCLRLAST);
-    write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
-            0*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY |
-            1*ad9154_reg::SYNCCLRLAST);
-    write(ad9154_reg::SYNC_CONTROL,
-            0x9*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
-            1*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY |
-            0*ad9154_reg::SYNCCLRLAST);
-    clock::spin_us(1000); // ensure at least one sysref edge
-    if read(ad9154_reg::SYNC_CONTROL) & ad9154_reg::SYNCARM != 0 {
-        return Err("no sysref edge");
-    }
-    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_LOCK == 0 {
-        return Err("no sync lock");
-    }
-    if read(ad9154_reg::SYNC_STATUS) & ad9154_reg::SYNC_WLIM != 0 {
-        return Err("sysref phase error");
-    }
+
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
     write(ad9154_reg::XBAR_LN_2_3,
@@ -687,12 +666,26 @@ fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
     }
 }
 
-pub fn dac_get_sync_error(dacno: u8) -> u16 {
+pub fn dac_sync(dacno: u8) -> Result<bool, &'static str> {
     spi_setup(dacno);
-    let sync_error = ((read(ad9154_reg::SYNC_CURRERR_L) as u16) |
-                     ((read(ad9154_reg::SYNC_CURRERR_H) as u16) << 8))
-                     & 0x1ff;
-    sync_error
+
+    write(ad9154_reg::SYNC_CONTROL,
+        0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
+        1*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY);
+    clock::spin_us(1000); // ensure at least one sysref edge
+    let sync_status = read(ad9154_reg::SYNC_STATUS);
+
+    if sync_status & ad9154_reg::SYNC_BUSY != 0 {
+        return Err("sync logic busy");
+    }
+    if sync_status & ad9154_reg::SYNC_LOCK == 0 {
+        return Err("no sync lock");
+    }
+    if sync_status & ad9154_reg::SYNC_TRIP == 0 {
+        return Err("no sysref edge");
+    }
+    let realign_occured = sync_status & ad9154_reg::SYNC_ROTATE != 0;
+    Ok(realign_occured)
 }
 
 fn init_dac(dacno: u8) -> Result<(), &'static str> {
