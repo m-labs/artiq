@@ -370,6 +370,11 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::LMFC_VAR_0, 0x0a); // receive buffer delay
     write(ad9154_reg::LMFC_VAR_1, 0x0a);
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
+    // datasheet seems to say ENABLE and ARM should be separate steps,
+    // so enable now so it can be armed in dac_sync().
+    write(ad9154_reg::SYNC_CONTROL,
+        0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
+        0*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY);
 
     write(ad9154_reg::XBAR_LN_0_1,
             0*ad9154_reg::LOGICAL_LANE0_SRC | 1*ad9154_reg::LOGICAL_LANE1_SRC);
