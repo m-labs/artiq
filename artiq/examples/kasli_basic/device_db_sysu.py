@@ -42,7 +42,7 @@ for i in range(40):
     device_db["ttl" + str(i)] = {
         "type": "local",
         "module": "artiq.coredevice.ttl",
-        "class": "TTLInOut" if i < 4 else "TTLOut",
+        "class": "TTLInOut" if i < 16 else "TTLOut",
         "arguments": {"channel": i},
     }
 

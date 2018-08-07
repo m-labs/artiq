@@ -246,8 +246,10 @@ class SYSU(_StandaloneBase):
 
         self.rtio_channels = []
         eem.DIO.add_std(self, 2,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        for i in range(3, 7):
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
+        eem.DIO.add_std(self, 3,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.InOut_8X)
+        for i in range(4, 7):
             eem.DIO.add_std(self, i,
                 ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 1, 0, ttl_serdes_7series.Output_8X)
