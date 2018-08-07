@@ -34,6 +34,20 @@ mod cslice {
             }
         }
     }
+
+    pub trait AsCSlice<'a, T> {
+        fn as_c_slice(&'a self) -> CSlice<'a, T>;
+    }
+
+    impl<'a> AsCSlice<'a, u8> for str {
+        fn as_c_slice(&'a self) -> CSlice<'a, u8> {
+            CSlice {
+                base: self.as_ptr(),
+                len: self.len() as u32,
+                phantom: PhantomData
+            }
+        }
+    }
 }
 
 #[path = "../../firmware/ksupport/eh.rs"]
