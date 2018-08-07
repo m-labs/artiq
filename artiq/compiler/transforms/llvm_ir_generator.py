@@ -1339,6 +1339,12 @@ class LLVMIRGenerator:
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
         if fun_type.async:
+            # If this RPC is called using an `invoke` ARTIQ IR instruction, there will be
+            # no other instructions in this basic block. Since this RPC is async, it cannot
+            # possibly raise an exception, so add an explicit jump to the normal successor.
+            if llunwindblock:
+                self.llbuilder.branch(llnormalblock)
+
             return ll.Undefined
 
         # T result = {

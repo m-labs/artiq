@@ -221,6 +221,17 @@ class _RPCCalls(EnvExperiment):
     def builtin(self):
         sleep(1.0)
 
+    @rpc(flags={"async"})
+    def async_rpc(self):
+        pass
+
+    @kernel
+    def async_in_try(self):
+        try:
+            self.async_rpc()
+        except ValueError:
+            pass
+
 
 class RPCCallsTest(ExperimentCase):
     def test_args(self):
@@ -237,6 +248,7 @@ class RPCCallsTest(ExperimentCase):
         self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
         self.assertTrue(numpy.isnan(exp.numpy_nan()).all())
         exp.builtin()
+        exp.async_in_try()
 
 
 class _Annotation(EnvExperiment):
