@@ -258,8 +258,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def dropEvent(self, ev):
         for uri in ev.mimeData().urls():
             if uri.scheme() == "file":
-                logger.debug("Loading HDF5 arguments from %s", uri.path())
-                asyncio.ensure_future(self.load_hdf5_task(uri.path()))
+                filename = QtCore.QDir.toNativeSeparators(uri.toLocalFile())
+                logger.debug("Loading HDF5 arguments from %s", filename)
+                asyncio.ensure_future(self.load_hdf5_task(filename))
                 break
 
     async def compute_arginfo(self):
