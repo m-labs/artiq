@@ -207,7 +207,18 @@ fn startup_ethernet() {
             info!("using MAC address {}", hardware_addr);
         }
         _ => {
-            hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
+            #[cfg(soc_platform = "kasli")]
+            {
+                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
+            }
+            #[cfg(soc_platform = "sayma_amc")]
+            {
+                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]);
+            }
+            #[cfg(soc_platform = "kc705")]
+            {
+                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
+            }
             warn!("using default MAC address {}; consider changing it", hardware_addr);
         }
     }
@@ -219,7 +230,18 @@ fn startup_ethernet() {
             info!("using IP address {}", protocol_addr);
         }
         _ => {
-            protocol_addr = IpAddress::v4(192, 168, 1, 50);
+            #[cfg(soc_platform = "kasli")]
+            {
+                protocol_addr = IpAddress::v4(192, 168, 1, 70);
+            }
+            #[cfg(soc_platform = "sayma_amc")]
+            {
+                protocol_addr = IpAddress::v4(192, 168, 1, 60);
+            }
+            #[cfg(soc_platform = "kc705")]
+            {
+                protocol_addr = IpAddress::v4(192, 168, 1, 50);
+            }
             info!("using default IP address {}", protocol_addr);
         }
     }
