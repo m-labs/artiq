@@ -8,6 +8,7 @@ enum State {
 }
 
 static mut GRABBER_STATE: [State; csr::GRABBER_LEN] = [State::Down; csr::GRABBER_LEN];
+static mut GRABBER_RESOLUTION: [(u16, u16); csr::GRABBER_LEN] = [(0, 0); csr::GRABBER_LEN];
 
 fn get_pll_reset(g: usize) -> bool {
     unsafe { (csr::GRABBER[g].pll_reset_read)() != 0 }
@@ -92,11 +93,19 @@ pub fn tick() {
                 info!("grabber{} is down", g);
             }
             if unsafe { GRABBER_STATE[g] == State::WaitResolution } {
-                let (last_x, last_y) = get_last_pixels(g);
+                let last_xy = get_last_pixels(g);
+                unsafe { GRABBER_RESOLUTION[g] = last_xy; }
                 info!("grabber{} frame size: {}x{}",
-                    g, last_x + 1, last_y + 1);
+                    g, last_xy.0 + 1, last_xy.1 + 1);
                 info!("grabber{} video clock: {}MHz", g, get_video_clock(g));
                 unsafe { GRABBER_STATE[g] = State::Up; }
+            } else {
+                let last_xy = get_last_pixels(g);
+                if unsafe { last_xy != GRABBER_RESOLUTION[g] } {
+                    info!("grabber{} frame size: {}x{}",
+                        g, last_xy.0 + 1, last_xy.1 + 1);
+                    unsafe { GRABBER_RESOLUTION[g] = last_xy; }
+                }
             }
         } else {
             if get_pll_reset(g) {
