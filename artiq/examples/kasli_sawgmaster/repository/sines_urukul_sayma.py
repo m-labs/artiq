@@ -17,7 +17,7 @@ class SinesUrukulSayma(EnvExperiment):
         for urukul_ch in self.urukul_chs:
             delay(1*ms)
             urukul_ch.init()
-            urukul_ch.set(9*MHz)
+            urukul_ch.set(9*MHz, amplitude=0.5)
             urukul_ch.set_att(6.)
             urukul_ch.sw.on()
 
