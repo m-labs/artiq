@@ -269,17 +269,19 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
             "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             attr={("DONT_TOUCH", "true")})
 
+        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
+        self.csr_devices.append("ad9154_crg")
+
         self.comb += [
             platform.request("sfp_tx_disable", i).eq(0)
             for i in range(2)
         ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("dac_refclk", 0),
+            clock_pads=self.ad9154_crg.refclk,
             data_pads=[platform.request("sfp", i) for i in range(2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.config["HMC7043_ENABLE_CLK1"] = None
 
         drtio_csr_group = []
         drtio_memory_group = []
@@ -332,14 +334,12 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
         if with_sawg:
             cls = AD9154
         else:
             cls = AD9154NoSAWG
         self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
         self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
-        self.csr_devices.append("ad9154_crg")
         self.csr_devices.append("ad9154_0")
         self.csr_devices.append("ad9154_1")
         self.config["HAS_AD9154"] = None
@@ -577,12 +577,11 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("dac_refclk", 0),
+            clock_pads=self.ad9154_crg.refclk,
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.config["HMC7043_ENABLE_CLK1"] = None
 
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
         self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())

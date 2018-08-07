@@ -169,12 +169,9 @@ pub mod hmc7043 {
         (true,  SYSREF_DIV,   0x08),  // 3: DAC1_SYSREF
         (false, 0,            0x08),  // 4: ADC2_CLK
         (false, 0,            0x08),  // 5: ADC2_SYSREF
-        (true,  FPGA_CLK_DIV, 0x08),  // 6: GTP_CLK2
+        (false, 0,            0x08),  // 6: GTP_CLK2
         (true,  SYSREF_DIV,   0x10),  // 7: FPGA_DAC_SYSREF, LVDS
-#[cfg(hmc7043_enable_clk1)]
         (true,  FPGA_CLK_DIV, 0x08),  // 8: GTP_CLK1
-#[cfg(not(hmc7043_enable_clk1))]
-        (false, 0,            0x08),  // 8: GTP_CLK1
         (false, 0,            0x10),  // 9: AMC_MASTER_AUX_CLK
         (false, 0,            0x10),  // 10: RTM_MASTER_AUX_CLK
         (true,  FPGA_CLK_DIV, 0x10),  // 11: FPGA_ADC_SYSREF, LVDS -- repurposed for siphaser
