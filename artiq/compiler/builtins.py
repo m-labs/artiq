@@ -169,6 +169,9 @@ def fn_ValueError():
 def fn_ZeroDivisionError():
     return types.TExceptionConstructor(TException("ZeroDivisionError"))
 
+def fn_RuntimeError():
+    return types.TExceptionConstructor(TException("RuntimeError"))
+
 def fn_range():
     return types.TBuiltinFunction("range")
 

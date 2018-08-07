@@ -447,7 +447,7 @@ class CommKernel:
                 self._write_string(function)
             else:
                 exn_type = type(exn)
-                if exn_type in (ZeroDivisionError, ValueError, IndexError) or \
+                if exn_type in (ZeroDivisionError, ValueError, IndexError, RuntimeError) or \
                         hasattr(exn, "artiq_builtin"):
                     self._write_string("0:{}".format(exn_type.__name__))
                 else:

@@ -392,7 +392,7 @@ static mut INFLIGHT: ExceptionInfo = ExceptionInfo {
         private:           [0; uw::unwinder_private_data_size],
     },
     exception:      None,
-    handled:        false,
+    handled:        true,
     backtrace:      [0; MAX_BACKTRACE_SIZE],
     backtrace_size: 0
 };
@@ -418,8 +418,22 @@ pub unsafe extern fn raise(exception: *const Exception) -> ! {
 #[export_name="__artiq_reraise"]
 #[unwind(allowed)]
 pub unsafe extern fn reraise() -> ! {
+    use cslice::AsCSlice;
+
     if INFLIGHT.handled {
-        raise(&INFLIGHT.exception.unwrap())
+        match INFLIGHT.exception {
+            Some(ref exception) => raise(exception),
+            None => raise(&Exception {
+                name:     "0:artiq.coredevice.exceptions.RuntimeError".as_c_slice(),
+                file:     file!().as_c_slice(),
+                line:     line!(),
+                column:   column!(),
+                // https://github.com/rust-lang/rfcs/pull/1719
+                function: "__artiq_reraise".as_c_slice(),
+                message:  "No active exception to reraise".as_c_slice(),
+                param:    [0, 0, 0]
+            })
+        }
     } else {
         uw::_Unwind_Resume(&mut INFLIGHT.uw_exception)
     }
