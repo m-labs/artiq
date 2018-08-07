@@ -1,6 +1,6 @@
 use board_misoc::csr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(PartialEq)]
 enum State {
     Down,
     WaitResolution,
