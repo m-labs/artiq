@@ -1,14 +1,21 @@
 use board_misoc::csr;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone, Copy)]
 enum State {
-    Down,
-    WaitResolution,
-    Up
+    Reset,
+    ExitReset,
+    Lock,
+    Align,
+    Watch
 }
 
-static mut GRABBER_STATE: [State; csr::GRABBER_LEN] = [State::Down; csr::GRABBER_LEN];
-static mut GRABBER_RESOLUTION: [(u16, u16); csr::GRABBER_LEN] = [(0, 0); csr::GRABBER_LEN];
+struct Info {
+    state: State,
+    frame_size: (u16, u16),
+}
+
+static mut INFO: [Info; csr::GRABBER_LEN] =
+    [Info { state: State::Reset, frame_size: (0, 0) }; csr::GRABBER_LEN];
 
 fn get_pll_reset(g: usize) -> bool {
     unsafe { (csr::GRABBER[g].pll_reset_read)() != 0 }
@@ -16,7 +23,7 @@ fn get_pll_reset(g: usize) -> bool {
 
 fn set_pll_reset(g: usize, reset: bool) {
     let val = if reset { 1 } else { 0 };
-    unsafe { (csr::GRABBER[g].pll_reset_write)(val) }   
+    unsafe { (csr::GRABBER[g].pll_reset_write)(val) }
 }
 
 fn pll_locked(g: usize) -> bool {
@@ -86,43 +93,62 @@ fn get_video_clock(g: usize) -> u32 {
 
 pub fn tick() {
     for g in 0..csr::GRABBER.len() {
-        if unsafe { GRABBER_STATE[g] != State::Down } {
-            if !clock_pattern_ok(g) || !pll_locked(g) {
+        let next = match unsafe { INFO[g].state } {
+            State::Reset => {
                 set_pll_reset(g, true);
-                unsafe { GRABBER_STATE[g] = State::Down; }
-                info!("grabber{} is down", g);
+                unsafe { INFO[g].frame_size = (0, 0); }
+                State::ExitReset
             }
-            if unsafe { GRABBER_STATE[g] == State::WaitResolution } {
-                let last_xy = get_last_pixels(g);
-                unsafe { GRABBER_RESOLUTION[g] = last_xy; }
-                info!("grabber{} frame size: {}x{}",
-                    g, last_xy.0 + 1, last_xy.1 + 1);
-                info!("grabber{} video clock: {}MHz", g, get_video_clock(g));
-                unsafe { GRABBER_STATE[g] = State::Up; }
-            } else {
-                let last_xy = get_last_pixels(g);
-                if unsafe { last_xy != GRABBER_RESOLUTION[g] } {
-                    info!("grabber{} frame size: {}x{}",
-                        g, last_xy.0 + 1, last_xy.1 + 1);
-                    unsafe { GRABBER_RESOLUTION[g] = last_xy; }
+            State::ExitReset => {
+                if get_pll_reset(g) {
+                    set_pll_reset(g, false);
+                    State::Lock
+                } else {
+                    State::ExitReset
                 }
             }
-        } else {
-            if get_pll_reset(g) {
-                set_pll_reset(g, false);
-            } else {
+            State::Lock => {
                 if pll_locked(g) {
-                    info!("grabber{} PLL is locked", g);
+                    info!("grabber{} locked: {}MHz", g, get_video_clock(g));
+                    State::Align
+                } else {
+                    State::Lock
+                }
+            }
+            State::Align => {
+                if pll_locked(g) {
                     if clock_align(g) {
-                        info!("grabber{} is up", g);
-                        unsafe { GRABBER_STATE[g] = State::WaitResolution; }
+                        info!("grabber{} alignment success", g);
+                        State::Watch
                     } else {
-                        set_pll_reset(g, true);
+                        info!("grabber{} alignment failure", g);
+                        State::Reset
                     }
                 } else {
-                    set_pll_reset(g, true);
+                    info!("grabber{} lock lost", g);
+                    State::Reset
                 }
             }
-        }
+            State::Watch => {
+                if pll_locked(g) {
+                    if clock_pattern_ok(g) {
+                        let last_xy = get_last_pixels(g);
+                        if last_xy != unsafe { INFO[g].frame_size } {
+                            info!("grabber{} frame size: {}x{}",
+                                g, last_xy.0 + 1, last_xy.1 + 1);
+                            unsafe { INFO[g].frame_size = last_xy }
+                        }
+                        State::Watch
+                    } else {
+                        info!("grabber{} alignment lost", g);
+                        State::Reset
+                    }
+                } else {
+                    info!("grabber{} lock lost", g);
+                    State::Reset
+                }
+            }
+        };
+        unsafe { INFO[g].state = next; }
     }
 }
