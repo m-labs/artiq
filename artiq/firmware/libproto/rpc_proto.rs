@@ -140,11 +140,11 @@ unsafe fn send_value(writer: &mut Write, tag: Tag, data: &mut *const ()) -> io::
             Ok(())
         }
         Tag::Keyword(it) => {
-            struct Keyword<'a> { name: CSlice<'a, u8>, contents: () };
+            struct Keyword<'a> { name: CSlice<'a, u8> };
             consume_value!(Keyword, |ptr| {
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
-                let mut data = &(*ptr).contents as *const ();
+                let mut data = ptr.offset(1) as *const ();
                 send_value(writer, tag, &mut data)
             })
             // Tag::Keyword never appears in composite types, so we don't have
