@@ -39,6 +39,7 @@ class KasliTester(EnvExperiment):
         self.urukuls = dict()
         self.samplers = dict()
         self.zotinos = dict()
+        self.grabbers = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -62,6 +63,8 @@ class KasliTester(EnvExperiment):
                     self.samplers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.zotino", "Zotino"):
                     self.zotinos[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
+                    self.grabbers[name] = self.get_device(name)
 
         # Remove Urukul, Sampler and Zotino control signals
         # from TTL outs (tested separately)
@@ -92,6 +95,7 @@ class KasliTester(EnvExperiment):
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: x[1].sw.channel)
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
+        self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
 
     @kernel
     def test_led(self, led):
@@ -273,6 +277,40 @@ class KasliTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
+    def test_grabbers(self):
+        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
+        print("*** Testing Grabber Frame Grabbers.")
+        print("ROIs: %s".format(rois))
+        print("Press ENTER, activate the camera's frame grabber output, "
+              "and trigger it once. Type 's' to skip the test.")
+        if input().strip().lower() == "s":
+            print("skipping...")
+            return
+        for card_n, (card_name, card_dev) in enumerate(self.grabbers):
+            print(card_name)
+            self.grabber_capture(card_dev, rois)
+
+    @kernel
+    def grabber_capture(self, card_dev, rois):
+        self.core.break_realtime()
+        delay(10*us)
+        mask = 0
+        for i in range(len(rois)):
+            i = rois[i][0]
+            x0 = rois[i][1]
+            y0 = rois[i][2]
+            x1 = rois[i][3]
+            y1 = rois[i][4]
+            mask |= 1 << i
+            card_dev.setup_roi(i, x0, y0, x1, y1)
+        card_dev.gate_roi(mask)
+        n = [0]*len(rois)
+        card_dev.input_mu(n)
+        self.core.break_realtime()
+        card_dev.gate_roi(0)
+        print("ROI sums:")
+        print(n)
+
     def run(self):
         print("****** Kasli system tester ******")
         print("")
@@ -283,3 +321,4 @@ class KasliTester(EnvExperiment):
         self.test_urukuls()
         self.test_samplers()
         self.test_zotinos()
+        self.test_grabbers()
