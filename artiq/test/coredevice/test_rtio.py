@@ -644,6 +644,12 @@ class DMATest(ExperimentCase):
         self.assertLess(dt/count, 20*us)
 
     def test_dma_playback_time(self):
+        # Skip on Kasli until #946 is resolved.
+        try:
+            # hack to detect Kasli.
+            self.device_mgr.get_desc("ad9914dds0")
+        except KeyError:
+            raise unittest.SkipTest("skipped on Kasli for now")
         exp = self.create(_DMA)
         count = 20000
         exp.record_many(40)
