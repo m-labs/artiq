@@ -134,20 +134,20 @@ device_db = {
     },
 
     # AD9914 DDS
-    "dds0": {
+    "ad9914dds0": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
         "arguments": {"sysclk": 3e9, "bus_channel": 27, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
-    "dds1": {
+    "ad9914dds1": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
         "arguments": {"sysclk": 3e9, "bus_channel": 27, "channel": 1}
     },
-    "dds2": {
+    "ad9914dds2": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
@@ -164,8 +164,8 @@ device_db = {
     "loop_clock_in": "ttl7",
 
     "pmt": "ttl3",
-    "bd_dds": "dds0",
+    "bd_dds": "ad9914dds0",
     "bd_sw": "ttl0",
-    "bdd_dds": "dds1",
+    "bdd_dds": "ad9914dds1",
     "bdd_sw": "ttl1"
 }
