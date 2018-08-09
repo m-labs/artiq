@@ -1,4 +1,4 @@
-core_addr = "kasli-2.lab.m-labs.hk"
+core_addr = "kasli-1.lab.m-labs.hk"
 
 device_db = {
     "core": {
@@ -184,4 +184,9 @@ device_db.update(
         "class": "TTLOut",
         "arguments": {"channel": 21}
     },
+)
+
+device_db.update(
+    "ttl_out": "ttl4",
+    "ttl_out_serdes": "ttl4",
 )
