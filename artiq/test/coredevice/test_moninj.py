@@ -1,3 +1,4 @@
+import unittest
 import asyncio
 
 from artiq.coredevice.comm_moninj import *
@@ -6,9 +7,17 @@ from artiq.test.hardware_testbench import ExperimentCase
 
 class MonInjTest(ExperimentCase):
     def test_moninj(self):
-        core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
-        loop_out_channel = self.device_mgr.get_desc("loop_out")["arguments"]["channel"]
-        loop_in_channel = self.device_mgr.get_desc("loop_in")["arguments"]["channel"]
+        try:
+            core = self.device_mgr.get_desc("core")
+            loop_out = self.device_mgr.get_desc("loop_out")
+            loop_in = self.device_mgr.get_desc("loop_in")
+        except KeyError as e:
+            # skip if ddb does not match requirements
+            raise unittest.SkipTest(
+                "test device not available: `{}`".format(*e.args))
+        core_host = core["arguments"]["host"]
+        loop_out_channel = loop_out["arguments"]["channel"]
+        loop_in_channel = loop_in["arguments"]["channel"]
 
         notifications = []
         injection_statuses = []

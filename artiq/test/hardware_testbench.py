@@ -11,7 +11,7 @@ import time
 import socket
 
 from artiq.master.databases import DeviceDB, DatasetDB
-from artiq.master.worker_db import DeviceManager, DatasetManager
+from artiq.master.worker_db import DeviceManager, DatasetManager, DeviceError
 from artiq.coredevice.core import CompileError
 from artiq.frontend.artiq_run import DummyScheduler
 from artiq.protocols.pc_rpc import AutoTarget, Client
@@ -113,12 +113,12 @@ class ExperimentCase(unittest.TestCase):
             exp = cls(
                 (self.device_mgr, self.dataset_mgr, None),
                 *args, **kwargs)
-            exp.prepare()
-            return exp
-        except KeyError as e:
+        except DeviceError as e:
             # skip if ddb does not match requirements
             raise unittest.SkipTest(
-                "device_db entry `{}` not found".format(*e.args))
+                "test device not available: `{}`".format(*e.args))
+        exp.prepare()
+        return exp
 
     def execute(self, cls, *args, **kwargs):
         expid = {
