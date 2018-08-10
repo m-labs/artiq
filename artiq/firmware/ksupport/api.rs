@@ -71,9 +71,9 @@ static mut API: &'static [(&'static str, *const ())] = &[
 
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
-    api!(__artiq_personality = ::eh::personality),
-    api!(__artiq_raise = ::eh::raise),
-    api!(__artiq_reraise = ::eh::reraise),
+    api!(__artiq_personality = ::eh_artiq::personality),
+    api!(__artiq_raise = ::eh_artiq::raise),
+    api!(__artiq_reraise = ::eh_artiq::reraise),
 
     /* proxified syscalls */
     api!(core_log),

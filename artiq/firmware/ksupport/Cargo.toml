@@ -14,6 +14,7 @@ build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
 cslice = { version = "0.3" }
+eh = { path = "../libeh" }
 io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
 board_misoc = { path = "../libboard_misoc" }

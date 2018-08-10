@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(lang_items)]
+#![feature(panic_implementation, panic_info_message)]
 
 extern crate crc;
 extern crate byteorder;
@@ -188,7 +188,8 @@ fn network_boot() {
     println!("Waiting for connections...");
 
     loop {
-        match interface.poll(&mut sockets, clock::get_ms()) {
+        let timestamp = smoltcp::time::Instant::from_millis(clock::get_ms() as i64);
+        match interface.poll(&mut sockets, timestamp) {
             Ok(_) => (),
             Err(smoltcp::Error::Unrecognized) => (),
             Err(err) => println!("Network error: {}", err)
@@ -232,10 +233,18 @@ pub extern fn abort() {
     loop {}
 }
 
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
-                        line: u32, column: u32) -> ! {
-    println!("panic at {}:{}:{}: {}", file, line, column, args);
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[panic_implementation]
+pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
+    if let Some(location) = info.location() {
+        print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+    } else {
+        print!("panic at unknown location");
+    }
+    if let Some(message) = info.message() {
+        println!(": {}", message);
+    } else {
+        println!("");
+    }
     loop {}
 }

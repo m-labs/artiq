@@ -64,27 +64,23 @@ impl Profile {
 
     pub fn record_hit(&mut self, addr: Address) -> Result<(), ()> {
         let mut hits = self.hits();
-        match hits.get_mut(&addr) {
-            Some(count) => *count = count.saturating_add(1),
-            None => {
-                if let Err(_) = hits.insert(addr, 1) {
-                    return Err(())
-                }
-            }
+        if let Some(count) = hits.get_mut(&addr) {
+            return Ok(*count = count.saturating_add(1))
         }
-        Ok(())
+        if let Err(_) = hits.insert(addr, 1) {
+            return Err(())
+        }
+        return Ok(())
     }
 
     #[allow(dead_code)]
     pub fn record_edge(&mut self, caller: Address, callee: Address) -> Result<(), ()> {
         let mut edges = self.edges();
-        match edges.get_mut(&(caller, callee)) {
-            Some(count) => *count = count.saturating_add(1),
-            None => {
-                if let Err(_) = edges.insert((caller, callee), 1) {
-                    return Err(())
-                }
-            }
+        if let Some(count) = edges.get_mut(&(caller, callee)) {
+            return Ok(*count = count.saturating_add(1))
+        }
+        if let Err(_) = edges.insert((caller, callee), 1) {
+            return Err(())
         }
         Ok(())
     }

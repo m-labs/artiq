@@ -30,9 +30,8 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)",
 ]
 
 [[package]]
@@ -43,7 +42,7 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)",
 ]
 
 [[package]]
@@ -71,11 +70,6 @@ version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "compiler_builtins"
-version = "0.1.0"
-source = "git+https://github.com/rust-lang-nursery/compiler-builtins#28daccd9159d33fac5e36394e4f9618db8870dc0"
-
-[[package]]
 name = "crc"
 version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,6 +85,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "dyld"
 version = "0.0.0"
+
+[[package]]
+name = "eh"
+version = "0.0.0"
+dependencies = [
+ "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "failure"
@@ -110,7 +111,7 @@ dependencies = [
 [[package]]
 name = "fringe"
 version = "1.1.0"
-source = "git+https://github.com/m-labs/libfringe?rev=bd23494#bd2349467157969324ca7da5d2ae033c7ffac0c0"
+source = "git+https://github.com/m-labs/libfringe?rev=b8a6d8f#b8a6d8f68df0edaa3d67d9f3b7b62af9d3bb64a5"
 dependencies = [
  "libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -133,6 +134,7 @@ dependencies = [
  "build_misoc 0.0.0",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dyld 0.0.0",
+ "eh 0.0.0",
  "io 0.0.0",
  "proto_artiq 0.0.0",
 ]
@@ -174,12 +176,7 @@ dependencies = [
 
 [[package]]
 name = "managed"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "managed"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -210,15 +207,16 @@ dependencies = [
  "build_misoc 0.0.0",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eh 0.0.0",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)",
+ "fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=b8a6d8f)",
  "io 0.0.0",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "logger_artiq 0.0.0",
- "managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "managed 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proto_artiq 0.0.0",
- "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)",
  "unwind_backtrace 0.0.0",
 ]
 
@@ -235,11 +233,12 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.4.0"
-source = "git+https://github.com/m-labs/smoltcp?rev=181083f#181083f18c977b8a0463a67e360e4db20594fa21"
+source = "git+https://github.com/m-labs/smoltcp?rev=2139686#21396867114d267da06f19cc54cc4a1883b900a5"
 dependencies = [
+ "bitflags 1.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "managed 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "managed 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -284,20 +283,18 @@ version = "0.0.0"
 "checksum byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "74c0b906e9446b0a2e4f760cdb3fa4b2c48cdc6db8766a845c54b6ff063fd2e9"
 "checksum cc 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)" = "0ebb87d1116151416c0cf66a0e3fb6430cccd120fd6300794b4dfaa050ac40ba"
 "checksum cfg-if 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "405216fd8fe65f718daa7102ea808a946b6ce40c742998fbfd3463645552de18"
-"checksum compiler_builtins 0.1.0 (git+https://github.com/rust-lang-nursery/compiler-builtins)" = "<none>"
 "checksum crc 1.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d663548de7f5cca343f1e0a48d14dcfb0e9eb4e079ec58883b7251539fa10aeb"
 "checksum cslice 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0f8cb7306107e4b10e64994de6d3274bd08996a7c1322a27b86482392f96be0a"
 "checksum failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "934799b6c1de475a012a02dab0ace1ace43789ee4b99bcfbf1a2e3e8ced5de82"
 "checksum failure_derive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "c7cdda555bb90c9bb67a3b670a0f42de8e73f5981524123ad8578aafec8ddb8b"
-"checksum fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=bd23494)" = "<none>"
+"checksum fringe 1.1.0 (git+https://github.com/m-labs/libfringe?rev=b8a6d8f)" = "<none>"
 "checksum libc 0.2.40 (registry+https://github.com/rust-lang/crates.io-index)" = "6fd41f331ac7c5b8ac259b8bf82c75c0fb2e469bbf37d2becbba9a6a2221965b"
 "checksum log 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e19e8d5c34a3e0e2223db8e060f9e8264aeeb5c5fc64a4ee9965c062211c024b"
 "checksum log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "89f010e843f2b1a31dbd316b3b8d443758bc634bed37aabade59c686d644e0a2"
 "checksum log_buffer 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f033173c9486b7fe97a79c895c0a3483ae395ab6744c985d10078950e2492419"
-"checksum managed 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "43e2737ecabe4ae36a68061398bf27d2bfd0763f4c3c837a398478459494c4b7"
-"checksum managed 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "5a31885241e61ba264d780d2e6686e7e59561c947b4581470364eb3e10102d86"
+"checksum managed 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ba6713e624266d7600e9feae51b1926c6a6a6bebb18ec5a8e11a5f1d5661baba"
 "checksum quote 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "7a6e920b65c65f10b2ae65c831a81a073a89edd28c7cce89475bff467ab4167a"
-"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=181083f)" = "<none>"
+"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)" = "<none>"
 "checksum syn 0.11.11 (registry+https://github.com/rust-lang/crates.io-index)" = "d3b891b9015c88c576343b9b3e41c2c11a51c219ef067b264bd9c8aa9b441dad"
 "checksum synom 0.11.3 (registry+https://github.com/rust-lang/crates.io-index)" = "a393066ed9010ebaed60b9eafa373d4b1baac186dd7e008555b0f702b51945b6"
 "checksum synstructure 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3a761d12e6d8dcb4dcf952a7a89b475e3a9d69e4a69307e01a470977642914bd"
