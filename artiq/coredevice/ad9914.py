@@ -162,16 +162,16 @@ class AD9914:
     def set_phase_mode(self, phase_mode):
         """Sets the phase mode of the DDS channel. Supported phase modes are:
 
-        * ``PHASE_MODE_CONTINUOUS``: the phase accumulator is unchanged when
+        * :const:`PHASE_MODE_CONTINUOUS`: the phase accumulator is unchanged when
           switching frequencies. The DDS phase is the sum of the phase
           accumulator and the phase offset. The only discrete jumps in the
           DDS output phase come from changes to the phase offset.
 
-        * ``PHASE_MODE_ABSOLUTE``: the phase accumulator is reset when
+        * :const:`PHASE_MODE_ABSOLUTE`: the phase accumulator is reset when
           switching frequencies. Thus, the phase of the DDS at the time of
           the frequency change is equal to the phase offset.
 
-        * ``PHASE_MODE_TRACKING``: when switching frequencies, the phase
+        * :const:`PHASE_MODE_TRACKING`: when switching frequencies, the phase
           accumulator is set to the value it would have if the DDS had been
           running at the specified frequency since the start of the
           experiment.
@@ -193,7 +193,7 @@ class AD9914:
         :param ftw: frequency to generate.
         :param pow: adds an offset to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
-            by ``set_phase_mode`` for this call.
+            by :meth:`set_phase_mode` for this call.
         :param ref_time: reference time used to compute phase. Specifying this
             makes it easier to have a well-defined phase relationship between
             DDSes on the same bus that are updated at a similar time. 
@@ -270,7 +270,7 @@ class AD9914:
     @kernel
     def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT,
             amplitude=1.0):
-        """Like ``set_mu``, but uses Hz and turns."""
+        """Like :meth:`set_mu`, but uses Hz and turns."""
         self.set_mu(self.frequency_to_ftw(frequency),
                     self.turns_to_pow(phase), phase_mode,
                     self.amplitude_to_asf(amplitude))
@@ -323,7 +323,7 @@ class AD9914:
 
     @kernel
     def set_x(self, frequency, amplitude=1.0):
-        """Like ``set_x_mu``, but uses Hz and turns.
+        """Like :meth:`set_x_mu`, but uses Hz and turns.
 
         Note that the precision of ``float`` is less than the precision
         of the extended frequency tuning word.
