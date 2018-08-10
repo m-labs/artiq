@@ -50,12 +50,17 @@ mod cslice {
     }
 }
 
-#[path = "../../firmware/ksupport/eh.rs"]
-pub mod eh;
+#[path = "."]
+pub mod eh {
+    #[path = "../../firmware/libeh/dwarf.rs"]
+    pub mod dwarf;
+}
+#[path = "../../firmware/ksupport/eh_artiq.rs"]
+pub mod eh_artiq;
 
 use std::{str, process};
 
-fn terminate(exception: &eh::Exception, mut _backtrace: &mut [usize]) -> ! {
+fn terminate(exception: &eh_artiq::Exception, mut _backtrace: &mut [usize]) -> ! {
     println!("Uncaught {}: {} ({}, {}, {})",
              str::from_utf8(exception.name.as_ref()).unwrap(),
              str::from_utf8(exception.message.as_ref()).unwrap(),

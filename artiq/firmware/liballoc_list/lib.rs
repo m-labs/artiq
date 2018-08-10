@@ -1,10 +1,7 @@
-#![feature(alloc, allocator_api)]
 #![no_std]
 
-extern crate alloc;
-
-use core::{mem, fmt};
-use alloc::allocator::{Layout, AllocErr, Alloc};
+use core::{ptr, mem, fmt};
+use core::alloc::{GlobalAlloc, Layout};
 
 // The minimum alignment guaranteed by the architecture.
 const MIN_ALIGN: usize = 4;
@@ -42,10 +39,10 @@ impl ListAlloc {
     }
 }
 
-unsafe impl<'a> Alloc for &'a ListAlloc {
-    unsafe fn alloc(&mut self, layout: Layout) -> Result<*mut u8, AllocErr> {
+unsafe impl GlobalAlloc for ListAlloc {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         if layout.align() > MIN_ALIGN {
-            return Err(AllocErr::Unsupported { details: "alignment too large" })
+            panic!("cannot allocate with alignment {}", layout.align())
         }
 
         let header_size = mem::size_of::<Header>();
@@ -83,7 +80,7 @@ unsafe impl<'a> Alloc for &'a ListAlloc {
 
                     if (*curr).size >= size {
                         (*curr).magic = MAGIC_BUSY;
-                        return Ok(curr.offset(1) as *mut u8)
+                        return curr.offset(1) as *mut u8
                     }
                 },
                 _ => panic!("heap corruption detected at {:p}", curr)
@@ -92,19 +89,15 @@ unsafe impl<'a> Alloc for &'a ListAlloc {
             curr = (*curr).next;
         }
 
-        Err(AllocErr::Exhausted { request: layout })
+        ptr::null_mut()
     }
 
-    unsafe fn dealloc(&mut self, ptr: *mut u8, _layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
         let curr = (ptr as *mut Header).offset(-1);
         if (*curr).magic != MAGIC_BUSY {
             panic!("heap corruption detected at {:p}", curr)
         }
         (*curr).magic = MAGIC_FREE;
-    }
-
-    fn oom(&mut self, err: AllocErr) -> ! {
-        panic!("heap view: {}\ncannot allocate: {:?}", self, err)
     }
 }
 

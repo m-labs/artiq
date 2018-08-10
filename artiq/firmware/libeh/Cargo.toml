@@ -1,0 +1,11 @@
+[package]
+authors = ["M-Labs"]
+name = "eh"
+version = "0.0.0"
+
+[lib]
+name = "eh"
+path = "lib.rs"
+
+[dependencies]
+cslice = { version = "0.3" }

@@ -6,6 +6,7 @@ use core::cell::{Cell, RefCell};
 use alloc::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
+use smoltcp::time::Duration;
 use smoltcp::Error as NetworkError;
 use smoltcp::wire::IpEndpoint;
 use smoltcp::socket::{SocketHandle, SocketRef};
@@ -426,19 +427,19 @@ impl<'a> TcpStream<'a> {
     }
 
     pub fn timeout(&self) -> Option<u64> {
-        self.with_lower(|s| s.timeout())
+        self.with_lower(|s| s.timeout().as_ref().map(Duration::millis))
     }
 
     pub fn set_timeout(&self, value: Option<u64>) {
-        self.with_lower(|mut s| s.set_timeout(value))
+        self.with_lower(|mut s| s.set_timeout(value.map(Duration::from_millis)))
     }
 
     pub fn keep_alive(&self) -> Option<u64> {
-        self.with_lower(|s| s.keep_alive())
+        self.with_lower(|s| s.keep_alive().as_ref().map(Duration::millis))
     }
 
     pub fn set_keep_alive(&self, value: Option<u64>) {
-        self.with_lower(|mut s| s.set_keep_alive(value))
+        self.with_lower(|mut s| s.set_keep_alive(value.map(Duration::from_millis)))
     }
 
     pub fn close(&self) -> Result<(), Error> {

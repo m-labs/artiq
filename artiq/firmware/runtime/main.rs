@@ -1,7 +1,8 @@
-#![feature(lang_items, alloc, global_allocator, try_from, nonzero, nll, needs_panic_runtime, asm)]
+#![feature(lang_items, alloc, try_from, nonzero, asm,
+           panic_implementation, panic_info_message)]
 #![no_std]
-#![needs_panic_runtime]
 
+extern crate eh;
 #[macro_use]
 extern crate alloc;
 extern crate failure;
@@ -250,18 +251,18 @@ fn startup_ethernet() {
     net_device.reset_phy_if_any();
 
     let net_device = {
+        use smoltcp::time::Instant;
         use smoltcp::wire::PrettyPrinter;
         use smoltcp::wire::EthernetFrame;
 
-        fn net_trace_writer(timestamp: u64, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
-            let seconds = timestamp / 1000;
-            let micros  = timestamp % 1000 * 1000;
-            print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
+        fn net_trace_writer(timestamp: Instant, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
+            print!("\x1b[37m[{:6}.{:03}s]\n{}\x1b[0m\n",
+                   timestamp.secs(), timestamp.millis(), printer)
         }
 
-        fn net_trace_silent(_timestamp: u64, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
+        fn net_trace_silent(_timestamp: Instant, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
 
-        let net_trace_fn: fn(u64, PrettyPrinter<EthernetFrame<&[u8]>>);
+        let net_trace_fn: fn(Instant, PrettyPrinter<EthernetFrame<&[u8]>>);
         match config::read_str("net_trace", |r| r.map(|s| s == "1")) {
             Ok(true) => net_trace_fn = net_trace_writer,
             _ => net_trace_fn = net_trace_silent
@@ -299,7 +300,8 @@ fn startup_ethernet() {
         {
             let sockets = &mut *scheduler.sockets().borrow_mut();
             loop {
-                match interface.poll(sockets, clock::get_ms()) {
+                let timestamp = smoltcp::time::Instant::from_millis(clock::get_ms() as i64);
+                match interface.poll(sockets, timestamp) {
                     Ok(true) => (),
                     Ok(false) => break,
                     Err(smoltcp::Error::Unrecognized) => (),
@@ -373,13 +375,27 @@ pub extern fn abort() {
     loop {}
 }
 
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str,
-                        line: u32, column: u32) -> ! {
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[lang = "oom"] // https://github.com/rust-lang/rust/issues/51540
+pub fn oom(layout: core::alloc::Layout) -> ! {
+    panic!("heap view: {}\ncannot allocate layout: {:?}", unsafe { &ALLOC }, layout)
+}
+
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[panic_implementation]
+pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
     irq::set_ie(false);
 
-    println!("panic at {}:{}:{}: {}", file, line, column, args);
+    if let Some(location) = info.location() {
+        print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+    } else {
+        print!("panic at unknown location");
+    }
+    if let Some(message) = info.message() {
+        println!("{}", message);
+    } else {
+        println!("");
+    }
 
     println!("backtrace for software version {}:", csr::CONFIG_IDENTIFIER_STR);
     let _ = unwind_backtrace::backtrace(|ip| {

@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(compiler_builtins_lib, asm, try_from)]
+#![feature(asm, try_from)]
 
-extern crate compiler_builtins;
 extern crate byteorder;
 #[cfg(feature = "log")]
 extern crate log;

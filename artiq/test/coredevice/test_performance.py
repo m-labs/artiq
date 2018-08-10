@@ -44,7 +44,7 @@ class TransferTest(ExperimentCase):
         exp = self.create(_Transfer)
         host_to_device_rate = exp.host_to_device()
         print(host_to_device_rate, "B/s")
-        self.assertGreater(host_to_device_rate, 1.9e6)
+        self.assertGreater(host_to_device_rate, 1.8e6)
 
     @unittest.skipUnless(artiq_low_latency,
                          "timings are dependent on CPU load and network conditions")

@@ -13,13 +13,12 @@ cc = "1.0"
 build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
-compiler_builtins = { git = "https://github.com/rust-lang-nursery/compiler-builtins", features = ["mem"] }
 byteorder = { version = "1.0", default-features = false }
 log = { version = "0.4", default-features = false, optional = true }
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "181083f"
+rev = "2139686" # NB: also change in runtime/Cargo.toml
 default-features = false
 optional = true
 

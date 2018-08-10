@@ -1,5 +1,6 @@
 use core::{slice, fmt};
 use smoltcp::Result;
+use smoltcp::time::Instant;
 use smoltcp::phy::{self, DeviceCapabilities, Device};
 
 use csr;
@@ -95,7 +96,7 @@ impl<'a> Device<'a> for EthernetDevice {
 pub struct EthernetRxSlot(usize);
 
 impl phy::RxToken for EthernetRxSlot {
-    fn consume<R, F>(self, _timestamp: u64, f: F) -> Result<R>
+    fn consume<R, F>(self, _timestamp: Instant, f: F) -> Result<R>
         where F: FnOnce(&[u8]) -> Result<R>
     {
         unsafe {
@@ -110,7 +111,7 @@ impl phy::RxToken for EthernetRxSlot {
 pub struct EthernetTxSlot(usize);
 
 impl phy::TxToken for EthernetTxSlot {
-    fn consume<R, F>(self, _timestamp: u64, length: usize, f: F) -> Result<R>
+    fn consume<R, F>(self, _timestamp: Instant, length: usize, f: F) -> Result<R>
         where F: FnOnce(&mut [u8]) -> Result<R>
     {
         debug_assert!(length < SLOT_SIZE);
