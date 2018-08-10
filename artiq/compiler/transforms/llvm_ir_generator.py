@@ -525,11 +525,10 @@ class LLVMIRGenerator:
                     print(typ)
                     assert False
 
-                if not (types.is_function(typ) or types.is_method(typ) or types.is_rpc(typ) or
-                        name == "__objectid__"):
-                    rpctag = b"Os" + self._rpc_tag(typ, error_handler=rpc_tag_error) + b":n"
-                else:
+                if name == "__objectid__":
                     rpctag = b""
+                else:
+                    rpctag = b"Os" + self._rpc_tag(typ, error_handler=rpc_tag_error) + b":n"
 
                 llrpcattrinit = ll.Constant(llrpcattrty, [
                     ll.Constant(lli32, offset),
@@ -562,7 +561,10 @@ class LLVMIRGenerator:
                     offset += alignment - (offset % alignment)
 
                 if types.is_instance(typ) and attr not in typ.constant_attributes:
-                    llrpcattrs.append(llrpcattr_of_attr(offset, attr, attrtyp))
+                    try:
+                        llrpcattrs.append(llrpcattr_of_attr(offset, attr, attrtyp))
+                    except ValueError:
+                        continue
 
                 offset += size
 
@@ -1267,6 +1269,8 @@ class LLVMIRGenerator:
         elif ir.is_keyword(typ):
             return b"k" + self._rpc_tag(typ.params["value"],
                                         error_handler)
+        elif types.is_function(typ) or types.is_method(typ) or types.is_rpc(typ):
+            raise ValueError("RPC tag for functional value")
         elif '__objectid__' in typ.attributes:
             return b"O"
         else:
