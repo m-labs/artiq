@@ -280,8 +280,8 @@ pub mod hmc7043 {
         spi_setup();
         info!("loading configuration...");
 
-        write(0x3, 0x14);  // Disable the REFSYNCIN reseeder
-        write(0xA, 0x06);  // Disable the REFSYNCIN input buffer
+        write(0x3, 0x14);  // Disable the RFSYNCIN reseeder
+        write(0xA, 0x06);  // Disable the RFSYNCIN input buffer
         write(0xB, 0x07);  // Enable the CLKIN input as LVPECL
         write(0x9F, 0x4d); // Unexplained high-performance mode
         write(0xA0, 0xdf); // Unexplained high-performance mode
