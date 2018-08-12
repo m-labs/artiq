@@ -641,7 +641,7 @@ class DMATest(ExperimentCase):
         exp.record_many(count)
         dt = self.dataset_mgr.get("dma_record_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 20*us)
+        self.assertLess(dt/count, 11*us)
 
     def test_dma_playback_time(self):
         # Skip on Kasli until #946 is resolved.

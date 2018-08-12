@@ -1,5 +1,5 @@
 #![feature(lang_items, asm, panic_unwind, libc, unwind_attributes,
-           panic_implementation, panic_info_message)]
+           panic_implementation, panic_info_message, nll)]
 #![no_std]
 
 extern crate libc;
@@ -300,19 +300,24 @@ extern fn dma_record_stop(duration: i64) {
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
-    dma_record_output_wide(timestamp, channel, address, [word].as_c_slice())
-}
-
-#[unwind(aborts)]
-extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
-    assert!(words.len() <= 16); // enforce the hardware limit
-
+#[inline(always)]
+unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
+                                    words: usize) -> &'static mut [u8] {
     // See gateware/rtio/dma.py.
-    let header_length = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
-    let length = header_length + /*data*/words.len() * 4;
+    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
+    let length = HEADER_LENGTH + /*data*/words * 4;
 
-    let header = [
+    if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
+        dma_record_flush()
+    }
+
+    let record = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
+                                          DMA_RECORDER.data_len + length];
+    DMA_RECORDER.data_len += length;
+
+    let (header, data) = record.split_at_mut(HEADER_LENGTH);
+
+    header.copy_from_slice(&[
         (length    >>  0) as u8,
         (channel   >>  0) as u8,
         (channel   >>  8) as u8,
@@ -327,29 +332,39 @@ extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, wor
         (timestamp >> 56) as u8,
         (address   >>  0) as u8,
         (address   >>  8) as u8,
-    ];
+    ]);
 
-    let mut data = [0; 16 * 4];
-    for (i, &word) in words.as_ref().iter().enumerate() {
-        let part = [
+    data
+}
+
+#[unwind(aborts)]
+extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
+    unsafe {
+        let data = dma_record_output_prepare(timestamp, channel, address, 1);
+        data.copy_from_slice(&[
             (word >>  0) as u8,
             (word >>  8) as u8,
             (word >> 16) as u8,
             (word >> 24) as u8,
-        ];
-        data[i * 4..(i + 1) * 4].copy_from_slice(&part[..]);
+        ]);
     }
-    let data = &data[..words.len() * 4];
+}
+
+#[unwind(aborts)]
+extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
+    assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
-            dma_record_flush()
+        let mut data = dma_record_output_prepare(timestamp, channel, address, 1);
+        for word in words.as_ref().iter() {
+            data[..4].copy_from_slice(&[
+                (word >>  0) as u8,
+                (word >>  8) as u8,
+                (word >> 16) as u8,
+                (word >> 24) as u8,
+            ]);
+            data = &mut data[4..];
         }
-        let dst = &mut DMA_RECORDER.buffer[DMA_RECORDER.data_len..
-                                           DMA_RECORDER.data_len + length];
-        dst[..header_length].copy_from_slice(&header[..]);
-        dst[header_length..].copy_from_slice(&data[..]);
-        DMA_RECORDER.data_len += length;
     }
 }
 
