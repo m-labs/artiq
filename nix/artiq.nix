@@ -49,6 +49,18 @@ ml-pyserial = python35Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
+asyncserial = python35Packages.buildPythonPackage rec {
+  name = "asyncserial";
+  src = fetchFromGitHub {
+    owner = "m-labs";
+    repo = "asyncserial";
+    rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
+    sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
+  };
+  buildInputs = with python35Packages; [ ml-pyserial ];
+  doCheck = false;
+};
+
 pyqtgraph = python35Packages.buildPythonPackage rec {
   name = "pyqtgraph";
   src = fetchFromGitHub {
@@ -108,11 +120,11 @@ python35Packages.buildPythonPackage rec {
   version = "336482";
   name = "artiq-${version}";
   src = ./..;
-  buildInputs = with python35Packages; [
+  propagatedBuildInputs = with python35Packages; [
     llvm-or1k llvmlite sphinx-argparse levenshtein
     pyqtgraph aiohttp pygit2 pythonparser numpy
     dateutil sphinx quamash scipy outputcheck
-    prettytable lit ml-pyserial h5py cython regex qt5Full pyqt5 ];
+    prettytable lit ml-pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";
