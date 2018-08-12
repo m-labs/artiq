@@ -7,8 +7,7 @@ all:: bootloader.bin
 
 .PHONY: $(RUSTOUT)/libbootloader.a
 $(RUSTOUT)/libbootloader.a:
-	$(cargo) --manifest-path $(BOOTLOADER_DIRECTORY)/Cargo.toml -- \
-		-Clto
+	$(cargo) --manifest-path $(BOOTLOADER_DIRECTORY)/Cargo.toml
 
 bootloader.elf: $(RUSTOUT)/libbootloader.a
 	$(link) -T $(BOOTLOADER_DIRECTORY)/bootloader.ld
