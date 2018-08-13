@@ -120,11 +120,8 @@ python35Packages.buildPythonPackage rec {
   version = "336482";
   name = "artiq-${version}";
   src = ./..;
-  propagatedBuildInputs = with python35Packages; [
-    llvm-or1k llvmlite sphinx-argparse levenshtein
-    pyqtgraph aiohttp pygit2 pythonparser numpy
-    dateutil sphinx quamash scipy outputcheck
-    prettytable lit ml-pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
+  buildInputs = with python35Packages; [ lit outputcheck sphinx sphinx-argparse ];
+  propagatedBuildInputs = with python35Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable ml-pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";
