@@ -21,6 +21,8 @@ ARTIQ-4
   server address argument and the notify port.
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
+* ``artiq_flash`` targets Kasli by default. Use ``-t kc705`` to flash a KC705
+  instead.
 * ``artiq_flash -m/--adapter`` has been changed to ``artiq_flash -V/--variant``.
 * The ``proxy`` action of ``artiq_flash`` is determined automatically and should
   not be specified manually anymore.
