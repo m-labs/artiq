@@ -564,7 +564,7 @@ class LLVMIRGenerator:
                     try:
                         llrpcattrs.append(llrpcattr_of_attr(offset, attr, attrtyp))
                     except ValueError:
-                        continue
+                        pass
 
                 offset += size
 
