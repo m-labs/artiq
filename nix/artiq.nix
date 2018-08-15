@@ -126,7 +126,7 @@ python35Packages.buildPythonPackage rec {
   meta = with stdenv.lib; {
     description = "";
     homepage = https://m-labs/artiq;
-    license = licenses.gpl3;
+    license = licenses.lgpl3;
     maintainers = [ maintainers.sjmackenzie ];
     platforms = [ "x86_64-linux" ];
   };
