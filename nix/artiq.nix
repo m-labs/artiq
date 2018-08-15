@@ -13,18 +13,6 @@ levenshtein = python35Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
-sphinx-argparse = python35Packages.buildPythonPackage rec {
-  name = "sphinx-argparse";
-  src = fetchFromGitHub {
-    owner = "ribozz";
-    repo = "sphinx-argparse";
-    rev = "cc95938b8fbf870f7a5c012d4d84a29cfbac5e06";
-    sha256 = "1rsjlsnrpd4i4zx2sylilf6lfi77k0fclbhilrgx1m53ixllwg38";
-  };
-  buildInputs = with python35Packages; [ sphinx ];
-  doCheck = false;
-};
-
 pythonparser = python35Packages.buildPythonPackage rec {
   name = "pythonparser";
   src = fetchFromGitHub {
@@ -120,7 +108,7 @@ python35Packages.buildPythonPackage rec {
   version = "336482";
   name = "artiq-${version}";
   src = ./..;
-  buildInputs = with python35Packages; [ lit outputcheck sphinx sphinx-argparse ];
+  buildInputs = with python35Packages; [ lit outputcheck ];
   propagatedBuildInputs = with python35Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable ml-pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
