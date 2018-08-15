@@ -25,18 +25,6 @@ pythonparser = python35Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
-ml-pyserial = python35Packages.buildPythonPackage rec {
-  name = "pyserial";
-  src = fetchFromGitHub {
-    owner = "m-labs";
-    repo = "pyserial";
-    rev = "f30653b23f01c1cc27eb9731afc8ad66a723a4c0";
-    sha256 = "18xwsmpklggrm07b17ficpyjxnfgpw0k9lbz44nq4iflr8gmf33f";
-  };
-  buildInputs = with python35Packages; [ regex ];
-  doCheck = false;
-};
-
 asyncserial = python35Packages.buildPythonPackage rec {
   name = "asyncserial";
   src = fetchFromGitHub {
@@ -45,19 +33,7 @@ asyncserial = python35Packages.buildPythonPackage rec {
     rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
     sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
   };
-  buildInputs = with python35Packages; [ ml-pyserial ];
-  doCheck = false;
-};
-
-pyqtgraph = python35Packages.buildPythonPackage rec {
-  name = "pyqtgraph";
-  src = fetchFromGitHub {
-    owner = "m-labs";
-    repo = "pyqtgraph";
-    rev = "8e9ee6fd3cabcc06d25cde5f13921e5d9d11c588";
-    sha256 = "0ynhsd4nlbz4pgwch0w767a9ybazn5f33rakpjdrcwldvrrrng6y";
-  };
-  buildInputs = with python35Packages; [ numpy ];
+  buildInputs = with python35Packages; [ pyserial ];
   doCheck = false;
 };
 
@@ -109,7 +85,7 @@ python35Packages.buildPythonPackage rec {
   name = "artiq-${version}";
   src = ./..;
   buildInputs = with python35Packages; [ lit outputcheck ];
-  propagatedBuildInputs = with python35Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable ml-pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
+  propagatedBuildInputs = with python35Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";
