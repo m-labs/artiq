@@ -1,4 +1,4 @@
-{ stdenv, fetchgit, llvm-or1k, makeWrapper, python35, ncurses, zlib, python35Packages }:
+{ stdenv, fetchgit, llvm-or1k, makeWrapper, python3, ncurses, zlib, python3Packages }:
 let
 version = "0f4ebae";
 in
@@ -11,7 +11,7 @@ stdenv.mkDerivation rec {
     leaveDotGit = true;
   };
 
-  buildInputs = [ makeWrapper python35 ncurses zlib llvm-or1k python35Packages.setuptools ];
+  buildInputs = [ makeWrapper python3 ncurses zlib llvm-or1k python3Packages.setuptools ];
 
   installPhase = ''
     LLVM_CONFIG=${llvm-or1k}/bin/llvm-config
