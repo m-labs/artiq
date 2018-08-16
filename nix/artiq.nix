@@ -66,6 +66,19 @@ quamash = python3Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
+pyqtgraph-qt5 = python3Packages.buildPythonPackage rec {
+  name = "pyqtgraph_qt5-${version}";
+  version = "0.10.0";
+  doCheck = false;
+  src = fetchFromGitHub {
+    owner = "pyqtgraph";
+    repo = "pyqtgraph";
+    rev = "1426e334e1d20542400d77c72c132b04c6d17ddb";
+    sha256 = "1079haxyr316jf0wpirxdj0ry6j8mr16cqr0dyyrd5cnxwl7zssh";
+  };
+  propagatedBuildInputs = with python3Packages; [ scipy numpy pyqt5 pyopengl ];
+};
+
 lit = python3Packages.buildPythonPackage rec {
   name = "lit";
   version = "262719";
@@ -85,7 +98,7 @@ python3Packages.buildPythonPackage rec {
   name = "artiq-${version}";
   src = ./..;
   buildInputs = with python3Packages; [ lit outputcheck ];
-  propagatedBuildInputs = with python3Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
+  propagatedBuildInputs = with python3Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";
