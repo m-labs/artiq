@@ -1,18 +1,21 @@
-{ stdenv
-, fetchurl
+{ stdenv, buildPackages
+, fetchurl, zlib
 }:
 
 stdenv.mkDerivation rec {
   basename = "binutils";
   platform = "or1k";
-  version = "2.26";
+  version = "2.30";
   name = "${basename}_${platform}-${version}";
   src = fetchurl {
-    url = "https://ftp.gnu.org/gnu/binutils/${basename}-${version}.tar.bz2";
-    sha256 = "1ngc2h3knhiw8s22l8y6afycfaxr5grviqy7mwvm4bsl14cf9b62";
+    url = "https://ftp.gnu.org/gnu/binutils/binutils-${version}.tar.bz2";
+    sha256 = "028cklfqaab24glva1ks2aqa1zxa6w6xmc8q34zs1sb7h22dxspg";
   };
   configureFlags =
     [ "--enable-shared" "--enable-deterministic-archives" "--target=or1k-linux"];
+  outputs = [ "out" "info" "man" ];
+  depsBuildBuild = [ buildPackages.stdenv.cc ];
+  buildInputs = [ zlib ];
   enableParallelBuilding = true;
   meta = {
     description = "Tools for manipulating binaries (linker, assembler, etc.)";
@@ -29,4 +32,3 @@ stdenv.mkDerivation rec {
     priority = "10";
   };
 }
-
