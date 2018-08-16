@@ -1,4 +1,4 @@
-{ stdenv, fetchFromGitHub, fetchsvn, python3Packages, qt5Full, llvm-or1k, llvmlite, python3}:
+{ stdenv, fetchFromGitHub, fetchsvn, python3Packages, qt5Full, binutils-or1k, llvm-or1k, llvmlite, python3}:
 
 let
 
@@ -98,7 +98,7 @@ python3Packages.buildPythonPackage rec {
   name = "artiq-${version}";
   src = ./..;
   buildInputs = with python3Packages; [ lit outputcheck ];
-  propagatedBuildInputs = with python3Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
+  propagatedBuildInputs = with python3Packages; [ binutils-or1k llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";

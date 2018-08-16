@@ -4,7 +4,7 @@ let
   callPackage = pkgs.lib.callPackageWith (pkgs // self );
 
 self = {
-  binutils-ork1 = callPackage ./binutils-or1k.nix {};
+  binutils-or1k = callPackage ./binutils-or1k.nix {};
   llvm-src = callPackage ./fetch-llvm-clang.nix {};
   llvm-or1k = callPackage ./llvm-or1k.nix {};
   llvmlite = callPackage ./llvmlite.nix {};
