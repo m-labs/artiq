@@ -1,8 +1,8 @@
-{ stdenv, fetchFromGitHub, fetchsvn, python35Packages, qt5Full, llvm-or1k, llvmlite, python35}:
+{ stdenv, fetchFromGitHub, fetchsvn, python3Packages, qt5Full, llvm-or1k, llvmlite, python3}:
 
 let
 
-levenshtein = python35Packages.buildPythonPackage rec {
+levenshtein = python3Packages.buildPythonPackage rec {
   name = "levenshtein";
   src = fetchFromGitHub {
     owner = "ztane";
@@ -13,7 +13,7 @@ levenshtein = python35Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
-pythonparser = python35Packages.buildPythonPackage rec {
+pythonparser = python3Packages.buildPythonPackage rec {
   name = "pythonparser";
   src = fetchFromGitHub {
     owner = "m-labs";
@@ -21,11 +21,11 @@ pythonparser = python35Packages.buildPythonPackage rec {
     rev = "8bdc7badbd08e2196b864e12889ea9191ca6e09c";
     sha256 = "1f538wnjlqah0dsvq256k2rv7s7bffsvjcxy8fq0x3a4g0s6pm9d";
   };
-  buildInputs = with python35Packages; [ regex ];
+  buildInputs = with python3Packages; [ regex ];
   doCheck = false;
 };
 
-asyncserial = python35Packages.buildPythonPackage rec {
+asyncserial = python3Packages.buildPythonPackage rec {
   name = "asyncserial";
   src = fetchFromGitHub {
     owner = "m-labs";
@@ -33,11 +33,11 @@ asyncserial = python35Packages.buildPythonPackage rec {
     rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
     sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
   };
-  buildInputs = with python35Packages; [ pyserial ];
+  buildInputs = with python3Packages; [ pyserial ];
   doCheck = false;
 };
 
-outputcheck = python35Packages.buildPythonPackage rec {
+outputcheck = python3Packages.buildPythonPackage rec {
   name = "outputcheck";
   version = "0.4.2";
   src = fetchFromGitHub {
@@ -54,7 +54,7 @@ outputcheck = python35Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
-quamash = python35Packages.buildPythonPackage rec {
+quamash = python3Packages.buildPythonPackage rec {
   name = "quamash";
   src = fetchFromGitHub {
     owner = "harvimt";
@@ -62,11 +62,11 @@ quamash = python35Packages.buildPythonPackage rec {
     rev = "bbab9e30e10b71a95687b03a93524173fb7b43f0";
     sha256 = "08hp2q4ifj6z2ww05c7zsy0cd732k9rnaims1j43vr4hhxx950mk";
   };
-  buildInputs = with python35Packages; [ pyqt5 ];
+  buildInputs = with python3Packages; [ pyqt5 ];
   doCheck = false;
 };
 
-lit = python35Packages.buildPythonPackage rec {
+lit = python3Packages.buildPythonPackage rec {
   name = "lit";
   version = "262719";
   source = fetchsvn {
@@ -80,12 +80,12 @@ lit = python35Packages.buildPythonPackage rec {
 
 in
 
-python35Packages.buildPythonPackage rec {
+python3Packages.buildPythonPackage rec {
   version = "336482";
   name = "artiq-${version}";
   src = ./..;
-  buildInputs = with python35Packages; [ lit outputcheck ];
-  propagatedBuildInputs = with python35Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
+  buildInputs = with python3Packages; [ lit outputcheck ];
+  propagatedBuildInputs = with python3Packages; [ llvm-or1k llvmlite levenshtein pyqtgraph aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
     description = "";
