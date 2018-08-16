@@ -21,7 +21,7 @@ pythonparser = python3Packages.buildPythonPackage rec {
     rev = "8bdc7badbd08e2196b864e12889ea9191ca6e09c";
     sha256 = "1f538wnjlqah0dsvq256k2rv7s7bffsvjcxy8fq0x3a4g0s6pm9d";
   };
-  buildInputs = with python3Packages; [ regex ];
+  propagatedBuildInputs = with python3Packages; [ regex ];
   doCheck = false;
 };
 
@@ -33,7 +33,7 @@ asyncserial = python3Packages.buildPythonPackage rec {
     rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
     sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
   };
-  buildInputs = with python3Packages; [ pyserial ];
+  propagatedBuildInputs = with python3Packages; [ pyserial ];
   doCheck = false;
 };
 
@@ -62,7 +62,7 @@ quamash = python3Packages.buildPythonPackage rec {
     rev = "bbab9e30e10b71a95687b03a93524173fb7b43f0";
     sha256 = "08hp2q4ifj6z2ww05c7zsy0cd732k9rnaims1j43vr4hhxx950mk";
   };
-  buildInputs = with python3Packages; [ pyqt5 ];
+  propagatedBuildInputs = with python3Packages; [ pyqt5 ];
   doCheck = false;
 };
 
