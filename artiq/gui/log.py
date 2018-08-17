@@ -161,8 +161,13 @@ class _Model(QtCore.QAbstractItemModel):
                     return v[3][item.row+1]
         elif role == QtCore.Qt.ToolTipRole:
             v = self.entries[msgnum]
+            if item.parent is self:
+                lineno = 0
+            else:
+                lineno = item.row + 1
             return (log_level_to_name(v[0]) + ", " +
-                time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])))
+                time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])) +
+                "\n" + v[3][lineno])
 
 
 class LogDock(QDockWidgetCloseDetect):
