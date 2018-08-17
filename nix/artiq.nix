@@ -37,23 +37,6 @@ asyncserial = python3Packages.buildPythonPackage rec {
   doCheck = false;
 };
 
-outputcheck = python3Packages.buildPythonPackage rec {
-  name = "outputcheck";
-  version = "0.4.2";
-  src = fetchFromGitHub {
-    owner = "stp";
-    repo = "OutputCheck";
-    rev = "e0f533d3c5af2949349856c711bf4bca50022b48";
-    sha256 = "1y27vz6jq6sywas07kz3v01sqjd0sga9yv9w2cksqac3v7wmf2a0";
-  };
-  prePatch = ''
-  substituteInPlace setup.py \
-  --replace "version.get_git_version()" "\"${version}\"" \
-  --replace "import version" ""
-  '';
-  doCheck = false;
-};
-
 quamash = python3Packages.buildPythonPackage rec {
   name = "quamash";
   src = fetchFromGitHub {
@@ -79,24 +62,11 @@ pyqtgraph-qt5 = python3Packages.buildPythonPackage rec {
   propagatedBuildInputs = with python3Packages; [ scipy numpy pyqt5 pyopengl ];
 };
 
-lit = python3Packages.buildPythonPackage rec {
-  name = "lit";
-  version = "262719";
-  source = fetchsvn {
-    url = "http://llvm.org/svn/llvm-project/llvm/trunk/";
-    rev = "${version}";
-    sha256 = "1iashczfh30v9ark4xijk6z2q07c1kb70nar00mwnfix77gkb2v6";
-  };
-  src = source + /utils/lit;
-  doCheck = false;
-};
-
 in
 
 python3Packages.buildPythonPackage rec {
   name = "artiq";
   src = ./..;
-  buildInputs = with python3Packages; [ lit outputcheck ];
   propagatedBuildInputs = with python3Packages; [ binutils-or1k llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   doCheck = false;
   meta = with stdenv.lib; {
