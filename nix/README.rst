@@ -1,22 +1,28 @@
 Install ARTIQ via the Nix Package Manager
-===========================
+=========================================
 
-Nix does not support windows.
+These instructions provide an alternative route to install ARTIQ for people who do not wish to use conda.
 
-* Install the nix package manager
+This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python compiler, device drivers, and the graphical user interfaces. This works correctly on Linux, and partially works with WSL introduced in Windows 10.
 
-  * many linux distros already have a package for the `nix package manager <http://nixos.org/nix/>`_
+ARTIQ firmware and gateware development tools (e.g. rustc, Migen) and ARTIQ core device flashing tools (OpenOCD, proxy bitstreams) are currently not available on Nix. Pull requests welcome!
 
-    * for example: $ apt-get install nix
+* Install the Nix package manager
 
-  * if you would like to install via sh (please be sure you `understand <https://www.seancassidy.me/dont-pipe-to-your-shell.html>`_ the dangers involved when curl piping to sh. Also ensure you have read the contents of the script and feel comfortable executing it. Otherwise there is the `manual <http://nixos.org/nix/manual/>`_)
+  * many Linux distros already have a package for the `Nix package manager <http://nixos.org/nix/>`_
 
-    * $ curl https://nixos.org/nix/install | sh
+    * for example: ``$ apt-get install nix``
 
-    * $ source ~/.nix-profile/etc/profile.d/nix.sh
+  * if you would like to install via sh
 
-* $ git clone github.com/m-labs/artiq
-* $ cd artiq/nix
-* $ nix-env -i -f default.nix
+    * $ ``wget https://nixos.org/nix/install``
+
+    * $ ``sh install``
+
+    * $ ``source ~/.nix-profile/etc/profile.d/nix.sh``
+
+* $ ``git clone github.com/m-labs/artiq``
+* $ ``cd artiq/nix``
+* $ ``nix-env -i -f default.nix``
 
 The above command will setup your entire environment.
