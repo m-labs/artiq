@@ -379,8 +379,9 @@ class CoredeviceTest(ExperimentCase):
         self.execute(Loopback)
         rtt = self.dataset_mgr.get("rtt")
         print(rtt)
-        self.assertGreater(rtt, 0*ns)
-        self.assertLess(rtt, 140*ns)
+        self.assertGreater(rtt, 20*ns)
+        # on Kasli systems, this has to go through the isolated DIO card
+        self.assertLess(rtt, 170*ns)
 
     def test_clock_generator_loopback(self):
         self.execute(ClockGeneratorLoopback)
