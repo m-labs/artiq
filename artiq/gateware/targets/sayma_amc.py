@@ -577,7 +577,7 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=self.ad9154_crg.refclk,
+            clock_pads=platform.request("si5324_clkout"),
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
@@ -599,7 +599,7 @@ class Satellite(BaseSoC, RTMCommon):
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
-            si5324_clkout_fabric=platform.request("adc_sysref"))
+            si5324_clkout_fabric=platform.request("si5324_clkout_fabric"))
         platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {mmcm_ps}]",
             mmcm_ps=self.siphaser.mmcm_ps_output)
         platform.add_false_path_constraints(
@@ -612,11 +612,6 @@ class Satellite(BaseSoC, RTMCommon):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
-        # ensure pins are properly biased and terminated
-        si5324_clkout = platform.request("si5324_clkout", 0)
-        self.specials += Instance(
-            "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
-            attr={("DONT_TOUCH", "true")})
 
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             self.drtio0.coarse_ts, self.ad9154_crg.jref)

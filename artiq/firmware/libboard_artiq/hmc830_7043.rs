@@ -367,6 +367,18 @@ pub mod hmc7043 {
         Ok(())
     }
 
+    pub fn enable_fpga_ibuf() {
+        /*
+         * Never missing an opportunity to be awful, the HMC7043 produces broadband noise
+         * prior to intialization, which can upset the FPGA.
+         * One mitigation technique is to disable the input buffer until the HMC7043 is
+         * slightly better behaved.
+         */
+        unsafe {
+            csr::ad9154_crg::ibuf_disable_write(0);
+        }
+    }
+
     pub fn sysref_offset_dac(dacno: u8, phase_offset: u16) {
         /*  Analog delay resolution: 25ps
          *  Digital delay resolution: 1/2 input clock cycle = 416ps for 1.2GHz
@@ -427,6 +439,7 @@ pub fn init() -> Result<(), &'static str> {
     hmc7043::init();
     hmc7043::test_gpo()?;
     hmc7043::check_phased()?;
+    hmc7043::enable_fpga_ibuf();
 
     Ok(())
 }

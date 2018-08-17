@@ -33,10 +33,9 @@ fn read(addr: u16) -> u8 {
     }
 }
 
-pub fn jesd_unreset() {
+pub fn jesd_reset(reset: bool) {
     unsafe {
-        csr::ad9154_crg::ibuf_disable_write(0);
-        csr::ad9154_crg::jreset_write(0);
+        csr::ad9154_crg::jreset_write(if reset { 1 }  else { 0 });
     }
 }
 

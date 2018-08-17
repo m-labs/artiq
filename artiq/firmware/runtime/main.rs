@@ -111,7 +111,7 @@ fn startup() {
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
     #[cfg(has_ad9154)]
     {
-        board_artiq::ad9154::jesd_unreset();
+        board_artiq::ad9154::jesd_reset(false);
         board_artiq::ad9154::init();
         if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
             error!("failed to align SYSREF at FPGA: {}", e);

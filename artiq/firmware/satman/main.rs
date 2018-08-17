@@ -273,11 +273,6 @@ pub extern fn main() -> i32 {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
 
-    #[cfg(has_ad9154)]
-    {
-        board_artiq::ad9154::jesd_unreset();
-        board_artiq::ad9154::init();
-    }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
@@ -285,12 +280,34 @@ pub extern fn main() -> i32 {
         while !drtio_link_rx_up() {
             process_errors();
         }
+
         info!("link is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
+
+        #[cfg(has_ad9154)]
+        {
+            /*
+             * One side of the JESD204 elastic buffer is clocked by the Si5324, the other
+             * by the RTM.
+             * The elastic buffer can operate only when those two clocks are derived from
+             * the same oscillator.
+             * This is the case when either of those conditions is true:
+             * (1) The DRTIO master and the RTM are clocked directly from a common external
+             *     source, *and* the Si5324 has locked to the recovered clock.
+             *     This clocking scheme provides less noise and phase drift at the DACs.
+             * (2) The RTM clock is connected to the Si5324 output.
+             * To handle those cases, we simply keep the JESD204 core in reset unless the
+             * Si5324 is locked to the recovered clock.
+             */
+            board_artiq::ad9154::jesd_reset(false);
+            board_artiq::ad9154::init();
+        }
+
         drtioaux::reset(0);
         drtio_reset(false);
         drtio_reset_phy(false);
+
         while drtio_link_rx_up() {
             process_errors();
             process_aux_packets();
@@ -309,6 +326,10 @@ pub extern fn main() -> i32 {
                 }
             }
         }
+
+        #[cfg(has_ad9154)]
+        board_artiq::ad9154::jesd_reset(true);
+
         drtio_reset_phy(true);
         drtio_reset(true);
         drtio_tsc_loaded();
