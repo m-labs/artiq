@@ -189,4 +189,7 @@ device_db.update(
 device_db.update(
     ttl_out="ttl4",
     ttl_out_serdes="ttl4",
+
+    loop_out="ttl4",
+    loop_in="ttl0",
 )
