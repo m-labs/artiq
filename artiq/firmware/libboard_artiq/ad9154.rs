@@ -653,12 +653,25 @@ fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
     Ok(())
 }
 
-fn dac_cfg_retry(dacno: u8) -> Result<(), &'static str> {
+fn dac_cfg_and_test(dacno: u8) -> Result<(), &'static str> {
+    dac_cfg(dacno)?;
+    dac_prbs(dacno)?;
+    dac_stpl(dacno, 4, 2)?;
+    dac_cfg(dacno)?;
+    Ok(())
+}
+
+/*
+ * work around for:
+ * https://github.com/m-labs/artiq/issues/727
+ * https://github.com/m-labs/artiq/issues/1127
+ */
+fn dac_cfg_and_test_retry(dacno: u8) -> Result<(), &'static str> {
     let mut attempt =  0;
     loop {
         attempt += 1;
         dac_reset(dacno);
-        let outcome = dac_cfg(dacno);
+        let outcome = dac_cfg_and_test(dacno);
         match outcome {
             Ok(_) => return outcome,
             Err(e) => {
@@ -695,16 +708,9 @@ pub fn dac_sync(dacno: u8) -> Result<bool, &'static str> {
 
 fn init_dac(dacno: u8) -> Result<(), &'static str> {
     let dacno = dacno as u8;
-
     dac_reset(dacno);
     dac_detect(dacno)?;
-    dac_cfg_retry(dacno)?;
-
-    dac_prbs(dacno)?;
-    dac_stpl(dacno, 4, 2)?;
-
-    dac_cfg_retry(dacno)?;
-
+    dac_cfg_and_test_retry(dacno)?;
     Ok(())
 }
 
