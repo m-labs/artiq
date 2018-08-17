@@ -16,7 +16,7 @@ requirements:
     - setuptools 33.1.1
     - migen 0.7 py35_73+gitbef9dea
     - misoc 0.11 py35_29+git57ebe119
-    - jesd204b 0.9
+    - jesd204b 0.10
     - microscope
     - binutils-or1k-linux >=2.27
     - llvm-or1k 6.0.0
