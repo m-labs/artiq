@@ -17,6 +17,9 @@ def get_argparser():
     verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
+    parser.add_argument("-D", "--device", default=None,
+                        help="use specified core device address instead of "
+                             "reading device database")
 
     tools = parser.add_subparsers(dest="tool")
     tools.required = True
@@ -133,7 +136,10 @@ def main():
     args = get_argparser().parse_args()
     init_logger(args)
 
-    core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
+    if args.device is None:
+        core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
+    else:
+        core_addr = args.device
     mgmt = CommMgmt(core_addr)
 
     if args.tool == "log":
