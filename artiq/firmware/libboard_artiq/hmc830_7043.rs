@@ -297,7 +297,9 @@ pub mod hmc7043 {
         }
         write(0x4, output_group_en);
 
-        write(0x5c, (HMC_SYSREF_DIV & 0xff) as u8);  // Set SYSREF timer divider
+        // Set SYSREF timer divider.
+        // We don't need this "feature", but the HMC7043 won't work without.
+        write(0x5c, (HMC_SYSREF_DIV & 0xff) as u8);
         write(0x5d, ((HMC_SYSREF_DIV & 0x0f) >> 8) as u8);
 
         for channel in 0..OUTPUT_CONFIG.len() {
