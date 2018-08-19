@@ -649,8 +649,8 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.sfp_ctl = [platform.request("sfp_ctl", i) for i in range(1, 3)]
-        self.comb += [sc.tx_disable.eq(0) for sc in self.sfp_ctl]
+        sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
+        self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
             data_pads=[platform.request("sfp", i) for i in range(1, 3)],
@@ -659,6 +659,8 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("drtio_transceiver")
         self.sync += self.disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
+        self.comb += [sfp_ctl.led.eq(channel.rx_ready)
+            for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
 
         drtio_csr_group = []
         drtio_memory_group = []
@@ -785,7 +787,8 @@ class _SatelliteBase(BaseSoC):
         qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
-        self.comb += platform.request("sfp_ctl", 0).tx_disable.eq(0)
+        sfp_ctl = platform.request("sfp_ctl", 0)
+        self.comb += sfp_ctl.tx_disable.eq(0)
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
             data_pads=[platform.request("sfp", 0)],
@@ -794,6 +797,7 @@ class _SatelliteBase(BaseSoC):
         self.csr_devices.append("drtio_transceiver")
         self.sync += disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
+        self.comb += sfp_ctl.led.eq(self.drtio_transceiver.channels[0].rx_ready)
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
@@ -848,10 +852,6 @@ class Master(_MasterBase):
         phy = ttl_simple.Output(self.platform.request("user_led", 0))
         self.submodules += phy
         self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        for sc in self.sfp_ctl:
-            phy = ttl_simple.Output(sc.led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
         # matches Tester EEM numbers
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
@@ -872,10 +872,6 @@ class Satellite(_SatelliteBase):
         phy = ttl_simple.Output(self.platform.request("user_led", 0))
         self.submodules += phy
         self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        for i in range(1, 3):
-            phy = ttl_simple.Output(self.platform.request("sfp_ctl", i).led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
         # matches Tester EEM numbers
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
