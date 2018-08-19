@@ -18,8 +18,8 @@ pythonparser = python3Packages.buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "m-labs";
     repo = "pythonparser";
-    rev = "8bdc7badbd08e2196b864e12889ea9191ca6e09c";
-    sha256 = "1f538wnjlqah0dsvq256k2rv7s7bffsvjcxy8fq0x3a4g0s6pm9d";
+    rev = "5b391fe86f43bb9f4f96c5bc0532e2a112db2936";
+    sha256 = "1gw1fk4y2l6bwq0fg2a9dfc1rvq8cv492dyil96amjdhsxvnx35b";
   };
   propagatedBuildInputs = with python3Packages; [ regex ];
   doCheck = false;
