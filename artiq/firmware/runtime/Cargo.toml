@@ -34,6 +34,6 @@ features = ["alloc"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "2139686" # NB: also change in libboard_misoc/Cargo.toml
+rev = "92e970b" # NB: also change in libboard_misoc/Cargo.toml
 default-features = false
 features = ["rust-1.28", "alloc", "log", "proto-ipv4", "socket-tcp"]

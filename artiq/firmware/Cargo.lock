@@ -185,7 +185,7 @@ dependencies = [
  "logger_artiq 0.0.0",
  "managed 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "proto 0.0.0",
- "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)",
+ "smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=92e970b)",
  "std_artiq 0.0.0",
 ]
 
@@ -220,7 +220,7 @@ dependencies = [
 [[package]]
 name = "smoltcp"
 version = "0.4.0"
-source = "git+https://github.com/m-labs/smoltcp?rev=2139686#21396867114d267da06f19cc54cc4a1883b900a5"
+source = "git+https://github.com/m-labs/smoltcp?rev=92e970b#92e970b3798737cfaa2a829d3f1bb7a7353696ee"
 dependencies = [
  "bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -268,7 +268,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum managed 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ba6713e624266d7600e9feae51b1926c6a6a6bebb18ec5a8e11a5f1d5661baba"
 "checksum rustc-cfg 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "56a596b5718bf5e059d59a30af12f7f462a152de147aa462b70892849ee18704"
 "checksum same-file 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d931a44fdaa43b8637009e7632a02adc4f2b2e0733c08caa4cf00e8da4a117a7"
-"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=2139686)" = "<none>"
+"checksum smoltcp 0.4.0 (git+https://github.com/m-labs/smoltcp?rev=92e970b)" = "<none>"
 "checksum walkdir 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)" = "bb08f9e670fab86099470b97cd2b252d6527f0b3cc1401acdb595ffc9dd288ff"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
