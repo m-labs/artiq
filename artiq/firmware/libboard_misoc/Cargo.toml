@@ -18,7 +18,7 @@ log = { version = "0.4", default-features = false, optional = true }
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "2139686" # NB: also change in runtime/Cargo.toml
+rev = "92e970b" # NB: also change in runtime/Cargo.toml
 default-features = false
 optional = true
 
