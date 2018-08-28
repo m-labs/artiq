@@ -189,6 +189,52 @@ class LoopbackCount(EnvExperiment):
         self.set_dataset("count", self.loop_in.count())
 
 
+class LoopbackGateTiming(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.setattr_device("loop_in")
+        self.setattr_device("loop_out")
+
+    @kernel
+    def run(self):
+        # Make sure there are no leftover events.
+        self.core.reset()
+
+        # Determine loop delay.
+        self.core.break_realtime()
+        with parallel:
+            self.loop_in.gate_rising_mu(10000)
+            with sequential:
+                delay_mu(5000)
+                out_mu = now_mu()
+                self.loop_out.pulse_mu(1000)
+        in_mu = self.loop_in.timestamp_mu()
+        if in_mu < 0:
+            raise PulseNotReceived("No input event, loop connected?")
+        loop_delay_mu = in_mu - out_mu
+
+        # With the exact delay known, make sure tight gate timings work.
+        # In the most common configuration, 24 mu == 24 ns == 3 coarse periods,
+        # which should be plenty of slack.
+        delay_mu(10000)
+
+        gate_start_mu = now_mu()
+        self.loop_in.gate_rising_mu(24)
+        gate_end_mu = now_mu()
+
+        out_mu = gate_start_mu - loop_delay_mu
+        at_mu(out_mu)
+        self.loop_out.pulse_mu(1000)
+
+        in_mu = self.loop_in.timestamp_mu()
+        if in_mu < 0:
+            raise PulseNotReceived("No input event")
+        if not (gate_start_mu < in_mu < gate_end_mu):
+            raise PulseNotReceived("Input event should occur during gate")
+        if not (-2 < (in_mu - out_mu - loop_delay_mu) < 2):
+            raise PulseNotReceived("Loop delay should not change")
+
+
 class IncorrectLevel(Exception):
     pass
 
@@ -409,6 +455,9 @@ class CoredeviceTest(ExperimentCase):
         self.execute(LoopbackCount, npulses=npulses)
         count = self.dataset_mgr.get("count")
         self.assertEqual(count, npulses)
+
+    def test_loopback_gate_timing(self):
+        self.execute(LoopbackGateTiming)
 
     def test_level(self):
         self.execute(Level)
