@@ -242,6 +242,19 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
+#[cfg(rtio_frequency = "125.0")]
+const SI5324_SETTINGS: si5324::FrequencySettings
+    = si5324::FrequencySettings {
+    n1_hs  : 5,
+    nc1_ls : 8,
+    n2_hs  : 7,
+    n2_ls  : 360,
+    n31    : 63,
+    n32    : 63,
+    bwsel  : 4,
+    crystal_ref: true
+};
+
 fn drtio_link_rx_up() -> bool {
     unsafe {
         (csr::DRTIO[0].rx_up_read)() == 1
