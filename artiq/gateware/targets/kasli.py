@@ -878,6 +878,62 @@ class Satellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
+class VLBAIMaster(_MasterBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev, *args,
+                             **kwargs)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 1,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 2,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+
+        phy = ttl_simple.Output(self.platform.request("user_led", 0))
+        self.submodules += phy
+        self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+
+
+class VLBAISatellite(_SatelliteBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+                                *args, **kwargs)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 1,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 2,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+
+        phy = ttl_simple.Output(self.platform.request("user_led", 0))
+        self.submodules += phy
+        self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.add_rtio(self.rtio_channels)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
@@ -886,7 +942,7 @@ def main():
     parser.set_defaults(output_dir="artiq_kasli")
     variants = {cls.__name__.lower(): cls for cls in [
         Opticlock, SUServo, SYSU, MITLL, USTC, Tsinghua, WIPM, PTB, HUB, LUH,
-        Tester, Master, Satellite]}
+        VLBAIMaster, VLBAISatellite, Tester, Master, Satellite]}
     parser.add_argument("-V", "--variant", default="opticlock",
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(variants.keys()))))
