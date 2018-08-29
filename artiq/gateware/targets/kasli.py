@@ -626,7 +626,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -638,7 +638,6 @@ class _MasterBase(MiniSoC, AMPSoC):
         add_identifier(self)
 
         platform = self.platform
-        rtio_clk_freq = 150e6
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -760,7 +759,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -769,7 +768,6 @@ class _SatelliteBase(BaseSoC):
         add_identifier(self)
 
         platform = self.platform
-        rtio_clk_freq = 150e6
 
         disable_si5324_ibuf = Signal(reset=1)
         disable_si5324_ibuf.attr.add("no_retiming")
@@ -803,7 +801,8 @@ class _SatelliteBase(BaseSoC):
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             si5324_clkout_fabric=platform.request("si5324_clkout_fabric"),
-            ref_clk=self.crg.clk125_div2, ref_div2=True)
+            ref_clk=self.crg.clk125_div2, ref_div2=True,
+            rtio_clk_freq=rtio_clk_freq)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
         self.csr_devices.append("siphaser")
