@@ -113,7 +113,7 @@ class RTPacketSatellite(Module):
                         rx_plm.types["echo_request"]: echo_req.eq(1),
                         rx_plm.types["set_time"]: NextState("SET_TIME"),
                         rx_plm.types["write"]: NextState("WRITE"),
-                        rx_plm.types["buffer_space_request"]: NextState("BUFFER_SPACE"),
+                        rx_plm.types["buffer_space_request"]: NextState("BUFFER_SPACE_REQUEST"),
                         rx_plm.types["read_request"]: NextState("READ_REQUEST"),
                         "default": self.unknown_packet_type.eq(1)
                     })
@@ -142,10 +142,16 @@ class RTPacketSatellite(Module):
                 )
             )
         )
+        rx_fsm.act("BUFFER_SPACE_REQUEST",
+            self.cri.cmd.eq(cri.commands["get_buffer_space"]),
+            NextState("BUFFER_SPACE")
+        )
         rx_fsm.act("BUFFER_SPACE",
-            buffer_space_set.eq(1),
-            buffer_space_update.eq(1),
-            NextState("INPUT")
+            If(self.cri.o_buffer_space_valid,
+                buffer_space_set.eq(1),
+                buffer_space_update.eq(1),
+                NextState("INPUT")
+            )
         )
 
         rx_fsm.act("READ_REQUEST",

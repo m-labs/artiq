@@ -13,11 +13,13 @@ from misoc.interconnect.csr import *
 
 commands = {
     "nop": 0,
-
     "write": 1,
     # i_status should have the "wait for status" bit set until
     # an event is available, or timestamp is reached.
-    "read": 2
+    "read": 2,
+    # targets must assert o_buffer_space_valid in response
+    # to this command
+    "get_buffer_space": 3
 }
 
 
@@ -32,8 +34,11 @@ layout = [
     # o_status bits:
     # <0:wait> <1:underflow> <2:link error>
     ("o_status", 3, DIR_S_TO_M),
-    # targets may optionally report a pessimistic estimate of the number
-    # of outputs events that can be written without waiting.
+
+    # pessimistic estimate of the number of outputs events that can be
+    # written without waiting.
+    # this feature may be omitted on systems without DRTIO.
+    ("o_buffer_space_valid", 1, DIR_S_TO_M),
     ("o_buffer_space", 16, DIR_S_TO_M),
 
     ("i_data", 32, DIR_S_TO_M),

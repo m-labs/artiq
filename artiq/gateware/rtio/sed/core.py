@@ -55,7 +55,10 @@ class SED(Module):
             self.comb += i.eq(o)
 
         if report_buffer_space:
-            self.comb += self.cri.o_buffer_space.eq(self.fifos.buffer_space)
+            self.comb += [
+                self.cri.o_buffer_space_valid.eq(1),
+                self.cri.o_buffer_space.eq(self.fifos.buffer_space)
+            ]
 
     @property
     def cri(self):
