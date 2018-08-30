@@ -8,7 +8,7 @@ from artiq.gateware.drtio.rt_serializer import *
 
 
 class RTPacketSatellite(Module):
-    def __init__(self, link_layer):
+    def __init__(self, link_layer, interface=None):
         self.reset = Signal()
 
         self.unknown_packet_type = Signal()
@@ -17,7 +17,9 @@ class RTPacketSatellite(Module):
         self.tsc_load = Signal()
         self.tsc_load_value = Signal(64)
 
-        self.cri = cri.Interface()
+        if interface is None:
+            interface = cri.Interface()
+        self.cri = interface
 
         # # #
 

@@ -67,12 +67,18 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy2),
         ]
         self.submodules.satellite = DRTIOSatellite(
-            self.transceivers.bob, rtio_channels, rx_synchronizer,
-            lane_count=4, fifo_depth=8, fine_ts_width=0)
+            self.transceivers.bob, rx_synchronizer, fine_ts_width=0)
         self.satellite.reset.storage.reset = 0
         self.satellite.reset.storage_full.reset = 0
         self.satellite.reset_phy.storage.reset = 0
         self.satellite.reset_phy.storage_full.reset = 0
+        self.submodules.satellite_rtio = SyncRTIO(
+            rtio_channels, fine_ts_width=0, lane_count=4, fifo_depth=8)
+        self.comb += [
+        self.satellite_rtio.coarse_ts.eq(self.satellite.coarse_ts),
+            self.satellite.cri.connect(self.satellite_rtio.cri),
+            self.satellite.async_errors.eq(self.satellite_rtio.async_errors),
+        ]
 
 
 class OutputsTestbench:
