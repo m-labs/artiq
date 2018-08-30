@@ -45,7 +45,7 @@ class RTIOCounter(Module):
 
 
 class RTController(Module):
-    def __init__(self, rt_packet, channel_count, fine_ts_width):
+    def __init__(self, rt_packet, fine_ts_width):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
 
