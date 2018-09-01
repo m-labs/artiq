@@ -1,2 +1,2 @@
-from artiq.gateware.drtio.core import SyncRTIO, DRTIOSatellite, DRTIOMaster
+from artiq.gateware.drtio.core import SyncRTIO, DRTIOSatellite, DRTIOMaster, DRTIORepeater
 

@@ -16,7 +16,7 @@ from artiq.gateware.drtio.rx_synchronizer import GenericRXSynchronizer
 
 __all__ = ["ChannelInterface", "TransceiverInterface",
            "SyncRTIO",
-           "DRTIOSatellite", "DRTIOMaster"]
+           "DRTIOSatellite", "DRTIOMaster", "DRTIORepeater"]
 
 
 class ChannelInterface:
@@ -180,3 +180,25 @@ class DRTIOMaster(Module):
     @property
     def cri(self):
         return self.rt_controller.cri
+
+
+class DRTIORepeater(Module):
+    def __init__(self, chanif):
+        self.submodules.link_layer = link_layer.LinkLayer(
+            chanif.encoder, chanif.decoders)
+        self.comb += self.link_layer.rx_ready.eq(chanif.rx_ready)
+
+        self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
+        self.submodules.rt_packet = rt_packet_repeater.RTPacketRepeater(self.link_layer)
+
+        self.submodules.aux_controller = aux_controller.AuxController(
+            self.link_layer)
+
+    def get_csrs(self):
+        return (self.link_layer.get_csrs() +
+                self.link_stats.get_csrs() +
+                self.aux_controller.get_csrs())
+
+    @property
+    def cri(self):
+        return self.rt_packet.cri
