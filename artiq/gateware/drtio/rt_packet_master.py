@@ -15,7 +15,7 @@ class RTPacketMaster(Module):
 
         # standard request interface
         #
-        # notwrite=1 address=0  buffer space request
+        # notwrite=1 address=0  buffer space request <destination>
         # notwrite=1 address=1  read request <channel, timestamp>
         #
         # optimized for write throughput
@@ -252,7 +252,7 @@ class RTPacketMaster(Module):
             )
         )
         tx_fsm.act("BUFFER_SPACE",
-            tx_dp.send("buffer_space_request"),
+            tx_dp.send("buffer_space_request", destination=sr_channel),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")

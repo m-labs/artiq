@@ -1,13 +1,24 @@
 from migen import *
 from migen.genlib.fsm import *
+from migen.genlib.misc import WaitTimer
+
 
 from artiq.gateware.rtio import cri
+from artiq.gateware.drtio.cdc import CrossDomainNotification
 from artiq.gateware.drtio.rt_serializer import *
 
 
 class RTPacketRepeater(Module):
     def __init__(self, link_layer):
+        # CRI target interface in rtio domain
         self.cri = cri.Interface()
+
+        # in rtio_rx domain
+        self.err_unknown_packet_type = Signal()
+        self.err_packet_truncated = Signal()
+
+        # in rtio domain
+        self.buffer_space_timeout = Signal()
 
         # RX/TX datapath
         assert len(link_layer.tx_rt_data) == len(link_layer.rx_rt_data)
@@ -61,12 +72,30 @@ class RTPacketRepeater(Module):
                 extra_data_counter.eq(1)
             )
 
+        # Buffer space
+        buffer_space_destination = Signal(8)
+        self.sync.rtio += If(self.cri.cmd == cri.commands["get_buffer_space"],
+            buffer_space_destination.eq(self.cri.chan_sel[16:]))
+
+        rx_buffer_space_not = Signal()
+        rx_buffer_space = Signal(16)
+        buffer_space_not = Signal()
+        buffer_space_not_ack = Signal()
+        self.submodules += CrossDomainNotification("rtio_rx", "rtio",
+            rx_buffer_space_not, rx_buffer_space,
+            buffer_space_not, buffer_space_not_ack,
+            self.cri.o_buffer_space)
+
+        timeout_counter = WaitTimer(8191)
+        self.submodules += timeout_counter
+
         # TX FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
 
         tx_fsm.act("IDLE",
-            If(self.cri.cmd == cri.commands["write"], NextState("WRITE"))
+            If(self.cri.cmd == cri.commands["write"], NextState("WRITE")),
+            If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE"))
         )
         tx_fsm.act("WRITE",
             tx_dp.send("write",
@@ -89,4 +118,53 @@ class RTPacketRepeater(Module):
             If(extra_data_last,
                 NextState("IDLE")
             )
+        )
+        tx_fsm.act("BUFFER_SPACE",
+            tx_dp.send("buffer_space_request", destination=buffer_space_destination),
+            If(tx_dp.packet_last,
+                buffer_space_not_ack.eq(1),
+                NextState("WAIT_BUFFER_SPACE")
+            )
+        )
+        tx_fsm.act("WAIT_BUFFER_SPACE",
+            timeout_counter.wait.eq(1),
+            If(timeout_counter.done,
+                self.buffer_space_timeout.eq(1),
+                NextState("IDLE")
+            ).Else(
+                If(buffer_space_not,
+                    self.cri.o_buffer_space_valid.eq(1),
+                    NextState("IDLE")
+                ),
+            )
+        )
+
+        # RX FSM
+        rx_fsm = ClockDomainsRenamer("rtio_rx")(FSM(reset_state="INPUT"))
+        self.submodules += rx_fsm
+
+        ongoing_packet_next = Signal()
+        ongoing_packet = Signal()
+        self.sync.rtio_rx += ongoing_packet.eq(ongoing_packet_next)
+
+        rx_fsm.act("INPUT",
+            If(rx_dp.frame_r,
+                rx_dp.packet_buffer_load.eq(1),
+                If(rx_dp.packet_last,
+                    Case(rx_dp.packet_type, {
+                        rx_plm.types["buffer_space_reply"]: NextState("BUFFER_SPACE"),
+                        "default": self.err_unknown_packet_type.eq(1)
+                    })
+                ).Else(
+                    ongoing_packet_next.eq(1)
+                )
+            ),
+            If(~rx_dp.frame_r & ongoing_packet,
+                self.err_packet_truncated.eq(1)
+            )
+        )
+        rx_fsm.act("BUFFER_SPACE",
+            rx_buffer_space_not.eq(1),
+            rx_buffer_space.eq(rx_dp.packet_as["buffer_space_reply"].space),
+            NextState("INPUT")
         )

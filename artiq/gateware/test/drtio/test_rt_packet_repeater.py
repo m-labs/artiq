@@ -60,3 +60,39 @@ class TestRepeater(unittest.TestCase):
 
             run_simulation(dut, [send(), pr.receive(receive)])
             self.assertEqual(test_writes, received)
+
+    def test_buffer_space(self):
+        for nwords in range(1, 8):
+            pt, pr, dut = create_dut(nwords)
+
+            def send_requests():
+                for i in range(10):
+                    yield dut.cri.chan_sel.eq(i << 16)
+                    yield dut.cri.cmd.eq(cri.commands["get_buffer_space"])
+                    yield
+                    yield dut.cri.cmd.eq(cri.commands["nop"])
+                    yield
+                    while not (yield dut.cri.o_buffer_space_valid):
+                        yield
+                    buffer_space = yield dut.cri.o_buffer_space
+                    self.assertEqual(buffer_space, 2*i)
+
+            current_request = None
+
+            @passive
+            def send_replies():
+                nonlocal current_request
+                while True:
+                    while current_request is None:
+                        yield
+                    yield from pt.send("buffer_space_reply", space=2*current_request)
+                    current_request = None
+
+            def receive(packet_type, field_dict, trailer):
+                nonlocal current_request
+                self.assertEqual(packet_type, "buffer_space_request")
+                self.assertEqual(trailer, [])
+                self.assertEqual(current_request, None)
+                current_request = field_dict["destination"]
+
+            run_simulation(dut, [send_requests(), send_replies(), pr.receive(receive)])

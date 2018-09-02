@@ -53,7 +53,7 @@ def get_m2s_layouts(alignment):
                           ("address", 16),
                           ("extra_data_cnt", 8),
                           ("short_data", short_data_len))
-    plm.add_type("buffer_space_request")
+    plm.add_type("buffer_space_request", ("destination", 8))
 
     plm.add_type("read_request", ("channel", 16), ("timeout", 64))
 
