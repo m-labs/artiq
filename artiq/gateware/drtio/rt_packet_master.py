@@ -3,61 +3,10 @@
 from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
-from migen.genlib.cdc import PulseSynchronizer
 
 from artiq.gateware.rtio.cdc import GrayCodeTransfer, BlindTransfer
+from artiq.gateware.drtio.cdc import CrossDomainRequest, CrossDomainNotification
 from artiq.gateware.drtio.rt_serializer import *
-
-
-class _CrossDomainRequest(Module):
-    def __init__(self, domain,
-                 req_stb, req_ack, req_data,
-                 srv_stb, srv_ack, srv_data):
-        dsync = getattr(self.sync, domain)
-
-        request = PulseSynchronizer("sys", domain)
-        reply = PulseSynchronizer(domain, "sys")
-        self.submodules += request, reply
-
-        ongoing = Signal()
-        self.comb += request.i.eq(~ongoing & req_stb)
-        self.sync += [
-            req_ack.eq(reply.o),
-            If(req_stb, ongoing.eq(1)),
-            If(req_ack, ongoing.eq(0))
-        ]
-        if req_data is not None:
-            req_data_r = Signal.like(req_data)
-            req_data_r.attr.add("no_retiming")
-            self.sync += If(req_stb, req_data_r.eq(req_data))
-        dsync += [
-            If(request.o, srv_stb.eq(1)),
-            If(srv_ack, srv_stb.eq(0))
-        ]
-        if req_data is not None:
-            dsync += If(request.o, srv_data.eq(req_data_r))
-        self.comb += reply.i.eq(srv_stb & srv_ack)
-
-
-class _CrossDomainNotification(Module):
-    def __init__(self, domain,
-                 emi_stb, emi_data,
-                 rec_stb, rec_ack, rec_data):
-        emi_data_r = Signal(len(emi_data))
-        emi_data_r.attr.add("no_retiming")
-        dsync = getattr(self.sync, domain)
-        dsync += If(emi_stb, emi_data_r.eq(emi_data))
-
-        ps = PulseSynchronizer(domain, "sys")
-        self.submodules += ps
-        self.comb += ps.i.eq(emi_stb)
-        self.sync += [
-            If(rec_ack, rec_stb.eq(0)),
-            If(ps.o,
-                rec_data.eq(emi_data_r),
-                rec_stb.eq(1)
-            )
-        ]
 
 
 class RTPacketMaster(Module):
@@ -206,19 +155,19 @@ class RTPacketMaster(Module):
         # CDC
         buffer_space_not = Signal()
         buffer_space = Signal(16)
-        self.submodules += _CrossDomainNotification("rtio_rx",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             buffer_space_not, buffer_space,
             self.buffer_space_not, self.buffer_space_not_ack, self.buffer_space)
 
         set_time_stb = Signal()
         set_time_ack = Signal()
-        self.submodules += _CrossDomainRequest("rtio",
+        self.submodules += CrossDomainRequest("rtio",
             self.set_time_stb, self.set_time_ack, None,
             set_time_stb, set_time_ack, None)
 
         echo_stb = Signal()
         echo_ack = Signal()
-        self.submodules += _CrossDomainRequest("rtio",
+        self.submodules += CrossDomainRequest("rtio",
             self.echo_stb, self.echo_ack, None,
             echo_stb, echo_ack, None)
 
@@ -227,7 +176,7 @@ class RTPacketMaster(Module):
         read_is_overflow = Signal()
         read_data = Signal(32)
         read_timestamp = Signal(64)
-        self.submodules += _CrossDomainNotification("rtio_rx",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             read_not,
             Cat(read_no_event, read_is_overflow, read_data, read_timestamp),
 

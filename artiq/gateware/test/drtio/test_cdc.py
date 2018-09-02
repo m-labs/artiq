@@ -3,8 +3,8 @@ import random
 
 from migen import *
 
-from artiq.gateware.drtio.rt_packet_master import (_CrossDomainRequest,
-                                                   _CrossDomainNotification)
+from artiq.gateware.drtio.cdc import CrossDomainRequest, CrossDomainNotification
+
 
 class TestCDC(unittest.TestCase):
     def test_cross_domain_request(self):
@@ -43,7 +43,7 @@ class TestCDC(unittest.TestCase):
                         yield srv_ack.eq(0)
                         yield
 
-                dut = _CrossDomainRequest("srv",
+                dut = CrossDomainRequest("srv",
                          req_stb, req_ack, req_data,
                          srv_stb, srv_ack, srv_data)
                 run_simulation(dut,
@@ -85,7 +85,7 @@ class TestCDC(unittest.TestCase):
                 for j in range(prng.randrange(0, 3)):
                     yield
 
-        dut = _CrossDomainNotification("emi",
+        dut = CrossDomainNotification("emi", "sys",
             emi_stb, emi_data,
             rec_stb, rec_ack, rec_data)
         run_simulation(dut,
