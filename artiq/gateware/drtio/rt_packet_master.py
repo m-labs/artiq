@@ -26,7 +26,7 @@ class RTPacketMaster(Module):
         self.sr_ack = Signal()
         self.sr_notwrite = Signal()
         self.sr_timestamp = Signal(64)
-        self.sr_channel = Signal(16)
+        self.sr_chan_sel = Signal(24)
         self.sr_address = Signal(16)
         self.sr_data = Signal(512)
 
@@ -85,19 +85,19 @@ class RTPacketMaster(Module):
 
         # Write FIFO and extra data count
         sr_fifo = ClockDomainsRenamer({"write": "sys_with_rst", "read": "rtio_with_rst"})(
-            AsyncFIFO(1+64+16+16+512, sr_fifo_depth))
+            AsyncFIFO(1+64+24+16+512, sr_fifo_depth))
         self.submodules += sr_fifo
         sr_notwrite_d = Signal()
         sr_timestamp_d = Signal(64)
-        sr_channel_d = Signal(16)
+        sr_chan_sel_d = Signal(24)
         sr_address_d = Signal(16)
         sr_data_d = Signal(512)
         self.comb += [
             sr_fifo.we.eq(self.sr_stb),
             self.sr_ack.eq(sr_fifo.writable),
-            sr_fifo.din.eq(Cat(self.sr_notwrite, self.sr_timestamp, self.sr_channel,
+            sr_fifo.din.eq(Cat(self.sr_notwrite, self.sr_timestamp, self.sr_chan_sel,
                                self.sr_address, self.sr_data)),
-            Cat(sr_notwrite_d, sr_timestamp_d, sr_channel_d,
+            Cat(sr_notwrite_d, sr_timestamp_d, sr_chan_sel_d,
                 sr_address_d, sr_data_d).eq(sr_fifo.dout)
         ]
 
@@ -114,7 +114,7 @@ class RTPacketMaster(Module):
 
         sr_notwrite = Signal()
         sr_timestamp = Signal(64)
-        sr_channel = Signal(16)
+        sr_chan_sel = Signal(24)
         sr_address = Signal(16)
         sr_extra_data_cnt = Signal(8)
         sr_data = Signal(512)
@@ -122,7 +122,7 @@ class RTPacketMaster(Module):
         self.sync.rtio += If(sr_fifo.re,
             sr_notwrite.eq(sr_notwrite_d),
             sr_timestamp.eq(sr_timestamp_d),
-            sr_channel.eq(sr_channel_d),
+            sr_chan_sel.eq(sr_chan_sel_d),
             sr_address.eq(sr_address_d),
             sr_data.eq(sr_data_d))
 
@@ -230,7 +230,7 @@ class RTPacketMaster(Module):
         tx_fsm.act("WRITE",
             tx_dp.send("write",
                 timestamp=sr_timestamp,
-                channel=sr_channel,
+                chan_sel=sr_chan_sel,
                 address=sr_address,
                 extra_data_cnt=sr_extra_data_cnt,
                 short_data=sr_data[:short_data_len]),
@@ -252,14 +252,14 @@ class RTPacketMaster(Module):
             )
         )
         tx_fsm.act("BUFFER_SPACE",
-            tx_dp.send("buffer_space_request", destination=sr_channel),
+            tx_dp.send("buffer_space_request", destination=sr_chan_sel[16:]),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")
             )
         )
         tx_fsm.act("READ",
-            tx_dp.send("read_request", channel=sr_channel, timeout=sr_timestamp),
+            tx_dp.send("read_request", chan_sel=sr_chan_sel, timeout=sr_timestamp),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")

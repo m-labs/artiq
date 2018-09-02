@@ -35,12 +35,12 @@ class RTPacketRepeater(Module):
 
         # Write buffer and extra data count
         wb_timestamp = Signal(64)
-        wb_channel = Signal(16)
+        wb_chan_sel = Signal(24)
         wb_address = Signal(16)
         wb_data = Signal(512)
         self.sync.rtio += If(self.cri.cmd == cri.commands["write"],
             wb_timestamp.eq(self.cri.timestamp),
-            wb_channel.eq(self.cri.chan_sel),
+            wb_chan_sel.eq(self.cri.chan_sel),
             wb_address.eq(self.cri.o_address),
             wb_data.eq(self.cri.o_data))
 
@@ -100,7 +100,7 @@ class RTPacketRepeater(Module):
         tx_fsm.act("WRITE",
             tx_dp.send("write",
                 timestamp=wb_timestamp,
-                channel=wb_channel,
+                chan_sel=wb_chan_sel,
                 address=wb_address,
                 extra_data_cnt=wb_extra_data_cnt,
                 short_data=wb_data[:short_data_len]),

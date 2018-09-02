@@ -93,11 +93,10 @@ class RTController(Module):
         ]
 
         # common packet fields
-        chan_sel = self.cri.chan_sel[:16]
         rt_packet_buffer_request = Signal()
         rt_packet_read_request = Signal()
         self.comb += [
-            rt_packet.sr_channel.eq(chan_sel),
+            rt_packet.sr_chan_sel.eq(self.cri.chan_sel),
             rt_packet.sr_address.eq(self.cri.o_address),
             rt_packet.sr_data.eq(self.cri.o_data),
             rt_packet.sr_timestamp.eq(self.cri.timestamp),

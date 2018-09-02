@@ -55,7 +55,7 @@ class TestRepeater(unittest.TestCase):
                 data = field_dict["short_data"]
                 for n, te in enumerate(trailer):
                     data |= te << (n*nwords*8 + short_data_len)
-                received.append((field_dict["channel"], field_dict["timestamp"],
+                received.append((field_dict["chan_sel"], field_dict["timestamp"],
                                  field_dict["address"], data))
 
             run_simulation(dut, [send(), pr.receive(receive)])

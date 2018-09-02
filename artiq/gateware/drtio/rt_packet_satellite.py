@@ -83,12 +83,12 @@ class RTPacketSatellite(Module):
                 rx_dp.packet_as["set_time"].timestamp),
             If(load_read_request | read_request_pending,
                 self.cri.chan_sel.eq(
-                    rx_dp.packet_as["read_request"].channel),
+                    rx_dp.packet_as["read_request"].chan_sel),
                 self.cri.timestamp.eq(
                     rx_dp.packet_as["read_request"].timeout)
             ).Else(
                 self.cri.chan_sel.eq(
-                    rx_dp.packet_as["write"].channel),
+                    rx_dp.packet_as["write"].chan_sel),
                 self.cri.timestamp.eq(
                     rx_dp.packet_as["write"].timestamp)
             ),

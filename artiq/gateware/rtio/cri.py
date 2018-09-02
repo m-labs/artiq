@@ -25,7 +25,8 @@ commands = {
 
 layout = [
     ("cmd", 2, DIR_M_TO_S),
-    # 8 MSBs of chan_sel are used to select core
+    # 8  MSBs of chan_sel = routing destination
+    # 16 LSBs of chan_sel = channel within the destination
     ("chan_sel", 24, DIR_M_TO_S),
     ("timestamp", 64, DIR_M_TO_S),
 
