@@ -19,6 +19,32 @@ def create_dut(nwords):
 
 
 class TestRepeater(unittest.TestCase):
+    def test_set_time(self):
+        nwords = 2
+        pt, pr, dut = create_dut(nwords)
+
+        def send():
+            yield dut.tsc_value.eq(0x12345678)
+            yield dut.set_time_stb.eq(1)
+            while not (yield dut.set_time_ack):
+                yield
+            yield dut.set_time_stb.eq(0)
+            yield
+            for _ in range(30):
+                yield
+
+        received = False
+        def receive(packet_type, field_dict, trailer):
+            nonlocal received
+            self.assertEqual(packet_type, "set_time")
+            self.assertEqual(trailer, [])
+            self.assertEqual(field_dict["timestamp"], 0x12345678)
+            self.assertEqual(received, False)
+            received = True
+
+        run_simulation(dut, [send(), pr.receive(receive)])
+        self.assertEqual(received, True)
+
     def test_output(self):
         test_writes = [
             (1, 10, 21, 0x42),

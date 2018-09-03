@@ -18,7 +18,15 @@ class RTPacketRepeater(Module):
         self.err_packet_truncated = Signal()
 
         # in rtio domain
+        self.command_missed = Signal()
         self.buffer_space_timeout = Signal()
+
+        # set_time interface, in rtio domain
+        self.set_time_stb = Signal()
+        self.set_time_ack = Signal()
+        self.tsc_value = Signal(64)
+
+        # # #
 
         # RX/TX datapath
         assert len(link_layer.tx_rt_data) == len(link_layer.rx_rt_data)
@@ -32,6 +40,11 @@ class RTPacketRepeater(Module):
         rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
             link_layer.rx_rt_frame, link_layer.rx_rt_data, rx_plm))
         self.submodules += rx_dp
+
+        # TSC sync
+        tsc_value = Signal(64)
+        tsc_value_load = Signal()
+        self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
         # Write buffer and extra data count
         wb_timestamp = Signal(64)
@@ -89,13 +102,30 @@ class RTPacketRepeater(Module):
         timeout_counter = ClockDomainsRenamer("rtio")(WaitTimer(8191))
         self.submodules += timeout_counter
 
+        # Missed commands
+        cri_ready = Signal()
+        self.sync.rtio += self.command_missed.eq(~cri_ready & (self.cri.cmd != cri.commands["nop"]))
+
         # TX FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
 
         tx_fsm.act("IDLE",
-            If(self.cri.cmd == cri.commands["write"], NextState("WRITE")),
-            If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE"))
+            If(self.set_time_stb,
+                tsc_value_load.eq(1),
+                NextState("SET_TIME")
+            ).Else(
+                cri_ready.eq(1),
+                If(self.cri.cmd == cri.commands["write"], NextState("WRITE")),
+                If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE"))
+            )
+        )
+        tx_fsm.act("SET_TIME",
+            tx_dp.send("set_time", timestamp=tsc_value),
+            If(tx_dp.packet_last,
+                self.set_time_ack.eq(1),
+                NextState("IDLE")
+            )
         )
         tx_fsm.act("WRITE",
             tx_dp.send("write",
