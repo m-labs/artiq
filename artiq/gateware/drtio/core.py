@@ -5,7 +5,7 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from migen.genlib.cdc import PulseSynchronizer
 from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio import cri
+from artiq.gateware.rtio import cri, rtlink
 from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer, aux_controller,
@@ -47,32 +47,33 @@ async_errors_layout = [
 
 
 class SyncRTIO(Module):
-    def __init__(self, channels, fine_ts_width=3, lane_count=8, fifo_depth=128):
+    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128):
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
-        self.coarse_ts = Signal(64 - fine_ts_width)
 
-        self.comb += self.cri.counter.eq(self.coarse_ts << fine_ts_width)
+        chan_fine_ts_width = max(max(rtlink.get_fine_ts_width(channel.interface.o)
+                                     for channel in channels),
+                                 max(rtlink.get_fine_ts_width(channel.interface.i)
+                                     for channel in channels))
+        assert tsc.glbl_fine_ts_width >= chan_fine_ts_width
 
         self.submodules.outputs = ClockDomainsRenamer("rio")(
-            SED(channels, fine_ts_width, "sync",
+            SED(channels, tsc.glbl_fine_ts_width, "sync",
                 lane_count=lane_count, fifo_depth=fifo_depth,
                 enable_spread=False, report_buffer_space=True,
                 interface=self.cri))
-        self.comb += self.outputs.coarse_timestamp.eq(self.coarse_ts)
-        self.sync.rtio += self.outputs.minimum_coarse_timestamp.eq(self.coarse_ts + 16)
+        self.comb += self.outputs.coarse_timestamp.eq(tsc.coarse_ts)
+        self.sync.rtio += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
 
         self.submodules.inputs = ClockDomainsRenamer("rio")(
-            InputCollector(channels, fine_ts_width, "sync",
-                           interface=self.cri))
-        self.comb += self.inputs.coarse_timestamp.eq(self.coarse_ts)
+            InputCollector(tsc, channels, "sync", interface=self.cri))
 
         for attr, _ in async_errors_layout:
             self.comb += getattr(self.async_errors, attr).eq(getattr(self.outputs, attr))
 
 
 class DRTIOSatellite(Module):
-    def __init__(self, chanif, rx_synchronizer=None, fine_ts_width=3):
+    def __init__(self, tsc, chanif, rx_synchronizer=None):
         self.reset = CSRStorage(reset=1)
         self.reset_phy = CSRStorage(reset=1)
         self.tsc_loaded = CSR()
@@ -127,13 +128,10 @@ class DRTIOSatellite(Module):
             rt_packet_satellite.RTPacketSatellite(link_layer_sync, interface=self.cri))
         self.comb += self.rt_packet.reset.eq(self.cd_rio.rst)
 
-        self.coarse_ts = Signal(64 - fine_ts_width)
-        self.sync.rtio += \
-            If(self.rt_packet.tsc_load,
-                self.coarse_ts.eq(self.rt_packet.tsc_load_value)
-            ).Else(
-                self.coarse_ts.eq(self.coarse_ts + 1)
-            )
+        self.comb += [
+            tsc.load.eq(self.rt_packet.tsc_load),
+            tsc.load_value.eq(self.rt_packet.tsc_load_value)
+        ]
 
         ps_tsc_load = PulseSynchronizer("rtio", "sys")
         self.submodules += ps_tsc_load
@@ -144,7 +142,7 @@ class DRTIOSatellite(Module):
         ]
 
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
-            self.rt_packet, self.cri, self.async_errors)
+            self.rt_packet, tsc, self.cri, self.async_errors)
 
         self.submodules.aux_controller = aux_controller.AuxController(
             self.link_layer)
@@ -156,7 +154,7 @@ class DRTIOSatellite(Module):
 
 
 class DRTIOMaster(Module):
-    def __init__(self, chanif, fine_ts_width=3):
+    def __init__(self, tsc, chanif):
         self.submodules.link_layer = link_layer.LinkLayer(
             chanif.encoder, chanif.decoders)
         self.comb += self.link_layer.rx_ready.eq(chanif.rx_ready)
@@ -164,7 +162,7 @@ class DRTIOMaster(Module):
         self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
         self.submodules.rt_packet = rt_packet_master.RTPacketMaster(self.link_layer)
         self.submodules.rt_controller = rt_controller_master.RTController(
-            self.rt_packet, fine_ts_width)
+            tsc, self.rt_packet)
         self.submodules.rt_manager = rt_controller_master.RTManager(self.rt_packet)
 
         self.submodules.aux_controller = aux_controller.AuxController(

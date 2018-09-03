@@ -127,7 +127,8 @@ class FullStackTB(Module):
         self.submodules.memory = wishbone.SRAM(
             256, init=sequence, bus=bus)
         self.submodules.dut = dma.DMA(bus)
-        self.submodules.rtio = rtio.Core(rtio_channels)
+        self.submodules.tsc = rtio.TSC("async")
+        self.submodules.rtio = rtio.Core(self.tsc, rtio_channels)
         self.comb += self.dut.cri.connect(self.rtio.cri)
 
 

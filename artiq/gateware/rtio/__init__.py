@@ -1,3 +1,4 @@
+from artiq.gateware.rtio.tsc import TSC
 from artiq.gateware.rtio.cri import KernelInitiator, CRIInterconnectShared
 from artiq.gateware.rtio.channel import Channel, LogChannel
 from artiq.gateware.rtio.core import Core

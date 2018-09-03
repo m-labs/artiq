@@ -7,7 +7,6 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio.cdc import GrayCodeTransfer
 from artiq.gateware.rtio import cri
 
 
@@ -26,26 +25,8 @@ class _CSRs(AutoCSR):
         self.o_wait = CSRStatus()
 
 
-class RTIOCounter(Module):
-    def __init__(self, width):
-        self.width = width
-        # Timestamp counter in RTIO domain
-        self.value_rtio = Signal(width)
-        # Timestamp counter resynchronized to sys domain
-        # Lags behind value_rtio, monotonic and glitch-free
-        self.value_sys = Signal(width)
-
-        # # #
-
-        # note: counter is in rtio domain and never affected by the reset CSRs
-        self.sync.rtio += self.value_rtio.eq(self.value_rtio + 1)
-        gt = GrayCodeTransfer(width)
-        self.submodules += gt
-        self.comb += gt.i.eq(self.value_rtio), self.value_sys.eq(gt.o)
-
-
 class RTController(Module):
-    def __init__(self, rt_packet, fine_ts_width):
+    def __init__(self, tsc, rt_packet):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
 
@@ -80,11 +61,9 @@ class RTController(Module):
         self.comb += self.csrs.protocol_error.w.eq(
             Cat(err_unknown_packet_type, err_packet_truncated, err_buffer_space_timeout))
 
-        # master RTIO counter and counter synchronization
-        self.submodules.counter = RTIOCounter(64-fine_ts_width)
+        # TSC synchronization
         self.comb += [
-            self.cri.counter.eq(self.counter.value_sys << fine_ts_width),
-            rt_packet.tsc_value.eq(self.counter.value_rtio),
+            rt_packet.tsc_value.eq(tsc.coarse_ts),
             self.csrs.set_time.w.eq(rt_packet.set_time_stb)
         ]
         self.sync += [
@@ -130,8 +109,8 @@ class RTController(Module):
         self.submodules += timeout_counter
 
         cond_underflow = Signal()
-        self.comb += cond_underflow.eq((self.cri.timestamp[fine_ts_width:]
-                           - self.csrs.underflow_margin.storage[fine_ts_width:]) < self.counter.value_sys)
+        self.comb += cond_underflow.eq((self.cri.timestamp[tsc.glbl_fine_ts_width:]
+                           - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
 
         buffer_space = Signal(16)
 

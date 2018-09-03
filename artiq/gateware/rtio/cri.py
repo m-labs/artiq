@@ -49,11 +49,6 @@ layout = [
     # <3:link error>
     # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 4, DIR_S_TO_M),
-
-    # value of the timestamp counter transferred into the CRI clock domain.
-    # monotonic, may lag behind the counter in the IO clock domain, but
-    # not be ahead of it.
-    ("counter", 64, DIR_S_TO_M)
 ]
 
 
@@ -63,8 +58,10 @@ class Interface(Record):
 
 
 class KernelInitiator(Module, AutoCSR):
-    def __init__(self, cri=None):
+    def __init__(self, tsc, cri=None):
         self.chan_sel = CSRStorage(24)
+        # monotonic, may lag behind the counter in the IO clock domain, but
+        # not be ahead of it.
         self.timestamp = CSRStorage(64)
 
         # Writing timestamp clears o_data. This implements automatic
@@ -109,7 +106,7 @@ class KernelInitiator(Module, AutoCSR):
             self.o_data.dat_w.eq(0),
             self.o_data.we.eq(self.timestamp.re),
         ]
-        self.sync += If(self.counter_update.re, self.counter.status.eq(self.cri.counter))
+        self.sync += If(self.counter_update.re, self.counter.status.eq(tsc.full_ts_cri))
 
 
 class CRIDecoder(Module):

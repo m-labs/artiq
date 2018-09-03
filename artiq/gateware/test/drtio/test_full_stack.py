@@ -52,9 +52,11 @@ class DUT(Module):
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.master = DRTIOMaster(self.transceivers.alice,
-                                             fine_ts_width=0)
-        self.submodules.master_ki = rtio.KernelInitiator(self.master.cri)
+        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.master = DRTIOMaster(self.tsc_master,
+                                             self.transceivers.alice)
+        self.submodules.master_ki = rtio.KernelInitiator(self.tsc_master,
+            self.master.cri)
         self.master.rt_controller.csrs.link_up.storage.reset = 1
 
         rx_synchronizer = DummyRXSynchronizer()
@@ -66,16 +68,16 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1),
             rtio.Channel.from_phy(self.phy2),
         ]
+        self.submodules.tsc_satellite = rtio.TSC("sync")
         self.submodules.satellite = DRTIOSatellite(
-            self.transceivers.bob, rx_synchronizer, fine_ts_width=0)
+            self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0
         self.satellite.reset.storage_full.reset = 0
         self.satellite.reset_phy.storage.reset = 0
         self.satellite.reset_phy.storage_full.reset = 0
         self.submodules.satellite_rtio = SyncRTIO(
-            rtio_channels, fine_ts_width=0, lane_count=4, fifo_depth=8)
+            self.tsc_satellite, rtio_channels, lane_count=4, fifo_depth=8)
         self.comb += [
-        self.satellite_rtio.coarse_ts.eq(self.satellite.coarse_ts),
             self.satellite.cri.connect(self.satellite_rtio.cri),
             self.satellite.async_errors.eq(self.satellite_rtio.async_errors),
         ]
@@ -106,7 +108,7 @@ class OutputsTestbench:
 
     def sync(self):
         t = self.now + 15
-        while (yield self.dut.master.cri.counter) < t:
+        while (yield self.dut.tsc_master.full_ts_cri) < t:
             yield
 
     def write(self, channel, data):

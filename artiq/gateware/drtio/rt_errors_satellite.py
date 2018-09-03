@@ -7,7 +7,7 @@ from artiq.gateware.rtio.cdc import BlindTransfer
 
 
 class RTErrorsSatellite(Module, AutoCSR):
-    def __init__(self, rt_packet, cri, async_errors):
+    def __init__(self, rt_packet, tsc, cri, async_errors):
         self.protocol_error = CSR(4)
         self.underflow_channel = CSRStatus(16)
         self.underflow_timestamp_event = CSRStatus(64)
@@ -60,7 +60,7 @@ class RTErrorsSatellite(Module, AutoCSR):
             overflow.eq(cri.o_status[0]),
             underflow_error_cri.eq(Cat(cri.chan_sel[:16],
                                        cri.timestamp,
-                                       cri.counter)),
+                                       tsc.full_ts_cri)),
             Cat(self.underflow_channel.status,
                 self.underflow_timestamp_event.status,
                 self.underflow_timestamp_counter.status).eq(underflow_error_csr)
