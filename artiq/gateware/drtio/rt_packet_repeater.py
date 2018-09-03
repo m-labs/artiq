@@ -86,7 +86,7 @@ class RTPacketRepeater(Module):
             buffer_space_not, buffer_space_not_ack,
             self.cri.o_buffer_space)
 
-        timeout_counter = WaitTimer(8191)
+        timeout_counter = ClockDomainsRenamer("rtio")(WaitTimer(8191))
         self.submodules += timeout_counter
 
         # TX FSM
