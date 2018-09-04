@@ -908,11 +908,13 @@ class VLBAIMaster(_MasterBase):
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
-        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
-        phy = ttl_simple.Output(self.platform.request("user_led", 0))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in (0, 1):
+            phy = ttl_simple.Output(self.platform.request("user_led", i))
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
@@ -938,11 +940,13 @@ class VLBAISatellite(_SatelliteBase):
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
-        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
-        phy = ttl_simple.Output(self.platform.request("user_led", 0))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in (0, 1):
+            phy = ttl_simple.Output(self.platform.request("user_led", i))
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
         self.add_rtio(self.rtio_channels)
 
