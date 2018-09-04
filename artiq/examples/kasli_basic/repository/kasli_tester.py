@@ -277,23 +277,10 @@ class KasliTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
-    def test_grabbers(self):
-        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
-        print("*** Testing Grabber Frame Grabbers.")
-        print("ROIs: %s".format(rois))
-        print("Press ENTER, activate the camera's frame grabber output, "
-              "and trigger it once. Type 's' to skip the test.")
-        if input().strip().lower() == "s":
-            print("skipping...")
-            return
-        for card_n, (card_name, card_dev) in enumerate(self.grabbers):
-            print(card_name)
-            self.grabber_capture(card_dev, rois)
-
     @kernel
     def grabber_capture(self, card_dev, rois):
         self.core.break_realtime()
-        delay(10*us)
+        delay(100*us)
         mask = 0
         for i in range(len(rois)):
             i = rois[i][0]
@@ -308,8 +295,21 @@ class KasliTester(EnvExperiment):
         card_dev.input_mu(n)
         self.core.break_realtime()
         card_dev.gate_roi(0)
-        print("ROI sums:")
-        print(n)
+        print("ROI sums: {}".format(n))
+
+    def test_grabbers(self):
+        print("*** Testing Grabber Frame Grabbers.")
+        print("Activate the camera's frame grabber output, type 'g', press "
+              "ENTER, and trigger the camera.")
+        print("Just press ENTER to skip the test.")
+        if input().strip().lower() != "g":
+            print("skipping...")
+            return
+        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
+        print("ROIs: {}".format(rois))
+        for card_n, (card_name, card_dev) in enumerate(self.grabbers):
+            print(card_name)
+            self.grabber_capture(card_dev, rois)
 
     def run(self):
         print("****** Kasli system tester ******")
