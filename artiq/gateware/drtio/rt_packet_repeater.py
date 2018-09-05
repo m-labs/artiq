@@ -9,7 +9,7 @@ from artiq.gateware.drtio.rt_serializer import *
 
 
 class RTPacketRepeater(Module):
-    def __init__(self, link_layer):
+    def __init__(self, tsc, link_layer):
         # CRI target interface in rtio domain
         self.cri = cri.Interface()
 
@@ -24,7 +24,6 @@ class RTPacketRepeater(Module):
         # set_time interface, in rtio domain
         self.set_time_stb = Signal()
         self.set_time_ack = Signal()
-        self.tsc_value = Signal(64)
 
         # # #
 
@@ -44,7 +43,7 @@ class RTPacketRepeater(Module):
         # TSC sync
         tsc_value = Signal(64)
         tsc_value_load = Signal()
-        self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
+        self.sync.rtio += If(tsc_value_load, tsc_value.eq(tsc.coarse_ts))
 
         # Write buffer and extra data count
         wb_timestamp = Signal(64)

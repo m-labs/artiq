@@ -181,13 +181,13 @@ class DRTIOMaster(Module):
 
 
 class DRTIORepeater(Module):
-    def __init__(self, chanif):
+    def __init__(self, tsc, chanif):
         self.submodules.link_layer = link_layer.LinkLayer(
             chanif.encoder, chanif.decoders)
         self.comb += self.link_layer.rx_ready.eq(chanif.rx_ready)
 
         self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
-        self.submodules.rt_packet = rt_packet_repeater.RTPacketRepeater(self.link_layer)
+        self.submodules.rt_packet = rt_packet_repeater.RTPacketRepeater(tsc, self.link_layer)
 
         self.submodules.aux_controller = aux_controller.AuxController(
             self.link_layer)

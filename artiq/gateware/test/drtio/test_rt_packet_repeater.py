@@ -11,20 +11,23 @@ from artiq.gateware.drtio.rt_packet_repeater import RTPacketRepeater
 def create_dut(nwords):
     pt = PacketInterface("s2m", nwords*8)
     pr = PacketInterface("m2s", nwords*8)
+    ts = Signal(64)
     dut = ClockDomainsRenamer({"rtio": "sys", "rtio_rx": "sys"})(
-        RTPacketRepeater(SimpleNamespace(
-            rx_rt_frame=pt.frame, rx_rt_data=pt.data,
-            tx_rt_frame=pr.frame, tx_rt_data=pr.data)))
-    return pt, pr, dut
+        RTPacketRepeater(
+            SimpleNamespace(coarse_ts=ts),
+            SimpleNamespace(
+                rx_rt_frame=pt.frame, rx_rt_data=pt.data,
+                tx_rt_frame=pr.frame, tx_rt_data=pr.data)))
+    return pt, pr, ts, dut
 
 
 class TestRepeater(unittest.TestCase):
     def test_set_time(self):
         nwords = 2
-        pt, pr, dut = create_dut(nwords)
+        pt, pr, ts, dut = create_dut(nwords)
 
         def send():
-            yield dut.tsc_value.eq(0x12345678)
+            yield ts.eq(0x12345678)
             yield dut.set_time_stb.eq(1)
             while not (yield dut.set_time_ack):
                 yield
@@ -55,7 +58,7 @@ class TestRepeater(unittest.TestCase):
         ]
 
         for nwords in range(1, 8):
-            pt, pr, dut = create_dut(nwords)
+            pt, pr, ts, dut = create_dut(nwords)
 
             def send():
                 for channel, timestamp, address, data in test_writes:
@@ -89,7 +92,7 @@ class TestRepeater(unittest.TestCase):
 
     def test_buffer_space(self):
         for nwords in range(1, 8):
-            pt, pr, dut = create_dut(nwords)
+            pt, pr, ts, dut = create_dut(nwords)
 
             def send_requests():
                 for i in range(10):
