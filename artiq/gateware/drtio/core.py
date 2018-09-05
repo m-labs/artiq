@@ -8,7 +8,7 @@ from misoc.interconnect.csr import *
 from artiq.gateware.rtio import cri, rtlink
 from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
-from artiq.gateware.drtio import (link_layer, aux_controller,
+from artiq.gateware.drtio import (link_layer,
                                   rt_packet_satellite, rt_errors_satellite,
                                   rt_packet_master, rt_controller_master,
                                   rt_controller_repeater)
@@ -145,13 +145,10 @@ class DRTIOSatellite(Module):
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
             self.rt_packet, tsc, self.cri, self.async_errors)
 
-        self.submodules.aux_controller = aux_controller.AuxController(
-            self.link_layer)
-
     def get_csrs(self):
         return ([self.reset, self.reset_phy, self.tsc_loaded] +
                 self.link_layer.get_csrs() + self.link_stats.get_csrs() +
-                self.rt_errors.get_csrs() + self.aux_controller.get_csrs())
+                self.rt_errors.get_csrs())
 
 
 class DRTIOMaster(Module):
@@ -166,15 +163,11 @@ class DRTIOMaster(Module):
             tsc, self.rt_packet)
         self.submodules.rt_manager = rt_controller_master.RTManager(self.rt_packet)
 
-        self.submodules.aux_controller = aux_controller.AuxController(
-            self.link_layer)
-
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
                 self.link_stats.get_csrs() +
                 self.rt_controller.get_csrs() +
-                self.rt_manager.get_csrs() +
-                self.aux_controller.get_csrs())
+                self.rt_manager.get_csrs())
 
     @property
     def cri(self):
@@ -191,14 +184,10 @@ class DRTIORepeater(Module):
         self.submodules.rt_packet = rt_packet_repeater.RTPacketRepeater(tsc, self.link_layer)
         self.submodules.rt_controller = rt_controller_repeater.RTController(self.rt_packet)
 
-        self.submodules.aux_controller = aux_controller.AuxController(
-            self.link_layer)
-
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
                 self.link_stats.get_csrs() +
-                self.rt_controller.get_csrs() +
-                self.aux_controller.get_csrs())
+                self.rt_controller.get_csrs())
 
     @property
     def cri(self):

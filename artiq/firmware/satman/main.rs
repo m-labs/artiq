@@ -16,21 +16,21 @@ use board_artiq::hmc830_7043;
 
 fn drtio_reset(reset: bool) {
     unsafe {
-        (csr::DRTIO[0].reset_write)(if reset { 1 } else { 0 });
+        csr::drtiosat::reset_write(if reset { 1 } else { 0 });
     }
 }
 
 fn drtio_reset_phy(reset: bool) {
     unsafe {
-        (csr::DRTIO[0].reset_phy_write)(if reset { 1 } else { 0 });
+        csr::drtiosat::reset_phy_write(if reset { 1 } else { 0 });
     }
 }
 
 fn drtio_tsc_loaded() -> bool {
     unsafe {
-        let tsc_loaded = (csr::DRTIO[0].tsc_loaded_read)() == 1;
+        let tsc_loaded = csr::drtiosat::tsc_loaded_read() == 1;
         if tsc_loaded {
-            (csr::DRTIO[0].tsc_loaded_write)(1);
+            csr::drtiosat::tsc_loaded_write(1);
         }
         tsc_loaded
     }
@@ -56,29 +56,29 @@ fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>
         drtioaux::Packet::RtioErrorRequest => {
             let errors;
             unsafe {
-                errors = (csr::DRTIO[0].rtio_error_read)();
+                errors = csr::drtiosat::rtio_error_read();
             }
             if errors & 1 != 0 {
                 let channel;
                 unsafe {
-                    channel = (csr::DRTIO[0].sequence_error_channel_read)();
-                    (csr::DRTIO[0].rtio_error_write)(1);
+                    channel = csr::drtiosat::sequence_error_channel_read();
+                    csr::drtiosat::rtio_error_write(1);
                 }
                 drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorSequenceErrorReply { channel })
             } else if errors & 2 != 0 {
                 let channel;
                 unsafe {
-                    channel = (csr::DRTIO[0].collision_channel_read)();
-                    (csr::DRTIO[0].rtio_error_write)(2);
+                    channel = csr::drtiosat::collision_channel_read();
+                    csr::drtiosat::rtio_error_write(2);
                 }
                 drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorCollisionReply { channel })
             } else if errors & 4 != 0 {
                 let channel;
                 unsafe {
-                    channel = (csr::DRTIO[0].busy_channel_read)();
-                    (csr::DRTIO[0].rtio_error_write)(4);
+                    channel = csr::drtiosat::busy_channel_read();
+                    csr::drtiosat::rtio_error_write(4);
                 }
                 drtioaux::send_link(0,
                     &drtioaux::Packet::RtioErrorBusyReply { channel })
@@ -201,7 +201,7 @@ fn process_aux_packets() {
 fn process_errors() {
     let errors;
     unsafe {
-        errors = (csr::DRTIO[0].protocol_error_read)();
+        errors = csr::drtiosat::protocol_error_read();
     }
     if errors & 1 != 0 {
         error!("received packet of an unknown type");
@@ -217,9 +217,9 @@ fn process_errors() {
         let timestamp_event;
         let timestamp_counter;
         unsafe {
-            channel = (csr::DRTIO[0].underflow_channel_read)();
-            timestamp_event = (csr::DRTIO[0].underflow_timestamp_event_read)() as i64;
-            timestamp_counter = (csr::DRTIO[0].underflow_timestamp_counter_read)() as i64;
+            channel = csr::drtiosat::underflow_channel_read();
+            timestamp_event = csr::drtiosat::underflow_timestamp_event_read() as i64;
+            timestamp_counter = csr::drtiosat::underflow_timestamp_counter_read() as i64;
         }
         error!("write underflow, channel={}, timestamp={}, counter={}, slack={}",
                channel, timestamp_event, timestamp_counter, timestamp_event-timestamp_counter);
@@ -228,7 +228,7 @@ fn process_errors() {
         error!("write overflow");
     }
     unsafe {
-        (csr::DRTIO[0].protocol_error_write)(errors);
+        csr::drtiosat::protocol_error_write(errors);
     }
 }
 
@@ -247,7 +247,7 @@ const SI5324_SETTINGS: si5324::FrequencySettings
 
 fn drtio_link_rx_up() -> bool {
     unsafe {
-        (csr::DRTIO[0].rx_up_read)() == 1
+        csr::drtiosat::rx_up_read() == 1
     }
 }
 

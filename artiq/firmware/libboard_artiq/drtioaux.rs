@@ -2,7 +2,7 @@ use core::slice;
 use crc;
 
 use io::{ProtoRead, ProtoWrite, Cursor, Error as IoError};
-use board_misoc::{csr::DRTIO, mem::DRTIO_AUX, clock};
+use board_misoc::{csr::DRTIOAUX, mem::DRTIOAUX_MEM, clock};
 use proto_artiq::drtioaux_proto::Error as ProtocolError;
 
 pub use proto_artiq::drtioaux_proto::Packet;
@@ -40,17 +40,17 @@ pub fn reset(linkno: u8) {
         // clear buffer first to limit race window with buffer overflow
         // error. We assume the CPU is fast enough so that no two packets
         // will be received between the buffer and the error flag are cleared.
-        (DRTIO[linkno].aux_rx_present_write)(1);
-        (DRTIO[linkno].aux_rx_error_write)(1);
+        (DRTIOAUX[linkno].aux_rx_present_write)(1);
+        (DRTIOAUX[linkno].aux_rx_error_write)(1);
     }
 }
 
 fn has_rx_error(linkno: u8) -> bool {
     let linkno = linkno as usize;
     unsafe {
-        let error = (DRTIO[linkno].aux_rx_error_read)() != 0;
+        let error = (DRTIOAUX[linkno].aux_rx_error_read)() != 0;
         if error {
-            (DRTIO[linkno].aux_rx_error_write)(1)
+            (DRTIOAUX[linkno].aux_rx_error_write)(1)
         }
         error
     }
@@ -61,11 +61,11 @@ fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>, Error<!>>
 {
     let linkidx = linkno as usize;
     unsafe {
-        if (DRTIO[linkidx].aux_rx_present_read)() == 1 {
-            let ptr = DRTIO_AUX[linkidx].base + DRTIO_AUX[linkidx].size / 2;
-            let len = (DRTIO[linkidx].aux_rx_length_read)();
+        if (DRTIOAUX[linkidx].aux_rx_present_read)() == 1 {
+            let ptr = DRTIOAUX_MEM[linkidx].base + DRTIOAUX_MEM[linkidx].size / 2;
+            let len = (DRTIOAUX[linkidx].aux_rx_length_read)();
             let result = f(slice::from_raw_parts(ptr as *mut u8, len as usize));
-            (DRTIO[linkidx].aux_rx_present_write)(1);
+            (DRTIOAUX[linkidx].aux_rx_present_write)(1);
             Ok(Some(result?))
         } else {
             Ok(None)
@@ -114,12 +114,12 @@ fn transmit<F>(linkno: u8, f: F) -> Result<(), Error<!>>
 {
     let linkno = linkno as usize;
     unsafe {
-        while (DRTIO[linkno].aux_tx_read)() != 0 {}
-        let ptr = DRTIO_AUX[linkno].base;
-        let len = DRTIO_AUX[linkno].size / 2;
+        while (DRTIOAUX[linkno].aux_tx_read)() != 0 {}
+        let ptr = DRTIOAUX_MEM[linkno].base;
+        let len = DRTIOAUX_MEM[linkno].size / 2;
         let len = f(slice::from_raw_parts_mut(ptr as *mut u8, len))?;
-        (DRTIO[linkno].aux_tx_length_write)(len as u16);
-        (DRTIO[linkno].aux_tx_write)(1);
+        (DRTIOAUX[linkno].aux_tx_length_write)(len as u16);
+        (DRTIOAUX[linkno].aux_tx_write)(1);
         Ok(())
     }
 }
@@ -146,7 +146,7 @@ pub fn send_link(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
 
 // TODO: routing
 fn get_linkno(nodeno: u8) -> Result<u8, Error<!>> {
-    if nodeno == 0 || nodeno as usize > DRTIO.len() {
+    if nodeno == 0 || nodeno as usize > DRTIOAUX.len() {
         return Err(Error::NoRoute)
     }
     Ok(nodeno - 1)
