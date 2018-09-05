@@ -236,7 +236,7 @@ class TestFullStack(unittest.TestCase):
             errors = yield from saterr.protocol_error.read()
             underflow_channel = yield from saterr.underflow_channel.read()
             underflow_timestamp_event = yield from saterr.underflow_timestamp_event.read()
-            self.assertEqual(errors, 4)  # write underflow
+            self.assertEqual(errors, 8)  # write underflow
             self.assertEqual(underflow_channel, 42)
             self.assertEqual(underflow_timestamp_event, 100)
             yield from saterr.protocol_error.write(errors)

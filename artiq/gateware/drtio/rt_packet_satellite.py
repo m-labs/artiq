@@ -2,6 +2,7 @@
 
 from migen import *
 from migen.genlib.fsm import *
+from migen.genlib.misc import WaitTimer
 
 from artiq.gateware.rtio import cri
 from artiq.gateware.drtio.rt_serializer import *
@@ -13,6 +14,7 @@ class RTPacketSatellite(Module):
 
         self.unknown_packet_type = Signal()
         self.packet_truncated = Signal()
+        self.buffer_space_timeout = Signal()
 
         self.tsc_load = Signal()
         self.tsc_load_value = Signal(64)
@@ -105,6 +107,9 @@ class RTPacketSatellite(Module):
         ongoing_packet = Signal()
         self.sync += ongoing_packet.eq(ongoing_packet_next)
 
+        timeout_counter = WaitTimer(8191)
+        self.submodules += timeout_counter
+
         rx_fsm.act("INPUT",
             If(rx_dp.frame_r,
                 rx_dp.packet_buffer_load.eq(1),
@@ -149,6 +154,11 @@ class RTPacketSatellite(Module):
             NextState("BUFFER_SPACE")
         )
         rx_fsm.act("BUFFER_SPACE",
+            timeout_counter.wait.eq(1),
+            If(timeout_counter.done,
+                self.buffer_space_timeout.eq(1),
+                NextState("INPUT")
+            ),
             If(self.cri.o_buffer_space_valid,
                 buffer_space_set.eq(1),
                 buffer_space_update.eq(1),

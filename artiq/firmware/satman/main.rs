@@ -210,6 +210,9 @@ fn process_errors() {
         error!("received truncated packet");
     }
     if errors & 4 != 0 {
+        error!("timeout attempting to get buffer space from CRI")
+    }
+    if errors & 8 != 0 {
         let channel;
         let timestamp_event;
         let timestamp_counter;
@@ -221,7 +224,7 @@ fn process_errors() {
         error!("write underflow, channel={}, timestamp={}, counter={}, slack={}",
                channel, timestamp_event, timestamp_counter, timestamp_event-timestamp_counter);
     }
-    if errors & 8 != 0 {
+    if errors & 16 != 0 {
         error!("write overflow");
     }
     unsafe {
