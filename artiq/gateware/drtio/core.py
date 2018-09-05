@@ -10,7 +10,8 @@ from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer, aux_controller,
                                   rt_packet_satellite, rt_errors_satellite,
-                                  rt_packet_master, rt_controller_master)
+                                  rt_packet_master, rt_controller_master,
+                                  rt_controller_repeater)
 from artiq.gateware.drtio.rx_synchronizer import GenericRXSynchronizer
 
 
@@ -188,6 +189,7 @@ class DRTIORepeater(Module):
 
         self.submodules.link_stats = link_layer.LinkLayerStats(self.link_layer, "rtio_rx")
         self.submodules.rt_packet = rt_packet_repeater.RTPacketRepeater(tsc, self.link_layer)
+        self.submodules.rt_controller = rt_controller_repeater.RTController(self.rt_packet)
 
         self.submodules.aux_controller = aux_controller.AuxController(
             self.link_layer)
@@ -195,6 +197,7 @@ class DRTIORepeater(Module):
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
                 self.link_stats.get_csrs() +
+                self.rt_controller.get_csrs() +
                 self.aux_controller.get_csrs())
 
     @property
