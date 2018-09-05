@@ -21,7 +21,7 @@ from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
-from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
+from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite, SyncRTIO
 from artiq.build_soc import *
 
 
@@ -120,9 +120,10 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_crg = _RTIOCRG(self.platform)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
-        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
@@ -138,7 +139,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
@@ -662,6 +663,8 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.comb += [sfp_ctl.led.eq(channel.rx_ready)
             for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
 
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+
         drtio_csr_group = []
         drtio_memory_group = []
         self.drtio_cri = []
@@ -672,7 +675,7 @@ class _MasterBase(MiniSoC, AMPSoC):
             drtio_memory_group.append(memory_name)
 
             core = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})(
-                DRTIOMaster(self.drtio_transceiver.channels[i]))
+                DRTIOMaster(self.rtio_tsc, self.drtio_transceiver.channels[i]))
             setattr(self.submodules, core_name, core)
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
@@ -704,10 +707,10 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(rtio_channels, glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
 
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
@@ -717,7 +720,7 @@ class _MasterBase(MiniSoC, AMPSoC):
             [self.rtio_core.cri] + self.drtio_cri)
         self.register_kernel_cpu_csrdevice("cri_con")
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.cri_con.switch.slave,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
@@ -799,6 +802,21 @@ class _SatelliteBase(BaseSoC):
             ~self.drtio_transceiver.stable_clkin.storage)
         self.comb += sfp_ctl.led.eq(self.drtio_transceiver.channels[0].rx_ready)
 
+        self.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+
+        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
+        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
+        self.submodules.drtio0 = rx0(DRTIOSatellite(
+            self.rtio_tsc, self.drtio_transceiver.channels[0],
+            self.rx_synchronizer))
+        self.csr_devices.append("drtio0")
+        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
+                          self.drtio0.aux_controller.bus)
+        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.add_csr_group("drtio", ["drtio0"])
+        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
@@ -829,18 +847,11 @@ class _SatelliteBase(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
-        self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.drtio_transceiver.channels[0], rtio_channels,
-            self.rx_synchronizer))
-        self.csr_devices.append("drtio0")
-        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
-                          self.drtio0.aux_controller.bus)
-        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
-        self.config["HAS_DRTIO"] = None
-        self.add_csr_group("drtio", ["drtio0"])
-        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+        self.submodules.drtio0_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.comb += [
+            self.drtio0.cri.connect(self.drtio0_io.cri),
+            self.drtio0.async_errors.eq(self.drtio0_io.async_errors),
+        ]
 
 
 class Master(_MasterBase):
