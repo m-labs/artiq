@@ -85,10 +85,12 @@ class Parser(Module, AutoCSR):
         self.sync.cl += [
             last_lval.eq(lval),
             last_fval.eq(fval),
-            pix.x.eq(pix.x + 1),
+            If(dval,
+                pix.x.eq(pix.x + 1),
+            ),
             If(~lval,
-                pix.x.eq(0),
                 If(last_lval, last_x.eq(pix.x)),
+                pix.x.eq(0),
                 If(last_fval & last_lval,
                     pix.y.eq(pix.y + 1)
                 )
