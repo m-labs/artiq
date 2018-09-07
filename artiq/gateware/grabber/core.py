@@ -89,14 +89,16 @@ class Parser(Module, AutoCSR):
                 pix.x.eq(pix.x + 1),
             ),
             If(~lval,
-                If(last_lval, last_x.eq(pix.x)),
-                pix.x.eq(0),
-                If(last_fval & last_lval,
+                If(last_lval,
+                    last_x.eq(pix.x),
                     pix.y.eq(pix.y + 1)
-                )
+                ),
+                pix.x.eq(0)
             ),
             If(~fval,
-                If(last_fval, last_y.eq(pix.y)),
+                If(last_fval,
+                    last_y.eq(pix.y)
+                ),
                 pix.y.eq(0)
             )
         ]
