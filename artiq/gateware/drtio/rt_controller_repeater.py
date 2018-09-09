@@ -3,6 +3,7 @@ from migen import *
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio.cdc import BlindTransfer
+from artiq.gateware.drtio.cdc import CrossDomainRequest
 
 
 class RTController(Module, AutoCSR):

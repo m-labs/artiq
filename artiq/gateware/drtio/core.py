@@ -11,7 +11,7 @@ from artiq.gateware.rtio.input_collector import *
 from artiq.gateware.drtio import (link_layer,
                                   rt_packet_satellite, rt_errors_satellite,
                                   rt_packet_master, rt_controller_master,
-                                  rt_controller_repeater)
+                                  rt_packet_repeater, rt_controller_repeater)
 from artiq.gateware.drtio.rx_synchronizer import GenericRXSynchronizer
 
 
