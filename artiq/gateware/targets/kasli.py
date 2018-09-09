@@ -693,6 +693,7 @@ class _MasterBase(MiniSoC, AMPSoC):
                               coreaux.bus)
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtio", drtio_csr_group)
         self.add_csr_group("drtioaux", drtioaux_csr_group)
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
@@ -726,7 +727,8 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri] + self.drtio_cri)
+            [self.rtio_core.cri] + self.drtio_cri,
+            enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
