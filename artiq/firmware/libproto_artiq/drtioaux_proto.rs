@@ -28,6 +28,10 @@ pub enum Packet {
     RtioErrorCollisionReply { channel: u16 },
     RtioErrorBusyReply { channel: u16 },
 
+    RoutingSetPath { destination: u8, hops: [u8; 32] },
+    RoutingSetRank { rank: u8 },
+    RoutingAck,
+
     MonitorRequest { channel: u16, probe: u8 },
     MonitorReply { value: u32 },
     InjectionRequest { channel: u16, overrd: u8, value: u8 },
@@ -74,6 +78,20 @@ impl Packet {
             0x24 => Packet::RtioErrorBusyReply {
                 channel: reader.read_u16()?
             },
+
+            0x30 => {
+                let destination = reader.read_u8()?;
+                let mut hops = [0; 32];
+                reader.read_exact(&mut hops)?;
+                Packet::RoutingSetPath {
+                    destination: destination,
+                    hops: hops
+                }
+            },
+            0x31 => Packet::RoutingSetRank {
+                rank: reader.read_u8()?
+            },
+            0x32 => Packet::RoutingAck,
 
             0x40 => Packet::MonitorRequest {
                 channel: reader.read_u16()?,
@@ -184,6 +202,18 @@ impl Packet {
                 writer.write_u8(0x24)?;
                 writer.write_u16(channel)?;
             },
+
+            Packet::RoutingSetPath { destination, hops } => {
+                writer.write_u8(0x30)?;
+                writer.write_u8(destination)?;
+                writer.write_all(&hops)?;
+            },
+            Packet::RoutingSetRank { rank } => {
+                writer.write_u8(0x31)?;
+                writer.write_u8(rank)?;
+            },
+            Packet::RoutingAck =>
+                writer.write_u8(0x32)?,
 
             Packet::MonitorRequest { channel, probe } => {
                 writer.write_u8(0x40)?;
