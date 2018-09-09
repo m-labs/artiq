@@ -26,19 +26,19 @@ def get_argparser():
     return parser
 
 
-ENTRY_COUNT = 256
+DEST_COUNT = 256
 MAX_HOPS = 32
 
 
 def init(filename):
     with open(filename, "wb") as f:
-        f.write(b"\xff"*(ENTRY_COUNT*MAX_HOPS))
+        f.write(b"\xff"*(DEST_COUNT*MAX_HOPS))
 
 
 def show_routes(filename):
     routes = []
     with open(filename, "rb") as f:
-        for i in range(ENTRY_COUNT):
+        for i in range(DEST_COUNT):
             hops = [int.from_bytes(f.read(1), "big") for j in range(MAX_HOPS)]
             routes.append(hops)
 
@@ -54,8 +54,8 @@ def show_routes(filename):
 
 def set_route(filename, destination, hops):
     with open(filename, "r+b") as f:
-        if destination >= ENTRY_COUNT:
-            raise ValueError("destination must be less than {}".format(ENTRY_COUNT))
+        if destination >= DEST_COUNT:
+            raise ValueError("destination must be less than {}".format(DEST_COUNT))
         f.seek(destination*MAX_HOPS)
 
         if len(hops) + 1 >= MAX_HOPS:

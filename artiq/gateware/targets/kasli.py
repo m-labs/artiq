@@ -854,9 +854,9 @@ class _SatelliteBase(BaseSoC):
                               coreaux.bus)
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtioaux", drtioaux_csr_group)
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
-        self.config["HAS_DRTIOREP"] = None
         self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
