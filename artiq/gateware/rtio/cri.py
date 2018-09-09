@@ -2,6 +2,7 @@
 
 from migen import *
 from migen.genlib.record import *
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -109,8 +110,8 @@ class KernelInitiator(Module, AutoCSR):
         self.sync += If(self.counter_update.re, self.counter.status.eq(tsc.full_ts_cri))
 
 
-class CRIDecoder(Module):
-    def __init__(self, slaves=2, master=None):
+class CRIDecoder(Module, AutoCSR):
+    def __init__(self, slaves=2, master=None, mode="async", enable_routing=False):
         if isinstance(slaves, int):
             slaves = [Interface() for _ in range(slaves)]
         if master is None:
@@ -118,10 +119,41 @@ class CRIDecoder(Module):
         self.slaves = slaves
         self.master = master
 
+        slave_bits = bits_for(len(slaves)-1)
+        if enable_routing:
+            self.routing_destination = CSRStorage(8)
+            self.routing_hop = CSR(slave_bits)
+
         # # #
 
-        selected = Signal(8, reset_less=True)
-        self.sync += selected.eq(self.master.chan_sel[16:])
+        # routing
+        selected = Signal(slave_bits)
+
+        if enable_routing:
+            self.specials.routing_table = Memory(slave_bits, 8)
+
+            rtp_csr = self.routing_table.get_port(write_capable=True)
+            self.specials += rtp_csr
+            self.comb += [
+                rtp_csr.adr.eq(self.routing_destination.storage),
+                rtp_csr.dat_w.eq(self.routing_hop.r),
+                rtp_csr.we.eq(self.routing_hop.re),
+                self.routing_hop.w.eq(rtp_csr.dat_r)
+            ]
+
+            if mode == "async":
+                rtp_decoder = self.routing_table.get_port()
+            elif mode == "sync":
+                rtp_decoder = self.routing_table.get_port(clock_domain="rtio")
+            else:
+                raise ValueError
+            self.specials += rtp_decoder
+            self.comb += [
+                rtp_decoder.adr.eq(self.master.chan_sel[16:]),
+                selected.eq(rtp_decoder.dat_r)
+            ]
+        else:
+            self.sync += selected.eq(self.master.chan_sel[16:])
 
         # master -> slave
         for n, slave in enumerate(slaves):
@@ -141,7 +173,7 @@ class CRIDecoder(Module):
 
 
 class CRISwitch(Module, AutoCSR):
-    def __init__(self, masters=2, slave=None):
+    def __init__(self, masters=2, slave=None, mode="async"):
         if isinstance(masters, int):
             masters = [Interface() for _ in range(masters)]
         if slave is None:
@@ -153,6 +185,15 @@ class CRISwitch(Module, AutoCSR):
 
         # # #
 
+        if mode == "async":
+            selected = self.selected.storage
+        elif mode == "sync":
+            self.selected.storage.attr.add("no_retiming")
+            selected = Signal.like(self.selected.storage)
+            self.specials += MultiReg(self.selected.storage, selected, "rtio")
+        else:
+            raise ValueError
+
         if len(masters) == 1:
             self.comb += masters[0].connect(slave)
         else:
@@ -160,7 +201,7 @@ class CRISwitch(Module, AutoCSR):
             for name, size, direction in layout:
                 if direction == DIR_M_TO_S:
                     choices = Array(getattr(m, name) for m in masters)
-                    self.comb += getattr(slave, name).eq(choices[self.selected.storage])
+                    self.comb += getattr(slave, name).eq(choices[selected])
 
             # connect slave->master signals
             for name, size, direction in layout:
@@ -170,11 +211,12 @@ class CRISwitch(Module, AutoCSR):
                         dest = getattr(m, name)
                         self.comb += dest.eq(source)
 
+
 class CRIInterconnectShared(Module):
-    def __init__(self, masters=2, slaves=2):
+    def __init__(self, masters=2, slaves=2, mode="async", enable_routing=False):
         shared = Interface()
-        self.submodules.switch = CRISwitch(masters, shared)
-        self.submodules.decoder = CRIDecoder(slaves, shared)
+        self.submodules.switch = CRISwitch(masters, shared, mode)
+        self.submodules.decoder = CRIDecoder(slaves, shared, mode, enable_routing)
 
     def get_csrs(self):
-        return self.switch.get_csrs()
+        return self.switch.get_csrs() + self.decoder.get_csrs()
