@@ -34,7 +34,7 @@ use board_misoc::ethmac;
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
 use board_artiq::{mailbox, rpc_queue};
-use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto,kernel_proto};
+use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
