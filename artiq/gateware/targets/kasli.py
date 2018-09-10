@@ -899,6 +899,7 @@ class _SatelliteBase(BaseSoC):
             [self.drtiosat.cri],
             [self.local_io.cri] + self.drtio_cri,
             mode="sync", enable_routing=True)
+        self.csr_devices.append("cri_con")
 
 
 class Master(_MasterBase):
