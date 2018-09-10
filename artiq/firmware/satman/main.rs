@@ -298,7 +298,7 @@ pub extern fn main() -> i32 {
             }
         }
 
-        info!("link is up, switching to recovered clock");
+        info!("uplink is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
 
@@ -332,7 +332,7 @@ pub extern fn main() -> i32 {
                 rep.service();
             }
             if drtiosat_tsc_loaded() {
-                info!("TSC loaded");
+                info!("TSC loaded from uplink");
                 #[cfg(has_ad9154)]
                 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
@@ -343,7 +343,9 @@ pub extern fn main() -> i32 {
                     }
                 }
                 for rep in repeaters.iter() {
-                    rep.sync_tsc();
+                    if rep.sync_tsc().is_err() {
+                        error!("remote failed to ack TSC");
+                    }
                 }
                 if let Err(e) = drtioaux::send_link(0, &drtioaux::Packet::TSCAck) {
                     error!("aux packet error: {}", e);
@@ -357,7 +359,7 @@ pub extern fn main() -> i32 {
         drtiosat_reset_phy(true);
         drtiosat_reset(true);
         drtiosat_tsc_loaded();
-        info!("link is down, switching to local crystal clock");
+        info!("uplink is down, switching to local crystal clock");
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
     }
 }

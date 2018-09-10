@@ -9,7 +9,7 @@ fn rep_link_rx_up(linkno: u8) -> bool {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 enum RepeaterState {
     Down,
     SendPing { ping_count: u16 },
@@ -63,7 +63,7 @@ impl Repeater {
                 if rep_link_rx_up(self.repno) {
                     if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv_link(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
-                        if !self.sync_tsc() {
+                        if self.sync_tsc().is_err() {
                             error!("[REP#{}] remote failed to ack TSC", self.repno);
                             self.state = RepeaterState::Failed;
                             return;
@@ -100,7 +100,11 @@ impl Repeater {
         }
     }
 
-    pub fn sync_tsc(&self) -> bool {
+    pub fn sync_tsc(&self) -> Result<(), &'static str> {
+        if self.state != RepeaterState::Up {
+            return Ok(());
+        }
+
         let repno = self.repno as usize;
         unsafe {
             (csr::DRTIOREP[repno].set_time_write)(1);
@@ -110,15 +114,15 @@ impl Repeater {
         let timeout = clock::get_ms() + 200;
         loop {
             if !rep_link_rx_up(self.repno) {
-                return false;
+                return Err("link went down");
             }
             if clock::get_ms() > timeout {
-                return false;
+                return Err("timeout");
             }
             // TSCAck is the only aux packet that is sent spontaneously
             // by the satellite, in response to a TSC set on the RT link.
             if let Ok(Some(drtioaux::Packet::TSCAck)) = drtioaux::recv_link(self.auxno) {
-                return true;
+                return Ok(());
             }
         }
     }
@@ -130,5 +134,5 @@ impl Repeater {
 
     pub fn service(&self) { }
 
-    pub fn sync_tsc(&self) { }
+    pub fn sync_tsc(&self) -> Result<(), &'static str> { Ok(()) }
 }
