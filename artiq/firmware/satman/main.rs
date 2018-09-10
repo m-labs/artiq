@@ -1,4 +1,4 @@
-#![feature(never_type, panic_implementation, panic_info_message)]
+#![feature(never_type, panic_implementation, panic_info_message, const_slice_len)]
 #![no_std]
 
 #[macro_use]
@@ -14,19 +14,27 @@ use board_artiq::serwb;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
 
-fn drtio_reset(reset: bool) {
+mod repeater;
+
+fn drtiosat_reset(reset: bool) {
     unsafe {
         csr::drtiosat::reset_write(if reset { 1 } else { 0 });
     }
 }
 
-fn drtio_reset_phy(reset: bool) {
+fn drtiosat_reset_phy(reset: bool) {
     unsafe {
         csr::drtiosat::reset_phy_write(if reset { 1 } else { 0 });
     }
 }
 
-fn drtio_tsc_loaded() -> bool {
+fn drtiosat_link_rx_up() -> bool {
+    unsafe {
+        csr::drtiosat::rx_up_read() == 1
+    }
+}
+
+fn drtiosat_tsc_loaded() -> bool {
     unsafe {
         let tsc_loaded = csr::drtiosat::tsc_loaded_read() == 1;
         if tsc_loaded {
@@ -44,11 +52,11 @@ fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>
             drtioaux::send_link(0, &drtioaux::Packet::EchoReply),
         drtioaux::Packet::ResetRequest { phy } => {
             if phy {
-                drtio_reset_phy(true);
-                drtio_reset_phy(false);
+                drtiosat_reset_phy(true);
+                drtiosat_reset_phy(false);
             } else {
-                drtio_reset(true);
-                drtio_reset(false);
+                drtiosat_reset(true);
+                drtiosat_reset(false);
             }
             drtioaux::send_link(0, &drtioaux::Packet::ResetAck)
         },
@@ -198,7 +206,7 @@ fn process_aux_packets() {
     }
 }
 
-fn process_errors() {
+fn drtiosat_process_errors() {
     let errors;
     unsafe {
         errors = csr::drtiosat::protocol_error_read();
@@ -245,12 +253,6 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
-fn drtio_link_rx_up() -> bool {
-    unsafe {
-        csr::drtiosat::rx_up_read() == 1
-    }
-}
-
 const SIPHASER_PHASE: u16 = 32;
 
 #[no_mangle]
@@ -279,9 +281,21 @@ pub extern fn main() -> i32 {
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
+    #[cfg(has_drtio_routing)]
+    let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];
+    #[cfg(not(has_drtio_routing))]
+    let mut repeaters = [repeater::Repeater::default(); 0];
+
+    for i in 0..repeaters.len() {
+        repeaters[i] = repeater::Repeater::new(i as u8);
+    } 
+
     loop {
-        while !drtio_link_rx_up() {
-            process_errors();
+        while !drtiosat_link_rx_up() {
+            drtiosat_process_errors();
+            for mut rep in repeaters.iter_mut() {
+                rep.service();
+            }
         }
 
         info!("link is up, switching to recovered clock");
@@ -308,13 +322,16 @@ pub extern fn main() -> i32 {
         }
 
         drtioaux::reset(0);
-        drtio_reset(false);
-        drtio_reset_phy(false);
+        drtiosat_reset(false);
+        drtiosat_reset_phy(false);
 
-        while drtio_link_rx_up() {
-            process_errors();
+        while drtiosat_link_rx_up() {
+            drtiosat_process_errors();
             process_aux_packets();
-            if drtio_tsc_loaded() {
+            for mut rep in repeaters.iter_mut() {
+                rep.service();
+            }
+            if drtiosat_tsc_loaded() {
                 #[cfg(has_ad9154)]
                 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
@@ -333,9 +350,9 @@ pub extern fn main() -> i32 {
         #[cfg(has_ad9154)]
         board_artiq::ad9154::jesd_reset(true);
 
-        drtio_reset_phy(true);
-        drtio_reset(true);
-        drtio_tsc_loaded();
+        drtiosat_reset_phy(true);
+        drtiosat_reset(true);
+        drtiosat_tsc_loaded();
         info!("link is down, switching to local crystal clock");
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
     }
