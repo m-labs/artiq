@@ -8,12 +8,12 @@ pub struct RoutingTable([[u8; MAX_HOPS]; DEST_COUNT]);
 
 impl RoutingTable {
     // default routing table is for star topology with no hops
-    fn default_master() -> RoutingTable {
+    fn default_master(default_n_links: usize) -> RoutingTable {
         let mut ret = RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT]);
-        for i in 0..csr::DRTIO.len() {
+        for i in 0..default_n_links {
             ret.0[i][0] = i as u8;
         }
-        for i in 1..csr::DRTIO.len() {
+        for i in 1..default_n_links {
             ret.0[i][1] = 0x00;
         }
         ret
@@ -26,8 +26,8 @@ impl RoutingTable {
     }
 }
 
-pub fn config_routing_table() -> RoutingTable {
-    let mut ret = RoutingTable::default_master();
+pub fn config_routing_table(default_n_links: usize) -> RoutingTable {
+    let mut ret = RoutingTable::default_master(default_n_links);
     let ok = config::read("routing_table", |result| {
         if let Ok(data) = result {
             if data.len() == DEST_COUNT*MAX_HOPS {
