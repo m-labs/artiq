@@ -76,14 +76,6 @@ pub mod drtio {
         }
     }
 
-    fn sync_tsc(linkno: u8) {
-        let linkno = linkno as usize;
-        unsafe {
-            (csr::DRTIO[linkno].set_time_write)(1);
-            while (csr::DRTIO[linkno].set_time_read)() == 1 {}
-        }
-    }
-
     fn init_buffer_space(linkno: u8) {
         let linkidx = linkno as usize;
         unsafe {
@@ -114,7 +106,12 @@ pub mod drtio {
         }
     }
 
-    fn wait_tsc_ack(linkno: u8, io: &Io) -> Result<(), &'static str> {
+    fn sync_tsc(linkno: u8, io: &Io) -> Result<(), &'static str> {
+        unsafe {
+            (csr::DRTIO[linkno as usize].set_time_write)(1);
+            while (csr::DRTIO[linkno as usize].set_time_read)() == 1 {}
+        }
+
         loop {
             let mut count = 0;
             if !link_rx_up(linkno) {
@@ -191,8 +188,7 @@ pub mod drtio {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
                             set_link_up(linkno, true);
                             init_buffer_space(linkno);
-                            sync_tsc(linkno);
-                            if wait_tsc_ack(linkno, &io).is_err() {
+                            if sync_tsc(linkno, &io).is_err() {
                                 error!("[LINK#{}] remote failed to ack TSC", linkno);
                             } else {
                                 info!("[LINK#{}] link initialization completed", linkno);
