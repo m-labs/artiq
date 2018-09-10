@@ -33,6 +33,8 @@ use board_misoc::{csr, irq, ident, clock, boot, config};
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
+#[cfg(has_drtio_routing)]
+use board_artiq::drtio_routing;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
@@ -280,16 +282,24 @@ fn startup_ethernet() {
                        .ip_addrs([IpCidr::new(protocol_addr, 0)])
                        .finalize();
 
+    #[cfg(has_drtio_routing)]
+    let drtio_routing_table = drtio_routing::config_routing_table(csr::DRTIO.len());
+    #[cfg(has_drtio_routing)]
+    drtio_routing::program_interconnect(&drtio_routing_table, 0);
+
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
+
     #[cfg(has_rtio_core)]
     rtio_mgt::startup(&io);
+
     io.spawn(4096, mgmt::thread);
     io.spawn(16384, session::thread);
     #[cfg(any(has_rtio_moninj, has_drtio))]
     io.spawn(4096, moninj::thread);
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
+
     #[cfg(has_grabber)]
     io.spawn(4096, grabber_thread);
 
