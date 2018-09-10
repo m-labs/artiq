@@ -7,7 +7,6 @@ use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io, TcpListener, TcpStream, Error as SchedError};
-#[cfg(has_rtio_core)]
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
@@ -517,12 +516,9 @@ fn host_kernel_worker(io: &Io,
                 return Err(Error::WatchdogExpired(idx))
             }
 
-            #[cfg(has_rtio_core)]
-            {
-                if !rtio_mgt::crg::check() {
-                    host_write(stream, host::Reply::ClockFailure)?;
-                    return Err(Error::ClockFailure)
-                }
+            if !rtio_mgt::crg::check() {
+                host_write(stream, host::Reply::ClockFailure)?;
+                return Err(Error::ClockFailure)
             }
         }
 
@@ -562,11 +558,8 @@ fn flash_kernel_worker(io: &Io,
             return Err(Error::WatchdogExpired(idx))
         }
 
-        #[cfg(has_rtio_core)]
-        {
-            if !rtio_mgt::crg::check() {
-                return Err(Error::ClockFailure)
-            }
+        if !rtio_mgt::crg::check() {
+            return Err(Error::ClockFailure)
         }
 
         io.relinquish()?

@@ -40,7 +40,6 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
-#[cfg(has_rtio_core)]
 mod rtio_mgt;
 
 mod urc;
@@ -290,7 +289,6 @@ fn startup_ethernet() {
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
 
-    #[cfg(has_rtio_core)]
     rtio_mgt::startup(&io);
 
     io.spawn(4096, mgmt::thread);

@@ -1,7 +1,6 @@
 use kernel_proto as kern;
 use sched::{Io, Error as SchedError};
 use session::{kern_acknowledge, kern_send, Error};
-#[cfg(has_rtio_core)]
 use rtio_mgt;
 
 #[cfg(has_drtio)]
@@ -292,25 +291,21 @@ mod spi {
 
 pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> Result<bool, Error<SchedError>> {
     match request {
-        #[cfg(has_rtio_core)]
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
             rtio_mgt::init_core(false);
             kern_acknowledge()
         }
 
-        #[cfg(has_rtio_core)]
         &kern::DrtioLinkStatusRequest { linkno } => {
             let up = rtio_mgt::drtio::link_up(linkno);
             kern_send(io, &kern::DrtioLinkStatusReply { up: up })
         }
 
-        #[cfg(has_rtio_core)]
         &kern::DrtioPacketCountRequest { linkno } => {
             let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
             kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
         }
-        #[cfg(has_rtio_core)]
         &kern::DrtioBufferSpaceReqCountRequest { linkno } => {
             let cnt = rtio_mgt::drtio_dbg::get_buffer_space_req_count(linkno);
             kern_send(io, &kern::DrtioBufferSpaceReqCountReply { cnt: cnt })
