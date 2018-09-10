@@ -55,7 +55,7 @@ impl Repeater {
                         timeout: clock::get_ms() + 100
                     }
                 } else {
-                    info!("[REP#{}] link RX went down during ping", self.repno);
+                    error!("[REP#{}] link RX went down during ping", self.repno);
                     self.state = RepeaterState::Down;
                 }
             }
@@ -63,12 +63,17 @@ impl Repeater {
                 if rep_link_rx_up(self.repno) {
                     if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv_link(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
-                        // TODO: send TSC, routing table, and rank
+                        if !self.sync_tsc() {
+                            error!("[REP#{}] remote failed to ack TSC", self.repno);
+                            self.state = RepeaterState::Failed;
+                            return;
+                        }
+                        // TODO: send routing table and rank
                         self.state = RepeaterState::Up; 
                     } else {
                         if clock::get_ms() > timeout {
                             if ping_count > 200 {
-                                info!("[REP#{}] ping failed", self.repno);
+                                error!("[REP#{}] ping failed", self.repno);
                                 self.state = RepeaterState::Failed;
                             } else {
                                 self.state = RepeaterState::SendPing { ping_count: ping_count };
@@ -76,7 +81,7 @@ impl Repeater {
                         }
                     }
                 } else {
-                    info!("[REP#{}] link RX went down during ping", self.repno);
+                    error!("[REP#{}] link RX went down during ping", self.repno);
                     self.state = RepeaterState::Down;
                 }
             }
@@ -94,11 +99,36 @@ impl Repeater {
             }
         }
     }
+
+    pub fn sync_tsc(&self) -> bool {
+        let repno = self.repno as usize;
+        unsafe {
+            (csr::DRTIOREP[repno].set_time_write)(1);
+            while (csr::DRTIOREP[repno].set_time_read)() == 1 {}
+        }
+
+        let timeout = clock::get_ms() + 200;
+        loop {
+            if !rep_link_rx_up(self.repno) {
+                return false;
+            }
+            if clock::get_ms() > timeout {
+                return false;
+            }
+            // TSCAck is the only aux packet that is sent spontaneously
+            // by the satellite, in response to a TSC set on the RT link.
+            if let Ok(Some(drtioaux::Packet::TSCAck)) = drtioaux::recv_link(self.auxno) {
+                return true;
+            }
+        }
+    }
 }
 
 #[cfg(not(has_drtio_routing))]
 impl Repeater {
-	pub fn new(_repno: u8) -> Repeater { Repeater::default() }
+    pub fn new(_repno: u8) -> Repeater { Repeater::default() }
 
     pub fn service(&self) { }
+
+    pub fn sync_tsc(&self) { }
 }

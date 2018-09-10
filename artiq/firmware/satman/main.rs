@@ -332,6 +332,7 @@ pub extern fn main() -> i32 {
                 rep.service();
             }
             if drtiosat_tsc_loaded() {
+                info!("TSC loaded");
                 #[cfg(has_ad9154)]
                 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
@@ -340,6 +341,9 @@ pub extern fn main() -> i32 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
                         error!("failed to align SYSREF at DAC: {}", e);
                     }
+                }
+                for rep in repeaters.iter() {
+                    rep.sync_tsc();
                 }
                 if let Err(e) = drtioaux::send_link(0, &drtioaux::Packet::TSCAck) {
                     error!("aux packet error: {}", e);
