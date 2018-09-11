@@ -1,4 +1,4 @@
-#![feature(never_type, panic_implementation, panic_info_message, const_slice_len)]
+#![feature(never_type, panic_implementation, panic_info_message, const_slice_len, try_from)]
 #![no_std]
 
 #[macro_use]
@@ -7,7 +7,8 @@ extern crate log;
 extern crate board_misoc;
 extern crate board_artiq;
 
-use board_misoc::{csr, ident, clock, uart_logger};
+use core::convert::TryFrom;
+use board_misoc::{csr, irq, ident, clock, uart_logger};
 use board_artiq::{i2c, spi, si5324, drtioaux};
 #[cfg(has_serwb_phy_amc)]
 use board_artiq::serwb;
@@ -371,6 +372,23 @@ pub extern fn main() -> i32 {
 
 #[no_mangle]
 pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
+    let vect = irq::Exception::try_from(vect).expect("unknown exception");
+
+    fn hexdump(addr: u32) {
+        let addr = (addr - addr % 4) as *const u32;
+        let mut ptr  = addr;
+        println!("@ {:08p}", ptr);
+        for _ in 0..4 {
+            print!("+{:04x}: ", ptr as usize - addr as usize);
+            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+            print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+            print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+        }
+    }
+
+    hexdump(pc);
+    hexdump(ea);
     panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
 }
 
