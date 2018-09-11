@@ -1,4 +1,5 @@
 use board_misoc::{csr, config};
+use core::fmt;
 
 pub const DEST_COUNT: usize = 256;
 pub const MAX_HOPS: usize = 32;
@@ -23,6 +24,26 @@ impl RoutingTable {
     // by default, block everything
     fn default_satellite() -> RoutingTable {
         RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT])
+    }
+}
+
+impl fmt::Display for RoutingTable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "RoutingTable {{")?;
+        for i in 0..DEST_COUNT {
+            if self.0[i][0] != INVALID_HOP {
+                write!(f, "{}:", i)?;
+                for j in 0..MAX_HOPS {
+                    if self.0[i][j] == INVALID_HOP {
+                        break;
+                    }
+                    write!(f, " {}", self.0[i][j])?;
+                }
+                write!(f, ";")?;
+            }
+        }
+        write!(f, " }}")?;
+        Ok(())
     }
 }
 
