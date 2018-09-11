@@ -146,7 +146,8 @@ pub mod drtio {
         }
     }
 
-    fn load_routing_table(io: &Io, linkno: u8, routing_table: &drtio_routing::RoutingTable) -> Result<(), &'static str> {
+    fn load_routing_table(io: &Io, linkno: u8, routing_table: &drtio_routing::RoutingTable)
+            -> Result<(), &'static str> {
         for i in 0..drtio_routing::DEST_COUNT {
             drtioaux::send_link(linkno, &drtioaux::Packet::RoutingSetPath {
                 destination: i as u8,
@@ -156,6 +157,17 @@ pub mod drtio {
             if reply != drtioaux::Packet::RoutingAck {
                 return Err("unexpected reply");
             }
+        }
+        Ok(())
+    }
+
+    fn set_rank(io: &Io, linkno: u8, rank: u8) -> Result<(), &'static str> {
+        drtioaux::send_link(linkno, &drtioaux::Packet::RoutingSetRank {
+            rank: rank
+        }).unwrap();
+        let reply = recv_aux_timeout(io, linkno, 200)?;
+        if reply != drtioaux::Packet::RoutingAck {
+            return Err("unexpected reply");
         }
         Ok(())
     }
@@ -223,6 +235,9 @@ pub mod drtio {
                             }
                             if let Err(e) = load_routing_table(&io, linkno, routing_table) {
                                 error!("[LINK#{}] failed to load routing table ({})", linkno, e);
+                            }
+                            if let Err(e) = set_rank(&io, linkno, 1) {
+                                error!("[LINK#{}] failed to set rank ({})", linkno, e);
                             }
                             info!("[LINK#{}] link initialization completed", linkno);
                         } else {

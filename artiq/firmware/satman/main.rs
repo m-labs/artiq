@@ -12,6 +12,7 @@ use board_misoc::{csr, irq, ident, clock, uart_logger};
 use board_artiq::{i2c, spi, si5324, drtioaux};
 #[cfg(has_serwb_phy_amc)]
 use board_artiq::serwb;
+use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
 
@@ -45,7 +46,9 @@ fn drtiosat_tsc_loaded() -> bool {
     }
 }
 
-fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
+fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
+        _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
+        packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
     match packet {
@@ -97,8 +100,40 @@ fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>
             }
         }
 
+        #[cfg(has_drtio_routing)]
         drtioaux::Packet::RoutingSetPath { destination, hops } => {
-            info!("routing: {} -> {:?}", destination, hops);
+            _routing_table.0[destination as usize] = hops;
+            for rep in _repeaters.iter() {
+                if let Err(e) = rep.set_path(destination, &hops) {
+                    error!("failed to set path ({})", e);
+                }
+            }
+            drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
+        }
+        #[cfg(has_drtio_routing)]
+        drtioaux::Packet::RoutingSetRank { rank } => {
+            *_rank = rank;
+            drtio_routing::program_interconnect(_routing_table, rank);
+
+            let rep_rank = rank + 1;
+            for rep in _repeaters.iter() {
+                if let Err(e) = rep.set_rank(rep_rank) {
+                    error!("failed to set rank ({})", e);
+                }
+            }
+
+            info!("rank: {}", rank);
+            info!("routing table: {}", _routing_table);
+
+            drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
+        }
+
+        #[cfg(not(has_drtio_routing))]
+        drtioaux::Packet::RoutingSetPath { _destination, _hops } => {
+            drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
+        }
+        #[cfg(not(has_drtio_routing))]
+        drtioaux::Packet::RoutingSetRank { _rank } => {
             drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
         }
 
@@ -197,11 +232,12 @@ fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>
     }
 }
 
-fn process_aux_packets() {
+fn process_aux_packets(repeaters: &mut [repeater::Repeater],
+        routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8) {
     let result =
         drtioaux::recv_link(0).and_then(|packet| {
             if let Some(packet) = packet {
-                process_aux_packet(packet)
+                process_aux_packet(repeaters, routing_table, rank, packet)
             } else {
                 Ok(())
             }
@@ -291,16 +327,17 @@ pub extern fn main() -> i32 {
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];
     #[cfg(not(has_drtio_routing))]
     let mut repeaters = [repeater::Repeater::default(); 0];
-
     for i in 0..repeaters.len() {
         repeaters[i] = repeater::Repeater::new(i as u8);
     } 
+    let mut routing_table = drtio_routing::RoutingTable::default_empty();
+    let mut rank = 1;
 
     loop {
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
             for mut rep in repeaters.iter_mut() {
-                rep.service();
+                rep.service(&routing_table, rank);
             }
         }
 
@@ -333,9 +370,9 @@ pub extern fn main() -> i32 {
 
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            process_aux_packets();
+            process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
             for mut rep in repeaters.iter_mut() {
-                rep.service();
+                rep.service(&routing_table, rank);
             }
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
