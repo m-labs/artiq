@@ -49,7 +49,7 @@ SECTIONS
     .stack :
     {
         _estack = .;
-        . += 0x1000;
+        . += 0x10000;
         _fstack = . - 4;
     } > main_ram
 }
