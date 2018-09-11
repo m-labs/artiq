@@ -32,7 +32,7 @@ impl fmt::Display for RoutingTable {
         write!(f, "RoutingTable {{")?;
         for i in 0..DEST_COUNT {
             if self.0[i][0] != INVALID_HOP {
-                write!(f, "{}:", i)?;
+                write!(f, " {}:", i)?;
                 for j in 0..MAX_HOPS {
                     if self.0[i][j] == INVALID_HOP {
                         break;
