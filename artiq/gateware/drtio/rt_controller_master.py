@@ -189,7 +189,7 @@ class RTController(Module):
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 signal_buffer_space_timeout.eq(1),
-                NextState("GET_BUFFER_SPACE")
+                NextState("IDLE")
             )
         )
         fsm.act("READ",
