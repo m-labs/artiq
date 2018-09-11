@@ -74,7 +74,7 @@ impl Repeater {
                             self.state = RepeaterState::Failed;
                             return;
                         }
-                        if let Err(e) = self.set_rank(rank) {
+                        if let Err(e) = self.set_rank(rank + 1) {
                             error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
                             self.state = RepeaterState::Failed;
                             return;
