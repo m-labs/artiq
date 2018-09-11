@@ -25,6 +25,7 @@ extern crate board_artiq;
 extern crate logger_artiq;
 extern crate proto_artiq;
 
+use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
@@ -282,14 +283,16 @@ fn startup_ethernet() {
                        .finalize();
 
     #[cfg(has_drtio_routing)]
-    let drtio_routing_table = drtio_routing::config_routing_table(csr::DRTIO.len());
-    #[cfg(has_drtio_routing)]
-    drtio_routing::program_interconnect(&drtio_routing_table, 0);
+    let drtio_routing_table = urc::Urc::new(RefCell::new(
+        drtio_routing::config_routing_table(csr::DRTIO.len())));
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
 
-    rtio_mgt::startup(&io);
+    #[cfg(has_drtio_routing)]
+    rtio_mgt::startup(&io, &drtio_routing_table);
+    #[cfg(not(has_drtio_routing))]
+    rtio_mgt::startup(&io, &drtio_routing::RoutingTable::default_empty());
 
     io.spawn(4096, mgmt::thread);
     io.spawn(16384, session::thread);

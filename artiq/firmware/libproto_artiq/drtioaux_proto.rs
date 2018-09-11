@@ -14,7 +14,7 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub enum Packet {
     EchoRequest,
     EchoReply,

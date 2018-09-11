@@ -1,6 +1,9 @@
-use board_misoc::csr;
+use core::cell::RefCell;
+use urc::Urc;
+use board_misoc::{csr, clock};
 #[cfg(has_rtio_clock_switch)]
 use board_misoc::config;
+use board_artiq::drtio_routing;
 use sched::Io;
 
 #[cfg(has_rtio_crg)]
@@ -42,11 +45,15 @@ pub mod drtio {
     use super::*;
     use drtioaux;
 
-    pub fn startup(io: &Io) {
+    pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
         }
-        io.spawn(4096, link_thread);
+        let routing_table = routing_table.clone();
+        io.spawn(4096, move |io| {
+            let routing_table = routing_table.borrow();
+            link_thread(io, &routing_table)
+        });
     }
 
     fn link_rx_up(linkno: u8) -> bool {
@@ -106,28 +113,51 @@ pub mod drtio {
         }
     }
 
-    fn sync_tsc(linkno: u8, io: &Io) -> Result<(), &'static str> {
+    fn recv_aux_timeout(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet, &'static str> {
+        let max_time = clock::get_ms() + timeout as u64;
+        loop {
+            if !link_rx_up(linkno) {
+                return Err("link went down");
+            }
+            if clock::get_ms() > max_time {
+                return Err("timeout");
+            }
+            match drtioaux::recv_link(linkno) {
+                Ok(Some(packet)) => return Ok(packet),
+                Ok(None) => (),
+                Err(_) => return Err("aux packet error")
+            }
+            io.relinquish().unwrap();
+        }
+    }
+
+    fn sync_tsc(io: &Io, linkno: u8) -> Result<(), &'static str> {
         unsafe {
             (csr::DRTIO[linkno as usize].set_time_write)(1);
             while (csr::DRTIO[linkno as usize].set_time_read)() == 1 {}
         }
+        // TSCAck is the only aux packet that is sent spontaneously
+        // by the satellite, in response to a TSC set on the RT link.
+        let reply = recv_aux_timeout(io, linkno, 10000)?;
+        if reply == drtioaux::Packet::TSCAck {
+            return Ok(());
+        } else {
+            return Err("unexpected reply");
+        }
+    }
 
-        loop {
-            let mut count = 0;
-            if !link_rx_up(linkno) {
-                return Err("link went down");
-            }
-            count += 1;
-            if count > 200 {
-                return Err("timeout");
-            }
-            io.sleep(100).unwrap();
-            // TSCAck is the only aux packet that is sent spontaneously
-            // by the satellite, in response to a TSC set on the RT link.
-            if let Ok(Some(drtioaux::Packet::TSCAck)) = drtioaux::recv_link(linkno) {
-                return Ok(())
+    fn load_routing_table(io: &Io, linkno: u8, routing_table: &drtio_routing::RoutingTable) -> Result<(), &'static str> {
+        for i in 0..drtio_routing::DEST_COUNT {
+            drtioaux::send_link(linkno, &drtioaux::Packet::RoutingSetPath {
+                destination: i as u8,
+                hops: routing_table.0[i]
+            }).unwrap();
+            let reply = recv_aux_timeout(io, linkno, 200)?;
+            if reply != drtioaux::Packet::RoutingAck {
+                return Err("unexpected reply");
             }
         }
+        Ok(())
     }
 
     fn process_local_errors(linkno: u8) {
@@ -166,7 +196,7 @@ pub mod drtio {
         }
     }
 
-    pub fn link_thread(io: Io) {
+    pub fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable) {
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
@@ -188,11 +218,13 @@ pub mod drtio {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
                             set_link_up(linkno, true);
                             init_buffer_space(linkno);
-                            if sync_tsc(linkno, &io).is_err() {
-                                error!("[LINK#{}] remote failed to ack TSC", linkno);
-                            } else {
-                                info!("[LINK#{}] link initialization completed", linkno);
+                            if let Err(e) = sync_tsc(&io, linkno) {
+                                error!("[LINK#{}] failed to sync TSC ({})", linkno, e);
                             }
+                            if let Err(e) = load_routing_table(&io, linkno, routing_table) {
+                                error!("[LINK#{}] failed to load routing table ({})", linkno, e);
+                            }
+                            info!("[LINK#{}] link initialization completed", linkno);
                         } else {
                             error!("[LINK#{}] ping failed", linkno);
                         }
@@ -223,7 +255,7 @@ pub mod drtio {
 pub mod drtio {
     use super::*;
 
-    pub fn startup(_io: &Io) {}
+    pub fn startup(_io: &Io, _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {}
     pub fn init() {}
     pub fn link_up(_linkno: u8) -> bool { false }
 }
@@ -250,7 +282,7 @@ fn async_error_thread(io: Io) {
     }
 }
 
-pub fn startup(io: &Io) {
+pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
     #[cfg(has_rtio_crg)]
     {
         #[cfg(has_rtio_clock_switch)]
@@ -290,7 +322,13 @@ pub fn startup(io: &Io) {
         }
     }
 
-    drtio::startup(io);
+    #[cfg(has_drtio_routing)]
+    {
+        let routing_table = routing_table.clone();
+        drtio_routing::program_interconnect(&routing_table.borrow(), 0);
+    }
+
+    drtio::startup(io, &routing_table);
     init_core(true);
     io.spawn(4096, async_error_thread);
 }

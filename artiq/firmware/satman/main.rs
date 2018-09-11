@@ -96,6 +96,11 @@ fn process_aux_packet(packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>
             }
         }
 
+        drtioaux::Packet::RoutingSetPath { destination, hops } => {
+            info!("routing: {} -> {:?}", destination, hops);
+            drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
+        }
+
         drtioaux::Packet::MonitorRequest { channel, probe } => {
             let value;
             #[cfg(has_rtio_moninj)]
@@ -343,8 +348,8 @@ pub extern fn main() -> i32 {
                     }
                 }
                 for rep in repeaters.iter() {
-                    if rep.sync_tsc().is_err() {
-                        error!("remote failed to ack TSC");
+                    if let Err(e) = rep.sync_tsc() {
+                        error!("failed to sync TSC ({})", e);
                     }
                 }
                 if let Err(e) = drtioaux::send_link(0, &drtioaux::Packet::TSCAck) {

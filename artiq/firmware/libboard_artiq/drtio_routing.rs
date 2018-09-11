@@ -5,11 +5,11 @@ pub const DEST_COUNT: usize = 256;
 pub const MAX_HOPS: usize = 32;
 pub const INVALID_HOP: u8 = 0xff;
 
-pub struct RoutingTable([[u8; MAX_HOPS]; DEST_COUNT]);
+pub struct RoutingTable(pub [[u8; MAX_HOPS]; DEST_COUNT]);
 
 impl RoutingTable {
     // default routing table is for star topology with no hops
-    fn default_master(default_n_links: usize) -> RoutingTable {
+    pub fn default_master(default_n_links: usize) -> RoutingTable {
         let mut ret = RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT]);
         for i in 0..default_n_links {
             ret.0[i][0] = i as u8;
@@ -20,9 +20,9 @@ impl RoutingTable {
         ret
     }
 
-    // satellites receive the routing table from the master
-    // by default, block everything
-    fn default_satellite() -> RoutingTable {
+    // use this by default on satellite, as they receive
+    // the routing table from the master
+    pub fn default_empty() -> RoutingTable {
         RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT])
     }
 }
@@ -68,6 +68,7 @@ pub fn config_routing_table(default_n_links: usize) -> RoutingTable {
     ret
 }
 
+#[cfg(has_drtio_routing)]
 pub fn program_interconnect(rt: &RoutingTable, rank: u8)
 {
     for i in 0..DEST_COUNT {

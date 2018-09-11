@@ -63,8 +63,8 @@ impl Repeater {
                 if rep_link_rx_up(self.repno) {
                     if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv_link(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
-                        if self.sync_tsc().is_err() {
-                            error!("[REP#{}] remote failed to ack TSC", self.repno);
+                        if let Err(e) = self.sync_tsc() {
+                            error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
                             self.state = RepeaterState::Failed;
                             return;
                         }
