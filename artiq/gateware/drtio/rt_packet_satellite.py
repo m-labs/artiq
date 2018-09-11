@@ -79,18 +79,25 @@ class RTPacketSatellite(Module):
         ]
 
         # RX FSM
-        read = Signal()
+        cri_read = Signal()
+        cri_buffer_space = Signal()
         self.comb += [
             self.tsc_load_value.eq(
                 rx_dp.packet_as["set_time"].timestamp),
-            If(load_read_request | read_request_pending,
+            If(cri_read | read_request_pending,
                 self.cri.chan_sel.eq(
                     rx_dp.packet_as["read_request"].chan_sel),
-                self.cri.timestamp.eq(
-                    rx_dp.packet_as["read_request"].timeout)
+            ).Elif(cri_buffer_space,
+                self.cri.chan_sel.eq(
+                    rx_dp.packet_as["buffer_space_request"].destination << 16)
             ).Else(
                 self.cri.chan_sel.eq(
                     rx_dp.packet_as["write"].chan_sel),
+            ),
+            If(cri_read | read_request_pending,
+                self.cri.timestamp.eq(
+                    rx_dp.packet_as["read_request"].timeout)
+            ).Else(
                 self.cri.timestamp.eq(
                     rx_dp.packet_as["write"].timestamp)
             ),
@@ -139,8 +146,7 @@ class RTPacketSatellite(Module):
 
         rx_fsm.act("WRITE",
             If(write_data_buffer_cnt == rx_dp.packet_as["write"].extra_data_cnt,
-                self.cri.cmd.eq(cri.commands["write"]),
-                NextState("INPUT")
+                NextState("WRITE_CMD")
             ).Else(
                 write_data_buffer_load.eq(1),
                 If(~rx_dp.frame_r,
@@ -149,7 +155,17 @@ class RTPacketSatellite(Module):
                 )
             )
         )
+        rx_fsm.act("WRITE_CMD",
+            self.cri.cmd.eq(cri.commands["write"]),
+            NextState("INPUT")
+        )
+
         rx_fsm.act("BUFFER_SPACE_REQUEST",
+            cri_buffer_space.eq(1),
+            NextState("BUFFER_SPACE_REQUEST_CMD")
+        )
+        rx_fsm.act("BUFFER_SPACE_REQUEST_CMD",
+            cri_buffer_space.eq(1),
             self.cri.cmd.eq(cri.commands["get_buffer_space"]),
             NextState("BUFFER_SPACE")
         )
@@ -158,8 +174,7 @@ class RTPacketSatellite(Module):
             If(timeout_counter.done,
                 self.buffer_space_timeout.eq(1),
                 NextState("INPUT")
-            ),
-            If(self.cri.o_buffer_space_valid,
+            ).Elif(self.cri.o_buffer_space_valid,
                 buffer_space_set.eq(1),
                 buffer_space_update.eq(1),
                 NextState("INPUT")
@@ -167,7 +182,12 @@ class RTPacketSatellite(Module):
         )
 
         rx_fsm.act("READ_REQUEST",
+            cri_read.eq(1),
+            NextState("READ_REQUEST_CMD")
+        )
+        rx_fsm.act("READ_REQUEST_CMD",
             load_read_request.eq(1),
+            cri_read.eq(1),
             self.cri.cmd.eq(cri.commands["read"]),
             NextState("INPUT")
         )
