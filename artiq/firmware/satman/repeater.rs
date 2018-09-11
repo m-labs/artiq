@@ -70,12 +70,12 @@ impl Repeater {
                             return;
                         }
                         if let Err(e) = self.load_routing_table(routing_table) {
-                            error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
+                            error!("[REP#{}] failed to load routing table ({})", self.repno, e);
                             self.state = RepeaterState::Failed;
                             return;
                         }
                         if let Err(e) = self.set_rank(rank + 1) {
-                            error!("[REP#{}] failed to sync TSC ({})", self.repno, e);
+                            error!("[REP#{}] failed to set rank ({})", self.repno, e);
                             self.state = RepeaterState::Failed;
                             return;
                         }
