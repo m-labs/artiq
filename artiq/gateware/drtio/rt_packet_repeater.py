@@ -110,6 +110,10 @@ class RTPacketRepeater(Module):
         self.submodules += tx_fsm
 
         tx_fsm.act("IDLE",
+            # Ensure 2 cycles between frames on the link.
+            NextState("READY")
+        )
+        tx_fsm.act("READY",
             If(self.set_time_stb,
                 tsc_value_load.eq(1),
                 NextState("SET_TIME")

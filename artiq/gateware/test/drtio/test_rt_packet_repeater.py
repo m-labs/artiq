@@ -27,6 +27,7 @@ class TestRepeater(unittest.TestCase):
         pt, pr, ts, dut = create_dut(nwords)
 
         def send():
+            yield
             yield ts.eq(0x12345678)
             yield dut.set_time_stb.eq(1)
             while not (yield dut.set_time_ack):
@@ -61,6 +62,7 @@ class TestRepeater(unittest.TestCase):
             pt, pr, ts, dut = create_dut(nwords)
 
             def send():
+                yield
                 for channel, timestamp, address, data in test_writes:
                     yield dut.cri.chan_sel.eq(channel)
                     yield dut.cri.timestamp.eq(timestamp)
@@ -96,6 +98,7 @@ class TestRepeater(unittest.TestCase):
 
             def send_requests():
                 for i in range(10):
+                    yield
                     yield dut.cri.chan_sel.eq(i << 16)
                     yield dut.cri.cmd.eq(cri.commands["get_buffer_space"])
                     yield

@@ -208,6 +208,10 @@ class RTPacketMaster(Module):
         self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
         tx_fsm.act("IDLE",
+            # Ensure 2 cycles between frames on the link.
+            NextState("READY")
+        )
+        tx_fsm.act("READY",
             If(sr_buf_readable,
                 If(sr_notwrite,
                     Case(sr_address[0], {
