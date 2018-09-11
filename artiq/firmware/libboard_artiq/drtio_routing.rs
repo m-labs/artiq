@@ -64,7 +64,8 @@ pub fn config_routing_table(default_n_links: usize) -> RoutingTable {
     });
     if !ok {
         warn!("could not read routing table from configuration, using default");
-    } 
+    }
+    info!("routing table: {}", ret);
     ret
 }
 
