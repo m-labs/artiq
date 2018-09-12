@@ -19,6 +19,8 @@ class RTPacketRepeater(Module):
 
         # in rtio domain
         self.err_command_missed = Signal()
+        self.command_missed_cmd = Signal(2)
+        self.command_missed_chan_sel = Signal(24)
         self.err_buffer_space_timeout = Signal()
         self.buffer_space_destination = Signal(8)
 
@@ -103,7 +105,11 @@ class RTPacketRepeater(Module):
 
         # Missed commands
         cri_ready = Signal()
-        self.sync.rtio += self.err_command_missed.eq(~cri_ready & (self.cri.cmd != cri.commands["nop"]))
+        self.sync.rtio += [
+            self.err_command_missed.eq(~cri_ready & (self.cri.cmd != cri.commands["nop"])),
+            self.command_missed_chan_sel.eq(self.cri.chan_sel),
+            self.command_missed_cmd.eq(self.cri.cmd)
+        ]
 
         # TX FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))

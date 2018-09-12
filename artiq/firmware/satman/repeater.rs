@@ -124,11 +124,13 @@ impl Repeater {
             error!("[REP#{}] received truncated packet", repno);
         }
         if errors & 4 != 0 {
+            let cmd;
             let chan_sel;
             unsafe {
+                cmd = (csr::DRTIOREP[repno].command_missed_cmd_read)();
                 chan_sel = (csr::DRTIOREP[repno].command_missed_chan_sel_read)();
             }
-            error!("[REP#{}] CRI command missed, chan_sel=0x{:06x}", repno, chan_sel)
+            error!("[REP#{}] CRI command missed, cmd={}, chan_sel=0x{:06x}", repno, cmd, chan_sel)
         }
         if errors & 8 != 0 {
             let destination;

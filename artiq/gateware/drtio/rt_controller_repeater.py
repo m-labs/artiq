@@ -10,6 +10,7 @@ class RTController(Module, AutoCSR):
     def __init__(self, rt_packet):
         self.set_time = CSR()
         self.protocol_error = CSR(4)
+        self.command_missed_cmd = CSRStatus(2)
         self.command_missed_chan_sel = CSRStatus(24)
         self.buffer_space_timeout_dest = CSRStatus(8)
 
@@ -28,7 +29,8 @@ class RTController(Module, AutoCSR):
             (rt_packet.err_unknown_packet_type, "rtio_rx", None, None),
             (rt_packet.err_packet_truncated, "rtio_rx", None, None),
             (rt_packet.err_command_missed, "rtio",
-                rt_packet.cri.chan_sel, self.command_missed_chan_sel.status),
+                Cat(rt_packet.command_missed_cmd, rt_packet.command_missed_chan_sel),
+                Cat(self.command_missed_cmd.status, self.command_missed_chan_sel.status)),
             (rt_packet.err_buffer_space_timeout, "rtio",
                 rt_packet.buffer_space_destination, self.buffer_space_timeout_dest.status)
         ]
