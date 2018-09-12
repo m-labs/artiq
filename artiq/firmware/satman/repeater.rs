@@ -227,6 +227,20 @@ impl Repeater {
         }
         Ok(())
     }
+
+    pub fn rtio_reset(&self, phy: bool) -> Result<(), &'static str> {
+        if self.state != RepeaterState::Up {
+            return Ok(());
+        }
+        drtioaux::send_link(self.auxno, &drtioaux::Packet::ResetRequest {
+            phy: phy
+        }).unwrap();
+        let reply = self.recv_aux_timeout(200)?;
+        if reply != drtioaux::Packet::ResetAck {
+            return Err("unexpected reply");
+        }
+        Ok(())
+    }
 }
 
 #[cfg(not(has_drtio_routing))]

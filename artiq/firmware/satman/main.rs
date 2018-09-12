@@ -55,12 +55,18 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
         drtioaux::Packet::EchoRequest =>
             drtioaux::send_link(0, &drtioaux::Packet::EchoReply),
         drtioaux::Packet::ResetRequest { phy } => {
+            info!("resetting RTIO");
             if phy {
                 drtiosat_reset_phy(true);
                 drtiosat_reset_phy(false);
             } else {
                 drtiosat_reset(true);
                 drtiosat_reset(false);
+            }
+            for rep in _repeaters.iter() {
+                if let Err(e) = rep.rtio_reset(phy) {
+                    error!("failed to issue RTIO reset ({})", e);
+                }
             }
             drtioaux::send_link(0, &drtioaux::Packet::ResetAck)
         },
