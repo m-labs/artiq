@@ -40,7 +40,7 @@ impl Repeater {
     }
 
     pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8) {
-        self.process_errors();
+        self.process_local_errors();
 
         match self.state {
             RepeaterState::Down => {
@@ -97,6 +97,7 @@ impl Repeater {
                 }
             }
             RepeaterState::Up => {
+                self.process_unsolicited_aux();
                 if !rep_link_rx_up(self.repno) {
                     info!("[REP#{}] link is down", self.repno);
                     self.state = RepeaterState::Down;
@@ -111,7 +112,15 @@ impl Repeater {
         }
     }
 
-    fn process_errors(&self) {
+    fn process_unsolicited_aux(&self) {
+        match drtioaux::recv_link(self.auxno) {
+            Ok(Some(packet)) => warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet),
+            Ok(None) => (),
+            Err(_) => warn!("[REP#{}] aux packet error", self.repno)
+        }
+    }
+
+    fn process_local_errors(&self) {
         let repno = self.repno as usize;
         let errors;
         unsafe {

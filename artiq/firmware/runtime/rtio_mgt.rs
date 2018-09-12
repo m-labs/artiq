@@ -172,6 +172,14 @@ pub mod drtio {
         Ok(())
     }
 
+    fn process_unsolicited_aux(linkno: u8) {
+        match drtioaux::recv_link(linkno) {
+            Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
+            Ok(None) => (),
+            Err(_) => warn!("[LINK#{}] aux packet error", linkno)
+        }
+    }
+
     fn process_local_errors(linkno: u8) {
         let errors;
         let linkidx = linkno as usize;
@@ -215,6 +223,7 @@ pub mod drtio {
                 if link_up(linkno) {
                     /* link was previously up */
                     if link_rx_up(linkno) {
+                        process_unsolicited_aux(linkno);
                         process_local_errors(linkno);
                         process_aux_errors(&io, linkno);
                     } else {
