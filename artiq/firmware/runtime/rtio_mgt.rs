@@ -193,9 +193,9 @@ pub mod drtio {
         }
     }
 
-    fn process_aux_errors(linkno: u8) {
+    fn process_aux_errors(io: &Io, linkno: u8) {
         drtioaux::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match recv_aux_timeout(io, linkno, 200) {
             Ok(drtioaux::Packet::RtioNoErrorReply) => (),
             Ok(drtioaux::Packet::RtioErrorSequenceErrorReply { channel }) =>
                 error!("[LINK#{}] RTIO sequence error involving channel {}", linkno, channel),
@@ -204,7 +204,7 @@ pub mod drtio {
             Ok(drtioaux::Packet::RtioErrorBusyReply { channel }) =>
                 error!("[LINK#{}] RTIO busy error involving channel {}", linkno, channel),
             Ok(_) => error!("[LINK#{}] received unexpected aux packet", linkno),
-            Err(e) => error!("[LINK#{}] aux packet error ({})", linkno, e)
+            Err(e) => error!("[LINK#{}] communication failed ({})", linkno, e)
         }
     }
 
@@ -216,7 +216,7 @@ pub mod drtio {
                     /* link was previously up */
                     if link_rx_up(linkno) {
                         process_local_errors(linkno);
-                        process_aux_errors(linkno);
+                        process_aux_errors(&io, linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
                         set_link_up(linkno, false);
