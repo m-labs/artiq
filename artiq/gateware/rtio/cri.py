@@ -130,7 +130,7 @@ class CRIDecoder(Module, AutoCSR):
         selected = Signal(slave_bits)
 
         if enable_routing:
-            self.specials.routing_table = Memory(slave_bits, 8)
+            self.specials.routing_table = Memory(slave_bits, 256)
 
             rtp_csr = self.routing_table.get_port(write_capable=True)
             self.specials += rtp_csr
