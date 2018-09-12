@@ -20,6 +20,7 @@ class RTPacketRepeater(Module):
         # in rtio domain
         self.err_command_missed = Signal()
         self.err_buffer_space_timeout = Signal()
+        self.buffer_space_destination = Signal(8)
 
         # set_time interface, in rtio domain
         self.set_time_stb = Signal()
@@ -85,9 +86,8 @@ class RTPacketRepeater(Module):
             )
 
         # Buffer space
-        buffer_space_destination = Signal(8)
         self.sync.rtio += If(self.cri.cmd == cri.commands["get_buffer_space"],
-            buffer_space_destination.eq(self.cri.chan_sel[16:]))
+            self.buffer_space_destination.eq(self.cri.chan_sel[16:]))
 
         rx_buffer_space_not = Signal()
         rx_buffer_space = Signal(16)
@@ -153,7 +153,7 @@ class RTPacketRepeater(Module):
             )
         )
         tx_fsm.act("BUFFER_SPACE",
-            tx_dp.send("buffer_space_request", destination=buffer_space_destination),
+            tx_dp.send("buffer_space_request", destination=self.buffer_space_destination),
             If(tx_dp.packet_last,
                 buffer_space_not_ack.eq(1),
                 NextState("WAIT_BUFFER_SPACE")

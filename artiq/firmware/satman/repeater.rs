@@ -2,10 +2,10 @@ use board_misoc::{csr, clock};
 use board_artiq::{drtioaux, drtio_routing};
 
 #[cfg(has_drtio_routing)]
-fn rep_link_rx_up(linkno: u8) -> bool {
-    let linkno = linkno as usize;
+fn rep_link_rx_up(repno: u8) -> bool {
+    let repno = repno as usize;
     unsafe {
-        (csr::DRTIOREP[linkno].rx_up_read)() == 1
+        (csr::DRTIOREP[repno].rx_up_read)() == 1
     }
 }
 
@@ -40,6 +40,8 @@ impl Repeater {
     }
 
     pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8) {
+        self.process_errors();
+
         match self.state {
             RepeaterState::Down => {
                 if rep_link_rx_up(self.repno) {
@@ -106,6 +108,37 @@ impl Repeater {
                     self.state = RepeaterState::Down;
                 }
             }
+        }
+    }
+
+    fn process_errors(&self) {
+        let repno = self.repno as usize;
+        let errors;
+        unsafe {
+            errors = (csr::DRTIOREP[repno].protocol_error_read)();
+        }
+        if errors & 1 != 0 {
+            error!("[REP#{}] received packet of an unknown type", repno);
+        }
+        if errors & 2 != 0 {
+            error!("[REP#{}] received truncated packet", repno);
+        }
+        if errors & 4 != 0 {
+            let chan_sel;
+            unsafe {
+                chan_sel = (csr::DRTIOREP[repno].command_missed_chan_sel_read)();
+            }
+            error!("[REP#{}] CRI command missed, chan_sel=0x{:06x}", repno, chan_sel)
+        }
+        if errors & 8 != 0 {
+            let destination;
+            unsafe {
+                destination = (csr::DRTIOREP[repno].buffer_space_timeout_dest_read)();
+            }
+            error!("[REP#{}] timeout attempting to get remote buffer space, destination=0x{:02x}", repno, destination);
+        }
+        unsafe {
+            (csr::DRTIOREP[repno].protocol_error_write)(errors);
         }
     }
 

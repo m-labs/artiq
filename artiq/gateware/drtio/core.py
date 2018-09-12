@@ -143,7 +143,7 @@ class DRTIOSatellite(Module):
         ]
 
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
-            self.rt_packet, tsc, self.cri, self.async_errors)
+            self.rt_packet, tsc, self.async_errors)
 
     def get_csrs(self):
         return ([self.reset, self.reset_phy, self.tsc_loaded] +

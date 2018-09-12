@@ -10,6 +10,8 @@ class RTController(Module, AutoCSR):
     def __init__(self, rt_packet):
         self.set_time = CSR()
         self.protocol_error = CSR(4)
+        self.command_missed_chan_sel = CSRStatus(24)
+        self.buffer_space_timeout_dest = CSRStatus(8)
 
         set_time_stb = Signal()
         set_time_ack = Signal()
@@ -23,14 +25,21 @@ class RTController(Module, AutoCSR):
         self.comb += self.set_time.w.eq(set_time_stb)
 
         errors = [
-            (rt_packet.err_unknown_packet_type, "rtio_rx"),
-            (rt_packet.err_packet_truncated, "rtio_rx"),
-            (rt_packet.err_command_missed, "rtio"),
-            (rt_packet.err_buffer_space_timeout, "rtio")
+            (rt_packet.err_unknown_packet_type, "rtio_rx", None, None),
+            (rt_packet.err_packet_truncated, "rtio_rx", None, None),
+            (rt_packet.err_command_missed, "rtio",
+                rt_packet.cri.chan_sel, self.command_missed_chan_sel.status),
+            (rt_packet.err_buffer_space_timeout, "rtio",
+                rt_packet.buffer_space_destination, self.buffer_space_timeout_dest.status)
         ]
 
-        for n, (err_i, err_cd) in enumerate(errors):
-            xfer = BlindTransfer(err_cd, "sys")
+        for n, (err_i, err_cd, din, dout) in enumerate(errors):
+            if din is not None:
+                data_width = len(din)
+            else:
+                data_width = 0
+
+            xfer = BlindTransfer(err_cd, "sys", data_width=data_width)
             self.submodules += xfer
 
             self.comb += xfer.i.eq(err_i)
@@ -41,3 +50,7 @@ class RTController(Module, AutoCSR):
                 If(xfer.o, err_pending.eq(1))
             ]
             self.comb += self.protocol_error.w[n].eq(err_pending)
+
+            if din is not None:
+                self.comb += xfer.data_i.eq(din)
+                self.sync += If(xfer.o & ~err_pending, dout.eq(xfer.data_o))

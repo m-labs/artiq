@@ -144,6 +144,7 @@ class RTPacketSatellite(Module):
             NextState("INPUT")
         )
 
+        # CRI mux defaults to write information
         rx_fsm.act("WRITE",
             If(write_data_buffer_cnt == rx_dp.packet_as["write"].extra_data_cnt,
                 NextState("WRITE_CMD")
@@ -170,6 +171,7 @@ class RTPacketSatellite(Module):
             NextState("BUFFER_SPACE")
         )
         rx_fsm.act("BUFFER_SPACE",
+            cri_buffer_space.eq(1),
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 self.buffer_space_timeout.eq(1),

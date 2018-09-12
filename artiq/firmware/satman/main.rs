@@ -260,7 +260,11 @@ fn drtiosat_process_errors() {
         error!("received truncated packet");
     }
     if errors & 4 != 0 {
-        error!("timeout attempting to get buffer space from CRI")
+        let destination;
+        unsafe {
+            destination = csr::drtiosat::buffer_space_timeout_dest_read();
+        }
+        error!("timeout attempting to get buffer space from CRI, destination=0x{:02x}", destination)
     }
     if errors & 8 != 0 {
         let channel;
