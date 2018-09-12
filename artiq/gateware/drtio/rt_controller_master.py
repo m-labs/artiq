@@ -220,26 +220,3 @@ class RTController(Module):
 
     def get_csrs(self):
         return self.csrs.get_csrs()
-
-
-class RTManager(Module, AutoCSR):
-    def __init__(self, rt_packet):
-        self.request_echo = CSR()
-
-        self.update_packet_cnt = CSR()
-        self.packet_cnt_tx = CSRStatus(32)
-        self.packet_cnt_rx = CSRStatus(32)
-
-        # # #
-
-        self.comb += self.request_echo.w.eq(rt_packet.echo_stb)
-        self.sync += [
-            If(rt_packet.echo_ack, rt_packet.echo_stb.eq(0)),
-            If(self.request_echo.re, rt_packet.echo_stb.eq(1))
-        ]
-
-        self.sync += \
-            If(self.update_packet_cnt.re,
-                self.packet_cnt_tx.status.eq(rt_packet.packet_cnt_tx),
-                self.packet_cnt_rx.status.eq(rt_packet.packet_cnt_rx)
-            )

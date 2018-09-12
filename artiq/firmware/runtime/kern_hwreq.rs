@@ -302,15 +302,6 @@ pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> Result<bool, Erro
             kern_send(io, &kern::DrtioLinkStatusReply { up: up })
         }
 
-        &kern::DrtioPacketCountRequest { linkno } => {
-            let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
-            kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
-        }
-        &kern::DrtioBufferSpaceReqCountRequest { linkno } => {
-            let cnt = rtio_mgt::drtio_dbg::get_buffer_space_req_count(linkno);
-            kern_send(io, &kern::DrtioBufferSpaceReqCountReply { cnt: cnt })
-        }
-
         &kern::I2cStartRequest { busno } => {
             let succeeded = i2c::start(busno).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })

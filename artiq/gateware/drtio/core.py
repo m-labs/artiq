@@ -161,13 +161,11 @@ class DRTIOMaster(Module):
         self.submodules.rt_packet = rt_packet_master.RTPacketMaster(self.link_layer)
         self.submodules.rt_controller = rt_controller_master.RTController(
             tsc, self.rt_packet)
-        self.submodules.rt_manager = rt_controller_master.RTManager(self.rt_packet)
 
     def get_csrs(self):
         return (self.link_layer.get_csrs() +
                 self.link_stats.get_csrs() +
-                self.rt_controller.get_csrs() +
-                self.rt_manager.get_csrs())
+                self.rt_controller.get_csrs())
 
     @property
     def cri(self):

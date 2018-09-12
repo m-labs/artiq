@@ -109,8 +109,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(dma_playback = ::dma_playback),
 
     api!(drtio_get_link_status = ::rtio::drtio::get_link_status),
-    api!(drtio_get_packet_counts = ::rtio::drtio::get_packet_counts),
-    api!(drtio_get_buffer_space_req_count = ::rtio::drtio::get_buffer_space_req_count),
 
     api!(i2c_start = ::nrt_bus::i2c::start),
     api!(i2c_restart = ::nrt_bus::i2c::restart),

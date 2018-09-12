@@ -49,11 +49,6 @@ pub enum Message<'a> {
     DrtioLinkStatusRequest { linkno: u8 },
     DrtioLinkStatusReply { up: bool },
 
-    DrtioPacketCountRequest { linkno: u8 },
-    DrtioPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
-    DrtioBufferSpaceReqCountRequest { linkno: u8 },
-    DrtioBufferSpaceReqCountReply { cnt: u32 },
-
     RunFinished,
     RunException {
         exception: Exception<'a>,

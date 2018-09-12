@@ -357,31 +357,3 @@ pub fn init_core(phy: bool) {
     }
     drtio::init()
 }
-
-#[cfg(has_drtio)]
-pub mod drtio_dbg {
-    use board_misoc::csr;
-
-    pub fn get_packet_counts(linkno: u8) -> (u32, u32) {
-        let linkno = linkno as usize;
-        unsafe {
-            (csr::DRTIO[linkno].update_packet_cnt_write)(1);
-            ((csr::DRTIO[linkno].packet_cnt_tx_read)(),
-             (csr::DRTIO[linkno].packet_cnt_rx_read)())
-        }
-    }
-
-    pub fn get_buffer_space_req_count(linkno: u8) -> u32 {
-        let linkno = linkno as usize;
-        unsafe {
-            (csr::DRTIO[linkno].o_dbg_buffer_space_req_cnt_read)()
-        }
-    }
-}
-
-#[cfg(not(has_drtio))]
-pub mod drtio_dbg {
-    pub fn get_packet_counts(_linkno: u8) -> (u32, u32) { (0, 0) }
-
-    pub fn get_buffer_space_req_count(_linkno: u8) -> u32 { 0 }
-}

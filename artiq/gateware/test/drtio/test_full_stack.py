@@ -291,26 +291,25 @@ class TestFullStack(unittest.TestCase):
 
     def test_echo(self):
         dut = DUT(2)
-        csrs = dut.master.rt_controller.csrs
-        mgr = dut.master.rt_manager
+        packet = dut.master.rt_packet
 
         def test():
             while not (yield from dut.master.link_layer.rx_up.read()):
                 yield
 
-            yield from mgr.update_packet_cnt.write(1)
-            yield
-            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 0)
-            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 0)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 0)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_rx), 0)
 
-            yield from mgr.request_echo.write(1)
+            yield dut.master.rt_packet.echo_stb.eq(1)
+            yield
+            while not (yield dut.master.rt_packet.echo_ack):
+                yield
+            yield dut.master.rt_packet.echo_stb.eq(0)
 
             for i in range(15):
                 yield
 
-            yield from mgr.update_packet_cnt.write(1)
-            yield
-            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 1)
-            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 1)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 1)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_rx), 1)
 
         run_simulation(dut, test(), self.clocks)
