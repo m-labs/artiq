@@ -119,27 +119,14 @@ class CRIDecoder(Module, AutoCSR):
         self.slaves = slaves
         self.master = master
 
-        slave_bits = bits_for(len(slaves)-1)
-        if enable_routing:
-            self.routing_destination = CSRStorage(8)
-            self.routing_hop = CSR(slave_bits)
-
         # # #
 
         # routing
+        slave_bits = bits_for(len(slaves)-1)
         selected = Signal(slave_bits)
 
         if enable_routing:
             self.specials.routing_table = Memory(slave_bits, 256)
-
-            rtp_csr = self.routing_table.get_port(write_capable=True)
-            self.specials += rtp_csr
-            self.comb += [
-                rtp_csr.adr.eq(self.routing_destination.storage),
-                rtp_csr.dat_w.eq(self.routing_hop.r),
-                rtp_csr.we.eq(self.routing_hop.re),
-                self.routing_hop.w.eq(rtp_csr.dat_r)
-            ]
 
             if mode == "async":
                 rtp_decoder = self.routing_table.get_port()
@@ -220,3 +207,22 @@ class CRIInterconnectShared(Module):
 
     def get_csrs(self):
         return self.switch.get_csrs() + self.decoder.get_csrs()
+
+
+class RoutingTableAccess(Module, AutoCSR):
+    def __init__(self, interconnect):
+        if isinstance(interconnect, CRIInterconnectShared):
+            interconnect = interconnect.decoder
+
+        rtp_csr = interconnect.routing_table.get_port(write_capable=True)
+        self.specials += rtp_csr
+
+        self.destination = CSRStorage(8)
+        self.hop = CSR(len(rtp_csr.dat_w))
+
+        self.comb += [
+            rtp_csr.adr.eq(self.destination.storage),
+            rtp_csr.dat_w.eq(self.hop.r),
+            rtp_csr.we.eq(self.hop.re),
+            self.hop.w.eq(rtp_csr.dat_r)
+        ]

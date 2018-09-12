@@ -730,6 +730,8 @@ class _MasterBase(MiniSoC, AMPSoC):
             [self.rtio_core.cri] + self.drtio_cri,
             enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
                                                       self.get_native_sdram_if())
@@ -900,6 +902,8 @@ class _SatelliteBase(BaseSoC):
             [self.local_io.cri] + self.drtio_cri,
             mode="sync", enable_routing=True)
         self.csr_devices.append("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
 
 class Master(_MasterBase):

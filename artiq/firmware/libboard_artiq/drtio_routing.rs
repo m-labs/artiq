@@ -75,8 +75,8 @@ pub fn program_interconnect(rt: &RoutingTable, rank: u8)
     for i in 0..DEST_COUNT {
         let hop = rt.0[i][rank as usize];
         unsafe {
-            csr::cri_con::routing_destination_write(i as _);
-            csr::cri_con::routing_hop_write(hop);
+            csr::routing_table::destination_write(i as _);
+            csr::routing_table::hop_write(hop);
         }
     }
 }
