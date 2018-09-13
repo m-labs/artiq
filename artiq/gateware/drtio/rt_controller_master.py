@@ -19,6 +19,9 @@ class _CSRs(AutoCSR):
         self.set_time = CSR()
         self.underflow_margin = CSRStorage(16, reset=300)
 
+        self.force_destination = CSRStorage()
+        self.destination = CSRStorage(8)
+
         self.o_get_buffer_space = CSR()
         self.o_dbg_buffer_space = CSRStatus(16)
         self.o_dbg_buffer_space_req_cnt = CSRStatus(32)
@@ -71,11 +74,17 @@ class RTController(Module):
             If(self.csrs.set_time.re, rt_packet.set_time_stb.eq(1))
         ]
 
+        # chan_sel forcing
+        chan_sel = Signal(24)
+        self.comb += chan_sel.eq(Mux(self.csrs.force_destination.storage,
+            self.csrs.destination.storage << 16,
+            self.cri.chan_sel))
+
         # common packet fields
         rt_packet_buffer_request = Signal()
         rt_packet_read_request = Signal()
         self.comb += [
-            rt_packet.sr_chan_sel.eq(self.cri.chan_sel),
+            rt_packet.sr_chan_sel.eq(chan_sel),
             rt_packet.sr_address.eq(self.cri.o_address),
             rt_packet.sr_data.eq(self.cri.o_data),
             rt_packet.sr_timestamp.eq(self.cri.timestamp),
@@ -112,7 +121,22 @@ class RTController(Module):
         self.comb += cond_underflow.eq((self.cri.timestamp[tsc.glbl_fine_ts_width:]
                            - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
 
-        buffer_space = Signal(16)
+        # buffer space
+        buffer_space = Memory(16, 256)
+        buffer_space_port = buffer_space.get_port(write_capable=True)
+        self.specials += buffer_space, buffer_space_port
+
+        buffer_space_load = Signal()
+        buffer_space_dec = Signal()
+        self.comb += [
+            buffer_space_port.adr.eq(chan_sel[16:]),
+            buffer_space_port.we.eq(buffer_space_load | buffer_space_dec),
+            If(buffer_space_load,
+                buffer_space_port.dat_w.eq(rt_packet.buffer_space)
+            ).Else(
+                buffer_space_port.dat_w.eq(buffer_space_port.dat_r - 1)
+            )
+        ]
 
         # input status
         i_status_wait_event = Signal()
@@ -158,8 +182,8 @@ class RTController(Module):
             o_status_wait.eq(1),
             rt_packet.sr_stb.eq(1),
             If(rt_packet.sr_ack,
-                NextValue(buffer_space, buffer_space - 1),
-                If(buffer_space <= 1,
+                buffer_space_dec.eq(1),
+                If(buffer_space_port.dat_r <= 1,
                     NextState("GET_BUFFER_SPACE")
                 ).Else(
                     NextState("IDLE")
@@ -177,7 +201,7 @@ class RTController(Module):
         )
         fsm.act("GET_BUFFER_SPACE_REPLY",
             o_status_wait.eq(1),
-            NextValue(buffer_space, rt_packet.buffer_space),
+            buffer_space_load.eq(1),
             rt_packet.buffer_space_not_ack.eq(1),
             If(rt_packet.buffer_space_not,
                If(rt_packet.buffer_space != 0,
@@ -211,7 +235,7 @@ class RTController(Module):
         )
 
         # debug CSRs
-        self.comb += self.csrs.o_dbg_buffer_space.status.eq(buffer_space),
+        self.comb += self.csrs.o_dbg_buffer_space.status.eq(buffer_space_port.dat_r),
         self.sync += \
             If((rt_packet.sr_stb & rt_packet.sr_ack & rt_packet_buffer_request),
                self.csrs.o_dbg_buffer_space_req_cnt.status.eq(

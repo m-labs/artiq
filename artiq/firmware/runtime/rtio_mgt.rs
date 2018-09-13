@@ -83,16 +83,6 @@ pub mod drtio {
         }
     }
 
-    fn init_buffer_space(linkno: u8) {
-        let linkidx = linkno as usize;
-        unsafe {
-            (csr::DRTIO[linkidx].o_get_buffer_space_write)(1);
-            while (csr::DRTIO[linkidx].o_wait_read)() == 1 {}
-            info!("[LINK#{}] buffer space is {}",
-                linkno, (csr::DRTIO[linkidx].o_dbg_buffer_space_read)());
-        }
-    }
-
     fn ping_remote(linkno: u8, io: &Io) -> u32 {
         let mut count = 0;
         loop {
@@ -172,6 +162,19 @@ pub mod drtio {
         Ok(())
     }
 
+    fn init_buffer_space(destination: u8, linkno: u8) {
+        let linkno = linkno as usize;
+        unsafe {
+            (csr::DRTIO[linkno].destination_write)(destination);
+            (csr::DRTIO[linkno].force_destination_write)(1);
+            (csr::DRTIO[linkno].o_get_buffer_space_write)(1);
+            while (csr::DRTIO[linkno].o_wait_read)() == 1 {}
+            info!("[DEST#{}] buffer space is {}",
+                destination, (csr::DRTIO[linkno].o_dbg_buffer_space_read)());
+            (csr::DRTIO[linkno].force_destination_write)(0);
+        }
+    }
+
     fn process_unsolicited_aux(linkno: u8) {
         match drtioaux::recv_link(linkno) {
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
@@ -248,7 +251,7 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 info!("[DEST#{}] destination is up", destination);
                                 up_destinations[destination] = true;
-                                /* TODO: get buffer space */
+                                init_buffer_space(destination as u8, linkno);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -281,7 +284,6 @@ pub mod drtio {
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
                             set_link_up(linkno, true);
-                            init_buffer_space(linkno);
                             if let Err(e) = sync_tsc(&io, linkno) {
                                 error!("[LINK#{}] failed to sync TSC ({})", linkno, e);
                             }
