@@ -190,7 +190,7 @@ impl Packet {
             Packet::TSCAck =>
                 writer.write_u8(0x04)?,
 
-            Packet::DestinationStatusRequest {destination } => {
+            Packet::DestinationStatusRequest { destination } => {
                 writer.write_u8(0x20)?;
                 writer.write_u8(destination)?;
             },
