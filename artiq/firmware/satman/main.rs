@@ -71,39 +71,70 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send_link(0, &drtioaux::Packet::ResetAck)
         },
 
-        drtioaux::Packet::RtioErrorRequest => {
-            let errors;
-            unsafe {
-                errors = csr::drtiosat::rtio_error_read();
-            }
-            if errors & 1 != 0 {
-                let channel;
+        drtioaux::Packet::DestinationStatusRequest { destination } => {
+            #[cfg(has_drtio_routing)]
+            let hop = _routing_table.0[destination as usize][*_rank as usize];
+            #[cfg(not(has_drtio_routing))]
+            let hop = 0;
+
+            if hop == 0 {
+                let errors;
                 unsafe {
-                    channel = csr::drtiosat::sequence_error_channel_read();
-                    csr::drtiosat::rtio_error_write(1);
+                    errors = csr::drtiosat::rtio_error_read();
                 }
-                drtioaux::send_link(0,
-                    &drtioaux::Packet::RtioErrorSequenceErrorReply { channel })
-            } else if errors & 2 != 0 {
-                let channel;
-                unsafe {
-                    channel = csr::drtiosat::collision_channel_read();
-                    csr::drtiosat::rtio_error_write(2);
+                if errors & 1 != 0 {
+                    let channel;
+                    unsafe {
+                        channel = csr::drtiosat::sequence_error_channel_read();
+                        csr::drtiosat::rtio_error_write(1);
+                    }
+                    drtioaux::send_link(0,
+                        &drtioaux::Packet::DestinationSequenceErrorReply { channel })?;
+                } else if errors & 2 != 0 {
+                    let channel;
+                    unsafe {
+                        channel = csr::drtiosat::collision_channel_read();
+                        csr::drtiosat::rtio_error_write(2);
+                    }
+                    drtioaux::send_link(0,
+                        &drtioaux::Packet::DestinationCollisionReply { channel })?;
+                } else if errors & 4 != 0 {
+                    let channel;
+                    unsafe {
+                        channel = csr::drtiosat::busy_channel_read();
+                        csr::drtiosat::rtio_error_write(4);
+                    }
+                    drtioaux::send_link(0,
+                        &drtioaux::Packet::DestinationBusyReply { channel })?;
                 }
-                drtioaux::send_link(0,
-                    &drtioaux::Packet::RtioErrorCollisionReply { channel })
-            } else if errors & 4 != 0 {
-                let channel;
-                unsafe {
-                    channel = csr::drtiosat::busy_channel_read();
-                    csr::drtiosat::rtio_error_write(4);
+                else {
+                    drtioaux::send_link(0, &drtioaux::Packet::DestinationOkReply)?;
                 }
-                drtioaux::send_link(0,
-                    &drtioaux::Packet::RtioErrorBusyReply { channel })
             }
-            else {
-                drtioaux::send_link(0, &drtioaux::Packet::RtioNoErrorReply)
+
+            #[cfg(has_drtio_routing)]
+            {
+                if hop != 0 {
+                    let hop = hop as usize;
+                    if hop <= csr::DRTIOREP.len() {
+                        let repno = hop - 1;
+                        match _repeaters[repno].aux_forward(&drtioaux::Packet::DestinationStatusRequest {
+                            destination: destination
+                        }) {
+                            Ok(()) => (),
+                            Err(drtioaux::Error::LinkDown) => drtioaux::send_link(0, &drtioaux::Packet::DestinationDownReply)?,
+                            Err(e) => {
+                                drtioaux::send_link(0, &drtioaux::Packet::DestinationDownReply)?;
+                                error!("aux error when handling destination status request: {}", e);
+                            },
+                        }
+                    } else {
+                        drtioaux::send_link(0, &drtioaux::Packet::DestinationDownReply)?;
+                    }
+                }
             }
+
+            Ok(())
         }
 
         #[cfg(has_drtio_routing)]
@@ -135,11 +166,11 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
         }
 
         #[cfg(not(has_drtio_routing))]
-        drtioaux::Packet::RoutingSetPath { _destination, _hops } => {
+        drtioaux::Packet::RoutingSetPath { destination, hops } => {
             drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
         }
         #[cfg(not(has_drtio_routing))]
-        drtioaux::Packet::RoutingSetRank { _rank } => {
+        drtioaux::Packet::RoutingSetRank { rank } => {
             drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
         }
 

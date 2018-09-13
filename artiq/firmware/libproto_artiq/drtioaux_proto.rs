@@ -22,11 +22,12 @@ pub enum Packet {
     ResetAck,
     TSCAck,
 
-    RtioErrorRequest,
-    RtioNoErrorReply,
-    RtioErrorSequenceErrorReply { channel: u16 },
-    RtioErrorCollisionReply { channel: u16 },
-    RtioErrorBusyReply { channel: u16 },
+    DestinationStatusRequest { destination: u8 },
+    DestinationDownReply,
+    DestinationOkReply,
+    DestinationSequenceErrorReply { channel: u16 },
+    DestinationCollisionReply { channel: u16 },
+    DestinationBusyReply { channel: u16 },
 
     RoutingSetPath { destination: u8, hops: [u8; 32] },
     RoutingSetRank { rank: u8 },
@@ -67,15 +68,18 @@ impl Packet {
             0x03 => Packet::ResetAck,
             0x04 => Packet::TSCAck,
 
-            0x20 => Packet::RtioErrorRequest,
-            0x21 => Packet::RtioNoErrorReply,
-            0x22 => Packet::RtioErrorSequenceErrorReply {
+            0x20 => Packet::DestinationStatusRequest {
+                destination: reader.read_u8()?
+            },
+            0x21 => Packet::DestinationDownReply,
+            0x22 => Packet::DestinationOkReply,
+            0x23 => Packet::DestinationSequenceErrorReply {
                 channel: reader.read_u16()?
             },
-            0x23 => Packet::RtioErrorCollisionReply {
+            0x24 => Packet::DestinationCollisionReply {
                 channel: reader.read_u16()?
             },
-            0x24 => Packet::RtioErrorBusyReply {
+            0x25 => Packet::DestinationBusyReply {
                 channel: reader.read_u16()?
             },
 
@@ -186,20 +190,24 @@ impl Packet {
             Packet::TSCAck =>
                 writer.write_u8(0x04)?,
 
-            Packet::RtioErrorRequest =>
-                writer.write_u8(0x20)?,
-            Packet::RtioNoErrorReply =>
-                writer.write_u8(0x21)?,
-            Packet::RtioErrorSequenceErrorReply { channel } => {
-                writer.write_u8(0x22)?;
-                writer.write_u16(channel)?;
+            Packet::DestinationStatusRequest {destination } => {
+                writer.write_u8(0x20)?;
+                writer.write_u8(destination)?;
             },
-            Packet::RtioErrorCollisionReply { channel } => {
+            Packet::DestinationDownReply =>
+                writer.write_u8(0x21)?,
+            Packet::DestinationOkReply =>
+                writer.write_u8(0x22)?,
+            Packet::DestinationSequenceErrorReply { channel } => {
                 writer.write_u8(0x23)?;
                 writer.write_u16(channel)?;
             },
-            Packet::RtioErrorBusyReply { channel } => {
+            Packet::DestinationCollisionReply { channel } => {
                 writer.write_u8(0x24)?;
+                writer.write_u16(channel)?;
+            },
+            Packet::DestinationBusyReply { channel } => {
+                writer.write_u8(0x25)?;
                 writer.write_u16(channel)?;
             },
 

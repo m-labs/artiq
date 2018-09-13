@@ -10,14 +10,21 @@ pub use proto_artiq::drtioaux_proto::Packet;
 // this is parametric over T because there's no impl Fail for !.
 #[derive(Fail, Debug)]
 pub enum Error<T> {
-    #[fail(display = "packet CRC failed")]
-    CorruptedPacket,
-    #[fail(display = "timed out waiting for data")]
-    TimedOut,
     #[fail(display = "invalid node number")]
     NoRoute,
+
     #[fail(display = "gateware reported error")]
     GatewareError,
+    #[fail(display = "packet CRC failed")]
+    CorruptedPacket,
+
+    #[fail(display = "link is down")]
+    LinkDown,
+    #[fail(display = "timed out waiting for data")]
+    TimedOut,
+    #[fail(display = "unexpected reply")]
+    UnexpectedReply,
+
     #[fail(display = "protocol error: {}", _0)]
     Protocol(#[cause] ProtocolError<T>)
 }

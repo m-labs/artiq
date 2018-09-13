@@ -201,22 +201,63 @@ pub mod drtio {
         }
     }
 
-    fn process_aux_errors(io: &Io, linkno: u8) {
-        drtioaux::send_link(linkno, &drtioaux::Packet::RtioErrorRequest).unwrap();
-        match recv_aux_timeout(io, linkno, 200) {
-            Ok(drtioaux::Packet::RtioNoErrorReply) => (),
-            Ok(drtioaux::Packet::RtioErrorSequenceErrorReply { channel }) =>
-                error!("[LINK#{}] RTIO sequence error involving channel {}", linkno, channel),
-            Ok(drtioaux::Packet::RtioErrorCollisionReply { channel }) =>
-                error!("[LINK#{}] RTIO collision involving channel {}", linkno, channel),
-            Ok(drtioaux::Packet::RtioErrorBusyReply { channel }) =>
-                error!("[LINK#{}] RTIO busy error involving channel {}", linkno, channel),
-            Ok(_) => error!("[LINK#{}] received unexpected aux packet", linkno),
-            Err(e) => error!("[LINK#{}] communication failed ({})", linkno, e)
+    fn destination_survey(io: &Io, routing_table: &drtio_routing::RoutingTable,
+            up_destinations: &mut [bool; drtio_routing::DEST_COUNT]) {
+        for destination in 0..drtio_routing::DEST_COUNT {
+            let hop = routing_table.0[destination][0];
+
+            if hop == 0 {
+                /* local RTIO */
+                up_destinations[destination] = true;
+            } else if hop as usize <= csr::DRTIO.len() {
+                let linkno = hop - 1;
+                if up_destinations[destination] {
+                    if link_up(linkno) {
+                        drtioaux::send_link(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                            destination: destination as u8
+                        }).unwrap();
+                        match recv_aux_timeout(io, linkno, 200) {
+                            Ok(drtioaux::Packet::DestinationDownReply) => {
+                                info!("[DEST#{}] destination is down", destination);
+                                up_destinations[destination] = false;
+                            },
+                            Ok(drtioaux::Packet::DestinationOkReply) => (),
+                            Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
+                            Ok(drtioaux::Packet::DestinationCollisionReply { channel }) =>
+                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
+                            Ok(drtioaux::Packet::DestinationBusyReply { channel }) =>
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
+                            Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
+                            Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
+                        }
+                    } else {
+                        info!("[DEST#{}] destination is down", destination);
+                        up_destinations[destination] = false;
+                    }
+                } else {
+                    if link_up(linkno) {
+                        drtioaux::send_link(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                            destination: destination as u8
+                        }).unwrap();
+                        match recv_aux_timeout(io, linkno, 200) {
+                            Ok(drtioaux::Packet::DestinationDownReply) => (),
+                            Ok(drtioaux::Packet::DestinationOkReply) => {
+                                info!("[DEST#{}] destination is up", destination);
+                                up_destinations[destination] = true;
+                                /* TODO: get buffer space */
+                            },
+                            Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
+                            Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
+                        }
+                    }
+                }
+            }
         }
     }
 
     pub fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable) {
+        let mut up_destinations = [false; drtio_routing::DEST_COUNT];
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
@@ -225,7 +266,6 @@ pub mod drtio {
                     if link_rx_up(linkno) {
                         process_unsolicited_aux(linkno);
                         process_local_errors(linkno);
-                        process_aux_errors(&io, linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
                         set_link_up(linkno, false);
@@ -255,6 +295,7 @@ pub mod drtio {
                     }
                 }
             }
+            destination_survey(&io, routing_table, &mut up_destinations);
             io.sleep(200).unwrap();
         }
     }
