@@ -208,7 +208,10 @@ pub mod drtio {
 
             if hop == 0 {
                 /* local RTIO */
-                up_destinations[destination] = true;
+                if !up_destinations[destination] {
+                    info!("[DEST#{}] destination is up", destination);
+                    up_destinations[destination] = true;
+                }
             } else if hop as usize <= csr::DRTIO.len() {
                 let linkno = hop - 1;
                 if up_destinations[destination] {
