@@ -12,6 +12,7 @@ use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
 use watchdog::WatchdogSet;
+use board_artiq::drtio_routing;
 
 use rpc_proto as rpc;
 use session_proto as host;
@@ -323,7 +324,8 @@ fn process_host_message(io: &Io,
     Ok(())
 }
 
-fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
+fn process_kern_message(io: &Io, routing_table: &drtio_routing::RoutingTable,
+                        mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -341,7 +343,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, request)? {
+        if kern_hwreq::process_kern_hwreq(io, routing_table, request)? {
             return Ok(false)
         }
 
@@ -490,7 +492,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
     })
 }
 
-fn host_kernel_worker(io: &Io,
+fn host_kernel_worker(io: &Io, routing_table: &drtio_routing::RoutingTable,
                       stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
@@ -507,7 +509,7 @@ fn host_kernel_worker(io: &Io,
         }
 
         if mailbox::receive() != 0 {
-            process_kern_message(io, Some(stream), &mut session)?;
+            process_kern_message(io, routing_table, Some(stream), &mut session)?;
         }
 
         if session.kernel_state == KernelState::Running {
@@ -526,7 +528,7 @@ fn host_kernel_worker(io: &Io,
     }
 }
 
-fn flash_kernel_worker(io: &Io,
+fn flash_kernel_worker(io: &Io, routing_table: &drtio_routing::RoutingTable,
                        congress: &mut Congress,
                        config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
@@ -549,7 +551,7 @@ fn flash_kernel_worker(io: &Io,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, None, &mut session)? {
+            if process_kern_message(io, routing_table, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -581,7 +583,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
     *handle = Some(io.spawn(16384, f))
 }
 
-pub fn thread(io: Io) {
+pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
@@ -590,11 +592,13 @@ pub fn thread(io: Io) {
 
     let mut kernel_thread = None;
     {
+        let routing_table = routing_table.clone();
         let congress = congress.clone();
         respawn(&io, &mut kernel_thread, move |io| {
+            let routing_table = routing_table.borrow();
             let mut congress = congress.borrow_mut();
             info!("running startup kernel");
-            match flash_kernel_worker(&io, &mut congress, "startup_kernel") {
+            match flash_kernel_worker(&io, &routing_table, &mut congress, "startup_kernel") {
                 Ok(()) =>
                     info!("startup kernel finished"),
                 Err(Error::KernelNotFound) =>
@@ -623,12 +627,14 @@ pub fn thread(io: Io) {
             }
             info!("new connection from {}", stream.remote_endpoint());
 
+            let routing_table = routing_table.clone();
             let congress = congress.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
+                let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &mut stream, &mut *congress) {
+                match host_kernel_worker(&io, &routing_table, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
@@ -646,10 +652,12 @@ pub fn thread(io: Io) {
         if kernel_thread.as_ref().map_or(true, |h| h.terminated()) {
             info!("no connection, starting idle kernel");
 
+            let routing_table = routing_table.clone();
             let congress = congress.clone();
             respawn(&io, &mut kernel_thread, move |io| {
+                let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
-                match flash_kernel_worker(&io, &mut *congress, "idle_kernel") {
+                match flash_kernel_worker(&io, &routing_table, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(

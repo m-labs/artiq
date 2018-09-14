@@ -10,9 +10,6 @@ pub use proto_artiq::drtioaux_proto::Packet;
 // this is parametric over T because there's no impl Fail for !.
 #[derive(Fail, Debug)]
 pub enum Error<T> {
-    #[fail(display = "invalid node number")]
-    NoRoute,
-
     #[fail(display = "gateware reported error")]
     GatewareError,
     #[fail(display = "packet CRC failed")]
@@ -24,6 +21,9 @@ pub enum Error<T> {
     TimedOut,
     #[fail(display = "unexpected reply")]
     UnexpectedReply,
+
+    #[fail(display = "routing error")]
+    RoutingError,
 
     #[fail(display = "protocol error: {}", _0)]
     Protocol(#[cause] ProtocolError<T>)
@@ -149,27 +149,4 @@ pub fn send_link(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
 
         Ok(writer.position())
     })
-}
-
-// TODO: routing
-fn get_linkno(nodeno: u8) -> Result<u8, Error<!>> {
-    if nodeno == 0 || nodeno as usize > DRTIOAUX.len() {
-        return Err(Error::NoRoute)
-    }
-    Ok(nodeno - 1)
-}
-
-pub fn recv(nodeno: u8) -> Result<Option<Packet>, Error<!>> {
-    let linkno = get_linkno(nodeno)?;
-    recv_link(linkno)
-}
-
-pub fn recv_timeout(nodeno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
-    let linkno = get_linkno(nodeno)?;
-    recv_timeout_link(linkno, timeout_ms)
-}
-
-pub fn send(nodeno: u8, packet: &Packet) -> Result<(), Error<!>> {
-    let linkno = get_linkno(nodeno)?;
-    send_link(linkno, packet)
 }

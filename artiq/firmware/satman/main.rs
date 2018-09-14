@@ -46,6 +46,27 @@ fn drtiosat_tsc_loaded() -> bool {
     }
 }
 
+
+#[cfg(has_drtio_routing)]
+macro_rules! forward {
+    ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {{
+        let hop = $routing_table.0[$destination as usize][$rank as usize];
+        if hop != 0 {
+            let repno = (hop - 1) as usize;
+            if repno < $repeaters.len() {
+                return $repeaters[repno].aux_forward($packet);
+            } else {
+                return Err(drtioaux::Error::RoutingError);
+            }
+        }
+    }}
+}
+
+#[cfg(not(has_drtio_routing))]
+macro_rules! forward {
+    ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {}
+}
+
 fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
         _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
         packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
@@ -174,7 +195,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send_link(0, &drtioaux::Packet::RoutingAck)
         }
 
-        drtioaux::Packet::MonitorRequest { channel, probe } => {
+        drtioaux::Packet::MonitorRequest { destination, channel, probe } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
@@ -190,7 +212,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
             drtioaux::send_link(0, &reply)
         },
-        drtioaux::Packet::InjectionRequest { channel, overrd, value } => {
+        drtioaux::Packet::InjectionRequest { destination, channel, overrd, value } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             #[cfg(has_rtio_moninj)]
             unsafe {
                 csr::rtio_moninj::inj_chan_sel_write(channel as _);
@@ -199,7 +222,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
             Ok(())
         },
-        drtioaux::Packet::InjectionStatusRequest { channel, overrd } => {
+        drtioaux::Packet::InjectionStatusRequest { destination, channel, overrd } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
@@ -214,19 +238,23 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send_link(0, &drtioaux::Packet::InjectionStatusReply { value: value })
         },
 
-        drtioaux::Packet::I2cStartRequest { busno } => {
+        drtioaux::Packet::I2cStartRequest { destination, busno } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::start(busno).is_ok();
             drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cRestartRequest { busno } => {
+        drtioaux::Packet::I2cRestartRequest { destination, busno } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::restart(busno).is_ok();
             drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cStopRequest { busno } => {
+        drtioaux::Packet::I2cStopRequest { destination, busno } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::stop(busno).is_ok();
             drtioaux::send_link(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cWriteRequest { busno, data } => {
+        drtioaux::Packet::I2cWriteRequest { destination, busno, data } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             match i2c::write(busno, data) {
                 Ok(ack) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }),
@@ -234,7 +262,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     &drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false })
             }
         }
-        drtioaux::Packet::I2cReadRequest { busno, ack } => {
+        drtioaux::Packet::I2cReadRequest { destination, busno, ack } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             match i2c::read(busno, ack) {
                 Ok(data) => drtioaux::send_link(0,
                     &drtioaux::Packet::I2cReadReply { succeeded: true, data: data }),
@@ -243,17 +272,20 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
-        drtioaux::Packet::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+        drtioaux::Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
             drtioaux::send_link(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         },
-        drtioaux::Packet::SpiWriteRequest { busno, data } => {
+        drtioaux::Packet::SpiWriteRequest { destination, busno, data } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             let succeeded = spi::write(busno, data).is_ok();
             drtioaux::send_link(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::SpiReadRequest { busno } => {
+        drtioaux::Packet::SpiReadRequest { destination, busno } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
             match spi::read(busno) {
                 Ok(data) => drtioaux::send_link(0,
                     &drtioaux::Packet::SpiReadReply { succeeded: true, data: data }),

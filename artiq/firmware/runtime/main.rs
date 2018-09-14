@@ -282,22 +282,28 @@ fn startup_ethernet() {
                        .ip_addrs([IpCidr::new(protocol_addr, 0)])
                        .finalize();
 
-    #[cfg(has_drtio_routing)]
+    #[cfg(has_drtio)]
     let drtio_routing_table = urc::Urc::new(RefCell::new(
         drtio_routing::config_routing_table(csr::DRTIO.len())));
+    #[cfg(not(has_drtio))]
+    let drtio_routing_table = urc::Urc::new(RefCell::new(
+        drtio_routing::RoutingTable::default_empty()));
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
 
-    #[cfg(has_drtio_routing)]
     rtio_mgt::startup(&io, &drtio_routing_table);
-    #[cfg(not(has_drtio_routing))]
-    rtio_mgt::startup(&io, &drtio_routing::RoutingTable::default_empty());
 
     io.spawn(4096, mgmt::thread);
-    io.spawn(16384, session::thread);
+    {
+        let drtio_routing_table = drtio_routing_table.clone();
+        io.spawn(16384, move |io| { session::thread(io, &drtio_routing_table) });
+    }
     #[cfg(any(has_rtio_moninj, has_drtio))]
-    io.spawn(4096, moninj::thread);
+    {
+        let drtio_routing_table = drtio_routing_table.clone();
+        io.spawn(4096, move |io| { moninj::thread(io, &drtio_routing_table) });
+    }
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
 

@@ -33,24 +33,24 @@ pub enum Packet {
     RoutingSetRank { rank: u8 },
     RoutingAck,
 
-    MonitorRequest { channel: u16, probe: u8 },
+    MonitorRequest { destination: u8, channel: u16, probe: u8 },
     MonitorReply { value: u32 },
-    InjectionRequest { channel: u16, overrd: u8, value: u8 },
-    InjectionStatusRequest { channel: u16, overrd: u8 },
+    InjectionRequest { destination: u8, channel: u16, overrd: u8, value: u8 },
+    InjectionStatusRequest { destination: u8, channel: u16, overrd: u8 },
     InjectionStatusReply { value: u8 },
 
-    I2cStartRequest { busno: u8 },
-    I2cRestartRequest { busno: u8 },
-    I2cStopRequest { busno: u8 },
-    I2cWriteRequest { busno: u8, data: u8 },
+    I2cStartRequest { destination: u8, busno: u8 },
+    I2cRestartRequest { destination: u8, busno: u8 },
+    I2cStopRequest { destination: u8, busno: u8 },
+    I2cWriteRequest { destination: u8, busno: u8, data: u8 },
     I2cWriteReply { succeeded: bool, ack: bool },
-    I2cReadRequest { busno: u8, ack: bool },
+    I2cReadRequest { destination: u8, busno: u8, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
 
-    SpiSetConfigRequest { busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
-    SpiWriteRequest { busno: u8, data: u32 },
-    SpiReadRequest { busno: u8 },
+    SpiSetConfigRequest { destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
+    SpiWriteRequest { destination: u8, busno: u8, data: u32 },
+    SpiReadRequest { destination: u8, busno: u8 },
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 }
@@ -98,6 +98,7 @@ impl Packet {
             0x32 => Packet::RoutingAck,
 
             0x40 => Packet::MonitorRequest {
+                destination: reader.read_u8()?,
                 channel: reader.read_u16()?,
                 probe: reader.read_u8()?
             },
@@ -105,11 +106,13 @@ impl Packet {
                 value: reader.read_u32()?
             },
             0x50 => Packet::InjectionRequest {
+                destination: reader.read_u8()?,
                 channel: reader.read_u16()?,
                 overrd: reader.read_u8()?,
                 value: reader.read_u8()?
             },
             0x51 => Packet::InjectionStatusRequest {
+                destination: reader.read_u8()?,
                 channel: reader.read_u16()?,
                 overrd: reader.read_u8()?
             },
@@ -118,15 +121,19 @@ impl Packet {
             },
 
             0x80 => Packet::I2cStartRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?
             },
             0x81 => Packet::I2cRestartRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?
             },
             0x82 => Packet::I2cStopRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?
             },
             0x83 => Packet::I2cWriteRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?,
                 data: reader.read_u8()?
             },
@@ -135,6 +142,7 @@ impl Packet {
                 ack: reader.read_bool()?
             },
             0x85 => Packet::I2cReadRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?,
                 ack: reader.read_bool()?
             },
@@ -147,6 +155,7 @@ impl Packet {
             },
 
             0x90 => Packet::SpiSetConfigRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?,
                 flags: reader.read_u8()?,
                 length: reader.read_u8()?,
@@ -155,10 +164,12 @@ impl Packet {
             },
             /* 0x91: was Packet::SpiSetXferRequest */
             0x92 => Packet::SpiWriteRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?,
                 data: reader.read_u32()?
             },
             0x93 => Packet::SpiReadRequest {
+                destination: reader.read_u8()?,
                 busno: reader.read_u8()?
             },
             0x94 => Packet::SpiReadReply {
@@ -223,8 +234,9 @@ impl Packet {
             Packet::RoutingAck =>
                 writer.write_u8(0x32)?,
 
-            Packet::MonitorRequest { channel, probe } => {
+            Packet::MonitorRequest { destination, channel, probe } => {
                 writer.write_u8(0x40)?;
+                writer.write_u8(destination)?;
                 writer.write_u16(channel)?;
                 writer.write_u8(probe)?;
             },
@@ -232,14 +244,16 @@ impl Packet {
                 writer.write_u8(0x41)?;
                 writer.write_u32(value)?;
             },
-            Packet::InjectionRequest { channel, overrd, value } => {
+            Packet::InjectionRequest { destination, channel, overrd, value } => {
                 writer.write_u8(0x50)?;
+                writer.write_u8(destination)?;
                 writer.write_u16(channel)?;
                 writer.write_u8(overrd)?;
                 writer.write_u8(value)?;
             },
-            Packet::InjectionStatusRequest { channel, overrd } => {
+            Packet::InjectionStatusRequest { destination, channel, overrd } => {
                 writer.write_u8(0x51)?;
+                writer.write_u8(destination)?;
                 writer.write_u16(channel)?;
                 writer.write_u8(overrd)?;
             },
@@ -248,20 +262,24 @@ impl Packet {
                 writer.write_u8(value)?;
             },
 
-            Packet::I2cStartRequest { busno } => {
+            Packet::I2cStartRequest { destination, busno } => {
                 writer.write_u8(0x80)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
             },
-            Packet::I2cRestartRequest { busno } => {
+            Packet::I2cRestartRequest { destination, busno } => {
                 writer.write_u8(0x81)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
             },
-            Packet::I2cStopRequest { busno } => {
+            Packet::I2cStopRequest { destination, busno } => {
                 writer.write_u8(0x82)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
             },
-            Packet::I2cWriteRequest { busno, data } => {
+            Packet::I2cWriteRequest { destination, busno, data } => {
                 writer.write_u8(0x83)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
                 writer.write_u8(data)?;
             },
@@ -270,8 +288,9 @@ impl Packet {
                 writer.write_bool(succeeded)?;
                 writer.write_bool(ack)?;
             },
-            Packet::I2cReadRequest { busno, ack } => {
+            Packet::I2cReadRequest { destination, busno, ack } => {
                 writer.write_u8(0x85)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
                 writer.write_bool(ack)?;
             },
@@ -285,21 +304,24 @@ impl Packet {
                 writer.write_bool(succeeded)?;
             },
 
-            Packet::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+            Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {
                 writer.write_u8(0x90)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
                 writer.write_u8(flags)?;
                 writer.write_u8(length)?;
                 writer.write_u8(div)?;
                 writer.write_u8(cs)?;
             },
-            Packet::SpiWriteRequest { busno, data } => {
+            Packet::SpiWriteRequest { destination, busno, data } => {
                 writer.write_u8(0x92)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
                 writer.write_u32(data)?;
             },
-            Packet::SpiReadRequest { busno } => {
+            Packet::SpiReadRequest { destination, busno } => {
                 writer.write_u8(0x93)?;
+                writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
             },
             Packet::SpiReadReply { succeeded, data } => {
