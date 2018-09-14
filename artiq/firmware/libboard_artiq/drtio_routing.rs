@@ -1,4 +1,6 @@
-use board_misoc::{csr, config};
+use board_misoc::config;
+#[cfg(has_drtio_routing)]
+use board_misoc::csr;
 use core::fmt;
 
 pub const DEST_COUNT: usize = 256;

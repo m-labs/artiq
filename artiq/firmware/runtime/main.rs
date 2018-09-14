@@ -34,7 +34,6 @@ use board_misoc::{csr, irq, ident, clock, boot, config};
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
-#[cfg(has_drtio_routing)]
 use board_artiq::drtio_routing;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};

@@ -125,7 +125,7 @@ macro_rules! dispatch {
 #[cfg(not(has_drtio))]
 macro_rules! dispatch {
     ($routing_table:ident, $channel:expr, $func:ident $(, $param:expr)*) => {{
-        let channel = $channel as u8;
+        let channel = $channel as u16;
         local_moninj::$func(channel, $($param, )*)
     }}
 }
