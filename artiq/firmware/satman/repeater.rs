@@ -51,7 +51,7 @@ impl Repeater {
             }
             RepeaterState::SendPing { ping_count } => {
                 if rep_link_rx_up(self.repno) {
-                    drtioaux::send_link(self.auxno, &drtioaux::Packet::EchoRequest).unwrap();
+                    drtioaux::send(self.auxno, &drtioaux::Packet::EchoRequest).unwrap();
                     self.state = RepeaterState::WaitPingReply {
                         ping_count: ping_count + 1,
                         timeout: clock::get_ms() + 100
@@ -63,7 +63,7 @@ impl Repeater {
             }
             RepeaterState::WaitPingReply { ping_count, timeout } => {
                 if rep_link_rx_up(self.repno) {
-                    if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv_link(self.auxno) {
+                    if let Ok(Some(drtioaux::Packet::EchoReply)) = drtioaux::recv(self.auxno) {
                         info!("[REP#{}] remote replied after {} packets", self.repno, ping_count);
                         self.state = RepeaterState::Up;
                         if let Err(e) = self.sync_tsc() {
@@ -113,7 +113,7 @@ impl Repeater {
     }
 
     fn process_unsolicited_aux(&self) {
-        match drtioaux::recv_link(self.auxno) {
+        match drtioaux::recv(self.auxno) {
             Ok(Some(packet)) => warn!("[REP#{}] unsolicited aux packet: {:?}", self.repno, packet),
             Ok(None) => (),
             Err(_) => warn!("[REP#{}] aux packet error", self.repno)
@@ -162,7 +162,7 @@ impl Repeater {
             if clock::get_ms() > max_time {
                 return Err(drtioaux::Error::TimedOut);
             }
-            match drtioaux::recv_link(self.auxno) {
+            match drtioaux::recv(self.auxno) {
                 Ok(Some(packet)) => return Ok(packet),
                 Ok(None) => (),
                 Err(e) => return Err(e)
@@ -174,9 +174,9 @@ impl Repeater {
         if self.state != RepeaterState::Up {
             return Err(drtioaux::Error::LinkDown);
         }
-        drtioaux::send_link(self.auxno, request).unwrap();
+        drtioaux::send(self.auxno, request).unwrap();
         let reply = self.recv_aux_timeout(200)?;
-        drtioaux::send_link(0, &reply).unwrap();
+        drtioaux::send(0, &reply).unwrap();
         Ok(())
     }
 
@@ -206,7 +206,7 @@ impl Repeater {
             return Ok(());
         }
 
-        drtioaux::send_link(self.auxno, &drtioaux::Packet::RoutingSetPath {
+        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetPath {
             destination: destination,
             hops: *hops
         }).unwrap();
@@ -228,7 +228,7 @@ impl Repeater {
         if self.state != RepeaterState::Up {
             return Ok(());
         }
-        drtioaux::send_link(self.auxno, &drtioaux::Packet::RoutingSetRank {
+        drtioaux::send(self.auxno, &drtioaux::Packet::RoutingSetRank {
             rank: rank
         }).unwrap();
         let reply = self.recv_aux_timeout(200)?;
@@ -242,7 +242,7 @@ impl Repeater {
         if self.state != RepeaterState::Up {
             return Ok(());
         }
-        drtioaux::send_link(self.auxno, &drtioaux::Packet::ResetRequest {
+        drtioaux::send(self.auxno, &drtioaux::Packet::ResetRequest {
             phy: phy
         }).unwrap();
         let reply = self.recv_aux_timeout(200)?;

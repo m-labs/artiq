@@ -11,7 +11,7 @@ mod remote_i2c {
     use drtioaux;
 
     fn basic_reply(linkno: u8) -> Result<(), ()> {
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
                 if succeeded { Ok(()) } else { Err(()) }
             }
@@ -31,7 +31,7 @@ mod remote_i2c {
             destination: destination,
             busno: busno
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
         basic_reply(linkno)
@@ -42,7 +42,7 @@ mod remote_i2c {
             destination: destination,
             busno: busno
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
         basic_reply(linkno)
@@ -53,7 +53,7 @@ mod remote_i2c {
             destination: destination,
             busno: busno
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
         basic_reply(linkno)
@@ -65,10 +65,10 @@ mod remote_i2c {
             busno: busno,
             data: data
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::I2cWriteReply { succeeded, ack }) => {
                 if succeeded { Ok(ack) } else { Err(()) }
             }
@@ -89,10 +89,10 @@ mod remote_i2c {
             busno: busno,
             ack: ack
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::I2cReadReply { succeeded, data }) => {
                 if succeeded { Ok(data) } else { Err(()) }
             }
@@ -113,7 +113,7 @@ mod remote_spi {
     use drtioaux;
 
     fn basic_reply(linkno: u8) -> Result<(), ()> {
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
                 if succeeded { Ok(()) } else { Err(()) }
             }
@@ -137,7 +137,7 @@ mod remote_spi {
             div: div,
             cs: cs
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
         basic_reply(linkno)
@@ -149,7 +149,7 @@ mod remote_spi {
             busno: busno,
             data: data
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
         basic_reply(linkno)
@@ -160,10 +160,10 @@ mod remote_spi {
             destination: destination,
             busno: busno
         };
-        if drtioaux::send_link(linkno, &request).is_err() {
+        if drtioaux::send(linkno, &request).is_err() {
             return Err(())
         }
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::SpiReadReply { succeeded, data }) => {
                 if succeeded { Ok(data) } else { Err(()) }
             }

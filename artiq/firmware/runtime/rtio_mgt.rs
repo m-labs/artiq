@@ -93,9 +93,9 @@ pub mod drtio {
             if count > 200 {
                 return 0;
             }
-            drtioaux::send_link(linkno, &drtioaux::Packet::EchoRequest).unwrap();
+            drtioaux::send(linkno, &drtioaux::Packet::EchoRequest).unwrap();
             io.sleep(100).unwrap();
-            let pr = drtioaux::recv_link(linkno);
+            let pr = drtioaux::recv(linkno);
             match pr {
                 Ok(Some(drtioaux::Packet::EchoReply)) => return count,
                 _ => {}
@@ -112,7 +112,7 @@ pub mod drtio {
             if clock::get_ms() > max_time {
                 return Err("timeout");
             }
-            match drtioaux::recv_link(linkno) {
+            match drtioaux::recv(linkno) {
                 Ok(Some(packet)) => return Ok(packet),
                 Ok(None) => (),
                 Err(_) => return Err("aux packet error")
@@ -139,7 +139,7 @@ pub mod drtio {
     fn load_routing_table(io: &Io, linkno: u8, routing_table: &drtio_routing::RoutingTable)
             -> Result<(), &'static str> {
         for i in 0..drtio_routing::DEST_COUNT {
-            drtioaux::send_link(linkno, &drtioaux::Packet::RoutingSetPath {
+            drtioaux::send(linkno, &drtioaux::Packet::RoutingSetPath {
                 destination: i as u8,
                 hops: routing_table.0[i]
             }).unwrap();
@@ -152,7 +152,7 @@ pub mod drtio {
     }
 
     fn set_rank(io: &Io, linkno: u8, rank: u8) -> Result<(), &'static str> {
-        drtioaux::send_link(linkno, &drtioaux::Packet::RoutingSetRank {
+        drtioaux::send(linkno, &drtioaux::Packet::RoutingSetRank {
             rank: rank
         }).unwrap();
         let reply = recv_aux_timeout(io, linkno, 200)?;
@@ -176,7 +176,7 @@ pub mod drtio {
     }
 
     fn process_unsolicited_aux(linkno: u8) {
-        match drtioaux::recv_link(linkno) {
+        match drtioaux::recv(linkno) {
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
             Err(_) => warn!("[LINK#{}] aux packet error", linkno)
@@ -219,7 +219,7 @@ pub mod drtio {
                 let linkno = hop - 1;
                 if up_destinations[destination] {
                     if link_up(linkno) {
-                        drtioaux::send_link(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                        drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination as u8
                         }).unwrap();
                         match recv_aux_timeout(io, linkno, 200) {
@@ -243,7 +243,7 @@ pub mod drtio {
                     }
                 } else {
                     if link_up(linkno) {
-                        drtioaux::send_link(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                        drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination as u8
                         }).unwrap();
                         match recv_aux_timeout(io, linkno, 200) {
@@ -309,9 +309,9 @@ pub mod drtio {
         for linkno in 0..csr::DRTIO.len() {
             let linkno = linkno as u8;
             if link_up(linkno) {
-                drtioaux::send_link(linkno,
+                drtioaux::send(linkno,
                     &drtioaux::Packet::ResetRequest { phy: false }).unwrap();
-                match drtioaux::recv_timeout_link(linkno, None) {
+                match drtioaux::recv_timeout(linkno, None) {
                     Ok(drtioaux::Packet::ResetAck) => (),
                     Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
                     Err(e) => error!("[LINK#{}] reset failed, aux packet error ({})", linkno, e)

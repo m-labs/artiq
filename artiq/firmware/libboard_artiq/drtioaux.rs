@@ -80,7 +80,7 @@ fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>, Error<!>>
     }
 }
 
-pub fn recv_link(linkno: u8) -> Result<Option<Packet>, Error<!>> {
+pub fn recv(linkno: u8) -> Result<Option<Packet>, Error<!>> {
     if has_rx_error(linkno) {
         return Err(Error::GatewareError)
     }
@@ -104,11 +104,11 @@ pub fn recv_link(linkno: u8) -> Result<Option<Packet>, Error<!>> {
     })
 }
 
-pub fn recv_timeout_link(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
+pub fn recv_timeout(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
     let timeout_ms = timeout_ms.unwrap_or(10);
     let limit = clock::get_ms() + timeout_ms;
     while clock::get_ms() < limit {
-        match recv_link(linkno)? {
+        match recv(linkno)? {
             None => (),
             Some(packet) => return Ok(packet),
         }
@@ -131,7 +131,7 @@ fn transmit<F>(linkno: u8, f: F) -> Result<(), Error<!>>
     }
 }
 
-pub fn send_link(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
+pub fn send(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
     transmit(linkno, |buffer| {
         let mut writer = Cursor::new(buffer);
 

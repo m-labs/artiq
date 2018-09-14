@@ -57,14 +57,14 @@ mod remote_moninj {
             channel: channel,
             probe: probe
         };
-        match drtioaux::send_link(linkno, &request) {
+        match drtioaux::send(linkno, &request) {
             Ok(_) => (),
             Err(e) => {
                 error!("aux packet error ({})", e);
                 return 0;
             }
         }
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::MonitorReply { value }) => return value,
             Ok(_) => error!("received unexpected aux packet"),
             Err(e) => error!("aux packet error ({})", e)
@@ -79,7 +79,7 @@ mod remote_moninj {
             overrd: overrd,
             value: value
         };
-        match drtioaux::send_link(linkno, &request) {
+        match drtioaux::send(linkno, &request) {
             Ok(_) => (),
             Err(e) => error!("aux packet error ({})", e)
         }
@@ -91,14 +91,14 @@ mod remote_moninj {
             channel: channel,
             overrd: overrd
         };
-        match drtioaux::send_link(linkno, &request) {
+        match drtioaux::send(linkno, &request) {
             Ok(_) => (),
             Err(e) => {
                 error!("aux packet error ({})", e);
                 return 0;
             }
         }
-        match drtioaux::recv_timeout_link(linkno, None) {
+        match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
             Ok(_) => error!("received unexpected aux packet"),
             Err(e) => error!("aux packet error ({})", e)
