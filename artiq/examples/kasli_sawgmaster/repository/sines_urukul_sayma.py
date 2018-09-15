@@ -23,7 +23,7 @@ class SinesUrukulSayma(EnvExperiment):
 
         while True:
             print("waiting for DRTIO ready...")
-            while not self.core.get_drtio_link_status(0):
+            while not self.core.get_rtio_destination_status(0):
                 pass
             print("OK")
 
@@ -38,5 +38,5 @@ class SinesUrukulSayma(EnvExperiment):
                 sawg.amplitude1.set(.4)
                 sawg.frequency0.set(9*MHz)
 
-            while self.core.get_drtio_link_status(0):
+            while self.core.get_rtio_destination_status(0):
                 pass

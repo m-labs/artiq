@@ -5,6 +5,7 @@ mod imp {
 
     use board_misoc::csr;
     use ::send;
+    use ::recv;
     use kernel_proto::*;
 
     pub const RTIO_O_STATUS_WAIT:                      u8 = 1;
@@ -17,6 +18,15 @@ mod imp {
 
     pub extern fn init() {
         send(&RtioInitRequest);
+    }
+
+    pub extern fn get_destination_status(destination: i32) -> bool {
+        if 0 <= destination && destination <= 255 {
+            send(&RtioDestinationStatusRequest { destination: destination as u8 });
+            recv!(&RtioDestinationStatusReply { up } => up)
+        } else {
+            false
+        }
     }
 
     pub extern fn get_counter() -> i64 {
@@ -209,14 +219,3 @@ mod imp {
 }
 
 pub use self::imp::*;
-
-pub mod drtio {
-    use ::send;
-    use ::recv;
-    use kernel_proto::*;
-
-    pub extern fn get_link_status(linkno: i32) -> bool {
-        send(&DrtioLinkStatusRequest { linkno: linkno as u8 });
-        recv!(&DrtioLinkStatusReply { up } => up)
-    }
-}

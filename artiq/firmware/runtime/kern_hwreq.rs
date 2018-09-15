@@ -1,7 +1,9 @@
+use core::cell::RefCell;
 use kernel_proto as kern;
 use sched::{Io, Error as SchedError};
 use session::{kern_acknowledge, kern_send, Error};
 use rtio_mgt;
+use urc::Urc;
 use board_artiq::drtio_routing;
 use board_artiq::i2c as local_i2c;
 use board_artiq::spi as local_spi;
@@ -203,7 +205,9 @@ macro_rules! dispatch {
     }}
 }
 
-pub fn process_kern_hwreq(io: &Io, _routing_table: &drtio_routing::RoutingTable,
+pub fn process_kern_hwreq(io: &Io,
+        _routing_table: &drtio_routing::RoutingTable,
+        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         request: &kern::Message) -> Result<bool, Error<SchedError>> {
     match request {
         &kern::RtioInitRequest => {
@@ -212,9 +216,15 @@ pub fn process_kern_hwreq(io: &Io, _routing_table: &drtio_routing::RoutingTable,
             kern_acknowledge()
         }
 
-        &kern::DrtioLinkStatusRequest { linkno } => {
-            let up = rtio_mgt::drtio::link_up(linkno);
-            kern_send(io, &kern::DrtioLinkStatusReply { up: up })
+        &kern::RtioDestinationStatusRequest { destination: _destination } => {
+            #[cfg(has_drtio)]
+            let up = {
+                let up_destinations = _up_destinations.borrow();
+                up_destinations[_destination as usize]
+            };
+            #[cfg(not(has_drtio))]
+            let up = true;
+            kern_send(io, &kern::RtioDestinationStatusReply { up: up })
         }
 
         &kern::I2cStartRequest { busno } => {

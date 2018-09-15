@@ -47,14 +47,16 @@ pub mod drtio {
     use super::*;
     use drtioaux;
 
-    pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
+    pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
         }
         let routing_table = routing_table.clone();
+        let up_destinations = up_destinations.clone();
         io.spawn(4096, move |io| {
             let routing_table = routing_table.borrow();
-            link_thread(io, &routing_table)
+            link_thread(io, &routing_table, &up_destinations);
         });
     }
 
@@ -206,31 +208,46 @@ pub mod drtio {
         }
     }
 
+    fn destination_set_up(routing_table: &drtio_routing::RoutingTable,
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+            destination: u8, up: bool) {
+        let mut up_destinations = up_destinations.borrow_mut();
+        up_destinations[destination as usize] = up;
+        if up {
+            drtio_routing::interconnect_enable(routing_table, 0, destination);
+            info!("[DEST#{}] destination is up", destination);
+        } else {
+            drtio_routing::interconnect_disable(destination);
+            info!("[DEST#{}] destination is down", destination);
+        }
+    }
+
+    fn destination_up(up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>, destination: u8) -> bool {
+        let up_destinations = up_destinations.borrow();
+        up_destinations[destination as usize]
+    }
+
     fn destination_survey(io: &Io, routing_table: &drtio_routing::RoutingTable,
-            up_destinations: &mut [bool; drtio_routing::DEST_COUNT]) {
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         for destination in 0..drtio_routing::DEST_COUNT {
             let hop = routing_table.0[destination][0];
+            let destination = destination as u8;
 
             if hop == 0 {
                 /* local RTIO */
-                if !up_destinations[destination] {
-                    info!("[DEST#{}] destination is up", destination);
-                    up_destinations[destination] = true;
-                    drtio_routing::interconnect_enable(routing_table, 0, destination as u8);
+                if !destination_up(up_destinations, destination) {
+                    destination_set_up(routing_table, up_destinations, destination, true);
                 }
             } else if hop as usize <= csr::DRTIO.len() {
                 let linkno = hop - 1;
-                if up_destinations[destination] {
+                if destination_up(up_destinations, destination) {
                     if link_up(linkno) {
                         drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
-                            destination: destination as u8
+                            destination: destination
                         }).unwrap();
                         match recv_aux_timeout(io, linkno, 200) {
-                            Ok(drtioaux::Packet::DestinationDownReply) => {
-                                info!("[DEST#{}] destination is down", destination);
-                                up_destinations[destination] = false;
-                                drtio_routing::interconnect_disable(destination as u8);
-                            },
+                            Ok(drtioaux::Packet::DestinationDownReply) =>
+                                destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
                                 error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
@@ -242,21 +259,17 @@ pub mod drtio {
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
                         }
                     } else {
-                        info!("[DEST#{}] destination is down", destination);
-                        up_destinations[destination] = false;
-                        drtio_routing::interconnect_disable(destination as u8);
+                        destination_set_up(routing_table, up_destinations, destination, false);
                     }
                 } else {
                     if link_up(linkno) {
                         drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
-                            destination: destination as u8
+                            destination: destination
                         }).unwrap();
                         match recv_aux_timeout(io, linkno, 200) {
                             Ok(drtioaux::Packet::DestinationDownReply) => (),
                             Ok(drtioaux::Packet::DestinationOkReply) => {
-                                info!("[DEST#{}] destination is up", destination);
-                                up_destinations[destination] = true;
-                                drtio_routing::interconnect_enable(routing_table, 0, destination as u8);
+                                destination_set_up(routing_table, up_destinations, destination, true);
                                 init_buffer_space(destination as u8, linkno);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -268,8 +281,8 @@ pub mod drtio {
         }
     }
 
-    pub fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable) {
-        let mut up_destinations = [false; drtio_routing::DEST_COUNT];
+    pub fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable,
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
@@ -306,7 +319,7 @@ pub mod drtio {
                     }
                 }
             }
-            destination_survey(&io, routing_table, &mut up_destinations);
+            destination_survey(&io, routing_table, up_destinations);
             io.sleep(200).unwrap();
         }
     }
@@ -331,7 +344,8 @@ pub mod drtio {
 pub mod drtio {
     use super::*;
 
-    pub fn startup(_io: &Io, _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {}
+    pub fn startup(_io: &Io, _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
     pub fn init() {}
     pub fn link_up(_linkno: u8) -> bool { false }
 }
@@ -358,7 +372,8 @@ fn async_error_thread(io: Io) {
     }
 }
 
-pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>) {
+pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     #[cfg(has_rtio_crg)]
     {
         #[cfg(has_rtio_clock_switch)]
@@ -398,7 +413,7 @@ pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>
         }
     }
 
-    drtio::startup(io, &routing_table);
+    drtio::startup(io, routing_table, up_destinations);
     init_core(true);
     io.spawn(4096, async_error_thread);
 }

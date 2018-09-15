@@ -190,7 +190,7 @@ To flash the idle kernel:
 
 The startup kernel is executed once when the core device powers up. It should initialize DDSes, set up TTL directions, etc. Proceed as with the idle kernel, but using the ``startup_kernel`` key in the ``artiq_coremgmt`` command.
 
-For DRTIO systems, the startup kernel should wait until the desired links are up, using :meth:`artiq.coredevice.Core.get_drtio_link_status`.
+For DRTIO systems, the startup kernel should wait until the desired destinations (including local RTIO) are up, using :meth:`artiq.coredevice.Core.get_rtio_destination_status`.
 
 * (optional) Select the RTIO clock source
 

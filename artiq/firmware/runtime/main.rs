@@ -287,16 +287,19 @@ fn startup_ethernet() {
     #[cfg(not(has_drtio))]
     let drtio_routing_table = urc::Urc::new(RefCell::new(
         drtio_routing::RoutingTable::default_empty()));
+    let up_destinations = urc::Urc::new(RefCell::new(
+        [false; drtio_routing::DEST_COUNT]));
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
 
-    rtio_mgt::startup(&io, &drtio_routing_table);
+    rtio_mgt::startup(&io, &drtio_routing_table, &up_destinations);
 
     io.spawn(4096, mgmt::thread);
     {
         let drtio_routing_table = drtio_routing_table.clone();
-        io.spawn(16384, move |io| { session::thread(io, &drtio_routing_table) });
+        let up_destinations = up_destinations.clone();
+        io.spawn(16384, move |io| { session::thread(io, &drtio_routing_table, &up_destinations) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
