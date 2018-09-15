@@ -7,13 +7,13 @@ mod imp {
     use ::send;
     use kernel_proto::*;
 
-    pub const RTIO_O_STATUS_WAIT:           u8 = 1;
-    pub const RTIO_O_STATUS_UNDERFLOW:      u8 = 2;
-    pub const RTIO_O_STATUS_LINK_ERROR:     u8 = 4;
-    pub const RTIO_I_STATUS_WAIT_EVENT:     u8 = 1;
-    pub const RTIO_I_STATUS_OVERFLOW:       u8 = 2;
-    pub const RTIO_I_STATUS_WAIT_STATUS:    u8 = 4;
-    pub const RTIO_I_STATUS_LINK_ERROR:     u8 = 8;
+    pub const RTIO_O_STATUS_WAIT:                      u8 = 1;
+    pub const RTIO_O_STATUS_UNDERFLOW:                 u8 = 2;
+    pub const RTIO_O_STATUS_DESTINATION_UNREACHABLE:   u8 = 4;
+    pub const RTIO_I_STATUS_WAIT_EVENT:                u8 = 1;
+    pub const RTIO_I_STATUS_OVERFLOW:                  u8 = 2;
+    pub const RTIO_I_STATUS_WAIT_STATUS:               u8 = 4;
+    pub const RTIO_I_STATUS_DESTINATION_UNREACHABLE:   u8 = 8;
 
     pub extern fn init() {
         send(&RtioInitRequest);
@@ -49,9 +49,9 @@ mod imp {
                 "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
                 timestamp, channel as i64, timestamp - get_counter());
         }
-        if status & RTIO_O_STATUS_LINK_ERROR != 0 {
-            raise!("RTIOLinkError",
-                "RTIO output link error at {0} mu, channel {1}",
+        if status & RTIO_O_STATUS_DESTINATION_UNREACHABLE != 0 {
+            raise!("RTIODestinationUnreachable",
+                "RTIO destination unreachable, output, at {0} mu, channel {1}",
                 timestamp, channel as i64, 0);
         }
     }
@@ -108,9 +108,9 @@ mod imp {
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return !0
             }
-            if status & RTIO_I_STATUS_LINK_ERROR != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO input link error on channel {0}",
+            if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, input, on channel {0}",
                     channel as i64, 0, 0);
             }
 
@@ -135,9 +135,9 @@ mod imp {
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
             }
-            if status & RTIO_I_STATUS_LINK_ERROR != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO input link error on channel {0}",
+            if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, input, on channel {0}",
                     channel as i64, 0, 0);
             }
 

@@ -125,7 +125,7 @@ class OutputsTestbench:
             if status & 0x2:
                 raise RTIOUnderflow
             if status & 0x4:
-                raise RTIOLinkError
+                raise RTIODestinationUnreachable
             yield
             wlen += 1
         return wlen
@@ -264,7 +264,7 @@ class TestFullStack(unittest.TestCase):
             if status & 0x2:
                 return "overflow"
             if status & 0x8:
-                return "link error"
+                return "destination unreachable"
             return ((yield from kcsrs.i_data.read()),
                     (yield from kcsrs.i_timestamp.read()))
 

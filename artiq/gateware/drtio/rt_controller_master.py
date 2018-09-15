@@ -102,8 +102,7 @@ class RTController(Module):
         o_status_wait = Signal()
         o_status_underflow = Signal()
         self.comb += [
-            self.cri.o_status.eq(Cat(
-                o_status_wait, o_status_underflow, ~self.csrs.link_up.storage)),
+            self.cri.o_status.eq(Cat(o_status_wait, o_status_underflow)),
             self.csrs.o_wait.status.eq(o_status_wait)
         ]
         o_underflow_set = Signal()
@@ -143,8 +142,7 @@ class RTController(Module):
         i_status_overflow = Signal()
         i_status_wait_status = Signal()
         self.comb += self.cri.i_status.eq(Cat(
-            i_status_wait_event, i_status_overflow, i_status_wait_status,
-            ~self.csrs.link_up.storage))
+            i_status_wait_event, i_status_overflow, i_status_wait_status))
 
         load_read_reply = Signal()
         self.sync.sys_with_rst += [

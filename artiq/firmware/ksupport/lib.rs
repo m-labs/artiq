@@ -428,8 +428,8 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
                     timestamp as i64, channel as i64, 0);
             }
             if error & 2 != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO output link error at {0} mu, channel {1}",
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, output, at {0} mu, channel {1}",
                     timestamp as i64, channel as i64, 0);
             }
         }

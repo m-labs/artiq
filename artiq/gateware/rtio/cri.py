@@ -34,7 +34,7 @@ layout = [
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
     # o_status bits:
-    # <0:wait> <1:underflow> <2:link error>
+    # <0:wait> <1:underflow> <2:destination unreachable>
     ("o_status", 3, DIR_S_TO_M),
 
     # pessimistic estimate of the number of outputs events that can be
@@ -47,7 +47,7 @@ layout = [
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
     # <0:wait for event (command timeout)> <1:overflow> <2:wait for status>
-    # <3:link error>
+    # <3:destination unreachable>
     # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 4, DIR_S_TO_M),
 ]
@@ -122,6 +122,17 @@ class CRIDecoder(Module, AutoCSR):
         # # #
 
         # routing
+        if enable_routing:
+            destination_unreachable = Interface()
+            self.comb += [
+                destination_unreachable.o_status.eq(4),
+                destination_unreachable.i_status.eq(8)
+            ]
+            slaves = slaves[:]
+            slaves.append(destination_unreachable)
+            target_len = 2**(len(slaves) - 1).bit_length()
+            slaves += [destination_unreachable]*(target_len - len(slaves))
+
         slave_bits = bits_for(len(slaves)-1)
         selected = Signal(slave_bits)
 

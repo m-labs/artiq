@@ -216,6 +216,7 @@ pub mod drtio {
                 if !up_destinations[destination] {
                     info!("[DEST#{}] destination is up", destination);
                     up_destinations[destination] = true;
+                    drtio_routing::interconnect_enable(routing_table, 0, destination as u8);
                 }
             } else if hop as usize <= csr::DRTIO.len() {
                 let linkno = hop - 1;
@@ -228,6 +229,7 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationDownReply) => {
                                 info!("[DEST#{}] destination is down", destination);
                                 up_destinations[destination] = false;
+                                drtio_routing::interconnect_disable(destination as u8);
                             },
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
@@ -242,6 +244,7 @@ pub mod drtio {
                     } else {
                         info!("[DEST#{}] destination is down", destination);
                         up_destinations[destination] = false;
+                        drtio_routing::interconnect_disable(destination as u8);
                     }
                 } else {
                     if link_up(linkno) {
@@ -253,6 +256,7 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 info!("[DEST#{}] destination is up", destination);
                                 up_destinations[destination] = true;
+                                drtio_routing::interconnect_enable(routing_table, 0, destination as u8);
                                 init_buffer_space(destination as u8, linkno);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -392,12 +396,6 @@ pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>
                 error!("RTIO clock failed");
             }
         }
-    }
-
-    #[cfg(has_drtio_routing)]
-    {
-        let routing_table = routing_table.clone();
-        drtio_routing::program_interconnect(&routing_table.borrow(), 0);
     }
 
     drtio::startup(io, &routing_table);

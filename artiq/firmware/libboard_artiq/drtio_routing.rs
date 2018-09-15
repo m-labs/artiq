@@ -72,13 +72,25 @@ pub fn config_routing_table(default_n_links: usize) -> RoutingTable {
 }
 
 #[cfg(has_drtio_routing)]
-pub fn program_interconnect(rt: &RoutingTable, rank: u8)
-{
+pub fn interconnect_enable(routing_table: &RoutingTable, rank: u8, destination: u8) {
+    let hop = routing_table.0[destination as usize][rank as usize];
+    unsafe {
+        csr::routing_table::destination_write(destination);
+        csr::routing_table::hop_write(hop);
+    }
+}
+
+#[cfg(has_drtio_routing)]
+pub fn interconnect_disable(destination: u8) {
+    unsafe {
+        csr::routing_table::destination_write(destination);
+        csr::routing_table::hop_write(INVALID_HOP);
+    }
+}
+
+#[cfg(has_drtio_routing)]
+pub fn interconnect_enable_all(routing_table: &RoutingTable, rank: u8) {
     for i in 0..DEST_COUNT {
-        let hop = rt.0[i][rank as usize];
-        unsafe {
-            csr::routing_table::destination_write(i as _);
-            csr::routing_table::hop_write(hop);
-        }
+        interconnect_enable(routing_table, rank, i as u8);
     }
 }

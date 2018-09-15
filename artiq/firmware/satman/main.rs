@@ -171,7 +171,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
         #[cfg(has_drtio_routing)]
         drtioaux::Packet::RoutingSetRank { rank } => {
             *_rank = rank;
-            drtio_routing::program_interconnect(_routing_table, rank);
+            drtio_routing::interconnect_enable_all(_routing_table, rank);
 
             let rep_rank = rank + 1;
             for rep in _repeaters.iter() {

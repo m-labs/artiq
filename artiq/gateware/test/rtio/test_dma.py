@@ -5,7 +5,7 @@ import itertools
 from migen import *
 from misoc.interconnect import wishbone
 
-from artiq.coredevice.exceptions import RTIOUnderflow, RTIOLinkError
+from artiq.coredevice.exceptions import RTIOUnderflow, RTIODestinationUnreachable
 from artiq.gateware import rtio
 from artiq.gateware.rtio import dma, cri
 from artiq.gateware.rtio.phy import ttl_simple
@@ -61,7 +61,7 @@ def do_dma(dut, address):
     if error & 1:
         raise RTIOUnderflow
     if error & 2:
-        raise RTIOLinkError
+        raise RTIODestinationUnreachable
 
 
 test_writes1 = [
