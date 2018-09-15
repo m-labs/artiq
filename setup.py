@@ -25,7 +25,6 @@ console_scripts = [
     "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
     "artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main",
     "artiq_devtool = artiq.frontend.artiq_devtool:main",
-    "artiq_pcap = artiq.frontend.artiq_pcap:main",
     "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
