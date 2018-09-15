@@ -3,7 +3,10 @@ use board_misoc::config;
 use board_misoc::csr;
 use core::fmt;
 
+#[cfg(has_drtio_routing)]
 pub const DEST_COUNT: usize = 256;
+#[cfg(not(has_drtio_routing))]
+pub const DEST_COUNT: usize = 0;
 pub const MAX_HOPS: usize = 32;
 pub const INVALID_HOP: u8 = 0xff;
 
