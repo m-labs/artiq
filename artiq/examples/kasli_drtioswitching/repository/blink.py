@@ -8,10 +8,9 @@ class Blink(EnvExperiment):
 
     @kernel
     def run(self):
-        while True:
-            self.core.reset()
+        self.core.reset()
 
-            while True:
-                for led in self.leds:
-                    led.pulse(200*ms)
-                    delay(200*ms)
+        while True:
+            for led in self.leds:
+                led.pulse(200*ms)
+                delay(200*ms)
