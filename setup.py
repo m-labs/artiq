@@ -29,6 +29,7 @@ console_scripts = [
     "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
+    "artiq_rtiomon = artiq.frontend.artiq_rtiomon:main",
     "artiq_session = artiq.frontend.artiq_session:main",
     "artiq_route = artiq.frontend.artiq_route:main",
     "artiq_rpctool = artiq.frontend.artiq_rpctool:main",
