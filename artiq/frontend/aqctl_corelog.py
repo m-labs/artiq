@@ -16,7 +16,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ controller for core device logs")
     simple_network_args(parser, 1068)
-    parser.add_argument("core_addr",
+    parser.add_argument("core_addr", metavar="CORE_ADDR",
                         help="hostname or IP address of the core device")
     return parser
 
