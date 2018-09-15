@@ -66,7 +66,7 @@ mod remote_moninj {
         }
         match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::MonitorReply { value }) => return value,
-            Ok(_) => error!("received unexpected aux packet"),
+            Ok(packet) => error!("received unexpected aux packet: {:?}", packet),
             Err(e) => error!("aux packet error ({})", e)
         }
         0
@@ -100,7 +100,7 @@ mod remote_moninj {
         }
         match drtioaux::recv_timeout(linkno, None) {
             Ok(drtioaux::Packet::InjectionStatusReply { value }) => return value,
-            Ok(_) => error!("received unexpected aux packet"),
+            Ok(packet) => error!("received unexpected aux packet: {:?}", packet),
             Err(e) => error!("aux packet error ({})", e)
         }
         0
