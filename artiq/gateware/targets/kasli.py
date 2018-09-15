@@ -816,7 +816,7 @@ class _SatelliteBase(BaseSoC):
         self.comb += [sfp_ctl.led.eq(channel.rx_ready)
             for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
 
-        self.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
 
         drtioaux_csr_group = []
         drtioaux_memory_group = []
