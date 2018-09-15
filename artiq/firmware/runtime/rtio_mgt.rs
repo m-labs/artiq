@@ -1,7 +1,7 @@
 use core::cell::RefCell;
 use urc::Urc;
 use board_misoc::csr;
-#[cfg(has_drtio))]
+#[cfg(has_drtio)]
 use board_misoc::clock;
 #[cfg(has_rtio_clock_switch)]
 use board_misoc::config;
