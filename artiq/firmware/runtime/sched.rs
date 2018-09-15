@@ -265,6 +265,28 @@ impl<'a> Io<'a> {
     }
 }
 
+pub struct Mutex(Urc<Cell<bool>>);
+
+impl Mutex {
+    pub fn new() -> Mutex {
+        Mutex(Urc::new(Cell::new(false)))
+    }
+
+    pub fn lock<'a>(&'a self, io: Io) -> Result<MutexGuard<'a>, Error> {
+        io.until(|| !self.0.get())?;
+        self.0.set(true);
+        Ok(MutexGuard(&*self.0))
+    }
+}
+
+pub struct MutexGuard<'a>(&'a Cell<bool>);
+
+impl<'a> Drop for MutexGuard<'a> {
+    fn drop(&mut self) {
+        self.0.set(false)
+    }
+}
+
 macro_rules! until {
     ($socket:expr, $ty:ty, |$var:ident| $cond:expr) => ({
         let (sockets, handle) = ($socket.io.sockets.clone(), $socket.handle);
