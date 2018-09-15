@@ -265,6 +265,7 @@ impl<'a> Io<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct Mutex(Urc<Cell<bool>>);
 
 impl Mutex {
