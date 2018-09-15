@@ -92,9 +92,9 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send(0, &drtioaux::Packet::ResetAck)
         },
 
-        drtioaux::Packet::DestinationStatusRequest { destination } => {
+        drtioaux::Packet::DestinationStatusRequest { destination: _destination } => {
             #[cfg(has_drtio_routing)]
-            let hop = _routing_table.0[destination as usize][*_rank as usize];
+            let hop = _routing_table.0[_destination as usize][*_rank as usize];
             #[cfg(not(has_drtio_routing))]
             let hop = 0;
 
@@ -140,7 +140,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     if hop <= csr::DRTIOREP.len() {
                         let repno = hop - 1;
                         match _repeaters[repno].aux_forward(&drtioaux::Packet::DestinationStatusRequest {
-                            destination: destination
+                            destination: _destination
                         }) {
                             Ok(()) => (),
                             Err(drtioaux::Error::LinkDown) => drtioaux::send(0, &drtioaux::Packet::DestinationDownReply)?,
@@ -187,16 +187,16 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
         }
 
         #[cfg(not(has_drtio_routing))]
-        drtioaux::Packet::RoutingSetPath { destination, hops } => {
+        drtioaux::Packet::RoutingSetPath { destination: _, hops: _ } => {
             drtioaux::send(0, &drtioaux::Packet::RoutingAck)
         }
         #[cfg(not(has_drtio_routing))]
-        drtioaux::Packet::RoutingSetRank { rank } => {
+        drtioaux::Packet::RoutingSetRank { rank: _ } => {
             drtioaux::send(0, &drtioaux::Packet::RoutingAck)
         }
 
-        drtioaux::Packet::MonitorRequest { destination, channel, probe } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::MonitorRequest { destination: _destination, channel, probe } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
@@ -212,8 +212,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
             drtioaux::send(0, &reply)
         },
-        drtioaux::Packet::InjectionRequest { destination, channel, overrd, value } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::InjectionRequest { destination: _destination, channel, overrd, value } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             #[cfg(has_rtio_moninj)]
             unsafe {
                 csr::rtio_moninj::inj_chan_sel_write(channel as _);
@@ -222,8 +222,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
             Ok(())
         },
-        drtioaux::Packet::InjectionStatusRequest { destination, channel, overrd } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::InjectionStatusRequest { destination: _destination, channel, overrd } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let value;
             #[cfg(has_rtio_moninj)]
             unsafe {
@@ -238,23 +238,23 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             drtioaux::send(0, &drtioaux::Packet::InjectionStatusReply { value: value })
         },
 
-        drtioaux::Packet::I2cStartRequest { destination, busno } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::I2cStartRequest { destination: _destination, busno } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::start(busno).is_ok();
             drtioaux::send(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cRestartRequest { destination, busno } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::I2cRestartRequest { destination: _destination, busno } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::restart(busno).is_ok();
             drtioaux::send(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cStopRequest { destination, busno } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::I2cStopRequest { destination: _destination, busno } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = i2c::stop(busno).is_ok();
             drtioaux::send(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::I2cWriteRequest { destination, busno, data } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::I2cWriteRequest { destination: _destination, busno, data } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             match i2c::write(busno, data) {
                 Ok(ack) => drtioaux::send(0,
                     &drtioaux::Packet::I2cWriteReply { succeeded: true, ack: ack }),
@@ -262,8 +262,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     &drtioaux::Packet::I2cWriteReply { succeeded: false, ack: false })
             }
         }
-        drtioaux::Packet::I2cReadRequest { destination, busno, ack } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::I2cReadRequest { destination: _destination, busno, ack } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             match i2c::read(busno, ack) {
                 Ok(data) => drtioaux::send(0,
                     &drtioaux::Packet::I2cReadReply { succeeded: true, data: data }),
@@ -272,20 +272,20 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
-        drtioaux::Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::SpiSetConfigRequest { destination: _destination, busno, flags, length, div, cs } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         },
-        drtioaux::Packet::SpiWriteRequest { destination, busno, data } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::SpiWriteRequest { destination: _destination, busno, data } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = spi::write(busno, data).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         }
-        drtioaux::Packet::SpiReadRequest { destination, busno } => {
-            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+        drtioaux::Packet::SpiReadRequest { destination: _destination, busno } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             match spi::read(busno) {
                 Ok(data) => drtioaux::send(0,
                     &drtioaux::Packet::SpiReadReply { succeeded: true, data: data }),

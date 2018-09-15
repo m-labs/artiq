@@ -1,5 +1,6 @@
-use board_misoc::{csr, clock};
 use board_artiq::{drtioaux, drtio_routing};
+#[cfg(has_drtio_routing)]
+use board_misoc::{csr, clock};
 
 #[cfg(has_drtio_routing)]
 fn rep_link_rx_up(repno: u8) -> bool {
@@ -9,6 +10,7 @@ fn rep_link_rx_up(repno: u8) -> bool {
     }
 }
 
+#[cfg(has_drtio_routing)]
 #[derive(Clone, Copy, PartialEq)]
 enum RepeaterState {
     Down,
@@ -18,10 +20,12 @@ enum RepeaterState {
     Failed
 }
 
+#[cfg(has_drtio_routing)]
 impl Default for RepeaterState {
     fn default() -> RepeaterState { RepeaterState::Down }
 }
 
+#[cfg(has_drtio_routing)]
 #[derive(Clone, Copy, Default)]
 pub struct Repeater {
     repno: u8,
@@ -254,10 +258,17 @@ impl Repeater {
 }
 
 #[cfg(not(has_drtio_routing))]
+#[derive(Clone, Copy, Default)]
+pub struct Repeater {
+}
+
+#[cfg(not(has_drtio_routing))]
 impl Repeater {
     pub fn new(_repno: u8) -> Repeater { Repeater::default() }
 
-    pub fn service(&self) { }
+    pub fn service(&self, _routing_table: &drtio_routing::RoutingTable, _rank: u8) { }
 
-    pub fn sync_tsc(&self) -> Result<(), &'static str> { Ok(()) }
+    pub fn sync_tsc(&self) -> Result<(), drtioaux::Error<!>> { Ok(()) }
+
+    pub fn rtio_reset(&self, _phy: bool) -> Result<(), drtioaux::Error<!>> { Ok(()) }
 }
