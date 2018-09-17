@@ -128,3 +128,65 @@ class TestRepeater(unittest.TestCase):
                 current_request = field_dict["destination"]
 
             run_simulation(dut, [send_requests(), send_replies(), pr.receive(receive)])
+
+    def test_input(self):
+        for nwords in range(1, 8):
+            pt, pr, ts, dut = create_dut(nwords)
+
+            def read(chan_sel, timeout):
+                yield dut.cri.chan_sel.eq(chan_sel)
+                yield dut.cri.timestamp.eq(timeout)
+                yield dut.cri.cmd.eq(cri.commands["read"])
+                yield
+                yield dut.cri.cmd.eq(cri.commands["nop"])
+                yield
+                status = yield dut.cri.i_status
+                while status & 4:
+                    yield
+                    status = yield dut.cri.i_status
+                if status & 0x1:
+                    return "timeout"
+                if status & 0x2:
+                    return "overflow"
+                if status & 0x8:
+                    return "destination unreachable"
+                return ((yield dut.cri.i_data),
+                        (yield dut.cri.i_timestamp))
+
+            def send_requests():
+                for timeout in range(20, 200000, 100000):
+                    for chan_sel in range(3):
+                        data, timestamp = yield from read(chan_sel, timeout)
+                        self.assertEqual(data, chan_sel*2)
+                        self.assertEqual(timestamp, timeout//2)
+
+                i2 = yield from read(10, 400000)
+                self.assertEqual(i2, "timeout")
+                i3 = yield from read(11, 400000)
+                self.assertEqual(i3, "overflow")
+
+            current_request = None
+
+            @passive
+            def send_replies():
+                nonlocal current_request
+                while True:
+                    while current_request is None:
+                        yield
+                    chan_sel, timeout = current_request
+                    if chan_sel == 10:
+                        yield from pt.send("read_reply_noevent", overflow=0)
+                    elif chan_sel == 11:
+                        yield from pt.send("read_reply_noevent", overflow=1)
+                    else:
+                        yield from pt.send("read_reply", data=chan_sel*2, timestamp=timeout//2)
+                    current_request = None
+
+            def receive(packet_type, field_dict, trailer):
+                nonlocal current_request
+                self.assertEqual(packet_type, "read_request")
+                self.assertEqual(trailer, [])
+                self.assertEqual(current_request, None)
+                current_request = (field_dict["chan_sel"], field_dict["timeout"])
+
+            run_simulation(dut, [send_requests(), send_replies(), pr.receive(receive)])

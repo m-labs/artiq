@@ -103,6 +103,61 @@ class RTPacketRepeater(Module):
         timeout_counter = ClockDomainsRenamer("rtio")(WaitTimer(8191))
         self.submodules += timeout_counter
 
+        # Read
+        rb_chan_sel = Signal(24)
+        rb_timeout = Signal(64)
+        self.sync.rtio += If(self.cri.cmd == cri.commands["read"],
+            rb_chan_sel.eq(self.cri.chan_sel),
+            rb_timeout.eq(self.cri.timestamp))
+
+        read_not = Signal()
+        read_no_event = Signal()
+        read_is_overflow = Signal()
+        read_data = Signal(32)
+        read_timestamp = Signal(64)
+        rtio_read_not = Signal()
+        rtio_read_not_ack = Signal()
+        rtio_read_no_event = Signal()
+        rtio_read_is_overflow = Signal()
+        rtio_read_data = Signal(32)
+        rtio_read_timestamp = Signal(64)
+        self.submodules += CrossDomainNotification("rtio_rx", "rtio",
+            read_not,
+            Cat(read_no_event, read_is_overflow, read_data, read_timestamp),
+
+            rtio_read_not, rtio_read_not_ack,
+            Cat(rtio_read_no_event, rtio_read_is_overflow,
+                rtio_read_data, rtio_read_timestamp))
+        self.comb += [
+            read_is_overflow.eq(rx_dp.packet_as["read_reply_noevent"].overflow),
+            read_data.eq(rx_dp.packet_as["read_reply"].data),
+            read_timestamp.eq(rx_dp.packet_as["read_reply"].timestamp)
+        ]
+
+        # input status
+        i_status_wait_event = Signal()
+        i_status_overflow = Signal()
+        i_status_wait_status = Signal()
+        self.comb += self.cri.i_status.eq(Cat(
+            i_status_wait_event, i_status_overflow, i_status_wait_status))
+
+        load_read_reply = Signal()
+        self.sync.rtio += [
+            If(load_read_reply,
+                i_status_wait_event.eq(0),
+                i_status_overflow.eq(0),
+                If(rtio_read_no_event,
+                    If(rtio_read_is_overflow,
+                        i_status_overflow.eq(1)
+                    ).Else(
+                        i_status_wait_event.eq(1)
+                    )
+                ),
+                self.cri.i_data.eq(rtio_read_data),
+                self.cri.i_timestamp.eq(rtio_read_timestamp)
+            )
+        ]
+
         # Missed commands
         cri_ready = Signal()
         self.sync.rtio += [
@@ -111,7 +166,7 @@ class RTPacketRepeater(Module):
             self.command_missed_cmd.eq(self.cri.cmd)
         ]
 
-        # TX FSM
+        # TX and CRI FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
 
@@ -126,9 +181,11 @@ class RTPacketRepeater(Module):
             ).Else(
                 cri_ready.eq(1),
                 If(self.cri.cmd == cri.commands["write"], NextState("WRITE")),
-                If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE"))
+                If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE")),
+                If(self.cri.cmd == cri.commands["read"], NextState("READ"))
             )
         )
+
         tx_fsm.act("SET_TIME",
             tx_dp.send("set_time", timestamp=tsc_value),
             If(tx_dp.packet_last,
@@ -136,6 +193,7 @@ class RTPacketRepeater(Module):
                 NextState("IDLE")
             )
         )
+
         tx_fsm.act("WRITE",
             tx_dp.send("write",
                 timestamp=wb_timestamp,
@@ -158,23 +216,43 @@ class RTPacketRepeater(Module):
                 NextState("IDLE")
             )
         )
+
         tx_fsm.act("BUFFER_SPACE",
             tx_dp.send("buffer_space_request", destination=self.buffer_space_destination),
             If(tx_dp.packet_last,
                 buffer_space_not_ack.eq(1),
-                NextState("WAIT_BUFFER_SPACE")
+                NextState("GET_BUFFER_SPACE_REPLY")
             )
         )
-        tx_fsm.act("WAIT_BUFFER_SPACE",
+        tx_fsm.act("GET_BUFFER_SPACE_REPLY",
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 self.err_buffer_space_timeout.eq(1),
-                NextState("IDLE")
+                NextState("READY")
             ).Else(
                 If(buffer_space_not,
                     self.cri.o_buffer_space_valid.eq(1),
-                    NextState("IDLE")
+                    NextState("READY")
                 ),
+            )
+        )
+
+        tx_fsm.act("READ",
+            i_status_wait_status.eq(1),
+            tx_dp.send("read_request",
+                chan_sel=rb_chan_sel,
+                timeout=rb_timeout),
+            rtio_read_not_ack.eq(1),
+            If(tx_dp.packet_last,
+                NextState("GET_READ_REPLY")
+            )
+        )
+        tx_fsm.act("GET_READ_REPLY",
+            i_status_wait_status.eq(1),
+            rtio_read_not_ack.eq(1),
+            If(rtio_read_not,
+                load_read_reply.eq(1),
+                NextState("READY")
             )
         )
 
@@ -192,6 +270,8 @@ class RTPacketRepeater(Module):
                 If(rx_dp.packet_last,
                     Case(rx_dp.packet_type, {
                         rx_plm.types["buffer_space_reply"]: NextState("BUFFER_SPACE"),
+                        rx_plm.types["read_reply"]: NextState("READ_REPLY"),
+                        rx_plm.types["read_reply_noevent"]: NextState("READ_REPLY_NOEVENT"),
                         "default": self.err_unknown_packet_type.eq(1)
                     })
                 ).Else(
@@ -205,5 +285,15 @@ class RTPacketRepeater(Module):
         rx_fsm.act("BUFFER_SPACE",
             rx_buffer_space_not.eq(1),
             rx_buffer_space.eq(rx_dp.packet_as["buffer_space_reply"].space),
+            NextState("INPUT")
+        )
+        rx_fsm.act("READ_REPLY",
+            read_not.eq(1),
+            read_no_event.eq(0),
+            NextState("INPUT")
+        )
+        rx_fsm.act("READ_REPLY_NOEVENT",
+            read_not.eq(1),
+            read_no_event.eq(1),
             NextState("INPUT")
         )
