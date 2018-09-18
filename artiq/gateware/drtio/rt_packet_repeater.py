@@ -48,16 +48,57 @@ class RTPacketRepeater(Module):
         tsc_value_load = Signal()
         self.sync.rtio += If(tsc_value_load, tsc_value.eq(tsc.coarse_ts))
 
-        # Write buffer and extra data count
-        wb_timestamp = Signal(64)
-        wb_chan_sel = Signal(24)
-        wb_address = Signal(16)
-        wb_data = Signal(512)
-        self.sync.rtio += If(self.cri.cmd == cri.commands["write"],
-            wb_timestamp.eq(self.cri.timestamp),
-            wb_chan_sel.eq(self.cri.chan_sel),
-            wb_address.eq(self.cri.o_address),
-            wb_data.eq(self.cri.o_data))
+        # CRI buffer stage 1
+        cb0_loaded = Signal()
+        cb0_ack = Signal()
+
+        cb0_cmd = Signal(2)
+        cb0_timestamp = Signal(64)
+        cb0_chan_sel = Signal(24)
+        cb0_o_address = Signal(16)
+        cb0_o_data = Signal(512)
+        self.sync.rtio += [
+            If(cb0_ack,
+                cb0_loaded.eq(0),
+                cb0_cmd.eq(cri.commands["nop"])
+            ),
+            If(~cb0_loaded & (self.cri.cmd != cri.commands["nop"]),
+                cb0_loaded.eq(1),
+                cb0_cmd.eq(self.cri.cmd),
+                cb0_timestamp.eq(self.cri.timestamp),
+                cb0_chan_sel.eq(self.cri.chan_sel),
+                cb0_o_address.eq(self.cri.o_address),
+                cb0_o_data.eq(self.cri.o_data)
+            ),
+            self.err_command_missed.eq(cb0_loaded & (self.cri.cmd != cri.commands["nop"])),
+            self.command_missed_chan_sel.eq(self.cri.chan_sel),
+            self.command_missed_cmd.eq(self.cri.cmd)
+        ]
+
+        # CRI buffer stage 2 and write data slicer
+        cb_loaded = Signal()
+        cb_ack = Signal()
+
+        cb_cmd = Signal(2)
+        cb_timestamp = Signal(64)
+        cb_chan_sel = Signal(24)
+        cb_o_address = Signal(16)
+        cb_o_data = Signal(512)
+        self.sync.rtio += [
+            If(cb_ack,
+                cb_loaded.eq(0),
+                cb_cmd.eq(cri.commands["nop"])
+            ),
+            If(~cb_loaded & cb0_loaded,
+                cb_loaded.eq(1),
+                cb_cmd.eq(cb0_cmd),
+                cb_timestamp.eq(cb0_timestamp),
+                cb_chan_sel.eq(cb0_chan_sel),
+                cb_o_address.eq(cb0_o_address),
+                cb_o_data.eq(cb0_o_data)
+            )
+        ]
+        self.comb += cb0_ack.eq(~cb_loaded)
 
         wb_extra_data_cnt = Signal(8)
         short_data_len = tx_plm.field_length("write", "short_data")
@@ -104,12 +145,6 @@ class RTPacketRepeater(Module):
         self.submodules += timeout_counter
 
         # Read
-        rb_chan_sel = Signal(24)
-        rb_timeout = Signal(64)
-        self.sync.rtio += If(self.cri.cmd == cri.commands["read"],
-            rb_chan_sel.eq(self.cri.chan_sel),
-            rb_timeout.eq(self.cri.timestamp))
-
         read_not = Signal()
         read_no_event = Signal()
         read_is_overflow = Signal()
@@ -137,9 +172,8 @@ class RTPacketRepeater(Module):
         # input status
         i_status_wait_event = Signal()
         i_status_overflow = Signal()
-        i_status_wait_status = Signal()
         self.comb += self.cri.i_status.eq(Cat(
-            i_status_wait_event, i_status_overflow, i_status_wait_status))
+            i_status_wait_event, i_status_overflow, cb0_loaded | cb_loaded))
 
         load_read_reply = Signal()
         self.sync.rtio += [
@@ -158,14 +192,6 @@ class RTPacketRepeater(Module):
             )
         ]
 
-        # Missed commands
-        cri_ready = Signal()
-        self.sync.rtio += [
-            self.err_command_missed.eq(~cri_ready & (self.cri.cmd != cri.commands["nop"])),
-            self.command_missed_chan_sel.eq(self.cri.chan_sel),
-            self.command_missed_cmd.eq(self.cri.cmd)
-        ]
-
         # TX and CRI FSM
         tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
         self.submodules += tx_fsm
@@ -179,10 +205,9 @@ class RTPacketRepeater(Module):
                 tsc_value_load.eq(1),
                 NextState("SET_TIME")
             ).Else(
-                cri_ready.eq(1),
-                If(self.cri.cmd == cri.commands["write"], NextState("WRITE")),
-                If(self.cri.cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE")),
-                If(self.cri.cmd == cri.commands["read"], NextState("READ"))
+                If(cb_cmd == cri.commands["write"], NextState("WRITE")),
+                If(cb_cmd == cri.commands["get_buffer_space"], NextState("BUFFER_SPACE")),
+                If(cb_cmd == cri.commands["read"], NextState("READ"))
             )
         )
 
@@ -196,13 +221,14 @@ class RTPacketRepeater(Module):
 
         tx_fsm.act("WRITE",
             tx_dp.send("write",
-                timestamp=wb_timestamp,
-                chan_sel=wb_chan_sel,
-                address=wb_address,
+                timestamp=cb_timestamp,
+                chan_sel=cb_chan_sel,
+                address=cb_o_address,
                 extra_data_cnt=wb_extra_data_cnt,
-                short_data=wb_data[:short_data_len]),
+                short_data=cb_o_data[:short_data_len]),
             If(tx_dp.packet_last,
                 If(wb_extra_data_cnt == 0,
+                    cb_ack.eq(1),
                     NextState("IDLE")
                 ).Else(
                     NextState("WRITE_EXTRA")
@@ -213,6 +239,7 @@ class RTPacketRepeater(Module):
             tx_dp.raw_stb.eq(1),
             extra_data_ce.eq(1),
             If(extra_data_last,
+                cb_ack.eq(1),
                 NextState("IDLE")
             )
         )
@@ -228,30 +255,31 @@ class RTPacketRepeater(Module):
             timeout_counter.wait.eq(1),
             If(timeout_counter.done,
                 self.err_buffer_space_timeout.eq(1),
+                cb_ack.eq(1),
                 NextState("READY")
             ).Else(
                 If(buffer_space_not,
                     self.cri.o_buffer_space_valid.eq(1),
+                    cb_ack.eq(1),
                     NextState("READY")
                 ),
             )
         )
 
         tx_fsm.act("READ",
-            i_status_wait_status.eq(1),
             tx_dp.send("read_request",
-                chan_sel=rb_chan_sel,
-                timeout=rb_timeout),
+                chan_sel=cb_chan_sel,
+                timeout=cb_timestamp),
             rtio_read_not_ack.eq(1),
             If(tx_dp.packet_last,
                 NextState("GET_READ_REPLY")
             )
         )
         tx_fsm.act("GET_READ_REPLY",
-            i_status_wait_status.eq(1),
             rtio_read_not_ack.eq(1),
             If(rtio_read_not,
                 load_read_reply.eq(1),
+                cb_ack.eq(1),
                 NextState("READY")
             )
         )
