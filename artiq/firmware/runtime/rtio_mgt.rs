@@ -54,6 +54,12 @@ pub mod drtio {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
         }
+
+        {
+            let routing_table = routing_table.borrow();
+            program_underflow_margins(&routing_table);
+        }
+
         let aux_mutex = aux_mutex.clone();
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
@@ -61,6 +67,23 @@ pub mod drtio {
             let routing_table = routing_table.borrow();
             link_thread(io, &aux_mutex, &routing_table, &up_destinations);
         });
+    }
+
+    fn program_underflow_margins(routing_table: &drtio_routing::RoutingTable) {
+        for destination in 0..drtio_routing::DEST_COUNT {
+            let hop_count = routing_table.hop_count(destination as u8);
+            if hop_count > 1 {
+                let underflow_margin = (hop_count as u16 - 1)*300;
+                info!("[DEST#{}] setting underflow margin to {}", destination, underflow_margin);
+                let linkno = (routing_table.0[destination][0] - 1) as usize;
+                unsafe {
+                    (csr::DRTIO[linkno].destination_write)(destination as u8);
+                    (csr::DRTIO[linkno].force_destination_write)(1);
+                    (csr::DRTIO[linkno].set_underflow_margin_write)(underflow_margin);
+                    (csr::DRTIO[linkno].force_destination_write)(0);
+                }
+            }
+        }
     }
 
     fn link_rx_up(linkno: u8) -> bool {

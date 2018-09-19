@@ -17,10 +17,12 @@ class _CSRs(AutoCSR):
         self.protocol_error = CSR(3)
 
         self.set_time = CSR()
-        self.underflow_margin = CSRStorage(16, reset=300)
 
         self.force_destination = CSRStorage()
         self.destination = CSRStorage(8)
+
+        self.set_underflow_margin = CSRStorage(16)
+        self.dbg_underflow_margin = CSRStatus(16)
 
         self.o_get_buffer_space = CSR()
         self.o_dbg_buffer_space = CSRStatus(16)
@@ -116,9 +118,19 @@ class RTController(Module):
         timeout_counter = WaitTimer(8191)
         self.submodules += timeout_counter
 
+        underflow_margin = Memory(16, 256, init=[100]*256)
+        underflow_margin_port = underflow_margin.get_port(write_capable=True)
+        self.specials += underflow_margin, underflow_margin_port
+        self.comb += [
+            underflow_margin_port.adr.eq(chan_sel[16:]),
+            underflow_margin_port.dat_w.eq(self.csrs.set_underflow_margin.storage),
+            underflow_margin_port.we.eq(self.csrs.set_underflow_margin.re),
+            self.csrs.dbg_underflow_margin.status.eq(underflow_margin_port.dat_r)
+        ]
+
         cond_underflow = Signal()
         self.comb += cond_underflow.eq((self.cri.timestamp[tsc.glbl_fine_ts_width:]
-                           - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
+                           - underflow_margin_port.dat_r[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
 
         # buffer space
         buffer_space = Memory(16, 256)

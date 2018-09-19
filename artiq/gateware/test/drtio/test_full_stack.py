@@ -89,7 +89,6 @@ class OutputsTestbench:
         self.now = 0
 
     def init(self):
-        yield from self.dut.master.rt_controller.csrs.underflow_margin.write(100)
         while not (yield from self.dut.master.link_layer.rx_up.read()):
             yield
         yield from self.get_buffer_space()
@@ -228,7 +227,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.init()
             errors = yield from saterr.protocol_error.read()
             self.assertEqual(errors, 0)
-            yield from csrs.underflow_margin.write(0)
+            yield from csrs.set_underflow_margin.write(0)
             tb.delay(100)
             yield from tb.write(42, 1)
             for i in range(12):
