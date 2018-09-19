@@ -116,9 +116,8 @@ fn startup() {
         smoltcp::phy::EthernetTracer::new(net_device, net_trace_fn)
     };
 
-    let mut neighbor_cache_storage = [None; 8];
     let neighbor_cache =
-        smoltcp::iface::NeighborCache::new(&mut neighbor_cache_storage[..]);
+        smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
     let mut interface  =
         smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
                        .neighbor_cache(neighbor_cache)
