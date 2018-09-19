@@ -201,8 +201,8 @@ class RTPacketSatellite(Module):
         tx_fsm.act("IDLE",
             If(echo_req, NextState("ECHO")),
             If(buffer_space_req, NextState("BUFFER_SPACE")),
-            If(read_request_pending,
-                If(~self.cri.i_status[2], NextState("READ")),
+            If(read_request_pending & ~self.cri.i_status[2],
+                NextState("READ"),
                 If(self.cri.i_status[0], NextState("READ_TIMEOUT")),
                 If(self.cri.i_status[1], NextState("READ_OVERFLOW"))
             )
