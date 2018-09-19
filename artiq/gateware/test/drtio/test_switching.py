@@ -70,6 +70,7 @@ class Testbench:
         self.now = 0
 
     def init(self):
+        yield from self.dut.master.rt_controller.csrs.underflow_margin.write(100)
         while not (yield from self.dut.master.link_layer.rx_up.read()):
             yield
         yield from self.get_buffer_space()

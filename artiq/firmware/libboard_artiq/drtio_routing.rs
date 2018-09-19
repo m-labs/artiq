@@ -30,18 +30,6 @@ impl RoutingTable {
     pub fn default_empty() -> RoutingTable {
         RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT])
     }
-
-    pub fn hop_count(&self, destination: u8) -> u8 {
-        let mut count = 0;
-        for i in 0..MAX_HOPS {
-            if self.0[destination as usize][i] == INVALID_HOP {
-                break;
-            } else {
-                count += 1;
-            }
-        }
-        count
-    }
 }
 
 impl fmt::Display for RoutingTable {
