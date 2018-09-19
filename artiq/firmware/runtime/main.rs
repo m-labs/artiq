@@ -289,22 +289,25 @@ fn startup_ethernet() {
         drtio_routing::RoutingTable::default_empty()));
     let up_destinations = urc::Urc::new(RefCell::new(
         [false; drtio_routing::DEST_COUNT]));
+    let aux_mutex = sched::Mutex::new();
 
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
 
-    rtio_mgt::startup(&io, &drtio_routing_table, &up_destinations);
+    rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations);
 
     io.spawn(4096, mgmt::thread);
     {
+        let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
-        io.spawn(16384, move |io| { session::thread(io, &drtio_routing_table, &up_destinations) });
+        io.spawn(16384, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
+        let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
-        io.spawn(4096, move |io| { moninj::thread(io, &drtio_routing_table) });
+        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &drtio_routing_table) });
     }
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);

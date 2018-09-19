@@ -7,6 +7,7 @@ use board_misoc::clock;
 use board_misoc::config;
 use board_artiq::drtio_routing;
 use sched::Io;
+use sched::Mutex;
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
@@ -47,16 +48,18 @@ pub mod drtio {
     use super::*;
     use drtioaux;
 
-    pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+    pub fn startup(io: &Io, aux_mutex: &Mutex,
+            routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
         }
+        let aux_mutex = aux_mutex.clone();
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
         io.spawn(4096, move |io| {
             let routing_table = routing_table.borrow();
-            link_thread(io, &routing_table, &up_destinations);
+            link_thread(io, &aux_mutex, &routing_table, &up_destinations);
         });
     }
 
@@ -87,26 +90,6 @@ pub mod drtio {
         }
     }
 
-    fn ping_remote(linkno: u8, io: &Io) -> u32 {
-        let mut count = 0;
-        loop {
-            if !link_rx_up(linkno) {
-                return 0
-            }
-            count += 1;
-            if count > 200 {
-                return 0;
-            }
-            drtioaux::send(linkno, &drtioaux::Packet::EchoRequest).unwrap();
-            io.sleep(100).unwrap();
-            let pr = drtioaux::recv(linkno);
-            match pr {
-                Ok(Some(drtioaux::Packet::EchoReply)) => return count,
-                _ => {}
-            }
-        }
-    }
-
     fn recv_aux_timeout(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         loop {
@@ -125,7 +108,35 @@ pub mod drtio {
         }
     }
 
-    fn sync_tsc(io: &Io, linkno: u8) -> Result<(), &'static str> {
+    pub fn aux_transact(io: &Io, aux_mutex: &Mutex,
+            linkno: u8, request: &drtioaux::Packet) -> Result<drtioaux::Packet, &'static str> {
+        let _lock = aux_mutex.lock(io).unwrap();
+        drtioaux::send(linkno, request).unwrap();
+        recv_aux_timeout(io, linkno, 200)
+    }
+
+    fn ping_remote(io: &Io, aux_mutex: &Mutex, linkno: u8) -> u32 {
+        let mut count = 0;
+        loop {
+            if !link_rx_up(linkno) {
+                return 0
+            }
+            count += 1;
+            if count > 100 {
+                return 0;
+            }
+            let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::EchoRequest);
+            match reply {
+                Ok(drtioaux::Packet::EchoReply) => return count,
+                _ => {}
+            }
+            io.relinquish().unwrap();
+        }
+    }
+
+    fn sync_tsc(io: &Io, aux_mutex: &Mutex, linkno: u8) -> Result<(), &'static str> {
+        let _lock = aux_mutex.lock(io).unwrap();
+
         unsafe {
             (csr::DRTIO[linkno as usize].set_time_write)(1);
             while (csr::DRTIO[linkno as usize].set_time_read)() == 1 {}
@@ -140,14 +151,13 @@ pub mod drtio {
         }
     }
 
-    fn load_routing_table(io: &Io, linkno: u8, routing_table: &drtio_routing::RoutingTable)
+    fn load_routing_table(io: &Io, aux_mutex: &Mutex, linkno: u8, routing_table: &drtio_routing::RoutingTable)
             -> Result<(), &'static str> {
         for i in 0..drtio_routing::DEST_COUNT {
-            drtioaux::send(linkno, &drtioaux::Packet::RoutingSetPath {
+            let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::RoutingSetPath {
                 destination: i as u8,
                 hops: routing_table.0[i]
-            }).unwrap();
-            let reply = recv_aux_timeout(io, linkno, 200)?;
+            })?;
             if reply != drtioaux::Packet::RoutingAck {
                 return Err("unexpected reply");
             }
@@ -155,11 +165,10 @@ pub mod drtio {
         Ok(())
     }
 
-    fn set_rank(io: &Io, linkno: u8, rank: u8) -> Result<(), &'static str> {
-        drtioaux::send(linkno, &drtioaux::Packet::RoutingSetRank {
+    fn set_rank(io: &Io, aux_mutex: &Mutex, linkno: u8, rank: u8) -> Result<(), &'static str> {
+        let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::RoutingSetRank {
             rank: rank
-        }).unwrap();
-        let reply = recv_aux_timeout(io, linkno, 200)?;
+        })?;
         if reply != drtioaux::Packet::RoutingAck {
             return Err("unexpected reply");
         }
@@ -179,7 +188,8 @@ pub mod drtio {
         }
     }
 
-    fn process_unsolicited_aux(linkno: u8) {
+    fn process_unsolicited_aux(io: &Io, aux_mutex: &Mutex, linkno: u8) {
+        let _lock = aux_mutex.lock(io).unwrap();
         match drtioaux::recv(linkno) {
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
@@ -227,7 +237,7 @@ pub mod drtio {
         up_destinations[destination as usize]
     }
 
-    fn destination_survey(io: &Io, routing_table: &drtio_routing::RoutingTable,
+    fn destination_survey(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         for destination in 0..drtio_routing::DEST_COUNT {
             let hop = routing_table.0[destination][0];
@@ -242,10 +252,10 @@ pub mod drtio {
                 let linkno = hop - 1;
                 if destination_up(up_destinations, destination) {
                     if link_up(linkno) {
-                        drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                        let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination
-                        }).unwrap();
-                        match recv_aux_timeout(io, linkno, 200) {
+                        });
+                        match reply {
                             Ok(drtioaux::Packet::DestinationDownReply) =>
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
@@ -263,10 +273,10 @@ pub mod drtio {
                     }
                 } else {
                     if link_up(linkno) {
-                        drtioaux::send(linkno, &drtioaux::Packet::DestinationStatusRequest {
+                        let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination
-                        }).unwrap();
-                        match recv_aux_timeout(io, linkno, 200) {
+                        });
+                        match reply {
                             Ok(drtioaux::Packet::DestinationDownReply) => (),
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 destination_set_up(routing_table, up_destinations, destination, true);
@@ -281,7 +291,8 @@ pub mod drtio {
         }
     }
 
-    pub fn link_thread(io: Io, routing_table: &drtio_routing::RoutingTable,
+    pub fn link_thread(io: Io, aux_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         loop {
             for linkno in 0..csr::DRTIO.len() {
@@ -289,7 +300,7 @@ pub mod drtio {
                 if link_up(linkno) {
                     /* link was previously up */
                     if link_rx_up(linkno) {
-                        process_unsolicited_aux(linkno);
+                        process_unsolicited_aux(&io, aux_mutex, linkno);
                         process_local_errors(linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
@@ -299,17 +310,17 @@ pub mod drtio {
                     /* link was previously down */
                     if link_rx_up(linkno) {
                         info!("[LINK#{}] link RX became up, pinging", linkno);
-                        let ping_count = ping_remote(linkno, &io);
+                        let ping_count = ping_remote(&io, aux_mutex, linkno);
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
                             set_link_up(linkno, true);
-                            if let Err(e) = sync_tsc(&io, linkno) {
+                            if let Err(e) = sync_tsc(&io, aux_mutex, linkno) {
                                 error!("[LINK#{}] failed to sync TSC ({})", linkno, e);
                             }
-                            if let Err(e) = load_routing_table(&io, linkno, routing_table) {
+                            if let Err(e) = load_routing_table(&io, aux_mutex, linkno, routing_table) {
                                 error!("[LINK#{}] failed to load routing table ({})", linkno, e);
                             }
-                            if let Err(e) = set_rank(&io, linkno, 1) {
+                            if let Err(e) = set_rank(&io, aux_mutex, linkno, 1) {
                                 error!("[LINK#{}] failed to set rank ({})", linkno, e);
                             }
                             info!("[LINK#{}] link initialization completed", linkno);
@@ -319,18 +330,18 @@ pub mod drtio {
                     }
                 }
             }
-            destination_survey(&io, routing_table, up_destinations);
+            destination_survey(&io, aux_mutex, routing_table, up_destinations);
             io.sleep(200).unwrap();
         }
     }
 
-    pub fn init() {
+    pub fn init(io: &Io, aux_mutex: &Mutex) {
         for linkno in 0..csr::DRTIO.len() {
             let linkno = linkno as u8;
             if link_up(linkno) {
-                drtioaux::send(linkno,
-                    &drtioaux::Packet::ResetRequest { phy: false }).unwrap();
-                match drtioaux::recv_timeout(linkno, None) {
+                let reply = aux_transact(io, aux_mutex, linkno,
+                    &drtioaux::Packet::ResetRequest { phy: false });
+                match reply {
                     Ok(drtioaux::Packet::ResetAck) => (),
                     Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
                     Err(e) => error!("[LINK#{}] reset failed, aux packet error ({})", linkno, e)
@@ -344,9 +355,10 @@ pub mod drtio {
 pub mod drtio {
     use super::*;
 
-    pub fn startup(_io: &Io, _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+    pub fn startup(_io: &Io, _aux_mutex: &Mutex,
+        _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
-    pub fn init() {}
+    pub fn init(_io: &Io, _aux_mutex: &Mutex) {}
     pub fn link_up(_linkno: u8) -> bool { false }
 }
 
@@ -372,7 +384,8 @@ fn async_error_thread(io: Io) {
     }
 }
 
-pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+pub fn startup(io: &Io, aux_mutex: &Mutex,
+        routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     #[cfg(has_rtio_crg)]
     {
@@ -413,17 +426,17 @@ pub fn startup(io: &Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>
         }
     }
 
-    drtio::startup(io, routing_table, up_destinations);
-    init_core(true);
+    drtio::startup(io, aux_mutex, routing_table, up_destinations);
+    init_core(io, aux_mutex, true);
     io.spawn(4096, async_error_thread);
 }
 
-pub fn init_core(phy: bool) {
+pub fn init_core(io: &Io, aux_mutex: &Mutex, phy: bool) {
     unsafe {
         csr::rtio_core::reset_write(1);
         if phy {
             csr::rtio_core::reset_phy_write(1);
         }
     }
-    drtio::init()
+    drtio::init(io, aux_mutex)
 }

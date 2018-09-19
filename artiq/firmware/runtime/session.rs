@@ -6,7 +6,7 @@ use io::{Read, Write, Error as IoError};
 use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
-use sched::{ThreadHandle, Io, TcpListener, TcpStream, Error as SchedError};
+use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use rtio_mgt;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
@@ -324,7 +324,7 @@ fn process_host_message(io: &Io,
     Ok(())
 }
 
-fn process_kern_message(io: &Io,
+fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                         mut stream: Option<&mut TcpStream>,
@@ -345,7 +345,7 @@ fn process_kern_message(io: &Io,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, routing_table, up_destinations, request)? {
+        if kern_hwreq::process_kern_hwreq(io, aux_mutex, routing_table, up_destinations, request)? {
             return Ok(false)
         }
 
@@ -494,7 +494,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
     })
 }
 
-fn host_kernel_worker(io: &Io,
+fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       routing_table: &drtio_routing::RoutingTable,
                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                       stream: &mut TcpStream,
@@ -513,7 +513,7 @@ fn host_kernel_worker(io: &Io,
         }
 
         if mailbox::receive() != 0 {
-            process_kern_message(io,
+            process_kern_message(io, aux_mutex,
                 routing_table, up_destinations,
                 Some(stream), &mut session)?;
         }
@@ -534,7 +534,7 @@ fn host_kernel_worker(io: &Io,
     }
 }
 
-fn flash_kernel_worker(io: &Io,
+fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
                        routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                        congress: &mut Congress,
@@ -559,7 +559,7 @@ fn flash_kernel_worker(io: &Io,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, routing_table, up_destinations, None, &mut session)? {
+            if process_kern_message(io, aux_mutex, routing_table, up_destinations, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -591,7 +591,8 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
     *handle = Some(io.spawn(16384, f))
 }
 
-pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+pub fn thread(io: Io, aux_mutex: &Mutex, 
+        routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
@@ -601,6 +602,7 @@ pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
 
     let mut kernel_thread = None;
     {
+        let aux_mutex = aux_mutex.clone();
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
         let congress = congress.clone();
@@ -608,7 +610,7 @@ pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             let routing_table = routing_table.borrow();
             let mut congress = congress.borrow_mut();
             info!("running startup kernel");
-            match flash_kernel_worker(&io, &routing_table, &up_destinations, &mut congress, "startup_kernel") {
+            match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut congress, "startup_kernel") {
                 Ok(()) =>
                     info!("startup kernel finished"),
                 Err(Error::KernelNotFound) =>
@@ -637,6 +639,7 @@ pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             }
             info!("new connection from {}", stream.remote_endpoint());
 
+            let aux_mutex = aux_mutex.clone();
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
@@ -645,7 +648,7 @@ pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &routing_table, &up_destinations, &mut stream, &mut *congress) {
+                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
@@ -663,13 +666,14 @@ pub fn thread(io: Io, routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         if kernel_thread.as_ref().map_or(true, |h| h.terminated()) {
             info!("no connection, starting idle kernel");
 
+            let aux_mutex = aux_mutex.clone();
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
-                match flash_kernel_worker(&io, &routing_table, &up_destinations, &mut *congress, "idle_kernel") {
+                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(

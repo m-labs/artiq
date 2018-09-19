@@ -273,7 +273,7 @@ impl Mutex {
         Mutex(Urc::new(Cell::new(false)))
     }
 
-    pub fn lock<'a>(&'a self, io: Io) -> Result<MutexGuard<'a>, Error> {
+    pub fn lock<'a>(&'a self, io: &Io) -> Result<MutexGuard<'a>, Error> {
         io.until(|| !self.0.get())?;
         self.0.set(true);
         Ok(MutexGuard(&*self.0))
