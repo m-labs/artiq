@@ -314,6 +314,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
                               coreaux.bus)
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtio", drtio_csr_group)
         self.add_csr_group("drtioaux", drtioaux_csr_group)
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
@@ -379,8 +380,11 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri] + drtio_cri)
+            [self.rtio_core.cri] + drtio_cri,
+            enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             self.rtio_tsc.coarse_ts, self.ad9154_crg.jref)
@@ -469,6 +473,7 @@ class Master(MiniSoC, AMPSoC):
                               coreaux.bus)
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtio", drtio_csr_group)
         self.add_csr_group("drtioaux", drtioaux_csr_group)
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
@@ -532,8 +537,11 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri] + drtio_cri)
+            [self.rtio_core.cri] + drtio_cri,
+            enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
 
 class Satellite(BaseSoC, RTMCommon):
