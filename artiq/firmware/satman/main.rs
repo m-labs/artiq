@@ -75,18 +75,13 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
     match packet {
         drtioaux::Packet::EchoRequest =>
             drtioaux::send(0, &drtioaux::Packet::EchoReply),
-        drtioaux::Packet::ResetRequest { phy } => {
+        drtioaux::Packet::ResetRequest => {
             info!("resetting RTIO");
-            if phy {
-                drtiosat_reset_phy(true);
-                drtiosat_reset_phy(false);
-            } else {
-                drtiosat_reset(true);
-                clock::spin_us(100);
-                drtiosat_reset(false);
-            }
+            drtiosat_reset(true);
+            clock::spin_us(100);
+            drtiosat_reset(false);
             for rep in _repeaters.iter() {
-                if let Err(e) = rep.rtio_reset(phy) {
+                if let Err(e) = rep.rtio_reset() {
                     error!("failed to issue RTIO reset ({})", e);
                 }
             }

@@ -242,21 +242,17 @@ impl Repeater {
         Ok(())
     }
 
-    pub fn rtio_reset(&self, phy: bool) -> Result<(), drtioaux::Error<!>> {
+    pub fn rtio_reset(&self) -> Result<(), drtioaux::Error<!>> {
         let repno = self.repno as usize;
-        if !phy {
-            unsafe { (csr::DRTIOREP[repno].reset_write)(1); }
-            clock::spin_us(100);
-            unsafe { (csr::DRTIOREP[repno].reset_write)(0); }
-        }
+        unsafe { (csr::DRTIOREP[repno].reset_write)(1); }
+        clock::spin_us(100);
+        unsafe { (csr::DRTIOREP[repno].reset_write)(0); }
 
         if self.state != RepeaterState::Up {
             return Ok(());
         }
 
-        drtioaux::send(self.auxno, &drtioaux::Packet::ResetRequest {
-            phy: phy
-        }).unwrap();
+        drtioaux::send(self.auxno, &drtioaux::Packet::ResetRequest).unwrap();
         let reply = self.recv_aux_timeout(200)?;
         if reply != drtioaux::Packet::ResetAck {
             return Err(drtioaux::Error::UnexpectedReply);
@@ -278,5 +274,5 @@ impl Repeater {
 
     pub fn sync_tsc(&self) -> Result<(), drtioaux::Error<!>> { Ok(()) }
 
-    pub fn rtio_reset(&self, _phy: bool) -> Result<(), drtioaux::Error<!>> { Ok(()) }
+    pub fn rtio_reset(&self) -> Result<(), drtioaux::Error<!>> { Ok(()) }
 }

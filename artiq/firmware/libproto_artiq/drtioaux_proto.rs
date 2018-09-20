@@ -18,7 +18,7 @@ impl<T> From<IoError<T>> for Error<T> {
 pub enum Packet {
     EchoRequest,
     EchoReply,
-    ResetRequest { phy: bool },
+    ResetRequest,
     ResetAck,
     TSCAck,
 
@@ -62,9 +62,7 @@ impl Packet {
         Ok(match reader.read_u8()? {
             0x00 => Packet::EchoRequest,
             0x01 => Packet::EchoReply,
-            0x02 => Packet::ResetRequest {
-                phy: reader.read_bool()?
-            },
+            0x02 => Packet::ResetRequest,
             0x03 => Packet::ResetAck,
             0x04 => Packet::TSCAck,
 
@@ -192,10 +190,8 @@ impl Packet {
                 writer.write_u8(0x00)?,
             Packet::EchoReply =>
                 writer.write_u8(0x01)?,
-            Packet::ResetRequest { phy } => {
-                writer.write_u8(0x02)?;
-                writer.write_bool(phy)?;
-            },
+            Packet::ResetRequest =>
+                writer.write_u8(0x02)?,
             Packet::ResetAck =>
                 writer.write_u8(0x03)?,
             Packet::TSCAck =>

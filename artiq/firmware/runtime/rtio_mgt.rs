@@ -334,7 +334,7 @@ pub mod drtio {
             let linkno = linkno as u8;
             if link_rx_up(linkno) {
                 let reply = aux_transact(io, aux_mutex, linkno,
-                    &drtioaux::Packet::ResetRequest { phy: false });
+                    &drtioaux::Packet::ResetRequest);
                 match reply {
                     Ok(drtioaux::Packet::ResetAck) => (),
                     Ok(_) => error!("[LINK#{}] reset failed, received unexpected aux packet", linkno),
@@ -419,7 +419,7 @@ pub fn startup(io: &Io, aux_mutex: &Mutex,
         }
     }
     unsafe {
-            csr::rtio_core::reset_phy_write(1);
+        csr::rtio_core::reset_phy_write(1);
     }
 
     drtio::startup(io, aux_mutex, routing_table, up_destinations);
