@@ -19,6 +19,8 @@ void send_to_rtio_log(long long int timestamp, struct slice data);
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
 
+FILE *stderr;
+
 /* called by libunwind */
 int fprintf(FILE *stream, const char *fmt, ...)
 {

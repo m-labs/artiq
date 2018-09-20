@@ -1,7 +1,6 @@
 #![no_std]
-#![feature(compiler_builtins_lib, lang_items, alloc, global_allocator)]
+#![feature(lang_items, alloc, panic_implementation, panic_info_message)]
 
-extern crate compiler_builtins;
 extern crate alloc;
 extern crate cslice;
 #[macro_use]
@@ -24,7 +23,7 @@ extern crate drtioaux;
 
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
-use board::config;
+use board::{config, irq, boot, clock};
 use proto::{mgmt_proto, analyzer_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 use amp::{mailbox, rpc_queue};
 
@@ -97,18 +96,18 @@ fn startup() {
     let net_device = unsafe { ethmac::EthernetDevice::new() };
 
     let net_device = {
+        use smoltcp::time::Instant;
         use smoltcp::wire::PrettyPrinter;
         use smoltcp::wire::EthernetFrame;
 
-        fn net_trace_writer(timestamp: u64, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
-            let seconds = timestamp / 1000;
-            let micros  = timestamp % 1000 * 1000;
-            print!("\x1b[37m[{:6}.{:06}s]\n{}\x1b[0m\n", seconds, micros, printer)
+        fn net_trace_writer(timestamp: Instant, printer: PrettyPrinter<EthernetFrame<&[u8]>>) {
+            print!("\x1b[37m[{:6}.{:03}s]\n{}\x1b[0m\n",
+                   timestamp.secs(), timestamp.millis(), printer)
         }
 
-        fn net_trace_silent(_timestamp: u64, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
+        fn net_trace_silent(_timestamp: Instant, _printer: PrettyPrinter<EthernetFrame<&[u8]>>) {}
 
-        let net_trace_fn: fn(u64, PrettyPrinter<EthernetFrame<&[u8]>>);
+        let net_trace_fn: fn(Instant, PrettyPrinter<EthernetFrame<&[u8]>>);
         match config::read_str("net_trace", |r| r.map(|s| s == "1")) {
             Ok(true) => net_trace_fn = net_trace_writer,
             _ => net_trace_fn = net_trace_silent
@@ -135,26 +134,22 @@ fn startup() {
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
 
-    match config::read_str("log_level", |r| r?.parse()) {
-        Err(()) => (),
-        Ok(log_level_filter) => {
+    match config::read_str("log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
                   log_level_filter);
-            logger_artiq::BufferLogger::with(|logger|
-                logger.set_max_log_level(log_level_filter));
+            log::set_max_level(log_level_filter);
         }
+        _ => info!("log level set to INFO by default")
     }
-
-    match config::read_str("uart_log_level", |r| r?.parse()) {
-        Err(()) => {
-            info!("UART log level set to INFO by default");
-        },
-        Ok(uart_log_level_filter) => {
+    match config::read_str("uart_log_level", |r| r.map(|s| s.parse())) {
+        Ok(Ok(uart_log_level_filter)) => {
             info!("UART log level set to {} by `uart_log_level` config key",
                   uart_log_level_filter);
             logger_artiq::BufferLogger::with(|logger|
                 logger.set_uart_log_level(uart_log_level_filter));
         }
+        _ => info!("UART log level set to INFO by default")
     }
 
     loop {
@@ -163,7 +158,8 @@ fn startup() {
         {
             let sockets = &mut *scheduler.sockets().borrow_mut();
             loop {
-                match interface.poll(sockets, board::clock::get_ms()) {
+                let timestamp = smoltcp::time::Instant::from_millis(clock::get_ms() as i64);
+                match interface.poll(sockets, timestamp) {
                     Ok(true) => (),
                     Ok(false) => break,
                     Err(smoltcp::Error::Unrecognized) => (),
@@ -205,23 +201,42 @@ pub extern fn abort() {
     loop {}
 }
 
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("panic at {}:{}: {}", file, line, args);
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[lang = "oom"] // https://github.com/rust-lang/rust/issues/51540
+pub fn oom(layout: core::alloc::Layout) -> ! {
+    panic!("heap view: {}\ncannot allocate layout: {:?}", unsafe { &ALLOC }, layout)
+}
+
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[panic_implementation]
+pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
+    irq::set_ie(false);
+
+    if let Some(location) = info.location() {
+        print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+    } else {
+        print!("panic at unknown location");
+    }
+    if let Some(message) = info.message() {
+        println!("{}", message);
+    } else {
+        println!("");
+    }
 
     println!("backtrace for software version {}:",
              include_str!(concat!(env!("OUT_DIR"), "/git-describe")));
     let _ = backtrace_artiq::backtrace(|ip| {
-        println!("{:#08x}", ip);
+        // Backtrace gives us the return address, i.e. the address after the delay slot,
+        // but we're interested in the call instruction.
+        println!("{:#08x}", ip - 2 * 4);
     });
 
-    if config::read_str("panic_reboot", |r| r == Ok("1")) {
-        println!("rebooting...");
-        unsafe { board::boot::reboot() }
+    if config::read_str("panic_reset", |r| r == Ok("1")) {
+        println!("restarting...");
+        unsafe { boot::reboot() }
     } else {
         println!("halting.");
-        println!("use `artiq_coreconfig write -s panic_reboot 1` to reboot instead");
+        println!("use `artiq_coreconfig write -s panic_reset 1` to restart instead");
         loop {}
     }
 }

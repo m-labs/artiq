@@ -17,6 +17,7 @@ byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 alloc_stub = { path = "../liballoc_stub" }
 std_artiq = { path = "../libstd_artiq" }
+eh = { path = "../libeh" }
 dyld = { path = "../libdyld" }
 board = { path = "../libboard" }
 proto = { path = "../libproto" }

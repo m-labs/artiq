@@ -15,7 +15,8 @@ build_artiq = { path = "../libbuild_artiq" }
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
-log = { version = "0.3", default-features = false }
+log = { version = "0.4", default-features = false }
+managed = { version = "= 0.7.0", default-features = false, features = ["alloc", "map"] }
 alloc_list = { path = "../liballoc_list" }
 std_artiq = { path = "../libstd_artiq", features = ["alloc", "io_error_alloc"] }
 logger_artiq = { path = "../liblogger_artiq" }
@@ -25,19 +26,14 @@ proto = { path = "../libproto", features = ["log"] }
 amp = { path = "../libamp" }
 drtioaux = { path = "../libdrtioaux" }
 
-[dependencies.compiler_builtins]
-git = "https://github.com/rust-lang-nursery/compiler-builtins"
-rev = "631b568"
-features = ["mem"]
-
 [dependencies.fringe]
 git = "https://github.com/m-labs/libfringe"
-rev = "bd23494"
+rev = "b8a6d8f"
 default-features = false
 features = ["alloc"]
 
 [dependencies.smoltcp]
 git = "https://github.com/m-labs/smoltcp"
-rev = "181083f"
+rev = "2139686" # NB: also change in libboard_misoc/Cargo.toml
 default-features = false
-features = ["alloc", "log", "proto-ipv4", "socket-tcp"]
+features = ["rust-1.28", "alloc", "log", "proto-ipv4", "socket-tcp"]

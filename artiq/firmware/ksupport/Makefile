@@ -9,6 +9,7 @@ CFLAGS += \
 LDFLAGS += --eh-frame-hdr \
 	-L../libcompiler-rt \
 	-L../libbase \
+	-L../libprintf \
 	-L../libm \
 	-L../libunwind
 
@@ -22,7 +23,7 @@ $(RUSTOUT)/libksupport.a:
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(link) -T $(KSUPPORT_DIRECTORY)/ksupport.ld \
-		-lunwind-elf -lcompiler-rt -lbase -lm
+		-lunwind-elf -lcompiler-rt -lprintf-float -lm
 
 %.o: $(KSUPPORT_DIRECTORY)/%.c
 	$(compile)

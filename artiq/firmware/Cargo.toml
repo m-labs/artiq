@@ -3,4 +3,5 @@ members = ["runtime", "ksupport", "satman"]
 
 [profile.dev]
 incremental = false # incompatible with LTO
+lto = true
 debug = 2

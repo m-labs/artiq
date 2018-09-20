@@ -3,16 +3,16 @@
 
 extern crate alloc;
 
-use alloc::allocator::{Layout, AllocErr, Alloc};
+use core::alloc::{Layout, GlobalAlloc};
 
 pub struct StubAlloc;
 
-unsafe impl<'a> Alloc for &'a StubAlloc {
-    unsafe fn alloc(&mut self, _layout: Layout) -> Result<*mut u8, AllocErr> {
+unsafe impl GlobalAlloc for StubAlloc {
+    unsafe fn alloc(&self, _layout: Layout) -> *mut u8 {
         unimplemented!()
     }
 
-    unsafe fn dealloc(&mut self, _ptr: *mut u8, _layout: Layout) {
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
         unimplemented!()
     }
 }

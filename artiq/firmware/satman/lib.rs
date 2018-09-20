@@ -1,4 +1,4 @@
-#![feature(compiler_builtins_lib, lang_items)]
+#![feature(never_type, panic_implementation, panic_info_message)]
 #![no_std]
 
 extern crate compiler_builtins;
@@ -241,10 +241,19 @@ pub extern fn abort() {
     panic!("aborted")
 }
 
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    println!("panic at {}:{}: {}", file, line, args);
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[panic_implementation]
+pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
+    if let Some(location) = info.location() {
+        print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+    } else {
+        print!("panic at unknown location");
+    }
+    if let Some(message) = info.message() {
+        println!(": {}", message);
+    } else {
+        println!("");
+    }
     loop {}
 }
 

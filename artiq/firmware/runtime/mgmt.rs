@@ -1,5 +1,6 @@
+use log::{self, LevelFilter};
+
 use std::io::{self, Read, Write};
-use log::LogLevelFilter;
 use logger_artiq::BufferLogger;
 use sched::Io;
 use sched::{TcpListener, TcpStream};
@@ -30,8 +31,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
                     Reply::LogContent(buffer.extract()).write_to(stream)
                 })?;
-            },
-
+            }
             Request::ClearLog => {
                 BufferLogger::with(|logger| -> io::Result<()> {
                     let mut buffer = io.until_ok(|| logger.buffer())?;
@@ -39,21 +39,20 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                 })?;
 
                 Reply::Success.write_to(stream)?;
-            },
-
+            }
             Request::PullLog => {
                 BufferLogger::with(|logger| -> io::Result<()> {
                     loop {
                         // Do this *before* acquiring the buffer, since that sets the log level
                         // to OFF.
-                        let log_level = logger.max_log_level();
+                        let log_level = log::max_level();
 
                         let mut buffer = io.until_ok(|| logger.buffer())?;
                         if buffer.is_empty() { continue }
 
                         stream.write_string(buffer.extract())?;
 
-                        if log_level == LogLevelFilter::Trace {
+                        if log_level == LevelFilter::Trace {
                             // Hold exclusive access over the logger until we get positive
                             // acknowledgement; otherwise we get an infinite loop of network
                             // trace messages being transmitted and causing more network
@@ -69,21 +68,18 @@ fn worker(io: &Io, stream: &mut TcpStream) -> io::Result<()> {
                         buffer.clear();
                     }
                 })?;
-            },
-
+            }
             Request::SetLogFilter(level) => {
                 info!("changing log level to {}", level);
-                BufferLogger::with(|logger|
-                    logger.set_max_log_level(level));
+                log::set_max_level(level);
                 Reply::Success.write_to(stream)?;
-            },
-
+            }
             Request::SetUartLogFilter(level) => {
                 info!("changing UART log level to {}", level);
                 BufferLogger::with(|logger|
                     logger.set_uart_log_level(level));
                 Reply::Success.write_to(stream)?;
-            },
+            }
 
             Request::Hotswap(firmware) => {
                 Reply::RebootImminent.write_to(stream)?;

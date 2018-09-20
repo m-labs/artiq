@@ -1,4 +1,5 @@
-#![feature(lang_items, asm, libc, panic_unwind, unwind_attributes, global_allocator)]
+#![feature(lang_items, asm, panic_unwind, libc, unwind_attributes,
+           panic_implementation, panic_info_message)]
 #![no_std]
 
 extern crate unwind;
@@ -10,6 +11,7 @@ extern crate alloc_stub;
 extern crate std_artiq as std;
 
 extern crate board;
+extern crate eh;
 extern crate dyld;
 extern crate proto;
 extern crate amp;
@@ -52,10 +54,26 @@ macro_rules! recv {
     }
 }
 
-#[no_mangle]
-#[lang = "panic_fmt"]
-pub extern fn panic_fmt(args: core::fmt::Arguments, file: &'static str, line: u32) -> ! {
-    send(&Log(format_args!("panic at {}:{}: {}\n", file, line, args)));
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[lang = "oom"] // https://github.com/rust-lang/rust/issues/51540
+pub fn oom(_layout: core::alloc::Layout) -> ! {
+    unreachable!()
+}
+
+#[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
+#[panic_implementation]
+pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
+    if let Some(location) = info.location() {
+        send(&Log(format_args!("panic at {}:{}:{}",
+                               location.file(), location.line(), location.column())));
+    } else {
+        send(&Log(format_args!("panic at unknown location")));
+    }
+    if let Some(message) = info.message() {
+        send(&Log(format_args!("{}\n", message)));
+    } else {
+        send(&Log(format_args!("\n")));
+    }
     send(&RunAborted);
     loop {}
 }
@@ -72,7 +90,7 @@ macro_rules! println {
 macro_rules! raise {
     ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
         use cslice::AsCSlice;
-        let exn = $crate::eh::Exception {
+        let exn = $crate::eh_artiq::Exception {
             name:     concat!("0:artiq.coredevice.exceptions.", $name).as_c_slice(),
             file:     file!().as_c_slice(),
             line:     line!(),
@@ -83,14 +101,14 @@ macro_rules! raise {
             param:    [$param0, $param1, $param2]
         };
         #[allow(unused_unsafe)]
-        unsafe { $crate::eh::raise(&exn) }
+        unsafe { $crate::eh_artiq::raise(&exn) }
     });
     ($name:expr, $message:expr) => ({
         raise!($name, $message, 0, 0, 0)
     });
 }
 
-pub mod eh;
+mod eh_artiq;
 mod api;
 mod rtio;
 mod nrt_bus;
@@ -114,6 +132,7 @@ pub extern fn send_to_rtio_log(timestamp: i64, text: CSlice<u8>) {
     rtio::log(timestamp, text.as_ref())
 }
 
+#[unwind(aborts)]
 extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
@@ -124,6 +143,7 @@ extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     })
 }
 
+#[unwind(aborts)]
 extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
@@ -146,6 +166,7 @@ extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) 
     })
 }
 
+#[unwind(allowed)]
 extern fn rpc_recv(slot: *mut ()) -> usize {
     send(&RpcRecvRequest(slot));
     recv!(&RpcRecvReply(ref result) => {
@@ -153,7 +174,7 @@ extern fn rpc_recv(slot: *mut ()) -> usize {
             &Ok(alloc_size) => alloc_size,
             &Err(ref exception) =>
             unsafe {
-                eh::raise(&eh::Exception {
+                eh_artiq::raise(&eh_artiq::Exception {
                     name:     exception.name.as_bytes().as_c_slice(),
                     file:     exception.file.as_bytes().as_c_slice(),
                     line:     exception.line,
@@ -167,7 +188,7 @@ extern fn rpc_recv(slot: *mut ()) -> usize {
     })
 }
 
-fn terminate(exception: &eh::Exception, backtrace: &mut [usize]) -> ! {
+fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
     let mut cursor = 0;
     for index in 0..backtrace.len() {
         if backtrace[index] > kernel_proto::KERNELCPU_PAYLOAD_ADDRESS {
@@ -193,6 +214,7 @@ fn terminate(exception: &eh::Exception, backtrace: &mut [usize]) -> ! {
     loop {}
 }
 
+#[unwind(allowed)]
 extern fn watchdog_set(ms: i64) -> i32 {
     if ms < 0 {
         raise!("ValueError", "cannot set a watchdog with a negative timeout")
@@ -202,10 +224,12 @@ extern fn watchdog_set(ms: i64) -> i32 {
     recv!(&WatchdogSetReply { id } => id) as i32
 }
 
+#[unwind(aborts)]
 extern fn watchdog_clear(id: i32) {
     send(&WatchdogClear { id: id as usize })
 }
 
+#[unwind(aborts)]
 extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
     send(&CacheGetRequest {
         key:   str::from_utf8(key.as_ref()).unwrap()
@@ -213,6 +237,7 @@ extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
     recv!(&CacheGetReply { value } => value.as_c_slice())
 }
 
+#[unwind(allowed)]
 extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
     send(&CachePutRequest {
         key:   str::from_utf8(key.as_ref()).unwrap(),
@@ -246,6 +271,7 @@ fn dma_record_flush() {
     }
 }
 
+#[unwind(allowed)]
 extern fn dma_record_start(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
@@ -265,6 +291,7 @@ extern fn dma_record_start(name: CSlice<u8>) {
     }
 }
 
+#[unwind(allowed)]
 extern fn dma_record_stop(duration: i64) {
     unsafe {
         dma_record_flush();
@@ -286,10 +313,12 @@ extern fn dma_record_stop(duration: i64) {
     }
 }
 
+#[unwind(aborts)]
 extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
     dma_record_output_wide(timestamp, channel, address, [word].as_c_slice())
 }
 
+#[unwind(aborts)]
 extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
@@ -338,6 +367,7 @@ extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, wor
     }
 }
 
+#[unwind(aborts)]
 extern fn dma_erase(name: CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
@@ -350,6 +380,7 @@ struct DmaTrace {
     address:  i32,
 }
 
+#[unwind(allowed)]
 extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
@@ -369,6 +400,7 @@ extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
     })
 }
 
+#[unwind(allowed)]
 extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
@@ -483,12 +515,13 @@ pub unsafe fn main() {
 }
 
 #[no_mangle]
+#[unwind(allowed)]
 pub extern fn exception_handler(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
 }
 
-// We don't export this because libbase does.
-// #[no_mangle]
+#[no_mangle]
+#[unwind(allowed)]
 pub extern fn abort() {
     panic!("aborted")
 }
