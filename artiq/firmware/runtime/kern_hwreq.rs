@@ -220,7 +220,7 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
     match request {
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
-            rtio_mgt::init_core(io, aux_mutex, false);
+            rtio_mgt::reset(io, aux_mutex);
             kern_acknowledge()
         }
 

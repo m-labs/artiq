@@ -43,7 +43,6 @@ class DUT(Module):
         self.submodules.tsc_master = rtio.TSC("async")
         self.submodules.master = DRTIOMaster(self.tsc_master,
                                              self.transceivers.alice)
-        self.master.rt_controller.csrs.link_up.storage.reset = 1
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.tsc_satellite = rtio.TSC("sync")
@@ -132,8 +131,7 @@ class Testbench:
 
 class TestSwitching(unittest.TestCase):
     clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
-              "rio": 5, "rio_phy": 5,
-              "sys_with_rst": 8, "rtio_with_rst": 5}
+              "rio": 5, "rio_phy": 5}
 
     def test_outputs(self):
         tb = Testbench()

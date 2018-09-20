@@ -1,5 +1,6 @@
 #![feature(lang_items, alloc, try_from, nonzero, asm,
-           panic_implementation, panic_info_message)]
+           panic_implementation, panic_info_message,
+           const_slice_len)]
 #![no_std]
 
 extern crate eh;

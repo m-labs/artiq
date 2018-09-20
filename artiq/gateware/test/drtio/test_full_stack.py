@@ -57,7 +57,6 @@ class DUT(Module):
                                              self.transceivers.alice)
         self.submodules.master_ki = rtio.KernelInitiator(self.tsc_master,
             self.master.cri)
-        self.master.rt_controller.csrs.link_up.storage.reset = 1
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
@@ -146,8 +145,7 @@ class OutputsTestbench:
 
 class TestFullStack(unittest.TestCase):
     clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
-              "rio": 5, "rio_phy": 5,
-              "sys_with_rst": 8, "rtio_with_rst": 5}
+              "rio": 5, "rio_phy": 5}
 
     def test_pulses(self):
         tb = OutputsTestbench()

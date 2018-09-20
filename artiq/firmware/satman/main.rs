@@ -82,6 +82,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                 drtiosat_reset_phy(false);
             } else {
                 drtiosat_reset(true);
+                clock::spin_us(100);
                 drtiosat_reset(false);
             }
             for rep in _repeaters.iter() {

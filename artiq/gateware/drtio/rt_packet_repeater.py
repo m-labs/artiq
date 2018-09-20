@@ -10,6 +10,9 @@ from artiq.gateware.drtio.rt_serializer import *
 
 class RTPacketRepeater(Module):
     def __init__(self, tsc, link_layer):
+        # in rtio domain
+        self.reset = Signal()
+
         # CRI target interface in rtio domain
         self.cri = cri.Interface()
 
@@ -58,11 +61,11 @@ class RTPacketRepeater(Module):
         cb0_o_address = Signal(16)
         cb0_o_data = Signal(512)
         self.sync.rtio += [
-            If(cb0_ack,
+            If(self.reset | cb0_ack,
                 cb0_loaded.eq(0),
                 cb0_cmd.eq(cri.commands["nop"])
             ),
-            If(~cb0_loaded & (self.cri.cmd != cri.commands["nop"]),
+            If(~self.reset & ~cb0_loaded & (self.cri.cmd != cri.commands["nop"]),
                 cb0_loaded.eq(1),
                 cb0_cmd.eq(self.cri.cmd),
                 cb0_timestamp.eq(self.cri.timestamp),
@@ -85,11 +88,11 @@ class RTPacketRepeater(Module):
         cb_o_address = Signal(16)
         cb_o_data = Signal(512)
         self.sync.rtio += [
-            If(cb_ack,
+            If(self.reset | cb_ack,
                 cb_loaded.eq(0),
                 cb_cmd.eq(cri.commands["nop"])
             ),
-            If(~cb_loaded & cb0_loaded,
+            If(~self.reset & ~cb_loaded & cb0_loaded,
                 cb_loaded.eq(1),
                 cb_cmd.eq(cb0_cmd),
                 cb_timestamp.eq(cb0_timestamp),
@@ -277,7 +280,7 @@ class RTPacketRepeater(Module):
         )
         tx_fsm.act("GET_READ_REPLY",
             rtio_read_not_ack.eq(1),
-            If(rtio_read_not,
+            If(self.reset | rtio_read_not,
                 load_read_reply.eq(1),
                 cb_ack.eq(1),
                 NextState("READY")

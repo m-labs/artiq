@@ -3,7 +3,6 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import WaitTimer
-from migen.genlib.resetsync import AsyncResetSynchronizer
 
 from misoc.interconnect.csr import *
 
@@ -12,7 +11,7 @@ from artiq.gateware.rtio import cri
 
 class _CSRs(AutoCSR):
     def __init__(self):
-        self.link_up = CSRStorage()
+        self.reset = CSRStorage()
 
         self.protocol_error = CSR(3)
 
@@ -33,25 +32,12 @@ class RTController(Module):
         self.csrs = _CSRs()
         self.cri = cri.Interface()
 
-        # reset
-        local_reset = Signal(reset=1)
-        self.sync += local_reset.eq(~self.csrs.link_up.storage)
-        local_reset.attr.add("no_retiming")
-        self.clock_domains.cd_sys_with_rst = ClockDomain()
-        self.clock_domains.cd_rtio_with_rst = ClockDomain()
-        self.comb += [
-            self.cd_sys_with_rst.clk.eq(ClockSignal()),
-            self.cd_sys_with_rst.rst.eq(local_reset)
-        ]
-        self.comb += self.cd_rtio_with_rst.clk.eq(ClockSignal("rtio"))
-        self.specials += AsyncResetSynchronizer(self.cd_rtio_with_rst, local_reset)
-
         # protocol errors
         err_unknown_packet_type = Signal()
         err_packet_truncated = Signal()
         signal_buffer_space_timeout = Signal()
         err_buffer_space_timeout = Signal()
-        self.sync.sys_with_rst += [
+        self.sync += [
             If(self.csrs.protocol_error.re,
                 If(self.csrs.protocol_error.r[0], err_unknown_packet_type.eq(0)),
                 If(self.csrs.protocol_error.r[1], err_packet_truncated.eq(0)),
@@ -106,7 +92,7 @@ class RTController(Module):
             self.csrs.o_wait.status.eq(o_status_wait)
         ]
         o_underflow_set = Signal()
-        self.sync.sys_with_rst += [
+        self.sync += [
             If(self.cri.cmd == cri.commands["write"],
                 o_status_underflow.eq(0)
             ),
@@ -145,7 +131,7 @@ class RTController(Module):
             i_status_wait_event, i_status_overflow, i_status_wait_status))
 
         load_read_reply = Signal()
-        self.sync.sys_with_rst += [
+        self.sync += [
             If(load_read_reply,
                 i_status_wait_event.eq(0),
                 i_status_overflow.eq(0),
@@ -162,7 +148,7 @@ class RTController(Module):
         ]
 
         # FSM
-        fsm = ClockDomainsRenamer("sys_with_rst")(FSM())
+        fsm = FSM()
         self.submodules += fsm
 
         fsm.act("IDLE",
@@ -226,7 +212,7 @@ class RTController(Module):
         fsm.act("GET_READ_REPLY",
             i_status_wait_status.eq(1),
             rt_packet.read_not_ack.eq(1),
-            If(rt_packet.read_not,
+            If(self.csrs.reset.storage | rt_packet.read_not,
                 load_read_reply.eq(1),
                 NextState("IDLE")
             )

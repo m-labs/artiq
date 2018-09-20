@@ -1,4 +1,5 @@
 from migen import *
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -8,11 +9,14 @@ from artiq.gateware.drtio.cdc import CrossDomainRequest
 
 class RTController(Module, AutoCSR):
     def __init__(self, rt_packet):
+        self.reset = CSRStorage()
         self.set_time = CSR()
         self.protocol_error = CSR(4)
         self.command_missed_cmd = CSRStatus(2)
         self.command_missed_chan_sel = CSRStatus(24)
         self.buffer_space_timeout_dest = CSRStatus(8)
+
+        self.specials += MultiReg(self.reset.storage, rt_packet.reset, "rtio")
 
         set_time_stb = Signal()
         set_time_ack = Signal()

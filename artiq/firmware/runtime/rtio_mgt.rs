@@ -70,26 +70,6 @@ pub mod drtio {
         }
     }
 
-    pub fn link_up(linkno: u8) -> bool {
-        let linkno = linkno as usize;
-        /* This function may be called by kernels with arbitrary
-         * linkno values.
-         */
-        if linkno >= csr::DRTIO.len() {
-            return false;
-        }
-        unsafe {
-            (csr::DRTIO[linkno].link_up_read)() == 1
-        }
-    }
-
-    fn set_link_up(linkno: u8, up: bool) {
-        let linkno = linkno as usize;
-        unsafe {
-            (csr::DRTIO[linkno].link_up_write)(if up { 1 }  else { 0 });
-        }
-    }
-
     fn recv_aux_timeout(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         loop {
@@ -238,6 +218,7 @@ pub mod drtio {
     }
 
     fn destination_survey(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+            up_links: &[bool],
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
         for destination in 0..drtio_routing::DEST_COUNT {
             let hop = routing_table.0[destination][0];
@@ -251,7 +232,7 @@ pub mod drtio {
             } else if hop as usize <= csr::DRTIO.len() {
                 let linkno = hop - 1;
                 if destination_up(up_destinations, destination) {
-                    if link_up(linkno) {
+                    if up_links[linkno as usize] {
                         let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination
                         });
@@ -272,7 +253,7 @@ pub mod drtio {
                         destination_set_up(routing_table, up_destinations, destination, false);
                     }
                 } else {
-                    if link_up(linkno) {
+                    if up_links[linkno as usize] {
                         let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::DestinationStatusRequest {
                             destination: destination
                         });
@@ -294,17 +275,18 @@ pub mod drtio {
     pub fn link_thread(io: Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+        let mut up_links = [false; csr::DRTIO.len()];
         loop {
             for linkno in 0..csr::DRTIO.len() {
                 let linkno = linkno as u8;
-                if link_up(linkno) {
+                if up_links[linkno as usize] {
                     /* link was previously up */
                     if link_rx_up(linkno) {
                         process_unsolicited_aux(&io, aux_mutex, linkno);
                         process_local_errors(linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
-                        set_link_up(linkno, false);
+                        up_links[linkno as usize] = false;
                     }
                 } else {
                     /* link was previously down */
@@ -313,7 +295,7 @@ pub mod drtio {
                         let ping_count = ping_remote(&io, aux_mutex, linkno);
                         if ping_count > 0 {
                             info!("[LINK#{}] remote replied after {} packets", linkno, ping_count);
-                            set_link_up(linkno, true);
+                            up_links[linkno as usize] = true;
                             if let Err(e) = sync_tsc(&io, aux_mutex, linkno) {
                                 error!("[LINK#{}] failed to sync TSC ({})", linkno, e);
                             }
@@ -330,15 +312,27 @@ pub mod drtio {
                     }
                 }
             }
-            destination_survey(&io, aux_mutex, routing_table, up_destinations);
+            destination_survey(&io, aux_mutex, routing_table, &up_links, up_destinations);
             io.sleep(200).unwrap();
         }
     }
 
-    pub fn init(io: &Io, aux_mutex: &Mutex) {
+    pub fn reset(io: &Io, aux_mutex: &Mutex) {
+        for linkno in 0..csr::DRTIO.len() {
+            unsafe {
+                (csr::DRTIO[linkno].reset_write)(1);
+            }
+        }
+        io.sleep(1).unwrap();
+        for linkno in 0..csr::DRTIO.len() {
+            unsafe {
+                (csr::DRTIO[linkno].reset_write)(0);
+            }
+        }
+
         for linkno in 0..csr::DRTIO.len() {
             let linkno = linkno as u8;
-            if link_up(linkno) {
+            if link_rx_up(linkno) {
                 let reply = aux_transact(io, aux_mutex, linkno,
                     &drtioaux::Packet::ResetRequest { phy: false });
                 match reply {
@@ -358,8 +352,7 @@ pub mod drtio {
     pub fn startup(_io: &Io, _aux_mutex: &Mutex,
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
-    pub fn init(_io: &Io, _aux_mutex: &Mutex) {}
-    pub fn link_up(_linkno: u8) -> bool { false }
+    pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
 }
 
 fn async_error_thread(io: Io) {
@@ -425,18 +418,17 @@ pub fn startup(io: &Io, aux_mutex: &Mutex,
             }
         }
     }
+    unsafe {
+            csr::rtio_core::reset_phy_write(1);
+    }
 
     drtio::startup(io, aux_mutex, routing_table, up_destinations);
-    init_core(io, aux_mutex, true);
     io.spawn(4096, async_error_thread);
 }
 
-pub fn init_core(io: &Io, aux_mutex: &Mutex, phy: bool) {
+pub fn reset(io: &Io, aux_mutex: &Mutex) {
     unsafe {
         csr::rtio_core::reset_write(1);
-        if phy {
-            csr::rtio_core::reset_phy_write(1);
-        }
     }
-    drtio::init(io, aux_mutex)
+    drtio::reset(io, aux_mutex)
 }

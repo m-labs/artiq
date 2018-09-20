@@ -243,9 +243,17 @@ impl Repeater {
     }
 
     pub fn rtio_reset(&self, phy: bool) -> Result<(), drtioaux::Error<!>> {
+        let repno = self.repno as usize;
+        if !phy {
+            unsafe { (csr::DRTIOREP[repno].reset_write)(1); }
+            clock::spin_us(100);
+            unsafe { (csr::DRTIOREP[repno].reset_write)(0); }
+        }
+
         if self.state != RepeaterState::Up {
             return Ok(());
         }
+
         drtioaux::send(self.auxno, &drtioaux::Packet::ResetRequest {
             phy: phy
         }).unwrap();
