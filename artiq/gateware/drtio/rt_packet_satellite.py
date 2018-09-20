@@ -227,16 +227,14 @@ class RTPacketSatellite(Module):
         tx_fsm.act("READ_OVERFLOW",
             tx_dp.send("read_reply_noevent", overflow=1),
             clear_read_request.eq(1),
-            If(tx_dp.packet_last,
-                NextState("IDLE")
-            )
+            If(tx_dp.packet_last, NextState("IDLE"))
         )
         tx_fsm.act("READ",
             tx_dp.send("read_reply",
                        timestamp=self.cri.i_timestamp,
                        data=self.cri.i_data),
-            clear_read_request.eq(1),
             If(tx_dp.packet_last,
+                clear_read_request.eq(1),
                 NextState("IDLE")
             )
         )
