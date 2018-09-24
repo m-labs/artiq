@@ -156,7 +156,9 @@ class KasliTester(EnvExperiment):
 
     def test_ttl_ins(self):
         print("*** Testing TTL inputs.")
-
+        if not self.ttl_outs:
+            print("No TTL output channel available to use as stimulus.")
+            return
         ttl_out_name, ttl_out_dev = next(iter(self.ttl_outs))
         for ttl_in_name, ttl_in_dev in self.ttl_ins:
             print("Connect {} to {}. Press ENTER when done."
