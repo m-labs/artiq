@@ -1,3 +1,4 @@
+use clock;
 use board_misoc::csr;
 #[cfg(has_rtio_clock_switch)]
 use board_misoc::config;
@@ -45,6 +46,13 @@ pub mod drtio {
     pub fn startup(io: &Io) {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
+
+            let t = clock::get_ms();
+            while csr::rtio_clkmul::pll_locked_read() == 0 {
+                if clock::get_ms() > t + 100 {
+                    error!("rtio clock multiplier PLL lock timeout");
+                }
+            }
         }
         io.spawn(4096, link_thread);
     }
