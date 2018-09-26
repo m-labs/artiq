@@ -27,8 +27,8 @@ from artiq.build_soc import *
 
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform):
-        self._pll_reset = CSRStorage(reset=1)
-        self._pll_locked = CSRStatus()
+        self.pll_reset = CSRStorage(reset=1)
+        self.pll_locked = CSRStatus()
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
@@ -60,7 +60,7 @@ class _RTIOCRG(Module, AutoCSR):
                      # VCO @ 1GHz when using 125MHz input
                      p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
-                     i_RST=self._pll_reset.storage,
+                     i_RST=self.pll_reset.storage,
 
                      o_CLKFBOUT=rtio_clk,
 
@@ -70,7 +70,7 @@ class _RTIOCRG(Module, AutoCSR):
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
 
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
-            MultiReg(pll_locked, self._pll_locked.status)
+            MultiReg(pll_locked, self.pll_locked.status)
         ]
 
 
