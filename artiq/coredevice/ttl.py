@@ -2,8 +2,8 @@
 Drivers for TTL signals on RTIO.
 
 TTL channels (including the clock generator) all support output event
-replacement. For example, pulses of "zero" length (e.g. ``on()``
-immediately followed by ``off()``, without a delay) are suppressed.
+replacement. For example, pulses of "zero" length (e.g. :meth:`TTLInOut.on`
+immediately followed by :meth:`TTLInOut.off`, without a delay) are suppressed.
 """
 
 import numpy
@@ -107,8 +107,8 @@ class TTLInOut:
     This should be used with bidirectional channels.
 
     Note that the channel is in input mode by default. If you need to drive a
-    signal, you must call ``output``. If the channel is in output mode most of
-    the time in your setup, it is a good idea to call ``output`` in the
+    signal, you must call :meth:`output`. If the channel is in output mode most of
+    the time in your setup, it is a good idea to call :meth:`output` in the
     startup kernel.
 
     There are three input APIs: gating, sampling and watching. When one
@@ -301,10 +301,10 @@ class TTLInOut:
     @kernel
     def sample_get(self):
         """Returns the value of a sample previously obtained with
-        ``sample_input``.
+        :meth:`sample_input`.
 
         Multiple samples may be queued (using multiple calls to
-        ``sample_input``) into the RTIO FIFOs and subsequently read out using
+        :meth:`sample_input`) into the RTIO FIFOs and subsequently read out using
         multiple calls to this function.
 
         This function does not interact with the time cursor."""
@@ -324,11 +324,11 @@ class TTLInOut:
     @kernel
     def watch_stay_on(self):
         """Checks that the input is at a high level at the position
-        of the time cursor and keep checking until ``watch_done``
+        of the time cursor and keep checking until :meth:`watch_done`
         is called.
 
         Returns ``True`` if the input is high. A call to this function
-        must always be followed by an eventual call to ``watch_done``
+        must always be followed by an eventual call to :meth:`watch_done`
         (use e.g. a try/finally construct to ensure this).
 
         The time cursor is not modified by this function.
@@ -338,7 +338,7 @@ class TTLInOut:
 
     @kernel
     def watch_stay_off(self):
-        """Like ``watch_stay_on``, but for low levels."""
+        """Like :meth:`watch_stay_on`, but for low levels."""
         rtio_output(now_mu(), self.channel, 3, 1)  # gate rising
         return rtio_input_data(self.channel) == 0
 
@@ -419,7 +419,7 @@ class TTLClockGen:
 
     @kernel
     def set(self, frequency):
-        """Like ``set_mu``, but using Hz."""
+        """Like :meth:`set_mu`, but using Hz."""
         self.set_mu(self.frequency_to_ftw(frequency))
 
     @kernel

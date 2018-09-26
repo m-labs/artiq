@@ -117,10 +117,10 @@ class Subscriber:
 class Notifier:
     """Encapsulates a structure whose changes need to be published.
 
-    All mutations to the structure must be made through the ``Notifier``. The
+    All mutations to the structure must be made through the :class:`.Notifier`. The
     original structure must only be accessed for reads.
 
-    In addition to the list methods below, the ``Notifier`` supports the index
+    In addition to the list methods below, the :class:`.Notifier` supports the index
     syntax for modification and deletion of elements. Modification of nested
     structures can be also done using the index syntax, for example:
 
@@ -131,11 +131,11 @@ class Notifier:
     [[42]]
 
     This class does not perform any network I/O and is meant to be used with
-    e.g. the ``Publisher`` for this purpose. Only one publisher at most can be
-    associated with a ``Notifier``.
+    e.g. the :class:`.Publisher` for this purpose. Only one publisher at most can be
+    associated with a :class:`.Notifier`.
 
     :param backing_struct: Structure to encapsulate. For convenience, it
-        also becomes available as the ``read`` property of the ``Notifier``.
+        also becomes available as the ``read`` property of the :class:`.Notifier`.
     """
     def __init__(self, backing_struct, root=None, path=[]):
         self.read = backing_struct
@@ -168,7 +168,7 @@ class Notifier:
 
     def pop(self, i=-1):
         """Pop an element from a list. The returned element is not
-        encapsulated in a ``Notifier`` and its mutations are no longer
+        encapsulated in a :class:`.Notifier` and its mutations are no longer
         tracked."""
         r = self._backing_struct.pop(i)
         if self.root.publish is not None:
@@ -199,11 +199,11 @@ class Notifier:
 
 class Publisher(AsyncioServer):
     """A network server that publish changes to structures encapsulated in
-    ``Notifiers``.
+    a :class:`.Notifier`.
 
     :param notifiers: A dictionary containing the notifiers to associate with
-        the ``Publisher``. The keys of the dictionary are the names of the
-        notifiers to be used with ``Subscriber``.
+        the :class:`.Publisher`. The keys of the dictionary are the names of the
+        notifiers to be used with :class:`.Subscriber`.
     """
     def __init__(self, notifiers):
         AsyncioServer.__init__(self)
@@ -245,7 +245,7 @@ class Publisher(AsyncioServer):
             finally:
                 self._recipients[notifier_name].remove(queue)
         except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            # subscribers disconnecting are a normal occurence
+            # subscribers disconnecting are a normal occurrence
             pass
         finally:
             writer.close()
