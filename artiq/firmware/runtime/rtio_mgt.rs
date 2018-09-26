@@ -380,6 +380,10 @@ fn async_error_thread(io: Io) {
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+    // The RTIO CRG may depend on the DRTIO transceiver clock.
+    // Initialize DRTIO first to bring up transceiver clocking.
+    drtio::startup(io, aux_mutex, routing_table, up_destinations);
+
     #[cfg(has_rtio_crg)]
     {
         #[cfg(has_rtio_clock_switch)]
@@ -422,7 +426,6 @@ pub fn startup(io: &Io, aux_mutex: &Mutex,
         csr::rtio_core::reset_phy_write(1);
     }
 
-    drtio::startup(io, aux_mutex, routing_table, up_destinations);
     io.spawn(4096, async_error_thread);
 }
 
