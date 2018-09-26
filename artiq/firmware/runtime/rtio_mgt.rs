@@ -257,6 +257,10 @@ fn async_error_thread(io: Io) {
 }
 
 pub fn startup(io: &Io) {
+    // The RTIO CRG may depend on the DRTIO transceiver clock.
+    // Initialize DRTIO first to bring up transceiver clocking.
+    drtio::startup(io);
+
     #[cfg(has_rtio_crg)]
     {
         #[cfg(has_rtio_clock_switch)]
@@ -296,7 +300,6 @@ pub fn startup(io: &Io) {
         }
     }
 
-    drtio::startup(io);
     init_core(true);
     io.spawn(4096, async_error_thread);
 }
