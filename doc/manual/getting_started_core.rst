@@ -21,7 +21,7 @@ As a very first step, we will turn on a LED on the core device. Create a file ``
             self.core.reset()
             self.led.on()
 
-The central part of our code is our ``LED`` class, that derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, ``EnvExperiment`` calls our ``build`` method and provides the ``setattr_device`` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The ``@kernel`` decorator tells the system that the ``run`` method must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host). The decorator uses ``self.core`` internally, which is why we request the core device using ``setattr_device`` like any other.
+The central part of our code is our ``LED`` class, which derives from :class:`artiq.language.environment.EnvExperiment`. Among other features, :class:`~artiq.language.environment.EnvExperiment` calls our :meth:`~artiq.language.environment.Experiment.build` method and provides the :meth:`~artiq.language.environment.HasEnvironment.setattr_device` method that interfaces to the device database to create the appropriate device drivers and make those drivers accessible as ``self.core`` and ``self.led``. The :func:`~artiq.language.core.kernel` decorator (``@kernel``) tells the system that the :meth:`~artiq.language.environment.Experiment.run` method must be compiled for and executed on the core device (instead of being interpreted and executed as regular Python code on the host). The decorator uses ``self.core`` internally, which is why we request the core device using :meth:`~artiq.language.environment.HasEnvironment.setattr_device` like any other.
 
 Copy the file ``device_db.py`` (containing the device database) from the ``examples/master`` folder of ARTIQ into the same directory as ``led.py`` (alternatively, you can use the ``--device-db`` option of ``artiq_run``). You will probably want to set the IP address of the core device in ``device_db.py`` so that the computer can connect to it (it is the ``host`` parameter of the ``comm`` entry). See :ref:`device-db` for more information. The example device database is designed for the ``nist_clock`` hardware adapter on the KC705; see :ref:`board-ports` for RTIO channel assignments if you need to adapt the device database to a different hardware platform.
 
@@ -69,18 +69,18 @@ You can then turn the LED off and on by entering 0 or 1 at the prompt that appea
     $ artiq_run led.py
     Enter desired LED state: 0
 
-What happens is the ARTIQ compiler notices that the ``input_led_state`` function does not have a ``@kernel`` decorator and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
+What happens is the ARTIQ compiler notices that the :meth:`input_led_state` function does not have a ``@kernel`` decorator (:func:`~artiq.language.core.kernel`) and thus must be executed on the host. When the core device calls it, it sends a request to the host to execute it. The host displays the prompt, collects user input, and sends the result back to the core device, which sets the LED state accordingly.
 
 RPC functions must always return a value of the same type. When they return a value that is not ``None``, the compiler should be informed in advance of the type of the value, which is what the ``-> TBool`` annotation is for.
 
-Without the ``break_realtime()`` call, the RTIO events emitted by ``self.led.on()`` or ``self.led.off()`` would be scheduled at a fixed and very short delay after entering ``run()``.
-These events would fail because the RPC to ``input_led_state()`` can take an arbitrary amount of time and therefore the deadline for submission of RTIO events would have long passed when ``self.led.on()`` or ``self.led.off()`` are called.
-The ``break_realtime()`` call is necessary to waive the real-time requirements of the LED state change.
+Without the :meth:`~artiq.coredevice.core.Core.break_realtime` call, the RTIO events emitted by :func:`self.led.on()` or :func:`self.led.off()` would be scheduled at a fixed and very short delay after entering :meth:`~artiq.language.environment.Experiment.run()`.
+These events would fail because the RPC to :meth:`input_led_state()` can take an arbitrary amount of time and therefore the deadline for submission of RTIO events would have long passed when :func:`self.led.on()` or :func:`self.led.off()` are called.
+The :meth:`~artiq.coredevice.core.Core.break_realtime` call is necessary to waive the real-time requirements of the LED state change.
 It advances the timeline far enough to ensure that events can meet the submission deadline.
 
 
-Real-time I/O (RTIO)
---------------------
+Real-time Input/Output (RTIO)
+-----------------------------
 
 The point of running code on the core device is the ability to meet demanding real-time constraints. In particular, the core device can respond to an incoming stimulus or the result of a measurement with a low and predictable latency. We will see how to use inputs later; first, we must familiarize ourselves with how time is managed in kernels.
 
@@ -102,11 +102,11 @@ Create a new file ``rtio.py`` containing the following: ::
                 delay(2*us)
                 self.ttl0.pulse(2*us)
 
-In its ``build()`` method, the experiment obtains the core device and a TTL device called ``ttl0`` as defined in the device database.
+In its :meth:`~artiq.language.environment.Experiment.build` method, the experiment obtains the core device and a TTL device called ``ttl0`` as defined in the device database.
 In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
 
-When ``run()``, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.
-Bidirectional TTL channels (i.e. ``TTLInOut``) are in input (high impedance) mode by default, output-only TTL channels (``TTLOut``) are always in output mode.
+When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.
+Bidirectional TTL channels (i.e. :class:`~artiq.devices.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.devices.ttl.TTLOut`) are always in output mode.
 There are no input-only TTL channels.
 
 The experiment then drives one million 2 µs long pulses separated by 2 µs each.
@@ -118,7 +118,7 @@ Any asymmetry in the overhead would manifest itself in a distorted and variable 
 
 Instead, inside the core device, output timing is generated by the gateware and the CPU only programs switching commands with certain timestamps that the CPU computes.
 
-This guarantees precise timing as long as the CPU can keep generating timestamps that are increasing fast enough. In case it fails to do that (and attempts to program an event with a timestamp smaller than the current RTIO clock timestamp), a :class:`artiq.coredevice.exceptions.RTIOUnderflow` exception is raised. The kernel causing it may catch it (using a regular ``try... except...`` construct), or it will be propagated to the host.
+This guarantees precise timing as long as the CPU can keep generating timestamps that are increasing fast enough. In case it fails to do that (and attempts to program an event with a timestamp smaller than the current RTIO clock timestamp), a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` exception is raised. The kernel causing it may catch it (using a regular ``try... except...`` construct), or it will be propagated to the host.
 
 Try reducing the period of the generated waveform until the CPU cannot keep up with the generation of switching events and the underflow exception is raised. Then try catching it: ::
 
@@ -161,7 +161,7 @@ ARTIQ can implement ``with parallel`` blocks without having to resort to any of 
 It simply remembers the position on the timeline when entering the ``parallel`` block and then seeks back to that position after submitting the events generated by each statement.
 In other words, the statements in the ``parallel`` block are actually executed sequentially, only the RTIO events generated by them are scheduled to be executed in parallel.
 Note that if a statement takes a lot of CPU time to execute (this different from the events scheduled by a statement taking a long time), it may cause a subsequent statement to miss the deadline for timely submission of its events.
-This then causes a ``RTIOUnderflow`` exception to be raised.
+This then causes a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` exception to be raised.
 
 Within a parallel block, some statements can be made sequential again using a ``with sequential`` construct. Observe the pulses generated by this code: ::
 
@@ -199,8 +199,8 @@ The core device records the real-time I/O waveforms into a circular buffer. It i
 Afterwards, the recorded data can be extracted and written to a VCD file using ``artiq_coreanalyzer -w rtio.vcd`` (see: :ref:`core-device-rtio-analyzer-tool`). VCD files can be viewed using third-party tools such as GtkWave.
 
 
-DMA
----
+Direct Memory Access (DMA)
+--------------------------
 
 DMA allows you to store fixed sequences of pulses in system memory, and have the DMA core in the FPGA play them back at high speed. Pulse sequences that are too fast for the CPU (i.e. would cause RTIO underflows) can still be generated using DMA. The only modification of the sequence that the DMA core supports is shifting it in time (so it can be played back at any position of the timeline), everything else is fixed at the time of recording the sequence.
 

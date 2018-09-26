@@ -34,7 +34,7 @@ def dma_playback(timestamp: TInt64, ptr: TInt32) -> TNone:
 
 
 class DMARecordContextManager:
-    """Context manager returned by ``CoreDMA.record()``.
+    """Context manager returned by :meth:`CoreDMA.record()`.
 
     Upon entering, starts recording a DMA trace. All RTIO operations are
     redirected to a newly created DMA buffer after this call, and ``now``
