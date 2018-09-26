@@ -604,28 +604,33 @@ class Tester(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class _RTIOClockMultiplier(Module):
+class _RTIOClockMultiplier(Module, AutoCSR):
     def __init__(self, rtio_clk_freq):
+        self._pll_locked = CSRStatus()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         # See "Global Clock Network Deskew Using Two BUFGs" in ug472.
         clkfbout = Signal()
         clkfbin = Signal()
         rtiox4_clk = Signal()
+        pll_locked = Signal()
+
         self.specials += [
             Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                i_CLKIN1=ClockSignal("rtio"),
-                i_RST=ResetSignal("rtio"),
+                     o_LOCKED=pll_locked,
+                     p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                     i_CLKIN1=ClockSignal("rtio"),
+                     i_RST=ResetSignal("rtio"),
 
-                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
+                     p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
 
-                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
+                     o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
 
-                p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
+                     p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
             ),
             Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
-            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk)
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+            MultiReg(pll_locked, self._pll_locked.status)
         ]
 
 
@@ -710,6 +715,8 @@ class _MasterBase(MiniSoC, AMPSoC):
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
         self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
+        self.csr_devices.append("rtio_clkmul")
+
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
