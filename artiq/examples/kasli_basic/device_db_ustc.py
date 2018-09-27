@@ -173,6 +173,13 @@ for i in range(4):
         }
     }
 
+device_db["grabber0"] = {
+    "type": "local",
+    "module": "artiq.coredevice.grabber",
+    "class": "Grabber",
+    "arguments": {"channel_base": 36}
+}
+
 device_db.update(
     led0={
         "type": "local",
