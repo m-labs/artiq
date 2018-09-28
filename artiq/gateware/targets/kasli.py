@@ -153,7 +153,7 @@ class Opticlock(_StandaloneBase):
         _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        # self.config["SI5324_EXT_REF"] = None
+        self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
