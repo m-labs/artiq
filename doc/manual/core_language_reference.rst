@@ -1,7 +1,7 @@
 Core language reference
 =======================
 
-The most commonly used features from the ARTIQ language modules and from the core device modules are bundled together in ``artiq.experiment`` and can be imported with ``from artiq.experiment import *``.
+The most commonly used features from the ARTIQ language modules and from the core device modules are bundled together in :mod:`artiq.experiment` and can be imported with ``from artiq.experiment import *``.
 
 :mod:`artiq.language.core` module
 ---------------------------------

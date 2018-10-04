@@ -184,7 +184,7 @@ class SPIMaster:
         experiments and are known.
 
         This method is portable and can also be called from e.g.
-        ``__init__``.
+        :meth:`__init__`.
 
         :param div: SPI clock divider (see: :meth:`set_config_mu`)
         :param length: SPI transfer length (see: :meth:`set_config_mu`)

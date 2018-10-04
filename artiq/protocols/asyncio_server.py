@@ -6,7 +6,8 @@ class AsyncioServer:
     """Generic TCP server based on asyncio.
 
     Users of this class must derive from it and define the
-    ``_handle_connection_cr`` method and coroutine.
+    :meth:`~artiq.protocols.asyncio_server.AsyncioServer._handle_connection_cr`
+    method/coroutine.
     """
     def __init__(self):
         self._client_tasks = set()
@@ -14,10 +15,10 @@ class AsyncioServer:
     async def start(self, host, port):
         """Starts the server.
 
-        The user must call ``stop`` to free resources properly after this
-        method completes successfully.
+        The user must call :meth:`stop`
+        to free resources properly after this method completes successfully.
 
-        This method is a `coroutine`.
+        This method is a *coroutine*.
 
         :param host: Bind address of the server (see ``asyncio.start_server``
             from the Python standard library).
@@ -48,3 +49,6 @@ class AsyncioServer:
         task = asyncio.ensure_future(self._handle_connection_cr(reader, writer))
         self._client_tasks.add(task)
         task.add_done_callback(self._client_done)
+
+    async def _handle_connection_cr(self, reader, writer):
+        raise NotImplementedError

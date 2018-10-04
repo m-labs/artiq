@@ -104,7 +104,7 @@ class IIR(Module):
     will be abbreviated W here.
 
     It reads 1 << W.channels input channels (typically from an ADC)
-    and on each iteration processes the data on using a first-order IIR filter.
+    and on each iteration processes the data using a first-order IIR filter.
     At the end of the cycle each the output of the filter together with
     additional data (typically frequency tunning word and phase offset word
     for a DDS) are presented at the 1 << W.channels outputs of the module.

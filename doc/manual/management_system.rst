@@ -1,7 +1,7 @@
 Management system
 =================
 
-The management system described below is optional: experiments can be run one by one using ``artiq_run``, and the controllers can run stand-alone (without a controller manager). For their very first steps with ARTIQ or in simple or particular cases, users do not need to deploy the management system.
+The management system described below is optional: experiments can be run one by one using :mod:`~artiq.frontend.artiq_run`, and the controllers can run stand-alone (without a controller manager). For their very first steps with ARTIQ or in simple or particular cases, users do not need to deploy the management system.
 
 Components
 **********
@@ -42,13 +42,15 @@ Basics
 
 To use hardware resources more efficiently, potentially compute-intensive pre-computation and analysis phases of other experiments is executed in parallel with the body of the current experiment that accesses the hardware.
 
+.. seealso:: These steps are implemented in :class:`~artiq.language.environment.Experiment`. However, user-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`.
+
 Experiments are divided into three phases that are programmed by the user:
 
-1. The preparation stage, that pre-fetches and pre-computes any data that necessary to run the experiment. Users may implement this stage by overloading the ``prepare`` method. It is not permitted to access hardware in this stage, as doing so may conflict with other experiments using the same devices.
-2. The running stage, that corresponds to the body of the experiment, and typically accesses hardware. Users must implement this stage and overload the ``run`` method.
-3. The analysis stage, where raw results collected in the running stage are post-processed and may lead to updates of the parameter database. This stage may be implemented by overloading the ``analyze`` method.
+1. The **preparation** stage, that pre-fetches and pre-computes any data that necessary to run the experiment. Users may implement this stage by overloading the :meth:`~artiq.language.environment.Experiment.prepare` method. It is not permitted to access hardware in this stage, as doing so may conflict with other experiments using the same devices.
+2. The **running** stage, that corresponds to the body of the experiment, and typically accesses hardware. Users must implement this stage and overload the :meth:`~artiq.language.environment.Experiment.run` method.
+3. The **analysis** stage, where raw results collected in the running stage are post-processed and may lead to updates of the parameter database. This stage may be implemented by overloading the :meth:`~artiq.language.environment.Experiment.analyze` method.
 
-.. note:: Only the ``run`` method implementation is mandatory; if the experiment does not fit into the pipelined scheduling model, it can leave one or both of the other methods empty (which is the default).
+.. note:: Only the :meth:`~artiq.language.environment.Experiment.run` method implementation is mandatory; if the experiment does not fit into the pipelined scheduling model, it can leave one or both of the other methods empty (which is the default).
 
 The three phases of several experiments are then executed in a pipelined manner by the scheduler in the ARTIQ master: experiment A executes its preparation stage, then experiment A executes its running stage while experiment B executes its preparation stage, and so on.
 
@@ -70,11 +72,11 @@ If there are other experiments with higher priority (e.g. a high-priority timed 
 Otherwise, ``pause()`` returns immediately.
 To check whether ``pause()`` would in fact *not* return immediately, use :meth:`artiq.master.scheduler.Scheduler.check_pause`.
 
-The experiment must place the hardware in a safe state and disconnect from the core device (typically, by using ``self.core.comm.close()``) before calling ``pause``.
+The experiment must place the hardware in a safe state and disconnect from the core device (typically, by calling ``self.coredevice.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close`) before calling ``pause()``.
 
-Accessing the ``pause`` and ``check_pause`` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using ``get_device`` or ``attr_device``.
+Accessing the ``pause()`` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using :meth:`~artiq.language.environment.HasEnvironment.get_device` (``self.get_device()``) or :meth:`~artiq.language.environment.HasEnvironment.setattr_device` (``self.setattr_device()``).
 
-``check_pause`` can be called (via RPC) from a kernel, but ``pause`` must not.
+:meth:`~artiq.master.scheduler.Scheduler.check_pause` can be called (via RPC) from a kernel, but ``pause()`` must not.
 
 Multiple pipelines
 ------------------

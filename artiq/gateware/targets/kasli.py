@@ -154,7 +154,7 @@ class Opticlock(_StandaloneBase):
         _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        # self.config["SI5324_EXT_REF"] = None
+        self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
@@ -288,6 +288,45 @@ class MITLL(_StandaloneBase):
         eem.Zotino.add_std(self, 5, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 6, ttl_serdes_7series.Output_8X)
         eem.Grabber.add_std(self, 1, 0)
+
+        for i in (1, 2):
+            sfp_ctl = self.platform.request("sfp_ctl", i)
+            phy = ttl_simple.Output(sfp_ctl.led)
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
+
+
+class MITLL2(_StandaloneBase):
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        self.config["RTIO_FREQUENCY"] = "125.0"
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        self.rtio_channels = []
+        self.grabber_csr_group = []
+        eem.DIO.add_std(self, 5,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 2, 1, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 4, 3, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 6, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 0)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -573,11 +612,20 @@ class Tester(_StandaloneBase):
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
+        self.grabber_csr_group = []
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 1, 0, ttl_serdes_7series.Output_8X)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 6)
+        eem.Urukul.add_std(self, 7, None, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 8,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 9,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 10, None, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 11, ttl_serdes_7series.Output_8X)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -588,8 +636,12 @@ class Tester(_StandaloneBase):
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
-
         self.add_rtio(self.rtio_channels)
+
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class _RTIOClockMultiplier(Module, AutoCSR):
@@ -633,7 +685,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -645,7 +697,6 @@ class _MasterBase(MiniSoC, AMPSoC):
         add_identifier(self)
 
         platform = self.platform
-        rtio_clk_freq = 150e6
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -783,7 +834,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -792,7 +843,6 @@ class _SatelliteBase(BaseSoC):
         add_identifier(self)
 
         platform = self.platform
-        rtio_clk_freq = 150e6
 
         disable_si5324_ibuf = Signal(reset=1)
         disable_si5324_ibuf.attr.add("no_retiming")
@@ -872,7 +922,8 @@ class _SatelliteBase(BaseSoC):
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             si5324_clkout_fabric=platform.request("si5324_clkout_fabric"),
-            ref_clk=self.crg.clk125_div2, ref_div2=True)
+            ref_clk=self.crg.clk125_div2, ref_div2=True,
+            rtio_clk_freq=rtio_clk_freq)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
         self.csr_devices.append("siphaser")
@@ -950,6 +1001,66 @@ class Satellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
+class VLBAIMaster(_MasterBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev, *args,
+                             **kwargs)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 1,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 2,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+
+        for i in (0, 1):
+            phy = ttl_simple.Output(self.platform.request("user_led", i))
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+
+
+class VLBAISatellite(_SatelliteBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+                                *args, **kwargs)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 1,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 2,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+
+        for i in (0, 1):
+            phy = ttl_simple.Output(self.platform.request("user_led", i))
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+
+        self.add_rtio(self.rtio_channels)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
@@ -957,8 +1068,8 @@ def main():
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
     variants = {cls.__name__.lower(): cls for cls in [
-        Opticlock, SUServo, SYSU, MITLL, USTC, Tsinghua, WIPM, PTB, HUB, LUH,
-        Tester, Master, Satellite]}
+        Opticlock, SUServo, SYSU, MITLL, MITLL2, USTC, Tsinghua, WIPM, PTB, HUB, LUH,
+        VLBAIMaster, VLBAISatellite, Tester, Master, Satellite]}
     parser.add_argument("-V", "--variant", default="opticlock",
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(variants.keys()))))

@@ -134,8 +134,12 @@ pub fn tick() {
                     if clock_pattern_ok(g) {
                         let last_xy = get_last_pixels(g);
                         if last_xy != unsafe { INFO[g].frame_size } {
+                            // x capture is on ~LVAL which is after
+                            // the last increment on DVAL
+                            // y capture is on ~FVAL which coincides with the
+                            // last increment on ~LVAL
                             info!("grabber{} frame size: {}x{}",
-                                g, last_xy.0 + 1, last_xy.1 + 1);
+                                g, last_xy.0, last_xy.1 + 1);
                             unsafe { INFO[g].frame_size = last_xy }
                         }
                         State::Watch

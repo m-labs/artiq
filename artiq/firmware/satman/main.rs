@@ -381,6 +381,19 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
+#[cfg(rtio_frequency = "125.0")]
+const SI5324_SETTINGS: si5324::FrequencySettings
+    = si5324::FrequencySettings {
+    n1_hs  : 5,
+    nc1_ls : 8,
+    n2_hs  : 7,
+    n2_ls  : 360,
+    n31    : 63,
+    n32    : 63,
+    bwsel  : 4,
+    crystal_ref: true
+};
+
 const SIPHASER_PHASE: u16 = 32;
 
 #[no_mangle]
