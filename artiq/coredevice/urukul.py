@@ -1,15 +1,15 @@
 from artiq.language.core import kernel, delay, portable
 from artiq.language.units import us, ms
 
-from numpy import int32, int64
+from numpy import int32
 
 from artiq.coredevice import spi2 as spi
 
 
 SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
-        0*spi.SPI_INPUT | 1*spi.SPI_CS_POLARITY |
-        0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
-        0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+              0*spi.SPI_INPUT | 1*spi.SPI_CS_POLARITY |
+              0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
+              0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
 
 # SPI clock write and read dividers
 SPIT_CFG_WR = 2
@@ -52,7 +52,7 @@ CS_DDS_CH3 = 7
 
 @portable
 def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
-        clk_sel, sync_sel, rst, io_rst):
+               clk_sel, sync_sel, rst, io_rst):
     """Build Urukul CPLD configuration register"""
     return ((rf_sw << CFG_RF_SW) |
             (led << CFG_LED) |
@@ -129,10 +129,10 @@ class CPLD:
     kernel_invariants = {"refclk", "bus", "core", "io_update"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
-            dds_reset_device=None, sync_sel=0, clk_sel=0, rf_sw=0,
-            refclk=125e6, att=0x00000000, core_device="core"):
+                 dds_reset_device=None, sync_sel=0, clk_sel=0, rf_sw=0,
+                 refclk=125e6, att=0x00000000, core_device="core"):
 
-        self.core   = dmgr.get(core_device)
+        self.core = dmgr.get(core_device)
         self.refclk = refclk
 
         self.bus = dmgr.get(spi_device)
@@ -144,8 +144,8 @@ class CPLD:
             self.dds_reset = dmgr.get(dds_reset_device)
 
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
-            io_update=0, mask_nu=0, clk_sel=clk_sel,
-            sync_sel=sync_sel, rst=0, io_rst=0)
+                                  io_update=0, mask_nu=0, clk_sel=clk_sel,
+                                  sync_sel=sync_sel, rst=0, io_rst=0)
         self.att_reg = att
 
     @kernel
@@ -158,7 +158,7 @@ class CPLD:
             :attr:`cfg_reg`.
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 24,
-                SPIT_CFG_WR, CS_CFG)
+                               SPIT_CFG_WR, CS_CFG)
         self.bus.write(cfg << 8)
         self.cfg_reg = cfg
 
@@ -177,7 +177,7 @@ class CPLD:
         :return: The status register value.
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 24,
-                SPIT_CFG_RD, CS_CFG)
+                               SPIT_CFG_RD, CS_CFG)
         self.bus.write(self.cfg_reg << 8)
         return self.bus.read()
 
@@ -249,7 +249,7 @@ class CPLD:
         :param att_reg: Attenuator setting string (32 bit)
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
-                SPIT_ATT_WR, CS_ATT)
+                               SPIT_ATT_WR, CS_ATT)
         self.bus.write(att_reg)
         self.att_reg = att_reg
 
@@ -273,6 +273,6 @@ class CPLD:
         :return: 32 bit attenuator settings
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 32,
-                SPIT_ATT_RD, CS_ATT)
+                               SPIT_ATT_RD, CS_ATT)
         self.bus.write(self.att_reg)
         return self.bus.read()
