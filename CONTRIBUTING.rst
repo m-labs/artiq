@@ -95,4 +95,4 @@ then you just add a line saying
 using your legal name (sorry, no pseudonyms or anonymous contributions.)
 
 ARTIQ files that do not contain a license header are copyrighted by M-Labs Limited
-and are licensed under GNU GPL version 3.
+and are licensed under GNU LGPL version 3 or later.
