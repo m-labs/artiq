@@ -32,7 +32,7 @@ def bit2bin(bit, bin, flip=False):
         if key in "abcd":
             d = bit.read(*struct.unpack(">H", bit.read(2)))
             assert d.endswith(b"\x00")
-            d = d.decode()
+            d = d[:-1].decode()
             name = {
                     "a": "Design",
                     "b": "Part name",
