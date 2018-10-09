@@ -25,7 +25,8 @@ CFG_LED = 4
 CFG_PROFILE = 8
 CFG_IO_UPDATE = 12
 CFG_MASK_NU = 13
-CFG_CLK_SEL = 17
+CFG_CLK_SEL0 = 17
+CFG_CLK_SEL1 = 21
 CFG_SYNC_SEL = 18
 CFG_RST = 19
 CFG_IO_RST = 20
@@ -59,7 +60,8 @@ def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
             (profile << CFG_PROFILE) |
             (io_update << CFG_IO_UPDATE) |
             (mask_nu << CFG_MASK_NU) |
-            (clk_sel << CFG_CLK_SEL) |
+            ((clk_sel & 0x01) << CFG_CLK_SEL0) |
+            ((clk_sel & 0x02) << (CFG_CLK_SEL1-1)) |
             (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) |
             (io_rst << CFG_IO_RST))
@@ -115,8 +117,11 @@ class CPLD:
     :param dds_reset_device: DDS reset RTIO TTLOut channel name
     :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
         frequency in Hz
-    :param clk_sel: Reference clock selection. 0 corresponds to the internal
-        MMCX or ob-board XO clock. 1 corresponds to the front panel SMA.
+    :param clk_sel: Reference clock selection. For hardware revision >= 1.3
+        valid options are: 0 - internal 100MHz XO; 1 - front-panel SMA; 2
+        internal MMCX. For hardware revision <= v1.2 valid options are: 0 -
+        either XO or MMCX dependent on component population; 1 SMA. Unsupported
+        clocking options are silently ignored.
     :param sync_sel: SYNC clock selection. 0 corresponds to SYNC clock over EEM
         from FPGA. 1 corresponds to SYNC clock from DDS0.
     :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
