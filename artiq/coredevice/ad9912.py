@@ -169,7 +169,7 @@ class AD9912:
         """Returns the phase offset word corresponding to the given
         phase.
         """
-        return int32(round((1 << 16)*phase))
+        return int32(round((1 << 14)*phase))
 
     @kernel
     def set(self, frequency, phase=0.0):
