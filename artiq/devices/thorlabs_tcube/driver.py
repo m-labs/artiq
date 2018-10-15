@@ -207,7 +207,8 @@ class _Tcube:
         # derived classes must implement this
         raise NotImplementedError
 
-    async def send_request(self, msgreq_id, wait_for_msgs, param1=0, param2=0, data=None):
+    async def send_request(self, msgreq_id, wait_for_msgs, param1=0, param2=0,
+                           data=None):
         await self.send(Message(msgreq_id, param1, param2, data=data))
         msg = None
         while msg is None or msg.id not in wait_for_msgs:
@@ -336,7 +337,7 @@ class Tpz(_Tcube):
         :rtype: int
         """
         get_msg = await self.send_request(MGMSG.PZ_REQ_POSCONTROLMODE,
-                                    [MGMSG.PZ_GET_POSCONTROLMODE], 1)
+                                          [MGMSG.PZ_GET_POSCONTROLMODE], 1)
         return get_msg.param2
 
     async def set_output_volts(self, voltage):
@@ -349,8 +350,8 @@ class Tpz(_Tcube):
             in open loop mode. The voltage value must be in range
             [0; voltage_limit]. Voltage_limit being set by the
             :py:meth:`set_tpz_io_settings()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>` method
-            between the three values 75 V, 100 V and 150 V.
+            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+            method between the three values 75 V, 100 V and 150 V.
         """
         if voltage < 0 or voltage > self.voltage_limit:
             raise ValueError("Voltage must be in range [0;{}]"
@@ -366,7 +367,7 @@ class Tpz(_Tcube):
         :rtype: float
         """
         get_msg = await self.send_request(MGMSG.PZ_REQ_OUTPUTVOLTS,
-                                         [MGMSG.PZ_GET_OUTPUTVOLTS], 1)
+                                          [MGMSG.PZ_GET_OUTPUTVOLTS], 1)
         return st.unpack("<H", get_msg.data[2:])[0]*self.voltage_limit/32767
 
     async def set_output_position(self, position_sw):
@@ -427,12 +428,12 @@ class Tpz(_Tcube):
 
         :return: Value which selects the various analog sources, cf.
             :py:meth:`set_input_volts_source()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_input_volts_source>` method
-            docstring for meaning of bits.
+            <artiq.devices.thorlabs_tcube.driver.Tpz.set_input_volts_source>`
+            method docstring for meaning of bits.
         :rtype: int
         """
         get_msg = await self.send_request(MGMSG.PZ_REQ_INPUTVOLTSSRC,
-                                    [MGMSG.PZ_GET_INPUTVOLTSSRC], 1)
+                                          [MGMSG.PZ_GET_INPUTVOLTSSRC], 1)
         return st.unpack("<H", get_msg.data[2:])[0]
 
     async def set_pi_constants(self, prop_const, int_const):
@@ -459,7 +460,7 @@ class Tpz(_Tcube):
         :rtype: a 2 int elements tuple : (int, int)
         """
         get_msg = await self.send_request(MGMSG.PZ_REQ_PICONSTS,
-                                         [MGMSG.PZ_GET_PICONSTS], 1)
+                                          [MGMSG.PZ_GET_PICONSTS], 1)
         return st.unpack("<HH", get_msg.data[2:])
 
     async def set_output_lut(self, lut_index, output):
@@ -500,7 +501,8 @@ class Tpz(_Tcube):
         :param output: The voltage value to be set. Values are in the range
             [0; voltage_limit]. Voltage_limit being set with the
             :py:meth:`set_tpz_io_settings
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>` method.
+            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+            method.
         """
         volt = round(output*32767/self.voltage_limit)
         payload = st.pack("<HHH", 1, lut_index, volt)
@@ -519,7 +521,8 @@ class Tpz(_Tcube):
         return index, output*self.voltage_limit/32767
 
     async def set_output_lut_parameters(self, mode, cycle_length, num_cycles,
-                                        delay_time, precycle_rest, postcycle_rest):
+                                        delay_time, precycle_rest,
+                                        postcycle_rest):
         """Set Waveform Generator Mode parameters.
 
         It is possible to use the controller in an arbitrary Waveform
@@ -680,8 +683,8 @@ class Tpz(_Tcube):
 
         :return: Returns a tuple whose elements are the voltage limit and the
             Hub analog input. Refer to :py:meth:`set_tpz_io_settings()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>` for the
-            meaning of those parameters.
+            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>` for
+            the meaning of those parameters.
         :rtype: a 2 elements tuple (int, int)
         """
         get_msg = await self.send_request(MGMSG.PZ_REQ_TPZ_IOSETTINGS,
@@ -839,7 +842,7 @@ class Tdc(_Tcube):
         return st.unpack("<LL", get_msg.data[6:])
 
     async def set_jog_parameters(self, mode, step_size, acceleration,
-                           max_velocity, stop_mode):
+                                 max_velocity, stop_mode):
         """Set the velocity jog parameters.
 
         :param mode: 1 for continuous jogging, 2 for single step jogging.
@@ -883,7 +886,7 @@ class Tdc(_Tcube):
         :rtype: int
         """
         get_msg = await self.send_request(MGMSG.MOT_REQ_GENMOVEPARAMS,
-                                         [MGMSG.MOT_GET_GENMOVEPARAMS], 1)
+                                          [MGMSG.MOT_GET_GENMOVEPARAMS], 1)
         return st.unpack("<l", get_msg.data[2:])[0]
 
     async def set_move_relative_parameters(self, relative_distance):
@@ -950,7 +953,8 @@ class Tdc(_Tcube):
         This call is blocking until device is homed or move is stopped.
         """
         await self.send_request(MGMSG.MOT_MOVE_HOME,
-                          [MGMSG.MOT_MOVE_HOMED, MGMSG.MOT_MOVE_STOPPED], 1)
+                                [MGMSG.MOT_MOVE_HOMED, MGMSG.MOT_MOVE_STOPPED],
+                                1)
 
     async def set_limit_switch_parameters(self, cw_hw_limit, ccw_hw_limit):
         """Set the limit switch parameters.
@@ -1005,7 +1009,9 @@ class Tdc(_Tcube):
         command.
         """
         await self.send_request(MGMSG.MOT_MOVE_RELATIVE,
-                                [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED], 1)
+                                [MGMSG.MOT_MOVE_COMPLETED,
+                                 MGMSG.MOT_MOVE_STOPPED],
+                                1)
 
     async def move_relative(self, relative_distance):
         """Start a relative move
@@ -1015,7 +1021,8 @@ class Tdc(_Tcube):
         """
         payload = st.pack("<Hl", 1, relative_distance)
         await self.send_request(MGMSG.MOT_MOVE_RELATIVE,
-                                [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                                [MGMSG.MOT_MOVE_COMPLETED,
+                                 MGMSG.MOT_MOVE_STOPPED],
                                 data=payload)
 
     async def move_absolute_memory(self):
@@ -1027,7 +1034,8 @@ class Tdc(_Tcube):
         command.
         """
         await self.send_request(MGMSG.MOT_MOVE_ABSOLUTE,
-                                [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                                [MGMSG.MOT_MOVE_COMPLETED,
+                                 MGMSG.MOT_MOVE_STOPPED],
                                 param1=1)
 
     async def move_absolute(self, absolute_distance):
@@ -1039,7 +1047,8 @@ class Tdc(_Tcube):
         """
         payload = st.pack("<Hl", 1, absolute_distance)
         await self.send_request(MGMSG.MOT_MOVE_ABSOLUTE,
-                                [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                                [MGMSG.MOT_MOVE_COMPLETED,
+                                 MGMSG.MOT_MOVE_STOPPED],
                                 data=payload)
 
     async def move_jog(self, direction):
@@ -1048,7 +1057,8 @@ class Tdc(_Tcube):
         :param direction: The direction to jog. 1 is forward, 2 is backward.
         """
         await self.send_request(MGMSG.MOT_MOVE_JOG,
-                                [MGMSG.MOT_MOVE_COMPLETED, MGMSG.MOT_MOVE_STOPPED],
+                                [MGMSG.MOT_MOVE_COMPLETED,
+                                 MGMSG.MOT_MOVE_STOPPED],
                                 param1=1, param2=direction)
 
     async def move_velocity(self, direction):
@@ -1065,7 +1075,8 @@ class Tdc(_Tcube):
         :param direction: The direction to jog: 1 to move forward, 2 to move
             backward.
         """
-        await self.send(Message(MGMSG.MOT_MOVE_VELOCITY, param1=1, param2=direction))
+        await self.send(Message(MGMSG.MOT_MOVE_VELOCITY, param1=1,
+                                param2=direction))
 
     async def move_stop(self, stop_mode):
         """Stop any type of motor move.
@@ -1080,11 +1091,11 @@ class Tdc(_Tcube):
         if await self.is_moving():
             await self.send_request(MGMSG.MOT_MOVE_STOP,
                                     [MGMSG.MOT_MOVE_STOPPED,
-                                    MGMSG.MOT_MOVE_COMPLETED],
+                                     MGMSG.MOT_MOVE_COMPLETED],
                                     1, stop_mode)
 
     async def set_dc_pid_parameters(self, proportional, integral, differential,
-                              integral_limit, filter_control=0x0F):
+                                    integral_limit, filter_control=0x0F):
         """Set the position control loop parameters.
 
         :param proportional: The proportional gain, values in range [0; 32767].
@@ -1108,8 +1119,8 @@ class Tdc(_Tcube):
         :return: A 5 int tuple containing in this order:
             proportional gain, integral gain, differential gain, integral limit
             and filter control. Cf. :py:meth:`set_dc_pid_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_dc_pid_parameters>` for
-            precise description.
+            <artiq.devices.thorlabs_tcube.driver.Tdc.set_dc_pid_parameters>`
+            for precise description.
         :rtype: A 5 int tuple.
         """
         get_msg = await self.send_request(MGMSG.MOT_REQ_DCPIDPARAMS,
@@ -1151,10 +1162,10 @@ class Tdc(_Tcube):
         :param mode: If set to 1, the buttons are used to jog the motor. Once
             set to this mode, the move parameters for the buttons are taken
             from the arguments of the :py:meth:`set_jog_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_jog_parameters>` method.
-            If set to 2, each button can be programmed with a differente
-            position value such that the controller will move the motor to that
-            position when the specific button is pressed.
+            <artiq.devices.thorlabs_tcube.driver.Tdc.set_jog_parameters>`
+            method. If set to 2, each button can be programmed with a
+            differente position value such that the controller will move the
+            motor to that position when the specific button is pressed.
         :param position1: The position (in encoder counts) to which the motor
             will move when the top button is pressed.
         :param position2: The position (in encoder counts) to which the motor
@@ -1169,8 +1180,8 @@ class Tdc(_Tcube):
 
         :return: A 3 int tuple containing in this order: button mode,
             position1 and position2. Cf. :py:meth:`set_button_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_button_parameters>` for
-            description.
+            <artiq.devices.thorlabs_tcube.driver.Tdc.set_button_parameters>`
+            for description.
         :rtype: A 3 int tuple
         """
         get_msg = await self.send_request(MGMSG.MOT_REQ_BUTTONPARAMS,
