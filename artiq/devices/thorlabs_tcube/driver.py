@@ -219,7 +219,7 @@ class _Tcube:
     async def set_channel_enable_state(self, activated):
         """Enable or Disable channel 1.
 
-        :param activated: 1 to enable channel, 2 to disable it.
+        :param activated: 1 to enable channel, 0 to disable it.
         """
 
         if activated:
