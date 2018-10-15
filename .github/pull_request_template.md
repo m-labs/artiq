@@ -12,33 +12,45 @@ Based on https://raw.githubusercontent.com/PyCQA/pylint/master/.github/PULL_REQU
 
 # ARTIQ Pull Request
 
-## Steps (Choose relevant, delete before submitting)
+## Steps (Choose relevant, delete irrelevant before submitting)
 
 ### All Pull Requests
 
-- [ ] Use correct spelling and grammar.
-- [ ] Update RELEASE_NOTES.md if there are noteworthy changes, especially if there are changes to existing APIs.
-- [ ] Close and/or update issues.
-- [ ] Check the copyright situation of your changes and sign off your patches (`git commit --signoff`, see [copyright](https://github.com/m-labs/artiq/blob/master/CONTRIBUTING.rst#copyright-and-sign-off)).
+- [x] Use correct spelling and grammar.
+- [ ] Update [RELEASE_NOTES.md](../RELEASE_NOTES.md) if there are noteworthy changes, especially if there are changes to existing APIs.
+- [ ] Close/update issues.
+- [ ] Check the copyright situation of your changes and sign off your patches (`git commit --signoff`, see [copyright](../CONTRIBUTING.rst#copyright-and-sign-off)).
 
 ### Code Changes
 
-- [ ] Run `flake8` to check code style (follow PEP-8 style)
+- [ ] Run `flake8` to check code style (follow PEP-8 style). `flake8` has issues with parsing Migen/gateware code, ignore as necessary.
 - [ ] Test your changes or have someone test them. Mention what was tested and how.
 - [ ] Add and check docstrings and comments
 - [ ] Check, test, and update the conda recipes in [conda/](../doc/)
-- [ ] Check, test, and update the [unittests in /artiq/test/](../artiq/test/)
+- [ ] Check, test, and update the [unittests in /artiq/test/](../artiq/test/) or [gateware simulations in /artiq/gateware/test](../artiq/gateware/test)
 
 ### Documentation Changes
 
-- [ ] Check, test, and update the documentation in [doc/](../doc/). Build documentation (Linux only: `cd doc; make html`) to ensure no errors.
+- [ ] Check, test, and update the documentation in [doc/](../doc/). Build documentation (`cd doc; make html`) to ensure no errors.
 
 ### Git Logistics
 
-- [ ] Split your contribution into logically separate changes (`git rebase --interactive`). Merge/squash/fixup commits that just fix or amend previous commits. Remove unintended changes. Clean up your commits. See **TODO** for instructions.
-- [ ] Write short & meaningful commit messages with the changed topic & a concise description (50 characters or less) in the first line. Describe everything else in the long explanation. Review each of your commits for this. (`git show`)
+- [ ] Split your contribution into logically separate changes (`git rebase --interactive`). Merge/squash/fixup commits that just fix or amend previous commits. Remove unintended changes & cleanup. See [tutorial](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase).
+- [ ] Write short & meaningful commit messages. Review each commit for messages (`git show`). Format:
+  ```
+  [topic]: description. < 50 characters total.
+  Longer description. < 70 characters per line
+  ```
+## Description of Changes
 
-## Description
+### Related Issue
+
+<!-- 
+If this PR fixes a particular issue, use the following to automatically close that issue
+once this PR gets merged:
+
+Closes #XXX 
+-->
 
 ## Type of Changes
 
@@ -50,16 +62,8 @@ Based on https://raw.githubusercontent.com/PyCQA/pylint/master/.github/PULL_REQU
 | ✓  | :hammer: Refactoring  |
 | ✓  | :scroll: Docs |
 
-## Related Issue
-
-<!-- 
-If this PR fixes a particular issue, use the following to automatically close that issue
-once this PR gets merged:
-
-Closes #XXX 
--->
 
 ### Licensing
 
 See [copyright & licensing for more info](https://github.com/m-labs/artiq/blob/master/CONTRIBUTING.rst#copyright-and-sign-off).
-ARTIQ files that do not contain a license header are copyrighted by M-Labs Limited and are licensed under GNU GPL version 3.
+ARTIQ files that do not contain a license header are copyrighted by M-Labs Limited and are licensed under LGPLv3+.
