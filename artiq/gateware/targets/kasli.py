@@ -457,7 +457,6 @@ class WIPM(_StandaloneBase):
 
 
 class NUDT(_StandaloneBase):
-    # Like Tester, but fewer peripherals and newer Sampler
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
@@ -473,6 +472,8 @@ class NUDT(_StandaloneBase):
         self.rtio_channels = []
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 6,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X)
         eem.Sampler.add_std(self, 2, 3, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
