@@ -286,7 +286,9 @@ class _Tcube:
 class Tpz(_Tcube):
     def __init__(self, serial_dev):
         _Tcube.__init__(self, serial_dev)
-        self.voltage_limit = self.get_tpz_io_settings()[0]
+        loop = asyncio.get_event_loop()
+        settings = loop.run_until_complete(self.get_tpz_io_settings())
+        self.voltage_limit = settings[0]
 
     async def handle_message(self, msg):
         msg_id = msg.id
