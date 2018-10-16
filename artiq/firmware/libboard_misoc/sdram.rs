@@ -244,13 +244,13 @@ mod ddr {
             ddrphy::rdly_dq_rst_write(1);
 
             for _ in 0..DDRPHY_MAX_DELAY {
-                sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
-                                       DFII_COMMAND_RDDATA);
-                spin_cycles(15);
-
                 let mut working = true;
-                for p in 0..DFII_NPHASES {
-                    for _ in 0..1024 {
+                for _ in 0..256 {
+                    sdram_phy::command_prd(DFII_COMMAND_CAS|DFII_COMMAND_CS|
+                                           DFII_COMMAND_RDDATA);
+                    spin_cycles(15);
+
+                    for p in 0..DFII_NPHASES {
                         for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
                             let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
                             let data = prs[DFII_PIX_DATA_SIZE * p + offset];
