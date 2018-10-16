@@ -38,7 +38,7 @@ Behavior
 
 * Operating System:
 * Conda version:
-* ARTIQ version: (package or git commit id, versions for bitstream, BIOS, runtime and host software). `conda list`
+* ARTIQ version: (package or git commit id, versions for bitstream, bootloader, runtime and host software). Run `conda list`
 * Hardware involved:
 
 <!--
