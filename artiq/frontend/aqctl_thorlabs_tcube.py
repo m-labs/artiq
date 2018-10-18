@@ -53,6 +53,8 @@ def main():
             dev = Tdc(args.device)
         elif product == "tpz001":
             dev = Tpz(args.device)
+            loop = asyncio.get_event_loop()
+            loop.run_until_complete(dev.get_tpz_io_settings())
         else:
             print("Invalid product string (-P/--product), "
                   "choose from tdc001 or tpz001")

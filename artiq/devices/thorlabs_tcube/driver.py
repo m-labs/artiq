@@ -285,10 +285,10 @@ class _Tcube:
 
 class Tpz(_Tcube):
     def __init__(self, serial_dev):
+        """ Either :meth: or :py:meth: must be awaited? completed? executed?
+        before any other method to finish initialising the drive. """
         _Tcube.__init__(self, serial_dev)
-        loop = asyncio.get_event_loop()
-        settings = loop.run_until_complete(self.get_tpz_io_settings())
-        self.voltage_limit = settings[0]
+        self.voltage_limit = None
 
     async def handle_message(self, msg):
         msg_id = msg.id
