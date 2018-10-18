@@ -284,13 +284,13 @@ class _Tcube:
 
 
 class Tpz(_Tcube):
+    """Either :py:meth:`set_tpz_io_settings()
+    <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+    or :py:meth:`get_tpz_io_settings()
+    <artiq.devices.thorlabs_tcube.driver.Tpz.get_tpz_io_settings>` must
+    be completed to finish initialising the driver.
+    """
     def __init__(self, serial_dev):
-        """Either :py:meth:`set_tpz_io_settings()
-        <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
-        or :py:meth:`get_tpz_io_settings()
-        <artiq.devices.thorlabs_tcube.driver.Tpz.get_tpz_io_settings>` must
-        be completed to finish initialising the driver.
-        """
         _Tcube.__init__(self, serial_dev)
         self.voltage_limit = None
 
