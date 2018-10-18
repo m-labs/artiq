@@ -285,8 +285,12 @@ class _Tcube:
 
 class Tpz(_Tcube):
     def __init__(self, serial_dev):
-        """ Either :meth: or :py:meth: must be awaited? completed? executed?
-        before any other method to finish initialising the drive. """
+        """Either :py:meth:`set_tpz_io_settings()
+        <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+        or :py:meth:`get_tpz_io_settings()
+        <artiq.devices.thorlabs_tcube.driver.Tpz.get_tpz_io_settings>` must
+        be completed to finish initialising the driver.
+        """
         _Tcube.__init__(self, serial_dev)
         self.voltage_limit = None
 
