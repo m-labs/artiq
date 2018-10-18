@@ -284,10 +284,8 @@ class _Tcube:
 
 
 class Tpz(_Tcube):
-    """Either :py:meth:`set_tpz_io_settings()
-    <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
-    or :py:meth:`get_tpz_io_settings()
-    <artiq.devices.thorlabs_tcube.driver.Tpz.get_tpz_io_settings>` must
+    """Either :py:meth:`set_tpz_io_settings()<Tpz.set_tpz_io_settings>`
+    or :py:meth:`get_tpz_io_settings()<Tpz.get_tpz_io_settings>` must
     be completed to finish initialising the driver.
     """
     def __init__(self, serial_dev):
@@ -355,8 +353,7 @@ class Tpz(_Tcube):
         :param voltage: The output voltage applied to the piezo when operating
             in open loop mode. The voltage value must be in range
             [0; voltage_limit]. Voltage_limit being set by the
-            :py:meth:`set_tpz_io_settings()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+            :py:meth:`set_tpz_io_settings()<Tpz.set_tpz_io_settings>`
             method between the three values 75 V, 100 V and 150 V.
         """
         if voltage < 0 or voltage > self.voltage_limit:
@@ -411,7 +408,7 @@ class Tpz(_Tcube):
 
             0x00 Software Only: Unit responds only to software inputs and the
             HV amp output is that set using the :py:meth:`set_output_volts()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_output_volts>` method.
+            <Tpz.set_output_volts>` method.
 
             0x01 External Signal: Unit sums the differential signal on the rear
             panel EXT IN(+) and EXT IN(-) connectors with the voltage set
@@ -433,8 +430,7 @@ class Tpz(_Tcube):
         amplifier circuit.
 
         :return: Value which selects the various analog sources, cf.
-            :py:meth:`set_input_volts_source()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_input_volts_source>`
+            :py:meth:`set_input_volts_source()<Tpz.set_input_volts_source>`
             method docstring for meaning of bits.
         :rtype: int
         """
@@ -495,7 +491,7 @@ class Tpz(_Tcube):
         applicable channel is specified by the Chan Ident parameter If only a
         sub set of the array is being used (as specified by the cyclelength
         parameter of the :py:meth:`set_output_lut_parameters()
-        <artiq.devices.thorlabs_tcube.driver.Tpz.set_output_lut_parameters>`
+        <Tpz.set_output_lut_parameters>`
         function), then only the first cyclelength values need to be set. In
         this manner, any arbitrary voltage waveform can be programmed into the
         LUT. Note. The LUT values are output by the system at a maximum
@@ -506,8 +502,7 @@ class Tpz(_Tcube):
             to 512 for TPZ).
         :param output: The voltage value to be set. Values are in the range
             [0; voltage_limit]. Voltage_limit being set with the
-            :py:meth:`set_tpz_io_settings
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>`
+            :py:meth:`set_tpz_io_settings<Tpz.set_tpz_io_settings>`
             method.
         """
         volt = round(output*32767/self.voltage_limit)
@@ -689,7 +684,7 @@ class Tpz(_Tcube):
 
         :return: Returns a tuple whose elements are the voltage limit and the
             Hub analog input. Refer to :py:meth:`set_tpz_io_settings()
-            <artiq.devices.thorlabs_tcube.driver.Tpz.set_tpz_io_settings>` for
+            <Tpz.set_tpz_io_settings>` for
             the meaning of those parameters.
         :rtype: a 2 elements tuple (int, int)
         """
@@ -769,8 +764,7 @@ class Tdc(_Tcube):
 
         :return: An 8 int tuple containing the following values: zero_wnd,
             vel1, wnd1, vel2, wnd2, vel3, wnd3, vel4. See
-            :py:meth:`set_pot_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_pot_parameters>` for a
+            :py:meth:`set_pot_parameters()<Tdc.set_pot_parameters>` for a
             description of each tuple element meaning.
         :rtype: An 8 int tuple
         """
@@ -998,7 +992,7 @@ class Tdc(_Tcube):
         :return: A 2 int tuple containing the following in order: cw_hw_limit,
          ccw_hw_limit. Cf. description in
          :py:meth:`set_limit_switch_parameters()
-         <artiq.devices.thorlabs_tcube.driver.Tdc.set_limit_switch_parameters>`
+         <Tdc.set_limit_switch_parameters>`
          method.
         :rtype: A 2 int tuple.
         """
@@ -1011,7 +1005,7 @@ class Tdc(_Tcube):
 
         The relative distance parameter used for the move will be the parameter
         sent previously by a :py:meth:`set_move_relative_parameters()
-        <artiq.devices.thorlabs_tcube.driver.Tdc.set_move_relative_parameters>`
+        <Tdc.set_move_relative_parameters>`
         command.
         """
         await self.send_request(MGMSG.MOT_MOVE_RELATIVE,
@@ -1036,7 +1030,7 @@ class Tdc(_Tcube):
 
         The absolute move position parameter used for the move will be the
         parameter sent previously by a :py:meth:`set_move_absolute_parameters()
-        <artiq.devices.thorlabs_tcube.driver.Tdc.set_move_absolute_parameters>`
+        <Tdc.set_move_absolute_parameters>`
         command.
         """
         await self.send_request(MGMSG.MOT_MOVE_ABSOLUTE,
@@ -1073,9 +1067,8 @@ class Tdc(_Tcube):
         When this method is called, the motor will move continuously in the
         specified direction using the velocity parameter set by the
         :py:meth:`set_move_relative_parameters()
-        <artiq.devices.thorlabs_tcube.driver.Tdc.set_move_relative_parameters>`
-        command until a :py:meth:`move_stop()
-        <artiq.devices.thorlabs_tcube.driver.Tdc.move_stop>` command (either
+        <Tdc.set_move_relative_parameters>`
+        command until a :py:meth:`move_stop()<Tdc.move_stop>` command (either
         StopImmediate or StopProfiled) is called, or a limit switch is reached.
 
         :param direction: The direction to jog: 1 to move forward, 2 to move
@@ -1125,7 +1118,7 @@ class Tdc(_Tcube):
         :return: A 5 int tuple containing in this order:
             proportional gain, integral gain, differential gain, integral limit
             and filter control. Cf. :py:meth:`set_dc_pid_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_dc_pid_parameters>`
+            <Tdc.set_dc_pid_parameters>`
             for precise description.
         :rtype: A 5 int tuple.
         """
@@ -1168,7 +1161,7 @@ class Tdc(_Tcube):
         :param mode: If set to 1, the buttons are used to jog the motor. Once
             set to this mode, the move parameters for the buttons are taken
             from the arguments of the :py:meth:`set_jog_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_jog_parameters>`
+            <Tdc.set_jog_parameters>`
             method. If set to 2, each button can be programmed with a
             differente position value such that the controller will move the
             motor to that position when the specific button is pressed.
@@ -1186,7 +1179,7 @@ class Tdc(_Tcube):
 
         :return: A 3 int tuple containing in this order: button mode,
             position1 and position2. Cf. :py:meth:`set_button_parameters()
-            <artiq.devices.thorlabs_tcube.driver.Tdc.set_button_parameters>`
+            <Tdc.set_button_parameters>`
             for description.
         :rtype: A 3 int tuple
         """
