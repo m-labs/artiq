@@ -117,7 +117,7 @@ def simple_network_args(parser, default_port):
     group = parser.add_argument_group("network server")
     group.add_argument(
         "--bind", default=[], action="append",
-        help="additional hostname or IP addresse to bind to; "
+        help="additional hostname or IP addresses to bind to; "
         "use '*' to bind to all interfaces (default: %(default)s)")
     group.add_argument(
         "--no-localhost-bind", default=False, action="store_true",
