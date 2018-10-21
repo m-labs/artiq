@@ -25,10 +25,10 @@ class RemoteExecDemo(EnvExperiment):
 
     def transfer_parameters(self, parameters):
         w, h, cx, cy = parameters
-        self.set_dataset("rexec_demo.gaussian_w", w, save=False, broadcast=True)
-        self.set_dataset("rexec_demo.gaussian_h", h, save=False, broadcast=True)
-        self.set_dataset("rexec_demo.gaussian_cx", cx, save=False, broadcast=True)
-        self.set_dataset("rexec_demo.gaussian_cy", cy, save=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_w", w, archive=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_h", h, archive=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_cx", cx, archive=False, broadcast=True)
+        self.set_dataset("rexec_demo.gaussian_cy", cy, archive=False, broadcast=True)
 
     def fps_meter(self):
         t = time.monotonic()
@@ -37,7 +37,7 @@ class RemoteExecDemo(EnvExperiment):
             dt = t - self.last_pt_update
             if dt >= 5:
                 pt = dt/self.iter_count
-                self.set_dataset("rexec_demo.picture_pt", pt, save=False, broadcast=True)
+                self.set_dataset("rexec_demo.picture_pt", pt, archive=False, broadcast=True)
                 self.last_pt_update = t
                 self.iter_count = 0
         else:
@@ -50,7 +50,7 @@ class RemoteExecDemo(EnvExperiment):
             data = self.camera_sim.get_picture()
             if self.show_picture:
                 self.set_dataset("rexec_demo.picture", data,
-                                 save=False, broadcast=True)
+                                 archive=False, broadcast=True)
             if self.enable_fit:
                 p = remote_exec_processing.fit(data, self.get_dataset)
                 self.transfer_parameters(p)

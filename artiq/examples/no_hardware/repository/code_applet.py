@@ -23,7 +23,7 @@ class CreateCodeApplet(EnvExperiment):
                "code_applet_dataset", code=f.read(), group="autoapplet")
             for i in reversed(range(10)):
                 self.set_dataset("code_applet_dataset", i,
-                                 broadcast=True, save=False)
+                                 broadcast=True, archive=False)
                 time.sleep(1)
             self.ccb.issue("disable_applet", "code_applet_example",
                            group="autoapplet")

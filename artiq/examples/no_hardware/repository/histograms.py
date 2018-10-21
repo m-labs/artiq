@@ -13,15 +13,15 @@ class Histograms(EnvExperiment):
 
         bin_boundaries = np.linspace(-10, 30, nbins + 1)
         self.set_dataset("hd_bins", bin_boundaries,
-                         broadcast=True, save=False)
+                         broadcast=True, archive=False)
 
         xs = np.empty(npoints)
         xs.fill(np.nan)
         self.set_dataset("hd_xs", xs,
-                         broadcast=True, save=False)
+                         broadcast=True, archive=False)
 
         self.set_dataset("hd_counts", np.empty((npoints, nbins)), 
-                         broadcast=True, save=False)
+                         broadcast=True, archive=False)
 
         for i in range(npoints):
             histogram, _ = np.histogram(np.random.normal(i, size=1000),

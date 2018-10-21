@@ -117,7 +117,7 @@ class DatasetManager:
         self.ddb = ddb
         self.broadcast.publish = ddb.update
 
-    def set(self, key, value, broadcast=False, persist=False, save=True):
+    def set(self, key, value, broadcast=False, persist=False, archive=True):
         if key in self.archive:
             logger.warning("Modifying dataset '%s' which is in archive, "
                            "archive will remain untouched",
@@ -129,7 +129,7 @@ class DatasetManager:
             self.broadcast[key] = persist, value
         elif key in self.broadcast.read:
             del self.broadcast[key]
-        if save:
+        if archive:
             self.local[key] = value
         elif key in self.local:
             del self.local[key]

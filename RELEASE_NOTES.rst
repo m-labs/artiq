@@ -39,6 +39,8 @@ ARTIQ-4
   is no longer necessary.
 * The configuration entry ``startup_clock`` is renamed ``rtio_clock``. Switching
   clocks dynamically (i.e. without device restart) is no longer supported.
+* ``set_dataset(..., save=True)`` has been renamed
+  ``set_dataset(..., archive=True)``.
 
 
 ARTIQ-3

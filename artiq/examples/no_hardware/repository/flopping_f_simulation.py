@@ -35,12 +35,12 @@ class FloppingF(EnvExperiment):
         l = len(self.frequency_scan)
         self.set_dataset("flopping_f_frequency",
                          np.full(l, np.nan),
-                         broadcast=True, save=False)
+                         broadcast=True, archive=False)
         self.set_dataset("flopping_f_brightness",
                          np.full(l, np.nan),
                          broadcast=True)
         self.set_dataset("flopping_f_fit", np.full(l, np.nan),
-                         broadcast=True, save=False)
+                         broadcast=True, archive=False)
 
         self.ccb.issue("create_applet", "flopping_f",
            "${artiq_applet}plot_xy "
@@ -66,14 +66,14 @@ class FloppingF(EnvExperiment):
             frequency = np.fromiter(self.frequency_scan, np.float)
             assert frequency.shape == brightness.shape
             self.set_dataset("flopping_f_frequency", frequency,
-                             broadcast=True, save=False)
+                             broadcast=True, archive=False)
         popt, pcov = curve_fit(model, frequency, brightness,
                                p0=[self.get_dataset("flopping_freq", 1500.0,
                                                     archive=False)])
         perr = np.sqrt(np.diag(pcov))
         if perr < 0.1:
             F0 = float(popt)
-            self.set_dataset("flopping_freq", F0, persist=True, save=False)
+            self.set_dataset("flopping_freq", F0, persist=True, archive=False)
             self.set_dataset("flopping_f_fit",
                              np.array([model(x, F0) for x in frequency]),
-                             broadcast=True, save=False)
+                             broadcast=True, archive=False)
