@@ -17,7 +17,7 @@ class Channel:
         if ofifo_depth is None:
             ofifo_depth = 64
         else:
-            warnings.warn("ofifo_depth is deprecated", DeprecationWarning)
+            warnings.warn("ofifo_depth is deprecated", FutureWarning)
         self.ofifo_depth = ofifo_depth
         self.ififo_depth = ififo_depth
 

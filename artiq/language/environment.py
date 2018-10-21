@@ -303,7 +303,7 @@ class HasEnvironment:
         """
         if save is not None:
             warnings.warn("set_dataset save parameter is deprecated, "
-                          "use archive instead", DeprecationWarning)
+                          "use archive instead", FutureWarning)
             archive = save
         self.__dataset_mgr.set(key, value, broadcast, persist, archive)
 
