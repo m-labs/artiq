@@ -80,6 +80,7 @@ ARTIQ-4
   ``PHASE_MODE_CONTINUOUS`` to avoid a phase discontinuity. This is no longer done
   automatically. If one phase glitch when entering ``PHASE_MODE_CONTINUOUS`` is not
   an issue, this recommendation can be ignored.
+* :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
 
 
 ARTIQ-3
