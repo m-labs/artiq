@@ -126,7 +126,7 @@ def get_argparser(with_file=True):
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
 
-    verbosity_args(parser)
+    add_common_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
     parser.add_argument("--dataset-db", default="dataset_db.pyon",

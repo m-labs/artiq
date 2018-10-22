@@ -132,14 +132,14 @@ We suggest that you define a function ``get_argparser`` that returns the argumen
 Logging
 -------
 
-For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling the ``verbosity_args()`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
+For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling :func:`artiq.tools.add_common_args` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
 
 The program below exemplifies how to use logging: ::
 
     import argparse
     import logging
 
-    from artiq.tools import verbosity_args, init_logger
+    from artiq.tools import add_common_args, init_logger
 
 
     # get a logger that prints the module name
@@ -151,7 +151,7 @@ The program below exemplifies how to use logging: ::
         parser.add_argument("--someargument",
                             help="some argument")
         # [...]
-        verbosity_args(parser) # This adds the -q and -v handling
+        add_common_args(parser) # This adds the -q and -v handling
         return parser
 
 

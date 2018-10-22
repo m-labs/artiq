@@ -22,7 +22,7 @@ def get_argparser():
                         help="Put the driver in simulation mode, even if "
                              "--device is used.")
     simple_network_args(parser, 3255)
-    verbosity_args(parser)
+    add_common_args(parser)
     return parser
 
 

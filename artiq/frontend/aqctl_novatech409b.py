@@ -26,7 +26,7 @@ def get_argparser():
     parser.add_argument(
         "--simulation", action="store_true",
         help="Put the driver in simulation mode, even if --device is used.")
-    verbosity_args(parser)
+    add_common_args(parser)
     return parser
 
 
