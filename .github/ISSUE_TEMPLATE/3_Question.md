@@ -1,6 +1,6 @@
 ---
 name: Support question
-about: Questions about ARTIQ that are not covered in the documentation (Latest: https://m-labs.hk/artiq/manual-master/ or Stable: https://m-labs.hk/artiq/manual/)
+about: Questions about ARTIQ that are not covered in the documentation. (Latest = https://m-labs.hk/artiq/manual-master/ or Stable = https://m-labs.hk/artiq/manual/)
 
 ---
 
