@@ -15,7 +15,7 @@ from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.broadcast import Receiver
 from artiq.protocols import pyon
-from artiq.tools import short_format
+from artiq.tools import short_format, add_common_args
 
 
 def clear_screen():
@@ -25,7 +25,7 @@ def clear_screen():
         sys.stdout.write("\x1b[2J\x1b[H")
 
 
-def get_argparser():
+def get_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -57,10 +57,7 @@ def get_argparser():
                                  "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
-    parser_add.add_argument("-v", "--verbose", default=0, action="count",
-                            help="increase logging level of the experiment")
-    parser_add.add_argument("-q", "--quiet", default=0, action="count",
-                            help="decrease logging level of the experiment")
+    add_common_args(parser)
     parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
