@@ -230,3 +230,13 @@ class AD9910:
         :param att: Attenuation in dB.
         """
         self.cpld.set_att(self.chip_select - 4, att)
+
+    @kernel
+    def cfg_sw(self, state):
+        """Set CPLD CFG RF switch state. The RF switch is controlled by the
+        logical or of the CPLD configuration shift register
+        RF switch bit and the SW TTL line (if used).
+
+        :param state: CPLD CFG RF switch bit
+        """
+        self.cpld.cfg_sw(self.chip_select - 4, state)
