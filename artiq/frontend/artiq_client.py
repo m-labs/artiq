@@ -15,7 +15,7 @@ from artiq.protocols.pc_rpc import Client
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.broadcast import Receiver
 from artiq.protocols import pyon
-from artiq.tools import short_format
+from artiq.tools import short_format, parse_arguments
 
 
 def clear_screen():
@@ -46,7 +46,8 @@ def get_argparser():
                                  "scheduling, default: %(default)s)")
     parser_add.add_argument("-t", "--timed", default=None, type=str,
                             help="set a due date for the experiment")
-    parser_add.add_argument("-f", "--flush", default=False, action="store_true",
+    parser_add.add_argument("-f", "--flush", default=False,
+                            action="store_true",
                             help="flush the pipeline before preparing "
                             "the experiment")
     parser_add.add_argument("-R", "--repository", default=False,
@@ -80,10 +81,12 @@ def get_argparser():
                                     help="name of the dataset")
     parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
-    parser_set_dataset.add_argument("-p", "--persist", action="store_true",
-                                    help="make the dataset persistent")
-    parser_set_dataset.add_argument("-n", "--no-persist", action="store_true",
-                                    help="make the dataset non-persistent")
+    # Allow only one of --persist or --no-persist arguments
+    persist_group = parser_set_dataset.add_mutually_exclusive_group()
+    persist_group.add_argument("-p", "--persist", action="store_true",
+                               help="make the dataset persistent")
+    persist_group.add_argument("-n", "--no-persist", action="store_true",
+                               help="make the dataset non-persistent")
 
     parser_del_dataset = subparsers.add_parser(
         "del-dataset", help="delete a dataset")
@@ -93,7 +96,8 @@ def get_argparser():
         "show", help="show schedule, log, devices or datasets")
     parser_show.add_argument(
         "what", metavar="WHAT",
-        help="select object to show: schedule/log/devices/datasets")
+        choices=["schedule", "log", "ccb", "devices", "datasets"],
+        help="select object to show: %(choices)s")
 
     subparsers.add_parser(
         "scan-devices", help="trigger a device database (re)scan")
@@ -114,17 +118,9 @@ def get_argparser():
     return parser
 
 
-def _parse_arguments(arguments):
-    d = {}
-    for argument in arguments:
-        name, value = argument.split("=")
-        d[name] = pyon.decode(value)
-    return d
-
-
 def _action_submit(remote, args):
     try:
-        arguments = _parse_arguments(args.arguments)
+        arguments = parse_arguments(args.arguments)
     except:
         print("Failed to parse run arguments")
         sys.exit(1)
@@ -154,10 +150,6 @@ def _action_delete(remote, args):
 
 
 def _action_set_dataset(remote, args):
-    if args.persist and args.no_persist:
-        print("Options --persist and --no-persist cannot be specified "
-              "at the same time")
-        sys.exit(1)
     persist = None
     if args.persist:
         persist = True
@@ -190,13 +182,13 @@ def _action_ls(remote, args):
 def _show_schedule(schedule):
     clear_screen()
     if schedule:
-        l = sorted(schedule.items(),
-                   key=lambda x: (-x[1]["priority"],
-                                  x[1]["due_date"] or 0,
-                                  x[0]))
+        sorted_schedule = sorted(schedule.items(),
+                                 key=lambda x: (-x[1]["priority"],
+                                                x[1]["due_date"] or 0,
+                                                x[0]))
         table = PrettyTable(["RID", "Pipeline", "    Status    ", "Prio",
                              "Due date", "Revision", "File", "Class name"])
-        for rid, v in l:
+        for rid, v in sorted_schedule:
             row = [rid, v["pipeline"], v["status"], v["priority"]]
             if v["due_date"] is None:
                 row.append("")
@@ -252,6 +244,7 @@ def _run_subscriber(host, port, subscriber):
 
 def _show_dict(args, notifier_name, display_fun):
     d = dict()
+
     def init_d(x):
         d.clear()
         d.update(x)
@@ -298,9 +291,6 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
-        else:
-            print("Unknown object to show, use -h to list valid names.")
-            sys.exit(1)
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
@@ -317,6 +307,7 @@ def main():
             globals()["_action_" + action](remote, args)
         finally:
             remote.close_rpc()
+
 
 if __name__ == "__main__":
     main()
