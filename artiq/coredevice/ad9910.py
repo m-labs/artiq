@@ -136,7 +136,7 @@ class AD9910:
         """
         # Set SPI mode
         self.write32(_AD9910_REG_CFR1, 0x00000002)
-        self.cpld.io_update.pulse(2*us)
+        self.cpld.io_update.pulse(1*us)
         delay(1*ms)
         if not blind:
             # Use the AUX DAC setting to identify and confirm presence
@@ -146,13 +146,13 @@ class AD9910:
             delay(50*us)  # slack
         # Configure PLL settings and bring up PLL
         self.write32(_AD9910_REG_CFR2, 0x01400020)
-        self.cpld.io_update.pulse(2*us)
+        self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
-        self.cpld.io_update.pulse(100*us)
+        self.cpld.io_update.pulse(1*us)
         self.write32(_AD9910_REG_CFR3, cfr3)
-        self.cpld.io_update.pulse(100*us)
+        self.cpld.io_update.pulse(1*us)
         if blind:
             delay(100*ms)
             return
@@ -172,7 +172,6 @@ class AD9910:
         :param bits: power down bits, see datasheet
         """
         self.write32(_AD9910_REG_CFR1, 0x00000002 | (bits << 4))
-        delay(1*us)
         self.cpld.io_update.pulse(1*us)
 
     @kernel
@@ -187,7 +186,7 @@ class AD9910:
         :param asf: Amplitude scale factor: 14 bit unsigned.
         """
         self.write64(_AD9910_REG_PR0, (asf << 16) | pow, ftw)
-        self.cpld.io_update.pulse(10*ns)
+        self.cpld.io_update.pulse_mu(8)
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
