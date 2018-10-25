@@ -148,7 +148,8 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, iostandard="LVDS_25"):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None,
+                iostandard="LVDS_25"):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
@@ -157,7 +158,12 @@ class Urukul(_EEM):
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
         pads = target.platform.request("urukul{}_dds_reset".format(eem))
-        target.specials += DifferentialOutput(0, pads.p, pads.n)
+        pad = Signal(reset=0)
+        target.specials += DifferentialOutput(pad, pads.p, pads.n)
+        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+            phy = sync_gen_cls(pad, ftw_width=4)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         pads = target.platform.request("urukul{}_io_update".format(eem))
         phy = ttl_out_cls(pads.p, pads.n)
@@ -169,7 +175,6 @@ class Urukul(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
-
 
 class Sampler(_EEM):
     @staticmethod
