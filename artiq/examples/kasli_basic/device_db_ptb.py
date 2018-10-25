@@ -218,7 +218,7 @@ device_db.update({
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 39}
+        "arguments": {"channel": 40}
     },
     "zotino0": {
         "type": "local",
