@@ -166,6 +166,16 @@ class AD9910:
         raise ValueError("PLL lock timeout")
 
     @kernel
+    def power_down(self, bits=0b1111):
+        """Power down DDS.
+
+        :param bits: power down bits, see datasheet
+        """
+        self.write32(_AD9910_REG_CFR1, 0x00000002 | (bits << 4))
+        delay(1*us)
+        self.cpld.io_update.pulse(1*us)
+
+    @kernel
     def set_mu(self, ftw, pow=0, asf=0x3fff):
         """Set profile 0 data in machine units.
 
