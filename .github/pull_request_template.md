@@ -59,7 +59,8 @@ Closes #XXX
 - [ ] Split your contribution into logically separate changes (`git rebase --interactive`). Merge/squash/fixup commits that just fix or amend previous commits. Remove unintended changes & cleanup. See [tutorial](https://www.atlassian.com/git/tutorials/rewriting-history/git-rebase).
 - [ ] Write short & meaningful commit messages. Review each commit for messages (`git show`). Format:
   ```
-  [topic]: description. < 50 characters total.
+  topic: description. < 50 characters total.
+  
   Longer description. < 70 characters per line
   ```
 
