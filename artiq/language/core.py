@@ -199,7 +199,12 @@ def delay_mu(duration):
 
 
 def now_mu():
-    """Retrieves the current RTIO time, in machine units."""
+    """Retrieve the current RTIO timeline cursor, in machine units.
+
+    Note the conceptual difference between this and the current value of the
+    hardware RTIO counter; see e.g.
+    :meth:`artiq.coredevice.core.Core.get_rtio_counter_mu` for the latter.
+    """
     return _time_manager.get_time_mu()
 
 
