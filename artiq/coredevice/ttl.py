@@ -190,7 +190,8 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
         """
         self._set_sensitivity(1)
         delay_mu(duration)
@@ -204,7 +205,8 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
         """
         self._set_sensitivity(2)
         delay_mu(duration)
@@ -218,7 +220,8 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
         """
         self._set_sensitivity(3)
         delay_mu(duration)
@@ -232,7 +235,8 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
         """
         self._set_sensitivity(1)
         delay(duration)
@@ -246,7 +250,9 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
+
         """
         self._set_sensitivity(2)
         delay(duration)
@@ -260,7 +266,8 @@ class TTLInOut:
 
         The time cursor is advanced by the specified duration.
 
-        :return: The timeline cursor at the end of the gate window.
+        :return: The timeline cursor at the end of the gate window, for
+            convenience when used with :meth:`count`/:meth:`timestamp_mu`.
         """
         self._set_sensitivity(3)
         delay(duration)
@@ -269,10 +276,52 @@ class TTLInOut:
 
     @kernel
     def count(self, up_to_timestamp_mu):
-        """Poll the RTIO input up to the specified timestamp, and returns the
-        number of registered events.
+        """Consume RTIO input events until the hardware timestamp counter has
+        reached the specified timestamp and return the number of observed
+        events.
 
-        This function does not interact with the timeline cursor."""
+        This function does not interact with the timeline cursor.
+
+        See the ``gate_*()`` family of methods to select the input transitions
+        that generate events, and :meth:`timestamp_mu` to obtain the timestamp
+        of the first event rather than an accumulated count.
+
+        :param up_to_timestamp_mu: The timestamp up to which execution is
+            blocked, that is, up to which input events are guaranteed to be
+            taken into account. (Events with later timestamps might still be
+            registered if they are already available.)
+
+        :return: The number of events before the timeout elapsed (0 if none
+            observed).
+
+        Examples:
+            To count events on channel ``ttl_input``, up to the current timeline
+            position::
+
+                ttl_input.count(now_mu())
+
+            If other events are scheduled between the end of the input gate
+            period and when the number of events is counted, using ``now_mu()``
+            as timeout consumes an unnecessary amount of timeline slack. In
+            such cases, it can be beneficial to pass a more precise timestamp,
+            for example::
+
+                gate_end_mu = ttl_input.gate_rising(100 * us)
+
+                # Schedule a long pulse sequence, represented here by a delay.
+                delay(10 * ms)
+
+                # Get number of rising edges. This will block until the end of
+                # the gate window, but does not wait for the long pulse sequence
+                # afterwards, thus (likely) completing with a large amount of
+                # slack left.
+                num_rising_edges = ttl_input.count(gate_end_mu)
+
+            The ``gate_*()`` family of methods return the cursor at the end
+            of the window, allowing this to be expressed in a compact fashion::
+
+                ttl_input.count(ttl_input.gate_rising(100 * us))
+        """
         count = 0
         while rtio_input_timestamp(up_to_timestamp_mu, self.channel) >= 0:
             count += 1
@@ -280,13 +329,23 @@ class TTLInOut:
 
     @kernel
     def timestamp_mu(self, up_to_timestamp_mu):
-        """Poll the RTIO input and returns an event timestamp (in machine
-        units) according to the selected gates, or -1 if no event occured before
-        the specified timestamp.
+        """Return the timestamp of the next RTIO input event, or -1 if the
+        hardware timestamp counter reaches the given value before an event is
+        received.
 
-        If the gate is permanently closed, returns a negative value.
+        This function does not interact with the timeline cursor.
 
-        This function does not interact with the timeline cursor."""
+        See the ``gate_*()`` family of methods to select the input transitions
+        that generate events, and :meth:`count` for usage examples.
+
+        :param up_to_timestamp_mu: The timestamp up to which execution is
+            blocked, that is, up to which input events are guaranteed to be
+            taken into account. (Events with later timestamps might still be
+            registered if they are already available.)
+
+        :return: The timestamp (in machine units) of the first event received;
+            -1 on timeout.
+        """
         return rtio_input_timestamp(up_to_timestamp_mu, self.channel)
 
     # Input API: sampling
