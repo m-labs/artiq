@@ -134,7 +134,7 @@ class Core:
 
     @portable
     def seconds_to_mu(self, seconds):
-        """Converts seconds to the corresponding number of machine units
+        """Convert seconds to the corresponding number of machine units
         (RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
@@ -143,7 +143,7 @@ class Core:
 
     @portable
     def mu_to_seconds(self, mu):
-        """Converts machine units (RTIO cycles) to seconds.
+        """Convert machine units (RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
@@ -166,7 +166,7 @@ class Core:
 
     @kernel
     def get_drtio_link_status(self, linkno):
-        """Returns whether the specified DRTIO link is up.
+        """Return whether the specified DRTIO link is up.
 
         This is particularly useful in startup kernels to delay
         startup until certain DRTIO links are up."""
