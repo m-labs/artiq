@@ -6,6 +6,7 @@ from artiq.language.units import us, ns, ms
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
 urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
+urukul_sta_smp_err = urukul.urukul_sta_smp_err
 
 
 _AD9910_REG_CFR1 = 0x00
@@ -49,12 +50,15 @@ class AD9910:
         Urukul CPLD instance).
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
+    :param sync_delay_seed: SYNC_IN delay tuning starting value.
+        To stabilize the SYNC_IN delay tuning, run :meth:`tune_sync_delay` once and
+        set this to the delay tap number returned by :meth:`tune_sync_delay`.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-            "ftw_per_hz", "pll_n", "pll_cp", "pll_vco"}
+            "ftw_per_hz", "pll_n", "pll_cp", "pll_vco", "sync_delay_seed"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
-            pll_n=40, pll_cp=7, pll_vco=5):
+            pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=8):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -76,6 +80,7 @@ class AD9910:
         self.pll_vco = pll_vco
         assert 0 <= pll_cp <= 7
         self.pll_cp = pll_cp
+        self.sync_delay_seed = sync_delay_seed
 
     @kernel
     def write32(self, addr, data):
@@ -249,3 +254,43 @@ class AD9910:
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @kernel
+    def set_sync(self, in_delay, window, preset=0):
+        self.write32(_AD9910_REG_MSYNC,
+                     (window << 28) |  # SYNC S/H validation delay
+                     (1 << 27) |  # SYNC receiver enable
+                     (0 << 26) |  # SYNC generator disable
+                     (0 << 25) |  # SYNC generator SYS rising edge
+                     (preset << 18) |  # SYNC preset
+                     (0 << 11) |  # SYNC output delay
+                     (in_delay << 3))  # SYNC receiver delay
+        self.write32(_AD9910_REG_CFR2, 0x01400020)  # clear SMP_ERR
+        self.cpld.io_update.pulse(1*us)
+        self.write32(_AD9910_REG_CFR2, 0x01400000)  # enable SMP_ERR
+        self.cpld.io_update.pulse(1*us)
+
+    @kernel
+    def tune_sync_delay(self):
+        dt = 14  # 1/(f_SYSCLK*75ps)  taps per SYSCLK period
+        max_delay = dt  # 14*75ps > 1ns
+        max_window = dt//4 + 1  # 2*75ps*4 = 600ps high > 1ns/2
+        min_window = dt//8 + 1  # 2*75ps hold, 2*75ps setup < 1ns/4
+        for window in range(max_window - min_window + 1):
+            window = max_window - window
+            for in_delay in range(max_delay):
+                # alternate search direction around seed_delay
+                if in_delay & 1:
+                    in_delay = -in_delay
+                in_delay = (self.sync_delay_seed + (in_delay >> 1)) & 0x1f
+                self.set_sync(in_delay, window)
+                # integrate SMP_ERR statistics for a few hundred cycles
+                delay(10*us)
+                err = urukul_sta_smp_err(self.cpld.sta_read())
+                err = (err >> (self.chip_select - 4)) & 1
+                delay(40*us)  # slack
+                if not err:
+                    window -= min_window  # add margin
+                    self.set_sync(in_delay, window)
+                    return window, in_delay
+        raise ValueError("no valid window/delay")
