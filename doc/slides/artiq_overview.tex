@@ -90,8 +90,8 @@ inner sep=.3mm] at (current page.south east) {%
   \footnotesize
 
   \begin{minted}[frame=leftline]{python}
-trigger.sync()                # wait for trigger input
-start = now_mu()              # capture trigger time
+# wait for trigger input and capture timestamp
+start = trigger.timestamp_mu(trigger.gate_rising(100*ms))
 for i in range(3):
     delay(5*us)
     dds.pulse(900*MHz, 7*us)  # first pulse 5 µs after trigger
