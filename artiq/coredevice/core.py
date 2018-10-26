@@ -151,6 +151,15 @@ class Core:
 
     @kernel
     def get_rtio_counter_mu(self):
+        """Retrieve the current value of the hardware RTIO timeline counter.
+
+        As the timing of kernel code executed on the CPU is inherently
+        non-deterministic, the return value is by necessity only a lower bound
+        for the actual value of the hardware register at the instant when
+        execution resumes in the caller.
+
+        For a more detailed description of these concepts, see :doc:`/rtio`.
+        """
         return rtio_get_counter()
 
     @kernel
