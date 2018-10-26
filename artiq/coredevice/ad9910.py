@@ -298,8 +298,8 @@ class AD9910:
         slack and stability.
 
         It starts scanning delays around :attr:`sync_delay_seed` (see the
-        device database arguments and :meth:`__init__`) at maximum validation window
-        size and decreases the window size until a valid delay is found.
+        device database arguments and :class:`AD9910`) at maximum validation
+        window size and decreases the window size until a valid delay is found.
 
         :return: Tuple of optimal delay and window size.
         """
@@ -332,3 +332,42 @@ class AD9910:
                     delay(40*us)  # slack
                     return in_delay, window
         raise ValueError("no valid window/delay")
+
+    @kernel
+    def measure_io_update_alignment(self, io_up_delay):
+        """Use the digital ramp generator to locate the alignment between
+        IO_UPDATE and SYNC_CLK.
+
+        The ramp generator is set up to a linear frequency ramp
+        (dFTW/t_SYNC_CLK=1) and started at a RTIO timestamp.
+
+        After scanning the alignment, an IO_UPDATE delay midway between two
+        edges should be chosen.
+
+        :return: odd/even SYNC_CLK cycle indicator
+        """
+        # set up DRG
+        # DRG ACC autoclear and LRR on io update
+        self.write32(_AD9910_REG_CFR1, 0x0000c002)
+        # DRG -> FTW, DRG enable
+        self.write32(_AD9910_REG_CFR2, 0x01090000)
+        # no limits
+        self.write64(_AD9910_REG_DRAMPL, -1, 0)
+        # DRCTL=0, dt=1 t_SYNC_CLK
+        self.write32(_AD9910_REG_DRAMPR, 0x00010000)
+        # dFTW = 1, (work around negative slope)
+        self.write64(_AD9910_REG_DRAMPS, -1, 0)
+        at_mu(now_mu() + 0x10 & ~0xf)  # align to RTIO/2
+        self.cpld.io_update.pulse_mu(8)
+        # disable DRG autoclear and LRR on io_update
+        self.write32(_AD9910_REG_CFR1, 0x00000002)
+        # stop DRG
+        self.write64(_AD9910_REG_DRAMPS, 0, 0)
+        at_mu((now_mu() + 0x10 & ~0xf) + io_up_delay)  # delay
+        self.cpld.io_update.pulse_mu(32 - io_up_delay)  # realign
+        ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
+        delay(100*us)  # slack
+        # disable DRG
+        self.write32(_AD9910_REG_CFR2, 0x01010000)
+        self.cpld.io_update.pulse_mu(8)
+        return ftw & 1
