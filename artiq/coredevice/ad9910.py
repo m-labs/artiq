@@ -150,7 +150,7 @@ class AD9910:
                 raise ValueError("Urukul AD9910 AUX_DAC mismatch")
             delay(50*us)  # slack
         # Configure PLL settings and bring up PLL
-        self.write32(_AD9910_REG_CFR2, 0x01400020)
+        self.write32(_AD9910_REG_CFR2, 0x01000020)
         self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
@@ -265,9 +265,9 @@ class AD9910:
                      (preset << 18) |  # SYNC preset
                      (0 << 11) |  # SYNC output delay
                      (in_delay << 3))  # SYNC receiver delay
-        self.write32(_AD9910_REG_CFR2, 0x01400020)  # clear SMP_ERR
+        self.write32(_AD9910_REG_CFR2, 0x01000020)  # clear SMP_ERR
         self.cpld.io_update.pulse(1*us)
-        self.write32(_AD9910_REG_CFR2, 0x01400000)  # enable SMP_ERR
+        self.write32(_AD9910_REG_CFR2, 0x01000000)  # enable SMP_ERR
         self.cpld.io_update.pulse(1*us)
 
     @kernel
