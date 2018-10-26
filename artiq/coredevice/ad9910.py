@@ -150,7 +150,7 @@ class AD9910:
                 raise ValueError("Urukul AD9910 AUX_DAC mismatch")
             delay(50*us)  # slack
         # Configure PLL settings and bring up PLL
-        self.write32(_AD9910_REG_CFR2, 0x01000020)
+        self.write32(_AD9910_REG_CFR2, 0x01010020)
         self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_n << 1))
@@ -256,22 +256,53 @@ class AD9910:
         self.cpld.cfg_sw(self.chip_select - 4, state)
 
     @kernel
-    def set_sync(self, in_delay, window, preset=0):
+    def set_sync(self, in_delay, window):
+        """Set the relevant parameters in the multi device synchronization
+        register. See the AD9910 datasheet for details. The SYNC clock
+        generator preset value is set to zero, and the SYNC_OUT generator is
+        disabled.
+
+        :param in_delay: SYNC_IN delay tap (0-31) in steps of ~75ps
+        :param window: Symmetric SYNC_IN validation window (0-15) in
+            steps of ~75ps for both hold and setup margin.
+        """
         self.write32(_AD9910_REG_MSYNC,
                      (window << 28) |  # SYNC S/H validation delay
                      (1 << 27) |  # SYNC receiver enable
                      (0 << 26) |  # SYNC generator disable
                      (0 << 25) |  # SYNC generator SYS rising edge
-                     (preset << 18) |  # SYNC preset
+                     (0 << 18) |  # SYNC preset
                      (0 << 11) |  # SYNC output delay
                      (in_delay << 3))  # SYNC receiver delay
-        self.write32(_AD9910_REG_CFR2, 0x01000020)  # clear SMP_ERR
+
+    @kernel
+    def clear_smp_err(self):
+        """Clears the SMP_ERR flag and enables SMP_ERR validity monitoring.
+        Violations of the SYNC_IN sample and hold margins will result in
+        SMP_ERR being asserted. This then also activates the red LED on
+        the respective Urukul channel.
+
+        Also modifies CFR2.
+        """
+        self.write32(_AD9910_REG_CFR2, 0x01010020)  # clear SMP_ERR
         self.cpld.io_update.pulse(1*us)
-        self.write32(_AD9910_REG_CFR2, 0x01000000)  # enable SMP_ERR
+        self.write32(_AD9910_REG_CFR2, 0x01010000)  # enable SMP_ERR
         self.cpld.io_update.pulse(1*us)
 
     @kernel
     def tune_sync_delay(self):
+        """Find a stable SYNC_IN delay.
+
+        This method first locates the smallest SYNC_IN validity window at
+        minimum window size and then increases the window a bit to provide some
+        slack and stability.
+
+        It starts scanning delays around :attr:`sync_delay_seed` (see the
+        device database arguments and :meth:`__init__`) at maximum validation window
+        size and decreases the window size until a valid delay is found.
+
+        :return: Tuple of optimal delay and window size.
+        """
         dt = 14  # 1/(f_SYSCLK*75ps)  taps per SYSCLK period
         max_delay = dt  # 14*75ps > 1ns
         max_window = dt//4 + 1  # 2*75ps*4 = 600ps high > 1ns/2
@@ -282,8 +313,13 @@ class AD9910:
                 # alternate search direction around seed_delay
                 if in_delay & 1:
                     in_delay = -in_delay
-                in_delay = (self.sync_delay_seed + (in_delay >> 1)) & 0x1f
+                in_delay = self.sync_delay_seed + (in_delay >> 1)
+                if in_delay < 0:
+                    in_delay = 0
+                elif in_delay > 31:
+                    in_delay = 31
                 self.set_sync(in_delay, window)
+                self.clear_smp_err()
                 # integrate SMP_ERR statistics for a few hundred cycles
                 delay(10*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
@@ -292,5 +328,7 @@ class AD9910:
                 if not err:
                     window -= min_window  # add margin
                     self.set_sync(in_delay, window)
-                    return window, in_delay
+                    self.clear_smp_err()
+                    delay(40*us)  # slack
+                    return in_delay, window
         raise ValueError("no valid window/delay")
