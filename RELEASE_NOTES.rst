@@ -9,6 +9,32 @@ ARTIQ-4
 4.0
 ***
 
+* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of 
+  submitted events in software, requiring the user to explicitly specify the
+  timeout for ``count()``/``timestamp_mu()``. Support for ``sync()`` has been dropped.
+
+  Now that RTIO has gained DMA support, there is no longer a reliable way for
+  the kernel CPU to track the individual events submitted on any one channel.
+  Requiring the timeouts to be specified explicitly ensures consistent API
+  behavior. To make this more convenient, the ``TTLInOut.gate_*()`` functions
+  now return the cursor position at the end of the gate, e.g.::
+
+    ttl_input.count(ttl_input.gate_rising(100 * us))
+
+  In most situations – that is, unless the timeline cursor is rewound after the
+  respective ``gate_*()`` call – simply passing ``now_mu()`` is also a valid
+  upgrade path::
+
+    ttl_input.count(now_mu())
+
+  The latter might use up more timeline slack than necessary, though.
+
+  In place of ``TTL(In)Out.sync``, the new ``Core.wait_until_mu()`` method can
+  be used, which blocks execution until the hardware RTIO cursor reaches the
+  given timestamp::
+
+    ttl_output.pulse(10 * us)
+    self.core.wait_until_mu(now_mu())
 * RTIO outputs use a new architecture called Scalable Event Dispatcher (SED),
   which allows building systems with large number of RTIO channels more
   efficiently.
