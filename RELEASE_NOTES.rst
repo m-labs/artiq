@@ -53,7 +53,7 @@ ARTIQ-4
 * The ``proxy`` action of ``artiq_flash`` is determined automatically and should
   not be specified manually anymore.
 * ``kc705_dds`` has been renamed ``kc705``.
-* the ``-H/--hw-adapter`` option of ``kc705`` has ben renamed ``-V/--variant``.
+* The ``-H/--hw-adapter`` option of ``kc705`` has been renamed ``-V/--variant``.
 * SPI masters have been switched from misoc-spi to misoc-spi2. This affects
   all out-of-tree RTIO core device drivers using those buses. See the various
   commits on e.g. the ``ad53xx`` driver for an example how to port from the old
