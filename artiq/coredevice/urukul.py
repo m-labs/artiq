@@ -141,7 +141,7 @@ class CPLD:
         is not transferred between experiments.
     :param sync_div: SYNC_IN generator divider. The ratio between the coarse
         RTIO frequency and the SYNC_IN generator frequency (default: 2 if
-        :param:`sync_device` was specified).
+        `sync_device` was specified).
     :param core_device: Core device name
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update"}

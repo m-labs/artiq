@@ -51,14 +51,19 @@ class AD9910:
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
     :param sync_delay_seed: SYNC_IN delay tuning starting value.
-        To stabilize the SYNC_IN delay tuning, run :meth:`tune_sync_delay` once and
-        set this to the delay tap number returned by :meth:`tune_sync_delay`.
+        To stabilize the SYNC_IN delay tuning, run :meth:`tune_sync_delay` once
+        and set this to the delay tap number returned (default: -1 to signal no
+        synchronization and no tuning during :meth:`init`).
+    :param io_update_delay: IO_UPDATE pulse alignment delay.
+        To align IO_UPDATE to SYNC_CLK, run :meth:`tune_io_update_delay` and
+        set this to the delay tap number returned.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-            "ftw_per_hz", "pll_n", "pll_cp", "pll_vco", "sync_delay_seed"}
+            "ftw_per_hz", "pll_n", "io_update_delay"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
-            pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=8):
+            pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
+            io_update_delay=0):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -81,6 +86,7 @@ class AD9910:
         assert 0 <= pll_cp <= 7
         self.pll_cp = pll_cp
         self.sync_delay_seed = sync_delay_seed
+        self.io_update_delay = io_update_delay
 
     @kernel
     def write32(self, addr, data):
@@ -169,6 +175,8 @@ class AD9910:
             if lock & (1 << self.chip_select - 4):
                 return
         raise ValueError("PLL lock timeout")
+        if self.sync_delay_seed >= 0:
+            self.tune_sync_delay(self.sync_delay_seed)
 
     @kernel
     def power_down(self, bits=0b1111):
@@ -191,6 +199,8 @@ class AD9910:
         :param asf: Amplitude scale factor: 14 bit unsigned.
         """
         self.write64(_AD9910_REG_PR0, (asf << 16) | pow, ftw)
+        # align IO_UPDATE to SYNC_CLK
+        at_mu((now_mu() & ~0xf) | self.io_update_delay)
         self.cpld.io_update.pulse_mu(8)
 
     @portable(flags={"fast-math"})
@@ -290,30 +300,31 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def tune_sync_delay(self):
+    def tune_sync_delay(self, sync_delay_seed):
         """Find a stable SYNC_IN delay.
 
         This method first locates the smallest SYNC_IN validity window at
         minimum window size and then increases the window a bit to provide some
         slack and stability.
 
-        It starts scanning delays around :attr:`sync_delay_seed` (see the
+        It starts scanning delays around `sync_delay_seed` (see the
         device database arguments and :class:`AD9910`) at maximum validation
         window size and decreases the window size until a valid delay is found.
 
+        :param sync_delay_seed: Start value for valid SYNC_IN delay search.
         :return: Tuple of optimal delay and window size.
         """
-        dt = 14  # 1/(f_SYSCLK*75ps)  taps per SYSCLK period
+        dt = 14  # 1/(f_SYSCLK*75ps) taps per SYSCLK period
         max_delay = dt  # 14*75ps > 1ns
         max_window = dt//4 + 1  # 2*75ps*4 = 600ps high > 1ns/2
-        min_window = dt//8 + 1  # 2*75ps hold, 2*75ps setup < 1ns/4
+        min_window = max(0, max_window - 2)  # 2*75ps hold, 2*75ps setup
         for window in range(max_window - min_window + 1):
             window = max_window - window
             for in_delay in range(max_delay):
                 # alternate search direction around seed_delay
                 if in_delay & 1:
                     in_delay = -in_delay
-                in_delay = self.sync_delay_seed + (in_delay >> 1)
+                in_delay = sync_delay_seed + (in_delay >> 1)
                 if in_delay < 0:
                     in_delay = 0
                 elif in_delay > 31:
@@ -371,3 +382,28 @@ class AD9910:
         self.write32(_AD9910_REG_CFR2, 0x01010000)
         self.cpld.io_update.pulse_mu(8)
         return ftw & 1
+
+    @kernel
+    def tune_io_update_delay(self):
+        """Find a stable IO_UPDATE delay alignment.
+
+        Scan through increasing IO_UPDATE delays until a delay is found that
+        lets IO_UPDATE be registered in the next SYNC_CLK cycle. Return a
+        IO_UPDATE delay that is midway between two such SYNC_CLK transitions.
+
+        This method assumes that the IO_UPDATE TTLOut device has one machine
+        unit resolution (SERDES) and that the ratio between fine RTIO frequency
+        (RTIO time machine units) and SYNC_CLK is 4.
+
+        :return: Stable IO_UPDATE delay to be passed to the constructor
+            :class:`AD9910` via the device database.
+        """
+        period = 4  # f_RTIO/f_SYNC = 4
+        max_delay = 8  # mu, 1 ns
+        d0 = self.io_update_delay
+        t0 = int32(self.measure_io_update_alignment(d0))
+        for i in range(max_delay - 1):
+            t = self.measure_io_update_alignment((d0 + i + 1) & (max_delay - 1))
+            if t != t0:
+                return (d0 + i + period//2) & (period - 1)
+        raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
