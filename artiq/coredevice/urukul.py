@@ -109,6 +109,15 @@ class _RegIOUpdate:
         self.cpld.cfg_write(cfg)
 
 
+class _DummySync:
+    def __init__(self, cpld):
+        self.cpld = cpld
+
+    @kernel
+    def set_mu(self, ftw):
+        pass
+
+
 class CPLD:
     """Urukul CPLD SPI router and configuration interface.
 
@@ -130,6 +139,9 @@ class CPLD:
     :param att: Initial attenuator setting shift register (default:
         0x00000000). See also: :meth:`set_all_att_mu`. Knowledge of this state
         is not transferred between experiments.
+    :param sync_div: SYNC_IN generator divider. The ratio between the coarse
+        RTIO frequency and the SYNC_IN generator frequency (default: 2 if
+        :param:`sync_device` was specified).
     :param core_device: Core device name
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update"}
@@ -137,7 +149,8 @@ class CPLD:
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,
                  sync_sel=0, clk_sel=0, rf_sw=0,
-                 refclk=125e6, att=0x00000000, core_device="core"):
+                 refclk=125e6, att=0x00000000, sync_div=None,
+                 core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
@@ -151,11 +164,18 @@ class CPLD:
             self.dds_reset = dmgr.get(dds_reset_device)
         if sync_device is not None:
             self.sync = dmgr.get(sync_device)
+            if sync_div is None:
+                sync_div = 2
+        else:
+            self.sync = _DummySync(self)
+            assert sync_div is None
+            sync_div = 0
 
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
                                   sync_sel=sync_sel, rst=0, io_rst=0)
         self.att_reg = att
+        self.sync_div = sync_div
 
     @kernel
     def cfg_write(self, cfg):
@@ -211,6 +231,9 @@ class CPLD:
                 raise ValueError("Urukul proto_rev mismatch")
         delay(100*us)  # reset, slack
         self.cfg_write(cfg)
+        if self.sync_div:
+            at_mu(now_mu() & ~0xf)  # align to RTIO/2
+            self.set_sync_div(self.sync_div)  # 125 MHz/2 = 1 GHz/16
         delay(1*ms)  # DDS wake up
 
     @kernel
