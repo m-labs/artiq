@@ -648,11 +648,13 @@ class Tester(_StandaloneBase):
         self.grabber_csr_group = []
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
+                ttl_simple.ClockGen)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
         eem.Grabber.add_std(self, 6)
-        eem.Urukul.add_std(self, 7, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 7, None, ttl_serdes_7series.Output_8X,
+                ttl_simple.ClockGen)
         eem.DIO.add_std(self, 8,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.DIO.add_std(self, 9,
