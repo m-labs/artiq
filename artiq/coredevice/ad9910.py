@@ -166,17 +166,19 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
         if blind:
             delay(100*ms)
-            return
-        # Wait for PLL lock, up to 100 ms
-        for i in range(100):
-            sta = self.cpld.sta_read()
-            lock = urukul_sta_pll_lock(sta)
-            delay(1*ms)
-            if lock & (1 << self.chip_select - 4):
-                return
-        raise ValueError("PLL lock timeout")
+        else:
+            # Wait for PLL lock, up to 100 ms
+            for i in range(100):
+                sta = self.cpld.sta_read()
+                lock = urukul_sta_pll_lock(sta)
+                delay(1*ms)
+                if lock & (1 << self.chip_select - 4):
+                    break
+                if i >= 100 - 1:
+                    raise ValueError("PLL lock timeout")
         if self.sync_delay_seed >= 0:
             self.tune_sync_delay(self.sync_delay_seed)
+        delay(1*ms)
 
     @kernel
     def power_down(self, bits=0b1111):
