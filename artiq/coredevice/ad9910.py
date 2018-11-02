@@ -1,13 +1,26 @@
 from numpy import int32, int64
 
-from artiq.language.core import kernel, delay, portable
+from artiq.language.core import (
+    kernel, delay, portable, delay_mu, now_mu, at_mu)
 from artiq.language.units import us, ns, ms
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
+# Work around ARTIQ-Python import machinery
 urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
 urukul_sta_smp_err = urukul.urukul_sta_smp_err
 
+
+__all__ = [
+    "AD9910",
+    "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING"
+]
+
+
+_PHASE_MODE_DEFAULT = -1
+PHASE_MODE_CONTINUOUS = 0
+PHASE_MODE_ABSOLUTE = 1
+PHASE_MODE_TRACKING = 2
 
 _AD9910_REG_CFR1 = 0x00
 _AD9910_REG_CFR2 = 0x01
@@ -59,7 +72,7 @@ class AD9910:
         set this to the delay tap number returned.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-            "ftw_per_hz", "pll_n", "io_update_delay"}
+            "ftw_per_hz", "pll_n", "io_update_delay", "sysclk_per_mu"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
             pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
@@ -77,7 +90,9 @@ class AD9910:
         assert self.cpld.refclk/4 <= 60e6
         sysclk = self.cpld.refclk*pll_n/4  # Urukul clock fanout divider
         assert sysclk <= 1e9
-        self.ftw_per_hz = 1./sysclk*(int64(1) << 32)
+        self.ftw_per_hz = (1 << 32)/sysclk
+        self.sysclk_per_mu = int(round(sysclk*self.core.ref_period))
+        assert self.sysclk_per_mu == sysclk*self.core.ref_period
         assert 0 <= pll_vco <= 5
         vco_min, vco_max = [(370, 510), (420, 590), (500, 700),
                 (600, 880), (700, 950), (820, 1150)][pll_vco]
@@ -87,6 +102,49 @@ class AD9910:
         self.pll_cp = pll_cp
         self.sync_delay_seed = sync_delay_seed
         self.io_update_delay = io_update_delay
+        self.phase_mode = PHASE_MODE_CONTINUOUS
+
+    @kernel
+    def set_phase_mode(self, phase_mode):
+        """Sets the default phase mode for future calls to :meth:`set` and
+        :meth:`set_mu`. Supported phase modes are:
+
+        * :const:`PHASE_MODE_CONTINUOUS`: the phase accumulator is unchanged
+          when changing frequency or phase. The DDS phase is the sum of the
+          phase accumulator and the phase offset. The only discontinuous
+          changes in the DDS output phase come from changes to the phase
+          offset. This mode is also knows as "relative phase mode".
+          :math:`\phi(t) = q(t^\prime) + p + (t - t^\prime) f`
+
+        * :const:`PHASE_MODE_ABSOLUTE`: the phase accumulator is reset when
+          changing frequency or phase. Thus, the phase of the DDS at the
+          time of the change is equal to the specified phase offset.
+          :math:`\phi(t) = p + (t - t^\prime) f`
+
+        * :const:`PHASE_MODE_TRACKING`: when changing frequency or phase,
+          the phase accumulator is cleared and the phase offset is offset
+          by the value the phase accumulator would have if the DDS had been
+          running at the specified frequency since a given fiducial
+          time stamp. This is functionally equivalent to
+          :const:`PHASE_MODE_ABSOLUTE`. The only difference is the fiducial
+          time stamp. This mode is also known as "coherent phase mode".
+          :math:`\phi(t) = p + (t - T) f`
+
+        Where:
+
+        * :math:`\phi(t)`: the DDS output phase
+        * :math:`q(t) = \phi(t) - p`: DDS internal phase accumulator
+        * :math:`p`: phase offset
+        * :math:`f`: frequency
+        * :math:`t^\prime`: time stamp of setting :math:`p`, :math:`f`
+        * :math:`T`: fiducial time stamp
+        * :math:`t`: running time
+
+        .. warning:: This setting may become inconsistent when used as part of
+            a DMA recording. When using DMA, it is recommended to specify the
+            phase mode explicitly when calling :meth:`set` or :meth:`set_mu`.
+        """
+        self.phase_mode = phase_mode
 
     @kernel
     def write32(self, addr, data):
@@ -190,20 +248,53 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def set_mu(self, ftw, pow=0, asf=0x3fff):
+    def set_mu(self, ftw, pow=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
+               ref_time=-1):
         """Set profile 0 data in machine units.
+
+        This uses machine units (FTW, POW, ASF). The frequency tuning word
+        width is 32, the phase offset word width is 16, and the amplitude
+        scale factor width is 12.
 
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
+        .. seealso: :meth:`set_phase_mode` for a definition of the different
+            phase modes.
+
         :param ftw: Frequency tuning word: 32 bit.
         :param pow: Phase tuning word: 16 bit unsigned.
         :param asf: Amplitude scale factor: 14 bit unsigned.
+        :param phase_mode: If specified, overrides the default phase mode set
+            by :meth:`set_phase_mode` for this call.
+        :param ref_time: Fiducial time used to compute absolute or tracking
+            phase updates. In machine units as obtained by `now_mu()`.
+        :return: Resulting phase offset word after application of phase
+            tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
+            subsequent calls, use this value as the "current" phase.
         """
+        if phase_mode == _PHASE_MODE_DEFAULT:
+            phase_mode = self.phase_mode
+        # Align to coarse RTIO which aligns SYNC_CLK
+        at_mu(now_mu() & ~0xf)
+        if phase_mode != PHASE_MODE_CONTINUOUS:
+            # Auto-clear phase accumulator on IO_UPDATE.
+            # This is active already for the next IO_UPDATE
+            self.write32(_AD9910_REG_CFR1, 0x00002002)
+            if ref_time >= 0:
+                # 32 LSB are sufficient.
+                # Also no need to use IO_UPDATE time as this
+                # is equivalent to an output pipeline latency.
+                dt = int32(now_mu()) - int32(ref_time)
+                pow += dt*ftw*self.sysclk_per_mu >> 16
         self.write64(_AD9910_REG_PR0, (asf << 16) | pow, ftw)
-        # align IO_UPDATE to SYNC_CLK
-        at_mu((now_mu() & ~0xf) | self.io_update_delay)
-        self.cpld.io_update.pulse_mu(8)
+        delay_mu(int64(self.io_update_delay))
+        self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
+        at_mu(now_mu() & ~0xf)
+        if phase_mode != PHASE_MODE_CONTINUOUS:
+            self.write32(_AD9910_REG_CFR1, 0x00000002)
+            # future IO_UPDATE will activate
+        return pow
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
@@ -223,8 +314,15 @@ class AD9910:
         """Returns amplitude scale factor corresponding to given amplitude."""
         return int32(round(amplitude*0x3ffe))
 
+    @portable(flags={"fast-math"})
+    def pow_to_turns(self, pow):
+        """Returns the phase in turns corresponding to a given phase offset
+        word."""
+        return pow/0x10000
+
     @kernel
-    def set(self, frequency, phase=0.0, amplitude=1.0):
+    def set(self, frequency, phase=0.0, amplitude=1.0,
+            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
@@ -232,10 +330,13 @@ class AD9910:
         :param ftw: Frequency in Hz
         :param pow: Phase tuning word in turns
         :param asf: Amplitude in units of full scale
+        :param phase_mode: Phase mode constant
+        :param ref_time: Fiducial time stamp in machine units
+        :return: Resulting phase offset in turns
         """
-        self.set_mu(self.frequency_to_ftw(frequency),
-                    self.turns_to_pow(phase),
-                    self.amplitude_to_asf(amplitude))
+        return self.pow_to_turns(self.set_mu(
+            self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
+            self.amplitude_to_asf(amplitude), phase_mode, ref_time))
 
     @kernel
     def set_att_mu(self, att):
@@ -352,7 +453,7 @@ class AD9910:
         IO_UPDATE and SYNC_CLK.
 
         The ramp generator is set up to a linear frequency ramp
-        (dFTW/t_SYNC_CLK=1) and started at a RTIO timestamp.
+        (dFTW/t_SYNC_CLK=1) and started at a RTIO time stamp.
 
         After scanning the alignment, an IO_UPDATE delay midway between two
         edges should be chosen.
