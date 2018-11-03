@@ -46,6 +46,12 @@ ARTIQ-4
 ARTIQ-3
 -------
 
+3.7
+***
+
+No further notes.
+
+
 3.6
 ***
 
