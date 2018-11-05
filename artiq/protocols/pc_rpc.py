@@ -496,7 +496,7 @@ class Server(_AsyncioServer):
         # Fix issue #1186: PYON can't serialize type annotations.
         if any(argspec_dict.get("annotations", {})):
             argspec_dict["annotations"] = str(argspec_dict["annotations"])
-        return (argspec_dict, inspect.getdoc(function))
+        return argspec_dict, inspect.getdoc(function)
 
     async def _process_action(self, target, obj):
         if self._noparallel is not None:
