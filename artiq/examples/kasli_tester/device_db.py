@@ -346,5 +346,6 @@ device_db.update(
     # Urukul CPLD with sync and io_update, IFC MODE 0b1000
     urukul_cpld="urukul0_cpld",
     # Urukul AD9910 with switch TTL, internal 125 MHz MMCX connection
-    urukul_ad9910="urukul0_ch0",
+    # FIXME: MMCX not connected
+    # urukul_ad9910="urukul0_ch0",
 )
