@@ -122,7 +122,9 @@ class UrukulTest(ExperimentCase):
 
     def test_switch_speed(self):
         self.execute(UrukulExp, "switch_speed")
-        self.assertLess(self.dataset_mgr.get("dt"), 3*us)
+        dt = self.dataset_mgr.get("dt")
+        print(dt)
+        self.assertLess(dt, 3*us)
 
     def test_switches_readback(self):
         self.execute(UrukulExp, "switches_readback")
@@ -138,7 +140,9 @@ class UrukulTest(ExperimentCase):
 
     def test_att_speed(self):
         self.execute(UrukulExp, "att_speed")
-        self.assertLess(self.dataset_mgr.get("dt"), 3*us)
+        dt = self.dataset_mgr.get("dt")
+        print(dt)
+        self.assertLess(dt, 3*us)
 
     def test_io_update(self):
         self.execute(UrukulExp, "io_update")

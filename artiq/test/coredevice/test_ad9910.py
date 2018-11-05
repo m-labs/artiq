@@ -147,11 +147,15 @@ class AD9910Test(ExperimentCase):
 
     def test_set_speed(self):
         self.execute(AD9910Exp, "set_speed")
-        self.assertLess(self.dataset_mgr.get("dt"), 70*us)
+        dt = self.dataset_mgr.get("dt")
+        print(dt)
+        self.assertLess(dt, 70*us)
 
     def test_set_speed_mu(self):
         self.execute(AD9910Exp, "set_speed_mu")
-        self.assertLess(self.dataset_mgr.get("dt"), 10*us)
+        dt = self.dataset_mgr.get("dt")
+        print(dt)
+        self.assertLess(dt, 10*us)
 
     def test_sync_window(self):
         self.execute(AD9910Exp, "sync_window")
