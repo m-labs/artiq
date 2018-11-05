@@ -1,5 +1,3 @@
-import unittest
-
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.ad9910 import _AD9910_REG_FTW
