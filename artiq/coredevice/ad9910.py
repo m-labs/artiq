@@ -128,6 +128,7 @@ class AD9910:
           time stamp. This is functionally equivalent to
           :const:`PHASE_MODE_ABSOLUTE`. The only difference is the fiducial
           time stamp. This mode is also known as "coherent phase mode".
+          The default fiducial time stamp is 0.
           :math:`\phi(t) = p + (t - T) f`
 
         Where:
@@ -281,6 +282,9 @@ class AD9910:
             # Auto-clear phase accumulator on IO_UPDATE.
             # This is active already for the next IO_UPDATE
             self.write32(_AD9910_REG_CFR1, 0x00002002)
+            if phase_mode == PHASE_MODE_TRACKING and ref_time < 0:
+                # set default fiducial time stamp
+                ref_time = 0
             if ref_time >= 0:
                 # 32 LSB are sufficient.
                 # Also no need to use IO_UPDATE time as this
