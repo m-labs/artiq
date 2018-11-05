@@ -215,6 +215,9 @@ class AD9910:
                 raise ValueError("Urukul AD9910 AUX_DAC mismatch")
             delay(50*us)  # slack
         # Configure PLL settings and bring up PLL
+        # enable amplitude scale from profiles
+        # read effective FTW
+        # sync timing validation disable (enabled later)
         self.write32(_AD9910_REG_CFR2, 0x01010020)
         self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c100 | (self.pll_vco << 24) |
