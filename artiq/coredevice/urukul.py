@@ -61,7 +61,7 @@ def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
             (io_update << CFG_IO_UPDATE) |
             (mask_nu << CFG_MASK_NU) |
             ((clk_sel & 0x01) << CFG_CLK_SEL0) |
-            ((clk_sel & 0x02) << (CFG_CLK_SEL1-1)) |
+            ((clk_sel & 0x02) << (CFG_CLK_SEL1 - 1)) |
             (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) |
             (io_rst << CFG_IO_RST))

@@ -342,4 +342,9 @@ device_db.update(
 
     loop_out="ttl4",
     loop_in="ttl0",
+
+    # Urukul CPLD with sync and io_update, IFC MODE 0b1000
+    urukul_cpld="urukul0_cpld",
+    # Urukul AD9910 with switch TTL, internal 125 MHz MMCX connection
+    urukul_ad9910="urukul0_ch0",
 )
