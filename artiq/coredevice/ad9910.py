@@ -2,7 +2,7 @@ from numpy import int32, int64
 
 from artiq.language.core import (
     kernel, delay, portable, delay_mu, now_mu, at_mu)
-from artiq.language.units import us, ns, ms
+from artiq.language.units import us, ms
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
@@ -72,11 +72,12 @@ class AD9910:
         set this to the delay tap number returned.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-            "ftw_per_hz", "pll_n", "io_update_delay", "sysclk_per_mu"}
+                         "ftw_per_hz", "pll_n", "io_update_delay",
+                         "sysclk_per_mu"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
-            pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
-            io_update_delay=0):
+                 pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
+                 io_update_delay=0):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -95,7 +96,7 @@ class AD9910:
         assert self.sysclk_per_mu == sysclk*self.core.ref_period
         assert 0 <= pll_vco <= 5
         vco_min, vco_max = [(370, 510), (420, 590), (500, 700),
-                (600, 880), (700, 950), (820, 1150)][pll_vco]
+                            (600, 880), (700, 950), (820, 1150)][pll_vco]
         assert vco_min <= sysclk/1e6 <= vco_max
         self.pll_vco = pll_vco
         assert 0 <= pll_cp <= 7
@@ -106,7 +107,9 @@ class AD9910:
 
     @kernel
     def set_phase_mode(self, phase_mode):
-        """Sets the default phase mode for future calls to :meth:`set` and
+        """Set the default phase mode.
+
+        for future calls to :meth:`set` and
         :meth:`set_mu`. Supported phase modes are:
 
         * :const:`PHASE_MODE_CONTINUOUS`: the phase accumulator is unchanged
@@ -155,10 +158,10 @@ class AD9910:
         :param data: Data to be written
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(addr << 24)
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data)
 
     @kernel
@@ -168,11 +171,11 @@ class AD9910:
         :param addr: Register address
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | 0x80) << 24)
-        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END
-                | spi.SPI_INPUT, 32,
-                urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            32, urukul.SPIT_DDS_RD, self.chip_select)
         self.bus.write(0)
         return self.bus.read()
 
@@ -185,13 +188,13 @@ class AD9910:
         :param data_low: Low (LSB) 32 data bits
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(addr << 24)
         self.bus.set_config_mu(urukul.SPI_CONFIG, 32,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data_high)
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data_low)
 
     @kernel
@@ -305,25 +308,25 @@ class AD9910:
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
-        """Returns the frequency tuning word corresponding to the given
+        """Return the frequency tuning word corresponding to the given
         frequency.
         """
         return int32(round(self.ftw_per_hz*frequency))
 
     @portable(flags={"fast-math"})
     def turns_to_pow(self, turns):
-        """Returns the phase offset word corresponding to the given phase
+        """Return the phase offset word corresponding to the given phase
         in turns."""
         return int32(round(turns*0x10000))
 
     @portable(flags={"fast-math"})
     def amplitude_to_asf(self, amplitude):
-        """Returns amplitude scale factor corresponding to given amplitude."""
+        """Return amplitude scale factor corresponding to given amplitude."""
         return int32(round(amplitude*0x3ffe))
 
     @portable(flags={"fast-math"})
     def pow_to_turns(self, pow):
-        """Returns the phase in turns corresponding to a given phase offset
+        """Return the phase in turns corresponding to a given phase offset
         word."""
         return pow/0x10000
 
@@ -397,7 +400,8 @@ class AD9910:
 
     @kernel
     def clear_smp_err(self):
-        """Clears the SMP_ERR flag and enables SMP_ERR validity monitoring.
+        """Clear the SMP_ERR flag and enables SMP_ERR validity monitoring.
+
         Violations of the SYNC_IN sample and hold margins will result in
         SMP_ERR being asserted. This then also activates the red LED on
         the respective Urukul channel.
@@ -513,7 +517,8 @@ class AD9910:
         d0 = self.io_update_delay
         t0 = int32(self.measure_io_update_alignment(d0))
         for i in range(max_delay - 1):
-            t = self.measure_io_update_alignment((d0 + i + 1) & (max_delay - 1))
+            t = self.measure_io_update_alignment(
+                (d0 + i + 1) & (max_delay - 1))
             if t != t0:
                 return (d0 + i + period//2) & (period - 1)
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
