@@ -80,7 +80,7 @@ device_db.update({
     }
 })
 
-for j in range(3):
+for j in range(2):
     device_db.update({
         "spi_urukul{}".format(j): {
             "type": "local",
@@ -127,41 +127,48 @@ for j in range(3):
         } for i in range(4)
     })
 
+device_db.update({
+    "grabber0": {
+        "type": "local",
+        "module": "artiq.coredevice.grabber",
+        "class": "grabber",
+        "arguments": {"channel_base": 33}
+    }
+})
 
 device_db.update({
     "led0": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 36}
+        "arguments": {"channel": 35}
     },
     "led1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 37}
+        "arguments": {"channel": 36}
     }
 })
-
 
 device_db.update({
     "spi_zotino0": {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 38}
+        "arguments": {"channel": 37}
     },
     "ttl_zotino0_ldac": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 39}
+        "arguments": {"channel": 38}
     },
     "ttl_zotino0_clr": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 40}
+        "arguments": {"channel": 39}
     },
     "zotino0": {
         "type": "local",

@@ -175,7 +175,8 @@ class Opticlock(_StandaloneBase):
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
         eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
         self.config["HAS_RTIO_LOG"] = None
@@ -560,9 +561,12 @@ class HUB(_StandaloneBase):
         eem.DIO.add_std(self, 2,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 4, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 4, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
+        eem.Urukul.add_std(self, 5, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
+        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -605,8 +609,10 @@ class LUH(_StandaloneBase):
         eem.DIO.add_std(self, 2,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 4, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, None, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 4, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
+        eem.Urukul.add_std(self, 5, None, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
         eem.Grabber.add_std(self, 6)
 
         for i in (1, 2):
@@ -649,12 +655,12 @@ class Tester(_StandaloneBase):
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
         eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
-                ttl_simple.ClockGen)
+                           ttl_simple.ClockGen)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
         eem.Grabber.add_std(self, 6)
         eem.Urukul.add_std(self, 7, None, ttl_serdes_7series.Output_8X,
-                ttl_simple.ClockGen)
+                           ttl_simple.ClockGen)
         eem.DIO.add_std(self, 8,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.DIO.add_std(self, 9,
