@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, delay, portable
+from artiq.language.core import kernel, delay, portable, at_mu, now_mu
 from artiq.language.units import us, ms
 
 from numpy import int32
