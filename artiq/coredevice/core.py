@@ -134,7 +134,7 @@ class Core:
 
     @portable
     def seconds_to_mu(self, seconds):
-        """Converts seconds to the corresponding number of machine units
+        """Convert seconds to the corresponding number of machine units
         (RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
@@ -143,7 +143,7 @@ class Core:
 
     @portable
     def mu_to_seconds(self, mu):
-        """Converts machine units (RTIO cycles) to seconds.
+        """Convert machine units (RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
@@ -151,11 +151,31 @@ class Core:
 
     @kernel
     def get_rtio_counter_mu(self):
+        """Retrieve the current value of the hardware RTIO timeline counter.
+
+        As the timing of kernel code executed on the CPU is inherently
+        non-deterministic, the return value is by necessity only a lower bound
+        for the actual value of the hardware register at the instant when
+        execution resumes in the caller.
+
+        For a more detailed description of these concepts, see :doc:`/rtio`.
+        """
         return rtio_get_counter()
 
     @kernel
+    def wait_until_mu(self, cursor_mu):
+        """Block execution until the hardware RTIO counter reaches the given
+        value (see :meth:`get_rtio_counter_mu`).
+
+        If the hardware counter has already passed the given time, the function
+        returns immediately.
+        """
+        while self.get_rtio_counter_mu() < cursor_mu:
+            pass
+
+    @kernel
     def get_drtio_link_status(self, linkno):
-        """Returns whether the specified DRTIO link is up.
+        """Return whether the specified DRTIO link is up.
 
         This is particularly useful in startup kernels to delay
         startup until certain DRTIO links are up."""

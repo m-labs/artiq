@@ -49,13 +49,13 @@ class Input:
         delay(duration)
 
     @kernel
-    def count(self):
+    def count(self, up_to_timestamp_mu):
         result = self.prng.randrange(0, 100)
         time.manager.event(("count", self.name, result))
         return result
 
     @kernel
-    def timestamp_mu(self):
+    def timestamp_mu(self, up_to_timestamp_mu):
         result = time.manager.get_time_mu()
         result += self.prng.randrange(100, 1000)
         time.manager.event(("timestamp_mu", self.name, result))

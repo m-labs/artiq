@@ -232,6 +232,14 @@ class CPLD:
         self.cfg_write(c)
 
     @kernel
+    def cfg_switches(self, state):
+        """Configure all four RF switches through the configuration register.
+
+        :param state: RF switch state as a 4 bit integer.
+        """
+        self.cfg_write((self.cfg_reg & ~0xf) | state)
+
+    @kernel
     def set_att_mu(self, channel, att):
         """Set digital step attenuator in machine units.
 
