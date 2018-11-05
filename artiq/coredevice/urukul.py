@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, delay, portable
+from artiq.language.core import kernel, delay, portable, at_mu, now_mu
 from artiq.language.units import us, ms
 
 from numpy import int32
@@ -61,7 +61,7 @@ def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
             (io_update << CFG_IO_UPDATE) |
             (mask_nu << CFG_MASK_NU) |
             ((clk_sel & 0x01) << CFG_CLK_SEL0) |
-            ((clk_sel & 0x02) << (CFG_CLK_SEL1-1)) |
+            ((clk_sel & 0x02) << (CFG_CLK_SEL1 - 1)) |
             (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) |
             (io_rst << CFG_IO_RST))
@@ -109,12 +109,22 @@ class _RegIOUpdate:
         self.cpld.cfg_write(cfg)
 
 
+class _DummySync:
+    def __init__(self, cpld):
+        self.cpld = cpld
+
+    @kernel
+    def set_mu(self, ftw):
+        pass
+
+
 class CPLD:
     """Urukul CPLD SPI router and configuration interface.
 
     :param spi_device: SPI bus device name
     :param io_update_device: IO update RTIO TTLOut channel name
     :param dds_reset_device: DDS reset RTIO TTLOut channel name
+    :param sync_device: AD9910 SYNC_IN RTIO TTLClockGen channel name
     :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
         frequency in Hz
     :param clk_sel: Reference clock selection. For hardware revision >= 1.3
@@ -122,20 +132,25 @@ class CPLD:
         internal MMCX. For hardware revision <= v1.2 valid options are: 0 -
         either XO or MMCX dependent on component population; 1 SMA. Unsupported
         clocking options are silently ignored.
-    :param sync_sel: SYNC clock selection. 0 corresponds to SYNC clock over EEM
-        from FPGA. 1 corresponds to SYNC clock from DDS0.
+    :param sync_sel: SYNC_IN selection. 0 corresponds to SYNC_IN over EEM
+        from FPGA. 1 corresponds to SYNC_IN from DDS0.
     :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
         Knowledge of this state is not transferred between experiments.
     :param att: Initial attenuator setting shift register (default:
         0x00000000). See also: :meth:`set_all_att_mu`. Knowledge of this state
         is not transferred between experiments.
+    :param sync_div: SYNC_IN generator divider. The ratio between the coarse
+        RTIO frequency and the SYNC_IN generator frequency (default: 2 if
+        `sync_device` was specified).
     :param core_device: Core device name
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
-                 dds_reset_device=None, sync_sel=0, clk_sel=0, rf_sw=0,
-                 refclk=125e6, att=0x00000000, core_device="core"):
+                 dds_reset_device=None, sync_device=None,
+                 sync_sel=0, clk_sel=0, rf_sw=0,
+                 refclk=125e6, att=0x00000000, sync_div=None,
+                 core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
@@ -147,11 +162,20 @@ class CPLD:
             self.io_update = _RegIOUpdate(self)
         if dds_reset_device is not None:
             self.dds_reset = dmgr.get(dds_reset_device)
+        if sync_device is not None:
+            self.sync = dmgr.get(sync_device)
+            if sync_div is None:
+                sync_div = 2
+        else:
+            self.sync = _DummySync(self)
+            assert sync_div is None
+            sync_div = 0
 
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
                                   sync_sel=sync_sel, rst=0, io_rst=0)
         self.att_reg = att
+        self.sync_div = sync_div
 
     @kernel
     def cfg_write(self, cfg):
@@ -207,6 +231,9 @@ class CPLD:
                 raise ValueError("Urukul proto_rev mismatch")
         delay(100*us)  # reset, slack
         self.cfg_write(cfg)
+        if self.sync_div:
+            at_mu(now_mu() & ~0xf)  # align to RTIO/2
+            self.set_sync_div(self.sync_div)  # 125 MHz/2 = 1 GHz/16
         delay(1*ms)  # DDS wake up
 
     @kernel
@@ -289,3 +316,20 @@ class CPLD:
                                SPIT_ATT_RD, CS_ATT)
         self.bus.write(self.att_reg)
         return self.bus.read()
+
+    @kernel
+    def set_sync_div(self, div):
+        """Set the SYNC_IN AD9910 pulse generator frequency
+        and align it to the current RTIO timestamp.
+
+        The SYNC_IN signal is derived from the coarse RTIO clock
+        and the divider must be a power of two two.
+        Configure ``sync_sel == 0``.
+
+        :param div: SYNC_IN frequency divider. Must be a power of two.
+            Minimum division ratio is 2. Maximum division ratio is 16.
+        """
+        ftw_max = 1 << 4
+        ftw = ftw_max//div
+        assert ftw*div == ftw_max
+        self.sync.set_mu(ftw)

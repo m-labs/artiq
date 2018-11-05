@@ -80,52 +80,116 @@ device_db.update({
     }
 })
 
-for j in range(3):
-    device_db.update({
-        "spi_urukul{}".format(j): {
-            "type": "local",
-            "module": "artiq.coredevice.spi2",
-            "class": "SPIMaster",
-            "arguments": {"channel": 27 + 3*j}
-        },
-        "ttl_urukul{}_sync".format(j): {
-            "type": "local",
-            "module": "artiq.coredevice.ttl",
-            "class": "TTLClockGen",
-            "arguments": {"channel": 28 + 3*j, "acc_width": 4}
-        },
-        "ttl_urukul{}_io_update".format(j): {
-            "type": "local",
-            "module": "artiq.coredevice.ttl",
-            "class": "TTLOut",
-            "arguments": {"channel": 29 + 3*j}
-        },
-        "urukul{}_cpld".format(j): {
-            "type": "local",
-            "module": "artiq.coredevice.urukul",
-            "class": "CPLD",
-            "arguments": {
-                "spi_device": "spi_urukul{}".format(j),
-                "sync_device": "ttl_urukul{}_sync".format(j),
-                "io_update_device": "ttl_urukul{}_io_update".format(j),
-                "refclk": 100e6,
-                "clk_sel": 0
-            }
+device_db.update({
+    "spi_urukul0": {
+        "type": "local",
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 27}
+    },
+    "ttl_urukul0_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 28}
+    },
+    "ttl_urukul0_sw0": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 29}
+    },
+    "ttl_urukul0_sw1": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 30}
+    },
+    "ttl_urukul0_sw2": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 31}
+    },
+    "ttl_urukul0_sw3": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 32}
+    },
+    "urukul0_cpld": {
+        "type": "local",
+        "module": "artiq.coredevice.urukul",
+        "class": "CPLD",
+        "arguments": {
+            "spi_device": "spi_urukul0",
+            "io_update_device": "ttl_urukul0_io_update",
+            "refclk": 100e6,
+            "clk_sel": 0
         }
-    })
+    }
+})
 
-    device_db.update({
-        "urukul{}_ch{}".format(j, i): {
-            "type": "local",
-            "module": "artiq.coredevice.ad9910",
-            "class": "AD9910",
-            "arguments": {
-                "pll_n": 40,
-                "chip_select": 4 + i,
-                "cpld_device": "urukul{}_cpld".format(j)
-            }
-        } for i in range(4)
-    })
+device_db.update({
+    "urukul0_ch" + str(i): {
+        "type": "local",
+        "module": "artiq.coredevice.ad9912",
+        "class": "AD9912",
+        "arguments": {
+            "pll_n": 10,
+            "chip_select": 4 + i,
+            "cpld_device": "urukul0_cpld",
+            "sw_device": "ttl_urukul0_sw" + str(i)
+        }
+    } for i in range(4)
+})
+
+
+device_db.update({
+    "spi_urukul1": {
+        "type": "local",
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 33}
+    },
+    "ttl_urukul1_sync": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
+        "arguments": {"channel": 34, "acc_width": 4}
+    },
+    "ttl_urukul1_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 35}
+    },
+    "urukul1_cpld": {
+        "type": "local",
+        "module": "artiq.coredevice.urukul",
+        "class": "CPLD",
+        "arguments": {
+            "spi_device": "spi_urukul1",
+            "sync_device": "ttl_urukul1_sync",
+            "io_update_device": "ttl_urukul1_io_update",
+            "refclk": 125e6,
+            "clk_sel": 0
+        }
+    }
+})
+
+device_db.update({
+    "urukul1_ch" + str(i): {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 32,
+            "chip_select": 4 + i,
+            "cpld_device": "urukul1_cpld"
+        }
+    } for i in range(4)
+})
 
 
 device_db.update({

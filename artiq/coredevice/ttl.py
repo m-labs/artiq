@@ -430,14 +430,15 @@ class TTLClockGen:
     The time cursor is not modified by any function in this class.
 
     :param channel: channel number
+    :param acc_width: accumulator width in bits
     """
     kernel_invariants = {"core", "channel", "acc_width"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, acc_width=24, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
 
-        self.acc_width = numpy.int64(24)
+        self.acc_width = numpy.int64(acc_width)
 
     @portable
     def frequency_to_ftw(self, frequency):

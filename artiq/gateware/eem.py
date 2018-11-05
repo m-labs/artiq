@@ -75,7 +75,7 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem, "io_update"),
-                (7, eem, "dds_reset")]
+                (7, eem, "dds_reset_sync_in")]
         if eem_aux is not None:
             ttls += [(0, eem_aux, "sync_clk"),
                      (1, eem_aux, "sync_in"),
@@ -113,7 +113,7 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem0, "io_update"),
-                (7, eem0, "dds_reset"),
+                (7, eem0, "dds_reset_sync_in"),
                 (4, eem1, "sw0"),
                 (5, eem1, "sw1"),
                 (6, eem1, "sw2"),
@@ -148,7 +148,8 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, iostandard="LVDS_25"):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None,
+                iostandard="LVDS_25"):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
@@ -156,8 +157,13 @@ class Urukul(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        pads = target.platform.request("urukul{}_dds_reset".format(eem))
-        target.specials += DifferentialOutput(0, pads.p, pads.n)
+        pads = target.platform.request("urukul{}_dds_reset_sync_in".format(eem))
+        pad = Signal(reset=0)
+        target.specials += DifferentialOutput(pad, pads.p, pads.n)
+        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+            phy = sync_gen_cls(pad, ftw_width=4)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         pads = target.platform.request("urukul{}_io_update".format(eem))
         phy = ttl_out_cls(pads.p, pads.n)
@@ -169,7 +175,6 @@ class Urukul(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
-
 
 class Sampler(_EEM):
     @staticmethod
@@ -522,7 +527,7 @@ class SUServo(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        pads = target.platform.request("{}_dds_reset".format(eem_urukul0))
+        pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukul0))
         target.specials += DifferentialOutput(0, pads.p, pads.n)
 
         for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
