@@ -446,7 +446,7 @@ class AD9910:
                 self.set_sync(in_delay, window)
                 self.clear_smp_err()
                 # integrate SMP_ERR statistics for a few hundred cycles
-                delay(10*us)
+                # delay(10*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
                 err = (err >> (self.chip_select - 4)) & 1
                 delay(40*us)  # slack

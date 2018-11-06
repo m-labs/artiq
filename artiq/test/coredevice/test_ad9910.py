@@ -92,7 +92,7 @@ class AD9910Exp(EnvExperiment):
         for in_delay in range(len(err)):
             self.dev.set_sync(in_delay=in_delay, window=win)
             self.dev.clear_smp_err()
-            delay(10*us)  # integrate SMP_ERR statistics
+            # delay(10*us)  # integrate SMP_ERR statistics
             e = urukul_sta_smp_err(self.dev.cpld.sta_read())
             err[in_delay] = (e >> (self.dev.chip_select - 4)) & 1
             delay(50*us)  # slack
