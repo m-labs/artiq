@@ -34,13 +34,11 @@ class _RTIOCRG(Module, AutoCSR):
 
         clk_synth = platform.request("si5324_clkout_fabric")
         clk_synth_se = Signal()
-        clk_synth_buffered = Signal()
         platform.add_period_constraint(clk_synth.p, 8.0)
         self.specials += [
             Instance("IBUFGDS",
-                p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="TRUE",
+                p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE",
                 i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se),
-            Instance("BUFG", i_I=clk_synth_se, o_O=clk_synth_buffered),
         ]
 
         pll_locked = Signal()
@@ -50,21 +48,21 @@ class _RTIOCRG(Module, AutoCSR):
         self.specials += [
             Instance("PLLE2_ADV",
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-
-                     p_REF_JITTER1=0.01,
+                     p_BANDWIDTH="HIGH",
+                     p_REF_JITTER1=0.001,
                      p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
-                     i_CLKIN2=clk_synth_buffered,
+                     i_CLKIN2=clk_synth_se,
                      # Warning: CLKINSEL=0 means CLKIN2 is selected
                      i_CLKINSEL=0,
 
-                     # VCO @ 1GHz when using 125MHz input
-                     p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
+                     # VCO @ 1.5GHz when using 125MHz input
+                     p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
                      i_RST=self._pll_reset.storage,
 
                      o_CLKFBOUT=rtio_clk,
 
-                     p_CLKOUT0_DIVIDE=2, p_CLKOUT0_PHASE=0.0,
+                     p_CLKOUT0_DIVIDE=3, p_CLKOUT0_PHASE=0.0,
                      o_CLKOUT0=rtiox4_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
