@@ -414,7 +414,7 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def tune_sync_delay(self, sync_delay_seed=8):
+    def tune_sync_delay(self, sync_delay_seed=9):
         """Find a stable SYNC_IN delay.
 
         This method first locates the smallest SYNC_IN validity window at
@@ -430,8 +430,8 @@ class AD9910:
         """
         dt = 14  # 1/(f_SYSCLK*75ps) taps per SYSCLK period
         max_delay = dt  # 14*75ps > 1ns
-        max_window = dt//4 + 1  # 2*75ps*4 = 600ps high > 1ns/2
-        min_window = max(0, max_window - 2)  # 2*75ps hold, 2*75ps setup
+        max_window = dt//4 + 1  # 75ps*4 = 300ps setup and hold
+        min_window = 1  # 1*75ps setup and hold
         for window in range(max_window - min_window + 1):
             window = max_window - window
             for in_delay in range(max_delay):
@@ -446,9 +446,8 @@ class AD9910:
                 # integrate SMP_ERR statistics for a few hundred cycles
                 # delay(10*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
-                err = (err >> (self.chip_select - 4)) & 1
                 delay(40*us)  # slack
-                if not err:
+                if not (err >> (self.chip_select - 4)) & 1:
                     window -= min_window  # add margin
                     self.set_sync(in_delay, window)
                     self.clear_smp_err()
