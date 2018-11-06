@@ -414,7 +414,7 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def tune_sync_delay(self, sync_delay_seed):
+    def tune_sync_delay(self, sync_delay_seed=8):
         """Find a stable SYNC_IN delay.
 
         This method first locates the smallest SYNC_IN validity window at
@@ -439,10 +439,8 @@ class AD9910:
                 if in_delay & 1:
                     in_delay = -in_delay
                 in_delay = sync_delay_seed + (in_delay >> 1)
-                if in_delay < 0:
-                    in_delay = 0
-                elif in_delay > 31:
-                    in_delay = 31
+                if in_delay < 0 or in_delay > 31:
+                    continue
                 self.set_sync(in_delay, window)
                 self.clear_smp_err()
                 # integrate SMP_ERR statistics for a few hundred cycles
