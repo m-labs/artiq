@@ -597,7 +597,8 @@ class PTB2(_StandaloneBase):
         eem.DIO.add_std(self, 2,
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
         eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X,
                            ttl_simple.ClockGen)
 
