@@ -44,7 +44,7 @@ class _RTIOCRG(Module, AutoCSR):
         pll_locked = Signal()
         rtio_clk = Signal()
         rtiox4_clk = Signal()
-        ext_clkout_clk = Signal()
+        fb_clk = Signal()
         self.specials += [
             Instance("PLLE2_ADV",
                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
@@ -57,13 +57,16 @@ class _RTIOCRG(Module, AutoCSR):
 
                      # VCO @ 1.5GHz when using 125MHz input
                      p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
-                     i_CLKFBIN=self.cd_rtio.clk,
+                     i_CLKFBIN=fb_clk,
                      i_RST=self._pll_reset.storage,
 
-                     o_CLKFBOUT=rtio_clk,
+                     o_CLKFBOUT=fb_clk,
 
                      p_CLKOUT0_DIVIDE=3, p_CLKOUT0_PHASE=0.0,
-                     o_CLKOUT0=rtiox4_clk),
+                     o_CLKOUT0=rtiox4_clk,
+
+                     p_CLKOUT1_DIVIDE=12, p_CLKOUT1_PHASE=0.0,
+                     o_CLKOUT1=rtio_clk),
             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
 
