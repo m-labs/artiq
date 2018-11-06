@@ -76,8 +76,12 @@ class AD9910Exp(EnvExperiment):
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
-        dly, win = self.dev.tune_sync_delay(self.dev.sync_delay_seed)
         err = [0] * 32
+        for i in range(6):
+            self.sync_scan(err, win=i)
+            print(err)
+            self.core.break_realtime()
+        dly, win = self.dev.tune_sync_delay(self.dev.sync_delay_seed)
         self.sync_scan(err, win=win + 1)  # tighten window by 2*75ps
         self.set_dataset("dly", dly)
         self.set_dataset("win", win)
