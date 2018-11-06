@@ -102,7 +102,7 @@ device_db.update(
             "io_update_device": "ttl_urukul0_io_update",
             "sync_device": "ttl_urukul0_sync",
             "refclk": 125e6,
-            "clk_sel": 0
+            "clk_sel": 2
         }
     }
 )
