@@ -29,11 +29,12 @@ class TTLOut:
 
     :param channel: channel number
     """
-    kernel_invariants = {"core", "channel"}
+    kernel_invariants = {"core", "channel", "target_o"}
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+        self.target_o = channel << 8
 
     @kernel
     def output(self):
@@ -41,7 +42,7 @@ class TTLOut:
 
     @kernel
     def set_o(self, o):
-        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
+        rtio_output(now_mu(), self.target_o, 1 if o else 0)
 
     @kernel
     def on(self):
@@ -106,15 +107,20 @@ class TTLInOut:
 
     :param channel: channel number
     """
-    kernel_invariants = {"core", "channel"}
+    kernel_invariants = {"core", "channel",
+        "target_o", "target_oe", "target_sens", "target_sample"}
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+        self.target_o      = (channel << 8) + 0
+        self.target_oe     = (channel << 8) + 1
+        self.target_sens   = (channel << 8) + 2
+        self.target_sample = (channel << 8) + 3
 
     @kernel
     def set_oe(self, oe):
-        rtio_output(now_mu(), self.channel, 1, 1 if oe else 0)
+        rtio_output(now_mu(), self.target_oe, 1 if oe else 0)
 
     @kernel
     def output(self):
@@ -136,7 +142,7 @@ class TTLInOut:
 
     @kernel
     def set_o(self, o):
-        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
+        rtio_output(now_mu(), self.target_o, 1 if o else 0)
 
     @kernel
     def on(self):
@@ -181,7 +187,7 @@ class TTLInOut:
     # Input API: gating
     @kernel
     def _set_sensitivity(self, value):
-        rtio_output(now_mu(), self.channel, 2, value)
+        rtio_output(now_mu(), self.target_sens, value)
 
     @kernel
     def gate_rising_mu(self, duration):
@@ -355,7 +361,7 @@ class TTLInOut:
         position of the time cursor.
 
         The time cursor is not modified by this function."""
-        rtio_output(now_mu(), self.channel, 3, 0)
+        rtio_output(now_mu(), self.target_sample, 0)
 
     @kernel
     def sample_get(self):
@@ -392,13 +398,13 @@ class TTLInOut:
 
         The time cursor is not modified by this function.
         """
-        rtio_output(now_mu(), self.channel, 3, 2)  # gate falling
+        rtio_output(now_mu(), self.target_sample, 2)  # gate falling
         return rtio_input_data(self.channel) == 1
 
     @kernel
     def watch_stay_off(self):
         """Like :meth:`watch_stay_on`, but for low levels."""
-        rtio_output(now_mu(), self.channel, 3, 1)  # gate rising
+        rtio_output(now_mu(), self.target_sample, 1)  # gate rising
         return rtio_input_data(self.channel) == 0
 
     @kernel
@@ -411,7 +417,7 @@ class TTLInOut:
         The time cursor is not modified by this function. This function
         always makes the slack negative.
         """
-        rtio_output(now_mu(), self.channel, 2, 0)
+        rtio_output(now_mu(), self.target_sens, 0)
         success = True
         try:
             while rtio_input_timestamp(now_mu(), self.channel) != -1:
@@ -432,11 +438,12 @@ class TTLClockGen:
     :param channel: channel number
     :param acc_width: accumulator width in bits
     """
-    kernel_invariants = {"core", "channel", "acc_width"}
+    kernel_invariants = {"core", "channel", "target", "acc_width"}
 
     def __init__(self, dmgr, channel, acc_width=24, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+        self.target = channel << 8
 
         self.acc_width = numpy.int64(acc_width)
 
@@ -472,7 +479,7 @@ class TTLClockGen:
         Due to the way the clock generator operates, frequency tuning words
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output."""
-        rtio_output(now_mu(), self.channel, 0, frequency)
+        rtio_output(now_mu(), self.target, frequency)
 
     @kernel
     def set(self, frequency):
