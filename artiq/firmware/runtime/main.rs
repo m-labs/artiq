@@ -1,5 +1,6 @@
 #![feature(lang_items, alloc, try_from, nonzero, asm,
-           panic_implementation, panic_info_message)]
+           panic_implementation, panic_info_message,
+           const_slice_len)]
 #![no_std]
 
 extern crate eh;
@@ -25,6 +26,7 @@ extern crate board_artiq;
 extern crate logger_artiq;
 extern crate proto_artiq;
 
+use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
 
@@ -33,12 +35,12 @@ use board_misoc::{csr, irq, ident, clock, boot, config};
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
+use board_artiq::drtio_routing;
 use board_artiq::{mailbox, rpc_queue};
-use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto,kernel_proto};
+use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
-#[cfg(has_rtio_core)]
 mod rtio_mgt;
 
 mod urc;
@@ -279,16 +281,37 @@ fn startup_ethernet() {
                        .ip_addrs([IpCidr::new(protocol_addr, 0)])
                        .finalize();
 
+    #[cfg(has_drtio)]
+    let drtio_routing_table = urc::Urc::new(RefCell::new(
+        drtio_routing::config_routing_table(csr::DRTIO.len())));
+    #[cfg(not(has_drtio))]
+    let drtio_routing_table = urc::Urc::new(RefCell::new(
+        drtio_routing::RoutingTable::default_empty()));
+    let up_destinations = urc::Urc::new(RefCell::new(
+        [false; drtio_routing::DEST_COUNT]));
+    let aux_mutex = sched::Mutex::new();
+
     let mut scheduler = sched::Scheduler::new();
     let io = scheduler.io();
-    #[cfg(has_rtio_core)]
-    rtio_mgt::startup(&io);
+
+    rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations);
+
     io.spawn(4096, mgmt::thread);
-    io.spawn(16384, session::thread);
+    {
+        let aux_mutex = aux_mutex.clone();
+        let drtio_routing_table = drtio_routing_table.clone();
+        let up_destinations = up_destinations.clone();
+        io.spawn(16384, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations) });
+    }
     #[cfg(any(has_rtio_moninj, has_drtio))]
-    io.spawn(4096, moninj::thread);
+    {
+        let aux_mutex = aux_mutex.clone();
+        let drtio_routing_table = drtio_routing_table.clone();
+        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &drtio_routing_table) });
+    }
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);
+
     #[cfg(has_grabber)]
     io.spawn(4096, grabber_thread);
 

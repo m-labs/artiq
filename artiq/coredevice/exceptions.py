@@ -91,7 +91,7 @@ class RTIOOverflow(Exception):
     artiq_builtin = True
 
 
-class RTIOLinkError(Exception):
+class RTIODestinationUnreachable(Exception):
     """Raised with a RTIO operation could not be completed due to a DRTIO link
     being down.
     """

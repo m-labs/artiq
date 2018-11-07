@@ -3,61 +3,10 @@
 from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
-from migen.genlib.cdc import PulseSynchronizer
 
 from artiq.gateware.rtio.cdc import GrayCodeTransfer, BlindTransfer
+from artiq.gateware.drtio.cdc import CrossDomainRequest, CrossDomainNotification
 from artiq.gateware.drtio.rt_serializer import *
-
-
-class _CrossDomainRequest(Module):
-    def __init__(self, domain,
-                 req_stb, req_ack, req_data,
-                 srv_stb, srv_ack, srv_data):
-        dsync = getattr(self.sync, domain)
-
-        request = PulseSynchronizer("sys", domain)
-        reply = PulseSynchronizer(domain, "sys")
-        self.submodules += request, reply
-
-        ongoing = Signal()
-        self.comb += request.i.eq(~ongoing & req_stb)
-        self.sync += [
-            req_ack.eq(reply.o),
-            If(req_stb, ongoing.eq(1)),
-            If(req_ack, ongoing.eq(0))
-        ]
-        if req_data is not None:
-            req_data_r = Signal.like(req_data)
-            req_data_r.attr.add("no_retiming")
-            self.sync += If(req_stb, req_data_r.eq(req_data))
-        dsync += [
-            If(request.o, srv_stb.eq(1)),
-            If(srv_ack, srv_stb.eq(0))
-        ]
-        if req_data is not None:
-            dsync += If(request.o, srv_data.eq(req_data_r))
-        self.comb += reply.i.eq(srv_stb & srv_ack)
-
-
-class _CrossDomainNotification(Module):
-    def __init__(self, domain,
-                 emi_stb, emi_data,
-                 rec_stb, rec_ack, rec_data):
-        emi_data_r = Signal(len(emi_data))
-        emi_data_r.attr.add("no_retiming")
-        dsync = getattr(self.sync, domain)
-        dsync += If(emi_stb, emi_data_r.eq(emi_data))
-
-        ps = PulseSynchronizer(domain, "sys")
-        self.submodules += ps
-        self.comb += ps.i.eq(emi_stb)
-        self.sync += [
-            If(rec_ack, rec_stb.eq(0)),
-            If(ps.o,
-                rec_data.eq(emi_data_r),
-                rec_stb.eq(1)
-            )
-        ]
 
 
 class RTPacketMaster(Module):
@@ -66,7 +15,7 @@ class RTPacketMaster(Module):
 
         # standard request interface
         #
-        # notwrite=1 address=0  buffer space request
+        # notwrite=1 address=0  buffer space request <destination>
         # notwrite=1 address=1  read request <channel, timestamp>
         #
         # optimized for write throughput
@@ -77,7 +26,7 @@ class RTPacketMaster(Module):
         self.sr_ack = Signal()
         self.sr_notwrite = Signal()
         self.sr_timestamp = Signal(64)
-        self.sr_channel = Signal(16)
+        self.sr_chan_sel = Signal(24)
         self.sr_address = Signal(16)
         self.sr_data = Signal(512)
 
@@ -135,20 +84,20 @@ class RTPacketMaster(Module):
         self.submodules += rx_dp
 
         # Write FIFO and extra data count
-        sr_fifo = ClockDomainsRenamer({"write": "sys_with_rst", "read": "rtio_with_rst"})(
-            AsyncFIFO(1+64+16+16+512, sr_fifo_depth))
+        sr_fifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
+            AsyncFIFO(1+64+24+16+512, sr_fifo_depth))
         self.submodules += sr_fifo
         sr_notwrite_d = Signal()
         sr_timestamp_d = Signal(64)
-        sr_channel_d = Signal(16)
+        sr_chan_sel_d = Signal(24)
         sr_address_d = Signal(16)
         sr_data_d = Signal(512)
         self.comb += [
             sr_fifo.we.eq(self.sr_stb),
             self.sr_ack.eq(sr_fifo.writable),
-            sr_fifo.din.eq(Cat(self.sr_notwrite, self.sr_timestamp, self.sr_channel,
+            sr_fifo.din.eq(Cat(self.sr_notwrite, self.sr_timestamp, self.sr_chan_sel,
                                self.sr_address, self.sr_data)),
-            Cat(sr_notwrite_d, sr_timestamp_d, sr_channel_d,
+            Cat(sr_notwrite_d, sr_timestamp_d, sr_chan_sel_d,
                 sr_address_d, sr_data_d).eq(sr_fifo.dout)
         ]
 
@@ -165,7 +114,7 @@ class RTPacketMaster(Module):
 
         sr_notwrite = Signal()
         sr_timestamp = Signal(64)
-        sr_channel = Signal(16)
+        sr_chan_sel = Signal(24)
         sr_address = Signal(16)
         sr_extra_data_cnt = Signal(8)
         sr_data = Signal(512)
@@ -173,7 +122,7 @@ class RTPacketMaster(Module):
         self.sync.rtio += If(sr_fifo.re,
             sr_notwrite.eq(sr_notwrite_d),
             sr_timestamp.eq(sr_timestamp_d),
-            sr_channel.eq(sr_channel_d),
+            sr_chan_sel.eq(sr_chan_sel_d),
             sr_address.eq(sr_address_d),
             sr_data.eq(sr_data_d))
 
@@ -206,19 +155,19 @@ class RTPacketMaster(Module):
         # CDC
         buffer_space_not = Signal()
         buffer_space = Signal(16)
-        self.submodules += _CrossDomainNotification("rtio_rx",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             buffer_space_not, buffer_space,
             self.buffer_space_not, self.buffer_space_not_ack, self.buffer_space)
 
         set_time_stb = Signal()
         set_time_ack = Signal()
-        self.submodules += _CrossDomainRequest("rtio",
+        self.submodules += CrossDomainRequest("rtio",
             self.set_time_stb, self.set_time_ack, None,
             set_time_stb, set_time_ack, None)
 
         echo_stb = Signal()
         echo_ack = Signal()
-        self.submodules += _CrossDomainRequest("rtio",
+        self.submodules += CrossDomainRequest("rtio",
             self.echo_stb, self.echo_ack, None,
             echo_stb, echo_ack, None)
 
@@ -227,7 +176,7 @@ class RTPacketMaster(Module):
         read_is_overflow = Signal()
         read_data = Signal(32)
         read_timestamp = Signal(64)
-        self.submodules += _CrossDomainNotification("rtio_rx",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             read_not,
             Cat(read_no_event, read_is_overflow, read_data, read_timestamp),
 
@@ -259,6 +208,10 @@ class RTPacketMaster(Module):
         self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
         tx_fsm.act("IDLE",
+            # Ensure 2 cycles between frames on the link.
+            NextState("READY")
+        )
+        tx_fsm.act("READY",
             If(sr_buf_readable,
                 If(sr_notwrite,
                     Case(sr_address[0], {
@@ -281,7 +234,7 @@ class RTPacketMaster(Module):
         tx_fsm.act("WRITE",
             tx_dp.send("write",
                 timestamp=sr_timestamp,
-                channel=sr_channel,
+                chan_sel=sr_chan_sel,
                 address=sr_address,
                 extra_data_cnt=sr_extra_data_cnt,
                 short_data=sr_data[:short_data_len]),
@@ -303,14 +256,14 @@ class RTPacketMaster(Module):
             )
         )
         tx_fsm.act("BUFFER_SPACE",
-            tx_dp.send("buffer_space_request"),
+            tx_dp.send("buffer_space_request", destination=sr_chan_sel[16:]),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")
             )
         )
         tx_fsm.act("READ",
-            tx_dp.send("read_request", channel=sr_channel, timeout=sr_timestamp),
+            tx_dp.send("read_request", chan_sel=sr_chan_sel, timeout=sr_timestamp),
             If(tx_dp.packet_last,
                 sr_buf_re.eq(1),
                 NextState("IDLE")

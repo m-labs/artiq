@@ -2,6 +2,7 @@
 
 from migen import *
 from migen.genlib.record import *
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -13,41 +14,42 @@ from misoc.interconnect.csr import *
 
 commands = {
     "nop": 0,
-
     "write": 1,
     # i_status should have the "wait for status" bit set until
     # an event is available, or timestamp is reached.
-    "read": 2
+    "read": 2,
+    # targets must assert o_buffer_space_valid in response
+    # to this command
+    "get_buffer_space": 3
 }
 
 
 layout = [
     ("cmd", 2, DIR_M_TO_S),
-    # 8 MSBs of chan_sel are used to select core
+    # 8  MSBs of chan_sel = routing destination
+    # 16 LSBs of chan_sel = channel within the destination
     ("chan_sel", 24, DIR_M_TO_S),
     ("timestamp", 64, DIR_M_TO_S),
 
     ("o_data", 512, DIR_M_TO_S),
     ("o_address", 16, DIR_M_TO_S),
     # o_status bits:
-    # <0:wait> <1:underflow> <2:link error>
+    # <0:wait> <1:underflow> <2:destination unreachable>
     ("o_status", 3, DIR_S_TO_M),
-    # targets may optionally report a pessimistic estimate of the number
-    # of outputs events that can be written without waiting.
+
+    # pessimistic estimate of the number of outputs events that can be
+    # written without waiting.
+    # this feature may be omitted on systems without DRTIO.
+    ("o_buffer_space_valid", 1, DIR_S_TO_M),
     ("o_buffer_space", 16, DIR_S_TO_M),
 
     ("i_data", 32, DIR_S_TO_M),
     ("i_timestamp", 64, DIR_S_TO_M),
     # i_status bits:
     # <0:wait for event (command timeout)> <1:overflow> <2:wait for status>
-    # <3:link error>
+    # <3:destination unreachable>
     # <0> and <1> are mutually exclusive. <1> has higher priority.
     ("i_status", 4, DIR_S_TO_M),
-
-    # value of the timestamp counter transferred into the CRI clock domain.
-    # monotonic, may lag behind the counter in the IO clock domain, but
-    # not be ahead of it.
-    ("counter", 64, DIR_S_TO_M)
 ]
 
 
@@ -57,8 +59,10 @@ class Interface(Record):
 
 
 class KernelInitiator(Module, AutoCSR):
-    def __init__(self, cri=None):
+    def __init__(self, tsc, cri=None):
         self.chan_sel = CSRStorage(24)
+        # monotonic, may lag behind the counter in the IO clock domain, but
+        # not be ahead of it.
         self.timestamp = CSRStorage(64)
 
         # Writing timestamp clears o_data. This implements automatic
@@ -103,11 +107,11 @@ class KernelInitiator(Module, AutoCSR):
             self.o_data.dat_w.eq(0),
             self.o_data.we.eq(self.timestamp.re),
         ]
-        self.sync += If(self.counter_update.re, self.counter.status.eq(self.cri.counter))
+        self.sync += If(self.counter_update.re, self.counter.status.eq(tsc.full_ts_cri))
 
 
-class CRIDecoder(Module):
-    def __init__(self, slaves=2, master=None):
+class CRIDecoder(Module, AutoCSR):
+    def __init__(self, slaves=2, master=None, mode="async", enable_routing=False):
         if isinstance(slaves, int):
             slaves = [Interface() for _ in range(slaves)]
         if master is None:
@@ -117,8 +121,37 @@ class CRIDecoder(Module):
 
         # # #
 
-        selected = Signal(8, reset_less=True)
-        self.sync += selected.eq(self.master.chan_sel[16:])
+        # routing
+        if enable_routing:
+            destination_unreachable = Interface()
+            self.comb += [
+                destination_unreachable.o_status.eq(4),
+                destination_unreachable.i_status.eq(8)
+            ]
+            slaves = slaves[:]
+            slaves.append(destination_unreachable)
+            target_len = 2**(len(slaves) - 1).bit_length()
+            slaves += [destination_unreachable]*(target_len - len(slaves))
+
+        slave_bits = bits_for(len(slaves)-1)
+        selected = Signal(slave_bits)
+
+        if enable_routing:
+            self.specials.routing_table = Memory(slave_bits, 256)
+
+            if mode == "async":
+                rtp_decoder = self.routing_table.get_port()
+            elif mode == "sync":
+                rtp_decoder = self.routing_table.get_port(clock_domain="rtio")
+            else:
+                raise ValueError
+            self.specials += rtp_decoder
+            self.comb += [
+                rtp_decoder.adr.eq(self.master.chan_sel[16:]),
+                selected.eq(rtp_decoder.dat_r)
+            ]
+        else:
+            self.sync += selected.eq(self.master.chan_sel[16:])
 
         # master -> slave
         for n, slave in enumerate(slaves):
@@ -138,7 +171,7 @@ class CRIDecoder(Module):
 
 
 class CRISwitch(Module, AutoCSR):
-    def __init__(self, masters=2, slave=None):
+    def __init__(self, masters=2, slave=None, mode="async"):
         if isinstance(masters, int):
             masters = [Interface() for _ in range(masters)]
         if slave is None:
@@ -150,6 +183,15 @@ class CRISwitch(Module, AutoCSR):
 
         # # #
 
+        if mode == "async":
+            selected = self.selected.storage
+        elif mode == "sync":
+            self.selected.storage.attr.add("no_retiming")
+            selected = Signal.like(self.selected.storage)
+            self.specials += MultiReg(self.selected.storage, selected, "rtio")
+        else:
+            raise ValueError
+
         if len(masters) == 1:
             self.comb += masters[0].connect(slave)
         else:
@@ -157,7 +199,7 @@ class CRISwitch(Module, AutoCSR):
             for name, size, direction in layout:
                 if direction == DIR_M_TO_S:
                     choices = Array(getattr(m, name) for m in masters)
-                    self.comb += getattr(slave, name).eq(choices[self.selected.storage])
+                    self.comb += getattr(slave, name).eq(choices[selected])
 
             # connect slave->master signals
             for name, size, direction in layout:
@@ -167,11 +209,31 @@ class CRISwitch(Module, AutoCSR):
                         dest = getattr(m, name)
                         self.comb += dest.eq(source)
 
+
 class CRIInterconnectShared(Module):
-    def __init__(self, masters=2, slaves=2):
+    def __init__(self, masters=2, slaves=2, mode="async", enable_routing=False):
         shared = Interface()
-        self.submodules.switch = CRISwitch(masters, shared)
-        self.submodules.decoder = CRIDecoder(slaves, shared)
+        self.submodules.switch = CRISwitch(masters, shared, mode)
+        self.submodules.decoder = CRIDecoder(slaves, shared, mode, enable_routing)
 
     def get_csrs(self):
-        return self.switch.get_csrs()
+        return self.switch.get_csrs() + self.decoder.get_csrs()
+
+
+class RoutingTableAccess(Module, AutoCSR):
+    def __init__(self, interconnect):
+        if isinstance(interconnect, CRIInterconnectShared):
+            interconnect = interconnect.decoder
+
+        rtp_csr = interconnect.routing_table.get_port(write_capable=True)
+        self.specials += rtp_csr
+
+        self.destination = CSRStorage(8)
+        self.hop = CSR(len(rtp_csr.dat_w))
+
+        self.comb += [
+            rtp_csr.adr.eq(self.destination.storage),
+            rtp_csr.dat_w.eq(self.hop.r),
+            rtp_csr.we.eq(self.hop.re),
+            self.hop.w.eq(rtp_csr.dat_r)
+        ]

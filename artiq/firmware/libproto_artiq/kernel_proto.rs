@@ -28,6 +28,9 @@ pub enum Message<'a> {
 
     RtioInitRequest,
 
+    RtioDestinationStatusRequest { destination: u8 },
+    RtioDestinationStatusReply { up: bool },
+
     DmaRecordStart(&'a str),
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
@@ -45,14 +48,6 @@ pub enum Message<'a> {
         trace:    Option<&'a [u8]>,
         duration: u64
     },
-
-    DrtioLinkStatusRequest { linkno: u8 },
-    DrtioLinkStatusReply { up: bool },
-
-    DrtioPacketCountRequest { linkno: u8 },
-    DrtioPacketCountReply { tx_cnt: u32, rx_cnt: u32 },
-    DrtioBufferSpaceReqCountRequest { linkno: u8 },
-    DrtioBufferSpaceReqCountReply { cnt: u32 },
 
     RunFinished,
     RunException {

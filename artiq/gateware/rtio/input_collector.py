@@ -24,11 +24,10 @@ def get_channel_layout(coarse_ts_width, interface):
 
 
 class InputCollector(Module):
-    def __init__(self, channels, glbl_fine_ts_width, mode, quash_channels=[], interface=None):
+    def __init__(self, tsc, channels, mode, quash_channels=[], interface=None):
         if interface is None:
             interface = cri.Interface()
         self.cri = interface
-        self.coarse_timestamp = Signal(64 - glbl_fine_ts_width)
 
         # # #
 
@@ -55,7 +54,7 @@ class InputCollector(Module):
                 continue
 
             # FIFO
-            layout = get_channel_layout(len(self.coarse_timestamp), iif)
+            layout = get_channel_layout(len(tsc.coarse_ts), iif)
             fifo = fifo_factory(layout_len(layout), channel.ififo_depth)
             self.submodules += fifo
             fifo_in = Record(layout)
@@ -67,10 +66,10 @@ class InputCollector(Module):
 
             # FIFO write
             if iif.delay:
-                counter_rtio = Signal.like(self.coarse_timestamp, reset_less=True)
-                sync_io += counter_rtio.eq(self.coarse_timestamp - (iif.delay + 1))
+                counter_rtio = Signal.like(tsc.coarse_ts, reset_less=True)
+                sync_io += counter_rtio.eq(tsc.coarse_ts - (iif.delay + 1))
             else:
-                counter_rtio = self.coarse_timestamp
+                counter_rtio = tsc.coarse_ts
             if hasattr(fifo_in, "data"):
                 self.comb += fifo_in.data.eq(iif.data)
             if hasattr(fifo_in, "timestamp"):
@@ -130,7 +129,7 @@ class InputCollector(Module):
                 self.cri.i_data.eq(Array(i_datas)[sel]),
                 self.cri.i_timestamp.eq(Array(i_timestamps)[sel]),
             ),
-            If((self.cri.counter >= input_timeout) | (i_status_raw != 0),
+            If((tsc.full_ts_cri >= input_timeout) | (i_status_raw != 0),
                 If(input_pending, i_ack.eq(1)),
                 input_pending.eq(0)
             ),

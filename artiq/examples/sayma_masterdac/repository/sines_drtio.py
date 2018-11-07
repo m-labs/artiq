@@ -10,7 +10,7 @@ class SAWGTestDRTIO(EnvExperiment):
     @kernel
     def run(self):
         core_log("waiting for DRTIO ready...")
-        while not self.core.get_drtio_link_status(0):
+        while not self.core.get_rtio_destination_status(0):
             pass
         core_log("OK")
 

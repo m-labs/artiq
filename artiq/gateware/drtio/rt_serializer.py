@@ -49,13 +49,13 @@ def get_m2s_layouts(alignment):
     plm.add_type("set_time", ("timestamp", 64))
 
     plm.add_type("write", ("timestamp", 64),
-                          ("channel", 16),
+                          ("chan_sel", 24),
                           ("address", 16),
                           ("extra_data_cnt", 8),
                           ("short_data", short_data_len))
-    plm.add_type("buffer_space_request")
+    plm.add_type("buffer_space_request", ("destination", 8))
 
-    plm.add_type("read_request", ("channel", 16), ("timeout", 64))
+    plm.add_type("read_request", ("chan_sel", 24), ("timeout", 64))
 
     return plm
 

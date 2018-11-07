@@ -5,18 +5,28 @@ mod imp {
 
     use board_misoc::csr;
     use ::send;
+    use ::recv;
     use kernel_proto::*;
 
-    pub const RTIO_O_STATUS_WAIT:           u8 = 1;
-    pub const RTIO_O_STATUS_UNDERFLOW:      u8 = 2;
-    pub const RTIO_O_STATUS_LINK_ERROR:     u8 = 4;
-    pub const RTIO_I_STATUS_WAIT_EVENT:     u8 = 1;
-    pub const RTIO_I_STATUS_OVERFLOW:       u8 = 2;
-    pub const RTIO_I_STATUS_WAIT_STATUS:    u8 = 4;
-    pub const RTIO_I_STATUS_LINK_ERROR:     u8 = 8;
+    pub const RTIO_O_STATUS_WAIT:                      u8 = 1;
+    pub const RTIO_O_STATUS_UNDERFLOW:                 u8 = 2;
+    pub const RTIO_O_STATUS_DESTINATION_UNREACHABLE:   u8 = 4;
+    pub const RTIO_I_STATUS_WAIT_EVENT:                u8 = 1;
+    pub const RTIO_I_STATUS_OVERFLOW:                  u8 = 2;
+    pub const RTIO_I_STATUS_WAIT_STATUS:               u8 = 4;
+    pub const RTIO_I_STATUS_DESTINATION_UNREACHABLE:   u8 = 8;
 
     pub extern fn init() {
         send(&RtioInitRequest);
+    }
+
+    pub extern fn get_destination_status(destination: i32) -> bool {
+        if 0 <= destination && destination <= 255 {
+            send(&RtioDestinationStatusRequest { destination: destination as u8 });
+            recv!(&RtioDestinationStatusReply { up } => up)
+        } else {
+            false
+        }
     }
 
     pub extern fn get_counter() -> i64 {
@@ -49,9 +59,9 @@ mod imp {
                 "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
                 timestamp, channel as i64, timestamp - get_counter());
         }
-        if status & RTIO_O_STATUS_LINK_ERROR != 0 {
-            raise!("RTIOLinkError",
-                "RTIO output link error at {0} mu, channel {1}",
+        if status & RTIO_O_STATUS_DESTINATION_UNREACHABLE != 0 {
+            raise!("RTIODestinationUnreachable",
+                "RTIO destination unreachable, output, at {0} mu, channel {1}",
                 timestamp, channel as i64, 0);
         }
     }
@@ -108,9 +118,9 @@ mod imp {
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return !0
             }
-            if status & RTIO_I_STATUS_LINK_ERROR != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO input link error on channel {0}",
+            if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, input, on channel {0}",
                     channel as i64, 0, 0);
             }
 
@@ -135,9 +145,9 @@ mod imp {
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
             }
-            if status & RTIO_I_STATUS_LINK_ERROR != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO input link error on channel {0}",
+            if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, input, on channel {0}",
                     channel as i64, 0, 0);
             }
 
@@ -209,29 +219,3 @@ mod imp {
 }
 
 pub use self::imp::*;
-
-pub mod drtio {
-    use ::send;
-    use ::recv;
-    use kernel_proto::*;
-
-    pub extern fn get_link_status(linkno: i32) -> bool {
-        send(&DrtioLinkStatusRequest { linkno: linkno as u8 });
-        recv!(&DrtioLinkStatusReply { up } => up)
-    }
-
-    #[repr(C)]
-    pub struct PacketCounts(i32, i32);
-
-    pub extern fn get_packet_counts(linkno: i32) -> PacketCounts {
-        send(&DrtioPacketCountRequest { linkno: linkno as u8 });
-        recv!(&DrtioPacketCountReply { tx_cnt, rx_cnt }
-              => PacketCounts(tx_cnt as i32, rx_cnt as i32))
-    }
-
-    pub extern fn get_buffer_space_req_count(linkno: i32) -> i32 {
-        send(&DrtioBufferSpaceReqCountRequest { linkno: linkno as u8 });
-        recv!(&DrtioBufferSpaceReqCountReply { cnt }
-              => cnt as i32)
-    }
-}

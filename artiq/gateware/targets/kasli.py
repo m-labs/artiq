@@ -21,14 +21,14 @@ from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
-from artiq.gateware.drtio import DRTIOMaster, DRTIOSatellite
+from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
 
 class _RTIOCRG(Module, AutoCSR):
     def __init__(self, platform):
-        self._pll_reset = CSRStorage(reset=1)
-        self._pll_locked = CSRStatus()
+        self.pll_reset = CSRStorage(reset=1)
+        self.pll_locked = CSRStatus()
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
@@ -60,7 +60,7 @@ class _RTIOCRG(Module, AutoCSR):
                      # VCO @ 1GHz when using 125MHz input
                      p_CLKFBOUT_MULT=8, p_DIVCLK_DIVIDE=1,
                      i_CLKFBIN=self.cd_rtio.clk,
-                     i_RST=self._pll_reset.storage,
+                     i_RST=self.pll_reset.storage,
 
                      o_CLKFBOUT=rtio_clk,
 
@@ -70,7 +70,7 @@ class _RTIOCRG(Module, AutoCSR):
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
 
             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
-            MultiReg(pll_locked, self._pll_locked.status)
+            MultiReg(pll_locked, self.pll_locked.status)
         ]
 
 
@@ -120,9 +120,10 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_crg = _RTIOCRG(self.platform)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
-        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
@@ -138,7 +139,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
@@ -766,19 +767,23 @@ class Tester(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class _RTIOClockMultiplier(Module):
+class _RTIOClockMultiplier(Module, AutoCSR):
     def __init__(self, rtio_clk_freq):
+        self.pll_reset = CSRStorage(reset=1)
+        self.pll_locked = CSRStatus()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
         # See "Global Clock Network Deskew Using Two BUFGs" in ug472.
         clkfbout = Signal()
         clkfbin = Signal()
         rtiox4_clk = Signal()
+        pll_locked = Signal()
         self.specials += [
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
                 i_CLKIN1=ClockSignal("rtio"),
-                i_RST=ResetSignal("rtio"),
+                i_RST=self.pll_reset.storage,
+                o_LOCKED=pll_locked,
 
                 p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
 
@@ -787,7 +792,9 @@ class _RTIOClockMultiplier(Module):
                 p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
             ),
             Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
-            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk)
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+
+            MultiReg(pll_locked, self.pll_locked.status)
         ]
 
 
@@ -796,12 +803,12 @@ class _MasterBase(MiniSoC, AMPSoC):
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
         "rtio_dma":      0x30000000,
-        "drtio_aux":     0x50000000,
+        "drtioaux":      0x50000000,
         "mailbox":       0x70000000
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -836,28 +843,40 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.comb += [sfp_ctl.led.eq(channel.rx_ready)
             for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
 
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+
         drtio_csr_group = []
-        drtio_memory_group = []
+        drtioaux_csr_group = []
+        drtioaux_memory_group = []
         self.drtio_cri = []
         for i in range(2):
             core_name = "drtio" + str(i)
-            memory_name = "drtio" + str(i) + "_aux"
+            coreaux_name = "drtioaux" + str(i)
+            memory_name = "drtioaux" + str(i) + "_mem"
             drtio_csr_group.append(core_name)
-            drtio_memory_group.append(memory_name)
+            drtioaux_csr_group.append(coreaux_name)
+            drtioaux_memory_group.append(memory_name)
 
-            core = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})(
-                DRTIOMaster(self.drtio_transceiver.channels[i]))
+            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
+
+            core = cdr(DRTIOMaster(self.rtio_tsc, self.drtio_transceiver.channels[i]))
             setattr(self.submodules, core_name, core)
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            memory_address = self.mem_map["drtio_aux"] + 0x800*i
+            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*i
             self.add_wb_slave(memory_address, 0x800,
-                              core.aux_controller.bus)
+                              coreaux.bus)
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
         self.add_csr_group("drtio", drtio_csr_group)
-        self.add_memory_group("drtio_aux", drtio_memory_group)
+        self.add_csr_group("drtioaux", drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.drtio_transceiver.gtps[0]
@@ -871,27 +890,31 @@ class _MasterBase(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
+        self.submodules.rtio_crg = _RTIOClockMultiplier(rtio_clk_freq)
+        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(rtio_channels, glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
 
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri] + self.drtio_cri)
+            [self.rtio_core.cri] + self.drtio_cri,
+            enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.cri_con.switch.slave,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
@@ -930,11 +953,11 @@ class _MasterBase(MiniSoC, AMPSoC):
 
 class _SatelliteBase(BaseSoC):
     mem_map = {
-        "drtio_aux": 0x50000000,
+        "drtioaux": 0x50000000,
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -960,17 +983,63 @@ class _SatelliteBase(BaseSoC):
         qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
-        sfp_ctl = platform.request("sfp_ctl", 0)
-        self.comb += sfp_ctl.tx_disable.eq(0)
+        sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
+        self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
-            data_pads=[platform.request("sfp", 0)],
+            data_pads=[platform.request("sfp", i) for i in range(3)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
         self.sync += disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
-        self.comb += sfp_ctl.led.eq(self.drtio_transceiver.channels[0].rx_ready)
+        self.comb += [sfp_ctl.led.eq(channel.rx_ready)
+            for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
+
+        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+
+        drtioaux_csr_group = []
+        drtioaux_memory_group = []
+        drtiorep_csr_group = []
+        self.drtio_cri = []
+        for i in range(3):
+            coreaux_name = "drtioaux" + str(i)
+            memory_name = "drtioaux" + str(i) + "_mem"
+            drtioaux_csr_group.append(coreaux_name)
+            drtioaux_memory_group.append(memory_name)
+
+            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
+
+            if i == 0:
+                self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
+                core = cdr(DRTIOSatellite(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i],
+                    self.rx_synchronizer))
+                self.submodules.drtiosat = core
+                self.csr_devices.append("drtiosat")
+            else:
+                corerep_name = "drtiorep" + str(i-1)
+                drtiorep_csr_group.append(corerep_name)
+
+                core = cdr(DRTIORepeater(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i]))
+                setattr(self.submodules, corerep_name, core)
+                self.drtio_cri.append(core.cri)
+                self.csr_devices.append(corerep_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*i
+            self.add_wb_slave(memory_address, 0x800,
+                              coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
+        self.add_csr_group("drtioaux", drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
+        self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
@@ -995,26 +1064,28 @@ class _SatelliteBase(BaseSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
+        for gtp in self.drtio_transceiver.gtps[1:]:
+            platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_clkmul = _RTIOClockMultiplier(rtio_clk_freq)
+        self.submodules.rtio_crg = _RTIOClockMultiplier(rtio_clk_freq)
+        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
-        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
-        self.submodules.drtio0 = rx0(DRTIOSatellite(
-            self.drtio_transceiver.channels[0], rtio_channels,
-            self.rx_synchronizer))
-        self.csr_devices.append("drtio0")
-        self.add_wb_slave(self.mem_map["drtio_aux"], 0x800,
-                          self.drtio0.aux_controller.bus)
-        self.add_memory_region("drtio0_aux", self.mem_map["drtio_aux"] | self.shadow_base, 0x800)
-        self.config["HAS_DRTIO"] = None
-        self.add_csr_group("drtio", ["drtio0"])
-        self.add_memory_group("drtio_aux", ["drtio0_aux"])
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.drtiosat.cri],
+            [self.local_io.cri] + self.drtio_cri,
+            mode="sync", enable_routing=True)
+        self.csr_devices.append("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
 
 class Master(_MasterBase):

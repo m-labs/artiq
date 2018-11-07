@@ -52,10 +52,11 @@ class DUT(Module):
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.master = DRTIOMaster(self.transceivers.alice,
-                                             fine_ts_width=0)
-        self.submodules.master_ki = rtio.KernelInitiator(self.master.cri)
-        self.master.rt_controller.csrs.link_up.storage.reset = 1
+        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.master = DRTIOMaster(self.tsc_master,
+                                             self.transceivers.alice)
+        self.submodules.master_ki = rtio.KernelInitiator(self.tsc_master,
+            self.master.cri)
 
         rx_synchronizer = DummyRXSynchronizer()
         self.submodules.phy0 = ttl_simple.Output(self.ttl0)
@@ -66,13 +67,19 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1),
             rtio.Channel.from_phy(self.phy2),
         ]
+        self.submodules.tsc_satellite = rtio.TSC("sync")
         self.submodules.satellite = DRTIOSatellite(
-            self.transceivers.bob, rtio_channels, rx_synchronizer,
-            lane_count=4, fifo_depth=8, fine_ts_width=0)
+            self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0
         self.satellite.reset.storage_full.reset = 0
         self.satellite.reset_phy.storage.reset = 0
         self.satellite.reset_phy.storage_full.reset = 0
+        self.submodules.satellite_rtio = SyncRTIO(
+            self.tsc_satellite, rtio_channels, lane_count=4, fifo_depth=8)
+        self.comb += [
+            self.satellite.cri.connect(self.satellite_rtio.cri),
+            self.satellite.async_errors.eq(self.satellite_rtio.async_errors),
+        ]
 
 
 class OutputsTestbench:
@@ -100,7 +107,7 @@ class OutputsTestbench:
 
     def sync(self):
         t = self.now + 15
-        while (yield self.dut.master.cri.counter) < t:
+        while (yield self.dut.tsc_master.full_ts_cri) < t:
             yield
 
     def write(self, channel, data):
@@ -117,7 +124,7 @@ class OutputsTestbench:
             if status & 0x2:
                 raise RTIOUnderflow
             if status & 0x4:
-                raise RTIOLinkError
+                raise RTIODestinationUnreachable
             yield
             wlen += 1
         return wlen
@@ -138,8 +145,7 @@ class OutputsTestbench:
 
 class TestFullStack(unittest.TestCase):
     clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
-              "rio": 5, "rio_phy": 5,
-              "sys_with_rst": 8, "rtio_with_rst": 5}
+              "rio": 5, "rio_phy": 5}
 
     def test_pulses(self):
         tb = OutputsTestbench()
@@ -228,7 +234,7 @@ class TestFullStack(unittest.TestCase):
             errors = yield from saterr.protocol_error.read()
             underflow_channel = yield from saterr.underflow_channel.read()
             underflow_timestamp_event = yield from saterr.underflow_timestamp_event.read()
-            self.assertEqual(errors, 4)  # write underflow
+            self.assertEqual(errors, 8)  # write underflow
             self.assertEqual(underflow_channel, 42)
             self.assertEqual(underflow_timestamp_event, 100)
             yield from saterr.protocol_error.write(errors)
@@ -256,7 +262,7 @@ class TestFullStack(unittest.TestCase):
             if status & 0x2:
                 return "overflow"
             if status & 0x8:
-                return "link error"
+                return "destination unreachable"
             return ((yield from kcsrs.i_data.read()),
                     (yield from kcsrs.i_timestamp.read()))
 
@@ -283,26 +289,25 @@ class TestFullStack(unittest.TestCase):
 
     def test_echo(self):
         dut = DUT(2)
-        csrs = dut.master.rt_controller.csrs
-        mgr = dut.master.rt_manager
+        packet = dut.master.rt_packet
 
         def test():
             while not (yield from dut.master.link_layer.rx_up.read()):
                 yield
 
-            yield from mgr.update_packet_cnt.write(1)
-            yield
-            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 0)
-            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 0)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 0)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_rx), 0)
 
-            yield from mgr.request_echo.write(1)
+            yield dut.master.rt_packet.echo_stb.eq(1)
+            yield
+            while not (yield dut.master.rt_packet.echo_ack):
+                yield
+            yield dut.master.rt_packet.echo_stb.eq(0)
 
             for i in range(15):
                 yield
 
-            yield from mgr.update_packet_cnt.write(1)
-            yield
-            self.assertEqual((yield from mgr.packet_cnt_tx.read()), 1)
-            self.assertEqual((yield from mgr.packet_cnt_rx.read()), 1)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 1)
+            self.assertEqual((yield dut.master.rt_packet.packet_cnt_rx), 1)
 
         run_simulation(dut, test(), self.clocks)
