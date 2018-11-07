@@ -148,7 +148,7 @@ record_layout = [
     ("length", 8),  # of whole record (header+data)
     ("channel", 24),
     ("timestamp", 64),
-    ("address", 16),
+    ("address", 8),
     ("data", 512)  # variable length
 ]
 

@@ -36,6 +36,7 @@ mod imp {
         }
     }
 
+    // writing the LSB of o_data (offset=0) triggers the RTIO write
     #[inline(always)]
     pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {
         write_volatile(
@@ -66,41 +67,37 @@ mod imp {
         }
     }
 
-    pub extern fn output(timestamp: i64, channel: i32, addr: i32, data: i32) {
+    pub extern fn output(timestamp: i64, target: i32, data: i32) {
         unsafe {
-            csr::rtio::chan_sel_write(channel as _);
+            csr::rtio::target_write(target as u32);
             // writing timestamp clears o_data
             csr::rtio::timestamp_write(timestamp as u64);
-            csr::rtio::o_address_write(addr as _);
             rtio_o_data_write(0, data as _);
-            csr::rtio::o_we_write(1);
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(timestamp, channel, status);
+                process_exceptional_status(timestamp, target >> 8, status);
             }
         }
     }
 
-    pub extern fn output_wide(timestamp: i64, channel: i32, addr: i32, data: CSlice<i32>) {
+    pub extern fn output_wide(timestamp: i64, target: i32, data: CSlice<i32>) {
         unsafe {
-            csr::rtio::chan_sel_write(channel as _);
+            csr::rtio::target_write(target as u32);
             // writing timestamp clears o_data
             csr::rtio::timestamp_write(timestamp as u64);
-            csr::rtio::o_address_write(addr as _);
             for i in 0..data.len() {
                 rtio_o_data_write(i, data[i] as _)
             }
-            csr::rtio::o_we_write(1);
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(timestamp, channel, status);
+                process_exceptional_status(timestamp, target >> 8, status);
             }
         }
     }
 
     pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
         unsafe {
-            csr::rtio::chan_sel_write(channel as _);
+            csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::timestamp_write(timeout as u64);
             csr::rtio::i_request_write(1);
 
@@ -130,7 +127,7 @@ mod imp {
 
     pub extern fn input_data(channel: i32) -> i32 {
         unsafe {
-            csr::rtio::chan_sel_write(channel as _);
+            csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::timestamp_write(0xffffffff_ffffffff);
             csr::rtio::i_request_write(1);
 
@@ -158,7 +155,7 @@ mod imp {
     #[cfg(has_rtio_log)]
     pub fn log(timestamp: i64, data: &[u8]) {
         unsafe {
-            csr::rtio::chan_sel_write(csr::CONFIG_RTIO_LOG_CHANNEL);
+            csr::rtio::target_write(csr::CONFIG_RTIO_LOG_CHANNEL << 8);
             csr::rtio::timestamp_write(timestamp as u64);
 
             let mut word: u32 = 0;
@@ -167,14 +164,12 @@ mod imp {
                 word |= data[i] as u32;
                 if i % 4 == 3 {
                     rtio_o_data_write(0, word);
-                    csr::rtio::o_we_write(1);
                     word = 0;
                 }
             }
 
             if word != 0 {
                 rtio_o_data_write(0, word);
-                csr::rtio::o_we_write(1);
             }
         }
     }

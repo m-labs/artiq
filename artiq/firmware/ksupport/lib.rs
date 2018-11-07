@@ -301,10 +301,10 @@ extern fn dma_record_stop(duration: i64) {
 
 #[unwind(aborts)]
 #[inline(always)]
-unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
+unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
                                     words: usize) -> &'static mut [u8] {
     // See gateware/rtio/dma.py.
-    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
+    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/1;
     let length = HEADER_LENGTH + /*data*/words * 4;
 
     if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
@@ -319,9 +319,9 @@ unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
 
     header.copy_from_slice(&[
         (length    >>  0) as u8,
-        (channel   >>  0) as u8,
-        (channel   >>  8) as u8,
-        (channel   >> 16) as u8,
+        (target    >>  8) as u8,
+        (target    >>  16) as u8,
+        (target    >>  24) as u8,
         (timestamp >>  0) as u8,
         (timestamp >>  8) as u8,
         (timestamp >> 16) as u8,
@@ -330,17 +330,16 @@ unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
         (timestamp >> 40) as u8,
         (timestamp >> 48) as u8,
         (timestamp >> 56) as u8,
-        (address   >>  0) as u8,
-        (address   >>  8) as u8,
+        (target    >>  0) as u8,
     ]);
 
     data
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
+extern fn dma_record_output(timestamp: i64, target: i32, word: i32) {
     unsafe {
-        let data = dma_record_output_prepare(timestamp, channel, address, 1);
+        let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
             (word >>  0) as u8,
             (word >>  8) as u8,
@@ -351,11 +350,11 @@ extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i3
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
+extern fn dma_record_output_wide(timestamp: i64, target: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let mut data = dma_record_output_prepare(timestamp, channel, address, 1);
+        let mut data = dma_record_output_prepare(timestamp, target, 1);
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
                 (word >>  0) as u8,

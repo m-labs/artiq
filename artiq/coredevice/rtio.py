@@ -3,13 +3,12 @@ from artiq.language.types import TInt64, TInt32, TNone, TList
 
 
 @syscall(flags={"nowrite"})
-def rtio_output(time_mu: TInt64, channel: TInt32, addr: TInt32, data: TInt32
-                ) -> TNone:
+def rtio_output(time_mu: TInt64, target: TInt32, data: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
 @syscall(flags={"nowrite"})
-def rtio_output_wide(time_mu: TInt64, channel: TInt32, addr: TInt32,
+def rtio_output_wide(time_mu: TInt64, target: TInt32,
                      data: TList(TInt32)) -> TNone:
     raise NotImplementedError("syscall not simulated")
 

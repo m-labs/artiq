@@ -32,7 +32,7 @@ layout = [
     ("timestamp", 64, DIR_M_TO_S),
 
     ("o_data", 512, DIR_M_TO_S),
-    ("o_address", 16, DIR_M_TO_S),
+    ("o_address", 8, DIR_M_TO_S),
     # o_status bits:
     # <0:wait> <1:underflow> <2:destination unreachable>
     ("o_status", 3, DIR_S_TO_M),
@@ -60,7 +60,7 @@ class Interface(Record):
 
 class KernelInitiator(Module, AutoCSR):
     def __init__(self, tsc, cri=None):
-        self.chan_sel = CSRStorage(24)
+        self.target = CSRStorage(32)
         # monotonic, may lag behind the counter in the IO clock domain, but
         # not be ahead of it.
         self.timestamp = CSRStorage(64)
@@ -69,8 +69,6 @@ class KernelInitiator(Module, AutoCSR):
         # zero-extension of output event data by the gateware. When staging an
         # output event, always write timestamp before o_data.
         self.o_data = CSRStorage(512, write_from_dev=True)
-        self.o_address = CSRStorage(16)
-        self.o_we = CSR()
         self.o_status = CSRStatus(3)
 
         self.i_data = CSRStatus(32)
@@ -90,14 +88,14 @@ class KernelInitiator(Module, AutoCSR):
 
         self.comb += [
             self.cri.cmd.eq(commands["nop"]),
-            If(self.o_we.re, self.cri.cmd.eq(commands["write"])),
+            If(self.o_data.re, self.cri.cmd.eq(commands["write"])),
             If(self.i_request.re, self.cri.cmd.eq(commands["read"])),
 
-            self.cri.chan_sel.eq(self.chan_sel.storage),
+            self.cri.chan_sel.eq(self.target.storage[8:]),
             self.cri.timestamp.eq(self.timestamp.storage),
 
             self.cri.o_data.eq(self.o_data.storage),
-            self.cri.o_address.eq(self.o_address.storage),
+            self.cri.o_address.eq(self.target.storage[:8]),
             self.o_status.status.eq(self.cri.o_status),
 
             self.i_data.status.eq(self.cri.i_data),
