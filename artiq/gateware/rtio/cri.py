@@ -61,8 +61,6 @@ class Interface(Record):
 class KernelInitiator(Module, AutoCSR):
     def __init__(self, tsc, cri=None):
         self.target = CSRStorage(32)
-        # monotonic, may lag behind the counter in the IO clock domain, but
-        # not be ahead of it.
         self.timestamp = CSRStorage(64)
 
         # Writing timestamp clears o_data. This implements automatic
