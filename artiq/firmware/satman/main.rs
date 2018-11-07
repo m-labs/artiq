@@ -229,23 +229,6 @@ fn process_errors() {
     }
 }
 
-
-#[cfg(has_rtio_crg)]
-fn init_rtio_crg() {
-    unsafe {
-        csr::rtio_crg::pll_reset_write(0);
-    }
-    clock::spin_us(150);
-    let locked = unsafe { csr::rtio_crg::pll_locked_read() != 0 };
-    if !locked {
-        error!("RTIO clock failed");
-    }
-}
-
-#[cfg(not(has_rtio_crg))]
-fn init_rtio_crg() { }
-
-
 #[cfg(rtio_frequency = "150.0")]
 const SI5324_SETTINGS: si5324::FrequencySettings
     = si5324::FrequencySettings {
@@ -302,7 +285,6 @@ pub extern fn main() -> i32 {
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
-    init_rtio_crg();
 
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
