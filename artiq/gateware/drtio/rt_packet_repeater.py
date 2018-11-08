@@ -68,7 +68,11 @@ class RTPacketRepeater(Module):
             If(~self.reset & ~cb0_loaded & (self.cri.cmd != cri.commands["nop"]),
                 cb0_loaded.eq(1),
                 cb0_cmd.eq(self.cri.cmd),
-                cb0_timestamp.eq(self.cri.timestamp),
+                If(self.cri.cmd == cri.commands["read"],
+                    cb0_timestamp.eq(self.cri.i_timeout)
+                ).Else(
+                    cb0_timestamp.eq(self.cri.o_timestamp)
+                ),
                 cb0_chan_sel.eq(self.cri.chan_sel),
                 cb0_o_address.eq(self.cri.o_address),
                 cb0_o_data.eq(self.cri.o_data)

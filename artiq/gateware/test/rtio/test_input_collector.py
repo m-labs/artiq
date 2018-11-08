@@ -54,7 +54,7 @@ def simulate(wait_cycles, ts_timeouts):
             yield
 
         for ts_timeout in ts_timeouts:
-            yield dut.cri.timestamp.eq(ts_timeout)
+            yield dut.cri.i_timeout.eq(ts_timeout)
             yield dut.cri.cmd.eq(cri.commands["read"])
             yield
             yield dut.cri.cmd.eq(cri.commands["nop"])

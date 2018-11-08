@@ -38,7 +38,7 @@ def simulate(input_events, **kwargs):
     def gen():
         yield dut.sed.cri.chan_sel.eq(0)
         for timestamp, data in input_events:
-            yield dut.sed.cri.timestamp.eq(timestamp)
+            yield dut.sed.cri.o_timestamp.eq(timestamp)
             yield dut.sed.cri.o_data.eq(data)
             yield
 

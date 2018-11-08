@@ -1,3 +1,5 @@
+use board_misoc::csr;
+
 macro_rules! api {
     ($i:ident) => ({
         extern { static $i: u8; }
@@ -78,7 +80,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     /* proxified syscalls */
     api!(core_log),
 
-    api!(now = &::NOW as *const _),
+    api!(now = csr::rtio::NOW_HI_ADDR as *const _),
 
     api!(watchdog_set = ::watchdog_set),
     api!(watchdog_clear = ::watchdog_clear),

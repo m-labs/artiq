@@ -51,7 +51,8 @@ mod imp {
     }
 
     #[inline(never)]
-    unsafe fn process_exceptional_status(timestamp: i64, channel: i32, status: u8) {
+    unsafe fn process_exceptional_status(channel: i32, status: u8) {
+        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
         if status & RTIO_O_STATUS_WAIT != 0 {
             while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
         }
@@ -67,30 +68,28 @@ mod imp {
         }
     }
 
-    pub extern fn output(timestamp: i64, target: i32, data: i32) {
+    pub extern fn output(target: i32, data: i32) {
         unsafe {
             csr::rtio::target_write(target as u32);
-            // writing timestamp clears o_data
-            csr::rtio::timestamp_write(timestamp as u64);
+            // writing target clears o_data
             rtio_o_data_write(0, data as _);
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(timestamp, target >> 8, status);
+                process_exceptional_status(target >> 8, status);
             }
         }
     }
 
-    pub extern fn output_wide(timestamp: i64, target: i32, data: CSlice<i32>) {
+    pub extern fn output_wide(target: i32, data: CSlice<i32>) {
         unsafe {
             csr::rtio::target_write(target as u32);
-            // writing timestamp clears o_data
-            csr::rtio::timestamp_write(timestamp as u64);
+            // writing target clears o_data
             for i in 0..data.len() {
                 rtio_o_data_write(i, data[i] as _)
             }
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(timestamp, target >> 8, status);
+                process_exceptional_status(target >> 8, status);
             }
         }
     }
@@ -98,8 +97,7 @@ mod imp {
     pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
-            csr::rtio::timestamp_write(timeout as u64);
-            csr::rtio::i_request_write(1);
+            csr::rtio::i_timeout_write(timeout as u64);
 
             let mut status = RTIO_I_STATUS_WAIT_STATUS;
             while status & RTIO_I_STATUS_WAIT_STATUS != 0 {
@@ -128,8 +126,7 @@ mod imp {
     pub extern fn input_data(channel: i32) -> i32 {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
-            csr::rtio::timestamp_write(0xffffffff_ffffffff);
-            csr::rtio::i_request_write(1);
+            csr::rtio::i_timeout_write(0xffffffff_ffffffff);
 
             let mut status = RTIO_I_STATUS_WAIT_STATUS;
             while status & RTIO_I_STATUS_WAIT_STATUS != 0 {
@@ -153,10 +150,9 @@ mod imp {
     }
 
     #[cfg(has_rtio_log)]
-    pub fn log(timestamp: i64, data: &[u8]) {
+    pub fn log(data: &[u8]) {
         unsafe {
             csr::rtio::target_write(csr::CONFIG_RTIO_LOG_CHANNEL << 8);
-            csr::rtio::timestamp_write(timestamp as u64);
 
             let mut word: u32 = 0;
             for i in 0..data.len() {
@@ -175,7 +171,7 @@ mod imp {
     }
 
     #[cfg(not(has_rtio_log))]
-    pub fn log(_timestamp: i64, _data: &[u8]) {
+    pub fn log(_data: &[u8]) {
         unimplemented!("not(has_rtio_log)")
     }
 }

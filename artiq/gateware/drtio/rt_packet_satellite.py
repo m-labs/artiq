@@ -94,13 +94,10 @@ class RTPacketSatellite(Module):
                 self.cri.chan_sel.eq(
                     rx_dp.packet_as["write"].chan_sel),
             ),
-            If(cri_read | read_request_pending,
-                self.cri.timestamp.eq(
-                    rx_dp.packet_as["read_request"].timeout)
-            ).Else(
-                self.cri.timestamp.eq(
-                    rx_dp.packet_as["write"].timestamp)
-            ),
+            self.cri.i_timeout.eq(
+                rx_dp.packet_as["read_request"].timeout),
+            self.cri.o_timestamp.eq(
+                rx_dp.packet_as["write"].timestamp),
             self.cri.o_address.eq(
                 rx_dp.packet_as["write"].address),
             self.cri.o_data.eq(

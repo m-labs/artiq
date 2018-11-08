@@ -336,7 +336,7 @@ class LLVMIRGenerator:
         elif name == self.target.print_function:
             llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "rtio_log":
-            llty = ll.FunctionType(llvoid, [lli64, llptr], var_arg=True)
+            llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "__artiq_personality":
             llty = ll.FunctionType(lli32, [], var_arg=True)
         elif name == "__artiq_raise":
@@ -1137,7 +1137,7 @@ class LLVMIRGenerator:
             lloperands = []
             for i, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)
-                if i == 0 and insn.op == "printf" or i == 1 and insn.op == "rtio_log":
+                if i == 0 and (insn.op == "printf" or insn.op == "rtio_log"):
                     lloperands.append(self.llbuilder.extract_value(lloperand, 0))
                 elif builtins.is_str(operand.type) or builtins.is_bytes(operand.type):
                     lloperands.append(self.llbuilder.extract_value(lloperand, 1))

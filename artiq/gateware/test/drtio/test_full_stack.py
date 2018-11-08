@@ -112,10 +112,10 @@ class OutputsTestbench:
 
     def write(self, channel, data):
         kcsrs = self.dut.master_ki
-        yield from kcsrs.chan_sel.write(channel)
-        yield from kcsrs.timestamp.write(self.now)
+        yield from kcsrs.target.write(channel << 8)
+        yield from kcsrs.now_hi.write(self.now >> 32)
+        yield from kcsrs.now_lo.write(self.now & 0xffffffff)
         yield from kcsrs.o_data.write(data)
-        yield from kcsrs.o_we.write(1)
         yield
         status = 1
         wlen = 0
@@ -249,9 +249,8 @@ class TestFullStack(unittest.TestCase):
         kcsrs = dut.master_ki
 
         def get_input(timeout):
-            yield from kcsrs.chan_sel.write(2)
-            yield from kcsrs.timestamp.write(10)
-            yield from kcsrs.i_request.write(1)
+            yield from kcsrs.target.write(2 << 8)
+            yield from kcsrs.i_timeout.write(10)
             yield
             status = yield from kcsrs.i_status.read()
             while status & 0x4:

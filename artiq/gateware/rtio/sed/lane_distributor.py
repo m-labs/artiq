@@ -60,7 +60,7 @@ class LaneDistributor(Module):
             self.comb += [
                 lio.seqn.eq(seqn),
                 lio.payload.channel.eq(self.cri.chan_sel[:16]),
-                lio.payload.timestamp.eq(self.cri.timestamp),
+                lio.payload.timestamp.eq(self.cri.o_timestamp),
             ]
             if hasattr(lio.payload, "address"):
                 self.comb += lio.payload.address.eq(self.cri.o_address)
@@ -69,7 +69,7 @@ class LaneDistributor(Module):
 
         # when timestamp and channel arrive in cycle #1, prepare computations
         coarse_timestamp = Signal(us_timestamp_width)
-        self.comb += coarse_timestamp.eq(self.cri.timestamp[glbl_fine_ts_width:])
+        self.comb += coarse_timestamp.eq(self.cri.o_timestamp[glbl_fine_ts_width:])
         min_minus_timestamp = Signal((us_timestamp_width + 1, True),
                                      reset_less=True)
         laneAmin_minus_timestamp = Signal.like(min_minus_timestamp)
@@ -141,7 +141,7 @@ class LaneDistributor(Module):
             Array(lio.we for lio in self.output)[use_lanen].eq(do_write)
         ]
         compensated_timestamp = Signal(64)
-        self.comb += compensated_timestamp.eq(self.cri.timestamp + (compensation << glbl_fine_ts_width))
+        self.comb += compensated_timestamp.eq(self.cri.o_timestamp + (compensation << glbl_fine_ts_width))
         self.sync += [
             If(do_write,
                 current_lane.eq(use_lanen),

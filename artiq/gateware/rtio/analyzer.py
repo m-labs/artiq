@@ -70,7 +70,7 @@ class MessageEncoder(Module, AutoCSR):
             input_output.rtio_counter.eq(tsc.full_ts_cri),
             If(cri.cmd == cri_commands["write"],
                 input_output.message_type.eq(MessageType.output.value),
-                input_output.timestamp.eq(cri.timestamp),
+                input_output.timestamp.eq(cri.o_timestamp),
                 input_output.data.eq(cri.o_data)
             ).Else(
                 input_output.message_type.eq(MessageType.input.value),

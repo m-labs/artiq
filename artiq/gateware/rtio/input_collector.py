@@ -118,7 +118,7 @@ class InputCollector(Module):
 
         i_status_raw = Signal(2)
         self.comb += i_status_raw.eq(Array(i_statuses)[sel])
-        input_timeout = Signal.like(self.cri.timestamp, reset_less=True)
+        input_timeout = Signal.like(self.cri.i_timeout, reset_less=True)
         input_pending = Signal()
         self.cri.i_data.reset_less = True
         self.cri.i_timestamp.reset_less = True
@@ -134,7 +134,7 @@ class InputCollector(Module):
                 input_pending.eq(0)
             ),
             If(self.cri.cmd == cri.commands["read"],
-                input_timeout.eq(self.cri.timestamp),
+                input_timeout.eq(self.cri.i_timeout),
                 input_pending.eq(1),
                 self.cri.i_status.eq(0b100)
             )

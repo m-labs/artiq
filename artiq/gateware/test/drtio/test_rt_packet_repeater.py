@@ -65,7 +65,7 @@ class TestRepeater(unittest.TestCase):
                 yield
                 for channel, timestamp, address, data in test_writes:
                     yield dut.cri.chan_sel.eq(channel)
-                    yield dut.cri.timestamp.eq(timestamp)
+                    yield dut.cri.o_timestamp.eq(timestamp)
                     yield dut.cri.o_address.eq(address)
                     yield dut.cri.o_data.eq(data)
                     yield dut.cri.cmd.eq(cri.commands["write"])
@@ -135,7 +135,7 @@ class TestRepeater(unittest.TestCase):
 
             def read(chan_sel, timeout):
                 yield dut.cri.chan_sel.eq(chan_sel)
-                yield dut.cri.timestamp.eq(timeout)
+                yield dut.cri.i_timeout.eq(timeout)
                 yield dut.cri.cmd.eq(cri.commands["read"])
                 yield
                 yield dut.cri.cmd.eq(cri.commands["nop"])

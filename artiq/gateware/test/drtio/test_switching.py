@@ -90,7 +90,7 @@ class Testbench:
     def write(self, channel, data):
         mcri = self.dut.master.cri
         yield mcri.chan_sel.eq(channel)
-        yield mcri.timestamp.eq(self.now)
+        yield mcri.o_timestamp.eq(self.now)
         yield mcri.o_data.eq(data)
         yield
         yield mcri.cmd.eq(cri.commands["write"])
@@ -109,7 +109,7 @@ class Testbench:
     def read(self, channel, timeout):
         mcri = self.dut.master.cri
         yield mcri.chan_sel.eq(channel)
-        yield mcri.timestamp.eq(timeout)
+        yield mcri.i_timeout.eq(timeout)
         yield
         yield mcri.cmd.eq(cri.commands["read"])
         yield

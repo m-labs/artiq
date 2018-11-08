@@ -61,7 +61,7 @@ class RTErrorsSatellite(Module, AutoCSR):
             underflow.eq(cri.o_status[1]),
             overflow.eq(cri.o_status[0]),
             underflow_error_cri.eq(Cat(cri.chan_sel[:16],
-                                       cri.timestamp,
+                                       cri.o_timestamp,
                                        tsc.full_ts_cri)),
             Cat(self.underflow_channel.status,
                 self.underflow_timestamp_event.status,

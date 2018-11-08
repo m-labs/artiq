@@ -73,7 +73,11 @@ class RTController(Module):
             rt_packet.sr_chan_sel.eq(chan_sel),
             rt_packet.sr_address.eq(self.cri.o_address),
             rt_packet.sr_data.eq(self.cri.o_data),
-            rt_packet.sr_timestamp.eq(self.cri.timestamp),
+            If(rt_packet_read_request,
+                rt_packet.sr_timestamp.eq(self.cri.i_timeout)
+            ).Else(
+                rt_packet.sr_timestamp.eq(self.cri.o_timestamp)
+            ),
             If(rt_packet_buffer_request,
                 rt_packet.sr_notwrite.eq(1),
                 rt_packet.sr_address.eq(0)
@@ -103,7 +107,7 @@ class RTController(Module):
         self.submodules += timeout_counter
 
         cond_underflow = Signal()
-        self.comb += cond_underflow.eq((self.cri.timestamp[tsc.glbl_fine_ts_width:]
+        self.comb += cond_underflow.eq((self.cri.o_timestamp[tsc.glbl_fine_ts_width:]
                            - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
 
         # buffer space

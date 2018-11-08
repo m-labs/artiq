@@ -26,7 +26,7 @@ def encode_record(channel, timestamp, address, data):
     r = []
     r += encode_n(channel, 3, 3)
     r += encode_n(timestamp, 8, 8)
-    r += encode_n(address, 2, 2)
+    r += encode_n(address, 1, 1)
     r += encode_n(data, 1, 64)
     return encode_n(len(r)+1, 1, 1) + r
 
@@ -66,7 +66,7 @@ def do_dma(dut, address):
 
 test_writes1 = [
     (0x01, 0x23, 0x12, 0x33),
-    (0x901, 0x902, 0x911, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
+    (0x901, 0x902, 0x11, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
     (0x81, 0x288, 0x88, 0x8888)
 ]
 
@@ -150,7 +150,7 @@ class TestDMA(unittest.TestCase):
                     pass
                 elif cmd == cri.commands["write"]:
                     channel = yield dut_cri.chan_sel
-                    timestamp = yield dut_cri.timestamp
+                    timestamp = yield dut_cri.o_timestamp
                     address = yield dut_cri.o_address
                     data = yield dut_cri.o_data
                     received.append((channel, timestamp, address, data))

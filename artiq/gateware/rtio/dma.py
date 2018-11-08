@@ -274,7 +274,7 @@ class CRIMaster(Module, AutoCSR):
 
         self.comb += [
             self.cri.chan_sel.eq(self.sink.channel),
-            self.cri.timestamp.eq(self.sink.timestamp),
+            self.cri.o_timestamp.eq(self.sink.timestamp),
             self.cri.o_address.eq(self.sink.address),
             self.cri.o_data.eq(self.sink.data)
         ]
