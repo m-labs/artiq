@@ -1,5 +1,5 @@
 from numpy import int32, int64
-from artiq.language.core import kernel, now_mu, portable, delay
+from artiq.language.core import kernel, portable, delay
 from artiq.coredevice.rtio import rtio_output, rtio_output_wide
 from artiq.language.types import TInt32, TInt64, TFloat
 
@@ -65,7 +65,7 @@ class Spline:
 
         :param value: Spline value in integer machine units.
         """
-        rtio_output(now_mu(), self.channel, 0, value)
+        rtio_output(self.channel << 8, value)
 
     @kernel(flags={"fast-math"})
     def set(self, value: TFloat):
@@ -76,9 +76,9 @@ class Spline:
         if self.width > 32:
             l = [int32(0)] * 2
             self.pack_coeff_mu([self.to_mu64(value)], l)
-            rtio_output_wide(now_mu(), self.channel, 0, l)
+            rtio_output_wide(self.channel << 8, l)
         else:
-            rtio_output(now_mu(), self.channel, 0, self.to_mu(value))
+            rtio_output(self.channel << 8, self.to_mu(value))
 
     @kernel
     def set_coeff_mu(self, value):  # TList(TInt32)
@@ -86,7 +86,7 @@ class Spline:
 
         :param value: Spline packed raw values.
         """
-        rtio_output_wide(now_mu(), self.channel, 0, value)
+        rtio_output_wide(self.channel << 8, value)
 
     @portable(flags={"fast-math"})
     def pack_coeff_mu(self, coeff, packed):  # TList(TInt64), TList(TInt32)
