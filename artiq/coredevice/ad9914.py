@@ -84,7 +84,7 @@ class AD9914:
 
     @kernel
     def write(self, addr, data):
-        rtio_output(now_mu(), self.bus_channel, addr, data)
+        rtio_output((self.bus_channel << 8) | addr, data)
         delay_mu(self.write_duration_mu)
 
     @kernel
