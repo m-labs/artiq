@@ -81,8 +81,10 @@ class AD9910Exp(EnvExperiment):
             self.sync_scan(err, win=i)
             print(err)
             self.core.break_realtime()
-        dly, win = self.dev.tune_sync_delay(self.dev.sync_delay_seed)
-        self.sync_scan(err, win=win + 1)  # tighten window by 2*75ps
+        dly, win = self.dev.tune_sync_delay()
+        self.sync_scan(err, win=win)
+        # FIXME: win + 1  # tighten window by 2*75ps
+        # after https://github.com/sinara-hw/Urukul/issues/16
         self.set_dataset("dly", dly)
         self.set_dataset("win", win)
         self.set_dataset("err", err)
@@ -92,7 +94,7 @@ class AD9910Exp(EnvExperiment):
         for in_delay in range(len(err)):
             self.dev.set_sync(in_delay=in_delay, window=win)
             self.dev.clear_smp_err()
-            delay(10*us)  # integrate SMP_ERR statistics
+            # delay(10*us)  # integrate SMP_ERR statistics
             e = urukul_sta_smp_err(self.dev.cpld.sta_read())
             err[in_delay] = (e >> (self.dev.chip_select - 4)) & 1
             delay(50*us)  # slack

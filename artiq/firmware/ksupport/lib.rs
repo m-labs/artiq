@@ -352,7 +352,7 @@ extern fn dma_record_output_wide(timestamp: i64, target: i32, words: CSlice<i32>
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let mut data = dma_record_output_prepare(timestamp, target, 1);
+        let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
                 (word >>  0) as u8,

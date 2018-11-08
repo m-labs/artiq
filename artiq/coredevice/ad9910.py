@@ -414,48 +414,55 @@ class AD9910:
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def tune_sync_delay(self, sync_delay_seed):
+    def tune_sync_delay(self, search_seed=15):
         """Find a stable SYNC_IN delay.
 
-        This method first locates the smallest SYNC_IN validity window at
-        minimum window size and then increases the window a bit to provide some
-        slack and stability.
+        This method first locates a valid SYNC_IN delay at zero validation
+        window size (setup/hold margin) by scanning around `search_seed`. It
+        then looks for similar valid delays at successively larger validation
+        window sizes until none can be found. It then deacreses the validation
+        window a bit to provide some slack and stability and returns the
+        optimal values.
 
-        It starts scanning delays around `sync_delay_seed` (see the
-        device database arguments and :class:`AD9910`) at maximum validation
-        window size and decreases the window size until a valid delay is found.
-
-        :param sync_delay_seed: Start value for valid SYNC_IN delay search.
+        :param search_seed: Start value for valid SYNC_IN delay search.
+            Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
         """
-        dt = 14  # 1/(f_SYSCLK*75ps) taps per SYSCLK period
-        max_delay = dt  # 14*75ps > 1ns
-        max_window = dt//4 + 1  # 2*75ps*4 = 600ps high > 1ns/2
-        min_window = max(0, max_window - 2)  # 2*75ps hold, 2*75ps setup
-        for window in range(max_window - min_window + 1):
-            window = max_window - window
-            for in_delay in range(max_delay):
-                # alternate search direction around seed_delay
+        search_span = 31
+        # FIXME https://github.com/sinara-hw/Urukul/issues/16
+        # should both be 2-4 once kasli sync_in jitter is identified
+        min_window = 0
+        margin = 1  # 1*75ps setup and hold
+        for window in range(16):
+            next_seed = -1
+            for in_delay in range(search_span - 2*window):
+                # alternate search direction around search_seed
                 if in_delay & 1:
                     in_delay = -in_delay
-                in_delay = sync_delay_seed + (in_delay >> 1)
-                if in_delay < 0:
-                    in_delay = 0
-                elif in_delay > 31:
-                    in_delay = 31
+                in_delay = search_seed + (in_delay >> 1)
+                if in_delay < 0 or in_delay > 31:
+                    continue
                 self.set_sync(in_delay, window)
                 self.clear_smp_err()
                 # integrate SMP_ERR statistics for a few hundred cycles
-                delay(10*us)
+                delay(100*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
-                err = (err >> (self.chip_select - 4)) & 1
                 delay(40*us)  # slack
-                if not err:
-                    window -= min_window  # add margin
-                    self.set_sync(in_delay, window)
-                    self.clear_smp_err()
-                    delay(40*us)  # slack
-                    return in_delay, window
+                if not (err >> (self.chip_select - 4)) & 1:
+                    next_seed = in_delay
+                    break
+            if next_seed >= 0:  # valid delay found, scan next window
+                search_seed = next_seed
+                continue
+            elif window > min_window:
+                # no valid delay found here, roll back and add margin
+                window = max(min_window, window - 1 - margin)
+                self.set_sync(search_seed, window)
+                self.clear_smp_err()
+                delay(100*us)  # slack
+                return search_seed, window
+            else:
+                break
         raise ValueError("no valid window/delay")
 
     @kernel
