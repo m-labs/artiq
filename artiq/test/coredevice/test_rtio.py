@@ -414,7 +414,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
-        self.assertLess(rate, 700*ns)
+        self.assertLess(rate, 480*ns)
 
     def test_pulse_rate_ad9914_dds(self):
         """Minimum interval for sustained AD9914 DDS frequency switching"""
