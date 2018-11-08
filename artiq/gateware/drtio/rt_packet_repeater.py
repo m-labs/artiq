@@ -58,7 +58,7 @@ class RTPacketRepeater(Module):
         cb0_cmd = Signal(2)
         cb0_timestamp = Signal(64)
         cb0_chan_sel = Signal(24)
-        cb0_o_address = Signal(16)
+        cb0_o_address = Signal(8)
         cb0_o_data = Signal(512)
         self.sync.rtio += [
             If(self.reset | cb0_ack,
@@ -89,7 +89,7 @@ class RTPacketRepeater(Module):
         cb_cmd = Signal(2)
         cb_timestamp = Signal(64)
         cb_chan_sel = Signal(24)
-        cb_o_address = Signal(16)
+        cb_o_address = Signal(8)
         cb_o_data = Signal(512)
         self.sync.rtio += [
             If(self.reset | cb_ack,

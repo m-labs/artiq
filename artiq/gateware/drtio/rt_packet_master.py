@@ -27,7 +27,7 @@ class RTPacketMaster(Module):
         self.sr_notwrite = Signal()
         self.sr_timestamp = Signal(64)
         self.sr_chan_sel = Signal(24)
-        self.sr_address = Signal(16)
+        self.sr_address = Signal(8)
         self.sr_data = Signal(512)
 
         # buffer space reply interface
@@ -85,12 +85,12 @@ class RTPacketMaster(Module):
 
         # Write FIFO and extra data count
         sr_fifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
-            AsyncFIFO(1+64+24+16+512, sr_fifo_depth))
+            AsyncFIFO(1+64+24+8+512, sr_fifo_depth))
         self.submodules += sr_fifo
         sr_notwrite_d = Signal()
         sr_timestamp_d = Signal(64)
         sr_chan_sel_d = Signal(24)
-        sr_address_d = Signal(16)
+        sr_address_d = Signal(8)
         sr_data_d = Signal(512)
         self.comb += [
             sr_fifo.we.eq(self.sr_stb),
@@ -115,7 +115,7 @@ class RTPacketMaster(Module):
         sr_notwrite = Signal()
         sr_timestamp = Signal(64)
         sr_chan_sel = Signal(24)
-        sr_address = Signal(16)
+        sr_address = Signal(8)
         sr_extra_data_cnt = Signal(8)
         sr_data = Signal(512)
 
