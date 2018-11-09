@@ -536,13 +536,12 @@ class AD9910:
             for j in range(repeat):
                 t1[0] += self.measure_io_update_alignment(i, i + 1)
                 t1[1] += self.measure_io_update_alignment(i + 1, i + 2)
-            if ((t1[0] == 0 and t1[1] == repeat) or  # edge left of i + 1
-                (t1[0] == repeat and t1[1] == 0) or  # edge right of i + 1
-                (t1[0] != 0 and t1[1] != 0 and  # edge very close to i + 1
-                    t1[0] != repeat and t1[1] != repeat)):
-                # the good delay is period//2 after the edge
-                return (i + 1 + period//2) & (period - 1)
-            else:  # can't interpret result
+            if ((t1[0] == 0 and t1[1] == 0) or
+                (t1[0] == repeat and t1[1] == repeat)):
+                # edge is not close to i + 1, can't interpret result
                 raise ValueError(
                     "no clear IO_UPDATE-SYNC_CLK alignment edge found")
+            else:
+                # the good delay is period//2 after the edge
+                return (i + 1 + period//2) & (period - 1)
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
