@@ -14,7 +14,8 @@ SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
 # SPI clock write and read dividers
 SPIT_CFG_WR = 2
 SPIT_CFG_RD = 16
-SPIT_ATT_WR = 2
+# 30 MHz fmax, 20 ns setup, 40 ns shift to latch (limiting)
+SPIT_ATT_WR = 6
 SPIT_ATT_RD = 16
 SPIT_DDS_WR = 2
 SPIT_DDS_RD = 16
