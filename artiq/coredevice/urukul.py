@@ -300,7 +300,8 @@ class CPLD:
 
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
-            attenuation.
+            attenuation. Minimum attenuation is 0*dB, maximum attenuation is
+            31.5*dB.
         """
         self.set_att_mu(channel, 255 - int32(round(att*8)))
 
