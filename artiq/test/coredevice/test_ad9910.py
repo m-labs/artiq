@@ -104,18 +104,21 @@ class AD9910Exp(EnvExperiment):
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
-        bins = [0]*8
-        self.scan_io_delay(bins)
-        self.set_dataset("bins", bins)
-        self.set_dataset("dly", self.dev.io_update_delay)
+        bins1 = [0]*4
+        bins2 = [0]*4
+        self.scan_io_delay(bins1, bins2)
+        self.set_dataset("bins1", bins1)
+        self.set_dataset("bins2", bins2)
+        self.set_dataset("dly", self.dev.tune_io_update_delay())
 
     @kernel
-    def scan_io_delay(self, bins):
+    def scan_io_delay(self, bins1, bins2):
         delay(100*us)
         n = 100
         for i in range(n):
-            for phase in range(len(bins)):
-                bins[phase] += self.dev.measure_io_update_alignment(phase)
+            for j in range(len(bins1)):
+                bins1[j] += self.dev.measure_io_update_alignment(j, j + 1)
+                bins2[j] += self.dev.measure_io_update_alignment(j, j + 2)
         delay(10*ms)
 
     @kernel
@@ -174,12 +177,14 @@ class AD9910Test(ExperimentCase):
     def test_io_update_delay(self):
         self.execute(AD9910Exp, "io_update_delay")
         dly = self.dataset_mgr.get("dly")
-        bins = self.dataset_mgr.get("bins")
-        print(dly, bins)
-        n = max(bins)
-        # test for 4-periodicity (SYNC_CLK) and maximal contrast
-        for i in range(len(bins)):
-            self.assertEqual(abs(bins[i] - bins[(i + 4) % 8]), n)
+        bins1 = self.dataset_mgr.get("bins1")
+        bins2 = self.dataset_mgr.get("bins2")
+        print(dly, bins1, bins2)
+        n = max(bins2)
+        # no edge at optimal delay
+        self.assertEqual(bins2[(dly + 1) & 3], 0)
+        # edge at expected position
+        self.assertEqual(bins2[(dly + 3) & 3], n)
 
     def test_sw_readback(self):
         self.execute(AD9910Exp, "sw_readback")

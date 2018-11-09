@@ -466,17 +466,18 @@ class AD9910:
         raise ValueError("no valid window/delay")
 
     @kernel
-    def measure_io_update_alignment(self, io_up_delay):
+    def measure_io_update_alignment(self, delay_start, delay_stop):
         """Use the digital ramp generator to locate the alignment between
         IO_UPDATE and SYNC_CLK.
 
         The ramp generator is set up to a linear frequency ramp
-        (dFTW/t_SYNC_CLK=1) and started at a RTIO time stamp.
+        (dFTW/t_SYNC_CLK=1) and started at a coarse RTIO time stamp plus
+        `delay_start` and stopped at a coarse RTIO time stamp plus
+        `delay_stop`.
 
-        After scanning the alignment, an IO_UPDATE delay midway between two
-        edges should be chosen.
-
-        :return: odd/even SYNC_CLK cycle indicator
+        :param delay_start: Start IO_UPDATE delay in machine units.
+        :param delay_stop: Stop IO_UPDATE delay in machine units.
+        :return: Odd/even SYNC_CLK cycle indicator.
         """
         # set up DRG
         # DRG ACC autoclear and LRR on io update
@@ -489,14 +490,16 @@ class AD9910:
         self.write32(_AD9910_REG_DRAMPR, 0x00010000)
         # dFTW = 1, (work around negative slope)
         self.write64(_AD9910_REG_DRAMPS, -1, 0)
-        at_mu(now_mu() + 0x10 & ~0xf)  # align to RTIO/2
-        self.cpld.io_update.pulse_mu(8)
+        # delay io_update after RTIO/2 edge
+        t = now_mu() + 0x10 & ~0xf
+        at_mu(t + delay_start)
+        self.cpld.io_update.pulse_mu(32 - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
         self.write32(_AD9910_REG_CFR1, 0x00000002)
         # stop DRG
         self.write64(_AD9910_REG_DRAMPS, 0, 0)
-        at_mu((now_mu() + 0x10 & ~0xf) + io_up_delay)  # delay
-        self.cpld.io_update.pulse_mu(32 - io_up_delay)  # realign
+        at_mu(t + 0x1000 + delay_stop)
+        self.cpld.io_update.pulse_mu(32 - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100*us)  # slack
         # disable DRG
@@ -510,22 +513,36 @@ class AD9910:
 
         Scan through increasing IO_UPDATE delays until a delay is found that
         lets IO_UPDATE be registered in the next SYNC_CLK cycle. Return a
-        IO_UPDATE delay that is midway between two such SYNC_CLK transitions.
+        IO_UPDATE delay that is as far away from that SYNC_CLK edge
+        as possible.
 
         This method assumes that the IO_UPDATE TTLOut device has one machine
-        unit resolution (SERDES) and that the ratio between fine RTIO frequency
-        (RTIO time machine units) and SYNC_CLK is 4.
+        unit resolution (SERDES).
 
         :return: Stable IO_UPDATE delay to be passed to the constructor
             :class:`AD9910` via the device database.
         """
-        period = 4  # f_RTIO/f_SYNC = 4
-        max_delay = 8  # mu, 1 ns
-        d0 = self.io_update_delay
-        t0 = int32(self.measure_io_update_alignment(d0))
-        for i in range(max_delay - 1):
-            t = self.measure_io_update_alignment(
-                (d0 + i + 1) & (max_delay - 1))
-            if t != t0:
-                return (d0 + i + period//2) & (period - 1)
+        period = self.sysclk_per_mu * 4  # SYNC_CLK period
+        repeat = 100
+        for i in range(period):
+            t = 0
+            # check whether the sync edge is strictly between i, i+2
+            for j in range(repeat):
+                t += self.measure_io_update_alignment(i, i + 2)
+            if t != 0:  # no certain edge
+                continue
+            # check left/right half: i,i+1 and i+1,i+2
+            t1 = [0, 0]
+            for j in range(repeat):
+                t1[0] += self.measure_io_update_alignment(i, i + 1)
+                t1[1] += self.measure_io_update_alignment(i + 1, i + 2)
+            if ((t1[0] == 0 and t1[1] == repeat) or  # edge left of i + 1
+                (t1[0] == repeat and t1[1] == 0) or  # edge right of i + 1
+                (t1[0] != 0 and t1[1] != 0 and  # edge very close to i + 1
+                    t1[0] != repeat and t1[1] != repeat)):
+                # the good delay is period//2 after the edge
+                return (i + 1 + period//2) & (period - 1)
+            else:  # can't interpret result
+                raise ValueError(
+                    "no clear IO_UPDATE-SYNC_CLK alignment edge found")
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
