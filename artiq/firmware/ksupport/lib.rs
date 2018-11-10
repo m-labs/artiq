@@ -20,6 +20,8 @@ use dyld::Library;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
+#[cfg(has_rtio_dma)]
+use board_misoc::csr;
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -335,8 +337,9 @@ unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output(timestamp: i64, target: i32, word: i32) {
+extern fn dma_record_output(target: i32, word: i32) {
     unsafe {
+        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
         let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
             (word >>  0) as u8,
@@ -348,10 +351,11 @@ extern fn dma_record_output(timestamp: i64, target: i32, word: i32) {
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output_wide(timestamp: i64, target: i32, words: CSlice<i32>) {
+extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
+        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
         let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
@@ -404,8 +408,6 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
     unsafe {
-        use board_misoc::csr;
-
         csr::rtio_dma::base_address_write(ptr as u64);
         csr::rtio_dma::time_offset_write(timestamp as u64);
 
