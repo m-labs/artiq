@@ -417,7 +417,13 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                         kern_acknowledge()
                     }
                 }
-            }
+            },
+            &kern::RpcFlush => {
+                // See ksupport/lib.rs for the reason this request exists.
+                // We do not need to do anything here because of how the main loop is
+                // structured.
+                kern_acknowledge()
+            },
 
             &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
