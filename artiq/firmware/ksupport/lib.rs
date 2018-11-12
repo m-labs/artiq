@@ -101,6 +101,7 @@ mod api;
 mod rtio;
 mod nrt_bus;
 
+static mut NOW: u64 = 0;
 static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
@@ -185,6 +186,7 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
     }
     let backtrace = &mut backtrace.as_mut()[0..cursor];
 
+    send(&NowSave(unsafe { NOW }));
     send(&RunException {
         exception: kernel_proto::Exception {
             name:     str::from_utf8(exception.name.as_ref()).unwrap(),
@@ -508,7 +510,10 @@ pub unsafe fn main() {
 
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
+    send(&NowInitRequest);
+    recv!(&NowInitReply(now) => NOW = now);
     (mem::transmute::<u32, fn()>(__modinit__))();
+    send(&NowSave(NOW));
 
     if let Some(typeinfo) = typeinfo {
         attribute_writeback(typeinfo as *const ());
