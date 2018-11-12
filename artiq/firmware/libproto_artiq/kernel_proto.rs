@@ -22,10 +22,6 @@ pub enum Message<'a> {
     LoadRequest(&'a [u8]),
     LoadReply(Result<(), dyld::Error<'a>>),
 
-    NowInitRequest,
-    NowInitReply(u64),
-    NowSave(u64),
-
     RtioInitRequest,
 
     RtioDestinationStatusRequest { destination: u8 },

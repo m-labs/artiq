@@ -63,7 +63,6 @@ macro_rules! unexpected {
 // Persistent state
 #[derive(Debug)]
 struct Congress {
-    now: u64,
     cache: Cache,
     dma_manager: DmaManager,
     finished_cleanly: Cell<bool>
@@ -72,7 +71,6 @@ struct Congress {
 impl Congress {
     fn new() -> Congress {
         Congress {
-            now: 0,
             cache: Cache::new(),
             dma_manager: DmaManager::new(),
             finished_cleanly: Cell::new(true)
@@ -362,14 +360,6 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::LogSlice(arg) => {
                 session.log_buffer += arg;
                 session.flush_log_buffer();
-                kern_acknowledge()
-            }
-
-            &kern::NowInitRequest =>
-                kern_send(io, &kern::NowInitReply(session.congress.now)),
-
-            &kern::NowSave(now) => {
-                session.congress.now = now;
                 kern_acknowledge()
             }
 
