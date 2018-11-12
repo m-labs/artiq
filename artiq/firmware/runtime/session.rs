@@ -502,14 +502,14 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
     let mut session = Session::new(congress);
 
     loop {
-        while !rpc_queue::empty() {
-            process_kern_queued_rpc(stream, &mut session)?
-        }
-
         if stream.can_recv() {
             process_host_message(io, stream, &mut session)?
         } else if !stream.may_recv() {
             return Ok(())
+        }
+
+        while !rpc_queue::empty() {
+            process_kern_queued_rpc(stream, &mut session)?
         }
 
         if mailbox::receive() != 0 {
