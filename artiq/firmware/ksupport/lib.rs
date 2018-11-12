@@ -514,6 +514,19 @@ pub unsafe fn main() {
         attribute_writeback(typeinfo as *const ());
     }
 
+    // Make sure all async RPCs are processed before exiting.
+    // Otherwise, if the comms and kernel CPU run in the following sequence:
+    //
+    //    comms                     kernel
+    //    -----------------------   -----------------------
+    //    check for async RPC
+    //                              post async RPC
+    //                              post RunFinished
+    //    check for mailbox
+    //
+    // the async RPC would be missed.
+    send(&RpcFlush);
+
     send(&RunFinished);
 
     loop {}

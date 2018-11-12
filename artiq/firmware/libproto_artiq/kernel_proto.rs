@@ -64,6 +64,7 @@ pub enum Message<'a> {
     },
     RpcRecvRequest(*mut ()),
     RpcRecvReply(Result<usize, Exception<'a>>),
+    RpcFlush,
 
     CacheGetRequest { key: &'a str },
     CacheGetReply   { value: &'static [i32] },

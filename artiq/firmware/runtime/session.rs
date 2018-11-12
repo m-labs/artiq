@@ -410,7 +410,13 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         kern_acknowledge()
                     }
                 }
-            }
+            },
+            &kern::RpcFlush => {
+                // See ksupport/lib.rs for the reason this request exists.
+                // We do not need to do anything here because of how the main loop is
+                // structured.
+                kern_acknowledge()
+            },
 
             &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
@@ -581,7 +587,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
     *handle = Some(io.spawn(16384, f))
 }
 
-pub fn thread(io: Io, aux_mutex: &Mutex, 
+pub fn thread(io: Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     let listener = TcpListener::new(&io, 65535);
