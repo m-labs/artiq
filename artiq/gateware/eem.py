@@ -541,7 +541,7 @@ class SUServo(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        pads = target.platform.request("{}_dds_reset".format(eem_urukul1))
+        pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukul1))
         target.specials += DifferentialOutput(0, pads.p, pads.n)
 
         for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
