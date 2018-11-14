@@ -335,3 +335,15 @@ class CPLD:
         ftw = ftw_max//div
         assert ftw*div == ftw_max
         self.sync.set_mu(ftw)
+
+    @kernel
+    def set_profile(self, profile):
+        """Set the PROFILE pins.
+
+        The PROFILE pins are common to all four DDS channels.
+
+        :param profile: PROFILE pins in numeric representation (0-7).
+        """
+        cfg = self.cfg_reg & ~(7 << CFG_PROFILE)
+        cfg |= (profile & 7) << CFG_PROFILE
+        self.cfg_write(cfg)
