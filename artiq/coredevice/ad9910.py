@@ -26,22 +26,22 @@ _AD9910_REG_CFR1 = 0x00
 _AD9910_REG_CFR2 = 0x01
 _AD9910_REG_CFR3 = 0x02
 _AD9910_REG_AUX_DAC = 0x03
-_AD9910_REG_IO_UPD = 0x04
+_AD9910_REG_IO_UPDATE = 0x04
 _AD9910_REG_FTW = 0x07
 _AD9910_REG_POW = 0x08
 _AD9910_REG_ASF = 0x09
-_AD9910_REG_MSYNC = 0x0A
-_AD9910_REG_DRAMPL = 0x0B
-_AD9910_REG_DRAMPS = 0x0C
-_AD9910_REG_DRAMPR = 0x0D
-_AD9910_REG_PR0 = 0x0E
-_AD9910_REG_PR1 = 0x0F
-_AD9910_REG_PR2 = 0x10
-_AD9910_REG_PR3 = 0x11
-_AD9910_REG_PR4 = 0x12
-_AD9910_REG_PR5 = 0x13
-_AD9910_REG_PR6 = 0x14
-_AD9910_REG_PR7 = 0x15
+_AD9910_REG_SYNC = 0x0a
+_AD9910_REG_RAMP_LIMIT = 0x0b
+_AD9910_REG_RAMP_STEP = 0x0c
+_AD9910_REG_RAMP_RATE = 0x0d
+_AD9910_REG_PROFILE0 = 0x0e
+_AD9910_REG_PROFILE1 = 0x0f
+_AD9910_REG_PROFILE2 = 0x10
+_AD9910_REG_PROFILE3 = 0x11
+_AD9910_REG_PROFILE4 = 0x12
+_AD9910_REG_PROFILE5 = 0x13
+_AD9910_REG_PROFILE6 = 0x14
+_AD9910_REG_PROFILE7 = 0x15
 _AD9910_REG_RAM = 0x16
 
 
@@ -297,7 +297,7 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time)
                 pow += dt*ftw*self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PR0, (asf << 16) | pow, ftw)
+        self.write64(_AD9910_REG_PROFILE0, (asf << 16) | pow, ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
         at_mu(now_mu() & ~0xf)
@@ -389,7 +389,7 @@ class AD9910:
         :param window: Symmetric SYNC_IN validation window (0-15) in
             steps of ~75ps for both hold and setup margin.
         """
-        self.write32(_AD9910_REG_MSYNC,
+        self.write32(_AD9910_REG_SYNC,
                      (window << 28) |  # SYNC S/H validation delay
                      (1 << 27) |  # SYNC receiver enable
                      (0 << 26) |  # SYNC generator disable
@@ -485,11 +485,11 @@ class AD9910:
         # DRG -> FTW, DRG enable
         self.write32(_AD9910_REG_CFR2, 0x01090000)
         # no limits
-        self.write64(_AD9910_REG_DRAMPL, -1, 0)
+        self.write64(_AD9910_REG_RAMP_LIMIT, -1, 0)
         # DRCTL=0, dt=1 t_SYNC_CLK
-        self.write32(_AD9910_REG_DRAMPR, 0x00010000)
+        self.write32(_AD9910_REG_RAMP_RATE, 0x00010000)
         # dFTW = 1, (work around negative slope)
-        self.write64(_AD9910_REG_DRAMPS, -1, 0)
+        self.write64(_AD9910_REG_RAMP_STEP, -1, 0)
         # delay io_update after RTIO/2 edge
         t = now_mu() + 0x10 & ~0xf
         at_mu(t + delay_start)
@@ -497,7 +497,7 @@ class AD9910:
         # disable DRG autoclear and LRR on io_update
         self.write32(_AD9910_REG_CFR1, 0x00000002)
         # stop DRG
-        self.write64(_AD9910_REG_DRAMPS, 0, 0)
+        self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
         at_mu(t + 0x1000 + delay_stop)
         self.cpld.io_update.pulse_mu(32 - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
