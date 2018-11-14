@@ -144,6 +144,10 @@ class AD9910Exp(EnvExperiment):
         ftw = [0] * 8
         for i in range(8):
             self.dev.cpld.set_profile(i)
+            # If PROFILE is not alligned to SYNC_CLK a multi-bit change
+            # doesn't transfer cleanly. Use IO_UPDATE to load the profile
+            # again.
+            self.dev.cpld.io_update.pulse_mu(8)
             ftw[i] = self.dev.read32(_AD9910_REG_FTW)
             delay(100*us)
         self.set_dataset("ftw", ftw)
