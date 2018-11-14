@@ -256,7 +256,7 @@ class AD9910:
 
     @kernel
     def set_mu(self, ftw, pow=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
-               ref_time=-1):
+               ref_time=-1, profile=0):
         """Set profile 0 data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -276,6 +276,7 @@ class AD9910:
             by :meth:`set_phase_mode` for this call.
         :param ref_time: Fiducial time used to compute absolute or tracking
             phase updates. In machine units as obtained by `now_mu()`.
+        :param profile: Profile number to set (0-7, default: 0).
         :return: Resulting phase offset word after application of phase
             tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
             subsequent calls, use this value as the "current" phase.
@@ -297,7 +298,7 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time)
                 pow += dt*ftw*self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PROFILE0, (asf << 16) | pow, ftw)
+        self.write64(_AD9910_REG_PROFILE0 + profile, (asf << 16) | pow, ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
         at_mu(now_mu() & ~0xf)
@@ -332,7 +333,7 @@ class AD9910:
 
     @kernel
     def set(self, frequency, phase=0.0, amplitude=1.0,
-            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1):
+            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1, profile=0):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
@@ -342,11 +343,12 @@ class AD9910:
         :param asf: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
         :param ref_time: Fiducial time stamp in machine units
+        :param profile: Profile to affect
         :return: Resulting phase offset in turns
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
-            self.amplitude_to_asf(amplitude), phase_mode, ref_time))
+            self.amplitude_to_asf(amplitude), phase_mode, ref_time, profile))
 
     @kernel
     def set_att_mu(self, att):

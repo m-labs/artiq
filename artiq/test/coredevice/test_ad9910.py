@@ -134,6 +134,20 @@ class AD9910Exp(EnvExperiment):
         sw_off = (self.dev.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
         self.set_dataset("sw", (sw_on, sw_off))
 
+    @kernel
+    def profile_readback(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        for i in range(8):
+            self.dev.set_mu(ftw=i, profile=i)
+        ftw = [0] * 8
+        for i in range(8):
+            self.dev.cpld.set_profile(i)
+            ftw[i] = self.dev.read32(_AD9910_REG_FTW)
+            delay(100*us)
+        self.set_dataset("ftw", ftw)
+
 
 class AD9910Test(ExperimentCase):
     def test_instantiate(self):
@@ -189,3 +203,7 @@ class AD9910Test(ExperimentCase):
     def test_sw_readback(self):
         self.execute(AD9910Exp, "sw_readback")
         self.assertEqual(self.dataset_mgr.get("sw"), (1, 0))
+
+    def test_profile_readback(self):
+        self.execute(AD9910Exp, "profile_readback")
+        self.assertEqual(self.dataset_mgr.get("ftw"), list(range(8)))
