@@ -242,6 +242,12 @@ mod ddr {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
             ddrphy::rdly_dq_rst_write(1);
+            #[cfg(soc_platform = "kasli")]
+            {
+                for _ in 0..3 {
+                    ddrphy::rdly_dq_bitslip_write(1);
+                }
+            }
 
             for _ in 0..DDRPHY_MAX_DELAY {
                 let mut working = true;
@@ -327,6 +333,12 @@ mod ddr {
             let mut max_seen_valid = 0;
 
             ddrphy::rdly_dq_rst_write(1);
+            #[cfg(soc_platform = "kasli")]
+            {
+                for _ in 0..3 {
+                    ddrphy::rdly_dq_bitslip_write(1);
+                }
+            }
 
             for delay in 0..DDRPHY_MAX_DELAY {
                 let mut valid = true;
@@ -384,6 +396,12 @@ mod ddr {
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
+            #[cfg(soc_platform = "kasli")]
+            {
+                for _ in 0..3 {
+                    ddrphy::rdly_dq_bitslip_write(1);
+                }
+            }
             for _ in 0..mean_delay {
                 ddrphy::rdly_dq_inc_write(1);
             }
