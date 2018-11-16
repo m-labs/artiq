@@ -309,15 +309,17 @@ class CPLD:
     def get_att_mu(self):
         """Return the digital step attenuator settings in machine units.
 
-        This method will also (as a side effect) write the attenuator
-        settings of all four channels.
-
         :return: 32 bit attenuator settings
         """
-        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 32,
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT, 32,
                                SPIT_ATT_RD, CS_ATT)
-        self.bus.write(self.att_reg)
-        return self.bus.read()
+        self.bus.write(0)  # shift in zeros, shift out current value
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
+                               SPIT_ATT_WR, CS_ATT)
+        delay(10*us)
+        self.att_reg = self.bus.read()
+        self.bus.write(self.att_reg)  # shift in current value again and latch
+        return self.att_reg
 
     @kernel
     def set_sync_div(self, div):
