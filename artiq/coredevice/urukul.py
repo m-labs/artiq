@@ -14,7 +14,8 @@ SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
 # SPI clock write and read dividers
 SPIT_CFG_WR = 2
 SPIT_CFG_RD = 16
-SPIT_ATT_WR = 2
+# 30 MHz fmax, 20 ns setup, 40 ns shift to latch (limiting)
+SPIT_ATT_WR = 6
 SPIT_ATT_RD = 16
 SPIT_DDS_WR = 2
 SPIT_DDS_RD = 16
@@ -174,7 +175,7 @@ class CPLD:
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
                                   sync_sel=sync_sel, rst=0, io_rst=0)
-        self.att_reg = att
+        self.att_reg = int32(att)
         self.sync_div = sync_div
 
     @kernel
@@ -299,7 +300,8 @@ class CPLD:
 
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
-            attenuation.
+            attenuation. Minimum attenuation is 0*dB, maximum attenuation is
+            31.5*dB.
         """
         self.set_att_mu(channel, 255 - int32(round(att*8)))
 
@@ -333,3 +335,15 @@ class CPLD:
         ftw = ftw_max//div
         assert ftw*div == ftw_max
         self.sync.set_mu(ftw)
+
+    @kernel
+    def set_profile(self, profile):
+        """Set the PROFILE pins.
+
+        The PROFILE pins are common to all four DDS channels.
+
+        :param profile: PROFILE pins in numeric representation (0-7).
+        """
+        cfg = self.cfg_reg & ~(7 << CFG_PROFILE)
+        cfg |= (profile & 7) << CFG_PROFILE
+        self.cfg_write(cfg)

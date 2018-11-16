@@ -26,22 +26,22 @@ _AD9910_REG_CFR1 = 0x00
 _AD9910_REG_CFR2 = 0x01
 _AD9910_REG_CFR3 = 0x02
 _AD9910_REG_AUX_DAC = 0x03
-_AD9910_REG_IO_UPD = 0x04
+_AD9910_REG_IO_UPDATE = 0x04
 _AD9910_REG_FTW = 0x07
 _AD9910_REG_POW = 0x08
 _AD9910_REG_ASF = 0x09
-_AD9910_REG_MSYNC = 0x0A
-_AD9910_REG_DRAMPL = 0x0B
-_AD9910_REG_DRAMPS = 0x0C
-_AD9910_REG_DRAMPR = 0x0D
-_AD9910_REG_PR0 = 0x0E
-_AD9910_REG_PR1 = 0x0F
-_AD9910_REG_PR2 = 0x10
-_AD9910_REG_PR3 = 0x11
-_AD9910_REG_PR4 = 0x12
-_AD9910_REG_PR5 = 0x13
-_AD9910_REG_PR6 = 0x14
-_AD9910_REG_PR7 = 0x15
+_AD9910_REG_SYNC = 0x0a
+_AD9910_REG_RAMP_LIMIT = 0x0b
+_AD9910_REG_RAMP_STEP = 0x0c
+_AD9910_REG_RAMP_RATE = 0x0d
+_AD9910_REG_PROFILE0 = 0x0e
+_AD9910_REG_PROFILE1 = 0x0f
+_AD9910_REG_PROFILE2 = 0x10
+_AD9910_REG_PROFILE3 = 0x11
+_AD9910_REG_PROFILE4 = 0x12
+_AD9910_REG_PROFILE5 = 0x13
+_AD9910_REG_PROFILE6 = 0x14
+_AD9910_REG_PROFILE7 = 0x15
 _AD9910_REG_RAM = 0x16
 
 
@@ -256,7 +256,7 @@ class AD9910:
 
     @kernel
     def set_mu(self, ftw, pow=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
-               ref_time=-1):
+               ref_time=-1, profile=0):
         """Set profile 0 data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -276,6 +276,7 @@ class AD9910:
             by :meth:`set_phase_mode` for this call.
         :param ref_time: Fiducial time used to compute absolute or tracking
             phase updates. In machine units as obtained by `now_mu()`.
+        :param profile: Profile number to set (0-7, default: 0).
         :return: Resulting phase offset word after application of phase
             tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
             subsequent calls, use this value as the "current" phase.
@@ -297,7 +298,7 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time)
                 pow += dt*ftw*self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PR0, (asf << 16) | pow, ftw)
+        self.write64(_AD9910_REG_PROFILE0 + profile, (asf << 16) | pow, ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
         at_mu(now_mu() & ~0xf)
@@ -332,7 +333,7 @@ class AD9910:
 
     @kernel
     def set(self, frequency, phase=0.0, amplitude=1.0,
-            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1):
+            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1, profile=0):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
@@ -342,11 +343,12 @@ class AD9910:
         :param asf: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
         :param ref_time: Fiducial time stamp in machine units
+        :param profile: Profile to affect
         :return: Resulting phase offset in turns
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
-            self.amplitude_to_asf(amplitude), phase_mode, ref_time))
+            self.amplitude_to_asf(amplitude), phase_mode, ref_time, profile))
 
     @kernel
     def set_att_mu(self, att):
@@ -389,7 +391,7 @@ class AD9910:
         :param window: Symmetric SYNC_IN validation window (0-15) in
             steps of ~75ps for both hold and setup margin.
         """
-        self.write32(_AD9910_REG_MSYNC,
+        self.write32(_AD9910_REG_SYNC,
                      (window << 28) |  # SYNC S/H validation delay
                      (1 << 27) |  # SYNC receiver enable
                      (0 << 26) |  # SYNC generator disable
@@ -466,17 +468,18 @@ class AD9910:
         raise ValueError("no valid window/delay")
 
     @kernel
-    def measure_io_update_alignment(self, io_up_delay):
+    def measure_io_update_alignment(self, delay_start, delay_stop):
         """Use the digital ramp generator to locate the alignment between
         IO_UPDATE and SYNC_CLK.
 
         The ramp generator is set up to a linear frequency ramp
-        (dFTW/t_SYNC_CLK=1) and started at a RTIO time stamp.
+        (dFTW/t_SYNC_CLK=1) and started at a coarse RTIO time stamp plus
+        `delay_start` and stopped at a coarse RTIO time stamp plus
+        `delay_stop`.
 
-        After scanning the alignment, an IO_UPDATE delay midway between two
-        edges should be chosen.
-
-        :return: odd/even SYNC_CLK cycle indicator
+        :param delay_start: Start IO_UPDATE delay in machine units.
+        :param delay_stop: Stop IO_UPDATE delay in machine units.
+        :return: Odd/even SYNC_CLK cycle indicator.
         """
         # set up DRG
         # DRG ACC autoclear and LRR on io update
@@ -484,19 +487,21 @@ class AD9910:
         # DRG -> FTW, DRG enable
         self.write32(_AD9910_REG_CFR2, 0x01090000)
         # no limits
-        self.write64(_AD9910_REG_DRAMPL, -1, 0)
+        self.write64(_AD9910_REG_RAMP_LIMIT, -1, 0)
         # DRCTL=0, dt=1 t_SYNC_CLK
-        self.write32(_AD9910_REG_DRAMPR, 0x00010000)
+        self.write32(_AD9910_REG_RAMP_RATE, 0x00010000)
         # dFTW = 1, (work around negative slope)
-        self.write64(_AD9910_REG_DRAMPS, -1, 0)
-        at_mu(now_mu() + 0x10 & ~0xf)  # align to RTIO/2
-        self.cpld.io_update.pulse_mu(8)
+        self.write64(_AD9910_REG_RAMP_STEP, -1, 0)
+        # delay io_update after RTIO/2 edge
+        t = now_mu() + 0x10 & ~0xf
+        at_mu(t + delay_start)
+        self.cpld.io_update.pulse_mu(32 - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
         self.write32(_AD9910_REG_CFR1, 0x00000002)
         # stop DRG
-        self.write64(_AD9910_REG_DRAMPS, 0, 0)
-        at_mu((now_mu() + 0x10 & ~0xf) + io_up_delay)  # delay
-        self.cpld.io_update.pulse_mu(32 - io_up_delay)  # realign
+        self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
+        at_mu(t + 0x1000 + delay_stop)
+        self.cpld.io_update.pulse_mu(32 - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100*us)  # slack
         # disable DRG
@@ -510,22 +515,35 @@ class AD9910:
 
         Scan through increasing IO_UPDATE delays until a delay is found that
         lets IO_UPDATE be registered in the next SYNC_CLK cycle. Return a
-        IO_UPDATE delay that is midway between two such SYNC_CLK transitions.
+        IO_UPDATE delay that is as far away from that SYNC_CLK edge
+        as possible.
 
         This method assumes that the IO_UPDATE TTLOut device has one machine
-        unit resolution (SERDES) and that the ratio between fine RTIO frequency
-        (RTIO time machine units) and SYNC_CLK is 4.
+        unit resolution (SERDES).
 
         :return: Stable IO_UPDATE delay to be passed to the constructor
             :class:`AD9910` via the device database.
         """
-        period = 4  # f_RTIO/f_SYNC = 4
-        max_delay = 8  # mu, 1 ns
-        d0 = self.io_update_delay
-        t0 = int32(self.measure_io_update_alignment(d0))
-        for i in range(max_delay - 1):
-            t = self.measure_io_update_alignment(
-                (d0 + i + 1) & (max_delay - 1))
-            if t != t0:
-                return (d0 + i + period//2) & (period - 1)
+        period = self.sysclk_per_mu * 4  # SYNC_CLK period
+        repeat = 100
+        for i in range(period):
+            t = 0
+            # check whether the sync edge is strictly between i, i+2
+            for j in range(repeat):
+                t += self.measure_io_update_alignment(i, i + 2)
+            if t != 0:  # no certain edge
+                continue
+            # check left/right half: i,i+1 and i+1,i+2
+            t1 = [0, 0]
+            for j in range(repeat):
+                t1[0] += self.measure_io_update_alignment(i, i + 1)
+                t1[1] += self.measure_io_update_alignment(i + 1, i + 2)
+            if ((t1[0] == 0 and t1[1] == 0) or
+                (t1[0] == repeat and t1[1] == repeat)):
+                # edge is not close to i + 1, can't interpret result
+                raise ValueError(
+                    "no clear IO_UPDATE-SYNC_CLK alignment edge found")
+            else:
+                # the good delay is period//2 after the edge
+                return (i + 1 + period//2) & (period - 1)
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")

@@ -98,6 +98,13 @@ class UrukulExp(EnvExperiment):
         self.dev.init()
         self.dev.set_sync_div(2)
 
+    @kernel
+    def profile(self):
+        self.core.break_realtime()
+        self.dev.init()
+        self.dev.set_profile(7)
+        self.dev.set_profile(0)
+
 
 class UrukulTest(ExperimentCase):
     def test_instantiate(self):
@@ -147,3 +154,6 @@ class UrukulTest(ExperimentCase):
 
     def test_sync(self):
         self.execute(UrukulExp, "sync")
+
+    def test_profile(self):
+        self.execute(UrukulExp, "profile")

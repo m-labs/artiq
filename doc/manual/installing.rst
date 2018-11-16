@@ -131,7 +131,8 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 
 1. Make sure the FPGA board's JTAG USB port is connected to your computer.
 2. Activate Options → List All Devices.
-3. Select the "Digilent Adept USB Device (Interface 0)" device from the drop-down list.
+3. Select the "Digilent Adept USB Device (Interface 0)" or "FTDI Quad-RS232 HS" (or similar)
+   device from the drop-down list.
 4. Select WinUSB from the spinner list.
 5. Click "Install Driver" or "Replace Driver".
 
