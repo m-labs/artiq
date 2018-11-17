@@ -175,6 +175,10 @@ class AD9914:
           accumulator is set to the value it would have if the DDS had been
           running at the specified frequency since the start of the
           experiment.
+
+        .. warning:: This setting may become inconsistent when used as part of
+            a DMA recording. When using DMA, it is recommended to specify the
+            phase mode explicitly when calling :meth:`set` or :meth:`set_mu`.
         """
         self.phase_mode = phase_mode
 
@@ -189,6 +193,11 @@ class AD9914:
 
         The "frequency update" pulse is sent to the DDS with a fixed latency
         with respect to the current position of the time cursor.
+
+        When switching from other phase modes to the continuous phase mode,
+        there is no jump in the DDS phase. This is however not true when
+        using the continuous phase mode after playing back a DMA sequence
+        that contained the other phase modes.
 
         :param ftw: frequency to generate.
         :param pow: adds an offset to the phase.
