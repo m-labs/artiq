@@ -107,12 +107,22 @@ class TTLInOut:
 
     :param channel: channel number
     """
-    kernel_invariants = {"core", "channel",
+    kernel_invariants = {"core", "channel", "gate_latency_mu",
         "target_o", "target_oe", "target_sens", "target_sample"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, gate_latency_mu=None,
+                 core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+
+        # With TTLs inputs, the gate control is connected to a high-latency
+        # path through SED. When looking at the RTIO counter to determine if
+        # the gate has closed, we need to take this latency into account.
+        # See: https://github.com/m-labs/artiq/issues/1137
+        if gate_latency_mu is None:
+            gate_latency_mu = 13*self.core.ref_multiplier
+        self.gate_latency_mu = gate_latency_mu
+
         self.target_o      = (channel << 8) + 0
         self.target_oe     = (channel << 8) + 1
         self.target_sens   = (channel << 8) + 2
@@ -329,7 +339,7 @@ class TTLInOut:
                 ttl_input.count(ttl_input.gate_rising(100 * us))
         """
         count = 0
-        while rtio_input_timestamp(up_to_timestamp_mu, self.channel) >= 0:
+        while rtio_input_timestamp(up_to_timestamp_mu + self.gate_latency_mu, self.channel) >= 0:
             count += 1
         return count
 
@@ -352,7 +362,7 @@ class TTLInOut:
         :return: The timestamp (in machine units) of the first event received;
             -1 on timeout.
         """
-        return rtio_input_timestamp(up_to_timestamp_mu, self.channel)
+        return rtio_input_timestamp(up_to_timestamp_mu + self.gate_latency_mu, self.channel)
 
     # Input API: sampling
     @kernel
@@ -420,7 +430,7 @@ class TTLInOut:
         rtio_output(self.target_sens, 0)
         success = True
         try:
-            while rtio_input_timestamp(now_mu(), self.channel) != -1:
+            while rtio_input_timestamp(now_mu() + self.gate_latency_mu, self.channel) != -1:
                 success = False
         except RTIOOverflow:
             success = False

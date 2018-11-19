@@ -1186,24 +1186,26 @@ class VLBAISatellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
+VARIANTS = {cls.__name__.lower(): cls for cls in [
+    Opticlock, SUServo, PTB, PTB2, HUB, LUH,
+    SYSU, MITLL, MITLL2, USTC, Tsinghua, Tsinghua2, WIPM, NUDT,
+    VLBAIMaster, VLBAISatellite, Tester, Master, Satellite]}
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for Kasli systems")
     builder_args(parser)
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
-    variants = {cls.__name__.lower(): cls for cls in [
-        Opticlock, SUServo, PTB, PTB2, HUB, LUH,
-        SYSU, MITLL, MITLL2, USTC, Tsinghua, Tsinghua2, WIPM, NUDT,
-        VLBAIMaster, VLBAISatellite, Tester, Master, Satellite]}
     parser.add_argument("-V", "--variant", default="opticlock",
                         help="variant: {} (default: %(default)s)".format(
-                            "/".join(sorted(variants.keys()))))
+                            "/".join(sorted(VARIANTS.keys()))))
     args = parser.parse_args()
 
     variant = args.variant.lower()
     try:
-        cls = variants[variant]
+        cls = VARIANTS[variant]
     except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 

@@ -402,6 +402,9 @@ class SMA_SPI(_StandaloneBase):
         self.csr_devices.append("rtio_analyzer")
 
 
+VARIANTS = {cls.__name__.lower(): cls for cls in [NIST_CLOCK, NIST_QC2, SMA_SPI]}
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="KC705 gateware and firmware builder")
@@ -415,13 +418,9 @@ def main():
     args = parser.parse_args()
 
     variant = args.variant.lower()
-    if variant == "nist_clock":
-        cls = NIST_CLOCK
-    elif variant == "nist_qc2":
-        cls = NIST_QC2
-    elif variant == "sma_spi":
-        cls = SMA_SPI
-    else:
+    try:
+        cls = VARIANTS[variant]
+    except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 
     soc = cls(**soc_kc705_argdict(args))

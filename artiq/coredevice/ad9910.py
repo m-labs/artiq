@@ -101,6 +101,8 @@ class AD9910:
         self.pll_vco = pll_vco
         assert 0 <= pll_cp <= 7
         self.pll_cp = pll_cp
+        if sync_delay_seed >= 0 and not self.cpld.sync_div:
+            raise ValueError("parent cpld does not drive SYNC")
         self.sync_delay_seed = sync_delay_seed
         self.io_update_delay = io_update_delay
         self.phase_mode = PHASE_MODE_CONTINUOUS
@@ -430,6 +432,8 @@ class AD9910:
             Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
         """
+        if not self.cpld.sync_div:
+            raise ValueError("parent cpld does not drive SYNC")
         search_span = 31
         # FIXME https://github.com/sinara-hw/Urukul/issues/16
         # should both be 2-4 once kasli sync_in jitter is identified
