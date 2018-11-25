@@ -3,6 +3,14 @@
 Release notes
 =============
 
+ARTIQ-5
+-------
+
+5.0
+***
+
+
+
 ARTIQ-4
 -------
 
@@ -67,6 +75,11 @@ ARTIQ-4
   clocks dynamically (i.e. without device restart) is no longer supported.
 * ``set_dataset(..., save=True)`` has been renamed
   ``set_dataset(..., archive=True)``.
+* On the AD9914 DDS, when switching to ``PHASE_MODE_CONTINUOUS`` from another mode,
+  use the returned value of the last ``set_mu`` call as the phase offset for
+  ``PHASE_MODE_CONTINUOUS`` to avoid a phase discontinuity. This is no longer done
+  automatically. If one phase glitch when entering ``PHASE_MODE_CONTINUOUS`` is not
+  an issue, this recommendation can be ignored.
 
 
 ARTIQ-3

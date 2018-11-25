@@ -80,8 +80,6 @@ class AD9914:
         self.set_x_duration_mu     = 7 * self.write_duration_mu
         self.exit_x_duration_mu    = 3 * self.write_duration_mu
 
-        self.continuous_phase_comp = 0
-
     @kernel
     def write(self, addr, data):
         rtio_output((self.bus_channel << 8) | addr, data)
@@ -194,18 +192,16 @@ class AD9914:
         The "frequency update" pulse is sent to the DDS with a fixed latency
         with respect to the current position of the time cursor.
 
-        When switching from other phase modes to the continuous phase mode,
-        there is no jump in the DDS phase. This is however not true when
-        using the continuous phase mode after playing back a DMA sequence
-        that contained the other phase modes.
-
         :param ftw: frequency to generate.
         :param pow: adds an offset to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
             by :meth:`set_phase_mode` for this call.
         :param ref_time: reference time used to compute phase. Specifying this
             makes it easier to have a well-defined phase relationship between
-            DDSes on the same bus that are updated at a similar time. 
+            DDSes on the same bus that are updated at a similar time.
+        :return: Resulting phase offset word after application of phase
+            tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
+            subsequent calls, use this value as the "current" phase.
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
@@ -224,7 +220,6 @@ class AD9914:
             # Do not clear phase accumulator on FUD
             # Disable autoclear phase accumulator and enables OSK.
             self.write(AD9914_REG_CFR1L, 0x0108)
-            pow += self.continuous_phase_comp
         else:
             # Clear phase accumulator on FUD
             # Enable autoclear phase accumulator and enables OSK.
@@ -233,11 +228,11 @@ class AD9914:
             pow -= int32((ref_time - fud_time) * self.sysclk_per_mu * ftw >> (32 - 16))
             if phase_mode == PHASE_MODE_TRACKING:
                 pow += int32(ref_time * self.sysclk_per_mu * ftw >> (32 - 16))
-            self.continuous_phase_comp = pow
 
         self.write(AD9914_REG_POW,  pow)
         self.write(AD9914_REG_ASF,  asf)
         self.write(AD9914_FUD,      0)
+        return pow
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
@@ -280,9 +275,10 @@ class AD9914:
     def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT,
             amplitude=1.0):
         """Like :meth:`set_mu`, but uses Hz and turns."""
-        self.set_mu(self.frequency_to_ftw(frequency),
+        return self.pow_to_turns(
+            self.set_mu(self.frequency_to_ftw(frequency),
                     self.turns_to_pow(phase), phase_mode,
-                    self.amplitude_to_asf(amplitude))
+                    self.amplitude_to_asf(amplitude)))
 
     # Extended-resolution functions
     @kernel
