@@ -129,7 +129,10 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
-        rtio_output((self.channel << 8) | addr | WE, value)
+        addr |= WE
+        value |= (addr >> 8) << COEFF_WIDTH
+        addr = addr & 0xff
+        rtio_output((self.channel << 8) | addr, value)
         delay_mu(self.ref_period_mu)
 
     @kernel
@@ -140,7 +143,9 @@ class SUServo:
 
         :param addr: Memory location address.
         """
-        rtio_output((self.channel << 8) | addr, 0)
+        value = (addr >> 8) << COEFF_WIDTH
+        addr = addr & 0xff
+        rtio_output((self.channel << 8) | addr, value)
         return rtio_input_data(self.channel)
 
     @kernel

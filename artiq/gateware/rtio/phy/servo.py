@@ -43,11 +43,16 @@ class RTServoMem(Module):
         # ensure that the DDS word data fits into the coefficient mem
         assert w.coeff >= w.word
 
+        # coeff, profile, channel, 2 mems, rw
+        # this exceeds the 8-bit RTIO address, so we move the extra ("overflow")
+        # address bits into data.
+        internal_address_width = 3 + w.profile + w.channel + 1 + 1
+        rtlink_address_width = min(8, internal_address_width)
+        overflow_address_width = internal_address_width - rtlink_address_width
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(
-                data_width=w.coeff,
-                # coeff, profile, channel, 2 mems, rw
-                address_width=3 + w.profile + w.channel + 1 + 1,
+                data_width=overflow_address_width + w.coeff,
+                address_width=rtlink_address_width,
                 enable_replace=False),
             rtlink.IInterface(
                 data_width=w.coeff,
@@ -65,30 +70,33 @@ class RTServoMem(Module):
                     [_.clip for _ in servo.iir.ctrl]))
         ]
 
-        assert len(self.rtlink.o.address) == (
+        assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff == (
                 1 +  # we
                 1 +  # state_sel
                 1 +  # high_coeff
                 len(m_coeff.adr))
         # ensure that we can fit config/status into the state address space
-        assert len(self.rtlink.o.address) >= (
+        assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff >= (
                 1 +  # we
                 1 +  # state_sel
                 1 +  # config_sel
                 len(m_state.adr))
-        we = self.rtlink.o.address[-1]
-        state_sel = self.rtlink.o.address[-2]
-        config_sel = self.rtlink.o.address[-3]
-        high_coeff = self.rtlink.o.address[0]
+        internal_address = Signal(internal_address_width)
+        self.comb += internal_address.eq(Cat(self.rtlink.o.address, self.rtlink.o.data[w.coeff:]))
+
+        we = internal_address[-1]
+        state_sel = internal_address[-2]
+        config_sel = internal_address[-3]
+        high_coeff = internal_address[0]
         self.comb += [
                 self.rtlink.o.busy.eq(0),
-                m_coeff.adr.eq(self.rtlink.o.address[1:]),
+                m_coeff.adr.eq(internal_address[1:]),
                 m_coeff.dat_w.eq(Cat(self.rtlink.o.data, self.rtlink.o.data)),
                 m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
                     we & ~state_sel),
                 m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
                     we & ~state_sel),
-                m_state.adr.eq(self.rtlink.o.address),
+                m_state.adr.eq(internal_address),
                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
                 m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
         ]
