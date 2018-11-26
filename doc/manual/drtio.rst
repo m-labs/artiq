@@ -77,7 +77,7 @@ Here is an example of creating and programming a routing table for a chain of 3 
 Addressing distributed RTIO cores from kernels
 ++++++++++++++++++++++++++++++++++++++++++++++
 
-Remote RTIO channels are accessed in the same was as local ones. Bits 16-24 of the RTIO channel number define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
+Remote RTIO channels are accessed in the same way as local ones. Bits 16-24 of the RTIO channel number define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
 
 Link establishment
 ++++++++++++++++++
