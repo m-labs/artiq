@@ -160,6 +160,8 @@ Configuring the core device
 
 This should be done after either installation method (conda or source).
 
+* (optional) If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, prepare the routing table and add it to the ``flash_storage.img`` created in the next step. The routing table can be easily changed later, so you can skip this step if you are just getting started and only want to test local channels. See :ref:`Using DRTIO <using-drtio>`.
+
 .. _flash-mac-ip-addr:
 
 * Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>` (see above for the ``-t`` and ``-m`` options to ``artiq_flash`` that may be required): ::

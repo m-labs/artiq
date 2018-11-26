@@ -22,12 +22,72 @@ The lower layers of DRTIO are similar to White Rabbit, with the following main d
 
 From ARTIQ kernels, DRTIO channels are used in the same way as local RTIO channels.
 
+.. _using-drtio:
+
 Using DRTIO
 -----------
 
-Remote RTIO channels are accessed in the same was as local ones. Bits 16-24 of the RTIO channel number are used to select between local RTIO channels or one of the connected DRTIO satellites. Bits 0-15 of the RTIO channel number select the channel within one device (local or remote).
+Terminology
++++++++++++
 
-This scheme will be expanded later with the introduction of DRTIO switches.
+In a system of interconnected DRTIO devices, each RTIO core (driving RTIO PHYs; for example a RTIO core would connect to a large bank of TTL signals) is assigned a number and is called a *destination*. One DRTIO device normally contains one RTIO core.
+
+On one DRTIO device, the immediate path that a RTIO request must take is called a *hop*: the request can be sent to the local RTIO core, or to another device downstream. Each possible hop is assigned a number. Hop 0 is normally the local RTIO core, and hops 1 and above correspond to the respective downstream ports of the device.
+
+DRTIO devices are arranged in a tree topology, with the core device at the root. For each device, its distance from the root (in number of devices that are crossed) is called its *rank*. The root has rank 0, the devices immediately connected to it have rank 1, and so on.
+
+The routing table
++++++++++++++++++
+
+The routing table defines, for each destination, the list of hops ("route") that must be taken from the root in order to reach it.
+
+It is stored in a binary format that can be manipulated with the :ref:`artiq_route utility <routing-table-tool>`. The binary file is then programmed into the flash storage of the core device under the ``routing_table`` key. It is automatically distributed to downstream devices when the connections are established. Modifying the routing table requires rebooting the core device for the new table to be taken into account.
+
+All routes must end with the local RTIO core of the last device (0).
+
+The local RTIO core of the core device is a destination like any other, and it needs to be explicitly part of the routing table for kernels to be able to access it.
+
+If no routing table is programmed, the core device takes a default routing table for a star topology (i.e. with no devices of rank 2 or above), with destination 0 being the core device's local RTIO core and destinations 1 and above corresponding to devices on the respective downstream ports.
+
+Here is an example of creating and programming a routing table for a chain of 3 devices: ::
+
+    # create an empty routing table
+    $ artiq_route rt.bin init
+
+    # set destination 0 to the local RTIO core
+    $ artiq_route rt.bin set 0 0
+
+    # for destination 1, first use hop 1 (the first downstream port)
+    # then use the local RTIO core of that second device.
+    $ artiq_route rt.bin set 1 1 0
+
+    # for destination 2, use hop 1 and reach the second device as
+    # before, then use hop 1 on that device to reach the third
+    # device, and finally use the local RTIO core (hop 0) of the
+    # third device.
+    $ artiq_route rt.bin set 2 1 1 0
+
+    $ artiq_route rt.bin show
+      0:   0
+      1:   1   0
+      2:   1   1   0
+
+    $ artiq_coremgmt config write -f routing_table rt.bin
+
+Addressing distributed RTIO cores from kernels
+++++++++++++++++++++++++++++++++++++++++++++++
+
+Remote RTIO channels are accessed in the same was as local ones. Bits 16-24 of the RTIO channel number define the destination. Bits 0-15 of the RTIO channel number select the channel within the destination.
+
+Link establishment
+++++++++++++++++++
+
+After devices have booted, it takes several seconds for all links in a DRTIO system to become established (especially with the long locking times of low-bandwidth PLLs that are used for jitter reduction purposes). Kernels should not attempt to access destinations until all required links are up (when this happens, the ``RTIODestinationUnreachable`` exception is raised). ARTIQ provides the method :meth:`~artiq.coredevice.core.Core.get_rtio_destination_status` that determines whether a destination can be reached. We recommend calling it in a loop in your startup kernel for each important destination, to delay startup until they all can be reached.
+
+Latency
++++++++
+
+Each hop increases the RTIO latency of a destination by a significant amount; that latency is however constant and can be compensated for in kernels. To limit latency in a system, fully utilize the downstream ports of devices to reduce the depth of the tree, instead of creating chains.
 
 Internal details
 ----------------

@@ -179,6 +179,15 @@ Core device RTIO analyzer tool
 .. note::
     The RTIO analyzer does not support SAWG.
 
+.. _routing-table-tool:
+
+DRTIO routing table manipulation tool
+-------------------------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_route.get_argparser
+   :prog: artiq_route
+
 Data to InfluxDB bridge
 -----------------------
 
