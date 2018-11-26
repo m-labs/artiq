@@ -74,7 +74,7 @@ As part of the DRTIO link initialization, a real-time packet is sent by the core
 RTIO outputs
 ++++++++++++
 
-Controlling a remote RTIO output involves placing the RTIO event into the FIFO of the remote device. The core device maintains a cache of the space available in each channel FIFO of the remote device. If, according to the cache, there is space available, then a packet containing the event information (timestamp, address, channel, data) is sent immediately and the cached value is decremented by one. If, according to the cache, no space is available, then the core device sends a request for the space available in the remote FIFO and updates the cache. The process repeats until at least one FIFO entry is available for the event, at which point a packet containing the event information is sent as before.
+Controlling a remote RTIO output involves placing the RTIO event into the buffer of the destination. The core device maintains a cache of the buffer space available in each destination. If, according to the cache, there is space available, then a packet containing the event information (timestamp, address, channel, data) is sent immediately and the cached value is decremented by one. If, according to the cache, no space is available, then the core device sends a request for the space available in the destination and updates the cache. The process repeats until at least one remote buffer entry is available for the event, at which point a packet containing the event information is sent as before.
 
 Detecting underflow conditions is the responsibility of the core device; should an underflow occur then no DRTIO packet is transmitted. Sequence errors are handled similarly.
 
