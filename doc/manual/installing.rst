@@ -117,7 +117,7 @@ Configuring OpenOCD
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
-On Linux, first ensure that the current user belongs to the ``plugdev`` group. If it does not, run ``sudo adduser $USER plugdev`` and relogin. If you installed OpenOCD using conda and are using the conda environment ``artiq-main``, then execute the statements below. If you are using a different environment, you will have to replace ``artiq-main`` with the name of your environment::
+On Linux, first ensure that the current user belongs to the ``plugdev`` group (i.e. `plugdev` shown when you run `$ groups`). If it does not, run ``sudo adduser $USER plugdev`` and relogin. If you installed OpenOCD using conda and are using the conda environment ``artiq-main``, then execute the statements below. If you are using a different environment, you will have to replace ``artiq-main`` with the name of your environment::
 
     $ sudo cp ~/.conda/envs/artiq-main/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
     $ sudo udevadm trigger
