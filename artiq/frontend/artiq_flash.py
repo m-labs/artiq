@@ -28,6 +28,7 @@ Valid actions:
     * storage: write storage image to flash
     * firmware: write firmware to flash
     * load: load gateware bitstream into device (volatile but fast)
+    * clear: clear flash memory
     * start: trigger the target to (re)load its gateware bitstream from flash
 
 Prerequisites:
@@ -131,6 +132,13 @@ class Programmer:
             "target create {tap}.{name}.proxy testee -chain-position {tap}.tap",
             "flash bank {name} jtagspi 0 0 0 0 {tap}.{name}.proxy {ir:#x}",
             tap=tap, name=name, ir=0x02 + index)
+
+    def clear_flash(self, bankname):
+        self.load_proxy()
+        add_commands(self._script,
+                     "flash probe {bankname}",
+                     "flash erase_sector {bankname} 0 last",
+                     bankname=bankname)
 
     def load(self, bitfile, pld):
         os.stat(bitfile) # check for existence
@@ -362,6 +370,12 @@ def main():
                 programmer.load(gateware_bit, 0)
         elif action == "start":
             programmer.start()
+        elif action == "clear":
+            if args.target == "sayma":
+                programmer.clear_flash("spi0")
+                programmer.clear_flash("spi1")
+            else:
+                programmer.clear_flash("spi0")
         else:
             raise ValueError("invalid action", action)
 
