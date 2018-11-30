@@ -23,7 +23,7 @@ class Grabber:
         count_width = min(31, 2*res_width + 16 - count_shift)
         # This value is inserted by the gateware to mark the start of a series of
         # ROI engine outputs for one video frame.
-        self.sentinel = int32(2**count_width)
+        self.sentinel = int32(int64(2**count_width))
 
     @kernel
     def setup_roi(self, n, x0, y0, x1, y1):
