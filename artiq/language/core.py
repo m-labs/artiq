@@ -118,7 +118,7 @@ def syscall(arg=None, flags={}):
         def inner_decorator(function):
             function.artiq_embedded = \
                 _ARTIQEmbeddedInfo(core_name=None, portable=False, function=None,
-                                   syscall=function.__name__, forbidden=False,
+                                   syscall=arg, forbidden=False,
                                    flags=set(flags))
             return function
         return inner_decorator
