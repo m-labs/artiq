@@ -254,6 +254,7 @@ class LoopbackGateTiming(EnvExperiment):
         self.loop_out.pulse_mu(24)
 
         in_mu = self.loop_in.timestamp_mu(gate_end_mu)
+        print("timings: ", gate_start_mu, in_mu - lat_offset, gate_end_mu)
         if in_mu < 0:
             raise PulseNotReceived()
         if not (gate_start_mu <= (in_mu - lat_offset) <= gate_end_mu):
