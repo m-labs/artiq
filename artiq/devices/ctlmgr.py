@@ -178,13 +178,17 @@ class Controllers:
                 raise ValueError
 
     def __setitem__(self, k, v):
-        if (isinstance(v, dict) and v["type"] == "controller" and
-                self.host_filter in get_ip_addresses(v["host"])):
-            v["command"] = v["command"].format(name=k,
-                                               bind=self.host_filter,
-                                               port=v["port"])
-            self.queue.put_nowait(("set", (k, v)))
-            self.active_or_queued.add(k)
+        try:
+            if (isinstance(v, dict) and v["type"] == "controller" and
+                    self.host_filter in get_ip_addresses(v["host"])):
+                v["command"] = v["command"].format(name=k,
+                                                   bind=self.host_filter,
+                                                   port=v["port"])
+                self.queue.put_nowait(("set", (k, v)))
+                self.active_or_queued.add(k)
+        except:
+            logger.error("Failed to process device database entry %s", k,
+                         exc_info=True)
 
     def __delitem__(self, k):
         if k in self.active_or_queued:
