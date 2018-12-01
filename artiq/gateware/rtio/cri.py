@@ -87,18 +87,15 @@ class KernelInitiator(Module, AutoCSR):
 
         # # #
 
-        now_lo_backing = Signal(32)
+        now_hi_backing = Signal(32)
         now = Signal(64, reset_less=True)
         self.sync += [
-            # TODO: fix compiler and make atomic
-            #If(self.now_lo.re, now_lo_backing.eq(self.now_lo.r)),
-            #If(self.now_hi.re, now.eq(Cat(now_lo_backing, self.now_hi.r)))
-            If(self.now_lo.re, now[:32].eq(self.now_lo.r)),
-            If(self.now_hi.re, now[32:].eq(self.now_hi.r))
+            If(self.now_hi.re, now_hi_backing.eq(self.now_hi.r)),
+            If(self.now_lo.re, now.eq(Cat(self.now_lo.r, now_hi_backing)))
         ]
         self.comb += [
-            self.now_lo.w.eq(now[:32]),
-            self.now_hi.w.eq(now[32:])
+            self.now_hi.w.eq(now[32:]),
+            self.now_lo.w.eq(now[:32])
         ]
 
         self.comb += [

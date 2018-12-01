@@ -20,7 +20,7 @@ requirements:
     - microscope
     - binutils-or1k-linux >=2.27
     - llvm-or1k 6.0.0
-    - llvmlite-artiq 0.23.0.dev py35_4
+    - llvmlite-artiq 0.23.0.dev py35_5
     - rust-core-or1k 1.28.0 21
     - openocd 0.10.0 6
     - lit
