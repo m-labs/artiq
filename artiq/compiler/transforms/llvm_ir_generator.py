@@ -150,6 +150,9 @@ class LLVMIRGenerator:
             ll.Constant(lli64, 1)
         ])
 
+        assert self.llmodule.data_layout[0] in "eE"
+        self.little_endian = self.llmodule.data_layout[0] == "e"
+
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
             return False
@@ -1156,6 +1159,8 @@ class LLVMIRGenerator:
             lltime_lo = self.llbuilder.trunc(lltime, lli32)
             llnow_hiptr = self.llbuilder.bitcast(self.llbuiltin("now"), lli32.as_pointer())
             llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+            if self.little_endian:
+                lltime_hi, lltime_lo = lltime_lo, lltime_hi
             llstore_hi = self.llbuilder.store_atomic(lltime_hi, llnow_hiptr, ordering="seq_cst", align=4)
             llstore_lo = self.llbuilder.store_atomic(lltime_lo, llnow_loptr, ordering="seq_cst", align=4)
             return llstore_lo
@@ -1169,6 +1174,8 @@ class LLVMIRGenerator:
             lladjusted_lo = self.llbuilder.trunc(lladjusted, lli32)
             llnow_hiptr = self.llbuilder.bitcast(llnowptr, lli32.as_pointer())
             llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+            if self.little_endian:
+                lladjusted_hi, lladjusted_lo = lladjusted_lo, lladjusted_hi
             llstore_hi = self.llbuilder.store_atomic(lladjusted_hi, llnow_hiptr, ordering="seq_cst", align=4)
             llstore_lo = self.llbuilder.store_atomic(lladjusted_lo, llnow_loptr, ordering="seq_cst", align=4)
             return llstore_lo
