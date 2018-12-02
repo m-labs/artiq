@@ -75,11 +75,15 @@ class Target:
     :var print_function: (string)
         Name of a formatted print functions (with the signature of ``printf``)
         provided by the target, e.g. ``"printf"``.
+    :var little_endian: (boolean)
+        Whether the code will be executed on a little-endian machine. This cannot be always
+        determined from data_layout due to JIT.
     """
     triple = "unknown"
     data_layout = ""
     features = []
     print_function = "printf"
+    little_endian = False
 
 
     def __init__(self):
