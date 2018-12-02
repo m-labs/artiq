@@ -151,7 +151,7 @@ class LLVMIRGenerator:
         ])
 
         assert self.lldatalayout in "eE"
-        self.little_endian = self.self.lldatalayout[0] == "e"
+        self.little_endian = self.lldatalayout[0] == "e"
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
