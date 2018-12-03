@@ -4,6 +4,9 @@ import select
 
 from artiq.experiment import *
 
+if os.name == "nt":
+    import msvcrt
+
 
 def chunker(seq, size):
     res = []
@@ -16,18 +19,18 @@ def chunker(seq, size):
         yield res
 
 
-if os.name == "nt":
-   import msvcrt
-   is_key_pressed = msvcrt.kbhit
-else:
-   is_key_pressed = lambda: select.select([sys.stdin,], [], [], 0.0)[0]
-        
-def is_enter_pressed() -> TBool: 
-	if is_key_pressed:
-		sys.stdin.read(1)
-		return True
-	else:
-		return False
+def is_enter_pressed() -> TBool:
+    if os.name == "nt":
+        if msvcrt.kbhit() and msvcrt.getch() == b"\r":
+            return True
+        else:
+            return False
+    else:
+        if select.select([sys.stdin, ], [], [], 0.0)[0]:
+            sys.stdin.read(1)
+            return True
+        else:
+            return False
 
 
 class KasliTester(EnvExperiment):
