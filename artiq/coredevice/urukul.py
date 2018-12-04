@@ -138,8 +138,9 @@ class CPLD:
     :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
         Knowledge of this state is not transferred between experiments.
     :param att: Initial attenuator setting shift register (default:
-        0x00000000). See also: :meth:`set_all_att_mu`. Knowledge of this state
-        is not transferred between experiments.
+        0x00000000). See also :meth:`get_att_mu` which retrieves the hardware
+        state without side effects. Knowledge of this state is not transferred
+        between experiments.
     :param sync_div: SYNC_IN generator divider. The ratio between the coarse
         RTIO frequency and the SYNC_IN generator frequency (default: 2 if
         `sync_device` was specified).

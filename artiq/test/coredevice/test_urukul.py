@@ -69,11 +69,37 @@ class UrukulExp(EnvExperiment):
     def att(self):
         self.core.break_realtime()
         self.dev.init()
+        # clear backing state
+        self.dev.att_reg = 0
         att_set = 0x12345678
         self.dev.set_all_att_mu(att_set)
+        # confirm that we can set all attenuators and read back
         att_get = self.dev.get_att_mu()
+        # confirm backing state
+        att_reg = self.dev.att_reg
         self.set_dataset("att_set", att_set)
         self.set_dataset("att_get", att_get)
+        self.set_dataset("att_reg", att_reg)
+
+    @kernel
+    def att_channel(self):
+        self.core.break_realtime()
+        self.dev.init()
+        # clear backing state
+        self.dev.att_reg = 0
+        att_set = int32(0x87654321)
+        # set individual attenuators
+        self.dev.set_att_mu(0, 0x21)
+        self.dev.set_att_mu(1, 0x43)
+        self.dev.set_att_mu(2, 0x65)
+        self.dev.set_att_mu(3, 0x87)
+        # confirm that we can set all attenuators and read back
+        att_get = self.dev.get_att_mu()
+        # confirm backing state
+        att_reg = self.dev.att_reg
+        self.set_dataset("att_set", att_set)
+        self.set_dataset("att_get", att_get)
+        self.set_dataset("att_reg", att_reg)
 
     @kernel
     def att_speed(self):
@@ -140,8 +166,14 @@ class UrukulTest(ExperimentCase):
     def test_att(self):
         self.execute(UrukulExp, "att")
         att_set = self.dataset_mgr.get("att_set")
-        att_get = self.dataset_mgr.get("att_get")
-        self.assertEqual(att_set, att_get)
+        self.assertEqual(att_set, self.dataset_mgr.get("att_get"))
+        self.assertEqual(att_set, self.dataset_mgr.get("att_reg"))
+
+    def test_att_channel(self):
+        self.execute(UrukulExp, "att_channel")
+        att_set = self.dataset_mgr.get("att_set")
+        self.assertEqual(att_set, self.dataset_mgr.get("att_get"))
+        self.assertEqual(att_set, self.dataset_mgr.get("att_reg"))
 
     def test_att_speed(self):
         self.execute(UrukulExp, "att_speed")
