@@ -1,7 +1,11 @@
 import sys
+import os
 import select
 
 from artiq.experiment import *
+
+if os.name == "nt":
+    import msvcrt
 
 
 def chunker(seq, size):
@@ -16,11 +20,17 @@ def chunker(seq, size):
 
 
 def is_enter_pressed() -> TBool:
-    if select.select([sys.stdin,], [], [], 0.0)[0]:
-        sys.stdin.read(1)
-        return True
+    if os.name == "nt":
+        if msvcrt.kbhit() and msvcrt.getch() == b"\r":
+            return True
+        else:
+            return False
     else:
-        return False
+        if select.select([sys.stdin, ], [], [], 0.0)[0]:
+            sys.stdin.read(1)
+            return True
+        else:
+            return False
 
 
 class KasliTester(EnvExperiment):
