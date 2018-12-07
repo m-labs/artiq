@@ -1,6 +1,6 @@
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.coredevice.ad9910 import _AD9910_REG_FTW
+from artiq.coredevice.ad9910 import _AD9910_REG_FTW, _AD9910_REG_PROFILE0
 from artiq.coredevice.urukul import (
         urukul_sta_smp_err, CFG_CLK_SEL0, CFG_CLK_SEL1)
 
@@ -45,6 +45,19 @@ class AD9910Exp(EnvExperiment):
         self.dev.set(frequency=f, phase=.33, amplitude=.89)
         self.set_dataset("ftw_set", self.dev.frequency_to_ftw(f))
         self.set_dataset("ftw_get", self.dev.read32(_AD9910_REG_FTW))
+
+    @kernel
+    def read_write64(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        lo = 0x12345678
+        hi = 0x09abcdef
+        self.dev.write64(_AD9910_REG_PROFILE0, hi, lo)
+        self.dev.cpld.io_update.pulse_mu(8)
+        read = self.dev.read64(_AD9910_REG_PROFILE0)
+        self.set_dataset("write", (int64(hi) << 32) | lo)
+        self.set_dataset("read", read)
 
     @kernel
     def set_speed(self):
@@ -169,6 +182,12 @@ class AD9910Test(ExperimentCase):
         ftw_get = self.dataset_mgr.get("ftw_get")
         ftw_set = self.dataset_mgr.get("ftw_set")
         self.assertEqual(ftw_get, ftw_set)
+
+    def test_read_write64(self):
+        self.execute(AD9910Exp, "read_write64")
+        write = self.dataset_mgr.get("write")
+        read = self.dataset_mgr.get("read")
+        self.assertEqual(hex(write), hex(read))
 
     def test_set_speed(self):
         self.execute(AD9910Exp, "set_speed")

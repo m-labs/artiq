@@ -182,6 +182,28 @@ class AD9910:
         return self.bus.read()
 
     @kernel
+    def read64(self, addr):
+        """Read from 64 bit register.
+
+        :param addr: Register address
+        :return: 64 bit integer register value
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+            urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((addr | 0x80) << 24)
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_INPUT, 32,
+            urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 32,
+            urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        hi = self.bus.read()
+        lo = self.bus.read()
+        return (int64(hi) << 32) | lo
+
+    @kernel
     def write64(self, addr, data_high, data_low):
         """Write to 64 bit register.
 
