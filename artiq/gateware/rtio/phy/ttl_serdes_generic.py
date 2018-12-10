@@ -67,6 +67,10 @@ class InOut(Module):
         override_oe = Signal()
         self.overrides = [override_en, override_o, override_oe]
 
+        #: LSB of the input state (for edge detection; arbitrary choice, support for
+        #: short pulses will need a more involved solution).
+        self.input_state = Signal()
+
         # # #
 
         # Output
@@ -100,6 +104,7 @@ class InOut(Module):
         ]
 
         i = serdes.i[-1]
+        self.comb += self.input_state.eq(i)
         i_d = Signal()
         self.sync.rio_phy += [
             i_d.eq(i),

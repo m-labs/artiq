@@ -41,6 +41,12 @@ Digital I/O drivers
 .. automodule:: artiq.coredevice.ttl
     :members:
 
+:mod:`artiq.coredevice.edge_counter` module
+++++++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.edge_counter
+    :members:
+
 :mod:`artiq.coredevice.shiftreg` module
 +++++++++++++++++++++++++++++++++++++++
 

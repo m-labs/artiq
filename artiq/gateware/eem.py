@@ -38,19 +38,31 @@ class DIO(_EEM):
             for i in range(8)]
 
     @classmethod
-    def add_std(cls, target, eem, ttl03_cls, ttl47_cls, iostandard="LVDS_25"):
+    def add_std(cls, target, eem, ttl03_cls, ttl47_cls, iostandard="LVDS_25",
+            edge_counter_cls=None):
         cls.add_extension(target, eem, iostandard=iostandard)
 
+        phys = []
         for i in range(4):
             pads = target.platform.request("dio{}".format(eem), i)
             phy = ttl03_cls(pads.p, pads.n)
+            phys.append(phy)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
         for i in range(4):
             pads = target.platform.request("dio{}".format(eem), 4+i)
             phy = ttl47_cls(pads.p, pads.n)
+            phys.append(phy)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        if edge_counter_cls is not None:
+            for phy in phys:
+                state = getattr(phy, "input_state", None)
+                if state is not None:
+                    counter = edge_counter_cls(state)
+                    target.submodules += counter
+                    target.rtio_channels.append(rtio.Channel.from_phy(counter))
 
 
 class Urukul(_EEM):

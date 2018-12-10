@@ -41,6 +41,9 @@ class Input(Module):
         self.overrides = []
         self.probes = []
 
+        #: Registered copy of the input state, in the rio_phy clock domain.
+        self.input_state = Signal()
+
         # # #
 
         sensitivity = Signal(2)
@@ -69,7 +72,8 @@ class Input(Module):
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),
-            self.rtlink.i.data.eq(i)
+            self.rtlink.i.data.eq(i),
+            self.input_state.eq(i)
         ]
 
         self.probes += [i]
@@ -85,6 +89,9 @@ class InOut(Module):
         override_oe = Signal()
         self.overrides = [override_en, override_o, override_oe]
         self.probes = []
+
+        # Registered copy of the input state, in the rio_phy clock domain.
+        self.input_state = Signal()
 
         # # #
         
@@ -126,7 +133,8 @@ class InOut(Module):
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),
-            self.rtlink.i.data.eq(i)
+            self.rtlink.i.data.eq(i),
+            self.input_state.eq(i)
         ]
 
         self.probes += [i, ts.oe]
