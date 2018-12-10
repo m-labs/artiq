@@ -22,6 +22,19 @@ def y_mu_to_full_scale(y):
 
 
 @portable
+def offset_to_offset_mu(offset):
+    """Convert IIR from units of negative full scale to machine units."""
+    return int(round(offset*(1 << COEFF_WIDTH - 1)))
+
+
+@portable
+def offset_mu_to_offset(offset_mu):
+    """Convert IIR offset from machine units to units of negative full scale.
+    """
+    return offset_mu*(1./(1 << COEFF_WIDTH - 1))
+
+
+@portable
 def adc_mu_to_volts(x, gain):
     """Convert servo ADC data from machine units to Volt."""
     val = (x >> 1) & 0xffff
@@ -250,6 +263,10 @@ class Channel:
         # FIXME: this assumes the mem channel is right after the control
         # channels
         self.servo_channel = self.channel + 8 - self.servo.channel
+        if self.servo_channel < 4:
+            self.dds = self.servo.dds0
+        else:
+            self.dds = self.servo.dds1
 
     @kernel
     def set(self, en_out, en_iir=0, profile=0):
@@ -303,14 +320,83 @@ class Channel:
             ``offset=1`` can not be represented while ``offset=-1`` can.
         :param phase: DDS phase in turns
         """
-        if self.servo_channel < 4:
-            dds = self.servo.dds0
-        else:
-            dds = self.servo.dds1
-        ftw = dds.frequency_to_ftw(frequency)
-        pow_ = dds.turns_to_pow(phase)
-        offs = int(round(offset*(1 << COEFF_WIDTH - 1)))
+        ftw = self.dds.frequency_to_ftw(frequency)
+        pow_ = self.dds.turns_to_pow(phase)
+        offs = offset_to_offset_mu(offset)
         self.set_dds_mu(profile, ftw, offs, pow_)
+
+    @kernel
+    def set_offset_mu(self, profile, offs):
+        """Set profile offset in machine units.
+
+        :param profile: Profile number (0-31)
+        :param offs: IIR offset (17 bit signed)
+        """
+        base = (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base + 4, offs)
+
+    @kernel
+    def set_offset(self, profile, offset):
+        """Set profile offset.
+
+        This method advances the timeline by one servo memory access.
+        .. seealso:: :meth:`set_dds`
+
+        :param profile: Profile number (0-31)
+        :param offset: IIR offset (negative setpoint) in units of full scale.
+            For positive ADC voltages as setpoints, this should be negative.
+            Due to rounding and representation as two's complement,
+            ``offset=1`` can not be represented while ``offset=-1`` can.
+        """
+        offs = offset_to_offset_mu(offset)
+        self.set_offset_mu(profile, offs)
+
+    @kernel
+    def set_frequency_mu(self, profile, ftw):
+        """Set profile DDS frequency in machine units
+
+        :param profile: Profile number (0-31)
+        :param ftw: Frequency tuning word (32 bit unsigned)
+        """
+        base = (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base + 0, ftw >> 16)
+        self.servo.write(base + 6, ftw)
+
+    @kernel
+    def set_frequency(self, profile, frequency):
+        """Set profile DDS frequency.
+
+        This method advances the timeline by two servo memory accesses.
+        .. seealso:: :meth:`set_dds`
+
+        :param profile: Profile number (0-31)
+        :param frequency: DDS frequency in Hz
+        """
+        ftw = self.dds.frequency_to_ftw(frequency)
+        self.set_frequency_mu(ftw)
+
+    @kernel
+    def set_phase_mu(self, profile, pow_):
+        """Set profile DDS phase in machine units
+
+        :param profile: Profile number (0-31)
+        :param pow_: Phase offset word (16 bit)
+        """
+        base = (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base + 2, pow_)
+
+    @kernel
+    def set_phase(self, profile, phase):
+        """Set profile DDS phase.
+
+        This method advances the timeline by one servo memory access.
+        .. seealso:: :meth:`set_dds`
+
+        :param profile: Profile number (0-31)
+        :param phase: DDS phase in turns
+        """
+        pow_ = self.dds.turns_to_pow(phase)
+        self.set_phase_mu(pow_)
 
     @kernel
     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
