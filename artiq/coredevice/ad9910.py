@@ -13,7 +13,10 @@ urukul_sta_smp_err = urukul.urukul_sta_smp_err
 
 __all__ = [
     "AD9910",
-    "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING"
+    "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING",
+    "RAM_DEST_FTW", "RAM_DEST_POW", "RAM_DEST_ASF", "RAM_DEST_POWASF",
+    "RAM_MODE_DIRECTSWITCH", "RAM_MODE_RAMPUP", "RAM_MODE_BIDIR_RAMP",
+    "RAM_MODE_CONT_BIDIR_RAMP", "RAM_MODE_CONT_RECIRCULATE",
 ]
 
 
@@ -43,6 +46,19 @@ _AD9910_REG_PROFILE5 = 0x13
 _AD9910_REG_PROFILE6 = 0x14
 _AD9910_REG_PROFILE7 = 0x15
 _AD9910_REG_RAM = 0x16
+
+# RAM destination
+RAM_DEST_FTW = 0
+RAM_DEST_POW = 1
+RAM_DEST_ASF = 2
+RAM_DEST_POWASF = 3
+
+# RAM MODES
+RAM_MODE_DIRECTSWITCH = 0
+RAM_MODE_RAMPUP = 1
+RAM_MODE_BIDIR_RAMP = 2
+RAM_MODE_CONT_BIDIR_RAMP = 3
+RAM_MODE_CONT_RECIRCULATE = 4
 
 
 class AD9910:
@@ -223,6 +239,82 @@ class AD9910:
         self.bus.write(data_low)
 
     @kernel
+    def write_ram(self, data):
+        """Write data to RAM.
+
+        The profile to write to and the step, start, and end address
+        need to be configured before and separately using
+        :meth:`set_profile_ram` and the parent CPLD `set_profile`.
+
+        :param data List(int32): Data to be written to RAM.
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8, urukul.SPIT_DDS_WR,
+                               self.chip_select)
+        self.bus.write(_AD9910_REG_RAM << 24)
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 32,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        for i in range(len(data) - 1):
+            self.bus.write(data[i])
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write(data[len(data) - 1])
+
+    @kernel
+    def read_ram(self, data):
+        """Read data from RAM.
+
+        The profile to read from and the step, start, and end address
+        need to be configured before and separately using
+        :meth:`set_profile_ram` and the parent CPLD `set_profile`.
+
+        :param data List(int32): List to be filled with data read from RAM.
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8, urukul.SPIT_DDS_WR,
+                               self.chip_select)
+        self.bus.write((_AD9910_REG_RAM | 0x80) << 24)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_INPUT, 32,
+                               urukul.SPIT_DDS_RD, self.chip_select)
+        preload = 8
+        for i in range(len(data) - 1):
+            self.bus.write(0)
+            if i >= preload:
+                data[i - preload] = self.bus.read()
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_INPUT | spi.SPI_END, 32,
+            urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        for i in range(preload + 1):
+            data[(len(data) - preload - 1) + i] = self.bus.read()
+
+    @kernel
+    def set_cfr1(self, power_down=0b0000, phase_autoclear=0,
+            drg_load_lrr=0, drg_autoclear=0,
+            internal_profile=0, ram_destination=0, ram_enable=0):
+        """Set CFR1. See the AD9910 datasheet for parameter meanings.
+
+        This method does not pulse IO_UPDATE.
+
+        :param power_down: Power down bits.
+        :param phase_autoclear: Autoclear phase accumulator.
+        :param drg_load_lrr: Load digital ramp generator LRR.
+        :param drg_autoclear: Autoclear digital ramp generator.
+        :param internal_profile: Internal profile control.
+        :param ram_destination: RAM destination
+            (:const:`_AD9910_RAM_DEST_FTW`, :const:`_AD9910_RAM_DEST_POW`,
+            :const:`_AD9910_RAM_DEST_ASF`, :const:`_AD9910_RAM_DEST_POWASF`).
+        :param ram_enable: RAM mode enable.
+        """
+        self.write32(_AD9910_REG_CFR1,
+                     (ram_enable << 31) |
+                     (ram_destination << 29) |
+                     (internal_profile << 17) |
+                     (drg_load_lrr << 15) |
+                     (drg_autoclear << 14) |
+                     (phase_autoclear << 13) |
+                     (power_down << 4) |
+                     2)  # SDIO input only, MSB first
+
+    @kernel
     def init(self, blind=False):
         """Initialize and configure the DDS.
 
@@ -233,7 +325,7 @@ class AD9910:
         :param blind: Do not read back DDS identity and do not wait for lock.
         """
         # Set SPI mode
-        self.write32(_AD9910_REG_CFR1, 0x00000002)
+        self.set_cfr1()
         self.cpld.io_update.pulse(1*us)
         delay(1*ms)
         if not blind:
@@ -274,13 +366,13 @@ class AD9910:
     def power_down(self, bits=0b1111):
         """Power down DDS.
 
-        :param bits: power down bits, see datasheet
+        :param bits: Power down bits, see datasheet
         """
-        self.write32(_AD9910_REG_CFR1, 0x00000002 | (bits << 4))
+        self.set_cfr1(power_down=bits)
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def set_mu(self, ftw, pow=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
+    def set_mu(self, ftw, pow_=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
                ref_time=-1, profile=0):
         """Set profile 0 data in machine units.
 
@@ -295,7 +387,7 @@ class AD9910:
             phase modes.
 
         :param ftw: Frequency tuning word: 32 bit.
-        :param pow: Phase tuning word: 16 bit unsigned.
+        :param pow_: Phase tuning word: 16 bit unsigned.
         :param asf: Amplitude scale factor: 14 bit unsigned.
         :param phase_mode: If specified, overrides the default phase mode set
             by :meth:`set_phase_mode` for this call.
@@ -313,7 +405,7 @@ class AD9910:
         if phase_mode != PHASE_MODE_CONTINUOUS:
             # Auto-clear phase accumulator on IO_UPDATE.
             # This is active already for the next IO_UPDATE
-            self.write32(_AD9910_REG_CFR1, 0x00002002)
+            self.set_cfr1(phase_autoclear=1)
             if phase_mode == PHASE_MODE_TRACKING and ref_time < 0:
                 # set default fiducial time stamp
                 ref_time = 0
@@ -322,15 +414,51 @@ class AD9910:
                 # Also no need to use IO_UPDATE time as this
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time)
-                pow += dt*ftw*self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PROFILE0 + profile, (asf << 16) | pow, ftw)
+                pow_ += dt*ftw*self.sysclk_per_mu >> 16
+        self.write64(_AD9910_REG_PROFILE0 + profile, (asf << 16) | pow_, ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
         at_mu(now_mu() & ~0xf)
         if phase_mode != PHASE_MODE_CONTINUOUS:
-            self.write32(_AD9910_REG_CFR1, 0x00000002)
+            self.set_cfr1()
             # future IO_UPDATE will activate
-        return pow
+        return pow_
+
+    @kernel
+    def set_profile_ram(self, start, end, step=1, profile=0, nodwell_high=0,
+                        zero_crossing=0, mode=1):
+        """Set the RAM profile settings.
+
+        :param start: Profile start address in RAM.
+        :param end: Profile end address in RAM (last address).
+        :param step: Profile address step size (default: 1).
+        :param profile: Profile index (0 to 7) (default: 0).
+        :param nodwell_high: No-dwell high bit (default: 0,
+            see AD9910 documentation).
+        :param zero_crossing: Zero crossing bit (default: 0,
+            see AD9910 documentation).
+        :param mode: Profile RAM mode (:const:`RAM_MODE_DIRECTSWITCH`,
+            :const:`RAM_MODE_RAMPUP`, :const:`RAM_MODE_BIDIR_RAMP`,
+            :const:`RAM_MODE_CONT_BIDIR_RAMP`, or
+            :const:`RAM_MODE_CONT_RECIRCULATE`, default:
+            :const:`RAM_MODE_RAMPUP`)
+        """
+        hi = (step << 8) | (end >> 2)
+        lo = ((end << 30) | (start << 14) | (nodwell_high << 5) |
+              (zero_crossing << 3) | mode)
+        self.write64(_AD9910_REG_PROFILE0 + profile, hi, lo)
+
+    @kernel
+    def set_ftw(self, ftw):
+        self.write32(_AD9910_REG_FTW, ftw)
+
+    @kernel
+    def set_asf(self, asf):
+        self.write32(_AD9910_REG_ASF, asf)
+
+    @kernel
+    def set_pow(self, pow_):
+        self.write32(_AD9910_REG_POW, pow_)
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
@@ -351,10 +479,22 @@ class AD9910:
         return int32(round(amplitude*0x3ffe))
 
     @portable(flags={"fast-math"})
-    def pow_to_turns(self, pow):
+    def pow_to_turns(self, pow_):
         """Return the phase in turns corresponding to a given phase offset
         word."""
-        return pow/0x10000
+        return pow_/0x10000
+
+    @kernel
+    def set_frequency(self, frequency):
+        return self.set_ftw(self.frequency_to_ftw(frequency))
+
+    @kernel
+    def set_amplitude(self, amplitude):
+        return self.set_asf(self.amplitude_to_asf(amplitude))
+
+    @kernel
+    def set_phase(self, turns):
+        return self.set_pow(self.turns_to_pow(turns))
 
     @kernel
     def set(self, frequency, phase=0.0, amplitude=1.0,
@@ -363,9 +503,9 @@ class AD9910:
 
         .. seealso:: :meth:`set_mu`
 
-        :param ftw: Frequency in Hz
-        :param pow: Phase tuning word in turns
-        :param asf: Amplitude in units of full scale
+        :param frequency: Frequency in Hz
+        :param phase: Phase tuning word in turns
+        :param amplitude: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
         :param ref_time: Fiducial time stamp in machine units
         :param profile: Profile to affect
@@ -509,8 +649,7 @@ class AD9910:
         :return: Odd/even SYNC_CLK cycle indicator.
         """
         # set up DRG
-        # DRG ACC autoclear and LRR on io update
-        self.write32(_AD9910_REG_CFR1, 0x0000c002)
+        self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
         # DRG -> FTW, DRG enable
         self.write32(_AD9910_REG_CFR2, 0x01090000)
         # no limits
@@ -524,7 +663,7 @@ class AD9910:
         at_mu(t + delay_start)
         self.cpld.io_update.pulse_mu(32 - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
-        self.write32(_AD9910_REG_CFR1, 0x00000002)
+        self.set_cfr1()
         # stop DRG
         self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
         at_mu(t + 0x1000 + delay_stop)
