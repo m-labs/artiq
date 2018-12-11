@@ -11,7 +11,10 @@ import time
 import numpy as np
 import aiohttp
 
-from artiq.tools import *
+from artiq.tools import (
+    simple_network_args, verbosity_args, atexit_register_coroutine,
+    bind_address_from_args, init_logger, TaskObject
+)
 from artiq.protocols.sync_struct import Subscriber
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols import pyon
@@ -27,34 +30,34 @@ def get_argparser():
                "The default action on a key (dataset name) is to log it. "
                "Then the patterns are traversed in order and glob-matched "
                "with the key. "
-               "Optional + and - pattern prefixes specify whether to ignore or "
+               "Optional + and - pattern prefixes specify to either ignore or "
                "log keys matching the rest of the pattern. "
                "Default (in the absence of prefix) is to ignore. Last matched "
                "pattern takes precedence.")
-    group = parser.add_argument_group("master")
-    group.add_argument(
+    master_group = parser.add_argument_group("master")
+    master_group.add_argument(
         "--server-master", default="::1",
         help="hostname or IP of the master to connect to")
-    group.add_argument(
+    master_group.add_argument(
         "--port-master", default=3250, type=int,
-        help="TCP port to use to connect to the master")
-    group.add_argument(
+        help="TCP port to use to connect to the master (default: %(default)s")
+    master_group.add_argument(
         "--retry-master", default=5.0, type=float,
         help="retry timer for reconnecting to master")
-    group = parser.add_argument_group("database")
-    group.add_argument(
+    database_group = parser.add_argument_group("database")
+    database_group.add_argument(
         "--baseurl-db", default="http://localhost:8086",
         help="base URL to access InfluxDB (default: %(default)s)")
-    group.add_argument(
+    database_group.add_argument(
         "--user-db", default="", help="InfluxDB username")
-    group.add_argument(
+    database_group.add_argument(
         "--password-db", default="", help="InfluxDB password")
-    group.add_argument(
+    database_group.add_argument(
         "--database", default="db", help="database name to use")
-    group.add_argument(
+    database_group.add_argument(
         "--table", default="lab", help="table name to use")
-    group = parser.add_argument_group("filter")
-    group.add_argument(
+    filter_group = parser.add_argument_group("filter")
+    filter_group.add_argument(
         "--pattern-file", default="influxdb_patterns.cfg",
         help="file to load the patterns from (default: %(default)s). "
              "If the file is not found, no patterns are loaded "
@@ -98,18 +101,20 @@ class DBWriter(TaskObject):
             while True:
                 k, v, t = await self._queue.get()
                 url = self.base_url + "/write"
-                params = {"u": self.user, "p": self.password, "db": self.database,
-                          "precision": "ms"}
+                params = {"u": self.user, "p": self.password,
+                          "db": self.database, "precision": "ms"}
                 data = "{},dataset={} {} {}".format(
                     self.table, k, format_influxdb(v), round(t*1e3))
                 try:
-                    response = await session.post(url, params=params, data=data)
-                except:
+                    response = await session.post(url, params=params,
+                                                  data=data)
+                except Exception:
                     logger.warning("got exception trying to update '%s'",
                                    k, exc_info=True)
                 else:
                     if response.status not in (200, 204):
-                        content = (await response.content.read()).decode().strip()
+                        content = (await response.content.read()).decode() \
+                                                                 .strip()
                         logger.warning("got HTTP status %d "
                                        "trying to update '%s': %s",
                                        response.status, k, content)
