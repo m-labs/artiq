@@ -109,7 +109,7 @@ class AD9910:
 
     @kernel
     def set_phase_mode(self, phase_mode):
-        """Set the default phase mode.
+        r"""Set the default phase mode.
 
         for future calls to :meth:`set` and
         :meth:`set_mu`. Supported phase modes are:
@@ -188,7 +188,8 @@ class AD9910:
         :param addr: Register address
         :return: 64 bit integer register value
         """
-        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG, 8,
             urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | 0x80) << 24)
         self.bus.set_config_mu(
