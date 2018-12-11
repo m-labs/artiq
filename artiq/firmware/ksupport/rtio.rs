@@ -1,7 +1,14 @@
+#[repr(C)]
+pub struct TimestampedData {
+    timestamp: i64,
+    data: i32,
+}
+
 #[cfg(has_rtio)]
 mod imp {
     use core::ptr::{read_volatile, write_volatile};
     use cslice::CSlice;
+    use rtio::TimestampedData;
 
     use board_misoc::csr;
     use ::send;
@@ -149,6 +156,38 @@ mod imp {
         }
     }
 
+    pub extern fn input_timestamped_data(timeout: i64, channel: i32) -> TimestampedData {
+        unsafe {
+            csr::rtio::target_write((channel as u32) << 8);
+            csr::rtio::i_timeout_write(timeout as u64);
+
+            let mut status = RTIO_I_STATUS_WAIT_STATUS;
+            while status & RTIO_I_STATUS_WAIT_STATUS != 0 {
+                status = csr::rtio::i_status_read();
+            }
+
+            if status & RTIO_I_STATUS_OVERFLOW != 0 {
+                csr::rtio::i_overflow_reset_write(1);
+                raise!("RTIOOverflow",
+                    "RTIO input overflow on channel {0}",
+                    channel as i64, 0, 0);
+            }
+            if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
+                return TimestampedData { timestamp: -1, data: 0 }
+            }
+            if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, input, on channel {0}",
+                    channel as i64, 0, 0);
+            }
+
+            TimestampedData {
+                timestamp: csr::rtio::i_timestamp_read() as i64,
+                data: rtio_i_data_read(0) as i32
+            }
+        }
+    }
+
     #[cfg(has_rtio_log)]
     pub fn log(data: &[u8]) {
         unsafe {
@@ -179,6 +218,7 @@ mod imp {
 #[cfg(not(has_rtio))]
 mod imp {
     use cslice::CSlice;
+    use rtio::TimestampedData;
 
     pub extern fn init() {
         unimplemented!("not(has_rtio)")
@@ -205,6 +245,10 @@ mod imp {
     }
 
     pub extern fn input_data(_channel: i32) -> i32 {
+        unimplemented!("not(has_rtio)")
+    }
+
+    pub extern fn input_timestamped_data(_timeout: i64, _channel: i32) -> TimestampedData {
         unimplemented!("not(has_rtio)")
     }
 
