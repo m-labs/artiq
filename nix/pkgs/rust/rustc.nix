@@ -12,6 +12,7 @@
 , targetToolchains
 , doCheck ? true
 , broken ? false
+, pkgs
 }:
 
 let
@@ -19,8 +20,14 @@ let
   inherit (darwin.apple_sdk.frameworks) Security;
 
   llvmShared = llvm.override { enableSharedLibraries = true; };
+  llvmOR1k = pkgs.callPackage ./llvm-or1k.nix {};
 
   target = builtins.replaceStrings [" "] [","] (builtins.toString targets);
+  src_rustc = fetchurl {
+    url = "https://static.rust-lang.org/dist/rustc-1.28.0-src.tar.gz";
+    sha256 = "11k4rn77bca2rikykkk9fmprrgjswd4x4kaq7fia08vgkir82nhx";
+  };
+
 in
 
 stdenv.mkDerivation {
@@ -60,13 +67,23 @@ stdenv.mkDerivation {
                 ++ [ "--default-linker=${targetPackages.stdenv.cc}/bin/cc" ]
                 ++ optional (!forceBundledLLVM) [ "--enable-llvm-link-shared" ]
                 ++ optional (targets != []) "--target=${target}"
-                ++ optional (!forceBundledLLVM) "--llvm-root=${llvmShared}";
+                #++ optional (!forceBundledLLVM) "--llvm-root=${llvmShared}"
+                ++ [ "--llvm-root=${llvmOR1k}" ] ;
 
   # The bootstrap.py will generated a Makefile that then executes the build.
   # The BOOTSTRAP_ARGS used by this Makefile must include all flags to pass
   # to the bootstrap builder.
   postConfigure = ''
     substituteInPlace Makefile --replace 'BOOTSTRAP_ARGS :=' 'BOOTSTRAP_ARGS := --jobs $(NIX_BUILD_CORES)'
+  '';
+
+  # FIXME: qknight, readd deleted vendor folder from 1.28 rustc
+  preConfigure = ''
+    export HOME=$out
+    # HACK: we add the vendor folder from rustc 1.28 to make the compiling work
+    tar xf ${src_rustc}
+    mv rustc-1.28.0-src/src/vendor/ src/vendor
+    cp -R ${llvmOR1k} src/llvm
   '';
 
   patches = patches ++ targetPatches;
@@ -142,7 +159,7 @@ stdenv.mkDerivation {
     # Only needed for the debuginfo tests
     ++ optional (!stdenv.isDarwin) gdb;
 
-  buildInputs = [ ncurses ] ++ targetToolchains
+  buildInputs = [ ncurses pkgs.zlib ] ++ targetToolchains
     ++ optional stdenv.isDarwin Security
     ++ optional (!forceBundledLLVM) llvmShared;
 

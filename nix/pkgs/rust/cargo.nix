@@ -1,4 +1,4 @@
-{ stdenv, file, curl, pkgconfig, python, openssl, cmake, zlib
+{ stdenv, fetchurl, file, curl, pkgconfig, python, openssl, cmake, zlib
 , makeWrapper, libiconv, cacert, rustPlatform, rustc, libgit2, darwin
 , version
 , patches ? []
@@ -6,6 +6,10 @@
 
 let
   inherit (darwin.apple_sdk.frameworks) CoreFoundation;
+  src_rustc = fetchurl {
+    url = "https://static.rust-lang.org/dist/rustc-1.28.0-src.tar.gz";
+    sha256 = "11k4rn77bca2rikykkk9fmprrgjswd4x4kaq7fia08vgkir82nhx";
+  };
 in
 
 rustPlatform.buildRustPackage rec {
@@ -31,11 +35,9 @@ rustPlatform.buildRustPackage rec {
   # fixes: the cargo feature `edition` requires a nightly version of Cargo, but this is the `stable` channel
   RUSTC_BOOTSTRAP=1;
 
-  # FIXME: Use impure version of CoreFoundation because of missing symbols.
-  # CFURLSetResourcePropertyForKey is defined in the headers but there's no
-  # corresponding implementation in the sources from opensource.apple.com.
-  preConfigure = stdenv.lib.optionalString stdenv.isDarwin ''
-    export NIX_CFLAGS_COMPILE="-F${CoreFoundation}/Library/Frameworks $NIX_CFLAGS_COMPILE"
+  preConfigure = ''
+        tar xf ${src_rustc}
+    mv rustc-1.28.0-src/src/vendor/ src/vendor
   '';
 
   postInstall = ''
