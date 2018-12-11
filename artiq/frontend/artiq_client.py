@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Client to send commands to :mod:`artiq_master` and display results locally.
+
+The client can perform actions such as accessing/setting data, scanning devices,
+scheduling experiments, and looking for experiments/devices.
+"""
 
 import argparse
 import logging
@@ -19,6 +25,7 @@ from artiq.tools import short_format, parse_arguments
 
 
 def clear_screen():
+    """Blank the terminal."""
     if os.name == "nt":
         os.system("cls")
     else:
@@ -26,6 +33,7 @@ def clear_screen():
 
 
 def get_argparser():
+    """Return an argument parser with :mod:`artiq_client` commands."""
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -81,7 +89,7 @@ def get_argparser():
                                     help="name of the dataset")
     parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
-    # Allow only one of --persist or --no-persist arguments
+
     persist_group = parser_set_dataset.add_mutually_exclusive_group()
     persist_group.add_argument("-p", "--persist", action="store_true",
                                help="make the dataset persistent")
@@ -278,6 +286,7 @@ def _show_ccb(args):
 
 
 def main():
+    """Submit requests to :mod:`artiq_master`, e.g. schedule, get data."""
     args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
     if action == "show":
@@ -291,6 +300,8 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
+        else:
+            raise ValueError("Unknown object to show; list valid names with -h")
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
