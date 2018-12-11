@@ -20,7 +20,7 @@ let
   inherit (darwin.apple_sdk.frameworks) Security;
 
   llvmShared = llvm.override { enableSharedLibraries = true; };
-  llvmOR1k = pkgs.callPackage ./llvm-or1k.nix {};
+  llvmOR1k = (import ../../default.nix {}).llvm-or1k;
 
   target = builtins.replaceStrings [" "] [","] (builtins.toString targets);
   src_rustc = fetchurl {
