@@ -184,15 +184,19 @@ mod imp {
         unimplemented!("not(has_rtio)")
     }
 
+    pub extern fn get_destination_status(_destination: i32) -> bool {
+        unimplemented!("not(has_rtio)")
+    }
+
     pub extern fn get_counter() -> i64 {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn output(_timestamp: i64, _channel: i32, _addr: i32, _data: i32) {
+    pub extern fn output(_target: i32, _data: i32) {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn output_wide(_timestamp: i64, _channel: i32, _addr: i32, _data: CSlice<i32>) {
+    pub extern fn output_wide(_target: i32, _data: CSlice<i32>) {
         unimplemented!("not(has_rtio)")
     }
 
@@ -204,7 +208,7 @@ mod imp {
         unimplemented!("not(has_rtio)")
     }
 
-    pub fn log(_timestamp: i64, _data: &[u8]) {
+    pub fn log(_data: &[u8]) {
         unimplemented!("not(has_rtio)")
     }
 }
