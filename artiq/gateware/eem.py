@@ -493,6 +493,7 @@ class SUServo(_EEM):
         sampler_pads = servo_pads.SamplerPads(target.platform, eem_sampler)
         urukul_pads = servo_pads.UrukulPads(
             target.platform, eem_urukul0, eem_urukul1)
+        target.submodules += sampler_pads, urukul_pads
         # timings in units of RTIO coarse period
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
                                 # account for SCK DDR to CONV latency
@@ -505,7 +506,9 @@ class SUServo(_EEM):
                                 channels=adc_p.channels, clk=clk)
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
         su = ClockDomainsRenamer("rio_phy")(su)
-        target.submodules += sampler_pads, urukul_pads, su
+        # explicitly name the servo submodule to enable the migen namer to derive
+        # a name for the adc return clock domain
+        setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
 
         ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
         target.submodules += ctrls
