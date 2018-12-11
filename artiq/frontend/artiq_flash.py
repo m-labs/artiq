@@ -52,11 +52,12 @@ Prerequisites:
     parser.add_argument("-J", "--jump",
                         type=str, default=None,
                         help="SSH host to jump through")
-    parser.add_argument("-t", "--target", default="kasli",
+    parser.add_argument("-t", "--target", default = "kasli",
+                        choices=["kasli", "sayma", "kc705"],
                         help="target board, default: %(default)s, one of: "
-                             "kasli sayma kc705")
+                             "%(choices)s")
     parser.add_argument("-V", "--variant", default=None,
-                        help="board variant")
+                        help="board variant (target-dependent)")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a development board "
@@ -67,6 +68,8 @@ Prerequisites:
                                             "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
                         default="gateware bootloader firmware start".split(),
+                        choices=["gateware", "bootloader", "storage",
+                                 "firmware", "load", "start"],
                         help="actions to perform, default: %(default)s")
     return parser
 

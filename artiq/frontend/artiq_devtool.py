@@ -32,8 +32,8 @@ def get_argparser():
 
     parser.add_argument("-t", "--target", metavar="TARGET",
                         type=str, default="kasli",
-                        help="target to build, one of: "
-                             "kc705 kasli sayma")
+                        choices=["kc705", "kasli", "sayma"],
+                        help="target to build, one of: %(choices)s")
     parser.add_argument("-V", "--variant", metavar="VARIANT",
                         type=str, default=None,
                         help="variant to build, dependent on the target")
@@ -68,8 +68,9 @@ def get_argparser():
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
-                        help="actions to perform, sequence of: "
-                             "build clean reset flash flash+log load connect hotswap")
+                        choices=["build", "clean", "reset", "flash",
+                                 "flash+log", "load", "connect", "hotswap"],
+                        help="actions to perform, sequence of: %(choices)s")
 
     return parser
 
@@ -277,7 +278,7 @@ def main():
 
         else:
             logger.error("Unknown action {}".format(action))
-            sys.exit(1)
+            raise ValueError("Provided unknown action {}".format(action))
 
 if __name__ == "__main__":
     main()
