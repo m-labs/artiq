@@ -145,39 +145,39 @@ def main():
     if args.tool == "log":
         if args.action == "set_level":
             mgmt.set_log_level(args.level)
-        if args.action == "set_uart_level":
+        elif args.action == "set_uart_level":
             mgmt.set_uart_log_level(args.level)
-        if args.action == "clear":
+        elif args.action == "clear":
             mgmt.clear_log()
-        if args.action == None:
+        elif args.action == None:
             print(mgmt.get_log(), end="")
 
-    if args.tool == "config":
+    elif args.tool == "config":
         if args.action == "read":
             value = mgmt.config_read(args.key)
             if not value:
                 print("Key {} does not exist".format(args.key))
             else:
                 print(value)
-        if args.action == "write":
+        elif args.action == "write":
             for key, value in args.string:
                 mgmt.config_write(key, value.encode("utf-8"))
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
-        if args.action == "remove":
+        elif args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
-        if args.action == "erase":
+        elif args.action == "erase":
             mgmt.config_erase()
 
-    if args.tool == "reboot":
+    elif args.tool == "reboot":
         mgmt.reboot()
 
-    if args.tool == "hotswap":
+    elif args.tool == "hotswap":
         mgmt.hotswap(args.image.read())
 
-    if args.tool == "profile":
+    elif args.tool == "profile":
         if args.action == "start":
             mgmt.start_profiler(args.interval, args.hits_size, args.edges_size)
         elif args.action == "stop":
@@ -192,7 +192,7 @@ def main():
             for (caller, callee), count in edges.items():
                 writer.edge(caller, callee, count)
 
-    if args.tool == "debug":
+    elif args.tool == "debug":
         if args.action == "allocator":
             mgmt.debug_allocator()
 
