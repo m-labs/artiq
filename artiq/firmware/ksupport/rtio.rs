@@ -94,7 +94,7 @@ mod imp {
         }
     }
 
-    pub extern fn input_timestamp(timeout: i64, channel: i32) -> u64 {
+    pub extern fn input_timestamp(timeout: i64, channel: i32) -> i64 {
         unsafe {
             csr::rtio::target_write((channel as u32) << 8);
             csr::rtio::i_timeout_write(timeout as u64);
@@ -111,7 +111,7 @@ mod imp {
                     channel as i64, 0, 0);
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
-                return !0
+                return -1
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
@@ -119,7 +119,7 @@ mod imp {
                     channel as i64, 0, 0);
             }
 
-            csr::rtio::i_timestamp_read()
+            csr::rtio::i_timestamp_read() as i64
         }
     }
 
@@ -200,7 +200,7 @@ mod imp {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn input_timestamp(_timeout: i64, _channel: i32) -> u64 {
+    pub extern fn input_timestamp(_timeout: i64, _channel: i32) -> i64 {
         unimplemented!("not(has_rtio)")
     }
 
