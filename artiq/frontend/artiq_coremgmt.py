@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
-import struct
 
-from artiq.tools import verbosity_args, init_logger
-from artiq.master.databases import DeviceDB
-from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.profiler import CallgrindWriter
+from artiq.master.databases import DeviceDB
+from artiq.tools import init_logger, verbosity_args
 
 
 def get_argparser():
@@ -16,7 +14,7 @@ def get_argparser():
 
     verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
-                       help="device database file (default: '%(default)s')")
+                        help="device database file (default: '%(default)s')")
     parser.add_argument("-D", "--device", default=None,
                         help="use specified core device address instead of "
                              "reading device database")
@@ -25,28 +23,33 @@ def get_argparser():
     tools.required = True
 
     # logging
-    t_log = tools.add_parser("log",
-                             help="read logs and change log levels")
+    t_log = tools.add_parser("log", help="read logs and change log levels")
 
     subparsers = t_log.add_subparsers(dest="action")
 
-    p_clear = subparsers.add_parser("clear",
-                                    help="clear log buffer")
+    subparsers.add_parser("clear", help="clear log buffer")
 
     p_set_level = subparsers.add_parser("set_level",
-                                        help="set minimum level for messages to be logged")
+                                        help="set minimum level for messages "
+                                             "to be logged")
     p_set_level.add_argument("level", metavar="LEVEL", type=str,
-                             help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
+                             choices=["OFF", "ERROR", "WARN", "INFO", "DEBUG",
+                                      "TRACE"],
+                             help="log level (one of: %(choices)s)")
 
     p_set_uart_level = subparsers.add_parser("set_uart_level",
-                                             help="set minimum level for messages to be logged "
+                                             help="set minimum level for "
+                                                  "messages to be logged "
                                                   "to UART")
     p_set_uart_level.add_argument("level", metavar="LEVEL", type=str,
-                                  help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
+                                  choices=["OFF", "ERROR", "WARN", "INFO",
+                                           "DEBUG", "TRACE"],
+                                  help="log level (one of: %(choices)s)")
 
     # configuration
     t_config = tools.add_parser("config",
-                                help="read and change core device configuration")
+                                help="read and change core device "
+                                     "configuration")
 
     subparsers = t_config.add_subparsers(dest="action")
     subparsers.required = True
@@ -78,13 +81,13 @@ def get_argparser():
     subparsers.add_parser("erase", help="fully erase core device config")
 
     # booting
-    t_boot = tools.add_parser("reboot",
-                              help="reboot the currently running firmware")
+    tools.add_parser("reboot", help="reboot the currently running firmware")
 
     t_hotswap = tools.add_parser("hotswap",
-                                  help="load the specified firmware in RAM")
+                                 help="load the specified firmware in RAM")
 
-    t_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
+    t_hotswap.add_argument("image", metavar="IMAGE",
+                           type=argparse.FileType("rb"),
                            help="runtime image to be executed")
 
     # profiling
@@ -94,21 +97,20 @@ def get_argparser():
     subparsers = t_profile.add_subparsers(dest="action")
     subparsers.required = True
 
-    p_start = subparsers.add_parser("start",
-                                    help="start profiling")
-    p_start.add_argument("--interval", metavar="MICROS", type=int, default=2000,
+    p_start = subparsers.add_parser("start", help="start profiling")
+    p_start.add_argument("--interval", metavar="MICROS", type=int,
+                         default=2000,
                          help="sampling interval, in microseconds")
-    p_start.add_argument("--hits-size", metavar="ENTRIES", type=int, default=8192,
-                         help="hit buffer size")
-    p_start.add_argument("--edges-size", metavar="ENTRIES", type=int, default=8192,
-                         help="edge buffer size")
+    p_start.add_argument("--hits-size", metavar="ENTRIES", type=int,
+                         default=8192, help="hit buffer size")
+    p_start.add_argument("--edges-size", metavar="ENTRIES", type=int,
+                         default=8192, help="edge buffer size")
 
-    p_stop = subparsers.add_parser("stop",
-                                   help="stop profiling")
+    subparsers.add_parser("stop", help="stop profiling")
 
-    p_save = subparsers.add_parser("save",
-                                   help="save profile")
-    p_save.add_argument("output", metavar="OUTPUT", type=argparse.FileType("w"),
+    p_save = subparsers.add_parser("save", help="save profile")
+    p_save.add_argument("output", metavar="OUTPUT",
+                        type=argparse.FileType("w"),
                         help="file to save profile to, in Callgrind format")
     p_save.add_argument("firmware", metavar="FIRMWARE", type=str,
                         help="path to firmware ELF file")
@@ -120,14 +122,12 @@ def get_argparser():
                         help="disable symbol demangling")
 
     # misc debug
-    t_debug = tools.add_parser("debug",
-                               help="specialized debug functions")
+    t_debug = tools.add_parser("debug", help="specialized debug functions")
 
     subparsers = t_debug.add_subparsers(dest="action")
     subparsers.required = True
 
-    p_allocator = subparsers.add_parser("allocator",
-                                        help="show heap layout")
+    subparsers.add_parser("allocator", help="show heap layout")
 
     return parser
 
@@ -149,7 +149,7 @@ def main():
             mgmt.set_uart_log_level(args.level)
         elif args.action == "clear":
             mgmt.clear_log()
-        elif args.action == None:
+        elif args.action is None:
             print(mgmt.get_log(), end="")
 
     elif args.tool == "config":

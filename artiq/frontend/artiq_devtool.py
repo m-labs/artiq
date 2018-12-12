@@ -4,21 +4,21 @@
 #  * miniconda is installed remotely at ~/miniconda
 #  * misoc and artiq are installed remotely via conda
 
-import sys
 import argparse
 import logging
-import subprocess
-import socket
-import select
-import threading
 import os
-import shutil
 import re
+import select
 import shlex
+import shutil
+import socket
+import subprocess
+import sys
+import threading
 
-from artiq.tools import verbosity_args, init_logger
-from artiq.remoting import SSHClient
 from artiq.coredevice.comm_mgmt import CommMgmt
+from artiq.remoting import SSHClient
+from artiq.tools import init_logger, verbosity_args
 
 logger = logging.getLogger(__name__)
 
@@ -55,16 +55,20 @@ def get_argparser():
                         help="board to connect to on the development SSH host")
     parser.add_argument("-B", "--board-file",
                         type=str, default="/var/lib/artiq/boards/{board}",
-                        help="the board file containing the openocd initialization commands; "
+                        help="the board file containing the openocd "
+                             "initialization commands; "
                              "it is also used as the lock file")
     parser.add_argument("-s", "--serial",
                         type=str, default="/dev/ttyUSB_{board}",
-                        help="TTY device corresponding to the development board")
+                        help="TTY device corresponding to the "
+                             "development board")
     parser.add_argument("-d", "--device",
                         type=str, default="{board}",
-                        help="address or domain corresponding to the development board")
+                        help="address or domain corresponding to the "
+                             "development board")
     parser.add_argument("-w", "--wait", action="store_true",
-                        help="wait for the board to unlock instead of aborting the actions")
+                        help="wait for the board to unlock instead of "
+                             "aborting the actions")
 
     parser.add_argument("actions", metavar="ACTION",
                         type=str, default=[], nargs="+",
@@ -96,15 +100,16 @@ def main():
     else:
         raise NotImplementedError("unknown target {}".format(args.target))
 
-    board      = args.board.format(board_type=board_type)
+    board = args.board.format(board_type=board_type)
     board_file = args.board_file.format(board=board)
-    device     = args.device.format(board=board, host=args.host)
-    serial     = args.serial.format(board=board)
+    device = args.device.format(board=board, host=args.host)
+    serial = args.serial.format(board=board)
 
     client = SSHClient(args.host, args.jump)
 
     flock_acquired = False
-    flock_file = None # GC root
+    flock_file = None  # GC root
+
     def lock():
         nonlocal flock_acquired
         nonlocal flock_file
@@ -115,7 +120,9 @@ def main():
             fuser_file = fuser.makefile('r')
             fuser_match = re.search(r"\((.+?)\)", fuser_file.readline())
             if fuser_match and fuser_match.group(1) == os.getenv("USER"):
-                logger.info("Lock already acquired by {}".format(os.getenv("USER")))
+                logger.info("Lock already acquired by {}".format(
+                    os.getenv("USER"))
+                )
                 flock_acquired = True
                 return
 
@@ -140,7 +147,9 @@ def main():
                     sys.exit(1)
 
     def command(*args, on_failure="Command failed"):
-        logger.debug("Running {}".format(" ".join([shlex.quote(arg) for arg in args])))
+        logger.debug("Running {}".format(" ".join(
+                [shlex.quote(arg) for arg in args]))
+        )
         try:
             subprocess.check_call(args)
         except subprocess.CalledProcessError:
@@ -148,7 +157,8 @@ def main():
             sys.exit(1)
 
     def build(target, *extra_args, output_dir=build_dir(), variant=variant):
-        build_args = ["python3", "-m", "artiq.gateware.targets." + target, *extra_args]
+        build_args = ["python3", "-m", "artiq.gateware.targets." + target,
+                      *extra_args]
         if not args.gateware:
             build_args.append("--no-compile-gateware")
         if variant:
@@ -176,8 +186,10 @@ def main():
         if action == "build":
             logger.info("Building target")
             if args.target == "sayma":
-                build("sayma_rtm", output_dir=build_dir("rtm_gateware"), variant=None)
-                build("sayma_amc", "--rtm-csr-csv", build_dir("rtm_gateware", "rtm_csr.csv"))
+                build("sayma_rtm", output_dir=build_dir("rtm_gateware"),
+                      variant=None)
+                build("sayma_amc", "--rtm-csr-csv",
+                      build_dir("rtm_gateware", "rtm_csr.csv"))
             else:
                 build(args.target)
 
@@ -219,7 +231,8 @@ def main():
             def forwarder(local_stream, remote_stream):
                 try:
                     while True:
-                        r, _, _ = select.select([local_stream, remote_stream], [], [])
+                        r, _, _ = select.select([local_stream, remote_stream],
+                                                [], [])
                         if local_stream in r:
                             data = local_stream.recv(65535)
                             if data == b"":
@@ -231,7 +244,8 @@ def main():
                                 break
                             local_stream.sendall(data)
                 except Exception as err:
-                    logger.error("Cannot forward on port %s: %s", port, repr(err))
+                    logger.error("Cannot forward on port %s: %s", port,
+                                 repr(err))
                 local_stream.close()
                 remote_stream.close()
 
@@ -242,34 +256,42 @@ def main():
                 listener.listen(8)
                 while True:
                     local_stream, peer_addr = listener.accept()
-                    logger.info("Accepting %s:%s and opening SSH channel to %s:%s",
-                                *peer_addr, device, port)
+                    logger.info("Accepting %s:%s and opening SSH channel to "
+                                "%s:%s", *peer_addr, device, port)
                     try:
-                        remote_stream = \
-                            transport.open_channel('direct-tcpip', (device, port), peer_addr)
+                        remote_stream = transport.open_channel(
+                            'direct-tcpip', (device, port), peer_addr
+                        )
                     except Exception:
-                        logger.exception("Cannot open channel on port %s", port)
+                        logger.exception("Cannot open channel on port %s",
+                                         port)
                         continue
 
-                    thread = threading.Thread(target=forwarder, args=(local_stream, remote_stream),
-                                              name="forward-{}".format(port), daemon=True)
+                    thread = threading.Thread(
+                        target=forwarder,
+                        args=(local_stream, remote_stream),
+                        name="forward-{}".format(port),
+                        daemon=True
+                    )
                     thread.start()
 
             ports = [1380, 1381, 1382, 1383]
             for port in ports:
                 thread = threading.Thread(target=listener, args=(port,),
-                                          name="listen-{}".format(port), daemon=True)
+                                          name="listen-{}".format(port),
+                                          daemon=True)
                 thread.start()
 
-            logger.info("Forwarding ports {} to core device and logs from core device"
-                            .format(", ".join(map(str, ports))))
+            logger.info("Forwarding ports {} to core device and logs from "
+                        "core device".format(", ".join(map(str, ports))))
             client.run_command(["flterm", serial, "--output-only"])
 
         elif action == "hotswap":
             lock()
 
             logger.info("Hotswapping firmware")
-            firmware = build_dir(variant, "software", firmware, firmware + ".bin")
+            firmware = build_dir(variant, "software", firmware,
+                                 firmware + ".bin")
 
             mgmt = CommMgmt(device)
             mgmt.open(ssh_transport=client.get_transport())
@@ -279,6 +301,7 @@ def main():
         else:
             logger.error("Unknown action {}".format(action))
             raise ValueError("Provided unknown action {}".format(action))
+
 
 if __name__ == "__main__":
     main()

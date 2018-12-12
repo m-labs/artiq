@@ -1,19 +1,18 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
-import subprocess
-import tempfile
-import shutil
-import re
 import atexit
-from functools import partial
+import os
+import re
+import shutil
+import tempfile
 from collections import defaultdict
+from functools import partial
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import verbosity_args, init_logger
-from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
+from artiq.remoting import LocalClient, SSHClient
+from artiq.tools import init_logger, verbosity_args
 
 
 def get_argparser():
@@ -52,7 +51,7 @@ Prerequisites:
     parser.add_argument("-J", "--jump",
                         type=str, default=None,
                         help="SSH host to jump through")
-    parser.add_argument("-t", "--target", default = "kasli",
+    parser.add_argument("-t", "--target", default="kasli",
                         choices=["kasli", "sayma", "kc705"],
                         help="target board, default: %(default)s, one of: "
                              "%(choices)s")
@@ -64,8 +63,9 @@ Prerequisites:
                              "when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
-    parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
-                                            "ARTIQ source build tree")
+    parser.add_argument("--srcbuild", help="look for bitstream, bootloader "
+                                           "and firmware in this "
+                                           "ARTIQ source build tree")
     parser.add_argument("action", metavar="ACTION", nargs="*",
                         default="gateware bootloader firmware start".split(),
                         choices=["gateware", "bootloader", "storage",
@@ -131,10 +131,12 @@ class Programmer:
         return self._client.upload(script, rewriter)
 
     def add_flash_bank(self, name, tap, index):
-        add_commands(self._board_script,
+        add_commands(
+            self._board_script,
             "target create {tap}.{name}.proxy testee -chain-position {tap}.tap",
             "flash bank {name} jtagspi 0 0 0 0 {tap}.{name}.proxy {ir:#x}",
-            tap=tap, name=name, ir=0x02 + index)
+            tap=tap, name=name, ir=0x02 + index
+        )
 
     def erase_flash(self, bankname):
         self.load_proxy()
@@ -144,7 +146,7 @@ class Programmer:
                      bankname=bankname)
 
     def load(self, bitfile, pld):
-        os.stat(bitfile) # check for existence
+        os.stat(bitfile)    # check for existence
 
         if self._loaded[pld] == bitfile:
             return
@@ -152,8 +154,8 @@ class Programmer:
 
         bitfile = self._client.upload(bitfile)
         add_commands(self._script,
-            "pld load {pld} {{{filename}}}",
-            pld=pld, filename=bitfile)
+                     "pld load {pld} {{{filename}}}",
+                     pld=pld, filename=bitfile)
 
     def load_proxy(self):
         raise NotImplementedError
@@ -163,23 +165,28 @@ class Programmer:
 
         size = os.path.getsize(filename)
         filename = self._client.upload(filename)
-        add_commands(self._script,
+        add_commands(
+            self._script,
             "flash probe {bankname}",
             "flash erase_sector {bankname} {firstsector} {lastsector}",
             "flash write_bank {bankname} {{{filename}}} {address:#x}",
             "flash verify_bank {bankname} {{{filename}}} {address:#x}",
             bankname=bankname, address=address, filename=filename,
             firstsector=address // self._sector_size,
-            lastsector=(address + size - 1) // self._sector_size)
+            lastsector=(address + size - 1) // self._sector_size
+        )
 
     def read_binary(self, bankname, address, length, filename):
         self.load_proxy()
 
         filename = self._client.prepare_download(filename)
-        add_commands(self._script,
+        add_commands(
+            self._script,
             "flash probe {bankname}",
             "flash read_bank {bankname} {{{filename}}} {address:#x} {length}",
-            bankname=bankname, filename=filename, address=address, length=length)
+            bankname=bankname, filename=filename, address=address,
+            length=length
+        )
 
     def start(self):
         raise NotImplementedError
@@ -198,7 +205,8 @@ class Programmer:
             cmdline += ["-s", scripts_path()]
         cmdline += ["-c", "; ".join(self.script())]
 
-        cmdline = [arg.replace("{", "{{").replace("}", "}}") for arg in cmdline]
+        cmdline = [arg.replace("{", "{{").replace("}", "}}")
+                   for arg in cmdline]
         self._client.run_command(cmdline)
         self._client.download()
 
@@ -212,9 +220,11 @@ class ProgrammerXC7(Programmer):
         Programmer.__init__(self, client, preinit_script)
         self._proxy = proxy
 
-        add_commands(self._board_script,
+        add_commands(
+            self._board_script,
             "source {boardfile}",
-            boardfile=self._transfer_script("board/{}.cfg".format(board)))
+            boardfile=self._transfer_script("board/{}.cfg".format(board))
+        )
         self.add_flash_bank("spi0", "xc7", index=0)
 
         add_commands(self._script, "xadc_report xc7.tap")
@@ -223,8 +233,7 @@ class ProgrammerXC7(Programmer):
         self.load(find_proxy_bitfile(self._proxy), pld=0)
 
     def start(self):
-        add_commands(self._script,
-            "xc7_program xc7.tap")
+        add_commands(self._script, "xc7_program xc7.tap")
 
 
 class ProgrammerSayma(Programmer):
@@ -233,7 +242,8 @@ class ProgrammerSayma(Programmer):
     def __init__(self, client, preinit_script):
         Programmer.__init__(self, client, preinit_script)
 
-        add_commands(self._board_script,
+        add_commands(
+            self._board_script,
             "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
 
             "interface ftdi",
@@ -250,12 +260,15 @@ class ProgrammerSayma(Programmer):
             "source {}".format(self._transfer_script("cpld/xilinx-xc7.cfg")),
             # tap 1, pld 1
             "set CHIP XCKU040",
-            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg")))
+            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg"))
+        )
         self.add_flash_bank("spi0", "xcu", index=0)
         self.add_flash_bank("spi1", "xcu", index=1)
 
-        add_commands(self._script, "echo \"RTM FPGA XADC:\"", "xadc_report xc7.tap")
-        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
+        add_commands(self._script, "echo \"RTM FPGA XADC:\"",
+                     "xadc_report xc7.tap")
+        add_commands(self._script, "echo \"AMC FPGA XADC:\"",
+                     "xadc_report xcu.tap")
 
     def load_proxy(self):
         self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=1)
@@ -270,7 +283,8 @@ def main():
 
     config = {
         "kasli": {
-            "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
+            "programmer": partial(ProgrammerXC7, board="kasli",
+                                  proxy="bscan_spi_xc7a100t.bit"),
             "def_variant":  "opticlock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
@@ -287,7 +301,8 @@ def main():
             "rtm_gateware": ("spi1", 0x200000),
         },
         "kc705": {
-            "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
+            "programmer": partial(ProgrammerXC7, board="kc705",
+                                  proxy="bscan_spi_xc7k325t.bit"),
             "def_variant":  "nist_clock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0xaf0000),
@@ -312,7 +327,8 @@ def main():
     else:
         client = SSHClient(args.host, args.jump)
 
-    programmer = config["programmer"](client, preinit_script=args.preinit_command)
+    programmer = config["programmer"](client,
+                                      preinit_script=args.preinit_command)
 
     def artifact_path(*path_filename):
         if args.srcbuild is None:
@@ -349,7 +365,8 @@ def main():
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
+            bootloader_bin = artifact_path(variant, "software", "bootloader",
+                                           "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
@@ -360,7 +377,8 @@ def main():
             else:
                 firmware = "runtime"
 
-            firmware_fbi = artifact_path(variant, "software", firmware, firmware + ".fbi")
+            firmware_fbi = artifact_path(variant, "software", firmware,
+                                         firmware + ".fbi")
             programmer.write_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
             if args.target == "sayma":
