@@ -13,5 +13,5 @@ in rec {
   binutils-or1k = callPackage ./binutils-or1k.nix {};
   llvm-or1k = callPackage ./llvm-or1k.nix { inherit llvm-src; };
   llvmlite = callPackage ./llvmlite.nix { inherit llvm-or1k; };
-  #artiq = callPackage ./artiq.nix { inherit binutils-or1k; };
+  artiq = callPackage ./artiq.nix { inherit binutils-or1k; inherit llvm-or1k; inherit llvmlite; };
 }
