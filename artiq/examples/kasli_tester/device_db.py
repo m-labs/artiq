@@ -121,7 +121,7 @@ for i in range(4):
     }
 
 
-# Sampler (EEM3) starting at RTIO channel 14
+# Sampler (EEM3) starting at RTIO channel 15
 device_db["spi_sampler0_adc"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
@@ -152,7 +152,7 @@ device_db["sampler0"] = {
 }
 
 
-# Zotino (EEM4) starting at RTIO channel 17
+# Zotino (EEM4) starting at RTIO channel 18
 device_db["spi_zotino0"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
@@ -183,7 +183,7 @@ device_db["zotino0"] = {
 }
 
 
-# Grabber (EEM6) starting at RTIO channel 20
+# Grabber (EEM6) starting at RTIO channel 21
 device_db["grabber0"] = {
     "type": "local",
     "module": "artiq.coredevice.grabber",
@@ -192,7 +192,7 @@ device_db["grabber0"] = {
 }
 
 
-# Urukul (EEM7) starting at RTIO channel 22
+# Urukul (EEM7) starting at RTIO channel 23
 device_db.update(
     spi_urukul1={
         "type": "local",
@@ -239,7 +239,7 @@ for i in range(4):
     }
 
 
-# DIO (EEM8) starting at RTIO channel 24
+# DIO (EEM8) starting at RTIO channel 26
 for i in range(8):
     device_db["ttl" + str(8 + i)] = {
         "type": "local",
@@ -249,7 +249,7 @@ for i in range(8):
     }
 
 
-# DIO (EEM9) starting at RTIO channel 32
+# DIO (EEM9) starting at RTIO channel 34
 for i in range(8):
     device_db["ttl" + str(16 + i)] = {
         "type": "local",
@@ -259,7 +259,7 @@ for i in range(8):
     }
 
 
-# Sampler (EEM10) starting at RTIO channel 40
+# Sampler (EEM10) starting at RTIO channel 42
 device_db["spi_sampler1_adc"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
@@ -290,7 +290,7 @@ device_db["sampler1"] = {
 }
 
 
-# Zotino (EEM11) starting at RTIO channel 43
+# Zotino (EEM11) starting at RTIO channel 45
 device_db["spi_zotino1"] = {
     "type": "local",
     "module": "artiq.coredevice.spi2",
