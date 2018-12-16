@@ -16,7 +16,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -737,7 +737,8 @@ class Tester(_StandaloneBase):
         self.rtio_channels = []
         self.grabber_csr_group = []
         eem.DIO.add_std(self, 5,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
+            edge_counter_cls=edge_counter.SimpleEdgeCounter)
         eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
                            ttl_simple.ClockGen)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
