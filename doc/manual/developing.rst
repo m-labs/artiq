@@ -117,6 +117,7 @@ and the ARTIQ kernels.
         $ sudo mkdir /usr/local/rust-or1k
         $ sudo chown $USER.$USER /usr/local/rust-or1k
         $ make install
+        $ cd ..
 
         $ destdir="/usr/local/rust-or1k/lib/rustlib/or1k-unknown-none/lib/"
         $ rustc="rustc --out-dir ${destdir} -L ${destdir} --target or1k-unknown-none -g -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s --crate-type rlib"
