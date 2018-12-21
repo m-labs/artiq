@@ -114,6 +114,7 @@ and the ARTIQ kernels.
         $ sudo mkdir /usr/local/rust-or1k
         $ sudo chown $USER.$USER /usr/local/rust-or1k
         $ make install
+        $ cd ..
 
         $ libs="core std_unicode alloc"
         $ rustc="/usr/local/rust-or1k/bin/rustc --target or1k-unknown-none -C target-feature=+mul,+div,+ffl1,+cmov,+addc -C opt-level=s -g --crate-type rlib -L ."
