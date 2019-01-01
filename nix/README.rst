@@ -1,11 +1,9 @@
-Install ARTIQ via the Nix Package Manager
-=========================================
+Use ARTIQ via the Nix Package Manager
+=====================================
 
 These instructions provide an alternative route to install ARTIQ for people who do not wish to use conda.
 
 This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python compiler, device drivers, and the graphical user interfaces. This works correctly on Linux, and partially works (but not to a level that we would consider usable) with WSL introduced in Windows 10.
-
-ARTIQ firmware and gateware development tools (e.g. rustc, Migen) and ARTIQ core device flashing tools (OpenOCD, proxy bitstreams) are currently not available on Nix. Pull requests welcome!
 
 * Install the Nix package manager
 
@@ -25,4 +23,13 @@ ARTIQ firmware and gateware development tools (e.g. rustc, Migen) and ARTIQ core
 * $ ``cd artiq/nix``
 * $ ``nix-env -i -f default.nix``
 
-The above command will setup your entire environment. Note that it will compile LLVM and Clang, which uses a lot of CPU time and disk space.
+The above command will setup your entire environment. Note that it will compile LLVM, which uses a lot of CPU time and disk space.
+
+ARTIQ development environment with Nix
+======================================
+
+Run ``nix-shell artiq-dev.nix`` to obtain an environment containing Migen, MiSoC, Clang, Rust, Cargo, and OpenOCD in addition to the user environment above.
+
+This creates a FHS chroot environment in order to simplify the installation and patching of Xilinx Vivado (it needs to be installed manually e.g. in your home folder).
+
+You can then build the firmware and gateware with a command such as ``python -m artiq.gateware.targets.kasli --gateware-toolchain-path ~/Xilinx/Vivado``.
