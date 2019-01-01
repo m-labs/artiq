@@ -10,9 +10,9 @@ let
 in rec {
   inherit (rust) cargo rustc;
   inherit (callPackage ./pkgs/python3Packages.nix {}) migen misoc;
-  binutils-or1k = callPackage ./binutils-or1k.nix {};
-  llvm-or1k = callPackage ./llvm-or1k.nix { inherit llvm-src; };
-  llvmlite = callPackage ./llvmlite.nix { inherit llvm-or1k; };
-  artiq = callPackage ./artiq.nix { inherit binutils-or1k; inherit llvm-or1k; inherit llvmlite; };
+  binutils-or1k = callPackage ./pkgs/binutils-or1k.nix {};
+  llvm-or1k = callPackage ./pkgs/llvm-or1k.nix { inherit llvm-src; };
+  llvmlite = callPackage ./pkgs/llvmlite.nix { inherit llvm-or1k; };
+  artiq = callPackage ./pkgs/artiq.nix { inherit binutils-or1k; inherit llvm-or1k; inherit llvmlite; };
   openocd = callPackage ./pkgs/openocd.nix {};
 }
