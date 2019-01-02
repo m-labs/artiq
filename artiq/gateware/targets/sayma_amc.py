@@ -279,7 +279,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=self.ad9154_crg.refclk,
-            data_pads=[platform.request("sfp", i) for i in range(2)],
+            data_pads=[platform.request("sata")] + [platform.request("sfp", i) for i in range(2)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
@@ -290,7 +290,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         drtioaux_csr_group = []
         drtioaux_memory_group = []
         drtio_cri = []
-        for i in range(2):
+        for i in range(3):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
