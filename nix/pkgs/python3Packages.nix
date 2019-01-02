@@ -18,7 +18,7 @@ rec {
 
     meta = with stdenv.lib; {
       description = "asyncio support for pyserial";
-      homepage    = "https://m-labs.hk/gateware.html";
+      homepage    = "https://m-labs.hk";
       license     = licenses.bsd2;
       platforms   = platforms.unix;
     };
@@ -43,7 +43,7 @@ rec {
 
     meta = with stdenv.lib; {
       description = "A high performance and small footprint system-on-chip based on Migen https://m-labs.hk";
-      homepage    = "https://m-labs.hk/gateware.html";
+      homepage    = "https://m-labs.hk/migen";
       license     = licenses.bsd2;
       platforms   = platforms.unix;
     };
@@ -68,7 +68,7 @@ rec {
 
     meta = with stdenv.lib; {
       description = "A Python toolbox for building complex digital hardware";
-      homepage    = "https://m-labs.hk/gateware.html";
+      homepage    = "https://m-labs.hk/migen";
       license     = licenses.bsd2;
       platforms   = platforms.unix;
     };
