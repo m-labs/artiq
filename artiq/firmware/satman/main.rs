@@ -394,8 +394,6 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
-const SIPHASER_PHASE: u16 = 32;
-
 #[no_mangle]
 pub extern fn main() -> i32 {
     clock::init();
@@ -443,7 +441,7 @@ pub extern fn main() -> i32 {
 
         info!("uplink is up, switching to recovered clock");
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
-        si5324::siphaser::calibrate_skew(SIPHASER_PHASE).expect("failed to calibrate skew");
+        si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
 
         #[cfg(has_ad9154)]
         {

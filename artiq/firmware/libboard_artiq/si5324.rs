@@ -291,66 +291,45 @@ pub mod siphaser {
         clock::spin_us(500);
     }
 
-    fn get_phaser_sample() -> bool {
-        let mut sample = true;
-        for _ in 0..32 {
-            if unsafe { csr::siphaser::sample_result_read() } == 0 {
-                sample = false;
-            }
+    fn has_error() -> bool {
+        unsafe {
+            csr::siphaser::error_write(1);
         }
-        sample
+        clock::spin_us(5000);
+        unsafe {
+            csr::siphaser::error_read() != 0
+        }
     }
 
-    const PS_MARGIN: u32 = 28;
+    fn find_edge(target: bool) -> Result<u16> {
+        let mut nshifts = 0;
 
-    fn get_stable_phaser_sample() -> (bool, u32) {
-        let mut nshifts: u32 = 0;
+        let mut previous = has_error();
         loop {
-            let s1 = get_phaser_sample();
-            for _ in 0..PS_MARGIN {
-                phase_shift(1);
-            }
-            let s2 = get_phaser_sample();
-            for _ in 0..PS_MARGIN {
-                phase_shift(1);
-            }
-            let s3 = get_phaser_sample();
-            nshifts += 2*PS_MARGIN;
-            if s1 == s2 && s2 == s3 {
-                for _ in 0..PS_MARGIN {
-                    phase_shift(0);
-                }
-                nshifts -= PS_MARGIN;
-                return (s2, nshifts);
-            }
-        }
-    }
-
-    pub fn calibrate_skew(skew: u16) -> Result<()> {
-        // Get into a 0 region
-        let (s1, mut nshifts) = get_stable_phaser_sample();
-        if s1 {
-            while get_phaser_sample() {
-                phase_shift(1);
-                nshifts += 1;
-            }
-            for _ in 0..PS_MARGIN {
-                phase_shift(1);
-            }
-            nshifts += PS_MARGIN;
-        }
-
-        // Get to the 0->1 transition
-        while !get_phaser_sample() {
             phase_shift(1);
             nshifts += 1;
+            let current = has_error();
+            if previous != target && current == target {
+                return Ok(nshifts);
+            }
+            if nshifts > 5000 {
+                return Err("failed to find timing error edge");
+            }
+            previous = current;
         }
-        info!("nshifts to 0->1 siphaser transition: {} ({}deg)", nshifts, nshifts*360/(56*8));
+    }
 
-        // Apply specified skew referenced to that transition
-        for _ in 0..skew {
-            phase_shift(1);
+    pub fn calibrate_skew() -> Result<()> {
+        let lead = find_edge(false)?;
+        let width = find_edge(true)?;
+        info!("calibration successful, lead: {}, width: {} ({}deg)", lead, width, width*360/(56*8));
+
+        // Apply reverse phase shift for half the width to get into the
+        // middle of the working region.
+        for _ in 0..width/2 {
+            phase_shift(0);
         }
+
         Ok(())
     }
 }

@@ -1046,7 +1046,7 @@ class _SatelliteBase(BaseSoC):
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
-            si5324_clkout_fabric=platform.request("si5324_clkout_fabric"),
+            rx_synchronizer=self.rx_synchronizer,
             ref_clk=self.crg.clk125_div2, ref_div2=True,
             rtio_clk_freq=rtio_clk_freq)
         platform.add_false_path_constraints(
