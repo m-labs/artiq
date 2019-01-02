@@ -94,4 +94,25 @@ rec {
       platforms   = platforms.unix;
     };
   };
+  jesd204b = python3Packages.buildPythonPackage rec {
+    version = "git-02cffc";
+    pname = "jesd204b";
+    name = "${pname}-${version}";
+
+    src = fetchFromGitHub {
+      owner = "m-labs";
+      repo = "jesd204b";
+      rev = "03d3280690727b12b6522cbd294138e66dd157c9";
+      sha256 = "1hpx4y8ynhsmwsq4ry748q6bkh8jvv2hy8b7hifxjmlh174y8rb0";
+    };
+
+    propagatedBuildInputs = with python3Packages; [ migen misoc ];
+
+    meta = with stdenv.lib; {
+      description = "JESD204B core for Migen/MiSoC";
+      homepage    = "https://m-labs.hk/migen";
+      license     = licenses.bsd2;
+      platforms   = platforms.unix;
+    };
+  };
 }
