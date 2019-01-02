@@ -28,7 +28,7 @@ The above command will setup your entire environment. Note that it will compile 
 ARTIQ development environment with Nix
 ======================================
 
-Run ``nix-shell artiq-dev.nix`` to obtain an environment containing Migen, MiSoC, Clang, Rust, Cargo, and OpenOCD in addition to the user environment above.
+Run ``nix-shell artiq-dev.nix`` to obtain an environment containing Migen, MiSoC, Microscope, jesd204b, Clang, Rust, Cargo, and OpenOCD in addition to the user environment above.
 
 This creates a FHS chroot environment in order to simplify the installation and patching of Xilinx Vivado (it needs to be installed manually e.g. in your home folder).
 
