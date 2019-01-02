@@ -1091,8 +1091,10 @@ class _SatelliteBase(BaseSoC):
 
 
 class Master(_MasterBase):
-    def __init__(self, *args, **kwargs):
-        _MasterBase.__init__(self, *args, **kwargs)
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _MasterBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
 
@@ -1112,8 +1114,10 @@ class Master(_MasterBase):
 
 
 class Satellite(_SatelliteBase):
-    def __init__(self, *args, **kwargs):
-        _SatelliteBase.__init__(self, *args, **kwargs)
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _SatelliteBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
         phy = ttl_simple.Output(self.platform.request("user_led", 0))
