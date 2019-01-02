@@ -16,7 +16,7 @@ in
         xorg.libXext
         xorg.libXtst
         xorg.libXi
-        (python3.withPackages(ps: with ps; [ jinja2 numpy artiqpkgs.migen artiqpkgs.misoc artiqpkgs.artiq ]))
+        (python3.withPackages(ps: with ps; [ jinja2 numpy artiqpkgs.migen artiqpkgs.microscope artiqpkgs.misoc artiqpkgs.artiq ]))
       ] ++
       (with artiqpkgs; [
         rustc

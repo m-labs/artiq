@@ -9,7 +9,7 @@ let
   llvm-src = callPackage ./fetch-llvm-clang.nix {};
 in rec {
   inherit (rust) cargo rustc;
-  inherit (callPackage ./pkgs/python3Packages.nix {}) migen misoc;
+  inherit (callPackage ./pkgs/python3Packages.nix {}) migen microscope misoc;
   binutils-or1k = callPackage ./pkgs/binutils-or1k.nix {};
   llvm-or1k = callPackage ./pkgs/llvm-or1k.nix { inherit llvm-src; };
   llvmlite = callPackage ./pkgs/llvmlite.nix { inherit llvm-or1k; };

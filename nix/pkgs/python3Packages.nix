@@ -73,4 +73,25 @@ rec {
       platforms   = platforms.unix;
     };
   };
+  microscope = python3Packages.buildPythonPackage rec {
+    version = "git-02cffc";
+    pname = "microscope";
+    name = "${pname}-${version}";
+
+    src = fetchFromGitHub {
+      owner = "m-labs";
+      repo = "microscope";
+      rev = "02cffc360ec5a234c589de6cb9616b057ed22253";
+      sha256 = "09yvgk16xfv5r5cf55vcg0f14wam42w53r4snlalcyw5gkm0rlhq";
+    };
+
+    propagatedBuildInputs = with python3Packages; [ pyserial prettytable msgpack-python migen ];
+
+    meta = with stdenv.lib; {
+      description = "Finding the bacteria in rotting FPGA designs";
+      homepage    = "https://m-labs.hk/migen";
+      license     = licenses.bsd2;
+      platforms   = platforms.unix;
+    };
+  };
 }
