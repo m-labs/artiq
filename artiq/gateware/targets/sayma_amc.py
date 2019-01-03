@@ -18,7 +18,7 @@ from artiq.gateware import fmcdio_vhdci_eem
 from artiq.gateware import serwb, remote_csr
 from artiq.gateware import rtio
 from artiq.gateware import jesd204_tools
-from artiq.gateware.rtio.phy import ttl_simple, sawg
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
@@ -163,6 +163,9 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
+        # To work around Ultrascale issues (https://www.xilinx.com/support/answers/67885.html),
+        # we generate the multiplied RTIO clock using the DRTIO GTH transceiver.
+        # Since there is no DRTIO here and therefoere no multiplied clock, we use ttl_simple.
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
         phy = ttl_simple.Output(sma_io.level)
@@ -338,12 +341,12 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -497,12 +500,12 @@ class Master(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -575,12 +578,12 @@ class Satellite(BaseSoC, RTMCommon):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 0)
         self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         sma_io = platform.request("sma_io", 1)
         self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
