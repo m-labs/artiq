@@ -110,7 +110,7 @@ class InOut(ttl_serdes_generic.InOut):
 
 
 class Input(ttl_serdes_generic.InOut):
-    def __init__(self, pad, pad_n=None):
+    def __init__(self, dw, pad, pad_n=None):
         serdes = _ISERDESE3(dw, pad, pad_n)
         self.submodules += serdes
         ttl_serdes_generic.InOut.__init__(self, serdes)
