@@ -672,7 +672,7 @@ class GTH(Module, TransceiverInterface):
         self.submodules.tx_phase_alignment = GTHTXPhaseAlignement(self.gths)
 
         TransceiverInterface.__init__(self, channel_interfaces)
-        self.cd_rtiox = ClockDomain(reset_less=True)
+        self.clock_domains.cd_rtiox = ClockDomain(reset_less=True)
         if create_buf:
             # GTH PLLs recover on their own from an interrupted clock input,
             # but be paranoid about HMC7043 noise.
