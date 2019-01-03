@@ -321,7 +321,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
-        platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
         platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
@@ -480,7 +480,7 @@ class Master(MiniSoC, AMPSoC):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
-        platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
         platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
@@ -661,7 +661,7 @@ class Satellite(BaseSoC, RTMCommon):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
-        platform.add_period_constraint(gth.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
         platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
