@@ -3,9 +3,6 @@ from migen import *
 from artiq.gateware.rtio.phy import ttl_serdes_generic
 
 
-# SERDES clocks are in dedicated domains to make the implementation
-# of the convoluted clocking schemes from AR#67885 less tedious.
-
 class _OSERDESE3(Module):
     def __init__(self, dw, pad, pad_n=None):
         self.o = Signal(dw)
@@ -20,8 +17,8 @@ class _OSERDESE3(Module):
             p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
             o_OQ=pad_o, o_T_OUT=self.t_out,
-            i_RST=ResetSignal("rtio_serdes"),
-            i_CLK=ClockSignal("rtiox_serdes"), i_CLKDIV=ClockSignal("rtio_serdes"),
+            i_RST=ResetSignal("rtio"),
+            i_CLK=ClockSignal("rtiox"), i_CLKDIV=ClockSignal("rtio"),
             i_D=self.o, i_T=self.t_in)
         if pad_n is None:
             self.comb += pad.eq(pad_o)
@@ -49,11 +46,11 @@ class _ISERDESE3(Module):
             p_DATA_WIDTH=dw,
 
             i_D=pad_i,
-            i_RST=ResetSignal("rtio_serdes"),
+            i_RST=ResetSignal("rtio"),
             i_FIFO_RD_EN=0,
-            i_CLK=ClockSignal("rtiox_serdes"),
-            i_CLK_B=ClockSignal("rtiox_serdes"), # locally inverted
-            i_CLKDIV=ClockSignal("rtio_serdes"),
+            i_CLK=ClockSignal("rtiox"),
+            i_CLK_B=ClockSignal("rtiox"), # locally inverted
+            i_CLKDIV=ClockSignal("rtio"),
             o_Q=Cat(*[self.i[i] for i in reversed(range(dw))]))
         if pad_n is None:
             self.comb += pad_i.eq(pad)
