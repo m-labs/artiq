@@ -37,6 +37,7 @@ class UltrascaleCRG(Module, AutoCSR):
         ]
 
         if use_rtio_clock:
+            self.cd_jesd.clk.attr.add("keep")
             self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
         else:
             self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
