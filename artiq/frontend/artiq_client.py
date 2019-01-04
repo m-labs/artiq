@@ -129,9 +129,8 @@ def get_argparser():
 def _action_submit(remote, args):
     try:
         arguments = parse_arguments(args.arguments)
-    except:
-        print("Failed to parse run arguments")
-        sys.exit(1)
+    except Exception as err:
+        raise ValueError("Failed to parse run arguments") from err
 
     expid = {
         "log_level": logging.WARNING + args.quiet*10 - args.verbose*10,
