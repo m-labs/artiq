@@ -1,5 +1,5 @@
 """
-This module provide serialization and deserialization functions for Python
+This module provides serialization and deserialization functions for Python
 objects. Its main features are:
 
 * Human-readable format compatible with the Python syntax.
