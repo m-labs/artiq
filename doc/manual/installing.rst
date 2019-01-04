@@ -147,7 +147,7 @@ Then, you can flash the board:
 
 * For the KC705 board (selecting the appropriate hardware peripheral)::
 
-    $ artiq_flash -t kc705 -m [nist_clock/nist_qc2]
+    $ artiq_flash -t kc705 -V [nist_clock/nist_qc2]
 
   The SW13 switches also need to be set to 00001.
 
@@ -164,10 +164,10 @@ This should be done after either installation method (conda or source).
 
 .. _flash-mac-ip-addr:
 
-* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>` (see above for the ``-t`` and ``-m`` options to ``artiq_flash`` that may be required): ::
+* Set the MAC and IP address in the :ref:`core device configuration flash storage <core-device-flash-storage>` (see above for the ``-t`` and ``-V`` options to ``artiq_flash`` that may be required): ::
 
     $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-    $ artiq_flash -t [board] -m [adapter] -f flash_storage.img storage start
+    $ artiq_flash -t [board] -V [adapter] -f flash_storage.img storage start
 
 * (optional) Flash the idle kernel
 
