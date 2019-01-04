@@ -299,8 +299,7 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
-        else:
-            raise ValueError("Unknown object to show; list valid names with -h")
+        # else handled by argparse's choices kwarg
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
