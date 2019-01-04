@@ -289,6 +289,8 @@ fn startup_ethernet() {
         drtio_routing::RoutingTable::default_empty()));
     let up_destinations = urc::Urc::new(RefCell::new(
         [false; drtio_routing::DEST_COUNT]));
+    #[cfg(has_drtio_routing)]
+    drtio_routing::interconnect_disable_all();
     let aux_mutex = sched::Mutex::new();
 
     let mut scheduler = sched::Scheduler::new();

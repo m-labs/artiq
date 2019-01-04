@@ -97,3 +97,10 @@ pub fn interconnect_enable_all(routing_table: &RoutingTable, rank: u8) {
         interconnect_enable(routing_table, rank, i as u8);
     }
 }
+
+#[cfg(has_drtio_routing)]
+pub fn interconnect_disable_all() {
+    for i in 0..DEST_COUNT {
+        interconnect_disable(i as u8);
+    }
+}
