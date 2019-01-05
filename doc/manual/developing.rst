@@ -56,7 +56,7 @@ Preparing the build environment for the core device
 ---------------------------------------------------
 
 These steps are required to generate code that can run on the core
-device. They are necessary both for building the MiSoC BIOS
+device. They are necessary both for building the firmware
 and the ARTIQ kernels.
 
 * Install required host packages: ::
@@ -226,6 +226,10 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _build-target-binaries:
 
+    * For Kasli::
+
+        $ python3 -m artiq.gateware.targets.kasli -V <your_variant>
+
     * For KC705::
 
         $ python3 -m artiq.gateware.targets.kc705 -V nist_clock # or nist_qc2
@@ -234,13 +238,9 @@ These steps are required to generate gateware bitstream (``.bit``) files, build 
 
 .. _flash-target-binaries:
 
-* Then, gather the binaries and flash them: ::
+* Then, flash the binaries: ::
 
-        $ mkdir binaries
-        $ cp misoc_nist_qcX_<board>/gateware/top.bit binaries
-        $ cp misoc_nist_qcX_<board>/software/bios/bios.bin binaries
-        $ cp misoc_nist_qcX_<board>/software/runtime/runtime.fbi binaries
-        $ artiq_flash -d binaries
+        $ artiq_flash --srcbuild artiq_kasli -V <your_variant>
 
 * Check that the board boots by running a serial terminal program (you may need to press its FPGA reconfiguration button or power-cycle it to load the gateware bitstream that was newly written into the flash): ::
 
