@@ -1,6 +1,9 @@
+#[cfg(has_ddrphy)]
 use core::ptr;
 use super::spr::*;
+#[cfg(has_ddrphy)]
 use csr;
+#[cfg(has_ddrphy)]
 use mem;
 
 pub fn flush_cpu_icache() {
@@ -35,6 +38,7 @@ pub fn flush_cpu_dcache() {
     }
 }
 
+#[cfg(has_ddrphy)]
 pub fn flush_l2_cache() {
     unsafe {
         for i in 0..2 * (csr::CONFIG_L2_SIZE as usize) / 4 {
