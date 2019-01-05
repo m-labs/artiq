@@ -7,7 +7,8 @@ pub enum Error {
     Truncated { offset: usize },
     InvalidSize { offset: usize, size: usize },
     MissingSeparator { offset: usize },
-    Utf8Error(str::Utf8Error)
+    Utf8Error(str::Utf8Error),
+    NoFlash,
 }
 
 impl fmt::Display for Error {
@@ -24,37 +25,10 @@ impl fmt::Display for Error {
             &Error::MissingSeparator { offset } =>
                 write!(f, "missing separator at offset {}", offset),
             &Error::Utf8Error(err) =>
-                write!(f, "{}", err)
+                write!(f, "{}", err),
+            &Error::NoFlash =>
+                write!(f, "flash memory is not present"),
         }
-    }
-}
-
-struct FmtWrapper<'a> {
-    buf: &'a mut [u8],
-    offset: usize,
-}
-
-impl<'a> FmtWrapper<'a> {
-    fn new(buf: &'a mut [u8]) -> Self {
-        FmtWrapper {
-            buf: buf,
-            offset: 0,
-        }
-    }
-
-    fn contents(&self) -> &[u8] {
-        &self.buf[..self.offset]
-    }
-}
-
-impl<'a> fmt::Write for FmtWrapper<'a> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        let bytes = s.as_bytes();
-        let remainder = &mut self.buf[self.offset..];
-        let remainder = &mut remainder[..bytes.len()];
-        remainder.copy_from_slice(bytes);
-        self.offset += bytes.len();
-        Ok(())
     }
 }
 
@@ -65,8 +39,37 @@ mod imp {
     use cache;
     use spiflash;
     use super::Error;
+    use core::fmt;
     use core::fmt::Write;
-    use super::FmtWrapper;
+
+    struct FmtWrapper<'a> {
+        buf: &'a mut [u8],
+        offset: usize,
+    }
+
+    impl<'a> FmtWrapper<'a> {
+        fn new(buf: &'a mut [u8]) -> Self {
+            FmtWrapper {
+                buf: buf,
+                offset: 0,
+            }
+        }
+
+        fn contents(&self) -> &[u8] {
+            &self.buf[..self.offset]
+        }
+    }
+
+    impl<'a> fmt::Write for FmtWrapper<'a> {
+        fn write_str(&mut self, s: &str) -> fmt::Result {
+            let bytes = s.as_bytes();
+            let remainder = &mut self.buf[self.offset..];
+            let remainder = &mut remainder[..bytes.len()];
+            remainder.copy_from_slice(bytes);
+            self.offset += bytes.len();
+            Ok(())
+        }
+    }
 
     // One flash sector immediately before the firmware.
     const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::SECTOR_SIZE;
@@ -284,24 +287,26 @@ mod imp {
 
 #[cfg(not(has_spiflash))]
 mod imp {
+    use super::Error;
+
     pub fn read<F: FnOnce(Result<&[u8], Error>) -> R, R>(_key: &str, f: F) -> R {
-        f(Err(()))
+        f(Err(Error::NoFlash))
     }
 
     pub fn read_str<F: FnOnce(Result<&str, Error>) -> R, R>(_key: &str, f: F) -> R {
-        f(Err(()))
+        f(Err(Error::NoFlash))
     }
 
     pub fn write(_key: &str, _value: &[u8]) -> Result<(), Error> {
-        Err(())
+        Err(Error::NoFlash)
     }
 
     pub fn remove(_key: &str) -> Result<(), Error> {
-        Err(())
+        Err(Error::NoFlash)
     }
 
     pub fn erase() -> Result<(), Error> {
-        Err(())
+        Err(Error::NoFlash)
     }
 }
 
