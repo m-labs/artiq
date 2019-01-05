@@ -121,7 +121,7 @@ class KernelInitiator(Module, AutoCSR):
         self.sync += If(self.counter_update.re, self.counter.status.eq(tsc.full_ts_cri))
 
 
-class CRIDecoder(Module, AutoCSR):
+class CRIDecoder(Module):
     def __init__(self, slaves=2, master=None, mode="async", enable_routing=False):
         if isinstance(slaves, int):
             slaves = [Interface() for _ in range(slaves)]
@@ -228,7 +228,7 @@ class CRIInterconnectShared(Module):
         self.submodules.decoder = CRIDecoder(slaves, shared, mode, enable_routing)
 
     def get_csrs(self):
-        return self.switch.get_csrs() + self.decoder.get_csrs()
+        return self.switch.get_csrs()
 
 
 class RoutingTableAccess(Module, AutoCSR):
