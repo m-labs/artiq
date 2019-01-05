@@ -326,13 +326,19 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         gth = self.drtio_transceiver.gths[0]
         platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
         platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
+        self.drtio_transceiver.cd_rtio.clk.attr.add("keep")
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            gth.txoutclk, gth.rxoutclk)
+            self.drtio_transceiver.cd_rtio.clk, gth.rxoutclk)
+        platform.add_false_path_constraints(self.crg.cd_sys.clk, gth.txoutclk)
         for gth in self.drtio_transceiver.gths[1:]:
             platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gth.rxoutclk)
+            platform.add_false_path_constraints(
+                self.drtio_transceiver.cd_rtio.clk, gth.rxoutclk)
+        platform.add_false_path_constraints(self.ad9154_crg.cd_jesd.clk,
+                                            self.drtio_transceiver.cd_rtio.clk)
 
         rtio_channels = []
         for i in range(4):
