@@ -11,6 +11,7 @@ const ADDRESS: u8 = 0x68;
 
 #[cfg(any(soc_platform = "kasli",
           soc_platform = "sayma_amc",
+          soc_platform = "sayma_rtm",
           soc_platform = "kc705"))]
 fn pca9548_select(address: u8, channels: u8) -> Result<()> {
     i2c::start(BUSNO).unwrap();
@@ -202,6 +203,8 @@ pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
     }
     #[cfg(soc_platform = "sayma_amc")]
     pca9548_select(0x70, 1 << 4)?;
+    #[cfg(soc_platform = "sayma_rtm")]
+    pca9548_select(0x77, 1 << 5)?;
     #[cfg(soc_platform = "kc705")]
     pca9548_select(0x74, 1 << 7)?;
 
