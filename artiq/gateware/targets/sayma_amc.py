@@ -287,7 +287,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
 
         drtio_csr_group = []
         drtioaux_csr_group = []
@@ -452,7 +452,7 @@ class Master(MiniSoC, AMPSoC):
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
 
         drtio_csr_group = []
         drtioaux_csr_group = []
@@ -623,7 +623,7 @@ class Satellite(BaseSoC, RTMCommon):
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
 
         rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
         self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
