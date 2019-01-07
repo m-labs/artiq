@@ -416,6 +416,7 @@ pub extern fn main() -> i32 {
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
+    clock::spin_us(1500); // wait for CPLL/QPLL lock
     init_rtio_crg();
 
     #[cfg(has_allaki_atts)]
