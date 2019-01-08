@@ -469,21 +469,35 @@ class AD9910:
         return int32(round(self.ftw_per_hz*frequency))
 
     @portable(flags={"fast-math"})
+    def ftw_to_frequency(self, ftw):
+        """Return the frequency corresponding to the given frequency tuning
+        word.
+        """
+        return ftw / self.ftw_per_hz
+
+    @portable(flags={"fast-math"})
     def turns_to_pow(self, turns):
         """Return the phase offset word corresponding to the given phase
         in turns."""
         return int32(round(turns*0x10000))
 
     @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude):
-        """Return amplitude scale factor corresponding to given amplitude."""
-        return int32(round(amplitude*0x3ffe))
-
-    @portable(flags={"fast-math"})
     def pow_to_turns(self, pow_):
         """Return the phase in turns corresponding to a given phase offset
         word."""
         return pow_/0x10000
+
+    @portable(flags={"fast-math"})
+    def amplitude_to_asf(self, amplitude):
+        """Return amplitude scale factor corresponding to given fractional
+        amplitude."""
+        return int32(round(amplitude*0x3ffe))
+
+    @portable(flags={"fast-math"})
+    def asf_to_amplitude(self, asf):
+        """Return amplitude as a fraction of full scale corresponding to given
+        amplitude scale factor."""
+        return asf / float(0x3ffe)
 
     @kernel
     def set_frequency(self, frequency):
