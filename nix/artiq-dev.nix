@@ -9,6 +9,7 @@ in
       with pkgs; [
         ncurses5
         gnumake
+        zlib
         xorg.libSM
         xorg.libICE
         xorg.libXrender
