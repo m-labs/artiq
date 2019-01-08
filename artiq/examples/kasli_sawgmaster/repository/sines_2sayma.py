@@ -7,11 +7,17 @@ class Sines2Sayma(EnvExperiment):
         self.sawgs = [self.get_device("sawg"+str(i)) for i in range(16)]
 
     @kernel
+    def drtio_is_up(self):
+        for i in range(3):
+            if not self.core.get_rtio_destination_status(i):
+                return False
+        return True
+
+    @kernel
     def run(self):
         while True:
             print("waiting for DRTIO ready...")
-            while not (self.core.get_rtio_destination_status(0) and
-                       self.core.get_rtio_destination_status(1)):
+            while not self.drtio_is_up():
                 pass
             print("OK")
 
@@ -27,5 +33,5 @@ class Sines2Sayma(EnvExperiment):
                 # Do not use a sub-multiple of oscilloscope sample rates.
                 sawg.frequency0.set(9*MHz)
 
-            while self.core.get_rtio_destination_status(0) and self.core.get_rtio_destination_status(1):
+            while self.drtio_is_up():
                 pass
