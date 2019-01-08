@@ -16,7 +16,7 @@ __all__ = [
     "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING",
     "RAM_DEST_FTW", "RAM_DEST_POW", "RAM_DEST_ASF", "RAM_DEST_POWASF",
     "RAM_MODE_DIRECTSWITCH", "RAM_MODE_RAMPUP", "RAM_MODE_BIDIR_RAMP",
-    "RAM_MODE_CONT_BIDIR_RAMP", "RAM_MODE_CONT_RECIRCULATE",
+    "RAM_MODE_CONT_BIDIR_RAMP", "RAM_MODE_CONT_RAMPUP",
 ]
 
 
@@ -440,7 +440,7 @@ class AD9910:
         :param mode: Profile RAM mode (:const:`RAM_MODE_DIRECTSWITCH`,
             :const:`RAM_MODE_RAMPUP`, :const:`RAM_MODE_BIDIR_RAMP`,
             :const:`RAM_MODE_CONT_BIDIR_RAMP`, or
-            :const:`RAM_MODE_CONT_RECIRCULATE`, default:
+            :const:`RAM_MODE_CONT_RAMPUP`, default:
             :const:`RAM_MODE_RAMPUP`)
         """
         hi = (step << 8) | (end >> 2)
