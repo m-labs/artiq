@@ -16,10 +16,11 @@ impl RoutingTable {
     // default routing table is for star topology with no hops
     pub fn default_master(default_n_links: usize) -> RoutingTable {
         let mut ret = RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT]);
-        for i in 0..default_n_links {
+        let n_entries = default_n_links + 1;  // include local RTIO
+        for i in 0..n_entries {
             ret.0[i][0] = i as u8;
         }
-        for i in 1..default_n_links {
+        for i in 1..n_entries {
             ret.0[i][1] = 0x00;
         }
         ret
