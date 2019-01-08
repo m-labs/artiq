@@ -415,7 +415,8 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time)
                 pow_ += dt*ftw*self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PROFILE0 + profile, (asf << 16) | pow_, ftw)
+        self.write64(_AD9910_REG_PROFILE0 + profile,
+            (asf << 16) | (pow_ & 0xffff), ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
         at_mu(now_mu() & ~0xf)
