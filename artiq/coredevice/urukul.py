@@ -133,8 +133,10 @@ class CPLD:
         internal MMCX. For hardware revision <= v1.2 valid options are: 0 -
         either XO or MMCX dependent on component population; 1 SMA. Unsupported
         clocking options are silently ignored.
-    :param sync_sel: SYNC_IN selection. 0 corresponds to SYNC_IN over EEM
-        from FPGA. 1 corresponds to SYNC_IN from DDS0.
+    :param sync_sel: SYNC (multi-chip synchronisation) signal source selection.
+        0 corresponds to SYNC_IN being supplied by the FPGA via the EEM
+        connector. 1 corresponds to SYNC_OUT from DDS0 being distributed to the
+        other chips.
     :param rf_sw: Initial CPLD RF switch register setting (default: 0x0).
         Knowledge of this state is not transferred between experiments.
     :param att: Initial attenuator setting shift register (default:
