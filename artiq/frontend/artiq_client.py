@@ -2,7 +2,7 @@
 """
 Client to send commands to :mod:`artiq_master` and display results locally.
 
-The client can perform actions such as accessing/setting datasets, 
+The client can perform actions such as accessing/setting datasets,
 scanning devices, scheduling experiments, and looking for experiments/devices.
 """
 
@@ -25,7 +25,6 @@ from artiq.tools import short_format, parse_arguments
 
 
 def clear_screen():
-    """Blank the terminal."""
     if os.name == "nt":
         os.system("cls")
     else:
@@ -33,7 +32,6 @@ def clear_screen():
 
 
 def get_argparser():
-    """Return an argument parser with :mod:`artiq_client` commands."""
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -285,7 +283,6 @@ def _show_ccb(args):
 
 
 def main():
-    """Submit requests to :mod:`artiq_master`, e.g. schedule, get data."""
     args = get_argparser().parse_args()
     action = args.action.replace("-", "_")
     if action == "show":
@@ -299,7 +296,8 @@ def main():
             _show_dict(args, "devices", _show_devices)
         elif args.what == "datasets":
             _show_dict(args, "datasets", _show_datasets)
-        # else handled by argparse's choices kwarg
+        else:
+            raise ValueError
     else:
         port = 3251 if args.port is None else args.port
         target_name = {
