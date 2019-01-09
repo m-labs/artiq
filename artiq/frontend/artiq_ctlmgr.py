@@ -14,7 +14,7 @@ from artiq.tools import (simple_network_args, atexit_register_coroutine,
 from artiq.devices.ctlmgr import ControllerManager
 
 
-def get_argparser() -> argparse.ArgumentParser:
+def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ controller manager")
 
     add_common_args(parser)

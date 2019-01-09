@@ -25,7 +25,7 @@ def clear_screen():
         sys.stdout.write("\x1b[2J\x1b[H")
 
 
-def get_argparser() -> argparse.ArgumentParser:
+def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ CLI client")
     parser.add_argument(
         "-s", "--server", default="::1",

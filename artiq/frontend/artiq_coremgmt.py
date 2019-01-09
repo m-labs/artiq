@@ -3,8 +3,7 @@
 import argparse
 import struct
 
-from artiq.tools import add_common_args
-from artiq.tools import init_logger
+from artiq.tools import add_common_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt

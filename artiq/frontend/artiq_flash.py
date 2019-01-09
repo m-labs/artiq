@@ -11,8 +11,7 @@ from functools import partial
 from collections import defaultdict
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import add_common_args
-from artiq.tools import init_logger
+from artiq.tools import add_common_args, init_logger
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
 

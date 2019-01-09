@@ -3,8 +3,7 @@
 import argparse
 import sys
 
-from artiq.tools import add_common_args
-from artiq.tools import init_logger
+from artiq.tools import add_common_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 from artiq.coredevice.comm_analyzer import (get_analyzer_dump,
