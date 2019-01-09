@@ -56,7 +56,7 @@ Prerequisites:
                         help="target board, default: %(default)s, one of: "
                              "%(choices)s")
     parser.add_argument("-V", "--variant", default=None,
-                        help="board variant (target-dependent)")
+                        help="board variant (default is target-dependent)")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a development board "
@@ -283,8 +283,8 @@ def main():
 
     config = {
         "kasli": {
-            "programmer": partial(ProgrammerXC7, board="kasli",
-                                  proxy="bscan_spi_xc7a100t.bit"),
+            "programmer":   partial(ProgrammerXC7, board="kasli",
+                                    proxy="bscan_spi_xc7a100t.bit"),
             "def_variant":  "opticlock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
@@ -301,8 +301,8 @@ def main():
             "rtm_gateware": ("spi1", 0x200000),
         },
         "kc705": {
-            "programmer": partial(ProgrammerXC7, board="kc705",
-                                  proxy="bscan_spi_xc7k325t.bit"),
+            "programmer":   partial(ProgrammerXC7, board="kc705",
+                                    proxy="bscan_spi_xc7k325t.bit"),
             "def_variant":  "nist_clock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0xaf0000),
