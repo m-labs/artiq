@@ -114,6 +114,23 @@ def verbosity_args(parser):
 
 
 def simple_network_args(parser, default_port):
+    """Add simple network arguments to a command-line argument parser.
+    
+    Added arguments:
+        * `--bind`
+        * `--no-localhost-bind`
+        * `--port`/`-p` or `--port-NAME` (depending on value of `default_port`)
+
+    Args:
+        parser (argparse.ArgumentParser): Parser to add arguments to.
+        default_port (Union[int, Sequence[Tuple[str, str, int]]]): 
+            Either a default port to listen on, or a sequence of tuples of 
+            (name, purpose, port) to listen for `purpose`-type connections. 
+            Example: [("control", "control", 3249)]
+    
+    Returns:
+        None
+    """
     group = parser.add_argument_group("network server")
     group.add_argument(
         "--bind", default=[], action="append",
@@ -156,11 +173,22 @@ def multiline_log_config(level):
 
 
 def init_logger(args):
+    """Initialize logger with desired verbosity/quietness.
+
+    Uses `args.quiet` and `args.verbose` to calculate the correct logging level.
+    Defaults to :const:`logging.WARNING`.
+    """
     multiline_log_config(
         level=logging.WARNING + args.quiet*10 - args.verbose*10)
 
 
 def bind_address_from_args(args):
+    """Return the bind address from parsed arguments.
+    
+    Returns:
+        None if "*" in args.bind. `args.bind` if `args.no_localhost_bind`. 
+        Otherwise, returns local IP (`127.0.0.1, ::1`) and `args.bind` 
+    """
     if "*" in args.bind:
         return None
     if args.no_localhost_bind:
