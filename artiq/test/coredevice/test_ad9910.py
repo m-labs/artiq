@@ -180,7 +180,7 @@ class AD9910Test(ExperimentCase):
         self.execute(AD9910Exp, "set_speed_mu")
         dt = self.dataset_mgr.get("dt")
         print(dt)
-        self.assertLess(dt, 10*us)
+        self.assertLess(dt, 11*us)
 
     def test_sync_window(self):
         self.execute(AD9910Exp, "sync_window")
@@ -201,8 +201,8 @@ class AD9910Test(ExperimentCase):
         n = max(bins2)
         # no edge at optimal delay
         self.assertEqual(bins2[(dly + 1) & 3], 0)
-        # edge at expected position
-        self.assertEqual(bins2[(dly + 3) & 3], n)
+        # many edges near expected position
+        self.assertGreater(bins2[(dly + 3) & 3], n*.9)
 
     def test_sw_readback(self):
         self.execute(AD9910Exp, "sw_readback")
