@@ -488,10 +488,20 @@ class Server(_AsyncioServer):
             self._noparallel = asyncio.Lock()
 
     @staticmethod
-    def _document_function(function: typing.Callable) -> typing.Tuple[dict, str]:
-        """Turn a function into a tuple of its arguments and documentation.
+    def _document_function(function):
+        """
+        Turn a function into a tuple of its arguments and documentation.
         
-        Allows remote inspection of what methods are available on a local device."""
+        Allows remote inspection of what methods are available on a local device.
+        
+        Args:
+            function (Callable): a Python function to be documented.
+        
+        Returns:
+            Tuple[dict, str]: tuple of (argument specifications, 
+            function documentation).
+            Any type annotations are converted to strings (for PYON serialization).
+        """
         argspec_dict = dict(inspect.getfullargspec(function)._asdict())
         # Fix issue #1186: PYON can't serialize type annotations.
         if any(argspec_dict.get("annotations", {})):
