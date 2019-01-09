@@ -400,6 +400,17 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.csr_devices.append("sysref_sampler")
 
 
+def workaround_us_lvds_tristate(platform):
+    # Those shoddy Kintex Ultrascale FPGAs take almost a microsecond to change the direction of a
+    # LVDS I/O buffer. The application has to cope with it and this cannot be handled at static
+    # timing analysis. Disable the latter for IOBUFDS.
+    # See:
+    # https://forums.xilinx.com/t5/Timing-Analysis/Delay-890-ns-in-OBUFTDS-in-Kintex-UltraScale/td-p/868364
+    # FIXME: this is a bit zealous. Xilinx SR in progress to find a more selective command.
+    platform.add_platform_command(
+        "set_false_path -through [get_pins -filter {{REF_PIN_NAME == O}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]")
+
+
 class Master(MiniSoC, AMPSoC):
     """
     DRTIO master with 2 SFP ports plus 8 lanes on RTM.
@@ -528,6 +539,7 @@ class Master(MiniSoC, AMPSoC):
                            iostandard="LVDS")
         eem.Zotino.add_std(self, 3, ttl_simple.Output,
                            iostandard="LVDS")
+        workaround_us_lvds_tristate(platform)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
