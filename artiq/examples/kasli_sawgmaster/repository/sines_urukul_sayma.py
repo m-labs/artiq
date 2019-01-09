@@ -9,6 +9,13 @@ class SinesUrukulSayma(EnvExperiment):
         self.sawgs = [self.get_device("sawg"+str(i)) for i in range(8)]
 
     @kernel
+    def drtio_is_up(self):
+        for i in range(2):
+            if not self.core.get_rtio_destination_status(i):
+                return False
+        return True
+
+    @kernel
     def run(self):
         # Note: when testing sync, do not reboot Urukul, as it is not
         # synchronized to the FPGA (yet).
@@ -23,7 +30,7 @@ class SinesUrukulSayma(EnvExperiment):
 
         while True:
             print("waiting for DRTIO ready...")
-            while not self.core.get_rtio_destination_status(0):
+            while not self.drtio_is_up():
                 pass
             print("OK")
 
@@ -38,5 +45,5 @@ class SinesUrukulSayma(EnvExperiment):
                 sawg.amplitude1.set(.4)
                 sawg.frequency0.set(9*MHz)
 
-            while self.core.get_rtio_destination_status(0):
+            while self.drtio_is_up():
                 pass
