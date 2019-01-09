@@ -400,8 +400,9 @@ class AD9910:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        # Align to coarse RTIO which aligns SYNC_CLK
-        at_mu(now_mu() & ~0xf)
+        # Align to coarse RTIO which aligns SYNC_CLK. I.e. clear fine TSC
+        # This will not cause a collision or sequence error.
+        at_mu(now_mu() & ~7)
         if phase_mode != PHASE_MODE_CONTINUOUS:
             # Auto-clear phase accumulator on IO_UPDATE.
             # This is active already for the next IO_UPDATE
@@ -418,8 +419,8 @@ class AD9910:
         self.write64(_AD9910_REG_PROFILE0 + profile,
             (asf << 16) | (pow_ & 0xffff), ftw)
         delay_mu(int64(self.io_update_delay))
-        self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYSCLK
-        at_mu(now_mu() & ~0xf)
+        self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
+        at_mu(now_mu() & ~7)  # clear fine TSC again
         if phase_mode != PHASE_MODE_CONTINUOUS:
             self.set_cfr1()
             # future IO_UPDATE will activate
@@ -673,16 +674,17 @@ class AD9910:
         self.write32(_AD9910_REG_RAMP_RATE, 0x00010000)
         # dFTW = 1, (work around negative slope)
         self.write64(_AD9910_REG_RAMP_STEP, -1, 0)
-        # delay io_update after RTIO/2 edge
-        t = now_mu() + 0x10 & ~0xf
+        # delay io_update after RTIO edge
+        t = now_mu() + 8 & ~7
         at_mu(t + delay_start)
-        self.cpld.io_update.pulse_mu(32 - delay_start)  # realign
+        # assumes a maximum t_SYNC_CLK period
+        self.cpld.io_update.pulse_mu(16 - delay_start)  # realign
         # disable DRG autoclear and LRR on io_update
         self.set_cfr1()
         # stop DRG
         self.write64(_AD9910_REG_RAMP_STEP, 0, 0)
         at_mu(t + 0x1000 + delay_stop)
-        self.cpld.io_update.pulse_mu(32 - delay_stop)  # realign
+        self.cpld.io_update.pulse_mu(16 - delay_stop)  # realign
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100*us)  # slack
         # disable DRG
