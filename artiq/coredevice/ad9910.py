@@ -631,7 +631,7 @@ class AD9910:
                 # integrate SMP_ERR statistics for a few hundred cycles
                 delay(100*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
-                delay(40*us)  # slack
+                delay(100*us)  # slack
                 if not (err >> (self.chip_select - 4)) & 1:
                     next_seed = in_delay
                     break
