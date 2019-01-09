@@ -441,6 +441,14 @@ class Master(MiniSoC, AMPSoC):
         platform = self.platform
         rtio_clk_freq = 150e6
 
+        # forward RTM UART to second FTDI UART channel
+        serial_1 = platform.request("serial", 1)
+        serial_rtm = platform.request("serial_rtm")
+        self.comb += [
+            serial_1.tx.eq(serial_rtm.rx),
+            serial_rtm.tx.eq(serial_1.rx)
+        ]
+
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
