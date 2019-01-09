@@ -13,7 +13,7 @@ pub const INVALID_HOP: u8 = 0xff;
 pub struct RoutingTable(pub [[u8; MAX_HOPS]; DEST_COUNT]);
 
 impl RoutingTable {
-    // default routing table is for star topology with no hops
+    // default routing table is for star topology with no repeaters
     pub fn default_master(default_n_links: usize) -> RoutingTable {
         let mut ret = RoutingTable([[INVALID_HOP; MAX_HOPS]; DEST_COUNT]);
         let n_entries = default_n_links + 1;  // include local RTIO
