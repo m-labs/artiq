@@ -100,13 +100,15 @@ class RPCCase(unittest.TestCase):
         """
 
         def _annotated_function(
-            arg1: str, arg2: np.ndarray = np.array([1,])
+            arg1: str, arg2: np.ndarray = np.array([1, 2])
         ) -> np.ndarray:
             """Sample docstring."""
             return arg1
 
-        argspec, docstring = pc_rpc.Server._document_function(_annotated_function)
-        print(argspec)  # for debug
+        argspec_documented, docstring = pc_rpc.Server._document_function(
+            _annotated_function
+        )
+        print(argspec_documented)
         self.assertEqual(docstring, "Sample docstring.")
 
         # purposefully ignore how argspec["annotations"] is treated.
@@ -115,8 +117,13 @@ class RPCCase(unittest.TestCase):
         argspec_without_annotation = argspec_master.copy()
         del argspec_without_annotation["annotations"]
         # check if all items (excluding annotations) are same in both dictionaries
-        self.assertLessEqual(argspec_without_annotation.items(), argspec.items())
-        self.assertDictEqual(argspec, pyon.decode(pyon.encode(argspec)))
+        self.assertLessEqual(
+            argspec_without_annotation.items(), argspec_documented.items()
+        )
+        self.assertDictEqual(
+            argspec_documented, pyon.decode(pyon.encode(argspec_documented))
+        )
+
 
 class FireAndForgetCase(unittest.TestCase):
     def _set_ok(self):
