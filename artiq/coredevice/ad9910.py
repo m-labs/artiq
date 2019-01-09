@@ -441,7 +441,7 @@ class AD9910:
         :param mode: Profile RAM mode (:const:`RAM_MODE_DIRECTSWITCH`,
             :const:`RAM_MODE_RAMPUP`, :const:`RAM_MODE_BIDIR_RAMP`,
             :const:`RAM_MODE_CONT_BIDIR_RAMP`, or
-            :const:`RAM_MODE_CONT_RECIRCULATE`, default:
+            :const:`RAM_MODE_CONT_RAMPUP`, default:
             :const:`RAM_MODE_RAMPUP`)
         """
         hi = (step << 8) | (end >> 2)

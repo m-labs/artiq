@@ -187,10 +187,10 @@ class SPIMaster:
         :meth:`__init__`.
 
         .. warning:: If this method is called while recording a DMA
-        sequence, the playback of the sequence will not update the
-        driver state.
-        When required, update the driver state manually (by calling
-        this method) after playing back a DMA sequence.
+           sequence, the playback of the sequence will not update the
+           driver state.
+           When required, update the driver state manually (by calling
+           this method) after playing back a DMA sequence.
 
         :param div: SPI clock divider (see: :meth:`set_config_mu`)
         :param length: SPI transfer length (see: :meth:`set_config_mu`)
