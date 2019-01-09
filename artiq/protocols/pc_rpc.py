@@ -17,7 +17,6 @@ import logging
 import socket
 import threading
 import time
-import typing
 from operator import itemgetter
 
 from artiq.monkey_patches import *
