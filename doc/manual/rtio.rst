@@ -126,7 +126,8 @@ Internally, the gateware stores output events in an array of FIFO buffers (the "
 Notes:
 
 * Strictly increasing timestamps never cause sequence errors. 
-* Configuring the gateware with more lanes for the RTIO core reduces the frequency of sequence errors. 
+* Configuring the gateware with more lanes for the RTIO core reduces the frequency of sequence errors.
+* The number of lanes is a hard limit on the number of simultaneous RTIO output events.
 * Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the whole sequence does not affect the result.
 
 The offending event is discarded and the RTIO core keeps operating.
