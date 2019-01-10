@@ -501,11 +501,13 @@ def get_message_time(message):
     return getattr(message, "timestamp", message.rtio_counter)
 
 
-def decoded_dump_to_vcd(fileobj, devices, dump):
+def decoded_dump_to_vcd(fileobj, devices, dump, uniform_interval=False):
     vcd_manager = VCDManager(fileobj)
     ref_period = get_ref_period(devices)
+
     if ref_period is not None:
-        vcd_manager.set_timescale_ps(ref_period*1e12)
+        if not uniform_interval:
+            vcd_manager.set_timescale_ps(ref_period*1e12)
     else:
         logger.warning("unable to determine core device ref_period")
         ref_period = 1e-9  # guess
@@ -527,6 +529,12 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
     vcd_log_channels = get_vcd_log_channels(dump.log_channel, messages)
     channel_handlers[dump.log_channel] = LogHandler(
         vcd_manager, vcd_log_channels)
+    if uniform_interval:
+        # RTIO event timestamp in machine units
+        timestamp = vcd_manager.get_channel("timestamp", 64)
+        # RTIO time interval between this and the next timed event
+        # in SI seconds
+        interval = vcd_manager.get_channel("interval", 64)
     slack = vcd_manager.get_channel("rtio_slack", 64)
 
     vcd_manager.set_time(0)
@@ -536,11 +544,18 @@ def decoded_dump_to_vcd(fileobj, devices, dump):
         if start_time:
             break
 
-    for message in messages:
+    t0 = 0
+    for i, message in enumerate(messages):
         if message.channel in channel_handlers:
             t = get_message_time(message) - start_time
             if t >= 0:
-                vcd_manager.set_time(t)
+                if uniform_interval:
+                    interval.set_value_double((t - t0)*ref_period)
+                    vcd_manager.set_time(i)
+                    timestamp.set_value("{:064b}".format(t))
+                    t0 = t
+                else:
+                    vcd_manager.set_time(t)
             channel_handlers[message.channel].process_message(message)
             if isinstance(message, OutputMessage):
                 slack.set_value_double(

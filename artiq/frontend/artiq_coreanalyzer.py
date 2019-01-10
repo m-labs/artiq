@@ -16,16 +16,22 @@ def get_argparser():
 
     verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
-                       help="device database file (default: '%(default)s')")
+                        help="device database file (default: '%(default)s')")
 
     parser.add_argument("-r", "--read-dump", type=str, default=None,
                         help="read raw dump file instead of accessing device")
-    parser.add_argument("-p", "--print-decoded", default=False, action="store_true",
-                        help="print raw decoded messages")
+    parser.add_argument("-p", "--print-decoded", default=False,
+                        action="store_true", help="print raw decoded messages")
     parser.add_argument("-w", "--write-vcd", type=str, default=None,
                         help="format and write contents to VCD file")
     parser.add_argument("-d", "--write-dump", type=str, default=None,
                         help="write raw dump file")
+
+    parser.add_argument("-u", "--vcd-uniform-interval", action="store_true",
+                        help="emit uniform time intervals between timed VCD "
+                             "events and show RTIO event interval (in SI "
+                             "seconds) and timestamp (in machine units) as "
+                             "separate VCD channels")
     return parser
 
 
@@ -54,7 +60,8 @@ def main():
     if args.write_vcd:
         with open(args.write_vcd, "w") as f:
             decoded_dump_to_vcd(f, device_mgr.get_device_db(),
-                                decoded_dump)
+                                decoded_dump,
+                                uniform_interval=args.vcd_uniform_interval)
     if args.write_dump:
         with open(args.write_dump, "wb") as f:
             f.write(dump)
