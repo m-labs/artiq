@@ -1,13 +1,13 @@
-import unittest
-import sys
-import subprocess
 import asyncio
+import inspect
+import subprocess
+import sys
 import time
+import unittest
 
 import numpy as np
 
-from artiq.protocols import pc_rpc, fire_and_forget
-
+from artiq.protocols import fire_and_forget, pc_rpc, pyon
 
 test_address = "::1"
 test_port = 7777
@@ -92,6 +92,38 @@ class RPCCase(unittest.TestCase):
     def test_asyncio_echo_autotarget(self):
         self._run_server_and_test(self._loop_asyncio_echo, pc_rpc.AutoTarget)
 
+    def test_rpc_encode_function(self):
+        """Test that `pc_rpc` can encode a function properly.
+
+        Used in `get_rpc_method_list` part of
+        :meth:`artiq.protocols.pc_rpc.Server._process_action`
+        """
+
+        def _annotated_function(
+            arg1: str, arg2: np.ndarray = np.array([1, 2])
+        ) -> np.ndarray:
+            """Sample docstring."""
+            return arg1
+
+        argspec_documented, docstring = pc_rpc.Server._document_function(
+            _annotated_function
+        )
+        print(argspec_documented)
+        self.assertEqual(docstring, "Sample docstring.")
+
+        # purposefully ignore how argspec["annotations"] is treated.
+        # allows option to change PYON later to encode annotations.
+        argspec_master = dict(inspect.getfullargspec(_annotated_function)._asdict())
+        argspec_without_annotation = argspec_master.copy()
+        del argspec_without_annotation["annotations"]
+        # check if all items (excluding annotations) are same in both dictionaries
+        self.assertLessEqual(
+            argspec_without_annotation.items(), argspec_documented.items()
+        )
+        self.assertDictEqual(
+            argspec_documented, pyon.decode(pyon.encode(argspec_documented))
+        )
+
 
 class FireAndForgetCase(unittest.TestCase):
     def _set_ok(self):
@@ -129,6 +161,7 @@ def run_server():
             loop.run_until_complete(server.stop())
     finally:
         loop.close()
+
 
 if __name__ == "__main__":
     run_server()
