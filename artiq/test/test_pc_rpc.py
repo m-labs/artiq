@@ -100,7 +100,7 @@ class RPCCase(unittest.TestCase):
         """
 
         def _annotated_function(
-            arg1: str, arg2: np.ndarray = np.array([1, 2])
+            arg1: str, arg2: np.ndarray = np.array([1,])
         ) -> np.ndarray:
             """Sample docstring."""
             return arg1
