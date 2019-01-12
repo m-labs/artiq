@@ -18,6 +18,7 @@ class CastMonomorphizer(algorithm.Visitor):
                 types.is_builtin(node.func.type, "int64")):
             typ = node.type.find()
             if (not types.is_var(typ["width"]) and
+                    len(node.args) == 1 and
                     builtins.is_int(node.args[0].type) and
                     types.is_var(node.args[0].type.find()["width"])):
                 if isinstance(node.args[0], asttyped.BinOpT):
