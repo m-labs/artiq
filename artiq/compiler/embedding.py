@@ -1019,7 +1019,7 @@ class Stitcher:
 
         function_type = types.TRPC(ret_type,
                                    service=self.embedding_map.store_object(host_function),
-                                   async=is_async)
+                                   is_async=is_async)
         self.functions[function] = function_type
         return function_type
 
