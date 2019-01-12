@@ -1342,7 +1342,7 @@ class LLVMIRGenerator:
             llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
             self.llbuilder.store(llargslot, llargptr)
 
-        if fun_type.async:
+        if fun_type.is_async:
             self.llbuilder.call(self.llbuiltin("rpc_send_async"),
                                 [llservice, lltagptr, llargs])
         else:
@@ -1352,7 +1352,7 @@ class LLVMIRGenerator:
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
-        if fun_type.async:
+        if fun_type.is_async:
             # If this RPC is called using an `invoke` ARTIQ IR instruction, there will be
             # no other instructions in this basic block. Since this RPC is async, it cannot
             # possibly raise an exception, so add an explicit jump to the normal successor.

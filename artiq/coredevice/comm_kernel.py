@@ -403,7 +403,7 @@ class CommKernel:
             return msg
 
     def _serve_rpc(self, embedding_map):
-        async        = self._read_bool()
+        is_async     = self._read_bool()
         service_id   = self._read_int32()
         args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
@@ -413,9 +413,9 @@ class CommKernel:
         else:
             service  = embedding_map.retrieve_object(service_id)
         logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
-                     (" (async)" if async else ""), args, kwargs, return_tags)
+                     (" (async)" if is_async else ""), args, kwargs, return_tags)
 
-        if async:
+        if is_async:
             service(*args, **kwargs)
             return
 
