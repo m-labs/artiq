@@ -172,6 +172,8 @@ You do not need to remove a record in order to change its value, just overwrite 
 Core device RTIO analyzer tool
 ------------------------------
 
+:mod:`~artiq.frontend.artiq_coreanalyzer` is a tool to convert core device RTIO logs to VCD waveform files that are readable by third-party tools such as GtkWave. This tool extracts pre-recorded data from an ARTIQ core device buffer (or from a file with the ``-r`` option), and converts it to a standard VCD file format. See :ref:`rtio-analyzer-example` for an example, or :mod:`artiq.test.coredevice.test_analyzer` for a relevant unit test.
+
 .. argparse::
    :ref: artiq.frontend.artiq_coreanalyzer.get_argparser
    :prog: artiq_coreanalyzer
