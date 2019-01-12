@@ -14,6 +14,11 @@ ARTIQ-5
   have been renamed to ``ref_time_mu`` for consistency, as they are in machine
   units.
 * :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
+* A gateware-level input edge counter has been added, which offers higher
+  throughput and increased flexibility over the usual TTL input PHYs where
+  edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
+  the core device driver and :mod:`artiq.gateware.rtio.phy.edge_counter`/
+  :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
 
 
 ARTIQ-4
@@ -22,7 +27,7 @@ ARTIQ-4
 4.0
 ***
 
-* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of 
+* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of
   submitted events in software, requiring the user to explicitly specify the
   timeout for ``count()``/``timestamp_mu()``. Support for ``sync()`` has been dropped.
 
