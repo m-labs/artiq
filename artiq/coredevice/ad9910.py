@@ -371,9 +371,11 @@ class AD9910:
         self.set_cfr1(power_down=bits)
         self.cpld.io_update.pulse(1*us)
 
+    # KLUDGE: ref_time default argument is explicitly marked int64() to avoid
+    # silent truncation of explicitly passed timestamps. (Compiler bug?)
     @kernel
     def set_mu(self, ftw, pow_=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
-               ref_time=-1, profile=0):
+               ref_time=int64(-1), profile=0):
         """Set profile 0 data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -514,7 +516,7 @@ class AD9910:
 
     @kernel
     def set(self, frequency, phase=0.0, amplitude=1.0,
-            phase_mode=_PHASE_MODE_DEFAULT, ref_time=-1, profile=0):
+            phase_mode=_PHASE_MODE_DEFAULT, ref_time=int64(-1), profile=0):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
