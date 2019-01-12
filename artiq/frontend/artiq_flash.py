@@ -11,7 +11,7 @@ from functools import partial
 from collections import defaultdict
 
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import verbosity_args, init_logger
+from artiq.tools import add_common_args, init_logger
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
 
@@ -41,7 +41,7 @@ Prerequisites:
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
 """)
 
-    verbosity_args(parser)
+    add_common_args(parser)
 
     parser.add_argument("-n", "--dry-run",
                         default=False, action="store_true",

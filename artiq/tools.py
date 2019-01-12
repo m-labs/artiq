@@ -1,22 +1,21 @@
+import asyncio
+import atexit
+import collections
 import importlib.machinery
 import logging
-import sys
-import asyncio
-import collections
-import atexit
-import string
 import os
+import string
+import sys
 
 import numpy as np
 
+from artiq import __version__ as artiq_version
+from artiq.appdirs import user_config_dir
 from artiq.language.environment import is_experiment
 from artiq.protocols import pyon
-from artiq.appdirs import user_config_dir
-from artiq import __version__ as artiq_version
-
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
-           "get_experiment", "verbosity_args", "simple_network_args",
+           "get_experiment", "add_common_args", "simple_network_args",
            "multiline_log_config", "init_logger", "bind_address_from_args",
            "atexit_register_coroutine", "exc_to_warning",
            "asyncio_wait_or_cancel", "TaskObject", "Condition",
@@ -105,12 +104,22 @@ def get_experiment(module, experiment=None):
     return exps[0][1]
 
 
-def verbosity_args(parser):
-    group = parser.add_argument_group("verbosity")
+def add_common_args(parser):
+    """Add common utility arguments to the cmd parser.
+    
+    Arguments added:
+        * `-v`/`-q`: increase or decrease the default logging levels. 
+            Repeat for higher levels.
+        * `--version`: print the ARTIQ version
+    """
+    group = parser.add_argument_group("common")
     group.add_argument("-v", "--verbose", default=0, action="count",
                        help="increase logging level")
     group.add_argument("-q", "--quiet", default=0, action="count",
                        help="decrease logging level")
+    group.add_argument("--version", action="version",
+                       version="ARTIQ v{}".format(artiq_version),
+                       help="print the ARTIQ version number")
 
 
 def simple_network_args(parser, default_port):
@@ -127,7 +136,7 @@ def simple_network_args(parser, default_port):
                            help="TCP port to listen on (default: %(default)d)")
     else:
         for name, purpose, default in default_port:
-            h = ("TCP port to listen on for {} connections (default: {})"
+            h = ("TCP port for {} connections (default: {})"
                  .format(purpose, default))
             group.add_argument("--port-" + name, default=default, type=int,
                                help=h)

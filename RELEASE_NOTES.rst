@@ -8,7 +8,7 @@ ARTIQ-5
 
 5.0
 ***
-
+* :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
 
 
 ARTIQ-4

@@ -63,7 +63,7 @@ def get_argparser():
              "If the file is not found, no patterns are loaded "
              "(everything is logged).")
     simple_network_args(parser, [("control", "control", 3248)])
-    verbosity_args(parser)
+    add_common_args(parser)
     return parser
 
 

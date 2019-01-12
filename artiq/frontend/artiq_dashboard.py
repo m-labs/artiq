@@ -10,7 +10,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
-from artiq.tools import (atexit_register_coroutine, verbosity_args,
+from artiq.tools import (atexit_register_coroutine, add_common_args,
                          get_user_config_dir)
 from artiq.protocols.pc_rpc import AsyncioClient, Client
 from artiq.protocols.broadcast import Receiver
@@ -39,7 +39,7 @@ def get_argparser():
         help="database file for local GUI settings, "
              "by default in {} and dependant on master hostname".format(
                                                         get_user_config_dir()))
-    verbosity_args(parser)
+    add_common_args(parser)
     return parser
 
 
