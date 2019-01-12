@@ -12,7 +12,7 @@ import numpy as np
 import aiohttp
 
 from artiq.tools import (
-    simple_network_args, verbosity_args, atexit_register_coroutine,
+    simple_network_args, add_common_args, atexit_register_coroutine,
     bind_address_from_args, init_logger, TaskObject
 )
 from artiq.protocols.sync_struct import Subscriber
