@@ -46,7 +46,7 @@ class TTLOut:
 
     @kernel
     def on(self):
-        """Sets the output to a logic high state at the current position
+        """Set the output to a logic high state at the current position
         of the time cursor.
 
         The time cursor is not modified by this function."""
@@ -176,7 +176,7 @@ class TTLInOut:
 
     @kernel
     def pulse_mu(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in machine units).
 
         The time cursor is advanced by the specified duration."""
@@ -186,7 +186,7 @@ class TTLInOut:
 
     @kernel
     def pulse(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in seconds).
 
         The time cursor is advanced by the specified duration."""
