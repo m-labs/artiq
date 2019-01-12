@@ -371,11 +371,11 @@ class AD9910:
         self.set_cfr1(power_down=bits)
         self.cpld.io_update.pulse(1*us)
 
-    # KLUDGE: ref_time default argument is explicitly marked int64() to avoid
+    # KLUDGE: ref_time_mu default argument is explicitly marked int64() to avoid
     # silent truncation of explicitly passed timestamps. (Compiler bug?)
     @kernel
     def set_mu(self, ftw, pow_=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
-               ref_time=int64(-1), profile=0):
+               ref_time_mu=int64(-1), profile=0):
         """Set profile 0 data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -393,7 +393,7 @@ class AD9910:
         :param asf: Amplitude scale factor: 14 bit unsigned.
         :param phase_mode: If specified, overrides the default phase mode set
             by :meth:`set_phase_mode` for this call.
-        :param ref_time: Fiducial time used to compute absolute or tracking
+        :param ref_time_mu: Fiducial time used to compute absolute or tracking
             phase updates. In machine units as obtained by `now_mu()`.
         :param profile: Profile number to set (0-7, default: 0).
         :return: Resulting phase offset word after application of phase
@@ -409,14 +409,14 @@ class AD9910:
             # Auto-clear phase accumulator on IO_UPDATE.
             # This is active already for the next IO_UPDATE
             self.set_cfr1(phase_autoclear=1)
-            if phase_mode == PHASE_MODE_TRACKING and ref_time < 0:
+            if phase_mode == PHASE_MODE_TRACKING and ref_time_mu < 0:
                 # set default fiducial time stamp
-                ref_time = 0
-            if ref_time >= 0:
+                ref_time_mu = 0
+            if ref_time_mu >= 0:
                 # 32 LSB are sufficient.
                 # Also no need to use IO_UPDATE time as this
                 # is equivalent to an output pipeline latency.
-                dt = int32(now_mu()) - int32(ref_time)
+                dt = int32(now_mu()) - int32(ref_time_mu)
                 pow_ += dt*ftw*self.sysclk_per_mu >> 16
         self.write64(_AD9910_REG_PROFILE0 + profile,
             (asf << 16) | (pow_ & 0xffff), ftw)
@@ -516,7 +516,7 @@ class AD9910:
 
     @kernel
     def set(self, frequency, phase=0.0, amplitude=1.0,
-            phase_mode=_PHASE_MODE_DEFAULT, ref_time=int64(-1), profile=0):
+            phase_mode=_PHASE_MODE_DEFAULT, ref_time_mu=int64(-1), profile=0):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
@@ -525,13 +525,13 @@ class AD9910:
         :param phase: Phase tuning word in turns
         :param amplitude: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
-        :param ref_time: Fiducial time stamp in machine units
+        :param ref_time_mu: Fiducial time stamp in machine units
         :param profile: Profile to affect
         :return: Resulting phase offset in turns
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
-            self.amplitude_to_asf(amplitude), phase_mode, ref_time, profile))
+            self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu, profile))
 
     @kernel
     def set_att_mu(self, att):

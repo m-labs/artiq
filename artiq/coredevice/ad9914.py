@@ -182,7 +182,7 @@ class AD9914:
 
     @kernel
     def set_mu(self, ftw, pow=0, phase_mode=_PHASE_MODE_DEFAULT,
-               asf=0x0fff, ref_time=-1):
+               asf=0x0fff, ref_time_mu=-1):
         """Sets the DDS channel to the specified frequency and phase.
 
         This uses machine units (FTW and POW). The frequency tuning word width
@@ -196,7 +196,7 @@ class AD9914:
         :param pow: adds an offset to the phase.
         :param phase_mode: if specified, overrides the default phase mode set
             by :meth:`set_phase_mode` for this call.
-        :param ref_time: reference time used to compute phase. Specifying this
+        :param ref_time_mu: reference time used to compute phase. Specifying this
             makes it easier to have a well-defined phase relationship between
             DDSes on the same bus that are updated at a similar time.
         :return: Resulting phase offset word after application of phase
@@ -205,8 +205,8 @@ class AD9914:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        if ref_time < 0:
-            ref_time = now_mu()
+        if ref_time_mu < 0:
+            ref_time_mu = now_mu()
         delay_mu(-self.set_duration_mu)
 
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
@@ -225,9 +225,9 @@ class AD9914:
             # Enable autoclear phase accumulator and enables OSK.
             self.write(AD9914_REG_CFR1L, 0x2108)
             fud_time = now_mu() + 2 * self.write_duration_mu
-            pow -= int32((ref_time - fud_time) * self.sysclk_per_mu * ftw >> (32 - 16))
+            pow -= int32((ref_time_mu - fud_time) * self.sysclk_per_mu * ftw >> (32 - 16))
             if phase_mode == PHASE_MODE_TRACKING:
-                pow += int32(ref_time * self.sysclk_per_mu * ftw >> (32 - 16))
+                pow += int32(ref_time_mu * self.sysclk_per_mu * ftw >> (32 - 16))
 
         self.write(AD9914_REG_POW,  pow)
         self.write(AD9914_REG_ASF,  asf)

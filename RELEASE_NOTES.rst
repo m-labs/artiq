@@ -8,6 +8,11 @@ ARTIQ-5
 
 5.0
 ***
+
+* The :class:`~artiq.coredevice.ad9910.AD9910` and
+  :class:`~artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
+  have been renamed to ``ref_time_mu`` for consistency, as they are in machine
+  units.
 * :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
 
 
