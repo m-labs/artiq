@@ -158,15 +158,14 @@ Input channels and events
 
 Input channels detect events, timestamp them, and place them in a buffer for the experiment to read out.
 The following example counts the rising edges occurring during a precisely timed 500 ns interval.
-If more than 20 rising edges were received it outputs a pulse::
+If more than 20 rising edges are received, it outputs a pulse::
 
   if input.count(input.gate_rising(500*ns)) > 20:
       delay(2*us)
       output.pulse(500*ns)
 
-The :meth:`artiq.coredevice.ttl.TTLInOut.count` method of an input channel can lead to a situation of negative slack (timeline cursor ``now`` smaller than the current wall clock ``rtio_counter``):
-The :meth:`artiq.coredevice.ttl.TTLInOut.gate_rising` method leaves the timeline cursor at the closure time of the gate and ``count()`` must necessarily wait until the gate closing event has actually been executed which is sometime with ``rtio_counter > now``.
-In these situations where ``count()`` leads to a synchronization of timeline cursor and wall clock, a ``delay()`` is necessary to reestablish positive slack (i.e. set the timeline cursor ``now`` greater than the current wall clock ``rtio_counter``) so that output events can be placed.
+The :meth:`artiq.coredevice.ttl.TTLInOut.count` method of an input channel will often lead to a situation of negative slack (timeline cursor ``now`` smaller than the current wall clock ``rtio_counter``):
+The :meth:`artiq.coredevice.ttl.TTLInOut.gate_rising` method leaves the timeline cursor at the closing time of the gate. ``count()`` must necessarily wait until the gate closing event has actually been executed, at which point ``rtio_counter > now``: ``count()`` synchronizes timeline cursor (``now``) and wall clock (``rtio_counter``). In these situations, a ``delay()`` is necessary to re-establish positive slack so that further output events can be placed.
 
 Similar situations arise with methods such as :meth:`artiq.coredevice.ttl.TTLInOut.sample_get` and :meth:`artiq.coredevice.ttl.TTLInOut.watch_done`.
 
