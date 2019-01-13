@@ -42,8 +42,8 @@ quamash = python3Packages.buildPythonPackage rec {
   src = fetchFromGitHub {
     owner = "harvimt";
     repo = "quamash";
-    rev = "bbab9e30e10b71a95687b03a93524173fb7b43f0";
-    sha256 = "08hp2q4ifj6z2ww05c7zsy0cd732k9rnaims1j43vr4hhxx950mk";
+    rev = "e513b30f137415c5e098602fa383e45debab85e7";
+    sha256 = "117rp9r4lz0kfz4dmmpa35hp6nhbh6b4xq0jmgvqm68g9hwdxmqa";
   };
   propagatedBuildInputs = with python3Packages; [ pyqt5 ];
   doCheck = false;
