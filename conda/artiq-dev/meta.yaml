@@ -43,6 +43,7 @@ requirements:
     - aiohttp
     - pythonparser >=1.1
     - levenshtein
+    - pip >=18.1 
 
 about:
   home: https://m-labs.hk/artiq
