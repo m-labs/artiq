@@ -8,7 +8,7 @@ class AD9914(Module):
     def __init__(self, pads, nchannels, onehot=False, **kwargs):
         self.submodules._ll = ClockDomainsRenamer("rio_phy")(
             ad9_dds.AD9_DDS(pads, **kwargs))
-        self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus)
+        self.submodules._rt2wb = RT2WB(len(pads.a)+1, self._ll.bus, write_only=True)
         self.rtlink = self._rt2wb.rtlink
         self.probes = [Signal(32) for i in range(nchannels)]
 

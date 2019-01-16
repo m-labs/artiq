@@ -120,34 +120,6 @@ device_db = {
         "arguments": {"channel": 26}
     },
 
-    # FMC DIO used to connect to Zotino
-    "fmcdio_dirctl_clk": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 27}
-    },
-    "fmcdio_dirctl_ser": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 28}
-    },
-    "fmcdio_dirctl_latch": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 29}
-    },
-    "fmcdio_dirctl": {
-        "type": "local",
-        "module": "artiq.coredevice.shiftreg",
-        "class": "ShiftReg",
-        "arguments": {"clk": "fmcdio_dirctl_clk",
-                      "ser": "fmcdio_dirctl_ser",
-                      "latch": "fmcdio_dirctl_latch"}
-    },
-
     # DAC
     "spi_ams101": {
         "type": "local",
@@ -161,184 +133,26 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 20}
     },
-    "spi_zotino": {
-        "type": "local",
-        "module": "artiq.coredevice.spi2",
-        "class": "SPIMaster",
-        "arguments": {"channel": 30}
-    },
-    "ttl_zotino_ldac": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 31}
-    },
-    "dac_zotino": {
-        "type": "local",
-        "module": "artiq.coredevice.zotino",
-        "class": "Zotino",
-        "arguments": {
-            "spi_device": "spi_zotino",
-            "ldac_device": "ttl_zotino_ldac",
-            "div_write": 30,
-            "div_read": 40
-        }
-    },
-
-    "spi_urukul": {
-        "type": "local",
-        "module": "artiq.coredevice.spi2",
-        "class": "SPIMaster",
-        "arguments": {"channel": 32}
-    },
-    "ttl_urukul_io_update": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 33}
-    },
-    "ttl_urukul_sw0": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 35}
-    },
-    "ttl_urukul_sw1": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 36}
-    },
-    "ttl_urukul_sw2": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 37}
-    },
-    "ttl_urukul_sw3": {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 38}
-    },
-    "urukul_cpld": {
-        "type": "local",
-        "module": "artiq.coredevice.urukul",
-        "class": "CPLD",
-        "arguments": {
-            "spi_device": "spi_urukul",
-            "io_update_device": "ttl_urukul_io_update",
-            "refclk": 100e6
-        }
-    },
-    "urukul_ch0a": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9912",
-        "class": "AD9912",
-        "arguments": {
-            "pll_n": 10,
-            "chip_select": 4,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw0"
-        }
-    },
-    "urukul_ch1a": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9912",
-        "class": "AD9912",
-        "arguments": {
-            "pll_n": 10,
-            "chip_select": 5,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw1"
-        }
-    },
-    "urukul_ch2a": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9912",
-        "class": "AD9912",
-        "arguments": {
-            "pll_n": 10,
-            "chip_select": 6,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw2"
-        }
-    },
-    "urukul_ch3a": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9912",
-        "class": "AD9912",
-        "arguments": {
-            "pll_n": 10,
-            "chip_select": 7,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw3"
-        }
-    },
-    "urukul_ch0b": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9910",
-        "class": "AD9910",
-        "arguments": {
-            "pll_n": 40,
-            "chip_select": 4,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw0"
-        }
-    },
-    "urukul_ch1b": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9910",
-        "class": "AD9910",
-        "arguments": {
-            "pll_n": 40,
-            "chip_select": 5,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw1"
-        }
-    },
-    "urukul_ch2b": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9910",
-        "class": "AD9910",
-        "arguments": {
-            "pll_n": 40,
-            "chip_select": 6,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw2"
-        }
-    },
-    "urukul_ch3b": {
-        "type": "local",
-        "module": "artiq.coredevice.ad9910",
-        "class": "AD9910",
-        "arguments": {
-            "pll_n": 40,
-            "chip_select": 7,
-            "cpld_device": "urukul_cpld",
-            "sw_device": "ttl_urukul_sw3"
-        }
-    },
 
     # AD9914 DDS
     "ad9914dds0": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 0},
+        "arguments": {"sysclk": 3e9, "bus_channel": 27, "channel": 0},
         "comment": "Comments work in DDS panel as well"
     },
     "ad9914dds1": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 1}
+        "arguments": {"sysclk": 3e9, "bus_channel": 27, "channel": 1}
     },
     "ad9914dds2": {
         "type": "local",
         "module": "artiq.coredevice.ad9914",
         "class": "AD9914",
-        "arguments": {"sysclk": 3e9, "bus_channel": 39, "channel": 2}
+        "arguments": {"sysclk": 3e9, "bus_channel": 27, "channel": 2}
     },
 
     # Aliases

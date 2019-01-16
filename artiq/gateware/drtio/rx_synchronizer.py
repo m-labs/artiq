@@ -29,8 +29,8 @@ class XilinxRXSynchronizer(Module):
     """Deterministic RX synchronizer using a relatively placed macro
     to put the clock-domain-crossing FFs right next to each other.
 
-    To meet setup/hold constraints receiving FFs, adjust the phase shift 
-    of the Si5324. 
+    To meet setup/hold constraints at the receiving FFs, adjust the phase shift 
+    of the jitter cleaner. 
 
     We assume that FPGA routing variations are small enough to be negligible.
     """

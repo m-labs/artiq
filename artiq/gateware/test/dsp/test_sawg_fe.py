@@ -14,8 +14,10 @@ class RTIOManager:
     def __init__(self):
         self.outputs = []
 
-    def rtio_output(self, now, channel, addr, data):
-        self.outputs.append((now, channel, addr, data))
+    def rtio_output(self, target, data):
+        channel = target >> 8
+        addr = target & 0xff
+        self.outputs.append((now_mu(), channel, addr, data))
 
     def rtio_output_wide(self, *args, **kwargs):
         self.rtio_output(*args, **kwargs)

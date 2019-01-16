@@ -48,3 +48,4 @@ pub mod grabber;
 
 #[cfg(has_drtio)]
 pub mod drtioaux;
+pub mod drtio_routing;

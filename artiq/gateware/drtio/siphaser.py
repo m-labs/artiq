@@ -1,5 +1,5 @@
 from migen import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, PulseSynchronizer
 
 from misoc.interconnect.csr import *
 
@@ -8,12 +8,12 @@ from misoc.interconnect.csr import *
 # frequency.
 
 class SiPhaser7Series(Module, AutoCSR):
-    def __init__(self, si5324_clkin, si5324_clkout_fabric,
+    def __init__(self, si5324_clkin, rx_synchronizer,
                  ref_clk=None, ref_div2=False, rtio_clk_freq=150e6):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus(reset=1)
-        self.sample_result = CSRStatus()
+        self.error = CSR()
 
         assert rtio_clk_freq in (125e6, 150e6)
 
@@ -85,16 +85,24 @@ class SiPhaser7Series(Module, AutoCSR):
             )
         ]
 
-        si5324_clkout_se = Signal()
-        self.specials += \
-            Instance("IBUFDS",
-                p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="TRUE",
-                i_I=si5324_clkout_fabric.p, i_IB=si5324_clkout_fabric.n,
-                o_O=si5324_clkout_se),
+        # The RX synchronizer is tested for setup/hold violations by feeding it a
+        # toggling pattern and checking that the same toggling pattern comes out.
+        toggle_in = Signal()
+        self.sync.rtio_rx0 += toggle_in.eq(~toggle_in)
+        toggle_out = rx_synchronizer.resync(toggle_in)
 
-        clkout_sample1 = Signal()  # IOB register
-        self.sync.rtio_rx0 += clkout_sample1.eq(si5324_clkout_se)
-        self.specials += MultiReg(clkout_sample1, self.sample_result.status)
+        toggle_out_expected = Signal()
+        self.sync.rtio += toggle_out_expected.eq(~toggle_out)
+
+        error = Signal()
+        error_clear = PulseSynchronizer("sys", "rtio")
+        self.submodules += error_clear
+        self.sync.rtio += [
+            If(toggle_out != toggle_out_expected, error.eq(1)),
+            If(error_clear.o, error.eq(0))
+        ]
+        self.specials += MultiReg(error, self.error.w)
+        self.comb += error_clear.i.eq(self.error.re)
 
         # expose MMCM outputs - used for clock constraints
         self.mmcm_freerun_output = mmcm_freerun_output

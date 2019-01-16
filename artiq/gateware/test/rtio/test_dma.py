@@ -5,7 +5,7 @@ import itertools
 from migen import *
 from misoc.interconnect import wishbone
 
-from artiq.coredevice.exceptions import RTIOUnderflow, RTIOLinkError
+from artiq.coredevice.exceptions import RTIOUnderflow, RTIODestinationUnreachable
 from artiq.gateware import rtio
 from artiq.gateware.rtio import dma, cri
 from artiq.gateware.rtio.phy import ttl_simple
@@ -26,7 +26,7 @@ def encode_record(channel, timestamp, address, data):
     r = []
     r += encode_n(channel, 3, 3)
     r += encode_n(timestamp, 8, 8)
-    r += encode_n(address, 2, 2)
+    r += encode_n(address, 1, 1)
     r += encode_n(data, 1, 64)
     return encode_n(len(r)+1, 1, 1) + r
 
@@ -61,12 +61,12 @@ def do_dma(dut, address):
     if error & 1:
         raise RTIOUnderflow
     if error & 2:
-        raise RTIOLinkError
+        raise RTIODestinationUnreachable
 
 
 test_writes1 = [
     (0x01, 0x23, 0x12, 0x33),
-    (0x901, 0x902, 0x911, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
+    (0x901, 0x902, 0x11, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
     (0x81, 0x288, 0x88, 0x8888)
 ]
 
@@ -127,7 +127,8 @@ class FullStackTB(Module):
         self.submodules.memory = wishbone.SRAM(
             256, init=sequence, bus=bus)
         self.submodules.dut = dma.DMA(bus)
-        self.submodules.rtio = rtio.Core(rtio_channels)
+        self.submodules.tsc = rtio.TSC("async")
+        self.submodules.rtio = rtio.Core(self.tsc, rtio_channels)
         self.comb += self.dut.cri.connect(self.rtio.cri)
 
 
@@ -149,7 +150,7 @@ class TestDMA(unittest.TestCase):
                     pass
                 elif cmd == cri.commands["write"]:
                     channel = yield dut_cri.chan_sel
-                    timestamp = yield dut_cri.timestamp
+                    timestamp = yield dut_cri.o_timestamp
                     address = yield dut_cri.o_address
                     data = yield dut_cri.o_data
                     received.append((channel, timestamp, address, data))

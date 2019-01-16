@@ -161,9 +161,10 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.submodules.rtio_crg = _RTIOCRG(self.platform, self.crg.cd_sys.clk)
         self.csr_devices.append("rtio_crg")
         self.config["HAS_RTIO_CLOCK_SWITCH"] = None
-        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
@@ -180,7 +181,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
@@ -377,9 +378,10 @@ class SMA_SPI(_StandaloneBase):
                                             use_sma=False)
         self.csr_devices.append("rtio_crg")
         self.config["HAS_RTIO_CLOCK_SWITCH"] = None
-        self.submodules.rtio_core = rtio.Core(rtio_channels)
+        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
-        self.submodules.rtio = rtio.KernelInitiator()
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
             rtio.DMA(self.get_native_sdram_if()))
         self.register_kernel_cpu_csrdevice("rtio")
@@ -395,9 +397,12 @@ class SMA_SPI(_StandaloneBase):
             self.crg.cd_sys.clk,
             self.rtio_crg.cd_rtio.clk)
 
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_core.cri,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
+
+
+VARIANTS = {cls.__name__.lower(): cls for cls in [NIST_CLOCK, NIST_QC2, SMA_SPI]}
 
 
 def main():
@@ -413,13 +418,9 @@ def main():
     args = parser.parse_args()
 
     variant = args.variant.lower()
-    if variant == "nist_clock":
-        cls = NIST_CLOCK
-    elif variant == "nist_qc2":
-        cls = NIST_QC2
-    elif variant == "sma_spi":
-        cls = SMA_SPI
-    else:
+    try:
+        cls = VARIANTS[variant]
+    except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 
     soc = cls(**soc_kc705_argdict(args))

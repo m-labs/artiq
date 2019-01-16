@@ -23,7 +23,7 @@ class Grabber:
         count_width = min(31, 2*res_width + 16 - count_shift)
         # This value is inserted by the gateware to mark the start of a series of
         # ROI engine outputs for one video frame.
-        self.sentinel = int32(2**count_width)
+        self.sentinel = int32(int64(2**count_width))
 
     @kernel
     def setup_roi(self, n, x0, y0, x1, y1):
@@ -40,13 +40,13 @@ class Grabber:
         Advances the timeline by 4 coarse RTIO cycles.
         """
         c = int64(self.core.ref_multiplier)
-        rtio_output(now_mu(), self.channel_base, 4*n+0, x0)
+        rtio_output((self.channel_base << 8) | (4*n+0), x0)
         delay_mu(c)
-        rtio_output(now_mu(), self.channel_base, 4*n+1, y0)
+        rtio_output((self.channel_base << 8) | (4*n+1), y0)
         delay_mu(c)
-        rtio_output(now_mu(), self.channel_base, 4*n+2, x1)
+        rtio_output((self.channel_base << 8) | (4*n+2), x1)
         delay_mu(c)
-        rtio_output(now_mu(), self.channel_base, 4*n+3, y1)
+        rtio_output((self.channel_base << 8) | (4*n+3), y1)
         delay_mu(c)
 
     @kernel
@@ -67,7 +67,7 @@ class Grabber:
 
         :param mask: bitmask enabling or disabling each ROI engine.  
         """
-        rtio_output(now_mu(), self.channel_base+1, 0, mask)
+        rtio_output((self.channel_base + 1) << 8, mask)
 
     @kernel
     def gate_roi_pulse(self, mask, dt):

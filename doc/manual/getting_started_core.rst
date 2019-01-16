@@ -174,6 +174,7 @@ Within a parallel block, some statements can be made sequential again using a ``
             self.ttl1.pulse(4*us)
         delay(4*us)
 
+.. _rtio-analyzer-example:
 
 RTIO analyzer
 -------------

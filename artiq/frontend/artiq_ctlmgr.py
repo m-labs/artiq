@@ -10,18 +10,14 @@ import platform
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols.logging import LogForwarder, SourceFilter
 from artiq.tools import (simple_network_args, atexit_register_coroutine,
-                         bind_address_from_args)
+                         bind_address_from_args, add_common_args)
 from artiq.devices.ctlmgr import ControllerManager
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ controller manager")
 
-    group = parser.add_argument_group("verbosity")
-    group.add_argument("-v", "--verbose", default=0, action="count",
-                       help="increase logging level of the manager process")
-    group.add_argument("-q", "--quiet", default=0, action="count",
-                       help="decrease logging level of the manager process")
+    add_common_args(parser)
 
     parser.add_argument(
         "-s", "--server", default="::1",

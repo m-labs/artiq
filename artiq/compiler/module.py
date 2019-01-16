@@ -66,8 +66,8 @@ class Module:
         interleaver = transforms.Interleaver(engine=self.engine)
         invariant_detection = analyses.InvariantDetection(engine=self.engine)
 
-        cast_monomorphizer.visit(src.typedtree)
         int_monomorphizer.visit(src.typedtree)
+        cast_monomorphizer.visit(src.typedtree)
         inferencer.visit(src.typedtree)
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)

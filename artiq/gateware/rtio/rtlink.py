@@ -8,6 +8,10 @@ class OInterface:
         self.stb = Signal()
         self.busy = Signal()
 
+        assert 0 <= data_width <= 512
+        assert 0 <= address_width <= 8
+        assert 0 <= fine_ts_width <= 4
+
         if data_width:
             self.data = Signal(data_width, reset_less=True)
         if address_width:
@@ -34,6 +38,9 @@ class IInterface:
     def __init__(self, data_width,
                  timestamped=True, fine_ts_width=0, delay=0):
         self.stb = Signal()
+
+        assert 0 <= data_width <= 32
+        assert 0 <= fine_ts_width <= 4
 
         if data_width:
             self.data = Signal(data_width, reset_less=True)

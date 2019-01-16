@@ -1946,8 +1946,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         def printf(format_string, *args):
             format = ir.Constant(format_string, builtins.TStr())
             if as_rtio:
-                now_mu = self.append(ir.Builtin("now_mu", [], builtins.TInt64()))
-                self.append(ir.Builtin("rtio_log", [now_mu, format, *args], builtins.TNone()))
+                self.append(ir.Builtin("rtio_log", [format, *args], builtins.TNone()))
             else:
                 self.append(ir.Builtin("printf", [format, *args], builtins.TNone()))
 

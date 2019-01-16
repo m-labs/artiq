@@ -149,10 +149,6 @@ class LLVMIRGenerator:
             self.tbaa_tree,
             ll.Constant(lli64, 1)
         ])
-        self.tbaa_now = self.llmodule.add_metadata([
-            ll.MetaDataString(self.llmodule, "timeline position"),
-            self.tbaa_tree
-        ])
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -336,7 +332,7 @@ class LLVMIRGenerator:
         elif name == self.target.print_function:
             llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "rtio_log":
-            llty = ll.FunctionType(llvoid, [lli64, llptr], var_arg=True)
+            llty = ll.FunctionType(llvoid, [llptr], var_arg=True)
         elif name == "__artiq_personality":
             llty = ll.FunctionType(lli32, [], var_arg=True)
         elif name == "__artiq_raise":
@@ -1137,7 +1133,7 @@ class LLVMIRGenerator:
             lloperands = []
             for i, operand in enumerate(insn.operands):
                 lloperand = self.map(operand)
-                if i == 0 and insn.op == "printf" or i == 1 and insn.op == "rtio_log":
+                if i == 0 and (insn.op == "printf" or insn.op == "rtio_log"):
                     lloperands.append(self.llbuilder.extract_value(lloperand, 0))
                 elif builtins.is_str(operand.type) or builtins.is_bytes(operand.type):
                     lloperands.append(self.llbuilder.extract_value(lloperand, 1))
@@ -1152,20 +1148,34 @@ class LLVMIRGenerator:
             return self.map(insn.operands[0])
         elif insn.op == "now_mu":
             llnow = self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
-            llnow.set_metadata("tbaa", self.tbaa_now)
             return llnow
         elif insn.op == "at_mu":
             time, = insn.operands
-            return self.llbuilder.store(self.map(time), self.llbuiltin("now"))
+            lltime = self.map(time)
+            lltime_hi = self.llbuilder.trunc(self.llbuilder.lshr(lltime, ll.Constant(lli64, 32)), lli32)
+            lltime_lo = self.llbuilder.trunc(lltime, lli32)
+            llnow_hiptr = self.llbuilder.bitcast(self.llbuiltin("now"), lli32.as_pointer())
+            llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+            if self.target.little_endian:
+                lltime_hi, lltime_lo = lltime_lo, lltime_hi
+            llstore_hi = self.llbuilder.store_atomic(lltime_hi, llnow_hiptr, ordering="seq_cst", align=4)
+            llstore_lo = self.llbuilder.store_atomic(lltime_lo, llnow_loptr, ordering="seq_cst", align=4)
+            return llstore_lo
         elif insn.op == "delay_mu":
             interval, = insn.operands
             llnowptr = self.llbuiltin("now")
             llnow = self.llbuilder.load(llnowptr, name="now.old")
-            llnow.set_metadata("tbaa", self.tbaa_now)
             lladjusted = self.llbuilder.add(llnow, self.map(interval), name="now.new")
-            llnowstore = self.llbuilder.store(lladjusted, llnowptr)
-            llnowstore.set_metadata("tbaa", self.tbaa_now)
-            return llnowstore
+
+            lladjusted_hi = self.llbuilder.trunc(self.llbuilder.lshr(lladjusted, ll.Constant(lli64, 32)), lli32)
+            lladjusted_lo = self.llbuilder.trunc(lladjusted, lli32)
+            llnow_hiptr = self.llbuilder.bitcast(llnowptr, lli32.as_pointer())
+            llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+            if self.target.little_endian:
+                lladjusted_hi, lladjusted_lo = lladjusted_lo, lladjusted_hi
+            llstore_hi = self.llbuilder.store_atomic(lladjusted_hi, llnow_hiptr, ordering="seq_cst", align=4)
+            llstore_lo = self.llbuilder.store_atomic(lladjusted_lo, llnow_loptr, ordering="seq_cst", align=4)
+            return llstore_lo
         elif insn.op == "watchdog_set":
             interval, = insn.operands
             return self.llbuilder.call(self.llbuiltin("watchdog_set"), [self.map(interval)])
@@ -1332,7 +1342,7 @@ class LLVMIRGenerator:
             llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
             self.llbuilder.store(llargslot, llargptr)
 
-        if fun_type.async:
+        if fun_type.is_async:
             self.llbuilder.call(self.llbuiltin("rpc_send_async"),
                                 [llservice, lltagptr, llargs])
         else:
@@ -1342,7 +1352,7 @@ class LLVMIRGenerator:
         # Don't waste stack space on saved arguments.
         self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
-        if fun_type.async:
+        if fun_type.is_async:
             # If this RPC is called using an `invoke` ARTIQ IR instruction, there will be
             # no other instructions in this basic block. Since this RPC is async, it cannot
             # possibly raise an exception, so add an explicit jump to the normal successor.

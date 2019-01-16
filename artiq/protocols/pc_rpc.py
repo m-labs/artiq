@@ -11,19 +11,18 @@ client passes a list as a parameter of an RPC method, and that method
 client's list.
 """
 
-import socket
 import asyncio
+import inspect
+import logging
+import socket
 import threading
 import time
-import logging
-import inspect
 from operator import itemgetter
 
 from artiq.monkey_patches import *
 from artiq.protocols import pyon
 from artiq.protocols.asyncio_server import AsyncioServer as _AsyncioServer
 from artiq.protocols.packed_exceptions import *
-
 
 logger = logging.getLogger(__name__)
 
@@ -487,6 +486,27 @@ class Server(_AsyncioServer):
         else:
             self._noparallel = asyncio.Lock()
 
+    @staticmethod
+    def _document_function(function):
+        """
+        Turn a function into a tuple of its arguments and documentation.
+        
+        Allows remote inspection of what methods are available on a local device.
+        
+        Args:
+            function (Callable): a Python function to be documented.
+        
+        Returns:
+            Tuple[dict, str]: tuple of (argument specifications, 
+            function documentation).
+            Any type annotations are converted to strings (for PYON serialization).
+        """
+        argspec_dict = dict(inspect.getfullargspec(function)._asdict())
+        # Fix issue #1186: PYON can't serialize type annotations.
+        if any(argspec_dict.get("annotations", {})):
+            argspec_dict["annotations"] = str(argspec_dict["annotations"])
+        return argspec_dict, inspect.getdoc(function)
+
     async def _process_action(self, target, obj):
         if self._noparallel is not None:
             await self._noparallel.acquire()
@@ -501,9 +521,7 @@ class Server(_AsyncioServer):
                     if name.startswith("_"):
                         continue
                     method = getattr(target, name)
-                    argspec = inspect.getfullargspec(method)
-                    doc["methods"][name] = (dict(argspec._asdict()),
-                                            inspect.getdoc(method))
+                    doc["methods"][name] = self._document_function(method)
                 if self.builtin_terminate:
                     doc["methods"]["terminate"] = (
                         {
@@ -515,6 +533,7 @@ class Server(_AsyncioServer):
                             "kwonlydefaults": [],
                         },
                         "Terminate the server.")
+                logger.debug("RPC docs for %s: %s", target, doc)
                 return {"status": "ok", "ret": doc}
             elif obj["action"] == "call":
                 logger.debug("calling %s", _PrettyPrintCall(obj))

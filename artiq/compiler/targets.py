@@ -75,11 +75,15 @@ class Target:
     :var print_function: (string)
         Name of a formatted print functions (with the signature of ``printf``)
         provided by the target, e.g. ``"printf"``.
+    :var little_endian: (boolean)
+        Whether the code will be executed on a little-endian machine. This cannot be always
+        determined from data_layout due to JIT.
     """
     triple = "unknown"
     data_layout = ""
     features = []
     print_function = "printf"
+    little_endian = False
 
 
     def __init__(self):
@@ -239,6 +243,9 @@ class NativeTarget(Target):
     def __init__(self):
         super().__init__()
         self.triple = llvm.get_default_triple()
+        host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
+        assert host_data_layout[0] in "eE"
+        self.little_endian = host_data_layout[0] == "e"
 
 class OR1KTarget(Target):
     triple = "or1k-linux"
@@ -246,3 +253,4 @@ class OR1KTarget(Target):
                   "f64:32:32-v64:32:32-v128:32:32-a0:0:32-n32"
     features = ["mul", "div", "ffl1", "cmov", "addc"]
     print_function = "core_log"
+    little_endian = False

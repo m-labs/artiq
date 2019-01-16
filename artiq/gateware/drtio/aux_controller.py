@@ -211,7 +211,7 @@ class Receiver(Module, AutoCSR):
 
 # TODO: FullMemoryWE should be applied by migen.build
 @FullMemoryWE()
-class AuxController(Module):
+class DRTIOAuxController(Module):
     def __init__(self, link_layer):
         self.bus = wishbone.Interface()
         self.submodules.transmitter = Transmitter(link_layer, len(self.bus.dat_w))

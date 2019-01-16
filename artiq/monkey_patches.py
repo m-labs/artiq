@@ -5,7 +5,7 @@ import socket
 __all__ = []
 
 
-if sys.version_info[:3] >= (3, 5, 2):
+if sys.version_info[:3] >= (3, 5, 2) and sys.version_info[:3] <= (3, 6, 6):
     import asyncio
 
     # See https://github.com/m-labs/artiq/issues/506

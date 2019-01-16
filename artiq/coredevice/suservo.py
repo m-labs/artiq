@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, delay, now_mu, delay_mu, portable
+from artiq.language.core import kernel, delay, delay_mu, portable
 from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
@@ -129,7 +129,10 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
-        rtio_output(now_mu(), self.channel, addr | WE, value)
+        addr |= WE
+        value |= (addr >> 8) << COEFF_WIDTH
+        addr = addr & 0xff
+        rtio_output((self.channel << 8) | addr, value)
         delay_mu(self.ref_period_mu)
 
     @kernel
@@ -140,7 +143,9 @@ class SUServo:
 
         :param addr: Memory location address.
         """
-        rtio_output(now_mu(), self.channel, addr, 0)
+        value = (addr >> 8) << COEFF_WIDTH
+        addr = addr & 0xff
+        rtio_output((self.channel << 8) | addr, value)
         return rtio_input_data(self.channel)
 
     @kernel
@@ -262,7 +267,7 @@ class Channel:
         :param en_iir: IIR updates enable
         :param profile: Active profile (0-31)
         """
-        rtio_output(now_mu(), self.channel, 0,
+        rtio_output(self.channel << 8,
                     en_out | (en_iir << 1) | (profile << 2))
 
     @kernel

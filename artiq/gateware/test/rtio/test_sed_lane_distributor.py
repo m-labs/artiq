@@ -21,7 +21,7 @@ def simulate(input_events, compensation=None, wait=True):
     def gen():
         for channel, timestamp in input_events:
             yield dut.cri.chan_sel.eq(channel)
-            yield dut.cri.timestamp.eq(timestamp)
+            yield dut.cri.o_timestamp.eq(timestamp)
             yield
 
             yield dut.cri.cmd.eq(cri.commands["write"])

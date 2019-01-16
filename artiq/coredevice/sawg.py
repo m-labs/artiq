@@ -10,7 +10,7 @@ Output event replacement is supported except on the configuration channel.
 
 from artiq.language.types import TInt32, TFloat
 from numpy import int32, int64
-from artiq.language.core import kernel, now_mu
+from artiq.language.core import kernel
 from artiq.coredevice.spline import Spline
 from artiq.coredevice.rtio import rtio_output
 
@@ -69,7 +69,7 @@ class Config:
             ``t_sawg_spline/t_rtio_coarse = div + 1``. Default: ``0``.
         :param n: Current value of the counter. Default: ``0``.
         """
-        rtio_output(now_mu(), self.channel, _SAWG_DIV, div | (n << 16))
+        rtio_output((self.channel << 8) | _SAWG_DIV, div | (n << 16))
         delay_mu(self._rtio_interval)
 
     @kernel
@@ -108,7 +108,7 @@ class Config:
         :param clr2: Auto-clear phase accumulator of the ``phase2``/
           ``frequency2`` DDS. Default: ``True``
         """
-        rtio_output(now_mu(), self.channel, _SAWG_CLR, clr0 |
+        rtio_output((self.channel << 8) | _SAWG_CLR, clr0 |
                 (clr1 << 1) | (clr2 << 2))
         delay_mu(self._rtio_interval)
 
@@ -135,7 +135,7 @@ class Config:
               DUC-DDS data of this SAWG's *buddy* channel to *this* DAC
               channel. Default: ``0``.
         """
-        rtio_output(now_mu(), self.channel, _SAWG_IQ_EN, i_enable |
+        rtio_output((self.channel << 8) | _SAWG_IQ_EN, i_enable |
                 (q_enable << 1))
         delay_mu(self._rtio_interval)
 
@@ -151,25 +151,25 @@ class Config:
 
         .. seealso:: :meth:`set_duc_max`
         """
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_MAX, limit)
+        rtio_output((self.channel << 8) | _SAWG_DUC_MAX, limit)
         delay_mu(self._rtio_interval)
 
     @kernel
     def set_duc_min_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_DUC_MIN, limit)
+        rtio_output((self.channel << 8) | _SAWG_DUC_MIN, limit)
         delay_mu(self._rtio_interval)
 
     @kernel
     def set_out_max_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_OUT_MAX, limit)
+        rtio_output((self.channel << 8) | _SAWG_OUT_MAX, limit)
         delay_mu(self._rtio_interval)
 
     @kernel
     def set_out_min_mu(self, limit: TInt32):
         """.. seealso:: :meth:`set_duc_max_mu`"""
-        rtio_output(now_mu(), self.channel, _SAWG_OUT_MIN, limit)
+        rtio_output((self.channel << 8) | _SAWG_OUT_MIN, limit)
         delay_mu(self._rtio_interval)
 
     @kernel

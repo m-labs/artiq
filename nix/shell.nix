@@ -1,8 +1,7 @@
-{system ? builtins.currentSystem}:
-let
-  pkgs = import <nixpkgs> {inherit system;};
-  artiq = pkgs.callPackage ./default.nix {};
+let 
+  pkgs = import <nixpkgs> {};
+  artiqpkgs = import ./default.nix { inherit pkgs; };
 in
-pkgs.mkShell {
-  buildInputs = [ artiq ];
-}
+  pkgs.mkShell {
+    buildInputs = with artiqpkgs; [ binutils-or1k llvm-or1k llvmlite artiq ];
+  }

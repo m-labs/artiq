@@ -207,7 +207,7 @@ pub extern fn main() -> i32 {
     println!(r"|_|  |_|_|____/ \___/ \____|");
     println!("");
     println!("MiSoC Bootloader");
-    println!("Copyright (c) 2017-2018 M-Labs Limited");
+    println!("Copyright (c) 2017-2019 M-Labs Limited");
     println!("");
 
     if startup() {

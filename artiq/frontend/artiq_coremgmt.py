@@ -3,7 +3,7 @@
 import argparse
 import struct
 
-from artiq.tools import verbosity_args, init_logger
+from artiq.tools import add_common_args, init_logger
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
@@ -14,7 +14,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "management tool")
 
-    verbosity_args(parser)
+    add_common_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
     parser.add_argument("-D", "--device", default=None,

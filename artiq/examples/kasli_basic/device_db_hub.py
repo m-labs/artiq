@@ -86,13 +86,19 @@ for j in range(3):
             "type": "local",
             "module": "artiq.coredevice.spi2",
             "class": "SPIMaster",
-            "arguments": {"channel": 27 + 2*j}
+            "arguments": {"channel": 27 + 3*j}
+        },
+        "ttl_urukul{}_sync".format(j): {
+            "type": "local",
+            "module": "artiq.coredevice.ttl",
+            "class": "TTLClockGen",
+            "arguments": {"channel": 28 + 3*j, "acc_width": 4}
         },
         "ttl_urukul{}_io_update".format(j): {
             "type": "local",
             "module": "artiq.coredevice.ttl",
             "class": "TTLOut",
-            "arguments": {"channel": 28 + 2*j}
+            "arguments": {"channel": 29 + 3*j}
         },
         "urukul{}_cpld".format(j): {
             "type": "local",
@@ -100,6 +106,7 @@ for j in range(3):
             "class": "CPLD",
             "arguments": {
                 "spi_device": "spi_urukul{}".format(j),
+                "sync_device": "ttl_urukul{}_sync".format(j),
                 "io_update_device": "ttl_urukul{}_io_update".format(j),
                 "refclk": 100e6,
                 "clk_sel": 0
@@ -126,13 +133,13 @@ device_db.update({
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 33}
+        "arguments": {"channel": 36}
     },
     "led1": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 34}
+        "arguments": {"channel": 37}
     }
 })
 
@@ -142,19 +149,19 @@ device_db.update({
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 35}
+        "arguments": {"channel": 38}
     },
     "ttl_zotino0_ldac": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 36}
+        "arguments": {"channel": 39}
     },
     "ttl_zotino0_clr": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 37}
+        "arguments": {"channel": 40}
     },
     "zotino0": {
         "type": "local",

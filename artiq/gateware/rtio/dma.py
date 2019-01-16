@@ -148,7 +148,7 @@ record_layout = [
     ("length", 8),  # of whole record (header+data)
     ("channel", 24),
     ("timestamp", 64),
-    ("address", 16),
+    ("address", 8),
     ("data", 512)  # variable length
 ]
 
@@ -274,7 +274,7 @@ class CRIMaster(Module, AutoCSR):
 
         self.comb += [
             self.cri.chan_sel.eq(self.sink.channel),
-            self.cri.timestamp.eq(self.sink.timestamp),
+            self.cri.o_timestamp.eq(self.sink.timestamp),
             self.cri.o_address.eq(self.sink.address),
             self.cri.o_data.eq(self.sink.data)
         ]

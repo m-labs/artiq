@@ -29,11 +29,12 @@ class TTLOut:
 
     :param channel: channel number
     """
-    kernel_invariants = {"core", "channel"}
+    kernel_invariants = {"core", "channel", "target_o"}
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+        self.target_o = channel << 8
 
     @kernel
     def output(self):
@@ -41,11 +42,11 @@ class TTLOut:
 
     @kernel
     def set_o(self, o):
-        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
+        rtio_output(self.target_o, 1 if o else 0)
 
     @kernel
     def on(self):
-        """Sets the output to a logic high state at the current position
+        """Set the output to a logic high state at the current position
         of the time cursor.
 
         The time cursor is not modified by this function."""
@@ -106,15 +107,30 @@ class TTLInOut:
 
     :param channel: channel number
     """
-    kernel_invariants = {"core", "channel"}
+    kernel_invariants = {"core", "channel", "gate_latency_mu",
+        "target_o", "target_oe", "target_sens", "target_sample"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, gate_latency_mu=None,
+                 core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
 
+        # With TTLs inputs, the gate control is connected to a high-latency
+        # path through SED. When looking at the RTIO counter to determine if
+        # the gate has closed, we need to take this latency into account.
+        # See: https://github.com/m-labs/artiq/issues/1137
+        if gate_latency_mu is None:
+            gate_latency_mu = 13*self.core.ref_multiplier
+        self.gate_latency_mu = gate_latency_mu
+
+        self.target_o      = (channel << 8) + 0
+        self.target_oe     = (channel << 8) + 1
+        self.target_sens   = (channel << 8) + 2
+        self.target_sample = (channel << 8) + 3
+
     @kernel
     def set_oe(self, oe):
-        rtio_output(now_mu(), self.channel, 1, 1 if oe else 0)
+        rtio_output(self.target_oe, 1 if oe else 0)
 
     @kernel
     def output(self):
@@ -136,7 +152,7 @@ class TTLInOut:
 
     @kernel
     def set_o(self, o):
-        rtio_output(now_mu(), self.channel, 0, 1 if o else 0)
+        rtio_output(self.target_o, 1 if o else 0)
 
     @kernel
     def on(self):
@@ -160,7 +176,7 @@ class TTLInOut:
 
     @kernel
     def pulse_mu(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in machine units).
 
         The time cursor is advanced by the specified duration."""
@@ -170,7 +186,7 @@ class TTLInOut:
 
     @kernel
     def pulse(self, duration):
-        """Pulses the output high for the specified duration
+        """Pulse the output high for the specified duration
         (in seconds).
 
         The time cursor is advanced by the specified duration."""
@@ -181,7 +197,7 @@ class TTLInOut:
     # Input API: gating
     @kernel
     def _set_sensitivity(self, value):
-        rtio_output(now_mu(), self.channel, 2, value)
+        rtio_output(self.target_sens, value)
 
     @kernel
     def gate_rising_mu(self, duration):
@@ -323,7 +339,7 @@ class TTLInOut:
                 ttl_input.count(ttl_input.gate_rising(100 * us))
         """
         count = 0
-        while rtio_input_timestamp(up_to_timestamp_mu, self.channel) >= 0:
+        while rtio_input_timestamp(up_to_timestamp_mu + self.gate_latency_mu, self.channel) >= 0:
             count += 1
         return count
 
@@ -346,7 +362,7 @@ class TTLInOut:
         :return: The timestamp (in machine units) of the first event received;
             -1 on timeout.
         """
-        return rtio_input_timestamp(up_to_timestamp_mu, self.channel)
+        return rtio_input_timestamp(up_to_timestamp_mu + self.gate_latency_mu, self.channel)
 
     # Input API: sampling
     @kernel
@@ -355,7 +371,7 @@ class TTLInOut:
         position of the time cursor.
 
         The time cursor is not modified by this function."""
-        rtio_output(now_mu(), self.channel, 3, 0)
+        rtio_output(self.target_sample, 0)
 
     @kernel
     def sample_get(self):
@@ -392,13 +408,13 @@ class TTLInOut:
 
         The time cursor is not modified by this function.
         """
-        rtio_output(now_mu(), self.channel, 3, 2)  # gate falling
+        rtio_output(self.target_sample, 2)  # gate falling
         return rtio_input_data(self.channel) == 1
 
     @kernel
     def watch_stay_off(self):
         """Like :meth:`watch_stay_on`, but for low levels."""
-        rtio_output(now_mu(), self.channel, 3, 1)  # gate rising
+        rtio_output(self.target_sample, 1)  # gate rising
         return rtio_input_data(self.channel) == 0
 
     @kernel
@@ -411,10 +427,10 @@ class TTLInOut:
         The time cursor is not modified by this function. This function
         always makes the slack negative.
         """
-        rtio_output(now_mu(), self.channel, 2, 0)
+        rtio_output(self.target_sens, 0)
         success = True
         try:
-            while rtio_input_timestamp(now_mu(), self.channel) != -1:
+            while rtio_input_timestamp(now_mu() + self.gate_latency_mu, self.channel) != -1:
                 success = False
         except RTIOOverflow:
             success = False
@@ -430,14 +446,16 @@ class TTLClockGen:
     The time cursor is not modified by any function in this class.
 
     :param channel: channel number
+    :param acc_width: accumulator width in bits
     """
-    kernel_invariants = {"core", "channel", "acc_width"}
+    kernel_invariants = {"core", "channel", "target", "acc_width"}
 
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, acc_width=24, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
+        self.target = channel << 8
 
-        self.acc_width = numpy.int64(24)
+        self.acc_width = numpy.int64(acc_width)
 
     @portable
     def frequency_to_ftw(self, frequency):
@@ -471,7 +489,7 @@ class TTLClockGen:
         Due to the way the clock generator operates, frequency tuning words
         that are not powers of two cause jitter of one RTIO clock cycle at the
         output."""
-        rtio_output(now_mu(), self.channel, 0, frequency)
+        rtio_output(self.target, frequency)
 
     @kernel
     def set(self, frequency):

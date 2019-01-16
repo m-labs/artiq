@@ -7,7 +7,7 @@ Output event replacement is not supported and issuing commands at the same
 time is an error.
 """
 
-from artiq.language.core import syscall, kernel, portable, now_mu, delay_mu
+from artiq.language.core import syscall, kernel, portable, delay_mu
 from artiq.language.types import TInt32, TNone
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
@@ -166,7 +166,7 @@ class SPIMaster:
             raise ValueError("Invalid SPI transfer length")
         if div > 257 or div < 2:
             raise ValueError("Invalid SPI clock divider")
-        rtio_output(now_mu(), self.channel, SPI_CONFIG_ADDR, flags |
+        rtio_output((self.channel << 8) | SPI_CONFIG_ADDR, flags |
                 ((length - 1) << 8) | ((div - 2) << 16) | (cs << 24))
         self.update_xfer_duration_mu(div, length)
         delay_mu(self.ref_period_mu)
@@ -185,6 +185,12 @@ class SPIMaster:
 
         This method is portable and can also be called from e.g.
         :meth:`__init__`.
+
+        .. warning:: If this method is called while recording a DMA
+           sequence, the playback of the sequence will not update the
+           driver state.
+           When required, update the driver state manually (by calling
+           this method) after playing back a DMA sequence.
 
         :param div: SPI clock divider (see: :meth:`set_config_mu`)
         :param length: SPI transfer length (see: :meth:`set_config_mu`)
@@ -216,7 +222,7 @@ class SPIMaster:
 
         :param data: SPI output data to be written.
         """
-        rtio_output(now_mu(), self.channel, SPI_DATA_ADDR, data)
+        rtio_output((self.channel << 8) | SPI_DATA_ADDR, data)
         delay_mu(self.xfer_duration_mu)
 
     @kernel

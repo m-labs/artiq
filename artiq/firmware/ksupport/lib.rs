@@ -20,6 +20,8 @@ use dyld::Library;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
+#[cfg(has_rtio_dma)]
+use board_misoc::csr;
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -99,7 +101,6 @@ mod api;
 mod rtio;
 mod nrt_bus;
 
-static mut NOW: u64 = 0;
 static mut LIBRARY: Option<Library<'static>> = None;
 
 #[no_mangle]
@@ -114,8 +115,8 @@ pub extern fn send_to_core_log(text: CSlice<u8>) {
 }
 
 #[no_mangle]
-pub extern fn send_to_rtio_log(timestamp: i64, text: CSlice<u8>) {
-    rtio::log(timestamp, text.as_ref())
+pub extern fn send_to_rtio_log(text: CSlice<u8>) {
+    rtio::log(text.as_ref())
 }
 
 #[unwind(aborts)]
@@ -184,7 +185,6 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
     }
     let backtrace = &mut backtrace.as_mut()[0..cursor];
 
-    send(&NowSave(unsafe { NOW }));
     send(&RunException {
         exception: kernel_proto::Exception {
             name:     str::from_utf8(exception.name.as_ref()).unwrap(),
@@ -301,10 +301,10 @@ extern fn dma_record_stop(duration: i64) {
 
 #[unwind(aborts)]
 #[inline(always)]
-unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
+unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
                                     words: usize) -> &'static mut [u8] {
     // See gateware/rtio/dma.py.
-    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/2;
+    const HEADER_LENGTH: usize = /*length*/1 + /*channel*/3 + /*timestamp*/8 + /*address*/1;
     let length = HEADER_LENGTH + /*data*/words * 4;
 
     if DMA_RECORDER.buffer.len() - DMA_RECORDER.data_len < length {
@@ -319,9 +319,9 @@ unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
 
     header.copy_from_slice(&[
         (length    >>  0) as u8,
-        (channel   >>  0) as u8,
-        (channel   >>  8) as u8,
-        (channel   >> 16) as u8,
+        (target    >>  8) as u8,
+        (target    >>  16) as u8,
+        (target    >>  24) as u8,
         (timestamp >>  0) as u8,
         (timestamp >>  8) as u8,
         (timestamp >> 16) as u8,
@@ -330,17 +330,17 @@ unsafe fn dma_record_output_prepare(timestamp: i64, channel: i32, address: i32,
         (timestamp >> 40) as u8,
         (timestamp >> 48) as u8,
         (timestamp >> 56) as u8,
-        (address   >>  0) as u8,
-        (address   >>  8) as u8,
+        (target    >>  0) as u8,
     ]);
 
     data
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i32) {
+extern fn dma_record_output(target: i32, word: i32) {
     unsafe {
-        let data = dma_record_output_prepare(timestamp, channel, address, 1);
+        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
             (word >>  0) as u8,
             (word >>  8) as u8,
@@ -351,11 +351,12 @@ extern fn dma_record_output(timestamp: i64, channel: i32, address: i32, word: i3
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output_wide(timestamp: i64, channel: i32, address: i32, words: CSlice<i32>) {
+extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let mut data = dma_record_output_prepare(timestamp, channel, address, 1);
+        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
                 (word >>  0) as u8,
@@ -407,8 +408,6 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
     unsafe {
-        use board_misoc::csr;
-
         csr::rtio_dma::base_address_write(ptr as u64);
         csr::rtio_dma::time_offset_write(timestamp as u64);
 
@@ -428,8 +427,8 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
                     timestamp as i64, channel as i64, 0);
             }
             if error & 2 != 0 {
-                raise!("RTIOLinkError",
-                    "RTIO output link error at {0} mu, channel {1}",
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, output, at {0} mu, channel {1}",
                     timestamp as i64, channel as i64, 0);
             }
         }
@@ -509,14 +508,24 @@ pub unsafe fn main() {
 
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
-    send(&NowInitRequest);
-    recv!(&NowInitReply(now) => NOW = now);
     (mem::transmute::<u32, fn()>(__modinit__))();
-    send(&NowSave(NOW));
 
     if let Some(typeinfo) = typeinfo {
         attribute_writeback(typeinfo as *const ());
     }
+
+    // Make sure all async RPCs are processed before exiting.
+    // Otherwise, if the comms and kernel CPU run in the following sequence:
+    //
+    //    comms                     kernel
+    //    -----------------------   -----------------------
+    //    check for async RPC
+    //                              post async RPC
+    //                              post RunFinished
+    //    check for mailbox
+    //
+    // the async RPC would be missed.
+    send(&RpcFlush);
 
     send(&RunFinished);
 

@@ -14,8 +14,7 @@ from artiq.gateware.rtio.input_collector import *
 
 
 class Core(Module, AutoCSR):
-    def __init__(self, channels, lane_count=8, fifo_depth=128,
-                 glbl_fine_ts_width=None):
+    def __init__(self, tsc, channels, lane_count=8, fifo_depth=128):
         self.cri = cri.Interface()
         self.reset = CSR()
         self.reset_phy = CSR()
@@ -61,36 +60,23 @@ class Core(Module, AutoCSR):
                                      for channel in channels),
                                  max(rtlink.get_fine_ts_width(channel.interface.i)
                                      for channel in channels))
-        if glbl_fine_ts_width is None:
-            glbl_fine_ts_width = chan_fine_ts_width
-        assert glbl_fine_ts_width >= chan_fine_ts_width
-
-        coarse_ts = Signal(64-glbl_fine_ts_width)
-        self.sync.rtio += coarse_ts.eq(coarse_ts + 1)
-        coarse_ts_cdc = GrayCodeTransfer(len(coarse_ts))  # from rtio to sys
-        self.submodules += coarse_ts_cdc
-        self.comb += [
-            coarse_ts_cdc.i.eq(coarse_ts),
-            self.cri.counter.eq(coarse_ts_cdc.o << glbl_fine_ts_width)
-        ]
-        self.coarse_ts = coarse_ts
+        assert tsc.glbl_fine_ts_width >= chan_fine_ts_width
 
         # Outputs/Inputs
         quash_channels = [n for n, c in enumerate(channels) if isinstance(c, LogChannel)]
 
-        outputs = SED(channels, glbl_fine_ts_width, "async",
+        outputs = SED(channels, tsc.glbl_fine_ts_width, "async",
             quash_channels=quash_channels,
             lane_count=lane_count, fifo_depth=fifo_depth,
             interface=self.cri)
         self.submodules += outputs
-        self.comb += outputs.coarse_timestamp.eq(coarse_ts)
-        self.sync += outputs.minimum_coarse_timestamp.eq(coarse_ts_cdc.o + 16)
+        self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)
+        self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts_sys + 16)
 
-        inputs = InputCollector(channels, glbl_fine_ts_width, "async",
+        inputs = InputCollector(tsc, channels, "async",
             quash_channels=quash_channels,
             interface=self.cri)
         self.submodules += inputs
-        self.comb += inputs.coarse_timestamp.eq(coarse_ts)
 
         # Asychronous output errors
         o_collision_sync = BlindTransfer(data_width=16)

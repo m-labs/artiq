@@ -44,7 +44,7 @@ class TDR(EnvExperiment):
         try:
             self.many(n, self.core.seconds_to_mu(pulse))
         except PulseNotReceivedError:
-            print("to few edges: cable too long or wiring bad")
+            print("too few edges: cable too long or wiring bad")
         else:
             print(self.t)
             t_rise = mu_to_seconds(self.t[0], self.core)/n - latency

@@ -3,13 +3,31 @@
 Release notes
 =============
 
+ARTIQ-5
+-------
+
+5.0
+***
+
+* The :class:`~artiq.coredevice.ad9910.AD9910` and
+  :class:`~artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
+  have been renamed to ``ref_time_mu`` for consistency, as they are in machine
+  units.
+* :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
+* A gateware-level input edge counter has been added, which offers higher
+  throughput and increased flexibility over the usual TTL input PHYs where
+  edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
+  the core device driver and :mod:`artiq.gateware.rtio.phy.edge_counter`/
+  :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
+
+
 ARTIQ-4
 -------
 
 4.0
 ***
 
-* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of 
+* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of
   submitted events in software, requiring the user to explicitly specify the
   timeout for ``count()``/``timestamp_mu()``. Support for ``sync()`` has been dropped.
 
@@ -67,6 +85,11 @@ ARTIQ-4
   clocks dynamically (i.e. without device restart) is no longer supported.
 * ``set_dataset(..., save=True)`` has been renamed
   ``set_dataset(..., archive=True)``.
+* On the AD9914 DDS, when switching to ``PHASE_MODE_CONTINUOUS`` from another mode,
+  use the returned value of the last ``set_mu`` call as the phase offset for
+  ``PHASE_MODE_CONTINUOUS`` to avoid a phase discontinuity. This is no longer done
+  automatically. If one phase glitch when entering ``PHASE_MODE_CONTINUOUS`` is not
+  an issue, this recommendation can be ignored.
 
 
 ARTIQ-3

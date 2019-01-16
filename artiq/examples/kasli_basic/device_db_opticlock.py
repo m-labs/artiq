@@ -198,7 +198,7 @@ device_db = {
         "class": "TTLOut",
         "arguments": {"channel": 25}
     },
-    "novogorny0" : {
+    "novogorny0": {
         "type": "local",
         "module": "artiq.coredevice.novogorny",
         "class": "Novogorny",
@@ -313,23 +313,94 @@ device_db = {
         "arguments": {"channel": 33}
     },
 
+    "spi_urukul1": {
+        "type": "local",
+        "module": "artiq.coredevice.spi2",
+        "class": "SPIMaster",
+        "arguments": {"channel": 34}
+    },
+    "ttl_urukul1_sync": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
+        "arguments": {"channel": 35, "acc_width": 4}
+    },
+    "ttl_urukul1_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 36}
+    },
+    "urukul1_cpld": {
+        "type": "local",
+        "module": "artiq.coredevice.urukul",
+        "class": "CPLD",
+        "arguments": {
+            "spi_device": "spi_urukul1",
+            "sync_device": "ttl_urukul1_sync",
+            "io_update_device": "ttl_urukul1_io_update",
+            "refclk": 100e6,
+            "clk_sel": 1
+        }
+    },
+    "urukul1_ch0": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 4,
+            "cpld_device": "urukul1_cpld"
+        }
+    },
+    "urukul1_ch1": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 5,
+            "cpld_device": "urukul1_cpld"
+        }
+    },
+    "urukul1_ch2": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 6,
+            "cpld_device": "urukul1_cpld"
+        }
+    },
+    "urukul1_ch3": {
+        "type": "local",
+        "module": "artiq.coredevice.ad9910",
+        "class": "AD9910",
+        "arguments": {
+            "pll_n": 40,
+            "chip_select": 7,
+            "cpld_device": "urukul1_cpld"
+        }
+    },
+
     "spi_zotino0": {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 36}
+        "arguments": {"channel": 37}
     },
     "ttl_zotino0_ldac": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 37}
+        "arguments": {"channel": 38}
     },
     "ttl_zotino0_clr": {
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 38}
+        "arguments": {"channel": 39}
     },
     "zotino0": {
         "type": "local",

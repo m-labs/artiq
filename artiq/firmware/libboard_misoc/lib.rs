@@ -15,7 +15,9 @@ pub use arch::*;
 
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/mem.rs"));
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/csr.rs"));
+#[cfg(has_dfii)]
 include!(concat!(env!("BUILDINC_DIRECTORY"), "/generated/sdram_phy.rs"));
+#[cfg(has_dfii)]
 pub mod sdram;
 pub mod ident;
 pub mod clock;
