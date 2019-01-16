@@ -21,7 +21,7 @@ The conda package contains pre-built binaries that you can directly flash to you
 Installing Anaconda or Miniconda
 --------------------------------
 
-You can either install Anaconda (choose Python 3.5) from https://store.continuum.io/cshop/anaconda/ or install the more minimalistic Miniconda (choose Python 3.5) from http://conda.pydata.org/miniconda.html
+You can either install Anaconda from https://www.anaconda.com/download/ or install the more minimalistic Miniconda from https://conda.io/miniconda.html
 
 After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
 
@@ -35,17 +35,17 @@ Installing the ARTIQ packages
 .. note::
     On a system with a pre-existing conda installation, it is recommended to update conda to the latest version prior to installing ARTIQ.
 
-First add the conda-forge repository containing ARTIQ dependencies to your conda configuration::
+Add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates::
 
-    $ conda config --prepend channels http://conda.anaconda.org/conda-forge/label/main
-
-Then add the M-Labs ``main`` Anaconda package repository containing stable releases and release candidates::
-
-    $ conda config --prepend channels http://conda.anaconda.org/m-labs/label/main
+    $ conda config --prepend channels m-labs
 
 .. note::
-    To use the development versions of ARTIQ, also add the ``dev`` label (http://conda.anaconda.org/m-labs/label/dev).
-    Development versions are built for every change and contain more features, but are not as well-tested and are more likely to contain more bugs or inconsistencies than the releases in the ``main`` label.
+    To use the development versions of ARTIQ, also add the ``dev`` label (m-labs/label/dev).
+    Development versions are built for every change and contain more features, but are not as well-tested and are more likely to contain more bugs or inconsistencies than the releases in the default ``main`` label.
+
+Add the conda-forge repository containing ARTIQ dependencies to your conda configuration::
+
+    $ conda config --add channels conda-forge
 
 Then prepare to create a new conda environment with the ARTIQ package and the matching binaries for your hardware:
 choose a suitable name for the environment, for example ``artiq-main`` if you intend to track the main label, ``artiq-3`` for the 3.x release series, or ``artiq-2016-04-01`` if you consider the environment a snapshot of ARTIQ on 2016-04-01.
