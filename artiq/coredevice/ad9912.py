@@ -21,14 +21,14 @@ class AD9912:
     :param sw_device: Name of the RF switch device. The RF switch is a
         TTLOut channel available as the :attr:`sw` attribute of this instance.
     :param pll_n: DDS PLL multiplier. The DDS sample clock is
-        f_ref*pll_n where f_ref is the reference frequency (set in the parent
-        Urukul CPLD instance).
+        f_ref/clk_div*pll_n where f_ref is the reference frequency and clk_div
+        is the reference clock divider (both set in the parent Urukul CPLD
+        instance).
     """
-    kernel_invariants = {"chip_select", "cpld", "core", "bus",
-            "ftw_per_hz", "sysclk", "pll_n"}
+    kernel_invariants = {"chip_select", "cpld", "core", "bus", "ftw_per_hz"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
-            pll_n=10):
+                 pll_n=10):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -38,9 +38,9 @@ class AD9912:
             self.sw = dmgr.get(sw_device)
             self.kernel_invariants.add("sw")
         self.pll_n = pll_n
-        self.sysclk = self.cpld.refclk*pll_n
-        assert self.sysclk <= 1e9
-        self.ftw_per_hz = 1/self.sysclk*(int64(1) << 48)
+        sysclk = self.cpld.refclk/[1, 1, 2, 4][self.cpld.clk_div]*pll_n
+        assert sysclk <= 1e9
+        self.ftw_per_hz = 1/sysclk*(int64(1) << 48)
 
     @kernel
     def write(self, addr, data, length):
