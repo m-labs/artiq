@@ -75,8 +75,10 @@ class AD9910:
     :param sw_device: Name of the RF switch device. The RF switch is a
         TTLOut channel available as the :attr:`sw` attribute of this instance.
     :param pll_n: DDS PLL multiplier. The DDS sample clock is
-        f_ref/4*pll_n where f_ref is the reference frequency (set in the parent
+        f_ref/clk_div*pll_n where f_ref is the reference frequency and
+        clk_div is the reference clock divider (both set in the parent
         Urukul CPLD instance).
+    :param pll_en: PLL enable bit, set to 0 to bypass PLL (default: 1).
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
     :param sync_delay_seed: SYNC_IN delay tuning starting value.
@@ -88,12 +90,11 @@ class AD9910:
         set this to the delay tap number returned.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-                         "ftw_per_hz", "pll_n", "io_update_delay",
-                         "sysclk_per_mu"}
+                         "ftw_per_hz", "io_update_delay", "sysclk_per_mu"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
-                 io_update_delay=0):
+                 io_update_delay=0, pll_en=1):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -102,24 +103,30 @@ class AD9910:
         if sw_device:
             self.sw = dmgr.get(sw_device)
             self.kernel_invariants.add("sw")
-        assert 12 <= pll_n <= 127
+        clk = self.cpld.refclk/[4, 1, 2, 4][self.cpld.clk_div]
+        self.pll_en = pll_en
         self.pll_n = pll_n
-        assert self.cpld.refclk/4 <= 60e6
-        sysclk = self.cpld.refclk*pll_n/4  # Urukul clock fanout divider
+        self.pll_vco = pll_vco
+        self.pll_cp = pll_cp
+        if pll_en:
+            sysclk = clk*pll_n
+            assert clk <= 60e6
+            assert 12 <= pll_n <= 127
+            assert 0 <= pll_vco <= 5
+            vco_min, vco_max = [(370, 510), (420, 590), (500, 700),
+                                (600, 880), (700, 950), (820, 1150)][pll_vco]
+            assert vco_min <= sysclk/1e6 <= vco_max
+            assert 0 <= pll_cp <= 7
+        else:
+            sysclk = clk
         assert sysclk <= 1e9
         self.ftw_per_hz = (1 << 32)/sysclk
         self.sysclk_per_mu = int(round(sysclk*self.core.ref_period))
-        assert self.sysclk_per_mu == sysclk*self.core.ref_period
-        assert 0 <= pll_vco <= 5
-        vco_min, vco_max = [(370, 510), (420, 590), (500, 700),
-                            (600, 880), (700, 950), (820, 1150)][pll_vco]
-        assert vco_min <= sysclk/1e6 <= vco_max
-        self.pll_vco = pll_vco
-        assert 0 <= pll_cp <= 7
-        self.pll_cp = pll_cp
         if sync_delay_seed >= 0 and not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
         self.sync_delay_seed = sync_delay_seed
+        if self.sync_delay_seed >= 0:
+            assert self.sysclk_per_mu == sysclk*self.core.ref_period
         self.io_update_delay = io_update_delay
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
@@ -340,24 +347,27 @@ class AD9910:
         # sync timing validation disable (enabled later)
         self.write32(_AD9910_REG_CFR2, 0x01010020)
         self.cpld.io_update.pulse(1*us)
-        cfr3 = (0x0807c100 | (self.pll_vco << 24) |
-                (self.pll_cp << 19) | (self.pll_n << 1))
+        cfr3 = (0x08078000 | (self.pll_vco << 24) |
+                (self.pll_cp << 19) | (self.pll_en << 8) |
+                (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
         self.cpld.io_update.pulse(1*us)
-        self.write32(_AD9910_REG_CFR3, cfr3)
-        self.cpld.io_update.pulse(1*us)
-        if blind:
-            delay(100*ms)
-        else:
-            # Wait for PLL lock, up to 100 ms
-            for i in range(100):
-                sta = self.cpld.sta_read()
-                lock = urukul_sta_pll_lock(sta)
-                delay(1*ms)
-                if lock & (1 << self.chip_select - 4):
-                    break
-                if i >= 100 - 1:
-                    raise ValueError("PLL lock timeout")
+        if self.pll_en:
+            self.write32(_AD9910_REG_CFR3, cfr3)
+            self.cpld.io_update.pulse(1*us)
+            if blind:
+                delay(100*ms)
+            else:
+                # Wait for PLL lock, up to 100 ms
+                for i in range(100):
+                    sta = self.cpld.sta_read()
+                    lock = urukul_sta_pll_lock(sta)
+                    delay(1*ms)
+                    if lock & (1 << self.chip_select - 4):
+                        break
+                    if i >= 100 - 1:
+                        raise ValueError("PLL lock timeout")
+        delay(10*us)  # slack
         if self.sync_delay_seed >= 0:
             self.tune_sync_delay(self.sync_delay_seed)
         delay(1*ms)
