@@ -31,6 +31,7 @@ CFG_CLK_SEL1 = 21
 CFG_SYNC_SEL = 18
 CFG_RST = 19
 CFG_IO_RST = 20
+CFG_CLK_DIV = 22
 
 # STA status register bit offsets
 STA_RF_SW = 0
@@ -54,7 +55,7 @@ CS_DDS_CH3 = 7
 
 @portable
 def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
-               clk_sel, sync_sel, rst, io_rst):
+               clk_sel, sync_sel, rst, io_rst, clk_div):
     """Build Urukul CPLD configuration register"""
     return ((rf_sw << CFG_RF_SW) |
             (led << CFG_LED) |
@@ -65,7 +66,8 @@ def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
             ((clk_sel & 0x02) << (CFG_CLK_SEL1 - 1)) |
             (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) |
-            (io_rst << CFG_IO_RST))
+            (io_rst << CFG_IO_RST) |
+            (clk_div << CFG_CLK_DIV))
 
 
 @portable
@@ -133,6 +135,11 @@ class CPLD:
         internal MMCX. For hardware revision <= v1.2 valid options are: 0 -
         either XO or MMCX dependent on component population; 1 SMA. Unsupported
         clocking options are silently ignored.
+    :param clk_div: Reference clock divider. Valid options are 0: variant
+        dependent default (divide-by-4 for AD9910 and divide-by-1 for AD9912);
+        1: divide-by-1; 2: divide-by-2; 3: divide-by-4.
+        On Urukul boards with CPLD gateware before v1.3.1 only the default
+        (0, i.e. variant dependent divider) is valid.
     :param sync_sel: SYNC (multi-chip synchronisation) signal source selection.
         0 corresponds to SYNC_IN being supplied by the FPGA via the EEM
         connector. 1 corresponds to SYNC_OUT from DDS0 being distributed to the
@@ -148,16 +155,18 @@ class CPLD:
         `sync_device` was specified).
     :param core_device: Core device name
     """
-    kernel_invariants = {"refclk", "bus", "core", "io_update"}
+    kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,
-                 sync_sel=0, clk_sel=0, rf_sw=0,
+                 sync_sel=0, clk_sel=0, clk_div=0, rf_sw=0,
                  refclk=125e6, att=0x00000000, sync_div=None,
                  core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
+        assert 0 <= clk_div <= 3
+        self.clk_div = clk_div
 
         self.bus = dmgr.get(spi_device)
         if io_update_device is not None:
@@ -177,7 +186,8 @@ class CPLD:
 
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
-                                  sync_sel=sync_sel, rst=0, io_rst=0)
+                                  sync_sel=sync_sel,
+                                  rst=0, io_rst=0, clk_div=clk_div)
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
 
