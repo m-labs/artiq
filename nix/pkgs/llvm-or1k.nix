@@ -39,7 +39,7 @@ stdenv.mkDerivation rec {
     description = "Collection of modular and reusable compiler and toolchain technologies";
     homepage = http://llvm.org/;
     license = stdenv.lib.licenses.bsd3;
-    maintainers = with stdenv.lib.maintainers; [ sj_mackenzie ];
+    maintainers = with stdenv.lib.maintainers; [ sb0 ];
     platforms = stdenv.lib.platforms.all;
   };
 }

@@ -63,7 +63,7 @@ rustPlatform.buildRustPackage rec {
   meta = with stdenv.lib; {
     homepage = https://crates.io;
     description = "Downloads your Rust project's dependencies and builds your project";
-    maintainers = with maintainers; [ wizeman retrry ];
+    maintainers = with maintainers; [ sb0 ];
     license = [ licenses.mit licenses.asl20 ];
     platforms = platforms.unix;
   };

@@ -29,7 +29,7 @@ rec {
     meta = with stdenv.lib; {
       homepage = http://www.rust-lang.org/;
       description = "A safe, concurrent, practical language";
-      maintainers = with maintainers; [ qknight ];
+      maintainers = with maintainers; [ sb0 ];
       license = [ licenses.mit licenses.asl20 ];
     };
 
@@ -83,7 +83,7 @@ rec {
     meta = with stdenv.lib; {
       homepage = http://www.rust-lang.org/;
       description = "A safe, concurrent, practical language";
-      maintainers = with maintainers; [ qknight ];
+      maintainers = with maintainers; [ sb0 ];
       license = [ licenses.mit licenses.asl20 ];
     };
 
