@@ -214,7 +214,7 @@ class PrepareStage(TaskObject):
                         if run.worker.closed.is_set():
                             break
                     if run.worker.closed.is_set():
-                            continue
+                        continue
                 run.status = RunStatus.preparing
                 try:
                     await run.build()
