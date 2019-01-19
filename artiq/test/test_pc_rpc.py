@@ -108,7 +108,6 @@ class RPCCase(unittest.TestCase):
         argspec_documented, docstring = pc_rpc.Server._document_function(
             _annotated_function
         )
-        print(argspec_documented)
         self.assertEqual(docstring, "Sample docstring.")
 
         # purposefully ignore how argspec["annotations"] is treated.
