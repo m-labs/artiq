@@ -9,14 +9,14 @@ Components
 Master
 ------
 
-The master is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results.
+The :ref:`master <frontend-artiq-master>` is responsible for managing the parameter and device databases, the experiment repository, scheduling and running experiments, archiving results, and distributing real-time results.
 
 The master is a headless component, and one or several clients (command-line or GUI) use the network to interact with it.
 
 Controller manager
 ------------------
 
-Controller managers are responsible for running and stopping controllers on a machine. There is one controller manager per network node that runs controllers.
+:ref:`Controller managers <frontend-artiq-ctlmgr>` are responsible for running and stopping controllers on a machine. There is one controller manager per network node that runs controllers.
 
 A controller manager connects to the master and uses the device database to determine what controllers need to be run. Changes in the device database are tracked by the manager and controllers are started and stopped accordingly.
 
@@ -27,12 +27,12 @@ Controller managers use the local network address of the connection to the maste
 Command-line client
 -------------------
 
-The command-line client connects to the master and permits modification and monitoring of the databases, monitoring the experiment schedule and log, and submitting experiments.
+The :ref:`command-line client <frontend-artiq-client>` connects to the master and permits modification and monitoring of the databases, monitoring the experiment schedule and log, and submitting experiments.
 
 Dashboard
 ---------
 
-The dashboard connects to the master and is the main way of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
+The :ref:`dashboard <frontend-artiq-dashboard>` connects to the master and is the main way of interacting with it. The main features of the dashboard are scheduling of experiments, setting of their arguments, examining the schedule, displaying real-time results, and debugging TTL and DDS channels in real time.
 
 Experiment scheduling
 *********************
@@ -138,24 +138,53 @@ CCBs are used by experiments to configure applets in the dashboard, for example 
 .. autoclass:: artiq.dashboard.applets_ccb.AppletsCCBDock
    :members:
 
+
 Front-end tool reference
 ************************
+
+
+.. _frontend-artiq-master:
+
+artiq_master
+------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_master.get_argparser
    :prog: artiq_master
 
+
+.. _frontend-artiq-ctlmgr:
+
+artiq_ctlmgr
+------------
+
 .. argparse::
    :ref: artiq.frontend.artiq_ctlmgr.get_argparser
    :prog: artiq_ctlmgr
+
+
+.. _frontend-artiq-client:
+
+artiq_client
+------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_client.get_argparser
    :prog: artiq_client
 
+
+.. _frontend-artiq-dashboard:
+
+artiq_dashboard
+---------------
+
 .. argparse::
    :ref: artiq.frontend.artiq_dashboard.get_argparser
    :prog: artiq_dashboard
+
+
+artiq_session
+---------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_session.get_argparser
