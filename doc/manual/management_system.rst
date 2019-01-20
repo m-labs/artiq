@@ -40,7 +40,7 @@ Experiment scheduling
 Basics
 ------
 
-To use hardware resources more efficiently, potentially compute-intensive pre-computation and analysis phases of other experiments is executed in parallel with the body of the current experiment that accesses the hardware.
+To use hardware resources more efficiently, potentially compute-intensive pre-computation and analysis phases of other experiments are executed in parallel with the body of the current experiment that accesses the hardware.
 
 .. seealso:: These steps are implemented in :class:`~artiq.language.environment.Experiment`. However, user-written experiments should usually derive from (sub-class) :class:`artiq.language.environment.EnvExperiment`.
 
@@ -83,7 +83,7 @@ Multiple pipelines
 
 Multiple pipelines can operate in parallel inside the same master. It is the responsibility of the user to ensure that experiments scheduled in one pipeline will never conflict with those of another pipeline over resources (e.g. same devices).
 
-Pipelines are identified by their name, and are automatically created (when an experiment is scheduled with a pipeline name that does not exist) and destroyed (when it runs empty).
+Pipelines are identified by their name, and are automatically created (when an experiment is scheduled with a pipeline name that does not exist) and destroyed (when they run empty).
 
 
 Git integration
