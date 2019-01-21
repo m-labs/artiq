@@ -107,6 +107,7 @@ class AD9912:
         # I_cp = 375 µA, VCO high range
         self.write(AD9912_PLLCFG, 0b00000101, length=1)
         self.cpld.io_update.pulse(2*us)
+        delay(1*ms)
 
     @kernel
     def set_att_mu(self, att):
