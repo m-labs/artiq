@@ -310,18 +310,19 @@ class KasliTester(EnvExperiment):
         print("ROI sums: {}".format(n))
 
     def test_grabbers(self):
-        print("*** Testing Grabber Frame Grabbers.")
-        print("Activate the camera's frame grabber output, type 'g', press "
-              "ENTER, and trigger the camera.")
-        print("Just press ENTER to skip the test.")
-        if input().strip().lower() != "g":
-            print("skipping...")
-            return
-        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
-        print("ROIs: {}".format(rois))
-        for card_n, (card_name, card_dev) in enumerate(self.grabbers):
-            print(card_name)
-            self.grabber_capture(card_dev, rois)
+        if self.grabbers:
+            print("*** Testing Grabber Frame Grabbers.")
+            print("Activate the camera's frame grabber output, type 'g', press "
+                  "ENTER, and trigger the camera.")
+            print("Just press ENTER to skip the test.")
+            if input().strip().lower() != "g":
+                print("skipping...")
+                return
+            rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
+            print("ROIs: {}".format(rois))
+            for card_n, (card_name, card_dev) in enumerate(self.grabbers):
+                print(card_name)
+                self.grabber_capture(card_dev, rois)
 
     def run(self):
         print("****** Kasli system tester ******")
