@@ -7,6 +7,7 @@ import unittest
 class TestFrontends(unittest.TestCase):
     def test_help(self):
         """Test --help as a simple smoke test against catastrophic breakage."""
+        # Skip tests for GUI programs on headless CI environments.
         commands = {
             "aqctl": [
                 "corelog", "korad_ka3005p", "lda", "novatech409b",
@@ -18,13 +19,6 @@ class TestFrontends(unittest.TestCase):
                 "rpctool", "rtiomon", "run", "session"
             ]
         }
-
-        # Skip tests for GUI programs on headless CI environments.
-        try:
-            from PyQt5 import QtGui, QtWidgets
-            commands["artiq"] += ["browser", "dashboard"]
-        except ImportError:
-            pass
 
         for module in (prefix + "_" + name
                        for prefix, names in commands.items()
