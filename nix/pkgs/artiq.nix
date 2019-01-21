@@ -22,7 +22,6 @@ pythonparser = python3Packages.buildPythonPackage rec {
     sha256 = "1gw1fk4y2l6bwq0fg2a9dfc1rvq8cv492dyil96amjdhsxvnx35b";
   };
   propagatedBuildInputs = with python3Packages; [ regex ];
-  doCheck = false;
 };
 
 asyncserial = python3Packages.buildPythonPackage rec {
@@ -69,7 +68,7 @@ python3Packages.buildPythonPackage rec {
   src = ./../..;
   buildInputs = [ git ];
   propagatedBuildInputs = with python3Packages; [ binutils-or1k llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
-  doCheck = false;
+  checkPhase = "python -m unittest discover -v artiq.test";
   meta = with stdenv.lib; {
     description = "A leading-edge control system for quantum information experiments";
     homepage = https://m-labs/artiq;
