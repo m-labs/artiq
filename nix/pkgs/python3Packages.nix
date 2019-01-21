@@ -2,9 +2,7 @@
 
 rec { 
   asyncserial = python3Packages.buildPythonPackage rec {
-    version = "git-09a9fc";
-    pname = "asyncserial";
-    name = "${pname}-${version}";
+    name = "asyncserial";
 
     src = fetchFromGitHub {
       owner = "m-labs";
@@ -24,9 +22,7 @@ rec {
     };
   };
   misoc = python3Packages.buildPythonPackage rec {
-    version = "git-714ea6";
-    pname = "misoc";
-    name = "${pname}-${version}";
+    name = "misoc";
     
     src = fetchFromGitHub {
       owner = "m-labs";
@@ -49,9 +45,7 @@ rec {
     };
   };
   migen = python3Packages.buildPythonPackage rec {
-    version = "git-3d8a58";
-    pname = "migen";
-    name = "${pname}-${version}";
+    name = "migen";
 
     src = fetchFromGitHub {
       owner = "m-labs";
@@ -74,9 +68,7 @@ rec {
     };
   };
   microscope = python3Packages.buildPythonPackage rec {
-    version = "git-02cffc";
-    pname = "microscope";
-    name = "${pname}-${version}";
+    name = "microscope";
 
     src = fetchFromGitHub {
       owner = "m-labs";
@@ -95,9 +87,7 @@ rec {
     };
   };
   jesd204b = python3Packages.buildPythonPackage rec {
-    version = "git-02cffc";
-    pname = "jesd204b";
-    name = "${pname}-${version}";
+    name = "jesd204b";
 
     src = fetchFromGitHub {
       owner = "m-labs";
