@@ -10,6 +10,7 @@ in
         ncurses5
         gnumake
         zlib
+        libuuid
         xorg.libSM
         xorg.libICE
         xorg.libXrender
