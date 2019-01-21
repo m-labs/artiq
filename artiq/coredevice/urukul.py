@@ -340,7 +340,7 @@ class CPLD:
         and align it to the current RTIO timestamp.
 
         The SYNC_IN signal is derived from the coarse RTIO clock
-        and the divider must be a power of two two.
+        and the divider must be a power of two.
         Configure ``sync_sel == 0``.
 
         :param div: SYNC_IN frequency divider. Must be a power of two.

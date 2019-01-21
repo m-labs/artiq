@@ -615,7 +615,7 @@ class AD9910:
         This method first locates a valid SYNC_IN delay at zero validation
         window size (setup/hold margin) by scanning around `search_seed`. It
         then looks for similar valid delays at successively larger validation
-        window sizes until none can be found. It then deacreses the validation
+        window sizes until none can be found. It then decreases the validation
         window a bit to provide some slack and stability and returns the
         optimal values.
 
