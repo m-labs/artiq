@@ -619,6 +619,8 @@ class AD9910:
         window a bit to provide some slack and stability and returns the
         optimal values.
 
+        This method and :meth:`tune_io_update_delay` can be run in any order.
+
         :param search_seed: Start value for valid SYNC_IN delay search.
             Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
@@ -715,6 +717,8 @@ class AD9910:
 
         This method assumes that the IO_UPDATE TTLOut device has one machine
         unit resolution (SERDES).
+
+        This method and :meth:`tune_sync_delay` can be run in any order.
 
         :return: Stable IO_UPDATE delay to be passed to the constructor
             :class:`AD9910` via the device database.
