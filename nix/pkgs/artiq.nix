@@ -74,7 +74,7 @@ python3Packages.buildPythonPackage rec {
     description = "A leading-edge control system for quantum information experiments";
     homepage = https://m-labs/artiq;
     license = licenses.lgpl3;
-    maintainers = [ maintainers.sb0 ];
+    #maintainers = [ maintainers.sb0 ];
     platforms = [ "x86_64-linux" ];
   };
 }
