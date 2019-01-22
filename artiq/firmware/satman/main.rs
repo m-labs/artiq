@@ -367,6 +367,14 @@ fn init_rtio_crg() {
 #[cfg(not(has_rtio_crg))]
 fn init_rtio_crg() { }
 
+fn hardware_tick(ts: &mut u64) {
+    let now = clock::get_ms();
+    if now > *ts {
+        #[cfg(has_grabber)]
+        board_artiq::grabber::tick();
+        *ts = now + 200;
+    }
+}
 
 #[cfg(rtio_frequency = "150.0")]
 const SI5324_SETTINGS: si5324::FrequencySettings
@@ -432,12 +440,15 @@ pub extern fn main() -> i32 {
     let mut routing_table = drtio_routing::RoutingTable::default_empty();
     let mut rank = 1;
 
+    let mut hardware_tick_ts = 0;
+
     loop {
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
+            hardware_tick(&mut hardware_tick_ts);
         }
 
         info!("uplink is up, switching to recovered clock");
@@ -473,6 +484,7 @@ pub extern fn main() -> i32 {
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
+            hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
                 #[cfg(has_ad9154)]
