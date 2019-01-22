@@ -850,7 +850,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, enable_sata=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -872,18 +872,29 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
+        drtio_data_pads = []
+        if enable_sata:
+            drtio_data_pads.append(platform.request("sata"))
+        drtio_data_pads += [platform.request("sfp", i) for i in range(1, 3)]
+
         sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
         self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
+
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
-            data_pads=[platform.request("sfp", i) for i in range(1, 3)],
+            data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
         self.sync += self.disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
+
+        if enable_sata:
+            sfp_channels = self.drtio_transceiver.channels[1:]
+        else:
+            sfp_channels = self.drtio_transceiver.channels
         self.comb += [sfp_ctl.led.eq(channel.rx_ready)
-            for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
+            for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
 
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
 
@@ -891,7 +902,7 @@ class _MasterBase(MiniSoC, AMPSoC):
         drtioaux_csr_group = []
         drtioaux_memory_group = []
         self.drtio_cri = []
-        for i in range(2):
+        for i in range(len(self.drtio_transceiver.channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
@@ -999,7 +1010,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, **kwargs):
+    def __init__(self, rtio_clk_freq=150e6, enable_sata=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -1025,18 +1036,28 @@ class _SatelliteBase(BaseSoC):
         qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
+        drtio_data_pads = []
+        if enable_sata:
+            drtio_data_pads.append(platform.request("sata"))
+        drtio_data_pads += [platform.request("sfp", i) for i in range(3)]
+
         sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
         self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
-            data_pads=[platform.request("sfp", i) for i in range(3)],
+            data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
         self.sync += disable_si5324_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
+
+        if enable_sata:
+            sfp_channels = self.drtio_transceiver.channels[1:]
+        else:
+            sfp_channels = self.drtio_transceiver.channels
         self.comb += [sfp_ctl.led.eq(channel.rx_ready)
-            for sfp_ctl, channel in zip(sfp_ctls, self.drtio_transceiver.channels)]
+            for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
 
@@ -1044,7 +1065,7 @@ class _SatelliteBase(BaseSoC):
         drtioaux_memory_group = []
         drtiorep_csr_group = []
         self.drtio_cri = []
-        for i in range(3):
+        for i in range(len(self.drtio_transceiver.channels)):
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
             drtioaux_csr_group.append(coreaux_name)
