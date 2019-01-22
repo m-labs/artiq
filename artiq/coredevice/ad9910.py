@@ -347,7 +347,7 @@ class AD9910:
         # sync timing validation disable (enabled later)
         self.write32(_AD9910_REG_CFR2, 0x01010020)
         self.cpld.io_update.pulse(1*us)
-        cfr3 = (0x08078000 | (self.pll_vco << 24) |
+        cfr3 = (0x0807c000 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_en << 8) |
                 (self.pll_n << 1))
         self.write32(_AD9910_REG_CFR3, cfr3 | 0x400)  # PFD reset
