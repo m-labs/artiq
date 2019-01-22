@@ -48,6 +48,13 @@ in rec {
       cp -r ${or1k-crates}/* $out/lib/rustlib/or1k-unknown-none/lib/
       cp -r ${rustc_internal}/* $out
     '';
+    meta = with stdenv.lib; {
+      homepage = https://www.rust-lang.org/;
+      description = "A safe, concurrent, practical language";
+      #maintainers = with maintainers; [ sb0 ];
+      license = [ licenses.mit licenses.asl20 ];
+      platforms = platforms.linux ++ platforms.darwin;
+    };
   };
   # nixcloud team code
   # originally rustc but now renamed to rustc_internal

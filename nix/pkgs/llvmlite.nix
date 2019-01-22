@@ -14,4 +14,12 @@ stdenv.mkDerivation rec {
     LLVM_CONFIG=${llvm-or1k}/bin/llvm-config
     python3 setup.py install --prefix=$out
   '';
+
+  meta = with stdenv.lib; {
+      description = "A lightweight LLVM python binding for writing JIT compilers";
+      homepage    = "http://llvmlite.pydata.org/";
+      #maintainers = with maintainers; [ sb0 ];
+      license     = licenses.bsd2;
+      platforms   = platforms.unix;
+  };
 }

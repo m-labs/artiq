@@ -38,7 +38,7 @@ rec {
     propagatedBuildInputs = with python3Packages; [ pyserial jinja2 numpy asyncserial migen ];
 
     meta = with stdenv.lib; {
-      description = "A high performance and small footprint system-on-chip based on Migen https://m-labs.hk";
+      description = "A high performance and small footprint system-on-chip based on Migen";
       homepage    = "https://m-labs.hk/migen";
       license     = licenses.bsd2;
       platforms   = platforms.unix;
