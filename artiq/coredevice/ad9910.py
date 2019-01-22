@@ -79,6 +79,7 @@ class AD9910:
         clk_div is the reference clock divider (both set in the parent
         Urukul CPLD instance).
     :param pll_en: PLL enable bit, set to 0 to bypass PLL (default: 1).
+        Note that when bypassing the PLL the red front panel LED may remain on.
     :param pll_cp: DDS PLL charge pump setting.
     :param pll_vco: DDS PLL VCO range selection.
     :param sync_delay_seed: SYNC_IN delay tuning starting value.
