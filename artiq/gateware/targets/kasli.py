@@ -1272,7 +1272,7 @@ class HUSTSatellite(_SatelliteBase):
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
         eem.Grabber.add_std(self, 1, 2)
         eem.Grabber.add_std(self, 3, 4)
-        eem.Urukul.add_std(self, 5, 6, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 6, 5, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
 
         self.add_rtio(self.rtio_channels)
