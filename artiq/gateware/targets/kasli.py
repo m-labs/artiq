@@ -1236,10 +1236,59 @@ class VLBAISatellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
+class HUSTMaster(_MasterBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+                             enable_sata=True, *args, **kwargs)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 1,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 2, 3, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 4, 5, ttl_serdes_7series.Output_8X)
+        eem.Sampler.add_std(self, 6, 7, ttl_serdes_7series.Output_8X)
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+
+
+class HUSTSatellite(_SatelliteBase):
+    def __init__(self, hw_rev=None, *args, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+                                enable_sata=True, *args, **kwargs)
+
+        self.rtio_channels = []
+        self.grabber_csr_group = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
+        eem.Grabber.add_std(self, 1, 2)
+        eem.Grabber.add_std(self, 3, 4)
+        eem.Urukul.add_std(self, 5, 6, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
+
+        self.add_rtio(self.rtio_channels)
+        self.config["HAS_GRABBER"] = None
+        self.add_csr_group("grabber", self.grabber_csr_group)
+        self.platform.add_false_path_constraints(
+            self.drtio_transceiver.gtps[0].txoutclk, self.grabber0.deserializer.cd_cl.clk)
+        self.platform.add_false_path_constraints(
+            self.drtio_transceiver.gtps[0].txoutclk, self.grabber1.deserializer.cd_cl.clk)
+
+
 VARIANTS = {cls.__name__.lower(): cls for cls in [
     Opticlock, SUServo, PTB, PTB2, HUB, LUH,
     SYSU, MITLL, MITLL2, USTC, Tsinghua, Tsinghua2, WIPM, NUDT, Berkeley,
-    VLBAIMaster, VLBAISatellite, Tester, Master, Satellite]}
+    VLBAIMaster, VLBAISatellite, HUSTMaster, HUSTSatellite,
+    Tester, Master, Satellite]}
 
 
 def main():
