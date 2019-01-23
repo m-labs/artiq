@@ -774,7 +774,6 @@ class Tester(_StandaloneBase):
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
-        self.grabber_csr_group = []
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
             edge_counter_cls=edge_counter.SimpleEdgeCounter)
@@ -782,15 +781,6 @@ class Tester(_StandaloneBase):
                            ttl_simple.ClockGen)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
-        eem.Grabber.add_std(self, 6)
-        eem.Urukul.add_std(self, 7, None, ttl_serdes_7series.Output_8X,
-                           ttl_simple.ClockGen)
-        eem.DIO.add_std(self, 8,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 9,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.Sampler.add_std(self, 10, None, ttl_serdes_7series.Output_8X)
-        eem.Zotino.add_std(self, 11, ttl_serdes_7series.Output_8X)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -802,11 +792,6 @@ class Tester(_StandaloneBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
         self.add_rtio(self.rtio_channels)
-
-        self.config["HAS_GRABBER"] = None
-        self.add_csr_group("grabber", self.grabber_csr_group)
-        self.platform.add_false_path_constraints(
-            self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
 class _RTIOClockMultiplier(Module, AutoCSR):

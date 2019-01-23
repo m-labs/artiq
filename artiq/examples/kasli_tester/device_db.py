@@ -189,156 +189,18 @@ device_db["zotino0"] = {
 }
 
 
-# Grabber (EEM6) starting at RTIO channel 25
-device_db["grabber0"] = {
-    "type": "local",
-    "module": "artiq.coredevice.grabber",
-    "class": "Grabber",
-    "arguments": {"channel_base": 25}
-}
-
-
-# Urukul (EEM7) starting at RTIO channel 27
-device_db.update(
-    spi_urukul1={
-        "type": "local",
-        "module": "artiq.coredevice.spi2",
-        "class": "SPIMaster",
-        "arguments": {"channel": 27}
-    },
-    ttl_urukul1_sync={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLClockGen",
-        "arguments": {"channel": 28, "acc_width": 4}
-    },
-    ttl_urukul1_io_update={
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 29}
-    },
-    urukul1_cpld={
-        "type": "local",
-        "module": "artiq.coredevice.urukul",
-        "class": "CPLD",
-        "arguments": {
-            "spi_device": "spi_urukul1",
-            "io_update_device": "ttl_urukul1_io_update",
-            "sync_device": "ttl_urukul1_sync",
-            "refclk": 100e6,
-            "clk_sel": 1
-        }
-    }
-)
-
-for i in range(4):
-    device_db["urukul1_ch" + str(i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ad9912",
-        "class": "AD9912",
-        "arguments": {
-            "pll_n": 10,
-            "chip_select": 4 + i,
-            "cpld_device": "urukul1_cpld"
-        }
-    }
-
-
-# DIO (EEM8) starting at RTIO channel 30
-for i in range(8):
-    device_db["ttl" + str(8 + i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 30 + i},
-    }
-
-
-# DIO (EEM9) starting at RTIO channel 38
-for i in range(8):
-    device_db["ttl" + str(16 + i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 38 + i},
-    }
-
-
-# Sampler (EEM10) starting at RTIO channel 46
-device_db["spi_sampler1_adc"] = {
-    "type": "local",
-    "module": "artiq.coredevice.spi2",
-    "class": "SPIMaster",
-    "arguments": {"channel": 46}
-}
-device_db["spi_sampler1_pgia"] = {
-    "type": "local",
-    "module": "artiq.coredevice.spi2",
-    "class": "SPIMaster",
-    "arguments": {"channel": 47}
-}
-device_db["spi_sampler1_cnv"] = {
-    "type": "local",
-    "module": "artiq.coredevice.ttl",
-    "class": "TTLOut",
-    "arguments": {"channel": 48},
-}
-device_db["sampler1"] = {
-    "type": "local",
-    "module": "artiq.coredevice.sampler",
-    "class": "Sampler",
-    "arguments": {
-        "spi_adc_device": "spi_sampler1_adc",
-        "spi_pgia_device": "spi_sampler1_pgia",
-        "cnv_device": "spi_sampler1_cnv"
-    }
-}
-
-
-# Zotino (EEM11) starting at RTIO channel 49
-device_db["spi_zotino1"] = {
-    "type": "local",
-    "module": "artiq.coredevice.spi2",
-    "class": "SPIMaster",
-    "arguments": {"channel": 49}
-}
-device_db["ttl_zotino1_ldac"] = {
-    "type": "local",
-    "module": "artiq.coredevice.ttl",
-    "class": "TTLOut",
-    "arguments": {"channel": 50}
-}
-device_db["ttl_zotino1_clr"] = {
-    "type": "local",
-    "module": "artiq.coredevice.ttl",
-    "class": "TTLOut",
-    "arguments": {"channel": 51}
-}
-device_db["zotino1"] = {
-    "type": "local",
-    "module": "artiq.coredevice.zotino",
-    "class": "Zotino",
-    "arguments": {
-        "spi_device": "spi_zotino1",
-        "ldac_device": "ttl_zotino1_ldac",
-        "clr_device": "ttl_zotino1_clr"
-    }
-}
-
-
 device_db.update(
     led0={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 52}
+        "arguments": {"channel": 25}
     },
     led1={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 53}
+        "arguments": {"channel": 26}
     },
 )
 
