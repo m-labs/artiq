@@ -308,7 +308,7 @@ class KasliTester(EnvExperiment):
         card_dev.input_mu(n)
         self.core.break_realtime()
         card_dev.gate_roi(0)
-        print("ROI sums: {}".format(n))
+        print("ROI sums:", n)
 
     def test_grabbers(self):
         if self.grabbers:
@@ -320,7 +320,7 @@ class KasliTester(EnvExperiment):
                 print("skipping...")
                 return
             rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
-            print("ROIs: {}".format(rois))
+            print("ROIs:", rois)
             for card_n, (card_name, card_dev) in enumerate(self.grabbers):
                 print(card_name)
                 self.grabber_capture(card_dev, rois)
