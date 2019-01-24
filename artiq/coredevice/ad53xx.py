@@ -176,7 +176,7 @@ class AD53xx:
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
         if not blind:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
-            if ctrl != 0b0010:
+            if (ctrl & 0b10111) != 0b00010:
                 raise ValueError("DAC CONTROL readback mismatch")
             delay(15*us)
 
