@@ -67,6 +67,42 @@ fn sysref_cal_fpga() -> Result<u16, &'static str> {
     return Err("failed to reach 1->0 transition with fine delay");
 }
 
+fn sysref_rtio_slip_to(target: bool) -> Result<u16, &'static str> {
+    let mut slips = 0;
+    while sysref_sample() != target {
+        hmc7043::sysref_slip();
+        slips += 1;
+        if slips > 1024 {
+            return Err("failed to reach SYSREF transition");
+        }
+    }
+    Ok(slips)
+}
+
+fn sysref_rtio_check_period(phase_offset: u16) -> Result<(), &'static str> {
+    const N: usize = 32;
+    let mut nslips = [0; N];
+    let mut error = false;
+
+    // meet setup/hold (assuming FPGA timing margins are OK)
+    hmc7043::sysref_offset_fpga(phase_offset);
+    // if we are already in the 1 zone, get out of it
+    sysref_rtio_slip_to(false)?;
+    for i in 0..N {
+        nslips[i] = sysref_rtio_slip_to(i % 2 == 0)?;
+        if nslips[i] != hmc7043::SYSREF_DIV/2 {
+            error = true;
+        }
+    }
+    if error {
+        info!("  SYSREF slip half-periods: {:?}", nslips);
+        return Err("unexpected SYSREF slip half-periods seen");
+    } else {
+        info!("  SYSREF slip half-periods at FPGA have expected length ({})", hmc7043::SYSREF_DIV/2);
+    }
+    Ok(())
+}
+
 fn sysref_rtio_align(phase_offset: u16) -> Result<(), &'static str> {
     // This needs to take place before DAC SYSREF scan, as
     // the HMC7043 input clock (which defines slip resolution)
@@ -75,26 +111,14 @@ fn sysref_rtio_align(phase_offset: u16) -> Result<(), &'static str> {
 
     info!("aligning SYSREF with RTIO...");
 
-    let mut slips0 = 0;
-    let mut slips1 = 0;
+    sysref_rtio_check_period(phase_offset)?;
+
     // meet setup/hold (assuming FPGA timing margins are OK)
     hmc7043::sysref_offset_fpga(phase_offset);
     // if we are already in the 1 zone, get out of it
-    while sysref_sample() {
-        hmc7043::sysref_slip();
-        slips0 += 1;
-        if slips0 > 1024 {
-            return Err("failed to reach 1->0 transition");
-        }
-    }
+    let slips0 = sysref_rtio_slip_to(false)?;
     // get to the edge of the 0->1 transition (our final setpoint)
-    while !sysref_sample() {
-        hmc7043::sysref_slip();
-        slips1 += 1;
-        if slips1 > 1024 {
-            return Err("failed to reach 0->1 transition");
-        }
-    }
+    let slips1 = sysref_rtio_slip_to(true)?;
     info!("  ...done ({}/{} slips)", slips0, slips1);
 
     let mut margin_minus = None;

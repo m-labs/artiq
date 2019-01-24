@@ -156,10 +156,10 @@ pub mod hmc7043 {
     use board_misoc::{csr, clock};
 
     // All frequencies assume 1.2GHz HMC830 output
-    const DAC_CLK_DIV: u16 = 1;               // 1200MHz
-    const FPGA_CLK_DIV: u16 = 8;              // 150MHz
-    const SYSREF_DIV: u16 = 128;              // 9.375MHz
-    const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // 1.171875MHz (must be <= 4MHz)
+    pub const DAC_CLK_DIV: u16 = 1;               // 1200MHz
+    pub const FPGA_CLK_DIV: u16 = 8;              // 150MHz
+    pub const SYSREF_DIV: u16 = 128;              // 9.375MHz
+    const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8;     // 1.171875MHz (must be <= 4MHz)
 
     // enabled, divider, output config
     const OUTPUT_CONFIG: [(bool, u16, u8); 14] = [
