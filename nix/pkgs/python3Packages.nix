@@ -27,8 +27,8 @@ rec {
     src = fetchFromGitHub {
       owner = "m-labs";
       repo = "misoc";
-      rev = "308b4728bdb1900fe3c9d71c10cc84322ad3e4ed";
-      sha256 = "0fc1axrwjhb86m2dwkj6h3qwwci9xw0jsvg8pzb2r8hci2v8432h";
+      rev = "8e033c2cb77f78c95d2b2e08125324891d07fa34";
+      sha256 = "0pv1akhvr85iswqmhzcqh9gfnyha11k68qmhqizma8fdccvvzm4y";
       fetchSubmodules = true;
     };
 
@@ -50,8 +50,8 @@ rec {
     src = fetchFromGitHub {
       owner = "m-labs";
       repo = "migen";
-      rev = "3d8a58033ea0e90e435db0d14c25c86ee7d2fee2";
-      sha256 = "0fw70bzang79wylwsw9b47vssjnhx6mwzm00dg3b49iyg57jymvh";
+      rev = "57c44674c2a6c38bd01804e69db61a9efd287524";
+      sha256 = "1xl7bb21ijp6i25hf12gyjwjmv52sbv81fz44fmkiz5b25xlbmaq";
       fetchSubmodules = true;
     };
 
