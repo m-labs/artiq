@@ -184,7 +184,7 @@ fn dac_setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
 
     write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
 
-    write(ad9154_reg::INTERP_MODE, 0); // 1x
+    write(ad9154_reg::INTERP_MODE, 0x01); // 2x
     write(ad9154_reg::MIX_MODE, 0);
     write(ad9154_reg::DATA_FORMAT, 0*ad9154_reg::BINARY_FORMAT); // s16
     write(ad9154_reg::DATAPATH_CTRL,
