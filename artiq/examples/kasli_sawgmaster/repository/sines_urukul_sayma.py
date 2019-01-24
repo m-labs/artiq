@@ -17,6 +17,13 @@ class SinesUrukulSayma(EnvExperiment):
 
     @kernel
     def run(self):
+        f = 9*MHz
+        dds_ftw = self.urukul_chs[0].frequency_to_ftw(f)
+        sawg_ftw = self.sawgs[0].frequency0.to_mu(f)
+        if dds_ftw != sawg_ftw:
+            print("DDS and SAWG FTWs do not match:", dds_ftw, sawg_ftw)
+            return
+
         # Note: when testing sync, do not reboot Urukul, as it is not
         # synchronized to the FPGA (yet).
         self.core.reset()
@@ -24,7 +31,7 @@ class SinesUrukulSayma(EnvExperiment):
         for urukul_ch in self.urukul_chs:
             delay(1*ms)
             urukul_ch.init()
-            urukul_ch.set(9*MHz, amplitude=0.5)
+            urukul_ch.set_mu(dds_ftw, asf=urukul_ch.amplitude_to_asf(0.5))
             urukul_ch.set_att(6.)
             urukul_ch.sw.on()
 
@@ -43,7 +50,7 @@ class SinesUrukulSayma(EnvExperiment):
             for sawg in self.sawgs:
                 delay(1*ms)
                 sawg.amplitude1.set(.4)
-                sawg.frequency0.set(9*MHz)
+                sawg.frequency0.set_mu(sawg_ftw)
 
             while self.drtio_is_up():
                 pass

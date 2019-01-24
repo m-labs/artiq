@@ -89,7 +89,8 @@ for i in range(4):
         "module": "artiq.coredevice.ad9910",
         "class": "AD9910",
         "arguments": {
-            "pll_n": 26,  # 975MHz sample rate
+            "pll_n": 16,  # 600MHz sample rate
+            "pll_vco": 2,
             "chip_select": 4 + i,
             "cpld_device": "urukul0_cpld",
             "sw_device": "ttl_urukul0_sw" + str(i)
