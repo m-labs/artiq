@@ -2,14 +2,20 @@
 
 stdenv.mkDerivation rec {
   name = "openocd-${version}";
-  version = "0.10.0";
+  version = "0.10.0.mlabs";
 
   src = fetchFromGitHub {
-    owner = "m-labs";
-    repo = "openocd";
-    fetchSubmodules = true;
-    rev = "c383a57adcff332b2c5cf8d55a84626285b42c2c";
-    sha256 = "0xlj9cs72acx3zqagvr7f1c0v6lnqhl8fgrlhgmhmvk5n9knk492";
+      owner = "m-labs";
+      repo = "openocd";
+      fetchSubmodules = true;
+      rev = "c383a57adcff332b2c5cf8d55a84626285b42c2c";
+      sha256 = "0xlj9cs72acx3zqagvr7f1c0v6lnqhl8fgrlhgmhmvk5n9knk492";
+  };
+  bscan_spi_bitstreams = fetchFromGitHub {
+      owner = "quartiq";
+      repo = "bscan_spi_bitstreams";
+      rev = "a628956da7dc794e6e3c95b31ff9ce3af58bc763";
+      sha256 = "1cydbym3wv9jwxh6lw9im1mjzr7w8rzzx95bxkjschmzjq4h13vk";
   };
 
   nativeBuildInputs = [ pkgconfig ];
@@ -42,6 +48,9 @@ stdenv.mkDerivation rec {
         exit 1
     fi
     ln -s "$rules" "$out/etc/udev/rules.d/"
+
+    mkdir -p "$out/share/bscan-spi-bitstreams"
+    cp ${bscan_spi_bitstreams}/*.bit "$out/share/bscan-spi-bitstreams"
   '';
 
   meta = with stdenv.lib; {
