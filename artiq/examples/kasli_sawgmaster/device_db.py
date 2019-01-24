@@ -78,7 +78,7 @@ device_db.update(
             "spi_device": "spi_urukul0",
             "io_update_device": "ttl_urukul0_io_update",
             "refclk": 150e6,
-            "clk_sel": 0
+            "clk_sel": 2
         }
     }
 )

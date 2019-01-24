@@ -1150,7 +1150,7 @@ class Master(_MasterBase):
         # matches Tester EEM numbers
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 1, 0, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
