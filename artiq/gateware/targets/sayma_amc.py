@@ -299,8 +299,7 @@ def workaround_us_lvds_tristate(platform):
     # See:
     # https://forums.xilinx.com/t5/Timing-Analysis/Delay-890-ns-in-OBUFTDS-in-Kintex-UltraScale/td-p/868364
     platform.add_platform_command(
-        "set_false_path -through [get_pins -filter {{REF_PIN_NAME == T}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]"
-            " -through [get_pins -filter {{REF_PIN_NAME == O}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]")
+        "set_false_path -through [get_pins -filter {{REF_PIN_NAME == T}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]")
 
 
 class Master(MiniSoC, AMPSoC):
