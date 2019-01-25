@@ -300,7 +300,7 @@ pub mod hmc7043 {
         // Set SYSREF timer divider.
         // We don't need this "feature", but the HMC7043 won't work without.
         write(0x5c, (HMC_SYSREF_DIV & 0xff) as u8);
-        write(0x5d, ((HMC_SYSREF_DIV & 0x0f) >> 8) as u8);
+        write(0x5d, ((HMC_SYSREF_DIV & 0xf00) >> 8) as u8);
 
         for channel in 0..OUTPUT_CONFIG.len() {
             let channel_base = 0xc8 + 0x0a*(channel as u16);
@@ -318,7 +318,7 @@ pub mod hmc7043 {
                 write(channel_base, 0x10);
             }
             write(channel_base + 0x1, (divider & 0xff) as u8);
-            write(channel_base + 0x2, ((divider & 0x0f) >> 8) as u8);
+            write(channel_base + 0x2, ((divider & 0xf00) >> 8) as u8);
 
             // bypass analog phase shift on DCLK channels to reduce noise
             if channel % 2 == 0 {
