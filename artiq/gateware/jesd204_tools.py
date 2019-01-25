@@ -1,7 +1,7 @@
 from collections import namedtuple
 
 from migen import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, BusSynchronizer
 from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 
@@ -91,3 +91,69 @@ class UltrascaleTX(Module, AutoCSR):
         self.submodules.control = JESD204BCoreTXControl(self.core)
         self.core.register_jsync(platform.request("dac_sync", dac))
         self.core.register_jref(jesd_crg.jref)
+
+
+# See "Digital femtosecond time difference circuit for CERN's timing system"
+# by P. Moreira and I. Darwazeh
+class DDMTD(Module, AutoCSR):
+    def __init__(self, input_pads, rtio_clk_freq=150e6):
+        N = 64
+        self.dt = CSRStatus(N.bit_length())
+
+        # # #
+
+        self.clock_domains.cd_helper = ClockDomain(reset_less=True)
+        helper_fb = Signal()
+        helper_output = Signal()
+
+        input_se = Signal()
+        beat1 = Signal()
+        beat2 = Signal()
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal("rtio"),
+                i_RST=ResetSignal("rtio"),
+
+                # VCO at 1200MHz with 150MHz RTIO frequency
+                p_CLKFBOUT_MULT_F=8.0,
+                p_DIVCLK_DIVIDE=1,
+
+                o_CLKFBOUT=helper_fb, i_CLKFBIN=helper_fb,
+
+                # helper PLL ratio: 64/65 (N=64)
+                p_CLKOUT0_DIVIDE_F=8.125,
+                o_CLKOUT0=helper_output,
+            ),
+            Instance("BUFG", i_I=helper_output, o_O=self.cd_helper.clk),
+            Instance("IBUFDS", i_I=input_pads.p, i_IB=input_pads.n, o_O=input_se),
+            Instance("FD", i_C=self.cd_helper.clk, i_D=input_se, o_Q=beat1),
+            Instance("FD", i_C=self.cd_helper.clk, i_D=ClockSignal("rtio"), o_Q=beat2),
+        ]
+
+        counting = Signal()
+        counter = Signal(N.bit_length())
+
+        beat1_r = Signal()
+        beat2_r = Signal()
+        result = Signal.like(counter)
+
+        self.sync.helper += [
+            If(counting,
+                counter.eq(counter + 1)
+            ).Else(
+                result.eq(counter)
+            ),
+
+            beat1_r.eq(beat1),
+            If(beat1 & ~beat1_r, counting.eq(1), counter.eq(0)),
+            beat2_r.eq(beat2),
+            If(beat2 & ~beat2_r, counting.eq(0))
+        ]
+
+        bsync = BusSynchronizer(len(result), "helper", "sys")
+        self.submodules += bsync
+        self.comb += [
+            bsync.i.eq(result),
+            self.dt.status.eq(bsync.o)
+        ]

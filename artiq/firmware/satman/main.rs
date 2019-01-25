@@ -489,12 +489,9 @@ pub extern fn main() -> i32 {
                 info!("TSC loaded from uplink");
                 #[cfg(has_ad9154)]
                 {
-                    /*
-                    TODO:
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
                         error!("failed to align SYSREF at FPGA: {}", e);
                     }
-                    */
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
                         error!("failed to align SYSREF at DAC: {}", e);
                     }

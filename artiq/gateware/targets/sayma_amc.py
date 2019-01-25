@@ -223,6 +223,9 @@ class Standalone(MiniSoC, AMPSoC, RTMCommon):
                                                       self.get_native_sdram_if())
         self.csr_devices.append("rtio_analyzer")
 
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
+        self.csr_devices.append("sysref_ddmtd")
+
 
 class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
     """
@@ -390,6 +393,9 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
+
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
+        self.csr_devices.append("sysref_ddmtd")
 
 
 def workaround_us_lvds_tristate(platform):
@@ -675,6 +681,9 @@ class Satellite(BaseSoC, RTMCommon):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
+
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
+        self.csr_devices.append("sysref_ddmtd")
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]

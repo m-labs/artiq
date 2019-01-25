@@ -3,6 +3,15 @@ use board_misoc::{csr, config};
 use hmc830_7043::hmc7043;
 use ad9154;
 
+pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
+    for _ in 0..256 {
+        hmc7043::sysref_slip();
+        let dt = unsafe { csr::sysref_ddmtd::dt_read() };
+        info!("dt={}", dt);
+    }
+    Ok(())
+}
+
 fn sysref_cal_dac(dacno: u8) -> Result<u8, &'static str> {
     info!("calibrating SYSREF phase at DAC-{}...", dacno);
 
