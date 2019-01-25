@@ -1,13 +1,24 @@
-use board_misoc::{csr, config};
+use board_misoc::{csr, clock, config};
 
 use hmc830_7043::hmc7043;
 use ad9154;
+
+fn sysref_sh_error() -> bool {
+    unsafe {
+        csr::sysref_sampler::sh_error_reset_write(1);
+        clock::spin_us(1);
+        csr::sysref_sampler::sh_error_reset_write(0);
+        clock::spin_us(10);
+        csr::sysref_sampler::sh_error_read() != 0
+    }
+}
 
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     for _ in 0..256 {
         hmc7043::sysref_slip();
         let dt = unsafe { csr::sysref_ddmtd::dt_read() };
-        info!("dt={}", dt);
+        let sh_error = sysref_sh_error();
+        info!("dt={} sysref_sh_error={}", dt, sh_error);
     }
     Ok(())
 }

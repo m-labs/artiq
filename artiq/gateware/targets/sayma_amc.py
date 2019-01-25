@@ -114,119 +114,6 @@ class RTMCommon:
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
 
-class Standalone(MiniSoC, AMPSoC, RTMCommon):
-    """
-    Local DAC/SAWG channels only.
-    """
-    mem_map = {
-        "cri_con":       0x10000000,
-        "rtio":          0x11000000,
-        "rtio_dma":      0x12000000,
-        "serwb":         0x13000000,
-        "mailbox":       0x70000000
-    }
-    mem_map.update(MiniSoC.mem_map)
-
-    def __init__(self, with_sawg, **kwargs):
-        MiniSoC.__init__(self,
-                         cpu_type="or1k",
-                         sdram_controller_type="minicon",
-                         l2_size=128*1024,
-                         ethmac_nrxslots=4,
-                         ethmac_ntxslots=4,
-                         **kwargs)
-        AMPSoC.__init__(self)
-        RTMCommon.__init__(self)
-        add_identifier(self, suffix=".without-sawg" if not with_sawg else "")
-        self.config["HMC830_REF"] = "100"
-
-        platform = self.platform
-
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
-        self.csr_devices.append("si5324_rst_n")
-        i2c = self.platform.request("i2c")
-        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-        self.csr_devices.append("i2c")
-        self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["SI5324_SAYMA_REF"] = None
-        # ensure pins are properly biased and terminated
-        si5324_clkout = platform.request("si5324_clkout", 0)
-        self.specials += Instance(
-            "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
-            attr={("DONT_TOUCH", "true")})
-
-        # RTIO
-        rtio_channels = []
-        for i in range(4):
-            phy = ttl_simple.Output(platform.request("user_led", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-        # To work around Ultrascale issues (https://www.xilinx.com/support/answers/67885.html),
-        # we generate the multiplied RTIO clock using the DRTIO GTH transceiver.
-        # Since there is no DRTIO here and therefoere no multiplied clock, we use ttl_simple.
-        sma_io = platform.request("sma_io", 0)
-        self.comb += sma_io.direction.eq(1)
-        phy = ttl_simple.Output(sma_io.level)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        sma_io = platform.request("sma_io", 1)
-        self.comb += sma_io.direction.eq(0)
-        phy = ttl_simple.InOut(sma_io.level)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
-        if with_sawg:
-            cls = AD9154
-        else:
-            cls = AD9154NoSAWG
-        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
-        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
-        self.csr_devices.append("ad9154_crg")
-        self.csr_devices.append("ad9154_0")
-        self.csr_devices.append("ad9154_1")
-        self.config["HAS_AD9154"] = None
-        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
-        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
-        rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                for sawg in self.ad9154_0.sawgs +
-                                            self.ad9154_1.sawgs
-                                for phy in sawg.phys)
-
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
-        rtio_channels.append(rtio.LogChannel())
-
-        self.clock_domains.cd_rtio = ClockDomain()
-        self.comb += [
-            self.cd_rtio.clk.eq(ClockSignal("jesd")),
-            self.cd_rtio.rst.eq(ResetSignal("jesd"))
-        ]
-        self.submodules.rtio_tsc = rtio.TSC("async")
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
-        self.csr_devices.append("rtio_core")
-        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
-        self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
-        self.register_kernel_cpu_csrdevice("rtio")
-        self.register_kernel_cpu_csrdevice("rtio_dma")
-        self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri])
-        self.register_kernel_cpu_csrdevice("cri_con")
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
-
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
-                                                      self.get_native_sdram_if())
-        self.csr_devices.append("rtio_analyzer")
-
-        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
-        self.csr_devices.append("sysref_ddmtd")
-
-
 class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
     """
     DRTIO master with local DAC/SAWG channels.
@@ -396,6 +283,11 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
 
         self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
         self.csr_devices.append("sysref_ddmtd")
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
+        self.csr_devices.append("sysref_sampler")
+        self.ad9154_0.jesd.core.register_jref(self.sysref_sampler.jref)
+        self.ad9154_1.jesd.core.register_jref(self.sysref_sampler.jref)
 
 
 def workaround_us_lvds_tristate(platform):
@@ -684,6 +576,11 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
         self.csr_devices.append("sysref_ddmtd")
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
+        self.csr_devices.append("sysref_sampler")
+        self.ad9154_0.jesd.core.register_jref(self.sysref_sampler.jref)
+        self.ad9154_1.jesd.core.register_jref(self.sysref_sampler.jref)
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
@@ -700,9 +597,8 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     parser.set_defaults(output_dir="artiq_sayma")
-    parser.add_argument("-V", "--variant", default="standalone",
-        help="variant: "
-             "standalone/masterdac/master/satellite "
+    parser.add_argument("-V", "--variant", default="masterdac",
+        help="variant: masterdac/master/satellite "
              "(default: %(default)s)")
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
@@ -714,9 +610,7 @@ def main():
     args = parser.parse_args()
 
     variant = args.variant.lower()
-    if variant == "standalone":
-        cls = Standalone
-    elif variant == "masterdac":
+    if variant == "masterdac":
         cls = MasterDAC
     elif variant == "master":
         cls = lambda with_sawg, **kwargs: Master(**kwargs)

@@ -22,7 +22,6 @@ class UltrascaleCRG(Module, AutoCSR):
     def __init__(self, platform, use_rtio_clock=False):
         self.ibuf_disable = CSRStorage(reset=1)
         self.jreset = CSRStorage(reset=1)
-        self.jref = Signal()
         self.refclk = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
 
@@ -41,23 +40,6 @@ class UltrascaleCRG(Module, AutoCSR):
             self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
         else:
             self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
-
-        jref = platform.request("dac_sysref")
-        jref_se = Signal()
-        jref_r = Signal()
-        self.specials += [
-            Instance("IBUFDS_IBUFDISABLE",
-                p_USE_IBUFDISABLE="TRUE", p_SIM_DEVICE="ULTRASCALE",
-                i_IBUFDISABLE=self.ibuf_disable.storage,
-                i_I=jref.p, i_IB=jref.n,
-                o_O=jref_se),
-            # SYSREF normally meets s/h at the FPGA, except during margin
-            # scan and before full initialization.
-            # Be paranoid and use a double-register anyway.
-            Instance("FD", i_C=ClockSignal("jesd"), i_D=jref_se, o_Q=jref_r,
-                     attr={("IOB", "TRUE")}),
-            Instance("FD", i_C=ClockSignal("jesd"), i_D=jref_r, o_Q=self.jref)
-        ]
 
 
 PhyPads = namedtuple("PhyPads", "txp txn")
@@ -90,7 +72,6 @@ class UltrascaleTX(Module, AutoCSR):
             phys, settings, converter_data_width=64)
         self.submodules.control = JESD204BCoreTXControl(self.core)
         self.core.register_jsync(platform.request("dac_sync", dac))
-        self.core.register_jref(jesd_crg.jref)
 
 
 # See "Digital femtosecond time difference circuit for CERN's timing system"
@@ -157,3 +138,60 @@ class DDMTD(Module, AutoCSR):
             bsync.i.eq(result),
             self.dt.status.eq(bsync.o)
         ]
+
+
+# This assumes:
+#  * coarse RTIO frequency = 16*SYSREF frequency
+#  * fine RTIO frequency (rtiox) = 2*RTIO frequency
+#  * JESD and coarse RTIO clocks are the same
+#    (only reset may differ).
+#
+# Look at the 4 LSBs of the coarse RTIO timestamp counter
+# to determine SYSREF phase.
+
+class SysrefSampler(Module, AutoCSR):
+    def __init__(self, sysref_pads, coarse_ts):
+        self.sh_error = CSRStatus()
+        self.sh_error_reset = CSRStorage()
+        self.sample_result = CSRStatus()
+
+        self.jref = Signal()
+
+        # # #
+
+        sysref_se = Signal()
+        sysref_oversample = Signal(4)
+        self.specials += [
+            Instance("IBUFDS", i_I=sysref_pads.p, i_IB=sysref_pads.n, o_O=sysref_se),
+            Instance("ISERDESE3",
+                p_IS_CLK_INVERTED=0,
+                p_IS_CLK_B_INVERTED=1,
+                p_DATA_WIDTH=4,
+
+                i_D=sysref_se,
+                i_RST=ResetSignal("rtio"),
+                i_FIFO_RD_EN=0,
+                i_CLK=ClockSignal("rtiox"),
+                i_CLK_B=ClockSignal("rtiox"), # locally inverted
+                i_CLKDIV=ClockSignal("rtio"),
+                o_Q=sysref_oversample)
+        ]
+
+        self.comb += self.jref.eq(sysref_oversample[1])
+        sh_error = Signal()
+        sh_error_reset = Signal()
+        self.sync.rtio += [
+            If(~(  (sysref_oversample[0] == sysref_oversample[1])
+                 & (sysref_oversample[1] == sysref_oversample[2])),
+                sh_error.eq(1)
+            ),
+            If(sh_error_reset, sh_error.eq(0))
+        ]
+        self.specials += [
+            MultiReg(self.sh_error_reset.storage, sh_error_reset, "rtio"),
+            MultiReg(sh_error, self.sh_error.status)
+        ]
+
+        sample = Signal()
+        self.sync.rtio += If(coarse_ts[:4] == 0, sample.eq(self.jref))
+        self.specials += MultiReg(sample, self.sample_result.status)
