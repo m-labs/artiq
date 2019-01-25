@@ -283,6 +283,8 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
 
         self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
         self.csr_devices.append("sysref_ddmtd")
+        platform.add_false_path_constraints(self.ad9154_crg.cd_jesd.clk,
+            self.sysref_ddmtd.cd_helper.clk)
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
         self.csr_devices.append("sysref_sampler")
@@ -576,6 +578,8 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(platform.request("adc_sysref"))
         self.csr_devices.append("sysref_ddmtd")
+        platform.add_false_path_constraints(self.ad9154_crg.cd_jesd.clk,
+            self.sysref_ddmtd.cd_helper.clk)
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
         self.csr_devices.append("sysref_sampler")
