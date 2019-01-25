@@ -91,22 +91,3 @@ class UltrascaleTX(Module, AutoCSR):
         self.submodules.control = JESD204BCoreTXControl(self.core)
         self.core.register_jsync(platform.request("dac_sync", dac))
         self.core.register_jref(jesd_crg.jref)
-
-
-# This assumes:
-#  * coarse RTIO frequency = 16*SYSREF frequency
-#  * JESD and coarse RTIO clocks are the same
-#    (only reset may differ).
-#  * SYSREF meets setup/hold at the FPGA when sampled
-#    in the JESD/RTIO domain.
-#
-# Look at the 4 LSBs of the coarse RTIO timestamp counter
-# to determine SYSREF phase.
-
-class SysrefSampler(Module, AutoCSR):
-    def __init__(self, coarse_ts, jref):
-        self.sample_result = CSRStatus()
-
-        sample = Signal()
-        self.sync.jesd += If(coarse_ts[:4] == 0, sample.eq(jref))
-        self.specials += MultiReg(sample, self.sample_result.status)

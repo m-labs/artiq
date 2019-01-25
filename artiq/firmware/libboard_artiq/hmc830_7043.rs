@@ -117,6 +117,9 @@ mod hmc830 {
         // Max reference frequency: 350MHz, however f_ref >= 200MHz requires
         //     setting 0x08[21]=1
         //
+        // Warning: Output divider is not synchronized! Set to 1 for deterministic
+        // phase at the output.
+        //
         // :param r_div: reference divider [1, 16383]
         // :param n_div: VCO divider, integer part. Integer-N mode: [16, 2**19-1]
         //    fractional mode: [20, 2**19-4]
@@ -155,10 +158,11 @@ mod hmc830 {
 pub mod hmc7043 {
     use board_misoc::{csr, clock};
 
-    // All frequencies assume 1.2GHz HMC830 output
-    pub const DAC_CLK_DIV: u16 = 1;               // 1200MHz
-    pub const FPGA_CLK_DIV: u16 = 8;              // 150MHz
-    pub const SYSREF_DIV: u16 = 128;              // 9.375MHz
+    // Warning: dividers are not synchronized with HMC830 clock input!
+    // Set DAC_CLK_DIV to 1 for deterministic phase.
+    pub const DAC_CLK_DIV: u16 = 1;               // 2400MHz
+    pub const FPGA_CLK_DIV: u16 = 16;             // 150MHz
+    pub const SYSREF_DIV: u16 = 256;              // 9.375MHz
     const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8;     // 1.171875MHz (must be <= 4MHz)
 
     // enabled, divider, output config
@@ -385,32 +389,15 @@ pub mod hmc7043 {
         }
     }
 
-    pub fn sysref_offset_dac(dacno: u8, phase_offset: u16) {
-        /*  Analog delay resolution: 25ps
-         *  Digital delay resolution: 1/2 input clock cycle = 416ps for 1.2GHz
-         *  16*25ps = 400ps: limit analog delay to 16 steps instead of 32.
-         */
-        let analog_delay = (phase_offset % 17) as u8;
-        let digital_delay = (phase_offset / 17) as u8;
+    pub fn sysref_offset_dac(dacno: u8, phase_offset: u8) {
         spi_setup();
         if dacno == 0 {
-            write(0x00d5, analog_delay);
-            write(0x00d6, digital_delay);
+            write(0x00d5, phase_offset);
         } else if dacno == 1 {
-            write(0x00e9, analog_delay);
-            write(0x00ea, digital_delay);
+            write(0x00e9, phase_offset);
         } else {
             unimplemented!();
         }
-        clock::spin_us(100);
-    }
-
-    pub fn sysref_offset_fpga(phase_offset: u16) {
-        let analog_delay = (phase_offset % 17) as u8;
-        let digital_delay = (phase_offset / 17) as u8;
-        spi_setup();
-        write(0x0111, analog_delay);
-        write(0x0112, digital_delay);
         clock::spin_us(100);
     }
 
@@ -429,11 +416,11 @@ pub fn init() -> Result<(), &'static str> {
     hmc830::detect()?;
     hmc830::init();
 
-    // 1.2GHz out
+    // 2.4GHz out
     #[cfg(hmc830_ref = "100")]
-    hmc830::set_dividers(1, 24, 0, 2);
+    hmc830::set_dividers(1, 24, 0, 1);
     #[cfg(hmc830_ref = "150")]
-    hmc830::set_dividers(2, 32, 0, 2);
+    hmc830::set_dividers(2, 32, 0, 1);
 
     hmc830::check_locked()?;
 
