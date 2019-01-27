@@ -74,6 +74,22 @@ class UltrascaleTX(Module, AutoCSR):
         self.core.register_jsync(platform.request("dac_sync", dac))
 
 
+class DDMTDEdgeDetector(Module):
+    def __init__(self, i):
+        self.rising = Signal()
+
+        history = Signal(4)
+        deglitched = Signal()
+        self.sync.helper += history.eq(Cat(history[1:], i))
+        self.comb += deglitched.eq(i | history[0] | history[1] | history[2] | history[3])
+
+        deglitched_r = Signal()
+        self.sync.helper += [
+            deglitched_r.eq(deglitched),
+            self.rising.eq(deglitched & ~deglitched_r)
+        ]
+
+
 # See "Digital femtosecond time difference circuit for CERN's timing system"
 # by P. Moreira and I. Darwazeh
 class DDMTD(Module, AutoCSR):
@@ -112,13 +128,13 @@ class DDMTD(Module, AutoCSR):
             Instance("FD", i_C=self.cd_helper.clk, i_D=ClockSignal("rtio"), o_Q=beat2),
         ]
 
+        ed1 = DDMTDEdgeDetector(beat1)
+        ed2 = DDMTDEdgeDetector(beat2)
+        self.submodules += ed1, ed2
+
         counting = Signal()
         counter = Signal(N.bit_length())
-
-        beat1_r = Signal()
-        beat2_r = Signal()
         result = Signal.like(counter)
-
         self.sync.helper += [
             If(counting,
                 counter.eq(counter + 1)
@@ -126,10 +142,8 @@ class DDMTD(Module, AutoCSR):
                 result.eq(counter)
             ),
 
-            beat1_r.eq(beat1),
-            If(beat1 & ~beat1_r, counting.eq(1), counter.eq(0)),
-            beat2_r.eq(beat2),
-            If(beat2 & ~beat2_r, counting.eq(0))
+            If(ed1.rising, counting.eq(1), counter.eq(0)),
+            If(ed2.rising, counting.eq(0))
         ]
 
         bsync = BusSynchronizer(len(result), "helper", "sys")
