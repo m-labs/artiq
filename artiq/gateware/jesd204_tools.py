@@ -108,7 +108,7 @@ class DDMTD(Module, AutoCSR):
             ),
             Instance("BUFG", i_I=helper_output, o_O=self.cd_helper.clk),
             Instance("IBUFDS", i_I=input_pads.p, i_IB=input_pads.n, o_O=input_se),
-            Instance("FD", i_C=self.cd_helper.clk, i_D=input_se, o_Q=beat1),
+            Instance("FD", i_C=self.cd_helper.clk, i_D=input_se, o_Q=beat1, attr={("IOB", "TRUE")}),
             Instance("FD", i_C=self.cd_helper.clk, i_D=ClockSignal("rtio"), o_Q=beat2),
         ]
 
