@@ -74,7 +74,8 @@ fn test_ddmtd_stability() -> Result<(), &'static str> {
             max_pkpk = pkpk;
         }
         if pkpk > tolerance {
-            error!("  ...excessive peak-peak jitter: {}", pkpk);
+            error!("  ...excessive peak-peak jitter: {} (min={} max={} modulo_fix={})", pkpk,
+                min, max, modulo_fix);
             return Err("excessive DDMTD peak-peak jitter");
         }
         hmc7043::sysref_slip();
