@@ -222,10 +222,48 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
 }
 
 fn sysref_cal_dac(dacno: u8) -> Result<u8, &'static str> {
-    // TODO
-    info!("calibrating SYSREF phase at DAC-{}...", dacno);
-    info!("  ...done");
-    Ok(7)
+    info!("calibrating SYSREF delay at DAC-{}...", dacno);
+
+    // Allocate for more than expected as jitter may create spurious entries.
+    let mut limits_buf = [0; 8];
+    let mut n_limits = 0;
+
+    limits_buf[n_limits] = -1;
+    n_limits += 1;
+
+    // avoid spurious rotation at delay=0
+    hmc7043::sysref_delay_dac(dacno, 0);
+    ad9154::dac_sync(dacno)?;
+
+    for scan_delay in 0..hmc7043::ANALOG_DELAY_RANGE {
+        hmc7043::sysref_delay_dac(dacno, scan_delay);
+        if ad9154::dac_sync(dacno)? {
+            limits_buf[n_limits] = scan_delay as i16;
+            n_limits += 1;
+            if n_limits >= limits_buf.len() - 1  {
+                break;
+            }
+        }
+    }
+
+    limits_buf[n_limits] = hmc7043::ANALOG_DELAY_RANGE as i16;
+    n_limits += 1;
+
+    info!("  using limits: {:?}", &limits_buf[..n_limits]);
+
+    let mut delay = 0;
+    let mut best_margin = 0;
+
+    for i in 0..(n_limits-1) {
+        let margin = limits_buf[i+1] - limits_buf[i];
+        if margin > best_margin {
+            best_margin = margin;
+            delay = ((limits_buf[i+1] + limits_buf[i])/2) as u8;
+        }
+    }
+
+    info!("  ...done, value={}", delay);
+    Ok(delay)
 }
 
 fn sysref_dac_align(dacno: u8, delay: u8) -> Result<(), &'static str> {
