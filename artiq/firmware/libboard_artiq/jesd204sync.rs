@@ -135,7 +135,12 @@ fn reach_sysref_ddmtd_target(target: i32, tolerance: i32) -> Result<(), &'static
 }
 
 fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<i32, &'static str> {
-    let coarse_target = (falling_average - 16 + DDMTD_N) % DDMTD_N;  // HACK
+    let coarse_target =
+        if rising_average < falling_average {
+            (rising_average + falling_average)/2
+        } else {
+            ((falling_average - (DDMTD_N - rising_average))/2 + DDMTD_N) % DDMTD_N
+        };
     info!("SYSREF calibration coarse target: {}", coarse_target);
     reach_sysref_ddmtd_target(coarse_target, 2)?;
     let target = measure_ddmdt_phase();
