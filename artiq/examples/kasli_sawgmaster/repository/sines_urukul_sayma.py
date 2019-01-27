@@ -51,6 +51,7 @@ class SinesUrukulSayma(EnvExperiment):
                 delay(1*ms)
                 sawg.amplitude1.set(.4)
                 sawg.frequency0.set_mu(sawg_ftw)
+                sawg.phase0.set_mu(sawg_ftw*now_mu() >> 17)
 
             while self.drtio_is_up():
                 pass
