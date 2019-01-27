@@ -158,6 +158,8 @@ mod hmc830 {
 pub mod hmc7043 {
     use board_misoc::{csr, clock};
 
+    pub const ANALOG_DELAY_RANGE: u8 = 24;
+
     // Warning: dividers are not synchronized with HMC830 clock input!
     // Set DAC_CLK_DIV to 1 or 0 for deterministic phase.
     // (0 bypasses the divider and reduces noise)
@@ -390,7 +392,7 @@ pub mod hmc7043 {
         }
     }
 
-    pub fn sysref_offset_dac(dacno: u8, phase_offset: u8) {
+    pub fn sysref_delay_dac(dacno: u8, phase_offset: u8) {
         spi_setup();
         if dacno == 0 {
             write(0x00d5, phase_offset);

@@ -222,119 +222,70 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
 }
 
 fn sysref_cal_dac(dacno: u8) -> Result<u8, &'static str> {
+    // TODO
     info!("calibrating SYSREF phase at DAC-{}...", dacno);
-
-    let mut d = 0;
-    let dmin;
-    let dmax;
-
-    hmc7043::sysref_offset_dac(dacno, d);
-    ad9154::dac_sync(dacno)?;
-
-    loop {
-        hmc7043::sysref_offset_dac(dacno, d);
-        let realign_occured = ad9154::dac_sync(dacno)?;
-        if realign_occured {
-            dmin = d;
-            break;
-        }
-
-        d += 1;
-        if d > 23 {
-            return Err("no sync errors found when scanning delay");
-        }
-    }
-
-    d += 5;  // get away from jitter
-    hmc7043::sysref_offset_dac(dacno, d);
-    ad9154::dac_sync(dacno)?;
-
-    loop {
-        hmc7043::sysref_offset_dac(dacno, d);
-        let realign_occured = ad9154::dac_sync(dacno)?;
-        if realign_occured {
-            dmax = d;
-            break;
-        }
-
-        d += 1;
-        if d > 23 {
-            return Err("no sync errors found when scanning delay");
-        }
-    }
-
-    let phase = (dmin+dmax)/2;
-    info!("  ...done, min={}, max={}, result={}", dmin, dmax, phase);
-    Ok(phase)
+    info!("  ...done");
+    Ok(7)
 }
 
-fn sysref_dac_align(dacno: u8, phase: u8) -> Result<(), &'static str> {
-    let mut margin_minus = None;
-    let mut margin_plus = None;
+fn sysref_dac_align(dacno: u8, delay: u8) -> Result<(), &'static str> {
+    let tolerance = 5;
 
     info!("verifying SYSREF margins at DAC-{}...", dacno);
 
-    hmc7043::sysref_offset_dac(dacno, phase);
+    // avoid spurious rotation at delay=0
+    hmc7043::sysref_delay_dac(dacno, 0);
     ad9154::dac_sync(dacno)?;
-    for d in 0..24 {
-        hmc7043::sysref_offset_dac(dacno, phase - d);
-        let realign_occured = ad9154::dac_sync(dacno)?;
-        if realign_occured {
-            margin_minus = Some(d);
-            break;
+
+    let mut rotation_seen = false;
+    for scan_delay in 0..hmc7043::ANALOG_DELAY_RANGE {
+        hmc7043::sysref_delay_dac(dacno, scan_delay);
+        if ad9154::dac_sync(dacno)? {
+            rotation_seen = true;
+            let distance = (scan_delay as i16 - delay as i16).abs();
+            if distance < tolerance {
+                error!("  rotation at delay={} is {} delay steps from target (FAIL)", scan_delay, distance);
+                return Err("insufficient SYSREF margin at DAC");
+            } else {
+                info!("  rotation at delay={} is {} delay steps from target (PASS)", scan_delay, distance);
+            }
         }
     }
 
-    hmc7043::sysref_offset_dac(dacno, phase);
-    ad9154::dac_sync(dacno)?;
-    for d in 0..24 {
-        hmc7043::sysref_offset_dac(dacno, phase + d);
-        let realign_occured = ad9154::dac_sync(dacno)?;
-        if realign_occured {
-            margin_plus = Some(d);
-            break;
-        }
+    if !rotation_seen {
+        return Err("no rotation seen when scanning DAC SYSREF delay");
     }
 
-    if margin_minus.is_some() && margin_plus.is_some() {
-        let margin_minus = margin_minus.unwrap();
-        let margin_plus = margin_plus.unwrap();
-        info!("  margins: -{} +{}", margin_minus, margin_plus);
-        if margin_minus < 5 || margin_plus < 5 {
-            return Err("SYSREF margins at DAC are too small, board needs recalibration");
-        }
-    } else {
-        return Err("Unable to determine SYSREF margins at DAC");
-    }
+    info!("  ...done");
 
-    // Put SYSREF at the correct phase and sync DAC
-    hmc7043::sysref_offset_dac(dacno, phase);
+    // We tested that the value is correct - now use it
+    hmc7043::sysref_delay_dac(dacno, delay);
     ad9154::dac_sync(dacno)?;
 
     Ok(())
 }
 
 pub fn sysref_auto_dac_align() -> Result<(), &'static str> {
-    // We assume that DAC SYSREF traces are length-matched so only one phase
+    // We assume that DAC SYSREF traces are length-matched so only one delay
     // value is needed, and we use DAC-0 as calibration reference.
 
-    let entry = config::read_str("sysref_7043_phase_dac", |r| r.map(|s| s.parse()));
-    let phase = match entry {
-        Ok(Ok(phase)) => {
-            info!("using DAC SYSREF phase from config: {}", phase);
-            phase
+    let entry = config::read_str("sysref_7043_delay_dac", |r| r.map(|s| s.parse()));
+    let delay = match entry {
+        Ok(Ok(delay)) => {
+            info!("using DAC SYSREF delay from config: {}", delay);
+            delay
         },
         _ => {
-            let phase = sysref_cal_dac(0)?;
-            if let Err(e) = config::write_int("sysref_7043_phase_dac", phase as u32) {
-                error!("failed to update DAC SYSREF phase in config: {}", e);
+            let delay = sysref_cal_dac(0)?;
+            if let Err(e) = config::write_int("sysref_7043_delay_dac", delay as u32) {
+                error!("failed to update DAC SYSREF delay in config: {}", e);
             }
-            phase
+            delay
         }
     };
 
     for dacno in 0..csr::AD9154.len() {
-        sysref_dac_align(dacno as u8, phase)?;
+        sysref_dac_align(dacno as u8, delay)?;
     }
     Ok(())
 }
