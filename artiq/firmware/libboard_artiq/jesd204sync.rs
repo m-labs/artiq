@@ -43,6 +43,47 @@ fn measure_ddmdt_phase() -> i32 {
     average_phases(&measurements, SYSREF_SH_MOD) >> SYSREF_SH_PRECISION_SHIFT
 }
 
+fn test_ddmtd_stability() -> Result<(), &'static str> {
+    let tolerance = 4;
+
+    info!("testing DDMTD stability...");
+
+    let mut max_pkpk = 0;
+    for _ in 0..32 {
+        let modulo_fix_ref = measure_ddmdt_phase();
+        let modulo_fix =
+            if modulo_fix_ref < DDMTD_N/4 || (modulo_fix_ref > 3*DDMTD_N/4) {
+                DDMTD_N/2
+            } else {
+                0
+            };
+
+        let mut min = DDMTD_N;
+        let mut max = 0;
+        for _ in 0..500000 {
+            let m = (measure_ddmdt_phase_raw() + modulo_fix) % DDMTD_N;
+            if m < min {
+                min = m;
+            }
+            if m > max {
+                max = m;
+            }
+        }
+        let pkpk = max - min;
+        if pkpk > max_pkpk {
+            max_pkpk = pkpk;
+        }
+        if pkpk > tolerance {
+            error!("  ...excessive peak-peak jitter: {}", pkpk);
+            return Err("excessive DDMTD peak-peak jitter");
+        }
+        hmc7043::sysref_slip();
+    }
+
+    info!("  ...passed, peak-peak jitter: {}", max_pkpk);
+    Ok(())
+}
+
 fn test_slip_ddmtd() -> Result<(), &'static str> {
     // expected_step = (RTIO clock frequency)*(DDMTD N)/(HMC7043 CLKIN frequency)
     let expected_step = 4;
@@ -182,6 +223,7 @@ pub fn sysref_rtio_align() -> Result<(), &'static str> {
 }
 
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
+    test_ddmtd_stability()?;
     test_slip_ddmtd()?;
 
     let sysref_sh_limits = measure_sysref_sh_limits()?;
