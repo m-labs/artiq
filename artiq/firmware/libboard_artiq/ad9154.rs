@@ -70,9 +70,9 @@ fn jesd_jsync(dacno: u8) -> bool {
 }
 
 // ad9154 mode 1
-// linerate 6Gbps
-// deviceclock_fpga=150MHz
-// deviceclock_dac=600MHz
+// linerate 5Gbps or 6Gbps
+// deviceclock_fpga 125MHz or 150MHz
+// deviceclock_dac 500MHz or 600MHz
 
 struct JESDSettings {
     did: u8,
@@ -615,13 +615,18 @@ fn dac_stpl(dacno: u8, m: u8, s: u8) -> Result<(), &'static str> {
 }
 
 fn dac_cfg(dacno: u8) -> Result<(), &'static str> {
+    #[cfg(rtio_frequency = "125.0")]
+    const LINERATE: u64 = 5_000_000_000;
+    #[cfg(rtio_frequency = "150.0")]
+    const LINERATE: u64 = 5_000_000_000;
+
     spi_setup(dacno);
     jesd_enable(dacno, false);
     jesd_prbs(dacno, false);
     jesd_stpl(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
-    dac_setup(dacno, 6_000_000_000)?;
+    dac_setup(dacno, LINERATE)?;
     jesd_enable(dacno, false);
     clock::spin_us(10000);
     jesd_enable(dacno, true);
