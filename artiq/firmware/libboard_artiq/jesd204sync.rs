@@ -254,7 +254,7 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
 
     info!("  SYSREF S/H average limits (DDMTD phases): {} {}", rising_average, falling_average);
     info!("  SYSREF S/H maximum limit deviation: {} {}", rising_max_deviation, falling_max_deviation);
-    if rising_max_deviation > 4 || falling_max_deviation > 4 {
+    if rising_max_deviation > 8 || falling_max_deviation > 8 {
         return Err("excessive SYSREF S/H limit deviation");
     }
     info!("  ...done");
