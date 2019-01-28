@@ -164,7 +164,7 @@ fn measure_sysref_sh_limits() -> Result<SysrefShLimits, &'static str> {
 fn max_phase_deviation(average: i32, phases: &[i32]) -> i32 {
     let mut ret = 0;
     for phase in phases.iter() {
-        let deviation = (phase - average).abs();
+        let deviation = (phase - average + DDMTD_N) % DDMTD_N;
         if deviation > ret {
             ret = deviation;
         }
