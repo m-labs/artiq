@@ -327,7 +327,7 @@ fn sysref_cal_dac(dacno: u8) -> Result<u8, &'static str> {
         }
     }
 
-    info!("  ...done, value={}", delay);
+    info!("  ...done, delay={}", delay);
     Ok(delay)
 }
 
