@@ -22,6 +22,10 @@ class _Transfer(EnvExperiment):
     def sink(self, data):
         assert data == self.data
 
+    @rpc(flags={"async"})
+    def sink_array(self, data):
+        assert data == [0]*(1 << 15)
+
     @kernel
     def host_to_device(self):
         t0 = self.core.get_rtio_counter_mu()
@@ -35,6 +39,16 @@ class _Transfer(EnvExperiment):
         self.sink(self.data)
         t1 = self.core.get_rtio_counter_mu()
         return len(self.data)/self.core.mu_to_seconds(t1-t0)
+
+    @kernel
+    def device_to_host_array(self):
+        #data = [[0]*8 for _ in range(1 << 12)]
+        data = [0]*(1 << 15)
+        t0 = self.core.get_rtio_counter_mu()
+        self.sink_array(data)
+        t1 = self.core.get_rtio_counter_mu()
+        return ((len(data)*4)/
+            self.core.mu_to_seconds(t1-t0))
 
 
 class TransferTest(ExperimentCase):
@@ -53,6 +67,14 @@ class TransferTest(ExperimentCase):
         device_to_host_rate = exp.device_to_host()
         print(device_to_host_rate, "B/s")
         self.assertGreater(device_to_host_rate, 2.3e6)
+
+    @unittest.skipUnless(artiq_low_latency,
+                         "timings are dependent on CPU load and network conditions")
+    def test_device_to_host_array(self):
+        exp = self.create(_Transfer)
+        rate = exp.device_to_host_array()
+        print(rate, "B/s")
+        self.assertGreater(rate, .15e6)
 
 
 class _KernelOverhead(EnvExperiment):
