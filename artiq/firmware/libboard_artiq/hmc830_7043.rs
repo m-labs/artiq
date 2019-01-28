@@ -163,10 +163,10 @@ pub mod hmc7043 {
     // Warning: dividers are not synchronized with HMC830 clock input!
     // Set DAC_CLK_DIV to 1 or 0 for deterministic phase.
     // (0 bypasses the divider and reduces noise)
-    pub const DAC_CLK_DIV: u16 = 0;               // 2400MHz
-    pub const FPGA_CLK_DIV: u16 = 16;             // 150MHz
-    pub const SYSREF_DIV: u16 = 256;              // 9.375MHz
-    const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8;     // 1.171875MHz (must be <= 4MHz)
+    pub const DAC_CLK_DIV: u16 = 0;
+    pub const FPGA_CLK_DIV: u16 = 16;
+    pub const SYSREF_DIV: u16 = 256;
+    const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // must be <= 4MHz
 
     // enabled, divider, output config
     const OUTPUT_CONFIG: [(bool, u16, u8); 14] = [
@@ -413,17 +413,26 @@ pub mod hmc7043 {
 }
 
 pub fn init() -> Result<(), &'static str> {
+    // used by MasterDAC - HMC830 is clocked from 100MHz reference
+    #[cfg(all(hmc830_ref = "100", rtio_frequency = "125.0"))]
+    const DIV: (u32, u32, u32, u32) = (1, 20, 0, 1);  // 100MHz -> 2.0GHz
+    #[cfg(all(hmc830_ref = "100", rtio_frequency = "150.0"))]
+    const DIV: (u32, u32, u32, u32) = (1, 24, 0, 1);  // 100MHz -> 2.4GHz
+
+    // used by Satellite - HMC830 is clocked by recovered clock
+    // (or a clock of the same frequency derived from the same oscillator)
+    #[cfg(all(hmc830_ref = "125", rtio_frequency = "125.0"))]
+    const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 125MHz -> 2.0GHz
+    #[cfg(all(hmc830_ref = "150", rtio_frequency = "150.0"))]
+    const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 150MHz -> 2.4GHz
+
     clock_mux::init();
     /* do not use other SPI devices before HMC830 SPI mode selection */
     hmc830::select_spi_mode();
     hmc830::detect()?;
     hmc830::init();
 
-    // 2.4GHz out
-    #[cfg(hmc830_ref = "100")]
-    hmc830::set_dividers(1, 24, 0, 1);
-    #[cfg(hmc830_ref = "150")]
-    hmc830::set_dividers(2, 32, 0, 1);
+    hmc830::set_dividers(DIV.0, DIV.1, DIV.2, DIV.3);
 
     hmc830::check_locked()?;
 
