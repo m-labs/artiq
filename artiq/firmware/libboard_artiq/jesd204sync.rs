@@ -25,22 +25,21 @@ fn average_phases(phases: &[i32], modulo: i32) -> i32 {
 const DDMTD_N_SHIFT: i32 = 6;
 const DDMTD_N: i32 = 1 << DDMTD_N_SHIFT;
 
-const SYSREF_SH_PRECISION_SHIFT: i32 = 5;
-const SYSREF_SH_PRECISION: i32 = 1 << SYSREF_SH_PRECISION_SHIFT;
-const SYSREF_SH_MOD: i32 = 1 << (DDMTD_N_SHIFT + SYSREF_SH_PRECISION_SHIFT);
-
-
 fn measure_ddmdt_phase_raw() -> i32 {
     unsafe { csr::sysref_ddmtd::dt_read() as i32 }
 }
 
 fn measure_ddmdt_phase() -> i32 {
-    let mut measurements = [0; SYSREF_SH_PRECISION as usize];
-    for i in 0..SYSREF_SH_PRECISION {
-        measurements[i as usize] = measure_ddmdt_phase_raw() << SYSREF_SH_PRECISION_SHIFT;
+    const AVG_PRECISION_SHIFT: i32 = 5;
+    const AVG_PRECISION: i32 = 1 << AVG_PRECISION_SHIFT;
+    const AVG_MOD: i32 = 1 << (DDMTD_N_SHIFT + AVG_PRECISION_SHIFT);
+
+    let mut measurements = [0; AVG_PRECISION as usize];
+    for i in 0..AVG_PRECISION {
+        measurements[i as usize] = measure_ddmdt_phase_raw() << AVG_PRECISION_SHIFT;
         clock::spin_us(10);
     }
-    average_phases(&measurements, SYSREF_SH_MOD) >> SYSREF_SH_PRECISION_SHIFT
+    average_phases(&measurements, AVG_MOD) >> AVG_PRECISION_SHIFT
 }
 
 fn test_ddmtd_stability() -> Result<(), &'static str> {
@@ -115,6 +114,10 @@ fn sysref_sh_error() -> bool {
         csr::sysref_sampler::sh_error_read() != 0
     }
 }
+
+const SYSREF_SH_PRECISION_SHIFT: i32 = 5;
+const SYSREF_SH_PRECISION: i32 = 1 << SYSREF_SH_PRECISION_SHIFT;
+const SYSREF_SH_MOD: i32 = 1 << (DDMTD_N_SHIFT + SYSREF_SH_PRECISION_SHIFT);
 
 #[derive(Default)]
 struct SysrefShLimits {
