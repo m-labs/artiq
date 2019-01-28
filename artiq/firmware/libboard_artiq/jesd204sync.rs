@@ -172,18 +172,15 @@ fn max_phase_deviation(average: i32, phases: &[i32]) -> i32 {
     return ret;
 }
 
-fn reach_sysref_ddmtd_target(target: i32, tolerance: i32) -> Result<(), &'static str> {
-    let mut phase = measure_ddmdt_phase();
-    let mut nslips = 0;
-    while (phase - target).abs() > tolerance {
-        hmc7043::sysref_slip();
-        nslips += 1;
-        if nslips > 1024 {
-            return Err("failed to reach SYSREF DDMTD phase target");
+fn reach_sysref_ddmtd_target(target: i32, tolerance: i32) -> Result<i32, &'static str> {
+    for _ in 0..1024 {
+        let delta = (measure_ddmdt_phase() - target + DDMTD_N) % DDMTD_N;
+        if delta <= tolerance {
+            return Ok(delta)
         }
-        phase = measure_ddmdt_phase();
+        hmc7043::sysref_slip();
     }
-    Ok(())
+    Err("failed to reach SYSREF DDMTD phase target")
 }
 
 fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<i32, &'static str> {
@@ -275,11 +272,11 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     };
 
     info!("aligning SYSREF with RTIO clock...");
-    reach_sysref_ddmtd_target(target_phase, 3)?;
+    let delta = reach_sysref_ddmtd_target(target_phase, 3)?;
     if sysref_sh_error() {
         return Err("SYSREF does not meet S/H timing at DDMTD phase target");
     }
-    info!("  ...done");
+    info!("  ...done, delta={}", delta);
 
     sysref_rtio_align()?;
 
