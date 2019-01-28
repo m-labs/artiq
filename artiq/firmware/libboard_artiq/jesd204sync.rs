@@ -187,16 +187,17 @@ fn reach_sysref_ddmtd_target(target: i32, tolerance: i32) -> Result<(), &'static
 }
 
 fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<i32, &'static str> {
+    info!("calibrating SYSREF DDMTD target phase...");
     let coarse_target =
         if rising_average < falling_average {
             (rising_average + falling_average)/2
         } else {
             ((falling_average - (DDMTD_N - rising_average))/2 + DDMTD_N) % DDMTD_N
         };
-    info!("SYSREF calibration coarse target: {}", coarse_target);
+    info!("  SYSREF calibration coarse target: {}", coarse_target);
     reach_sysref_ddmtd_target(coarse_target, 4)?;
     let target = measure_ddmdt_phase();
-    info!("SYSREF calibrated target: {}", target);
+    info!("  ...done, target={}", target);
     Ok(target)
 }
 
@@ -215,13 +216,14 @@ fn sysref_slip_rtio_cycle()  {
 }
 
 pub fn sysref_rtio_align() -> Result<(), &'static str> {
+    info!("aligning SYSREF with RTIO TSC...");
     let mut previous_sample = sysref_get_sample()?;
     let mut nslips = 0;
     loop {
         sysref_slip_rtio_cycle();
         let sample = sysref_get_sample()?;
         if sample && !previous_sample {
-            info!("SYSREF aligned with RTIO TSC");
+            info!("  ...done");
             return Ok(())
         }
         previous_sample = sample;
@@ -238,6 +240,7 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     test_ddmtd_stability(false, 1)?;
     test_slip_ddmtd()?;
 
+    info!("determining SYSREF S/H limits...");
     let sysref_sh_limits = measure_sysref_sh_limits()?;
     let rising_average = average_phases(&sysref_sh_limits.rising_phases, SYSREF_SH_MOD);
     let falling_average = average_phases(&sysref_sh_limits.falling_phases, SYSREF_SH_MOD);
@@ -249,11 +252,12 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     let rising_max_deviation = rising_max_deviation >> SYSREF_SH_PRECISION_SHIFT;
     let falling_max_deviation = falling_max_deviation >> SYSREF_SH_PRECISION_SHIFT;
 
-    info!("SYSREF S/H average limits (DDMTD phases): {} {}", rising_average, falling_average);
-    info!("SYSREF S/H maximum limit deviation: {} {}", rising_max_deviation, falling_max_deviation);
+    info!("  SYSREF S/H average limits (DDMTD phases): {} {}", rising_average, falling_average);
+    info!("  SYSREF S/H maximum limit deviation: {} {}", rising_max_deviation, falling_max_deviation);
     if rising_max_deviation > 4 || falling_max_deviation > 4 {
         return Err("excessive SYSREF S/H limit deviation");
     }
+    info!("  ...done");
 
     let entry = config::read_str("sysref_ddmtd_phase_fpga", |r| r.map(|s| s.parse()));
     let target_phase = match entry {
@@ -270,10 +274,12 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
         }
     };
 
+    info!("aligning SYSREF with RTIO clock...");
     reach_sysref_ddmtd_target(target_phase, 3)?;
     if sysref_sh_error() {
         return Err("SYSREF does not meet S/H timing at DDMTD phase target");
     }
+    info!("  ...done");
 
     sysref_rtio_align()?;
 
