@@ -232,6 +232,27 @@ pub fn sysref_rtio_align() -> Result<(), &'static str> {
     }
 }
 
+pub fn test_sysref_period() -> Result<(), &'static str> {
+    info!("testing SYSREF period...");
+    let half_sysref_period = hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV/2;
+    for _ in 0..32 {
+        for _ in 0..half_sysref_period {
+            if !sysref_get_sample()? {
+                return Err("unexpected SYSREF value during period test");
+            }
+            sysref_slip_rtio_cycle();
+        }
+        for _ in 0..half_sysref_period {
+            if sysref_get_sample()? {
+                return Err("unexpected SYSREF value during period test");
+            }
+            sysref_slip_rtio_cycle();
+        }
+    }
+    info!("  ...done");
+    Ok(())
+}
+
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     test_ddmtd_stability(true, 4)?;
     test_ddmtd_stability(false, 1)?;
@@ -279,6 +300,7 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     info!("  ...done, delta={}", delta);
 
     sysref_rtio_align()?;
+    test_sysref_period()?;
 
     Ok(())
 }
