@@ -22,7 +22,10 @@ fn average_phases(phases: &[i32], modulo: i32) -> i32 {
     }
 }
 
-const DDMTD_N_SHIFT: i32 = 6;
+const RAW_DDMTD_N_SHIFT: i32 = 6;
+const RAW_DDMTD_N: i32 = 1 << RAW_DDMTD_N_SHIFT;
+const DDMTD_DITHER_BITS: i32 = 1;
+const DDMTD_N_SHIFT: i32 = RAW_DDMTD_N_SHIFT + DDMTD_DITHER_BITS;
 const DDMTD_N: i32 = 1 << DDMTD_N_SHIFT;
 
 fn measure_ddmdt_phase_raw() -> i32 {
@@ -30,37 +33,41 @@ fn measure_ddmdt_phase_raw() -> i32 {
 }
 
 fn measure_ddmdt_phase() -> i32 {
-    const AVG_PRECISION_SHIFT: i32 = 5;
+    const AVG_PRECISION_SHIFT: i32 = 6;
     const AVG_PRECISION: i32 = 1 << AVG_PRECISION_SHIFT;
-    const AVG_MOD: i32 = 1 << (DDMTD_N_SHIFT + AVG_PRECISION_SHIFT);
+    const AVG_MOD: i32 = 1 << (RAW_DDMTD_N_SHIFT + AVG_PRECISION_SHIFT + DDMTD_DITHER_BITS);
 
     let mut measurements = [0; AVG_PRECISION as usize];
     for i in 0..AVG_PRECISION {
-        measurements[i as usize] = measure_ddmdt_phase_raw() << AVG_PRECISION_SHIFT;
+        measurements[i as usize] = measure_ddmdt_phase_raw() << (AVG_PRECISION_SHIFT + DDMTD_DITHER_BITS);
         clock::spin_us(10);
     }
     average_phases(&measurements, AVG_MOD) >> AVG_PRECISION_SHIFT
 }
 
-fn test_ddmtd_stability() -> Result<(), &'static str> {
-    let tolerance = 4;
+fn test_ddmtd_stability(raw: bool, tolerance: i32) -> Result<(), &'static str> {
+    info!("testing DDMTD stability (raw={}, tolerance={})...", raw, tolerance);
 
-    info!("testing DDMTD stability...");
+    let modulo = if raw { RAW_DDMTD_N } else { DDMTD_N };
+    let measurement = if raw { measure_ddmdt_phase_raw } else { measure_ddmdt_phase };
+    let ntests = if raw { 250000 } else { 150 };
 
     let mut max_pkpk = 0;
     for _ in 0..32 {
-        let modulo_fix_ref = measure_ddmdt_phase();
-        let modulo_fix =
-            if modulo_fix_ref < DDMTD_N/4 || (modulo_fix_ref > 3*DDMTD_N/4) {
-                DDMTD_N/2
+        // If we are near the edges, wraparound can throw off the simple min/max computation.
+        // In this case, add an offset to get near the center.
+        let quadrant = measure_ddmdt_phase();
+        let center_offset =
+            if quadrant < DDMTD_N/4 || quadrant > 3*DDMTD_N/4 {
+                modulo/2
             } else {
                 0
             };
 
-        let mut min = DDMTD_N;
+        let mut min = modulo;
         let mut max = 0;
-        for _ in 0..500000 {
-            let m = (measure_ddmdt_phase_raw() + modulo_fix) % DDMTD_N;
+        for _ in 0..ntests {
+            let m = (measurement() + center_offset) % modulo;
             if m < min {
                 min = m;
             }
@@ -73,8 +80,8 @@ fn test_ddmtd_stability() -> Result<(), &'static str> {
             max_pkpk = pkpk;
         }
         if pkpk > tolerance {
-            error!("  ...excessive peak-peak jitter: {} (min={} max={} modulo_fix={})", pkpk,
-                min, max, modulo_fix);
+            error!("  ...excessive peak-peak jitter: {} (min={} max={} center_offset={})", pkpk,
+                min, max, center_offset);
             return Err("excessive DDMTD peak-peak jitter");
         }
         hmc7043::sysref_slip();
@@ -86,7 +93,7 @@ fn test_ddmtd_stability() -> Result<(), &'static str> {
 
 fn test_slip_ddmtd() -> Result<(), &'static str> {
     // expected_step = (RTIO clock frequency)*(DDMTD N)/(HMC7043 CLKIN frequency)
-    let expected_step = 4;
+    let expected_step = 8;
     let tolerance = 1;
 
     info!("testing HMC7043 SYSREF slip against DDMTD...");
@@ -187,7 +194,7 @@ fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<
             ((falling_average - (DDMTD_N - rising_average))/2 + DDMTD_N) % DDMTD_N
         };
     info!("SYSREF calibration coarse target: {}", coarse_target);
-    reach_sysref_ddmtd_target(coarse_target, 2)?;
+    reach_sysref_ddmtd_target(coarse_target, 4)?;
     let target = measure_ddmdt_phase();
     info!("SYSREF calibrated target: {}", target);
     Ok(target)
@@ -227,7 +234,8 @@ pub fn sysref_rtio_align() -> Result<(), &'static str> {
 }
 
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
-    test_ddmtd_stability()?;
+    test_ddmtd_stability(true, 4)?;
+    test_ddmtd_stability(false, 1)?;
     test_slip_ddmtd()?;
 
     let sysref_sh_limits = measure_sysref_sh_limits()?;
@@ -262,7 +270,7 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
         }
     };
 
-    reach_sysref_ddmtd_target(target_phase, 1)?;
+    reach_sysref_ddmtd_target(target_phase, 3)?;
     if sysref_sh_error() {
         return Err("SYSREF does not meet S/H timing at DDMTD phase target");
     }
