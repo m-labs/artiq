@@ -155,19 +155,15 @@ class DDMTD(Module, AutoCSR):
 
 
 # This assumes:
-#  * coarse RTIO frequency = 16*SYSREF frequency
 #  * fine RTIO frequency (rtiox) = 2*RTIO frequency
 #  * JESD and coarse RTIO clocks are the same
 #    (only reset may differ).
-#
-# Look at the 4 LSBs of the coarse RTIO timestamp counter
-# to determine SYSREF phase.
-
 class SysrefSampler(Module, AutoCSR):
-    def __init__(self, sysref_pads, coarse_ts):
+    def __init__(self, sysref_pads, coarse_ts, sysref_phase_bits=8):
         self.sh_error = CSRStatus()
         self.sh_error_reset = CSRStorage()
-        self.sample_result = CSRStatus()
+        # Note: only the lower log2(RTIO frequency / SYSREF frequency) bits are stable
+        self.sysref_phase = CSRStatus(8)
 
         self.jref = Signal()
 
@@ -206,6 +202,11 @@ class SysrefSampler(Module, AutoCSR):
             MultiReg(sh_error, self.sh_error.status)
         ]
 
-        sample = Signal()
-        self.sync.rtio += If(coarse_ts[:4] == 0, sample.eq(self.jref))
-        self.specials += MultiReg(sample, self.sample_result.status)
+        jref_r = Signal()
+        sysref_phase_rtio = Signal(sysref_phase_bits)
+        self.sync.rtio += [
+            jref_r.eq(self.jref),
+            If(self.jref & ~jref_r, sysref_phase_rtio.eq(coarse_ts))
+        ]
+        sysref_phase_rtio.attr.add("no_retiming")
+        self.specials += MultiReg(sysref_phase_rtio, self.sysref_phase.status)

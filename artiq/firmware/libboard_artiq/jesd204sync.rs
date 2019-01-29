@@ -198,12 +198,41 @@ fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<
     Ok(target)
 }
 
-fn sysref_get_sample() -> Result<bool, &'static str> {
+fn sysref_get_tsc_phase_raw() -> Result<u8, &'static str> {
     if sysref_sh_error() {
         return Err("SYSREF failed S/H timing");
     }
-    let ret = unsafe { csr::sysref_sampler::sample_result_read() } != 0;
+    let ret = unsafe { csr::sysref_sampler::sysref_phase_read() };
     Ok(ret)
+}
+
+// Note: the code below assumes RTIO/SYSREF frequency ratio is a power of 2
+
+fn sysref_get_tsc_phase() -> Result<i32, &'static str> {
+    let mask = (hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV - 1) as u8;
+    Ok((sysref_get_tsc_phase_raw()? & mask) as i32)
+}
+
+pub fn test_sysref_frequency() -> Result<(), &'static str> {
+    info!("testing SYSREF frequency against raw TSC phase bit toggles...");
+
+    let mut all_toggles = 0;
+    let initial_phase = sysref_get_tsc_phase_raw()?;
+    for _ in 0..20000 {
+        clock::spin_us(1);
+        all_toggles |= sysref_get_tsc_phase_raw()? ^ initial_phase;
+    }
+
+    let ratio = (hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV) as u8;
+    let expected_toggles = 0xff ^ (ratio - 1);
+    if all_toggles == expected_toggles {
+        info!("  ...done (0x{:02x})", all_toggles);
+        Ok(())
+    } else {
+        error!("  ...unexpected toggles: got 0x{:02x}, expected 0x{:02x}",
+            all_toggles, expected_toggles);
+        Err("unexpected toggles")
+    }
 }
 
 fn sysref_slip_rtio_cycle()  {
@@ -212,45 +241,38 @@ fn sysref_slip_rtio_cycle()  {
     }
 }
 
+pub fn test_slip_tsc() -> Result<(), &'static str> {
+    info!("testing HMC7043 SYSREF slip against TSC phase...");
+    let initial_phase = sysref_get_tsc_phase()?;
+    let modulo = (hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV) as i32;
+    for i in 0..128 {
+        sysref_slip_rtio_cycle();
+        let expected_phase = (initial_phase + i + 1) % modulo;
+        let phase = sysref_get_tsc_phase()?;
+        if phase != expected_phase {
+            error!("  ...unexpected TSC phase: got {}, expected {} ", phase, expected_phase);
+            return Err("HMC7043 SYSREF slip produced unexpected TSC phase");
+        }
+    }
+    info!("  ...done");
+    Ok(())
+}
+
 pub fn sysref_rtio_align() -> Result<(), &'static str> {
     info!("aligning SYSREF with RTIO TSC...");
-    let mut previous_sample = sysref_get_sample()?;
     let mut nslips = 0;
     loop {
         sysref_slip_rtio_cycle();
-        let sample = sysref_get_sample()?;
-        if sample && !previous_sample {
+        if sysref_get_tsc_phase()? == 0 {
             info!("  ...done");
             return Ok(())
         }
-        previous_sample = sample;
 
         nslips += 1;
         if nslips > hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV {
             return Err("failed to find SYSREF transition aligned with RTIO TSC");
         }
     }
-}
-
-pub fn test_sysref_period() -> Result<(), &'static str> {
-    info!("testing SYSREF period...");
-    let half_sysref_period = hmc7043::SYSREF_DIV/hmc7043::FPGA_CLK_DIV/2;
-    for _ in 0..32 {
-        for _ in 0..half_sysref_period {
-            if !sysref_get_sample()? {
-                return Err("unexpected SYSREF value during period test");
-            }
-            sysref_slip_rtio_cycle();
-        }
-        for _ in 0..half_sysref_period {
-            if sysref_get_sample()? {
-                return Err("unexpected SYSREF value during period test");
-            }
-            sysref_slip_rtio_cycle();
-        }
-    }
-    info!("  ...done");
-    Ok(())
 }
 
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
@@ -299,8 +321,9 @@ pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
     }
     info!("  ...done, delta={}", delta);
 
+    test_sysref_frequency()?;
+    test_slip_tsc()?;
     sysref_rtio_align()?;
-    test_sysref_period()?;
 
     Ok(())
 }
