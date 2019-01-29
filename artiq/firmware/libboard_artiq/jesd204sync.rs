@@ -103,7 +103,7 @@ fn test_slip_ddmtd() -> Result<(), &'static str> {
         let phase = measure_ddmdt_phase();
         let step = (DDMTD_N + old_phase - phase) % DDMTD_N;
         if (step - expected_step).abs() > tolerance {
-            error!("  ...got unexpected step: {}", step);
+            error!("  ...got unexpected step: {} ({} -> {})", step, old_phase, phase);
             return Err("HMC7043 SYSREF slip produced unexpected DDMTD step");
         }
         old_phase = phase;
