@@ -192,7 +192,7 @@ fn calibrate_sysref_target(rising_average: i32, falling_average: i32) -> Result<
             ((falling_average - (DDMTD_N - rising_average))/2 + DDMTD_N) % DDMTD_N
         };
     info!("  SYSREF calibration coarse target: {}", coarse_target);
-    reach_sysref_ddmtd_target(coarse_target, 4)?;
+    reach_sysref_ddmtd_target(coarse_target, 8)?;
     let target = measure_ddmdt_phase();
     info!("  ...done, target={}", target);
     Ok(target)
