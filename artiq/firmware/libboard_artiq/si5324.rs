@@ -304,7 +304,7 @@ pub mod siphaser {
         }
     }
 
-    fn find_edge(target: bool) -> Result<u16> {
+    fn find_edge(target: bool) -> Result<u32> {
         let mut nshifts = 0;
 
         let mut previous = has_error();
@@ -323,8 +323,13 @@ pub mod siphaser {
     }
 
     pub fn calibrate_skew() -> Result<()> {
+        let jitter_margin = 32;
         let lead = find_edge(false)?;
-        let width = find_edge(true)?;
+        for _ in 0..jitter_margin {
+            phase_shift(1);
+        }
+        let width = find_edge(true)? + jitter_margin;
+        // width is 360 degrees (one full rotation of the phase between s/h limits) minus jitter
         info!("calibration successful, lead: {}, width: {} ({}deg)", lead, width, width*360/(56*8));
 
         // Apply reverse phase shift for half the width to get into the
