@@ -28,6 +28,20 @@ const DDMTD_DITHER_BITS: i32 = 1;
 const DDMTD_N_SHIFT: i32 = RAW_DDMTD_N_SHIFT + DDMTD_DITHER_BITS;
 const DDMTD_N: i32 = 1 << DDMTD_N_SHIFT;
 
+fn init_ddmtd() -> Result<(), &'static str> {
+    unsafe {
+        csr::sysref_ddmtd::reset_write(1);
+        clock::spin_us(1);
+        csr::sysref_ddmtd::reset_write(0);
+        clock::spin_us(100);
+        if csr::sysref_ddmtd::locked_read() != 0 {
+            Ok(())
+        } else {
+            Err("DDMTD helper PLL failed to lock")
+        }
+    }
+}
+
 fn measure_ddmdt_phase_raw() -> i32 {
     unsafe { csr::sysref_ddmtd::dt_read() as i32 }
 }
@@ -276,6 +290,7 @@ pub fn sysref_rtio_align() -> Result<(), &'static str> {
 }
 
 pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
+    init_ddmtd()?;
     test_ddmtd_stability(true, 4)?;
     test_ddmtd_stability(false, 1)?;
     test_slip_ddmtd()?;

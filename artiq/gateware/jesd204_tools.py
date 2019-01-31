@@ -95,11 +95,14 @@ class DDMTDEdgeDetector(Module):
 class DDMTD(Module, AutoCSR):
     def __init__(self, input_pads, rtio_clk_freq=150e6):
         N = 64
+        self.reset = CSRStorage(reset=1)
+        self.locked = CSRStatus()
         self.dt = CSRStatus(N.bit_length())
 
         # # #
 
         self.clock_domains.cd_helper = ClockDomain(reset_less=True)
+        helper_locked = Signal()
         helper_fb = Signal()
         helper_output = Signal()
 
@@ -110,7 +113,8 @@ class DDMTD(Module, AutoCSR):
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
                 i_CLKIN1=ClockSignal("rtio"),
-                i_RST=ResetSignal("rtio"),
+                i_RST=self.reset.storage,
+                o_LOCKED=helper_locked,
 
                 # VCO at 1200MHz with 150MHz RTIO frequency
                 p_CLKFBOUT_MULT_F=8.0,
@@ -122,6 +126,7 @@ class DDMTD(Module, AutoCSR):
                 p_CLKOUT0_DIVIDE_F=8.125,
                 o_CLKOUT0=helper_output,
             ),
+            MultiReg(helper_locked, self.locked.status),
             Instance("BUFG", i_I=helper_output, o_O=self.cd_helper.clk),
             Instance("IBUFDS", i_I=input_pads.p, i_IB=input_pads.n, o_O=input_se),
             Instance("FD", i_C=self.cd_helper.clk, i_D=input_se, o_Q=beat1, attr={("IOB", "TRUE")}),
