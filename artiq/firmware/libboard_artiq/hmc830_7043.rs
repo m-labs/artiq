@@ -9,10 +9,10 @@ mod clock_mux {
     pub fn init() {
         unsafe {
             csr::clock_mux::out_write(
-                1*CLK_SRC_EXT_SEL |  // use ext clk from sma
-                1*REF_CLK_SRC_SEL |
-                1*DAC_CLK_SRC_SEL |
-                0*REF_LO_CLK_SEL);
+                1*CLK_SRC_EXT_SEL |  // 1= ext clk from sma, 0= RF backplane (IC46) to IC45
+                1*REF_CLK_SRC_SEL |  // 1= low-noise clock, 0= Si5324 output (IC45) to HMC830
+                1*DAC_CLK_SRC_SEL |  // 1= HMC830 output, 1= clock mezzanine (IC54) to HMC7043 and J58/J59
+                0*REF_LO_CLK_SEL);   // 1= clock mezzanine, 0= HMC830 input  (IC52) to AFEs and J56/J57
         }
     }
 }
