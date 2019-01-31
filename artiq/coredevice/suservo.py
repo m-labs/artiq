@@ -441,7 +441,7 @@ class Channel:
         base = (self.servo_channel << 8) | (profile << 3)
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
-            delay(4*us)
+            delay(6*us)
 
     @kernel
     def get_y_mu(self, profile):
