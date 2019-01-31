@@ -129,6 +129,7 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
+        value &= (1 << COEFF_WIDTH) - 1
         addr |= WE
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
@@ -283,7 +284,7 @@ class Channel:
         """
         base = (self.servo_channel << 8) | (profile << 3)
         self.servo.write(base + 0, ftw >> 16)
-        self.servo.write(base + 6, ftw)
+        self.servo.write(base + 6, ftw & 0xffff)
         self.servo.write(base + 4, offs)
         self.servo.write(base + 2, pow_)
 
