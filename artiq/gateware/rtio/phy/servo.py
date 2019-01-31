@@ -81,8 +81,13 @@ class RTServoMem(Module):
                 1 +  # state_sel
                 1 +  # config_sel
                 len(m_state.adr))
+
         internal_address = Signal(internal_address_width)
-        self.comb += internal_address.eq(Cat(self.rtlink.o.address, self.rtlink.o.data[w.coeff:]))
+        self.comb += internal_address.eq(Cat(self.rtlink.o.address,
+                                             self.rtlink.o.data[w.coeff:]))
+
+        coeff_data = Signal(w.coeff)
+        self.comb += coeff_data.eq(self.rtlink.o.data[:w.coeff])
 
         we = internal_address[-1]
         state_sel = internal_address[-2]
@@ -91,7 +96,7 @@ class RTServoMem(Module):
         self.comb += [
                 self.rtlink.o.busy.eq(0),
                 m_coeff.adr.eq(internal_address[1:]),
-                m_coeff.dat_w.eq(Cat(self.rtlink.o.data, self.rtlink.o.data)),
+                m_coeff.dat_w.eq(Cat(coeff_data, coeff_data)),
                 m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
                     we & ~state_sel),
                 m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
