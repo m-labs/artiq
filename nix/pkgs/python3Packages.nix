@@ -50,9 +50,8 @@ rec {
     src = fetchFromGitHub {
       owner = "m-labs";
       repo = "migen";
-      rev = "57c44674c2a6c38bd01804e69db61a9efd287524";
-      sha256 = "1xl7bb21ijp6i25hf12gyjwjmv52sbv81fz44fmkiz5b25xlbmaq";
-      fetchSubmodules = true;
+      rev = "afe4405becdbc76539f0195c319367187012b05e";
+      sha256 = "1f288a7ll1d1gjmml716wsjf1jyq9y903i2312bxb8pwrg7fwgvz";
     };
 
     # TODO: fix migen platform issues and re-enable tests
