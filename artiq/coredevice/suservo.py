@@ -29,6 +29,13 @@ def adc_mu_to_volts(x, gain):
     val = -(val & mask) + (val & ~mask)
     return sampler.adc_mu_to_volt(val, gain)
 
+@portable
+def sign_extend(data):
+    """ Correctly represent two's complement signed coefficients stored in the
+    LSB of an int32 """
+    if (data >> COEFF_WIDTH - 1) & 0x1 != 0:
+        data |= 0xffffffff & ~((1 << COEFF_WIDTH) - 1)
+    return data
 
 class SUServo:
     """Sampler-Urukul Servo parent and configuration device.
@@ -200,7 +207,7 @@ class SUServo:
         # State memory entries are 25 bits. Due to the pre-adder dynamic
         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
         # only returns the 18 MSBs (the width of the coefficient memory).
-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
+        return sign_extend(self.read(STATE_SEL | (adc << 1) | (1 << 8)))
 
     @kernel
     def set_pgia_mu(self, channel, gain):
@@ -441,7 +448,10 @@ class Channel:
         base = (self.servo_channel << 8) | (profile << 3)
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
-            delay(6*us)
+            if i in [1, 2, 4, 5, 7]:
+                data[i] = sign_extend(data[i])
+            delay(10*us)
+
 
     @kernel
     def get_y_mu(self, profile):
