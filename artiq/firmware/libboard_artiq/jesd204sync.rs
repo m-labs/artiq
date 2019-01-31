@@ -64,7 +64,7 @@ fn test_ddmtd_stability(raw: bool, tolerance: i32) -> Result<(), &'static str> {
 
     let modulo = if raw { RAW_DDMTD_N } else { DDMTD_N };
     let measurement = if raw { measure_ddmdt_phase_raw } else { measure_ddmdt_phase };
-    let ntests = if raw { 250000 } else { 150 };
+    let ntests = if raw { 15000 } else { 150 };
 
     let mut max_pkpk = 0;
     for _ in 0..32 {

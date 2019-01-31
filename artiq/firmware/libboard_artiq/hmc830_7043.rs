@@ -169,21 +169,21 @@ pub mod hmc7043 {
     const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // must be <= 4MHz
 
     // enabled, divider, output config
-    const OUTPUT_CONFIG: [(bool, u16, u8); 14] = [
-        (true,  DAC_CLK_DIV,  0x08),  // 0: DAC2_CLK
-        (true,  SYSREF_DIV,   0x08),  // 1: DAC2_SYSREF
-        (true,  DAC_CLK_DIV,  0x08),  // 2: DAC1_CLK
-        (true,  SYSREF_DIV,   0x08),  // 3: DAC1_SYSREF
-        (false, 0,            0x08),  // 4: ADC2_CLK
-        (false, 0,            0x08),  // 5: ADC2_SYSREF
-        (false, 0,            0x08),  // 6: GTP_CLK2
-        (true,  SYSREF_DIV,   0x10),  // 7: FPGA_DAC_SYSREF, LVDS
-        (true,  FPGA_CLK_DIV, 0x08),  // 8: GTP_CLK1
-        (false, 0,            0x10),  // 9: AMC_MASTER_AUX_CLK
-        (false, 0,            0x10),  // 10: RTM_MASTER_AUX_CLK
-        (true,  FPGA_CLK_DIV, 0x10),  // 11: FPGA_ADC_SYSREF, LVDS, used for DDMTD RTIO/SYSREF alignment
-        (false, 0,            0x08),  // 12: ADC1_CLK
-        (false, 0,            0x08),  // 13: ADC1_SYSREF
+    const OUTPUT_CONFIG: [(bool, u16, u8, bool); 14] = [
+        (true,  DAC_CLK_DIV,  0x08, false),  // 0: DAC2_CLK
+        (true,  SYSREF_DIV,   0x08, true),   // 1: DAC2_SYSREF
+        (true,  DAC_CLK_DIV,  0x08, false),  // 2: DAC1_CLK
+        (true,  SYSREF_DIV,   0x08, true),   // 3: DAC1_SYSREF
+        (false, 0,            0x08, false),  // 4: ADC2_CLK
+        (false, 0,            0x08, true),   // 5: ADC2_SYSREF
+        (false, 0,            0x08, false),  // 6: GTP_CLK2
+        (true,  SYSREF_DIV,   0x10, true),   // 7: FPGA_DAC_SYSREF, LVDS
+        (true,  FPGA_CLK_DIV, 0x08, false),  // 8: GTP_CLK1
+        (false, 0,            0x10, true),   // 9: AMC_MASTER_AUX_CLK
+        (true,  FPGA_CLK_DIV, 0x10, true),   // 10: RTM_MASTER_AUX_CLK, LVDS, used for DDMTD RTIO/SYSREF alignment
+        (false, 0,            0x10, true),   // 11: FPGA_ADC_SYSREF
+        (false, 0,            0x08, false),  // 12: ADC1_CLK
+        (false, 0,            0x08, true),   // 13: ADC1_SYSREF
     ];
 
     fn spi_setup() {
@@ -311,10 +311,10 @@ pub mod hmc7043 {
 
         for channel in 0..OUTPUT_CONFIG.len() {
             let channel_base = 0xc8 + 0x0a*(channel as u16);
-            let (enabled, divider, outcfg) = OUTPUT_CONFIG[channel];
+            let (enabled, divider, outcfg, is_sysref) = OUTPUT_CONFIG[channel];
 
             if enabled {
-                if channel % 2 == 0 {
+                if !is_sysref {
                     // DCLK channel: enable high-performance mode
                     write(channel_base, 0xd1);
                 } else {
@@ -328,7 +328,7 @@ pub mod hmc7043 {
             write(channel_base + 0x2, ((divider & 0xf00) >> 8) as u8);
 
             // bypass analog phase shift on DCLK channels to reduce noise
-            if channel % 2 == 0 {
+            if !is_sysref {
                 if divider != 0 {
                     write(channel_base + 0x7, 0x00); // enable divider
                 } else {

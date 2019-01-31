@@ -16,6 +16,7 @@ from misoc.integration.wb_slaves import WishboneSlaveManager
 from misoc.integration.cpu_interface import get_csr_csv
 
 from artiq.gateware import serwb
+from artiq.gateware import jesd204_tools
 from artiq import __version__ as artiq_version
 
 
@@ -175,6 +176,15 @@ class SaymaRTM(Module):
         self.submodules.hmc7043_gpo = gpio.GPIOIn(
             platform.request("hmc7043_gpo"))
         csr_devices.append("hmc7043_gpo")
+
+        # DDMTD
+        self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
+        rtio_clock_pads = platform.request("si5324_clkout_fabric")
+        self.specials += Instance("IBUFGDS", i_I=rtio_clock_pads.p, i_IB=rtio_clock_pads.n,
+            o_O=self.cd_rtio.clk)
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(
+            platform.request("rtm_master_aux_clk"), 125e6)
+        csr_devices.append("sysref_ddmtd")
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
