@@ -190,9 +190,7 @@ fn monitor_lock() -> Result<()> {
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
-    let s = map_frequency_settings(settings)?;
-
+fn init() -> Result<()> {
     #[cfg(not(si5324_soft_reset))]
     hard_reset();
 
@@ -214,11 +212,31 @@ pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
 
     #[cfg(si5324_soft_reset)]
     soft_reset()?;
+    Ok(())
+}
 
+pub fn bypass(input: Input) -> Result<()> {
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
+    init()?;
+    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
+    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;    // CKSEL_REG
+    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
+    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
+    write(0,   (read(0)? & 0xfd) | 0x02)?;                // BYPASS_REG=1
+    Ok(())
+}
+
+pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
+    let s = map_frequency_settings(settings)?;
+    let cksel_reg = match input {
+        Input::Ckin1 => 0b00,
+        Input::Ckin2 => 0b01,
+    };
+
+    init()?;
     if settings.crystal_ref {
         write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
     }
