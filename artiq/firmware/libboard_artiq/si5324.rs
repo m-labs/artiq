@@ -224,7 +224,7 @@ pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
     }
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
-    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
+    write(3,   (read(3)? & 0x2f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
     write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
     write(25,  (s.n1_hs  << 5 ) as u8)?;
