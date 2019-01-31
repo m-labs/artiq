@@ -183,7 +183,7 @@ class SaymaRTM(Module):
         self.specials += Instance("IBUFGDS", i_I=rtio_clock_pads.p, i_IB=rtio_clock_pads.n,
             o_O=self.cd_rtio.clk)
         self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(
-            platform.request("rtm_master_aux_clk"), 125e6)
+            platform.request("rtm_master_aux_clk"), 150e6)
         csr_devices.append("sysref_ddmtd")
 
         # AMC/RTM serwb
