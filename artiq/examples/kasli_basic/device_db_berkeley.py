@@ -48,6 +48,17 @@ device_db.update({
     } for i in range(16)
 })
 
+sync_delay_seeds = [
+    [17, 17, 16, 16],
+    [16, 15, 17, 20],
+    [18, 19, 20, 20],
+]
+
+io_update_delays = [
+    [3, 3, 3, 3],
+    [1, 1, 1, 1],
+    [3, 3, 3, 3],
+]
 
 for j in range(3):
     device_db.update({
@@ -116,7 +127,9 @@ for j in range(3):
                 "pll_n": 32,
                 "chip_select": 4 + i,
                 "cpld_device": "urukul{}_cpld".format(j),
-                "sw_device": "ttl_urukul{}_sw{}".format(j, i)
+                "sw_device": "ttl_urukul{}_sw{}".format(j, i),
+                "sync_delay_seed": sync_delay_seeds[j][i],
+                "io_update_delay": io_update_delays[j][i],
             }
         } for i in range(4)
     })
