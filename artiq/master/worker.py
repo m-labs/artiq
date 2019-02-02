@@ -303,8 +303,8 @@ class Worker:
         await self._create_process(logging.WARNING)
         r = dict()
 
-        def register(class_name, name, arginfo):
-            r[class_name] = {"name": name, "arginfo": arginfo}
+        def register(class_name, name, arginfo, scheduler_defaults):
+            r[class_name] = {"name": name, "arginfo": arginfo, "scheduler_defaults": scheduler_defaults}
         self.register_experiment = register
         await self._worker_action({"action": "examine", "file": file},
                                   timeout)
