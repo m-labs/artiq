@@ -162,14 +162,14 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
 
     async def _recompute_argument(self, name):
         try:
-            arginfo = await self.manager.compute_arginfo(self.expurl)
+            expdesc = await self.manager.compute_expdesc(self.expurl)
         except:
             logger.error("Could not recompute argument '%s' of '%s'",
                          name, self.expurl, exc_info=True)
             return
         argument = self.manager.get_submission_arguments(self.expurl)[name]
 
-        procdesc = arginfo[name][0]
+        procdesc = expdesc["arginfo"][name][0]
         state = procdesc_to_entry(procdesc).default_state(procdesc)
         argument["desc"] = procdesc
         argument["state"] = state
@@ -272,7 +272,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             scheduling["due_date"] = due_date
         datetime_en.stateChanged.connect(update_datetime_en)
 
-        pipeline_name = QtWidgets.QLineEdit()
+        self.pipeline_name = QtWidgets.QLineEdit()
+        pipeline_name = self.pipeline_name
         self.layout.addWidget(QtWidgets.QLabel("Pipeline:"), 1, 2)
         self.layout.addWidget(pipeline_name, 1, 3)
 
@@ -280,9 +281,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
         def update_pipeline_name(text):
             scheduling["pipeline_name"] = text
-        pipeline_name.textEdited.connect(update_pipeline_name)
+        pipeline_name.textChanged.connect(update_pipeline_name)
 
-        priority = QtWidgets.QSpinBox()
+        self.priority = QtWidgets.QSpinBox()
+        priority = self.priority
         priority.setRange(-99, 99)
         self.layout.addWidget(QtWidgets.QLabel("Priority:"), 2, 0)
         self.layout.addWidget(priority, 2, 1)
@@ -293,7 +295,8 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             scheduling["priority"] = value
         priority.valueChanged.connect(update_priority)
 
-        flush = QtWidgets.QCheckBox("Flush")
+        self.flush = QtWidgets.QCheckBox("Flush")
+        flush = self.flush
         flush.setToolTip("Flush the pipeline (of current- and higher-priority "
                          "experiments) before starting the experiment")
         self.layout.addWidget(flush, 2, 2, 1, 2)
@@ -386,11 +389,12 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
 
     async def _recompute_arguments_task(self, overrides=dict()):
         try:
-            arginfo = await self.manager.compute_arginfo(self.expurl)
+            expdesc = await self.manager.compute_expdesc(self.expurl)
         except:
-            logger.error("Could not recompute arguments of '%s'",
+            logger.error("Could not recompute experiment description of '%s'",
                          self.expurl, exc_info=True)
             return
+        arginfo = expdesc["arginfo"]
         for k, v in overrides.items():
             # Some values (e.g. scans) may have multiple defaults in a list
             if ("default" in arginfo[k][0]
@@ -406,6 +410,28 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.argeditor = _ArgumentEditor(self.manager, self, self.expurl)
         self.argeditor.restore_state(argeditor_state)
         self.layout.addWidget(self.argeditor, 0, 0, 1, 5)
+
+    def contextMenuEvent(self, event):
+        menu = QtWidgets.QMenu(self)
+        reset_sched = menu.addAction("Reset scheduler settings")
+        action = menu.exec_(self.mapToGlobal(event.pos()))
+        if action == reset_sched:
+            asyncio.ensure_future(self._recompute_sched_options_task())
+
+    async def _recompute_sched_options_task(self):
+        try:
+            expdesc = await self.manager.compute_expdesc(self.expurl)
+        except:
+            logger.error("Could not recompute experiment description of '%s'",
+                         self.expurl, exc_info=True)
+            return
+        sched_defaults = expdesc["scheduler_defaults"]
+
+        scheduling = self.manager.get_submission_scheduling(self.expurl)
+        scheduling.update(sched_defaults)
+        self.priority.setValue(scheduling["priority"])
+        self.pipeline_name.setText(scheduling["pipeline_name"])
+        self.flush.setChecked(scheduling["flush"])
 
     def _load_hdf5_clicked(self):
         asyncio.ensure_future(self._load_hdf5_task())
@@ -508,6 +534,8 @@ class ExperimentManager:
                 "due_date": None,
                 "flush": False
             }
+            if expurl[:5] == "repo:":
+                scheduling.update(self.explist[expurl[5:]]["scheduler_defaults"])
             self.submission_scheduling[expurl] = scheduling
             return scheduling
 
@@ -640,7 +668,7 @@ class ExperimentManager:
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
 
-    async def compute_arginfo(self, expurl):
+    async def compute_expdesc(self, expurl):
         file, class_name, use_repository = self.resolve_expurl(expurl)
         if use_repository:
             revision = self.get_submission_options(expurl)["repo_rev"]
@@ -648,7 +676,7 @@ class ExperimentManager:
             revision = None
         description = await self.experiment_db_ctl.examine(
             file, use_repository, revision)
-        return description[class_name]["arginfo"]
+        return description[class_name]
 
     async def open_file(self, file):
         description = await self.experiment_db_ctl.examine(file, False)
