@@ -181,7 +181,10 @@ class Controllers:
         try:
             if (isinstance(v, dict) and v["type"] == "controller" and
                     self.host_filter in get_ip_addresses(v["host"])):
-                v["command"] = v["command"].format(name=k,
+                command = v.get("command", None)
+                if command is None:
+                    return
+                v["command"] = command.format(name=k,
                                                    bind=self.host_filter,
                                                    port=v["port"])
                 self.queue.put_nowait(("set", (k, v)))
