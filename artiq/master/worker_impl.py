@@ -174,11 +174,12 @@ def examine(device_mgr, dataset_mgr, file):
                     if name[-1] == ".":
                         name = name[:-1]
                 argument_mgr = TraceArgumentManager()
-                exp_class((device_mgr, dataset_mgr, argument_mgr))
+                scheduler_defaults = {}
+                cls = exp_class((device_mgr, dataset_mgr, argument_mgr, scheduler_defaults))
                 arginfo = OrderedDict(
                     (k, (proc.describe(), group, tooltip))
                     for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
-                register_experiment(class_name, name, arginfo)
+                register_experiment(class_name, name, arginfo, scheduler_defaults)
     finally:
         new_keys = set(sys.modules.keys())
         for key in new_keys - previous_keys:
@@ -277,7 +278,7 @@ def main():
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
-                exp_inst = exp((device_mgr, dataset_mgr, argument_mgr))
+                exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
                 put_object({"action": "completed"})
             elif action == "prepare":
                 exp_inst.prepare()

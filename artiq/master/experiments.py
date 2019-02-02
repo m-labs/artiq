@@ -46,7 +46,8 @@ class _RepoScanner:
             entry = {
                 "file": filename,
                 "class_name": class_name,
-                "arginfo": arginfo
+                "arginfo": arginfo,
+                "scheduler_defaults": class_desc["scheduler_defaults"]
             }
             entry_dict[name] = entry
 
@@ -115,7 +116,6 @@ class ExperimentDB:
             t1 = time.monotonic()
             new_explist = await _RepoScanner(self.worker_handlers).scan(wd)
             logger.info("repository scan took %d seconds", time.monotonic()-t1)
-
             update_from_dict(self.explist, new_explist)
         finally:
             self._scanning = False

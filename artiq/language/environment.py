@@ -207,10 +207,12 @@ class HasEnvironment:
             self.__device_mgr = managers_or_parent[0]
             self.__dataset_mgr = managers_or_parent[1]
             self.__argument_mgr = managers_or_parent[2]
+            self.__scheduler_defaults = managers_or_parent[3]
         else:
             self.__device_mgr = managers_or_parent.__device_mgr
             self.__dataset_mgr = managers_or_parent.__dataset_mgr
             self.__argument_mgr = managers_or_parent.__argument_mgr
+            self.__scheduler_defaults = {}
             managers_or_parent.register_child(self)
 
         self.__in_build = True
@@ -363,6 +365,21 @@ class HasEnvironment:
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""
         setattr(self, key, self.get_dataset(key, default, archive))
+
+    def set_default_scheduling(self, priority=None, pipeline_name=None, flush=None):
+        """Sets the default scheduling options.
+
+        This function should only be called from ``build``."""
+        if not self.__in_build:
+            raise TypeError("set_default_scheduling() should only "
+                            "be called from build()")
+
+        if priority is not None:
+            self.__scheduler_defaults["priority"] = int(priority)
+        if pipeline_name is not None:
+            self.__scheduler_defaults["pipeline_name"] = pipeline_name
+        if flush is not None:
+            self.__scheduler_defaults["flush"] = flush
 
 
 class Experiment:
