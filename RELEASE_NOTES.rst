@@ -27,6 +27,7 @@ ARTIQ-5
   masters.
 * The meaning of the ``-d/--dir`` and ``--srcbuild`` options of ``artiq_flash``
   has changed.
+* Experiments can now programatically set their default pipeline, priority, and flush flag.
 
 
 ARTIQ-4
