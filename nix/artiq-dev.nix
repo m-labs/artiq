@@ -1,4 +1,4 @@
-{runScript ? "", extraProfile ? ""}:
+{runScript ? "bash", extraProfile ? ""}:
 
 let 
   pkgs = import <nixpkgs> {};
