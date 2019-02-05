@@ -5,7 +5,7 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"host": core_addr, "ref_period": 1e-9}
+        "arguments": {"host": core_addr, "ref_period": 1.25e-9}
     },
     "core_log": {
         "type": "controller",
@@ -49,9 +49,9 @@ device_db.update({
 })
 
 sync_delay_seeds = [
-    [17, 17, 16, 16],
-    [16, 15, 17, 20],
-    [18, 19, 20, 20],
+    [15, 15, 15, 16],
+    [14, 15, 16, 16],
+    [18, 18, 20, 19],
 ]
 
 io_update_delays = [
@@ -112,7 +112,7 @@ for j in range(3):
                 "spi_device": "spi_urukul{}".format(j),
                 "sync_device": "ttl_urukul{}_sync".format(j),
                 "io_update_device": "ttl_urukul{}_io_update".format(j),
-                "refclk": 125e6,
+                "refclk": 100e6,
                 "clk_sel": 2
             }
         }
@@ -125,6 +125,7 @@ for j in range(3):
             "class": "AD9910",
             "arguments": {
                 "pll_n": 32,
+                "pll_vco": 4,
                 "chip_select": 4 + i,
                 "cpld_device": "urukul{}_cpld".format(j),
                 "sw_device": "ttl_urukul{}_sw{}".format(j, i),
@@ -179,7 +180,7 @@ device_db.update(
         "arguments": {
             "spi_device": "spi_urukul3",
             "io_update_device": "ttl_urukul3_io_update",
-            "refclk": 125e6,
+            "refclk": 100e6,
             "clk_sel": 0
         }
     }

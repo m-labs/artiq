@@ -176,8 +176,8 @@ fn setup_si5324_as_synthesizer()
         bwsel  : 3,
         crystal_ref: true
     };
-    // 100MHz output, from crystal (reference for HMC830)
-    #[cfg(si5324_sayma_ref)]
+    // 100MHz output, from crystal. Also used as reference for Sayma HMC830.
+    #[cfg(any(si5324_sayma_ref, all(rtio_frequency = "100.0", not(si5324_ext_ref))))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 9,
