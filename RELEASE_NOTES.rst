@@ -25,7 +25,8 @@ ARTIQ-5
 * The controller manager now ignores device database entries without the
   ``"command"`` key set to facilitate sharing of devices between multiple
   masters.
-
+* PYON can now encode subclasses of basic types.
+  Examples include: namedtuples, lists (i.e. ``class specialized_list(list): pass``)
 
 ARTIQ-4
 -------

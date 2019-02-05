@@ -165,10 +165,23 @@ class _Encoder:
 
     def encode(self, x):
         ty = _encode_map.get(type(x), None)
-        if ty is None:
-            raise TypeError("`{!r}` ({}) is not PYON serializable"
+        if ty is not None:
+            return getattr(self, "encode_" + ty)(x)
+        else:
+            # Try to encode simple classes that just subclass basic types:
+            # e.g.: namedtuple, lists, etc.
+            pyonable_types = [
+                base_type for base_type in x.__class__.__bases__
+                if base_type in _encode_map
+                # essentially isinstance(x, _encode_map.values())
+            ]
+            if len(pyonable_types) == 1:
+                # hard coded to only allow simple subclasses to encode
+                pyon_encode_type = _encode_map.get(pyonable_types[0], None)
+                if pyon_encode_type is not None:
+                    return getattr(self, "encode_" + pyon_encode_type)(x)
+        raise TypeError("`{!r}` ({}) is not PYON serializable"
                             .format(x, type(x)))
-        return getattr(self, "encode_" + ty)(x)
 
 
 def encode(x, pretty=False):

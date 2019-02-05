@@ -1,11 +1,14 @@
 import unittest
 import json
 from fractions import Fraction
+from collections import namedtuple
 
 import numpy as np
 
 from artiq.protocols import pyon
 
+class special_list(list):
+    pass
 
 _pyon_test_object = {
     (1, 2): [(3, 4.2), (2, )],
@@ -17,6 +20,8 @@ _pyon_test_object = {
     "x": np.float16(9.0), "y": np.float32(9.0), "z": np.float64(9.0),
     1j: 1-9j,
     "q": np.complex128(1j),
+    "nt1": namedtuple("nt1", "test1 test2 test3")(np.float16(9.0), 5, "str"),
+    "l1": special_list([10, 100]),
 }
 
 
