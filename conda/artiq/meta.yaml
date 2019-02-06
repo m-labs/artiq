@@ -42,7 +42,7 @@ requirements:
     - quamash
     - pyqtgraph 0.10.0
     - pygit2
-    - aiohttp
+    - aiohttp >=3
     - levenshtein
 
 test:

@@ -40,7 +40,7 @@ requirements:
     - quamash
     - pyqtgraph 0.10.0
     - pygit2
-    - aiohttp
+    - aiohttp >=3
     - pythonparser >=1.1
     - levenshtein
 
