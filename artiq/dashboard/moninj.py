@@ -243,7 +243,7 @@ def setup_from_ddb(ddb):
 class _DeviceManager:
     def __init__(self):
         self.core_addr = None
-        self.new_core_addr = asyncio.Event()
+        self.reconnect_core = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
 
@@ -268,7 +268,7 @@ class _DeviceManager:
 
         if core_addr != self.core_addr:
             self.core_addr = core_addr
-            self.new_core_addr.set()
+            self.reconnect_core.set()
 
         self.dds_sysclk = dds_sysclk
 
@@ -383,19 +383,25 @@ class _DeviceManager:
                 widget.cur_override_level = bool(value)
             widget.refresh_display()
 
+    def disconnect_cb(self):
+        logger.error("lost connection to core device moninj")
+        self.reconnect_core.set()
+
     async def core_connector(self):
         while True:
-            await self.new_core_addr.wait()
-            self.new_core_addr.clear()
+            await self.reconnect_core.wait()
+            self.reconnect_core.clear()
             if self.core_connection is not None:
                 await self.core_connection.close()
                 self.core_connection = None
             new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
-                    lambda: logger.error("lost connection to core device moninj"))
+                    self.disconnect_cb)
             try:
                 await new_core_connection.connect(self.core_addr, 1383)
             except:
                 logger.error("failed to connect to core device moninj", exc_info=True)
+                await asyncio.sleep(10.)
+                self.reconnect_core.set()
             else:
                 self.core_connection = new_core_connection
                 for ttl_channel in self.ttl_widgets.keys():
