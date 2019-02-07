@@ -180,11 +180,9 @@ class Controllers:
     def __setitem__(self, k, v):
         try:
             if (isinstance(v, dict) and v["type"] == "controller" and
-                    self.host_filter in get_ip_addresses(v["host"])):
-                command = v.get("command", None)
-                if command is None:
-                    return
-                v["command"] = command.format(name=k,
+                    self.host_filter in get_ip_addresses(v["host"]) and
+                    "command" in v):
+                v["command"] = v["command"].format(name=k,
                                                    bind=self.host_filter,
                                                    port=v["port"])
                 self.queue.put_nowait(("set", (k, v)))
