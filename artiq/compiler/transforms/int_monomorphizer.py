@@ -26,22 +26,3 @@ class IntMonomorphizer(algorithm.Visitor):
                     return
 
                 node.type["width"].unify(types.TValue(width))
-
-    def visit_CallT(self, node):
-        self.generic_visit(node)
-
-        if types.is_builtin(node.func.type, "int") or \
-                types.is_builtin(node.func.type, "round"):
-            typ = node.type.find()
-            if types.is_var(typ["width"]):
-                typ["width"].unify(types.TValue(32))
-
-    def visit_CoerceT(self, node):
-        if isinstance(node.value, asttyped.NumT) and \
-                builtins.is_int(node.type) and \
-                builtins.is_int(node.value.type) and \
-                not types.is_var(node.type["width"]) and \
-                types.is_var(node.value.type["width"]):
-            node.value.type.unify(node.type)
-
-        self.generic_visit(node)
