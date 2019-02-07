@@ -6,6 +6,7 @@ import asyncio
 
 from artiq.devices.ctlmgr import Controllers
 from artiq.protocols.pc_rpc import AsyncioClient
+from artiq.tools import expect_no_log_messages
 
 logger = logging.getLogger(__name__)
 
@@ -70,3 +71,13 @@ class ControllerCase(unittest.TestCase):
             await remote.ping()
 
         self.loop.run_until_complete(test())
+
+    def test_no_command_controller(self):
+        entry = {
+            "type": "controller",
+            "host": "::1",
+            "port": 3253
+        }
+        with expect_no_log_messages(logging.ERROR):
+            self.controllers["lda_sim"] = entry
+            self.assertTrue(self.controllers.queue.empty())

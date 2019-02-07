@@ -13,12 +13,16 @@ ARTIQ-5
   :class:`~artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
   have been renamed to ``ref_time_mu`` for consistency, as they are in machine
   units.
-* :func:`~artiq.tools.verbosity_args` renamed to :func:`~artiq.tools.add_common_args`. New feature: adds an option to print the ARTIQ version.
+* :func:`~artiq.tools.verbosity_args` has been renamed to
+  :func:`~artiq.tools.add_common_args`, and now adds a ``--version`` flag.
 * A gateware-level input edge counter has been added, which offers higher
   throughput and increased flexibility over the usual TTL input PHYs where
   edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
   the core device driver and :mod:`artiq.gateware.rtio.phy.edge_counter`/
   :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
+* The controller manager now ignores device database entries without the
+  ``"command"`` key set to facilitate sharing of devices between multiple
+  masters.
 
 
 ARTIQ-4

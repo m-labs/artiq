@@ -1,6 +1,7 @@
 import asyncio
 import atexit
 import collections
+import contextlib
 import importlib.machinery
 import logging
 import os
@@ -16,6 +17,7 @@ from artiq.protocols import pyon
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "get_experiment", "add_common_args", "simple_network_args",
+           "UnexpectedLogMessageError", "expect_no_log_messages",
            "multiline_log_config", "init_logger", "bind_address_from_args",
            "atexit_register_coroutine", "exc_to_warning",
            "asyncio_wait_or_cancel", "TaskObject", "Condition",
@@ -140,6 +142,36 @@ def simple_network_args(parser, default_port):
                  .format(purpose, default))
             group.add_argument("--port-" + name, default=default, type=int,
                                help=h)
+
+
+class UnexpectedLogMessageError(Exception):
+    pass
+
+
+class FailingLogHandler(logging.Handler):
+    def emit(self, record):
+        raise UnexpectedLogMessageError("Unexpected log message: '{}'".format(
+            record.getMessage()))
+
+
+@contextlib.contextmanager
+def expect_no_log_messages(level, logger=None):
+    """Raise an UnexpectedLogMessageError if a log message of the given level
+    (or above) is emitted while the context is active.
+
+    Example: ::
+
+        with expect_no_log_messages(logging.ERROR):
+            do_stuff_that_should_not_log_errors()
+    """
+    if logger is None:
+        logger = logging.getLogger()
+    handler = FailingLogHandler(level)
+    logger.addHandler(handler)
+    try:
+        yield
+    finally:
+        logger.removeHandler(handler)
 
 
 class MultilineFormatter(logging.Formatter):
