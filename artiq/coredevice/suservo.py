@@ -130,6 +130,7 @@ class SUServo:
         :param value: Data to be written.
         """
         addr |= WE
+        value &= (1 << COEFF_WIDTH) - 1
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
         rtio_output((self.channel << 8) | addr, value)
