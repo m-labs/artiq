@@ -319,7 +319,7 @@ class Channel:
         The recurrence relation is (all data signed and MSB aligned):
 
         .. math::
-            y_n = a_1 y_{n - 1} + b_0 (x_n + o)/2 + b_1 (x_{n - 1} + o)/2
+            a_0 y_n = a_1 y_{n - 1} + b_0 (x_n + o)/2 + b_1 (x_{n - 1} + o)/2
 
         Where:
 
@@ -328,6 +328,7 @@ class Channel:
             * :math:`x_n` and :math:`x_{n-1}` are the current and previous
               filter inputs in :math:`[-1, 1[`.
             * :math:`o` is the offset
+            * :math:`a_0` is the normalization factor :math:`2^{11}`
             * :math:`a_1` is the feedback gain
             * :math:`b_0` and :math:`b_1` are the feedforward gains for the two
               delays
