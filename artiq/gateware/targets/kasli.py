@@ -572,6 +572,39 @@ class Berkeley(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
+class UNSW(_StandaloneBase):
+    def __init__(self, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = "v1.1"
+        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+
+        self.config["SI5324_AS_SYNTHESIZER"] = None
+        # self.config["SI5324_EXT_REF"] = None
+        self.config["RTIO_FREQUENCY"] = "125.0"
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        self.rtio_channels = []
+        eem.DIO.add_std(self, 0,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
+        eem.Urukul.add_std(self, 1, 2, ttl_serdes_7series.Output_8X,
+            ttl_simple.ClockGen)
+        eem.Sampler.add_std(self, 3, 4, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 5, ttl_serdes_7series.Output_8X)
+
+        for i in (1, 2):
+            sfp_ctl = self.platform.request("sfp_ctl", i)
+            phy = ttl_simple.Output(sfp_ctl.led)
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+        self.add_rtio(self.rtio_channels)
+
+
 class PTB(_StandaloneBase):
     """PTB Kasli variant
 
@@ -1286,7 +1319,7 @@ class HUSTSatellite(_SatelliteBase):
 
 VARIANTS = {cls.__name__.lower(): cls for cls in [
     Opticlock, SUServo, PTB, PTB2, HUB, LUH,
-    SYSU, MITLL, MITLL2, USTC, Tsinghua, Tsinghua2, WIPM, NUDT, Berkeley,
+    SYSU, MITLL, MITLL2, USTC, Tsinghua, Tsinghua2, WIPM, NUDT, Berkeley, UNSW,
     VLBAIMaster, VLBAISatellite, HUSTMaster, HUSTSatellite,
     Tester, Master, Satellite]}
 
