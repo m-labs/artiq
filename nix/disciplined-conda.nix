@@ -54,8 +54,12 @@ in stdenv.mkDerivation {
     cat << EOF > clobber.yaml
       requirements:
         build:
+
+      build:
+        script_env:
+          - PYTHON
     EOF
     mkdir $out
-    ${condaBuilderEnv}/bin/conda-builder-env -c "conda build --clobber-file clobber.yaml --no-anaconda-upload --no-test --output-folder $out $src/conda/artiq"
+    ${condaBuilderEnv}/bin/conda-builder-env -c "PYTHON=python conda build --clobber-file clobber.yaml --no-anaconda-upload --no-test --output-folder $out $src/conda/artiq"
     '';
 }
