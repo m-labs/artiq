@@ -1,4 +1,4 @@
-# nix-build -E "with import <nixpkgs> {}; callPackage ./disciplined-conda.nix {}"
+# nix-build -E "with import <nixpkgs> {}; callPackage ./conda-build.nix {}"
 
 { stdenv
 , fetchurl
@@ -61,5 +61,8 @@ in stdenv.mkDerivation {
     EOF
     mkdir $out
     ${condaBuilderEnv}/bin/conda-builder-env -c "PYTHON=python conda build --clobber-file clobber.yaml --no-anaconda-upload --no-test --output-folder $out $src/conda/artiq"
+
+    mkdir -p $out/nix-support
+    echo file conda $out/noarch/*.tar.bz2 >> $out/nix-support/hydra-build-products
     '';
 }
