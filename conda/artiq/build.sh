@@ -3,7 +3,7 @@
 set -e
 
 $PYTHON setup.py install \
-  --install-lib=$SP_DIR \
+  --prefix=$PREFIX \
   --single-version-externally-managed \
   --record=record.txt \
   --no-compile
