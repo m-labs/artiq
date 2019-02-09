@@ -26,7 +26,7 @@ This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python
 ::
 
   substituters = https://cache.nixos.org https://nixbld.m-labs.hk
-  trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=\
+  trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
 * ``$ nix-env -i python3.6-artiq``
 
