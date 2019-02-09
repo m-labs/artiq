@@ -1,12 +1,6 @@
-# nix-build -E "with import <nixpkgs> {}; callPackage ./conda-build.nix {}"
+{ pkgs ? import <nixpkgs> {}}:
 
-{ stdenv
-, fetchurl
-, runCommand
-, buildFHSUserEnv
-, libselinux
-, xorg
-}:
+with pkgs;
 
 let
   condaDeps = [ stdenv.cc xorg.libSM xorg.libICE xorg.libXrender libselinux ];

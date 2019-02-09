@@ -1,9 +1,8 @@
 { pkgs ? import <nixpkgs> {}}:
-with pkgs;
 let
-  artiqPkgs = import ./default.nix {};
+  artiqPkgs = import ./default.nix { inherit pkgs; };
   jobs = rec {
-    conda-artiq = callPackage ./conda-build.nix {};
+    conda-artiq = import ./conda-build.nix { inherit pkgs; };
   } // artiqPkgs;
 in
   jobs

@@ -1,7 +1,6 @@
-{runScript ? "bash", extraProfile ? ""}:
+{ pkgs ? import <nixpkgs> {}}:
 
 let 
-  pkgs = import <nixpkgs> {};
   artiqpkgs = import ./default.nix { inherit pkgs; };
 in
   pkgs.buildFHSUserEnv {
@@ -30,8 +29,7 @@ in
         openocd
       ])
     );
-    runScript = runScript;
     profile = ''
       export TARGET_AR=${artiqpkgs.binutils-or1k}/bin/or1k-linux-ar
-    '' + extraProfile;
+    '';
   }
