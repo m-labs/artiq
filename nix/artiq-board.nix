@@ -1,25 +1,24 @@
-let 
-  pkgs = import <nixpkgs> {};
-  fetchcargo = import <nixpkgs/pkgs/build-support/rust/fetchcargo.nix> {
-    inherit (pkgs) stdenv cacert git rust cargo-vendor;
+{ pkgs ? import <nixpkgs> {}}:
+
+let
+  artiqPkgs = import ./default.nix { inherit pkgs; };
+  fetchcargo = import ./fetchcargo.nix {
+    inherit (pkgs) stdenv cacert git cargo cargo-vendor;
   };
-  myVendoredSrcFetchCargo = fetchcargo rec {
-    name = "myVendoredSrcFetchCargo";
-    sourceRoot = null;
-    srcs = null;
+  cargoDeps = fetchcargo rec {
+    name = "artiq-firmware-cargo-deps";
     src = ../artiq/firmware;
-    cargoUpdateHook = "";
-    patches = [];
     sha256 = "1xzjn9i4rkd9124v2gbdplsgsvp1hlx7czdgc58n316vsnrkbr86";
   };
 
-  myVendoredSrc = pkgs.stdenv.mkDerivation {
-    name = "myVendoredSrc";
-    src = myVendoredSrcFetchCargo;
+  cargoVendored = pkgs.stdenv.mkDerivation {
+    name = "artiq-firmware-cargo-vendored";
+    src = cargoDeps;
     phases = [ "unpackPhase" "installPhase" ];
-    installPhase = ''
-      mkdir -p $out/.cargo/registry
-      cat > $out/.cargo/config << EOF
+    installPhase =
+      ''
+      mkdir -p $out/registry
+      cat > $out/config <<-EOF
         [source.crates-io]
         registry = "https://github.com/rust-lang/crates.io-index"
         replace-with = "vendored-sources"
@@ -30,10 +29,10 @@ let
         replace-with = "vendored-sources"
 
         [source.vendored-sources]
-        directory = "$out/.cargo/registry"
+        directory = "$out/registry"
       EOF
-      cp -R * $out/.cargo/registry
-    '';
+      cp -R * $out/registry
+      '';
   };
 
   buildenv = import ./artiq-dev.nix { inherit pkgs; };
@@ -44,7 +43,7 @@ in pkgs.stdenv.mkDerivation {
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "HOME=${myVendoredSrc} python -m artiq.gateware.targets.kasli -V satellite --no-compile-gateware"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V satellite --no-compile-gateware"
     '';
   installPhase =
     ''
