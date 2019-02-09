@@ -13,20 +13,20 @@ This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python
 
   * if you would like to install via sh
 
-    * $ ``wget https://nixos.org/nix/install``
+    * ``$ wget https://nixos.org/nix/install``
 
-    * $ ``sh install``
+    * ``$ sh install``
 
-    * $ ``source ~/.nix-profile/etc/profile.d/nix.sh``
+    * ``$ source ~/.nix-profile/etc/profile.d/nix.sh``
 
-* $ ``nix-channel --add https://nixbld.m-labs.hk/project/artiq/channel/latest m-labs``
-* $ ``nix-channel --update``
+* ``$ nix-channel --add https://nixbld.m-labs.hk/project/artiq/channel/latest m-labs``
+* ``$ nix-channel --update``
 * create the file ``~/.config/nix/nix.conf`` with the following content:
-``
+```
 substituters = https://cache.nixos.org https://nixbld.m-labs.hk
 trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
-``
-* $ ``nix-env -i python3.6-artiq``
+```
+* ``$ nix-env -i python3.6-artiq``
 
 ARTIQ development environment with Nix
 ======================================
