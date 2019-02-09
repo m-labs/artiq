@@ -8,7 +8,6 @@
 let
   rustPlatform = recurseIntoAttrs (makeRustPlatform (callPackage ./bootstrap.nix {}));
   version = "1.28.0";
-  cargoVersion = "1.28.0";
   src = fetchFromGitHub {
     owner = "m-labs";
     repo = "rust";
@@ -85,13 +84,5 @@ in rec {
 
     # Disabled for now; see https://github.com/NixOS/nixpkgs/pull/42348#issuecomment-402115598.
     doCheck = false;
-  };
-
-  cargo = callPackage ./cargo.nix rec {
-    version = cargoVersion;
-    inherit src;
-    inherit stdenv;
-    inherit rustc; # the rustc that will be wrapped by cargo
-    inherit rustPlatform; # used to build cargo
   };
 }

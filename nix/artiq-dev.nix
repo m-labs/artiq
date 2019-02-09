@@ -20,10 +20,10 @@ in
         xorg.libXi
         (python3.withPackages(ps: with ps; [ jinja2 numpy artiqpkgs.migen artiqpkgs.microscope artiqpkgs.misoc artiqpkgs.jesd204b artiqpkgs.artiq ]))
         git
+        cargo
       ] ++
       (with artiqpkgs; [
         rustc
-        cargo
         binutils-or1k
         llvm-or1k
         openocd
