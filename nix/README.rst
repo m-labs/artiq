@@ -21,11 +21,10 @@ This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python
 
 * ``$ nix-channel --add https://nixbld.m-labs.hk/project/artiq/channel/latest m-labs``
 * ``$ nix-channel --update``
-* create the file ``~/.config/nix/nix.conf`` with the following content:
-```
-substituters = https://cache.nixos.org https://nixbld.m-labs.hk
-trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
-```
+* create the file ``~/.config/nix/nix.conf`` with the following content: ::
+  substituters = https://cache.nixos.org https://nixbld.m-labs.hk
+  trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=\
+
 * ``$ nix-env -i python3.6-artiq``
 
 ARTIQ development environment with Nix
