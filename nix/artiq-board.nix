@@ -41,7 +41,7 @@ let
   buildenv = import ./artiq-dev.nix { inherit pkgs; };
 
 in pkgs.stdenv.mkDerivation {
-  name = "artiq-board";
+  name = "artiq-board-kasli-tester";
   src = null;
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 

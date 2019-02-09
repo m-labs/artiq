@@ -14,7 +14,7 @@ let
 
     cat << EOF > $out/fake-conda/meta.yaml
     package:
-      name: artiq-${target}-${variant}
+      name: artiq-board-${target}-${variant}
       version: {{ environ["GIT_DESCRIBE_TAG"] }}
 
     source:
@@ -27,7 +27,7 @@ let
       ignore_prefix_files: True
 
     outputs:
-      - name: artiq-${target}-${variant}
+      - name: artiq-board-${target}-${variant}
         noarch: python
         files:
           - site-packages
