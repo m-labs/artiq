@@ -21,7 +21,7 @@ let
     installPhase =
       ''
       mkdir -p $out/registry
-      cat > $out/config <<-EOF
+      cat << EOF > $out/config
         [source.crates-io]
         registry = "https://github.com/rust-lang/crates.io-index"
         replace-with = "vendored-sources"
