@@ -43,13 +43,13 @@ in pkgs.stdenv.mkDerivation {
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V satellite --no-compile-gateware"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V tester --no-compile-gateware"
     '';
   installPhase =
     ''
     mkdir $out
-    #cp artiq_kasli/satellite/gateware/top.bit $out
-    cp artiq_kasli/satellite/software/bootloader/bootloader.bin $out
-    cp artiq_kasli/satellite/software/satman/satman.{elf,fbi} $out
+    #cp artiq_kasli/tester/gateware/top.bit $out
+    cp artiq_kasli/tester/software/bootloader/bootloader.bin $out
+    cp artiq_kasli/tester/software/runtime/runtime.{elf,fbi} $out
     '';
 }
