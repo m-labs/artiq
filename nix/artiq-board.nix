@@ -1,3 +1,6 @@
+# Install Vivado in /opt and add to /etc/nixos/configuration.nix:
+#  nix.sandboxPaths = ["/opt"];
+
 { pkgs ? import <nixpkgs> {}}:
 
 let
@@ -43,12 +46,12 @@ in pkgs.stdenv.mkDerivation {
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V tester --no-compile-gateware"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V tester"
     '';
   installPhase =
     ''
     mkdir $out
-    #cp artiq_kasli/tester/gateware/top.bit $out
+    cp artiq_kasli/tester/gateware/top.bit $out
     cp artiq_kasli/tester/software/bootloader/bootloader.bin $out
     cp artiq_kasli/tester/software/runtime/runtime.{elf,fbi} $out
     '';
