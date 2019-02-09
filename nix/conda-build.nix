@@ -1,4 +1,8 @@
+# We need to pass the whole source to conda for the git variables to work.
+# recipe must be a string pointing to a path within the source.
+
 { pkgs ? import <nixpkgs> {}}:
+{ name, src, recipe }:
 
 with pkgs;
 
@@ -37,8 +41,7 @@ let
   };
 
 in stdenv.mkDerivation {
-  name = "conda-artiq";
-  src = ../.;
+  inherit name src;
   buildInputs = [ condaBuilderEnv ];
   buildCommand =
     ''
@@ -54,7 +57,7 @@ in stdenv.mkDerivation {
           - PYTHON
     EOF
     mkdir $out
-    ${condaBuilderEnv}/bin/conda-builder-env -c "PYTHON=python conda build --clobber-file clobber.yaml --no-anaconda-upload --no-test --output-folder $out $src/conda/artiq"
+    ${condaBuilderEnv}/bin/conda-builder-env -c "PYTHON=python conda build --clobber-file clobber.yaml --no-anaconda-upload --no-test --output-folder $out $src/${recipe}"
 
     mkdir -p $out/nix-support
     echo file conda $out/noarch/*.tar.bz2 >> $out/nix-support/hydra-build-products
