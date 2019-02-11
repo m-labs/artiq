@@ -47,7 +47,7 @@ in pkgs.stdenv.mkDerivation {
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.${target} -V ${variant} --gateware-toolchain-path /home/sb/opt/Xilinx/Vivado"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.${target} -V ${variant}
     '';
   installPhase =
     ''
