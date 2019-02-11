@@ -1,22 +1,40 @@
 { pkgs ? import <nixpkgs> {}}:
 let
   artiqPkgs = import ./default.nix { inherit pkgs; };
-  jobs = rec {
+
+  boards = [
+    {
+      target = "kasli";
+      variant = "tester";
+    }
+    {
+      target = "kc705";
+      variant = "nist_clock";
+    }
+  ];
+  boardJobs = pkgs.lib.lists.foldr (board: start:
+    let
+      boardBinaries = import ./artiq-board.nix { inherit pkgs; } {
+        target = board.target;
+        variant = board.variant;
+      };
+    in
+      start // {
+        "artiq-board-${board.target}-${board.variant}" = boardBinaries;
+        "conda-artiq-board-${board.target}-${board.variant}" = import ./conda-board.nix { inherit pkgs; } {
+          artiqSrc = ../.;
+          boardBinaries = boardBinaries;
+          target = board.target;
+          variant = board.variant;
+      };
+  }) {} boards;
+
+  jobs = {
     conda-artiq = import ./conda-build.nix { inherit pkgs; } {
       name = "conda-artiq";
       src = ../.;
       recipe = "conda/artiq";
     };
-    artiq-board-kasli-tester = import ./artiq-board.nix { inherit pkgs; } {
-      target = "kasli";
-      variant = "tester";
-    };
-    conda-artiq-board-kasli-tester = import ./conda-board.nix { inherit pkgs; } {
-      artiqSrc = ../.;
-      boardBinaries = artiq-board-kasli-tester;
-      target = "kasli";
-      variant = "tester";
-    };
-  } // artiqPkgs;
+  } // boardJobs // artiqPkgs;
 in
   jobs
