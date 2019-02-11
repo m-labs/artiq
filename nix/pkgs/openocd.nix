@@ -1,8 +1,8 @@
 { stdenv, fetchFromGitHub, autoreconfHook, libftdi, libusb1, pkgconfig, hidapi }:
 
 stdenv.mkDerivation rec {
-  name = "openocd-${version}";
-  version = "0.10.0.mlabs";
+  name = "openocd-mlabs-${version}";
+  version = "0.10.0";
 
   src = fetchFromGitHub {
       owner = "m-labs";
