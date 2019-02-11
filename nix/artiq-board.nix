@@ -2,6 +2,7 @@
 #  nix.sandboxPaths = ["/opt"];
 
 { pkgs ? import <nixpkgs> {}}:
+{ target, variant }:
 
 let
   artiqPkgs = import ./default.nix { inherit pkgs; };
@@ -41,18 +42,19 @@ let
   buildenv = import ./artiq-dev.nix { inherit pkgs; };
 
 in pkgs.stdenv.mkDerivation {
-  name = "artiq-board-kasli-tester";
+  name = "artiq-board-${target}-${variant}";
   src = null;
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.kasli -V tester"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.${target} -V ${variant} --gateware-toolchain-path /home/sb/opt/Xilinx/Vivado"
     '';
   installPhase =
     ''
-    mkdir $out
-    cp artiq_kasli/tester/gateware/top.bit $out
-    cp artiq_kasli/tester/software/bootloader/bootloader.bin $out
-    cp artiq_kasli/tester/software/runtime/runtime.{elf,fbi} $out
+    TARGET_DIR=$out/${pkgs.python3Packages.python.sitePackages}/artiq/binaries/${target}-${variant}
+    mkdir -p $TARGET_DIR
+    cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
+    cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $TARGET_DIR
+    cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $TARGET_DIR
     '';
 }

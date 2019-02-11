@@ -1,12 +1,9 @@
 { pkgs ? import <nixpkgs> {}}:
-{ artiqSrc, boardBinaries }:
+{ artiqSrc, boardBinaries, target, variant }:
 
 with pkgs;
 
 let
-  target = "kasli";
-  variant = "tester";
-
   fakeCondaSource = runCommand "fake-conda-source-${target}-${variant}" { }
     ''
     cp --no-preserve=mode,ownership -R ${artiqSrc} $out
@@ -47,7 +44,7 @@ let
     set -e
     SOC_PREFIX=\$PREFIX/site-packages/artiq/binaries/${target}-${variant}
     mkdir -p \$SOC_PREFIX
-    cp ${boardBinaries}/* \$SOC_PREFIX
+    cp ${boardBinaries}/${pkgs.python3Packages.python.sitePackages}/artiq/binaries/${target}-${variant}/* \$SOC_PREFIX
     EOF
     chmod 755 $out/fake-conda/build.sh
     '';
