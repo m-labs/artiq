@@ -2,7 +2,7 @@
 #  nix.sandboxPaths = ["/opt"];
 
 { pkgs ? import <nixpkgs> {}}:
-{ target, variant }:
+{ target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
 
 let
   artiqPkgs = import ./default.nix { inherit pkgs; };
@@ -47,7 +47,7 @@ in pkgs.stdenv.mkDerivation {
   phases = [ "buildPhase" "installPhase" ];
   buildPhase = 
     ''
-    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} python -m artiq.gateware.targets.${target} -V ${variant}"
+    ${buildenv}/bin/artiq-dev -c "CARGO_HOME=${cargoVendored} ${buildCommand}"
     '';
   installPhase =
     ''
