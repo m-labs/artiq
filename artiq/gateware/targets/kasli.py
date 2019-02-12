@@ -86,7 +86,7 @@ def fix_serdes_timing_path(platform):
     )
 
 
-class _StandaloneBase(MiniSoC, AMPSoC):
+class StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -145,14 +145,14 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class Opticlock(_StandaloneBase):
+class Opticlock(StandaloneBase):
     """
     Opticlock extension variant configuration
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.0"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["SI5324_EXT_REF"] = None
@@ -188,14 +188,14 @@ class Opticlock(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class SUServo(_StandaloneBase):
+class SUServo(StandaloneBase):
     """
     SUServo (Sampler-Urukul-Servo) extension variant configuration
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -235,11 +235,11 @@ class SUServo(_StandaloneBase):
             pads.clkout, self.crg.cd_sys.clk)
 
 
-class SYSU(_StandaloneBase):
+class SYSU(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.0"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -270,11 +270,11 @@ class SYSU(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class MITLL(_StandaloneBase):
+class MITLL(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -308,11 +308,11 @@ class MITLL(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class MITLL2(_StandaloneBase):
+class MITLL2(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -347,11 +347,11 @@ class MITLL2(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class USTC(_StandaloneBase):
+class USTC(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -388,11 +388,11 @@ class USTC(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class Tsinghua(_StandaloneBase):
+class Tsinghua(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -426,11 +426,11 @@ class Tsinghua(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class Tsinghua2(_StandaloneBase):
+class Tsinghua2(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -466,11 +466,11 @@ class Tsinghua2(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class WIPM(_StandaloneBase):
+class WIPM(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
@@ -499,11 +499,11 @@ class WIPM(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class NUDT(_StandaloneBase):
+class NUDT(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -533,11 +533,11 @@ class NUDT(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class Berkeley(_StandaloneBase):
+class Berkeley(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -572,11 +572,11 @@ class Berkeley(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class UNSW(_StandaloneBase):
+class UNSW(StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -605,7 +605,7 @@ class UNSW(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class PTB(_StandaloneBase):
+class PTB(StandaloneBase):
     """PTB Kasli variant
 
     F.k.a. ptb-schmidt, ptb-mehlstaeubler, ptb-huntemann-11, ptb-huntemann-19,
@@ -614,7 +614,7 @@ class PTB(_StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -649,12 +649,12 @@ class PTB(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class PTB2(_StandaloneBase):
+class PTB2(StandaloneBase):
     """PTB Kasli variant with Urukul1 SYNC and external reference clock"""
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["SI5324_EXT_REF"] = None
@@ -691,7 +691,7 @@ class PTB2(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class HUB(_StandaloneBase):
+class HUB(StandaloneBase):
     """HUB Kasli variant
 
     F.k.a. hub-krutzik, luh-ospelkaus-13, and luh-ospelkaus-14
@@ -700,7 +700,7 @@ class HUB(_StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -739,7 +739,7 @@ class HUB(_StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
 
-class LUH(_StandaloneBase):
+class LUH(StandaloneBase):
     """LUH Kasli variant
 
     F.k.a. luh-ospelkaus-16, luh-ospelkaus-18 in the artiq-setup repository
@@ -747,7 +747,7 @@ class LUH(_StandaloneBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -790,14 +790,14 @@ class LUH(_StandaloneBase):
             self.rtio_crg.cd_rtio.clk, self.grabber0.deserializer.cd_cl.clk)
 
 
-class Tester(_StandaloneBase):
+class Tester(StandaloneBase):
     """
     Configuration for CI tests. Contains the maximum number of different EEMs.
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
@@ -858,7 +858,7 @@ class _RTIOClockMultiplier(Module, AutoCSR):
         ]
 
 
-class _MasterBase(MiniSoC, AMPSoC):
+class MasterBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
         "rtio":          0x20000000,
@@ -1022,7 +1022,7 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
-class _SatelliteBase(BaseSoC):
+class SatelliteBase(BaseSoC):
     mem_map = {
         "drtioaux": 0x50000000,
     }
@@ -1169,11 +1169,11 @@ class _SatelliteBase(BaseSoC):
         self.csr_devices.append("routing_table")
 
 
-class Master(_MasterBase):
+class Master(MasterBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _MasterBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        MasterBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
 
@@ -1192,11 +1192,11 @@ class Master(_MasterBase):
         self.add_rtio(self.rtio_channels)
 
 
-class Satellite(_SatelliteBase):
+class Satellite(SatelliteBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _SatelliteBase.__init__(self, hw_rev=hw_rev, **kwargs)
+        SatelliteBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
         phy = ttl_simple.Output(self.platform.request("user_led", 0))
@@ -1209,11 +1209,11 @@ class Satellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
-class VLBAIMaster(_MasterBase):
+class VLBAIMaster(MasterBase):
     def __init__(self, hw_rev=None, *args, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev, *args,
+        MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev, *args,
                              **kwargs)
 
         self.rtio_channels = []
@@ -1241,11 +1241,11 @@ class VLBAIMaster(_MasterBase):
         self.add_rtio(self.rtio_channels)
 
 
-class VLBAISatellite(_SatelliteBase):
+class VLBAISatellite(SatelliteBase):
     def __init__(self, hw_rev=None, *args, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+        SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
                                 *args, **kwargs)
 
         self.rtio_channels = []
@@ -1269,11 +1269,11 @@ class VLBAISatellite(_SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
-class HUSTMaster(_MasterBase):
+class HUSTMaster(MasterBase):
     def __init__(self, hw_rev=None, *args, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+        MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
                              enable_sata=True, *args, **kwargs)
 
         self.rtio_channels = []
@@ -1292,11 +1292,11 @@ class HUSTMaster(_MasterBase):
         self.add_rtio(self.rtio_channels)
 
 
-class HUSTSatellite(_SatelliteBase):
+class HUSTSatellite(SatelliteBase):
     def __init__(self, hw_rev=None, *args, **kwargs):
         if hw_rev is None:
             hw_rev = "v1.1"
-        _SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
+        SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
                                 enable_sata=True, *args, **kwargs)
 
         self.rtio_channels = []
