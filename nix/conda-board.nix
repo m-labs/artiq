@@ -49,7 +49,7 @@ let
     chmod 755 $out/fake-conda/build.sh
     '';
   conda-board = import ./conda-build.nix { inherit pkgs; } {
-    name = "conda-board-${target}-${variant}";
+    name = "conda-artiq-board-${target}-${variant}";
     src = fakeCondaSource;
     recipe = "fake-conda";
   };
