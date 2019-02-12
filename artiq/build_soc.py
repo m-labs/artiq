@@ -17,7 +17,7 @@ def get_identifier_string(soc, suffix="", add_class_name=True):
     if suffix or add_class_name:
         r += ";"
     if add_class_name:
-        r += soc.__class__.__name__.lower()
+        r += getattr(soc, "class_name_override", soc.__class__.__name__.lower())
     r += suffix
     return r
 
