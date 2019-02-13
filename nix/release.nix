@@ -41,6 +41,6 @@ in
     channel = pkgs.releaseTools.channel {
       name = "main";
       src = ./.;
-      constitutents = builtins.attrValues jobs;
+      constituents = builtins.attrValues jobs;
     };
   }
