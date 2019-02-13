@@ -65,7 +65,9 @@ in
 
 python3Packages.buildPythonPackage rec {
   name = "artiq";
-  src = ./../..;
+  src = builtins.filterSource
+    (path: type: type != "directory" || builtins.baseNameOf path != ".nix")
+    ./../..;
   buildInputs = [ git ];
   propagatedBuildInputs = with python3Packages; [ binutils-or1k llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   checkPhase = "python -m unittest discover -v artiq.test";
