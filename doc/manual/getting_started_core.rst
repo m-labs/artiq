@@ -221,7 +221,7 @@ Try this: ::
             with self.core_dma.record("pulses"):
                 # all RTIO operations now go to the "pulses"
                 # DMA buffer, instead of being executed immediately.
-                for i in range(100):
+                for i in range(50):
                     self.ttl0.pulse(100*ns)
                     delay(100*ns)
 
