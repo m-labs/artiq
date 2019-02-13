@@ -30,7 +30,7 @@ let
           - site-packages
         requirements:
           run:
-            - artiq {{ "{tag} {number}+git{hash}".format(tag=environ["GIT_DESCRIBE_TAG"], number=environ["GIT_DESCRIBE_NUMBER"], hash=environ["GIT_FULL_HASH"][:8]) }}
+            - artiq
         ignore_prefix_files: True
 
     about:
