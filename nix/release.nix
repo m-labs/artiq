@@ -35,6 +35,11 @@ let
       src = ../.;
       recipe = "conda/artiq";
     };
+    mainchannel = pkgs.releaseTools.channel {
+      name = "mainchannel";
+      src = ./.;
+      constituents = [ ];
+    };
   } // boardJobs // artiqPkgs;
 in
   jobs
