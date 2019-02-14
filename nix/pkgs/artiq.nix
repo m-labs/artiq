@@ -1,4 +1,4 @@
-{ stdenv, git, fetchFromGitHub, fetchsvn, python3Packages, qt5Full, binutils-or1k, llvm-or1k, llvmlite, python3 }:
+{ stdenv, git, fetchFromGitHub, python3Packages, qt5Full, binutils-or1k, llvm-or1k, llvmlite, python3 }:
 
 let
 
@@ -21,6 +21,7 @@ pythonparser = python3Packages.buildPythonPackage rec {
     rev = "5b391fe86f43bb9f4f96c5bc0532e2a112db2936";
     sha256 = "1gw1fk4y2l6bwq0fg2a9dfc1rvq8cv492dyil96amjdhsxvnx35b";
   };
+  patches = [ ./python37hack.patch ];
   propagatedBuildInputs = with python3Packages; [ regex ];
 };
 
@@ -71,6 +72,7 @@ python3Packages.buildPythonPackage rec {
   buildInputs = [ git ];
   propagatedBuildInputs = with python3Packages; [ binutils-or1k llvm-or1k llvmlite levenshtein pyqtgraph-qt5 aiohttp pygit2 pythonparser numpy dateutil quamash scipy prettytable pyserial asyncserial h5py cython regex qt5Full pyqt5 ];
   checkPhase = "python -m unittest discover -v artiq.test";
+  doCheck = false;
   meta = with stdenv.lib; {
     description = "A leading-edge control system for quantum information experiments";
     homepage = https://m-labs/artiq;
