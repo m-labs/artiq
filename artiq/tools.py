@@ -101,9 +101,12 @@ def get_experiment(module, experiment=None):
             if k[0] != "_" and is_experiment(v)]
     if not exps:
         raise ValueError("No experiments in module")
-    if len(exps) > 1:
-        raise ValueError("More than one experiment found in module")
-    return exps[0][1]
+    for exp in exps:
+        # the top level experiment is the one that is a subclass of all other
+        # experiment classes
+        if all([issubclass(exp[1], e[1]) for e in exps]):
+            return exp[1]
+    raise ValueError("Could not determine top-level experiment in module")
 
 
 def add_common_args(parser):
