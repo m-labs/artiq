@@ -481,6 +481,12 @@ def get_versions():
     # py2exe/bbfreeze/non-CPython implementations don't do __file__, in which
     # case we can only use expanded keywords.
 
+    override = os.getenv("VERSIONEER_OVERRIDE")
+    if override:
+        return {"version": override, "full-revisionid": None,
+                "dirty": None,
+                "error": None, "date": None}
+
     cfg = get_config()
     verbose = cfg.verbose
 
