@@ -33,7 +33,7 @@ This sets up an environment suitable for using ARTIQ, including the ARTIQ-Python
 ARTIQ development environment with Nix
 ======================================
 
-Run ``nix-shell shell-dev.nix`` to obtain an environment containing Migen, MiSoC, Microscope, jesd204b, Clang, Rust, Cargo, and OpenOCD in addition to the user environment above.
+Run ``nix-shell -I artiqSrc=path_to_artiq_sources shell-dev.nix`` to obtain an environment containing Migen, MiSoC, Microscope, jesd204b, Clang, Rust, Cargo, and OpenOCD in addition to the user environment above.
 
 This creates a FHS chroot environment in order to simplify the installation and patching of Xilinx Vivado (it needs to be installed manually e.g. in your home folder).
 
