@@ -107,3 +107,9 @@ The core device tests require the following TTL devices and connections:
 * ``loop_clock_in``: any input-capable TTL. Must be physically connected to ``loop_clock_out``.
 
 If TTL devices are missing, the corresponding tests are skipped.
+
+find the dashboard and browser configuration files are stored?
+--------------------------------------------------------------
+
+::
+  python -c "from artiq.tools import get_user_config_dir; print(get_user_config_dir())"

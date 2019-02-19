@@ -20,10 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 def get_argparser():
-    default_db_file = os.path.join(get_user_config_dir(), "artiq_browser.pyon")
-
     parser = argparse.ArgumentParser(description="ARTIQ Browser")
-    parser.add_argument("--db-file", default=default_db_file,
+    parser.add_argument("--db-file", default=None,
                         help="database file for local browser settings "
                         "(default: %(default)s)")
     parser.add_argument("--browse-root", default="",
@@ -132,6 +130,8 @@ class Browser(QtWidgets.QMainWindow):
 def main():
     # initialize application
     args = get_argparser().parse_args()
+    if args.db_file is None:
+        args.db_file = os.path.join(get_user_config_dir(), "artiq_browser.pyon")
     widget_log_handler = log.init_log(args, "browser")
 
     app = QtWidgets.QApplication(["ARTIQ Browser"])
