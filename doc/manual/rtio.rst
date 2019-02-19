@@ -55,21 +55,22 @@ Then later, when the wall clock reaches the respective timestamps the RTIO gatew
 The following diagram shows what is going on at the different levels of the software and gateware stack (assuming one machine unit of time is 1 ns):
 
 .. wavedrom::
+
   {
-    signal: [
-      {name: 'kernel', wave: 'x32.3x', data: ['on()', 'delay(2*us)', 'off()'], node: '..A.XB'},
-      {name: 'now', wave: '2...2.', data: ['7000', '9000'], node: '..P..Q'},
+    "signal": [
+      {"name": "kernel", "wave": "x32.3x", "data": ["on()", "delay(2*us)", "off()"], "node": "..A.XB"},
+      {"name": "now", "wave": "2...2.", "data": ["7000", "9000"], "node": "..P..Q"},
       {},
-      {name: 'slack', wave: 'x2x.2x', data: ['4400', '5800']},
+      {"name": "slack", "wave": "x2x.2x", "data": ["4400", "5800"]},
       {},
-      {name: 'rtio_counter', wave: 'x2x|2x|2x2x', data: ['2600', '3200', '7000', '9000'], node: '       V.W'},
-      {name: 'ttl', wave: 'x1.0', node: ' R.S', phase: -6.5},
-      {                           node: ' T.U', phase: -6.5}
+      {"name": "rtio_counter", "wave": "x2x|2x|2x2x", "data": ["2600", "3200", "7000", "9000"], "node": "       V.W"},
+      {"name": "ttl", "wave": "x1.0", "node": " R.S", "phase": -6.5},
+      {                               "node": " T.U", "phase": -6.5}
     ],
-    edge: [
-      'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
-      'R-T', 'S-U', 'T<->U 2µs'
-    ],
+    "edge": [
+      "A~>R", "P~>R", "V~>R", "B~>S", "Q~>S", "W~>S",
+      "R-T", "S-U", "T<->U 2µs"
+    ]
   }
 
 The sequence is exactly equivalent to::
@@ -95,19 +96,20 @@ The experiment attempts to handle the exception by moving the cursor forward and
       ttl.on()
 
 .. wavedrom::
+
   {
-    signal: [
-      {name: 'kernel', wave: 'x34..2.3x', data: ['on()', 'RTIOUnderflow', 'delay()', 'on()'], node: '..AB....C', phase: -3},
-      {name: 'now_mu', wave: '2.....2', data: ['t0', 't1'], node: '.D.....E', phase: -4},
+    "signal": [
+      {"name": "kernel", "wave": "x34..2.3x", "data": ["on()", "RTIOUnderflow", "delay()", "on()"], "node": "..AB....C", "phase": -3},
+      {"name": "now_mu", "wave": "2.....2", "data": ["t0", "t1"], "node": ".D.....E", "phase": -4},
       {},
-      {name: 'slack', wave: '2x....2', data: ['< 0', '> 0'], node: '.T', phase: -4},
+      {"name": "slack", "wave": "2x....2", "data": ["< 0", "> 0"], "node": ".T", "phase": -4},
       {},
-      {name: 'rtio_counter', wave: 'x2x.2x....2x2', data: ['t0', '> t0', '< t1', 't1'], node: '............P'},
-      {name: 'tll', wave: 'x...........1', node: '.R..........S', phase: -.5}
+      {"name": "rtio_counter", "wave": "x2x.2x....2x2", "data": ["t0", "> t0", "< t1", "t1"], "node": "............P"},
+      {"name": "tll", "wave": "x...........1", "node": ".R..........S", "phase": -0.5}
     ],
-    edge: [
-      'A-~>R forbidden', 'D-~>R', 'T-~B exception',
-      'C~>S allowed', 'E~>S', 'P~>S'
+    "edge": [
+      "A-~>R forbidden", "D-~>R", "T-~B exception",
+      "C~>S allowed", "E~>S", "P~>S"
     ]
   }
 
@@ -170,17 +172,18 @@ The :meth:`artiq.coredevice.ttl.TTLInOut.gate_rising` method leaves the timeline
 Similar situations arise with methods such as :meth:`artiq.coredevice.ttl.TTLInOut.sample_get` and :meth:`artiq.coredevice.ttl.TTLInOut.watch_done`.
 
 .. wavedrom::
+
   {
-    signal: [
-      {name: 'kernel', wave: '3..5.|2.3..x..', data: ['gate_rising()', 'count()', 'delay()', 'pulse()'], node: '.A.B..C.ZD.E'},
-      {name: 'now_mu', wave: '2.2..|..2.2.', node: '.P.Q....XV.W'},
+    "signal": [
+      {"name": "kernel", "wave": "3..5.|2.3..x..", "data": ["gate_rising()", "count()", "delay()", "pulse()"], "node": ".A.B..C.ZD.E"},
+      {"name": "now_mu", "wave": "2.2..|..2.2.", "node": ".P.Q....XV.W"},
       {},
       {},
-      {name: 'input gate', wave: 'x1.0', node: '.T.U', phase: -2.5},
-      {name: 'output', wave: 'x1.0', node: '.R.S', phase: -10.5}
+      {"name": "input gate", "wave": "x1.0", "node": ".T.U", "phase": -2.5},
+      {"name": "output", "wave": "x1.0", "node": ".R.S", "phase": -10.5}
     ],
-    edge: [
-      'A~>T', 'P~>T', 'B~>U', 'Q~>U', 'U~>C', 'D~>R', 'E~>S', 'V~>R', 'W~>S'
+    "edge": [
+      "A~>T", "P~>T", "B~>U", "Q~>U", "U~>C", "D~>R", "E~>S", "V~>R", "W~>S"
     ]
   }
 
@@ -214,20 +217,21 @@ This is demonstrated in the following example where a pulse is split across two 
 Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after the rising edge and ``k2()`` then submits a falling edge at that position.
 
 .. wavedrom::
+
   {
-    signal: [
-      {name: 'kernel', wave: '3.2..2..|3.', data: ['k1: on()', 'k1: delay(dt)', 'k1->k2 swap', 'k2: off()'], node: '..A........B'},
-      {name: 'now', wave: '2....2...|.', data: ['t', 't+dt'], node: '..P........Q'},
+    "signal": [
+      {"name": "kernel", "wave": "3.2..2..|3.", "data": ["k1: on()", "k1: delay(dt)", "k1->k2 swap", "k2: off()"], "node": "..A........B"},
+      {"name": "now", "wave": "2....2...|.", "data": ["t", "t+dt"], "node": "..P........Q"},
       {},
       {},
-      {name: 'rtio_counter', wave: 'x......|2xx|2', data: ['t', 't+dt'], node: '........V...W'},
-      {name: 'ttl', wave: 'x1...0', node: '.R...S', phase: -7.5},
-      {                             node: ' T...U', phase: -7.5}
+      {"name": "rtio_counter", "wave": "x......|2xx|2", "data": ["t", "t+dt"], "node": "........V...W"},
+      {"name": "ttl", "wave": "x1...0", "node": ".R...S", "phase": -7.5},
+      {                                 "node": " T...U", "phase": -7.5}
     ],
-    edge: [
-      'A~>R', 'P~>R', 'V~>R', 'B~>S', 'Q~>S', 'W~>S',
-      'R-T', 'S-U', 'T<->U dt'
-    ],
+    "edge": [
+      "A~>R", "P~>R", "V~>R", "B~>S", "Q~>S", "W~>S",
+      "R-T", "S-U", "T<->U dt"
+    ]
   }
 
 
@@ -239,18 +243,19 @@ If a previous kernel sets timeline cursor far in the future this effectively loc
 When a kernel should wait until all the events on a particular channel have been executed, use the :meth:`artiq.coredevice.ttl.TTLOut.sync` method of a channel:
 
 .. wavedrom::
+
   {
-    signal: [
-      {name: 'kernel', wave: 'x3x.|5.|x', data: ['on()', 'sync()'], node: '..A.....Y'},
-      {name: 'now', wave: '2..', data: ['7000'], node: '..P'},
+    "signal": [
+      {"name": "kernel", "wave": "x3x.|5.|x", "data": ["on()", "sync()"], "node": "..A.....Y"},
+      {"name": "now", "wave": "2..", "data": ["7000"], "node": "..P"},
       {},
       {},
-      {name: 'rtio_counter', wave: 'x2x.|..2x', data: ['2000', '7000'], node: '   ....V'},
-      {name: 'ttl', wave: 'x1', node: ' R', phase: -6.5},
+      {"name": "rtio_counter", "wave": "x2x.|..2x", "data": ["2000", "7000"], "node": "   ....V"},
+      {"name": "ttl", "wave": "x1", "node": " R", "phase": -6.5}
     ],
-    edge: [
-          'A~>R', 'P~>R', 'V~>R', 'V~>Y'
-    ],
+    "edge": [
+          "A~>R", "P~>R", "V~>R", "V~>Y"
+    ]
   }
 
 RTIO reset
