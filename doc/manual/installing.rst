@@ -9,6 +9,8 @@ Conda has a more traditional approach to package management, is much more limite
 
 In the current state of affairs, we recommend that Linux users install ARTIQ via Nix and Windows users install it via Conda.
 
+.. _installing-nix-users:
+
 Installing via Nix (Linux)
 --------------------------
 
@@ -156,6 +158,8 @@ With Nix, add ``m-labs.openocd`` to the shell packages. Be careful not to add ``
 With Conda, the ``artiq`` package installs ``openocd`` automatically but it can also be installed explicitly on both Linux and Windows::
 
     $ conda install openocd
+
+.. _configuring-openocd:
 
 Configuring OpenOCD
 ^^^^^^^^^^^^^^^^^^^
