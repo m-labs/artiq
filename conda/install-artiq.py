@@ -1,8 +1,7 @@
 # This script installs ARTIQ using the conda packages built by the new Nix/Hydra system.
 # It needs to be run in the root (base) conda environment with "python install-artiq.py"
-# It supports Linux and Windows, but it really is just an ugly collection of workarounds
-# and conda is awful; if you are running Linux, you're better off using Nix which is not
-# buggy and needs none of this mess.
+# It supports Linux and Windows, but Linux users should consider using the higher-quality
+# Nix package manager instead of Conda.
 
 # EDIT THIS:
 # The name of the conda environment to create
@@ -35,7 +34,7 @@ if ADD_CHANNELS:
     run("conda config --add channels conda-forge")
 run("conda install -y conda-build curl")
 
-# Another silly conda decision is to ignore dependencies when installing .tar.bz2's directly.
+# A questionable conda decision is to ignore dependencies when installing .tar.bz2's directly.
 # Work around it by creating a channel for our packages.
 with tempfile.TemporaryDirectory() as channel_dir:
     print("Creating conda channel in {channel_dir}...".format(channel_dir=channel_dir))
@@ -45,8 +44,8 @@ with tempfile.TemporaryDirectory() as channel_dir:
         os.mkdir("noarch")
         # curl -OJL won't take the correct filename and it will save the output as "conda".
         # wget --content-disposition is better-behaved but wget cannot be used on Windows.
-        # Amazingly, conda doesn't do something stupid when package files are renamed,
-        # so we can get away by generating our own names that don't contain the version number.
+        # Amazingly, conda doesn't break when package files are renamed, so we can get away
+        # by generating our own names that don't contain the version number.
         for hydra_build, package in CONDA_PACKAGES:
             run("curl https://nixbld.m-labs.hk/job/artiq/{hydra_build}/conda-{package}/latest/download-by-type/file/conda -L -o noarch/{package}.tar.bz2"
                 .format(hydra_build=hydra_build, package=package))
