@@ -44,10 +44,10 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
     # Contains the main ARTIQ packages, their dependencies, and board packages
     # for systems used in CI.
     # List: https://nixbld.m-labs.hk/channel/custom/artiq/main/channel
-    m-labs = import <m-labs> {};
+    m-labs = import <m-labs> { inherit pkgs; };
     # Contains the board packages for the majority of systems.
     # List: https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel
-    sinara = import <sinara> {};
+    sinara = import <sinara> { inherit pkgs; };
   in
     pkgs.mkShell {
       buildInputs = [
@@ -153,7 +153,7 @@ Configuring OpenOCD
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
-On Linux, first ensure that the current user belongs to the ``plugdev`` group (i.e. ``plugdev`` shown when you run ``$ groups``). If it does not, run ``sudo adduser $USER plugdev`` and re-login.
+On Linux, first ensure that the current user belongs to the ``plugdev`` group (i.e. ``plugdev`` shown when you run ``$ groups``). If it does not, run ``$ sudo adduser $USER plugdev`` and re-login.
 
 If you installed OpenOCD on Linux using Nix, use the ``which`` command to determine the path to OpenOCD, and then copy the udev rules: ::
 
@@ -180,16 +180,14 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 
 You may need to repeat these steps every time you plug the FPGA board into a port where it has not been plugged into previously on the same system.
 
-.. _flashing-core-device:
-
 Writing the flash
 ^^^^^^^^^^^^^^^^^
 
-Then, you write the flash:
+Then, you can write the flash:
 
 * For Kasli::
 
-      $ artiq_flash -V [your board variant]
+      $ artiq_flash -V [your system variant]
 
 * For the KC705 board::
 
@@ -213,7 +211,7 @@ and then reboot the device (with ``artiq_flash start`` or a power cycle).
 In other cases, install OpenOCD as before, and flash the IP and MAC addresses directly: ::
 
     $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-    $ artiq_flash -t [board] -V [adapter] -f flash_storage.img storage start
+    $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware.
 
