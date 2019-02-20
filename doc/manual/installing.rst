@@ -107,8 +107,17 @@ This activation has to be performed in every new shell you open to make the ARTI
 .. note::
     Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in Conda.
 
-Upgrading ARTIQ
----------------
+Upgrading ARTIQ (with Nix)
+--------------------------
+
+Run ``nix-channel --update`` to retrieve information about the latest versions, and then either reinstall ARTIQ into the user environment (``nix-env -i python3.6-artiq``) or re-run the ``nix-shell`` command.
+
+To rollback to the previous version, use ``nix-channel --rollback`` and then re-do the second step. You can switch between versions by passing a parameter to ``--rollback`` (see the ``nix-channel`` documentation).
+
+You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
+
+Upgrading ARTIQ (with Conda)
+----------------------------
 
 When upgrading ARTIQ or when testing different versions it is recommended that new Conda environments are created instead of upgrading the packages in existing environments.
 Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
