@@ -310,8 +310,8 @@ class AD9910:
         :param drg_autoclear: Autoclear digital ramp generator.
         :param internal_profile: Internal profile control.
         :param ram_destination: RAM destination
-            (:const:`_AD9910_RAM_DEST_FTW`, :const:`_AD9910_RAM_DEST_POW`,
-            :const:`_AD9910_RAM_DEST_ASF`, :const:`_AD9910_RAM_DEST_POWASF`).
+            (:const:`RAM_DEST_FTW`, :const:`RAM_DEST_POW`,
+            :const:`RAM_DEST_ASF`, :const:`RAM_DEST_POWASF`).
         :param ram_enable: RAM mode enable.
         """
         self.write32(_AD9910_REG_CFR1,
@@ -515,6 +515,60 @@ class AD9910:
         """Return amplitude as a fraction of full scale corresponding to given
         amplitude scale factor."""
         return asf / float(0x3ffe)
+
+    @portable(flags={"fast-math"})
+    def frequency_to_ram(self, frequency, ram):
+        """Convert frequency values to RAM profile data.
+
+        To be used with :const:`RAM_DEST_FTW`.
+
+        :param frequency: List of frequency values in Hz.
+        :param ram: List to write RAM data into.
+            Suitable for :meth:`write_ram`.
+        """
+        for i in range(len(ram)):
+            ram[i] = self.frequency_to_ftw(frequency[i])
+
+    @portable(flags={"fast-math"})
+    def turns_to_ram(self, turns, ram):
+        """Convert phase values to RAM profile data.
+
+        To be used with :const:`RAM_DEST_POW`.
+
+        :param turns: List of phase values in turns.
+        :param ram: List to write RAM data into.
+            Suitable for :meth:`write_ram`.
+        """
+        for i in range(len(ram)):
+            ram[i] = self.turns_to_pow(turns[i]) << 16
+
+    @portable(flags={"fast-math"})
+    def amplitude_to_ram(self, amplitude, ram):
+        """Convert amplitude values to RAM profile data.
+
+        To be used with :const:`RAM_DEST_ASF`.
+
+        :param amplitude: List of amplitude values in units of full scale.
+        :param ram: List to write RAM data into.
+            Suitable for :meth:`write_ram`.
+        """
+        for i in range(len(ram)):
+            ram[i] = self.amplitude_to_asf(amplitude[i]) << 16
+
+    @portable(flags={"fast-math"})
+    def turns_amplitude_to_ram(self, turns, amplitude, ram):
+        """Convert phase and amplitude values to RAM profile data.
+
+        To be used with :const:`RAM_DEST_POWASF`.
+
+        :param turns: List of phase values in turns.
+        :param amplitude: List of amplitude values in units of full scale.
+        :param ram: List to write RAM data into.
+            Suitable for :meth:`write_ram`.
+        """
+        for i in range(len(ram)):
+            ram[i] = ((self.turns_to_pow(turns[i]) << 16) |
+                      self.amplitude_to_asf(amplitude[i]))
 
     @kernel
     def set_frequency(self, frequency):

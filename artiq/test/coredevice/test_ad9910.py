@@ -231,8 +231,8 @@ class AD9910Exp(EnvExperiment):
 
     @kernel
     def ram_exec(self):
-        ftw0 = [0x12345678]*10
-        ftw1 = [0x55aaaa55]*10
+        ftw0 = [0x12345678]*2
+        ftw1 = [0x55aaaa55]*2
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
@@ -267,6 +267,40 @@ class AD9910Exp(EnvExperiment):
         ftw1r = self.dev.read32(_AD9910_REG_FTW)
 
         self.set_dataset("ftw", [ftw0[0], ftw0r, ftw1[0], ftw1r])
+
+    @kernel
+    def ram_convert_frequency(self):
+        freq = [33*MHz]*2
+        ram = [0]*len(freq)
+        self.dev.frequency_to_ram(freq, ram)
+
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        self.dev.set_cfr1(ram_enable=0)
+        self.dev.cpld.io_update.pulse_mu(8)
+        self.dev.set_profile_ram(
+            start=100, end=100 + len(ram) - 1, step=1,
+            profile=6, mode=RAM_MODE_RAMPUP)
+        self.dev.cpld.set_profile(6)
+        self.dev.cpld.io_update.pulse_mu(8)
+        self.dev.write_ram(ram)
+        self.dev.set_cfr1(ram_enable=1, ram_destination=RAM_DEST_FTW)
+        self.dev.cpld.io_update.pulse_mu(8)
+        ftw_read = self.dev.read32(_AD9910_REG_FTW)
+        self.set_dataset("ram", ram)
+        self.set_dataset("ftw_read", ftw_read)
+        self.set_dataset("freq", freq)
+
+    @kernel
+    def ram_convert_powasf(self):
+        amplitude = [.1, .9]
+        turns = [.3, .5]
+        ram = [0]*2
+        self.dev.turns_amplitude_to_ram(turns, amplitude, ram)
+        self.set_dataset("amplitude", amplitude)
+        self.set_dataset("turns", turns)
+        self.set_dataset("ram", ram)
 
 
 class AD9910Test(ExperimentCase):
@@ -353,3 +387,24 @@ class AD9910Test(ExperimentCase):
         ftw = self.dataset_mgr.get("ftw")
         self.assertEqual(ftw[0], ftw[1])
         self.assertEqual(ftw[2], ftw[3])
+
+    def test_ram_convert_frequency(self):
+        exp = self.execute(AD9910Exp, "ram_convert_frequency")
+        ram = self.dataset_mgr.get("ram")
+        ftw_read = self.dataset_mgr.get("ftw_read")
+        self.assertEqual(ftw_read, ram[0])
+        freq = self.dataset_mgr.get("freq")
+        self.assertEqual(ftw_read, exp.dev.frequency_to_ftw(freq[0]))
+        self.assertAlmostEqual(freq[0], exp.dev.ftw_to_frequency(ftw_read),
+                               delta=.25)
+
+    def test_ram_convert_powasf(self):
+        exp = self.execute(AD9910Exp, "ram_convert_powasf")
+        ram = self.dataset_mgr.get("ram")
+        amplitude = self.dataset_mgr.get("amplitude")
+        turns = self.dataset_mgr.get("turns")
+        for i in range(len(ram)):
+            self.assertEqual((ram[i] >> 16) & 0xffff,
+                             exp.dev.turns_to_pow(turns[i]))
+            self.assertEqual(ram[i] & 0xffff,
+                             exp.dev.amplitude_to_asf(amplitude[i]))
