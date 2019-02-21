@@ -280,10 +280,12 @@ class AD9910:
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8, urukul.SPIT_DDS_WR,
                                self.chip_select)
         self.bus.write((_AD9910_REG_RAM | 0x80) << 24)
-        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_INPUT, 32,
-                               urukul.SPIT_DDS_RD, self.chip_select)
-        preload = 8
-        for i in range(len(data) - 1):
+        n = len(data) - 1
+        if n > 0:
+            self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_INPUT, 32,
+                                   urukul.SPIT_DDS_RD, self.chip_select)
+        preload = min(n, 8)
+        for i in range(n):
             self.bus.write(0)
             if i >= preload:
                 data[i - preload] = self.bus.read()
@@ -292,12 +294,12 @@ class AD9910:
             urukul.SPIT_DDS_RD, self.chip_select)
         self.bus.write(0)
         for i in range(preload + 1):
-            data[(len(data) - preload - 1) + i] = self.bus.read()
+            data[(n - preload) + i] = self.bus.read()
 
     @kernel
     def set_cfr1(self, power_down=0b0000, phase_autoclear=0,
-            drg_load_lrr=0, drg_autoclear=0,
-            internal_profile=0, ram_destination=0, ram_enable=0):
+                 drg_load_lrr=0, drg_autoclear=0,
+                 internal_profile=0, ram_destination=0, ram_enable=0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
@@ -382,8 +384,8 @@ class AD9910:
         self.set_cfr1(power_down=bits)
         self.cpld.io_update.pulse(1*us)
 
-    # KLUDGE: ref_time_mu default argument is explicitly marked int64() to avoid
-    # silent truncation of explicitly passed timestamps. (Compiler bug?)
+    # KLUDGE: ref_time_mu default argument is explicitly marked int64() to
+    # avoid silent truncation of explicitly passed timestamps. (Compiler bug?)
     @kernel
     def set_mu(self, ftw, pow_=0, asf=0x3fff, phase_mode=_PHASE_MODE_DEFAULT,
                ref_time_mu=int64(-1), profile=0):
@@ -430,7 +432,7 @@ class AD9910:
                 dt = int32(now_mu()) - int32(ref_time_mu)
                 pow_ += dt*ftw*self.sysclk_per_mu >> 16
         self.write64(_AD9910_REG_PROFILE0 + profile,
-            (asf << 16) | (pow_ & 0xffff), ftw)
+                     (asf << 16) | (pow_ & 0xffff), ftw)
         delay_mu(int64(self.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~7)  # clear fine TSC again
@@ -446,7 +448,8 @@ class AD9910:
 
         :param start: Profile start address in RAM.
         :param end: Profile end address in RAM (last address).
-        :param step: Profile address step size (default: 1).
+        :param step: Profile time step in units of t_DDS, typically 4 ns
+            (default: 1).
         :param profile: Profile index (0 to 7) (default: 0).
         :param nodwell_high: No-dwell high bit (default: 0,
             see AD9910 documentation).
@@ -542,7 +545,8 @@ class AD9910:
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
-            self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu, profile))
+            self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu,
+            profile))
 
     @kernel
     def set_att_mu(self, att):
@@ -739,7 +743,7 @@ class AD9910:
                 t1[0] += self.measure_io_update_alignment(i, i + 1)
                 t1[1] += self.measure_io_update_alignment(i + 1, i + 2)
             if ((t1[0] == 0 and t1[1] == 0) or
-                (t1[0] == repeat and t1[1] == repeat)):
+                    (t1[0] == repeat and t1[1] == repeat)):
                 # edge is not close to i + 1, can't interpret result
                 raise ValueError(
                     "no clear IO_UPDATE-SYNC_CLK alignment edge found")
