@@ -5,6 +5,7 @@ import sys
 import json
 import textwrap
 from collections import defaultdict
+from itertools import count
 
 
 def process_header(output, description):
@@ -70,6 +71,9 @@ class PeripheralManager:
         self.counts[ty] = count + 1
         return "{}{}".format(ty, count)
 
+    def gen(self, string, **kwargs):
+        print(textwrap.dedent(string).format(**kwargs), file=self.output)
+
     def process_dio(self, rtio_offset, peripheral):
         class_names = {
             "input": "TTLInOut",
@@ -80,31 +84,123 @@ class PeripheralManager:
             class_names[peripheral["bank_direction_high"]]
         ]
         for i in range(8):
-            print(textwrap.dedent("""
+            self.gen("""
                 device_db["{name}"] = {{
                     "type": "local",
                     "module": "artiq.coredevice.ttl",
                     "class": "{class_name}",
                     "arguments": {{"channel": 0x{channel:06x}}},
                 }}
-                """.format(
-                    name=self.get_name("ttl"),
-                    class_name=classes[i//4],
-                    channel=rtio_offset+i)),
-                file=self.output)
+                """,
+                name=self.get_name("ttl"),
+                class_name=classes[i//4],
+                channel=rtio_offset+i)
         return 8
 
+    # TODO: support 1-EEM mode
     def process_urukul(self, rtio_offset, peripheral):
-        return 0
-
+        urukul_name = self.get_name("urukul")
+        synchronization = peripheral.get("synchronization", False)
+        channel = count(0)
+        self.gen("""
+            device_db["spi_{name}"]={{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=urukul_name,
+            channel=rtio_offset+next(channel))
+        if synchronization:
+            self.gen("""
+                device_db["ttl_{name}_sync"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLClockGen",
+                    "arguments": {{"channel": 0x{channel:06x}, "acc_width": 4}}
+                }}""",
+                name=urukul_name,
+                channel=rtio_offset+next(channel))
+        self.gen("""
+            device_db["ttl_{name}_io_update"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLOut",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=urukul_name,
+            channel=rtio_offset+next(channel))
+        for i in range(4):
+            self.gen("""
+                device_db["ttl_{name}_sw{uchn}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{channel:06x}}}
+                }}""",
+                name=urukul_name,
+                uchn=i,
+                channel=rtio_offset+next(channel))
+        self.gen("""
+            device_db["{name}_cpld"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.urukul",
+                "class": "CPLD",
+                "arguments": {{
+                    "spi_device": "spi_{name}",
+                    "sync_device": {sync_device},
+                    "io_update_device": "ttl_{name}_io_update",
+                    "refclk": {refclk},
+                    "clk_sel": {clk_sel}
+                }}
+            }}""",
+            name=urukul_name,
+            sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
+            refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
+            clk_sel=peripheral["clk_sel"])
+        dds = peripheral.get("dds", "ad9910")
+        for i in range(4):
+            if dds == "ad9910":
+                self.gen("""
+                    device_db["{name}_ch{uchn}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ad9910",
+                        "class": "AD9910",
+                        "arguments": {{
+                            "pll_n": 32,
+                            "chip_select": {chip_select},
+                            "cpld_device": "{name}_cpld",
+                            "sw_device": "ttl_{name}_sw{uchn}"
+                        }}
+                    }}""",
+                    name=urukul_name,
+                    chip_select=4 + i,
+                    uchn=i)
+            elif dds == "ad9912":
+                self.gen("""
+                    device_db["{name}_ch{uchn}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ad9912",
+                        "class": "AD9912",
+                        "arguments": {{
+                            "pll_n": 8,
+                            "chip_select": {chip_select},
+                            "cpld_device": "{name}_cpld",
+                            "sw_device": "ttl_{name}_sw{uchn}"
+                        }}
+                    }}""",
+                    name=urukul_name,
+                    chip_select=4 + i,
+                    uchn=i)
+            else:
+                raise ValueError
+        return next(channel)
 
     def process_sampler(self, rtio_offset, peripheral):
         return 0
 
-
     def process_zotino(self, rtio_offset, peripheral):
         return 0
-
 
     def process_grabber(self, rtio_offset, peripheral):
         return 0
