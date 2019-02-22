@@ -159,6 +159,7 @@ class PeripheralManager:
             refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
             clk_sel=peripheral["clk_sel"])
         dds = peripheral.get("dds", "ad9910")
+        pll_vco = peripheral.get("pll_vco", None)
         for i in range(4):
             if dds == "ad9910":
                 self.gen("""
@@ -170,12 +171,13 @@ class PeripheralManager:
                             "pll_n": 32,
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld",
-                            "sw_device": "ttl_{name}_sw{uchn}"
+                            "sw_device": "ttl_{name}_sw{uchn}"{pll_vco}
                         }}
                     }}""",
                     name=urukul_name,
                     chip_select=4 + i,
-                    uchn=i)
+                    uchn=i,
+                    pll_vco=",\n\"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
             elif dds == "ad9912":
                 self.gen("""
                     device_db["{name}_ch{uchn}"] = {{
@@ -186,12 +188,13 @@ class PeripheralManager:
                             "pll_n": 8,
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld",
-                            "sw_device": "ttl_{name}_sw{uchn}"
+                            "sw_device": "ttl_{name}_sw{uchn}"{pll_vco}
                         }}
                     }}""",
                     name=urukul_name,
                     chip_select=4 + i,
-                    uchn=i)
+                    uchn=i,
+                    pll_vco=",\n\"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
             else:
                 raise ValueError
         return next(channel)
