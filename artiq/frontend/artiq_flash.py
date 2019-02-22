@@ -302,7 +302,7 @@ def main():
         bin_name = args.target
         if variant:
             bin_name += "-" + variant
-        bin_dir = os.path.join(artiq_dir, "binaries", bin_name)
+        bin_dir = os.path.join(artiq_dir, "board-support", bin_name)
 
     if args.host is None:
         client = LocalClient()

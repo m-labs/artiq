@@ -2,7 +2,7 @@
 
 set -e
 
-SOC_PREFIX=$SP_DIR/artiq/binaries/sayma_rtm
+SOC_PREFIX=$SP_DIR/artiq/board-support/sayma_rtm
 mkdir -p $SOC_PREFIX
 
 $PYTHON -m artiq.gateware.targets.sayma_rtm
