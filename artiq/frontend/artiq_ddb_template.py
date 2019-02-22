@@ -197,17 +197,105 @@ class PeripheralManager:
         return next(channel)
 
     def process_sampler(self, rtio_offset, peripheral):
-        return 0
+        self.gen("""
+            device_db["spi_{name}_adc"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{adc_channel:06x}}}
+            }}
+            device_db["spi_{name}_pgia"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{pgia_channel:06x}}}
+            }}
+            device_db["spi_{name}_cnv"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLOut",
+                "arguments": {{"channel": 0x{cnv_channel:06x}}},
+            }}
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.sampler",
+                "class": "Sampler",
+                "arguments": {{
+                    "spi_adc_device": "spi_{name}_adc",
+                    "spi_pgia_device": "spi_{name}_pgia",
+                    "cnv_device": "spi_{name}_cnv"
+                }}
+            }}""",
+            name=self.get_name("sampler"),
+            adc_channel=rtio_offset,
+            pgia_channel=rtio_offset + 1,
+            cnv_channel=rtio_offset + 2)
+        return 3
 
     def process_zotino(self, rtio_offset, peripheral):
-        return 0
+        self.gen("""
+            device_db["spi_{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{spi_channel:06x}}}
+            }}
+            device_db["ttl_{name}_ldac"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLOut",
+                "arguments": {{"channel": 0x{ldac_channel:06x}}}
+            }}
+            device_db["ttl_{name}_clr"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLOut",
+                "arguments": {{"channel": 0x{clr_channel:06x}}}
+            }}
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.zotino",
+                "class": "Zotino",
+                "arguments": {{
+                    "spi_device": "spi_{name}",
+                    "ldac_device": "ttl_{name}_ldac",
+                    "clr_device": "ttl_{name}_clr"
+                }}
+            }}""",
+            name=self.get_name("zotino"),
+            spi_channel=rtio_offset,
+            ldac_channel=rtio_offset + 1,
+            clr_channel=rtio_offset + 2)
+        return 3
 
     def process_grabber(self, rtio_offset, peripheral):
-        return 0
+        self.gen("""
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.grabber",
+                "class": "Grabber",
+                "arguments": {{"channel_base": 0x{channel:06x}}}
+            }}""",
+            name=self.get_name("grabber"),
+            channel=rtio_offset)
+        return 2
 
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
+
+    def add_sfp_leds(self, rtio_offset):
+        for i in range(2):
+            self.gen("""
+                device_db["{name}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{channel:06x}}}
+                }}""",
+                name=self.get_name("led"),
+                channel=rtio_offset+i)
+        return 2
 
 
 def process(output, master_description, satellites):
@@ -226,6 +314,9 @@ def process(output, master_description, satellites):
     rtio_offset = 0
     for peripheral in master_description["peripherals"]:
         n_channels = pm.process(rtio_offset, peripheral)
+        rtio_offset += n_channels
+    if base == "standalone":
+        n_channels = pm.add_sfp_leds(rtio_offset)
         rtio_offset += n_channels
 
     for destination, description in satellites:
