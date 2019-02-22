@@ -124,7 +124,7 @@ def main():
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("description", metavar="DESCRIPTION",
-                       help="JSON system description file")
+                        help="JSON system description file")
     args = parser.parse_args()
 
     with open(args.description, "r") as f:
