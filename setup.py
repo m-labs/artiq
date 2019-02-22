@@ -24,6 +24,7 @@ console_scripts = [
     "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
     "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
     "artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main",
+    "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
     "artiq_devtool = artiq.frontend.artiq_devtool:main",
     "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
     "artiq_master = artiq.frontend.artiq_master:main",
