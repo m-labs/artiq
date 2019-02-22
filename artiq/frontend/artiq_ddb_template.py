@@ -177,7 +177,7 @@ class PeripheralManager:
                     name=urukul_name,
                     chip_select=4 + i,
                     uchn=i,
-                    pll_vco=",\n\"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
+                    pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
             elif dds == "ad9912":
                 self.gen("""
                     device_db["{name}_ch{uchn}"] = {{
@@ -194,7 +194,7 @@ class PeripheralManager:
                     name=urukul_name,
                     chip_select=4 + i,
                     uchn=i,
-                    pll_vco=",\n\"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
+                    pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
             else:
                 raise ValueError
         return next(channel)
