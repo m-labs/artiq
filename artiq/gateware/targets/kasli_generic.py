@@ -117,6 +117,70 @@ class GenericStandalone(StandaloneBase):
                     self.rtio_crg.cd_rtio.clk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
+class GenericMaster(MasterBase):
+    def __init__(self, description, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = description["hw_rev"]
+        MasterBase.__init__(self,
+            hw_rev=hw_rev,
+            rtio_clk_freq=description.get("rtio_frequency", 125e6),
+            enable_sata=description.get("enable_sata_drtio", False),
+            **kwargs)
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
+        if has_grabber:
+            self.grabber_csr_group = []
+
+        self.rtio_channels = []
+        add_peripherals(self, description["peripherals"])
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+        if has_grabber:
+            self.config["HAS_GRABBER"] = None
+            self.add_csr_group("grabber", self.grabber_csr_group)
+            for grabber in self.grabber_csr_group:
+                self.platform.add_false_path_constraints(
+                    self.drtio_transceiver.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
+
+
+class GenericSatellite(SatelliteBase):
+    def __init__(self, description, hw_rev=None, **kwargs):
+        if hw_rev is None:
+            hw_rev = description["hw_rev"]
+        SatelliteBase.__init__(self,
+                               hw_rev=hw_rev,
+                               rtio_clk_freq=description.get("rtio_frequency", 125e6),
+                               enable_sata=description.get("enable_sata_drtio", False),
+                               **kwargs)
+        if hw_rev == "v1.0":
+            # EEM clock fan-out from Si5324, not MMCX
+            self.comb += self.platform.request("clk_sel").eq(1)
+
+        has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
+        if has_grabber:
+            self.grabber_csr_group = []
+
+        self.rtio_channels = []
+        add_peripherals(self, description["peripherals"])
+        self.config["HAS_RTIO_LOG"] = None
+        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
+        self.rtio_channels.append(rtio.LogChannel())
+
+        self.add_rtio(self.rtio_channels)
+        if has_grabber:
+            self.config["HAS_GRABBER"] = None
+            self.add_csr_group("grabber", self.grabber_csr_group)
+            for grabber in self.grabber_csr_group:
+                self.platform.add_false_path_constraints(
+                    self.drtio_transceiver.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for generic Kasli systems")
