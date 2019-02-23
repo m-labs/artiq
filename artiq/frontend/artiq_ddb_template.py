@@ -353,7 +353,7 @@ def main():
     satellites = []
     for destination, description in args.satellite:
         with open(description, "r") as f:
-            satellites.append((destination, json.load(f)))
+            satellites.append((int(destination, 0), json.load(f)))
 
     if args.output is not None:
         with open(args.output, "w") as f:
