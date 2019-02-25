@@ -559,9 +559,8 @@ class Satellite(BaseSoC, RTMCommon):
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             rx_synchronizer=self.rx_synchronizer,
+            ultrascale=True,
             rtio_clk_freq=rtio_clk_freq)
-        platform.add_platform_command("set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets {mmcm_ps}]",
-            mmcm_ps=self.siphaser.mmcm_ps_output)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
         self.csr_devices.append("siphaser")
