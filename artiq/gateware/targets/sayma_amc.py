@@ -7,10 +7,9 @@ import warnings
 from migen import *
 
 from misoc.cores import gpio
-from misoc.integration.soc_sdram import soc_sdram_args, soc_sdram_argdict
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect.csr import *
-from misoc.targets.sayma_amc import BaseSoC, MiniSoC
+from misoc.targets.sayma_amc import *
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import eem
@@ -591,7 +590,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="Sayma AMC gateware and firmware builder")
     builder_args(parser)
-    soc_sdram_args(parser)
+    soc_sayma_amc_args(parser)
     parser.set_defaults(output_dir="artiq_sayma")
     parser.add_argument("-V", "--variant", default="masterdac",
         help="variant: masterdac/master/satellite "
@@ -614,7 +613,7 @@ def main():
         cls = Satellite
     else:
         raise SystemExit("Invalid variant (-V/--variant)")
-    soc = cls(with_sawg=not args.without_sawg, **soc_sdram_argdict(args))
+    soc = cls(with_sawg=not args.without_sawg, **soc_sayma_amc_argdict(args))
 
     if variant != "master":
         remote_csr_regions = remote_csr.get_remote_csr_regions(
