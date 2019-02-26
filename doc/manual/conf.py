@@ -15,9 +15,9 @@
 
 import sys
 import os
+from unittest.mock import Mock
 
 import sphinx_rtd_theme
-from unittest.mock import MagicMock
 
 
 # Hack-patch Sphinx so that ARTIQ-Python types are correctly printed
@@ -26,21 +26,14 @@ from sphinx.ext import autodoc
 autodoc.repr = str
 
 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        if name == "_mock_methods":
-            return None
-        return Mock()
-
-
-mock_modules = ["artiq.gui.moninj",
-                "artiq.gui.waitingspinnerwidget",
+mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
+                "artiq.compiler.module",
+                "artiq.compiler.embedding",
                 "quamash", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate", "asyncserial",
-                "llvmlite_artiq", "Levenshtein", "aiohttp"]
+                "llvmlite_artiq", "Levenshtein", "aiohttp", "pythonparser"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
