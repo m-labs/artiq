@@ -169,7 +169,7 @@ def _action_scan_devices(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    if args.async:
+    if getattr(args, "async"):
         remote.scan_repository_async(args.revision)
     else:
         remote.scan_repository(args.revision)
