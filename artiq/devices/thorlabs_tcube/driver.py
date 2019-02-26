@@ -1435,13 +1435,13 @@ class TdcSim:
     def move_absolute(self, absolute_distance):
         pass
 
-    def move_jog(self, direction, async=False):
+    def move_jog(self, direction):
         pass
 
     def move_velocity(self, direction):
         pass
 
-    def move_stop(self, stop_mode, async=False):
+    def move_stop(self, stop_mode):
         pass
 
     def set_dc_pid_parameters(self, proportional, integral, differential,
