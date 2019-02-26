@@ -238,7 +238,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'ARTIQ.tex', 'ARTIQ Documentation',
-   'M-Labs / NIST Ion Storage Group', 'manual'),
+   'M-Labs and contributors', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -268,7 +268,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'artiq', 'ARTIQ Documentation',
-     ['M-Labs / NIST Ion Storage Group'], 1)
+     ['M-Labs and contributors'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -282,7 +282,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'ARTIQ', 'ARTIQ Documentation',
-   'M-Labs / NIST Ion Storage Group', 'ARTIQ', 'One line description of project.',
+   'M-Labs and contributors', 'ARTIQ', 'A leading-edge control system for quantum information experiments.',
    'Miscellaneous'),
 ]
 
