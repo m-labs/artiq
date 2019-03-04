@@ -18,17 +18,17 @@ First, install the Nix package manager. Some distributions provide a package for
 
 Once Nix is installed, add the M-Labs package channels with: ::
 
-  nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/main/channel m-labs
-  nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel sinara
+  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/main/channel m-labs
+  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel sinara
 
 Those channels track `nixpkgs 18.09 <https://github.com/NixOS/nixpkgs/tree/release-18.09>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
 
-  nix-channel --remove nixpkgs
-  nix-channel --add https://nixos.org/channels/nixos-18.09 nixpkgs
+  $ nix-channel --remove nixpkgs
+  $ nix-channel --add https://nixos.org/channels/nixos-18.09 nixpkgs
 
 Finally, make all the channel changes effective: ::
 
-  nix-channel --update
+  $ nix-channel --update
 
 Nix won't install packages without verifying their cryptographic signature. Add the M-Labs public key by creating the file ``~/.config/nix/nix.conf`` with the following contents:
 
@@ -37,7 +37,7 @@ Nix won't install packages without verifying their cryptographic signature. Add 
   substituters = https://cache.nixos.org https://nixbld.m-labs.hk
   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``nix-env -i python3.6-artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -i python3.6-artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
@@ -80,9 +80,9 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
       ];
     }
 
-Then spawn a shell containing the packages with ``nix-shell my-artiq-env.nix``. The ARTIQ commands with all the additional packages should now be available.
+Then spawn a shell containing the packages with ``$ nix-shell my-artiq-env.nix``. The ARTIQ commands with all the additional packages should now be available.
 
-You can exit the shell by typing Control-D. The next time ``nix-shell my-artiq-env.nix`` is invoked, Nix uses the cached packages so the shell startup is fast.
+You can exit the shell by typing Control-D. The next time ``$ nix-shell my-artiq-env.nix`` is invoked, Nix uses the cached packages so the shell startup is fast.
 
 You can edit this file according to your needs, and also create multiple ``.nix`` files that correspond to different sets of packages. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
 
@@ -118,9 +118,9 @@ This activation has to be performed in every new shell you open to make the ARTI
 Upgrading ARTIQ (with Nix)
 --------------------------
 
-Run ``nix-channel --update`` to retrieve information about the latest versions, and then either reinstall ARTIQ into the user environment (``nix-env -i python3.6-artiq``) or re-run the ``nix-shell`` command.
+Run ``$ nix-channel --update`` to retrieve information about the latest versions, and then either reinstall ARTIQ into the user environment (``$ nix-env -i python3.6-artiq``) or re-run the ``nix-shell`` command.
 
-To rollback to the previous version, use ``nix-channel --rollback`` and then re-do the second step. You can switch between versions by passing a parameter to ``--rollback`` (see the ``nix-channel`` documentation).
+To rollback to the previous version, use ``$ nix-channel --rollback`` and then re-do the second step. You can switch between versions by passing a parameter to ``--rollback`` (see the ``nix-channel`` documentation).
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
 
@@ -223,14 +223,14 @@ You can also insert other types of SFP transceivers into Kasli if you wish to us
 
 If you purchased a device from M-Labs, it already comes with a valid MAC address and an IP address, usually ``192.168.1.75``. Once you can reach this IP, it can be changed with: ::
 
-  artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
+  $ artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
 
 and then reboot the device (with ``artiq_flash start`` or a power cycle).
 
 In other cases, install OpenOCD as before, and flash the IP and MAC addresses directly: ::
 
-    $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
-    $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+  $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware.
 
@@ -246,8 +246,8 @@ This kernel is therefore stored in the :ref:`core device configuration flash sto
 
 To flash the idle kernel, first compile the idle experiment. The idle experiment's ``run()`` method must be a kernel: it must be decorated with the ``@kernel`` decorator (see :ref:`next topic <connecting-to-the-core-device>` for more information about kernels). Since the core device is not connected to the PC, RPCs (calling Python code running on the PC from the kernel) are forbidden in the idle experiment. Then write it into the core device configuration flash storage: ::
 
-    $ artiq_compile idle.py
-    $ artiq_coremgmt config write -f idle_kernel idle.elf
+  $ artiq_compile idle.py
+  $ artiq_coremgmt config write -f idle_kernel idle.elf
 
 .. note:: You can find more information about how to use the ``artiq_coremgmt`` utility on the :ref:`Utilities <core-device-management-tool>` page.
 
@@ -265,5 +265,5 @@ If you are using DRTIO and the default routing table (for a star topology) is no
 
 The KC705 may use either an external clock signal or its internal clock. The clock is selected at power-up. Use one of these commands: ::
 
-    $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
-    $ artiq_coremgmt config write -s rtio_clock e  # external clock
+  $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
+  $ artiq_coremgmt config write -s rtio_clock e  # external clock
