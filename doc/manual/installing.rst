@@ -20,9 +20,15 @@ Once Nix is installed, add the M-Labs package channels with: ::
 
   nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/main/channel m-labs
   nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel sinara
-  nix-channel --update
 
-Those channels track `nixpkgs 18.09 <https://github.com/NixOS/nixpkgs/tree/release-18.09>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_.
+Those channels track `nixpkgs 18.09 <https://github.com/NixOS/nixpkgs/tree/release-18.09>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
+
+  nix-channel --remove nixpkgs
+  nix-channel --add https://nixos.org/channels/nixos-18.09 nixpkgs
+
+Finally, make all the channel changes effective: ::
+
+  nix-channel --update
 
 Nix won't install packages without verifying their cryptographic signature. Add the M-Labs public key by creating the file ``~/.config/nix/nix.conf`` with the following contents:
 
