@@ -37,7 +37,7 @@ Nix won't install packages without verifying their cryptographic signature. Add 
   substituters = https://cache.nixos.org https://nixbld.m-labs.hk
   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -i python3.6-artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -f "<m-labs>" -iA artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
