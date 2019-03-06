@@ -40,7 +40,7 @@ Nix won't install packages without verifying their cryptographic signature. Add 
   substituters = https://cache.nixos.org https://nixbld.m-labs.hk
   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -f "<m-labs>" -iA artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -f "<m-labs>" -iA artiq-env``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
 .. note::
   If you are getting the error message ``file 'm-labs' was not found in the Nix search path``, you are probably encountering `this Nix bug <https://github.com/NixOS/nix/issues/2709>`_. As a workaround, enter the command ``$ export NIX_PATH=~/.nix-defexpr/channels:$NIX_PATH`` and try again.
