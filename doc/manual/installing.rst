@@ -14,6 +14,9 @@ In the current state of affairs, we recommend that Linux users install ARTIQ via
 Installing via Nix (Linux)
 --------------------------
 
+.. note::
+  Make sure you are using a 64-bit x86 Linux system. If you are using other systems, such as 32-bit x86, Nix will attempt to compile a number of dependencies from source on your machine. This may work, but the installation process will use a lot of CPU time, memory, and disk space.
+
 First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_.
 
 Once Nix is installed, add the M-Labs package channels with: ::
@@ -38,6 +41,9 @@ Nix won't install packages without verifying their cryptographic signature. Add 
   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
 The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -f "<m-labs>" -iA artiq``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+
+.. note::
+  If you are getting the error message ``file 'm-labs' was not found in the Nix search path``, you are probably encountering `this Nix bug <https://github.com/NixOS/nix/issues/2709>`_. As a workaround, enter the command ``$ export NIX_PATH=~/.nix-defexpr/channels:$NIX_PATH`` and try again.
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
