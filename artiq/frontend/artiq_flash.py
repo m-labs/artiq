@@ -48,7 +48,7 @@ Prerequisites:
                         help="only show the openocd script that would be run")
     parser.add_argument("-H", "--host", metavar="HOSTNAME",
                         type=str, default=None,
-                        help="SSH host where the development board is located")
+                        help="SSH host where the board is located")
     parser.add_argument("-J", "--jump",
                         type=str, default=None,
                         help="SSH host to jump through")
@@ -59,8 +59,7 @@ Prerequisites:
                         help="board variant")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
-                             "Useful for selecting a development board "
-                             "when several are connected.")
+                             "Useful for selecting a board when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", help="look for files in this directory")
     parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
