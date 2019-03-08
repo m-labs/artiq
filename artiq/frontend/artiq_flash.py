@@ -56,14 +56,14 @@ Prerequisites:
                         help="target board, default: %(default)s, one of: "
                              "kasli sayma kc705")
     parser.add_argument("-V", "--variant", default=None,
-                        help="board variant")
+                        help="board variant. Autodetected if only one is installed.")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
-    parser.add_argument("-d", "--dir", help="look for files in this directory")
-    parser.add_argument("--srcbuild", help="look for bitstream, bootloader and firmware in this "
-                                            "ARTIQ source build tree")
+    parser.add_argument("-d", "--dir", help="look for board binaries in this directory")
+    parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
+                        default=False, action="store_true")
     parser.add_argument("action", metavar="ACTION", nargs="*",
                         default="gateware bootloader firmware start".split(),
                         help="actions to perform, default: %(default)s")
@@ -267,7 +267,6 @@ def main():
     config = {
         "kasli": {
             "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
-            "def_variant":  "opticlock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
             "storage":      ("spi0", 0x440000),
@@ -275,7 +274,6 @@ def main():
         },
         "sayma": {
             "programmer":   ProgrammerSayma,
-            "def_variant":  "standalone",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
@@ -284,7 +282,6 @@ def main():
         },
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
-            "def_variant":  "nist_clock",
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0xaf0000),
             "storage":      ("spi0", 0xb30000),
@@ -292,16 +289,33 @@ def main():
         },
     }[args.target]
 
-    variant = args.variant
-    if variant is None:
-        variant = config["def_variant"]
-
     bin_dir = args.dir
     if bin_dir is None:
-        bin_name = args.target
-        if variant:
-            bin_name += "-" + variant
-        bin_dir = os.path.join(artiq_dir, "board-support", bin_name)
+        bin_dir = os.path.join(artiq_dir, "board-support")
+
+    variant = args.variant
+    if variant is None:
+        variants = []
+        if args.srcbuild:
+            for entry in os.scandir(bin_dir):
+                if entry.is_dir():
+                    variants.append(entry.name)
+        else:
+            prefix = args.target + "-"
+            for entry in os.scandir(bin_dir):
+                if entry.is_dir() and entry.name.startswith(prefix):
+                    variants.append(entry.name[len(prefix):])
+        if len(variants) == 0:
+            raise FileNotFoundError("no variants found, did you install a board binary package?")
+        elif len(variants) == 1:
+            variant = variants[0]
+        else:
+            raise ValueError("more than one variant found for selected board, specify -V. "
+                "Found variants: {}".format(" ".join(sorted(variants))))
+    if args.srcbuild:
+        variant_dir = variant
+    else:
+        variant_dir = args.target + "-" + variant
 
     if args.host is None:
         client = LocalClient()
@@ -310,12 +324,14 @@ def main():
 
     programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
-    def artifact_path(*path_filename):
-        if args.srcbuild is None:
-            *path, filename = path_filename
-            return os.path.join(bin_dir, filename)
+    def artifact_path(this_variant_dir, *path_filename):
+        if args.srcbuild:
+            # source tree - use path elements to locate file
+            return os.path.join(bin_dir, this_variant_dir, *path_filename)
         else:
-            return os.path.join(args.srcbuild, *path_filename)
+            # flat tree - all files in the same directory, discard path elements
+            *_, filename = path_filename
+            return os.path.join(bin_dir, this_variant_dir, filename)
 
     def convert_gateware(bit_filename, header=False):
         bin_handle, bin_filename = tempfile.mkstemp(
@@ -337,7 +353,7 @@ def main():
     for action in args.action:
         if action == "gateware":
             gateware_bin = convert_gateware(
-                artifact_path(variant, "gateware", "top.bit"))
+                artifact_path(variant_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
             if args.target == "sayma" and variant != "master":
                 rtm_gateware_bin = convert_gateware(
@@ -345,7 +361,7 @@ def main():
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = artifact_path(variant, "software", "bootloader", "bootloader.bin")
+            bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
@@ -356,16 +372,16 @@ def main():
             else:
                 firmware = "runtime"
 
-            firmware_fbi = artifact_path(variant, "software", firmware, firmware + ".fbi")
+            firmware_fbi = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
             programmer.write_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
             if args.target == "sayma":
                 rtm_gateware_bit = artifact_path("rtm_gateware", "rtm.bit")
                 programmer.load(rtm_gateware_bit, 0)
-                gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
             else:
-                gateware_bit = artifact_path(variant, "gateware", "top.bit")
+                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
         elif action == "start":
             programmer.start()

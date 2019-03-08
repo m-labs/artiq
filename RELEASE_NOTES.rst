@@ -25,6 +25,8 @@ ARTIQ-5
 * The controller manager now ignores device database entries without the
   ``"command"`` key set to facilitate sharing of devices between multiple
   masters.
+* The meaning of the ``-d/--dir`` and ``--srcbuild`` options of ``artiq_flash``
+  has changed.
 
 
 ARTIQ-4
