@@ -76,7 +76,7 @@ def scripts_path():
     if os.name == "nt":
         p.insert(0, "Library")
     p = os.path.abspath(os.path.join(
-        os.path.dirname(shutil.which("openocd")),
+        os.path.dirname(os.path.realpath(shutil.which("openocd"))),
         "..", *p))
     return p
 
@@ -84,7 +84,7 @@ def scripts_path():
 def proxy_path():
     p = ["share", "bscan-spi-bitstreams"]
     p = os.path.abspath(os.path.join(
-        os.path.dirname(shutil.which("openocd")),
+        os.path.dirname(os.path.realpath(shutil.which("openocd"))),
         "..", *p))
     return p
 
