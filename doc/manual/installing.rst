@@ -73,6 +73,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           m-labs.artiq-board-kc705-nist_clock
           sinara.artiq-board-kasli-wipm
           # from the NixOS package collection:
+          ps.paramiko  # needed for flashing boards remotely (artiq_flash -H)
           ps.pandas
           ps.numpy
           ps.scipy
@@ -81,7 +82,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ps.bokeh
         ]))
         # List desired non-Python packages here
-        m-labs.openocd  # needed for flashing boards
+        m-labs.openocd  # needed for flashing boards locally
         pkgs.spyder
       ];
     }
