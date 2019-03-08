@@ -83,6 +83,7 @@ class GenericStandalone(StandaloneBase):
     def __init__(self, description, hw_rev=None,**kwargs):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
@@ -121,6 +122,7 @@ class GenericMaster(MasterBase):
     def __init__(self, description, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description.get("rtio_frequency", 125e6),
@@ -153,6 +155,7 @@ class GenericSatellite(SatelliteBase):
     def __init__(self, description, hw_rev=None, **kwargs):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
+        self.class_name_override = description["variant"]
         SatelliteBase.__init__(self,
                                hw_rev=hw_rev,
                                rtio_clk_freq=description.get("rtio_frequency", 125e6),
@@ -207,7 +210,6 @@ def main():
         raise ValueError("Invalid base")
 
     soc = cls(description, **soc_kasli_argdict(args))
-    soc.class_name_override = description["variant"]
     args.variant = description["variant"]
     build_artiq_soc(soc, builder_argdict(args))
 
