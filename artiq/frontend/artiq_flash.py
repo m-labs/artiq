@@ -339,7 +339,7 @@ def main():
             gateware_bin = convert_gateware(
                 artifact_path(variant, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
-            if args.target == "sayma" and args.variant != "master":
+            if args.target == "sayma" and variant != "master":
                 rtm_gateware_bin = convert_gateware(
                     artifact_path("rtm_gateware", "rtm.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
