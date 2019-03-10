@@ -20,6 +20,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
         self.force_out = force_out
+        self.title = title
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -131,7 +132,7 @@ class _TTLWidget(QtWidgets.QFrame):
             self.programmatic_change = False
 
     def sort_key(self):
-        return self.channel
+        return self.title
 
 
 class _SimpleDisplayWidget(QtWidgets.QFrame):
