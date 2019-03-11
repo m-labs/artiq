@@ -205,6 +205,8 @@ device_db.update(
 )
 
 device_db.update(
+    i2c_switch="i2c_switch0",
+
     ttl_out="ttl4",
     ttl_out_serdes="ttl4",
 
