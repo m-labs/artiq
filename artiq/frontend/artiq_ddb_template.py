@@ -179,13 +179,15 @@ class PeripheralManager:
                             "pll_n": 32,
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld",
-                            "sw_device": "ttl_{name}_sw{uchn}"{pll_vco}
+                            "sw_device": "ttl_{name}_sw{uchn}"{pll_vco}{sync_delay_seed}{io_update_delay}
                         }}
                     }}""",
                     name=urukul_name,
                     chip_select=4 + i,
                     uchn=i,
-                    pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "")
+                    pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
+                    sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 48 + 4*i) if synchronization else "",
+                    io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 48 + 4*i) if synchronization else "")
             elif dds == "ad9912":
                 self.gen("""
                     device_db["{name}_ch{uchn}"] = {{
