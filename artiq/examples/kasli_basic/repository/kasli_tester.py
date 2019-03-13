@@ -185,6 +185,14 @@ class KasliTester(EnvExperiment):
         cpld.init()
 
     @kernel
+    def calibrate_urukul(self, channel):
+        self.core.break_realtime()
+        sync_delay_seed, _ = channel.tune_sync_delay()
+        self.core.break_realtime()
+        io_update_delay = channel.tune_io_update_delay()
+        return sync_delay_seed, io_update_delay
+
+    @kernel
     def setup_urukul(self, channel, frequency):
         self.core.break_realtime()
         channel.init()
@@ -212,6 +220,23 @@ class KasliTester(EnvExperiment):
         for name, cpld in sorted(self.urukul_cplds.items(), key=lambda x: x[0]):
             print(name + "...")
             self.init_urukul(cpld)
+        print("...done")
+
+        print("Calibrating inter-device synchronization...")
+        for channel_name, channel_dev in self.urukuls:
+            if channel_dev.sync_delay_seed_eeprom is None and channel_dev.io_update_delay_eeprom is None:
+                print("{}\tno synchronization".format(channel_name))
+            elif channel_dev.sync_delay_seed_eeprom is not channel_dev.io_update_delay_eeprom:
+                print("{}\tunsupported EEPROM configuration".format(channel_name))
+            elif channel_dev.sync_delay_seed_offset != channel_dev.io_update_delay_offset:
+                print("{}\tunsupported EEPROM offsets".format(channel_name))
+            else:
+                eeprom = channel_dev.sync_delay_seed_eeprom
+                offset = channel_dev.sync_delay_seed_offset
+                sync_delay_seed, io_update_delay = self.calibrate_urukul(channel_dev)
+                print("{}\t{} {}".format(channel_name, sync_delay_seed, io_update_delay))
+                eeprom_word = (sync_delay_seed << 24) | (io_update_delay << 16)
+                eeprom.write_i32(offset, eeprom_word)
         print("...done")
 
         print("Frequencies:")
