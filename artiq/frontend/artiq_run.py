@@ -149,7 +149,7 @@ def get_argparser(with_file=True):
 def _build_experiment(device_mgr, dataset_mgr, args):
     arguments = parse_arguments(args.arguments)
     argument_mgr = ProcessArgumentManager(arguments)
-    managers = (device_mgr, dataset_mgr, argument_mgr)
+    managers = (device_mgr, dataset_mgr, argument_mgr, {})
     if hasattr(args, "file"):
         is_elf = args.file.endswith(".elf")
         is_ll  = args.file.endswith(".ll")

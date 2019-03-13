@@ -46,7 +46,7 @@ class ExperimentDatasetCase(unittest.TestCase):
         # connection would marshal updates between dataset_mgr and dataset_db.
         self.dataset_db = MockDatasetDB()
         self.dataset_mgr = DatasetManager(self.dataset_db)
-        self.exp = TestExperiment((None, self.dataset_mgr, None))
+        self.exp = TestExperiment((None, self.dataset_mgr, None, None))
 
     def test_set_local(self):
         with self.assertRaises(KeyError):
