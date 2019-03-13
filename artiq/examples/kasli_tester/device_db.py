@@ -57,6 +57,12 @@ for i in range(8):
 
 # Urukul (EEM1) starting at RTIO channel 12
 device_db.update(
+    eeprom_urukul0={
+        "type": "local",
+        "module": "artiq.coredevice.kasli_i2c",
+        "class": "KasliEEPROM",
+        "arguments": {"port": "EEM1"}
+    },
     spi_urukul0={
         "type": "local",
         "module": "artiq.coredevice.spi2",
@@ -122,7 +128,9 @@ for i in range(4):
             "pll_n": 32,
             "chip_select": 4 + i,
             "cpld_device": "urukul0_cpld",
-            "sw_device": "ttl_urukul0_sw" + str(i)
+            "sw_device": "ttl_urukul0_sw" + str(i),
+            "sync_delay_seed": "eeprom_urukul0:" + str(48 + 4*i),
+            "io_update_delay": "eeprom_urukul0:" + str(48 + 4*i),
         }
     }
 
