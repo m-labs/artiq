@@ -1,4 +1,5 @@
 from numpy import int32, int64
+import functools
 
 from artiq.language.core import (
     kernel, delay, portable, delay_mu, now_mu, at_mu)
@@ -86,9 +87,13 @@ class AD9910:
         To stabilize the SYNC_IN delay tuning, run :meth:`tune_sync_delay` once
         and set this to the delay tap number returned (default: -1 to signal no
         synchronization and no tuning during :meth:`init`).
+        Can be a string of the form "eeprom_device:byte_offset" to read the value
+        from a I2C EEPROM.
     :param io_update_delay: IO_UPDATE pulse alignment delay.
         To align IO_UPDATE to SYNC_CLK, run :meth:`tune_io_update_delay` and
         set this to the delay tap number returned.
+        Can be a string of the form "eeprom_device:byte_offset" to read the value
+        from a I2C EEPROM.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
                          "ftw_per_hz", "io_update_delay", "sysclk_per_mu"}
@@ -123,12 +128,39 @@ class AD9910:
         assert sysclk <= 1e9
         self.ftw_per_hz = (1 << 32)/sysclk
         self.sysclk_per_mu = int(round(sysclk*self.core.ref_period))
+
+        @functools.lru_cache(maxsize=2)
+        def get_eeprom_sync_data(eeprom_str):
+            device, offset = eeprom_str.split(":")
+            device = dmgr.get(device)
+            offset = int(offset)
+
+            word = device.read_i32(offset) >> 16
+            sync_delay_seed = word >> 8
+            if sync_delay_seed >= 0:
+                io_update_delay = word & 0xff
+            else:
+                io_update_delay = 0
+            return device, offset, sync_delay_seed, io_update_delay
+
+        if isinstance(sync_delay_seed, str):
+            self.sync_delay_seed_eeprom, self.sync_delay_seed_offset, sync_delay_seed, _ = \
+                get_eeprom_sync_data(sync_delay_seed)
+        else:
+            self.sync_delay_seed_eeprom, self.sync_delay_seed_offset = None, None
+        if isinstance(io_update_delay, str):
+            self.io_update_delay_eeprom, self.io_update_delay_offset, _, io_update_delay = \
+                get_eeprom_sync_data(io_update_delay)
+        else:
+            self.io_update_delay_eeprom, self.io_update_delay_offset = None, None
+
         if sync_delay_seed >= 0 and not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
         self.sync_delay_seed = sync_delay_seed
         if self.sync_delay_seed >= 0:
             assert self.sysclk_per_mu == sysclk*self.core.ref_period
         self.io_update_delay = io_update_delay
+
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
     @kernel
