@@ -10,7 +10,7 @@ about: Report a bug in ARTIQ
 
 <!-- Thanks for reporting a bug report to ARTIQ! You can also discuss issues and ask questions on IRC (the [#m-labs channel on freenode](https://webchat.freenode.net/?channels=m-labs) or on the [ARTIQ mailing list](https://ssl.serverraum.org/lists/listinfo/artiq). Please check Github/those forums to avoid posting a repeat issue.  
 
-Context helps us fix issues faster, so please include the following: 
+Context helps us fix issues faster, so please include the following when relevant:
 -->
 
 ## One-Line Summary
@@ -37,8 +37,10 @@ Behavior
 ### Your System
 
 * Operating System:
-* Conda version:
-* ARTIQ version: (package or git commit id, versions for bitstream, bootloader, runtime and host software). Run `conda list`
+* ARTIQ version: (with recent versions of ARTIQ, run ``artiq_client --version``)
+* Version of the gateware and runtime loaded in the core device: (in the output of ``artiq_coremgmt -D .... log``)
+* If using Nix, version of nixpkgs:
+* If using Conda, output of `conda list`:
 * Hardware involved:
 
 <!--
