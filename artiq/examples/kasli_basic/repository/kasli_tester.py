@@ -3,6 +3,7 @@ import os
 import select
 
 from artiq.experiment import *
+from artiq.coredevice.ad9910 import AD9910
 
 if os.name == "nt":
     import msvcrt
@@ -224,7 +225,8 @@ class KasliTester(EnvExperiment):
 
         print("Calibrating inter-device synchronization...")
         for channel_name, channel_dev in self.urukuls:
-            if channel_dev.sync_delay_seed_eeprom is None and channel_dev.io_update_delay_eeprom is None:
+            if (not isinstance(channel_dev, AD9910) or
+                    (channel_dev.sync_delay_seed_eeprom is None and channel_dev.io_update_delay_eeprom is None)):
                 print("{}\tno synchronization".format(channel_name))
             elif channel_dev.sync_delay_seed_eeprom is not channel_dev.io_update_delay_eeprom:
                 print("{}\tunsupported EEPROM configuration".format(channel_name))
