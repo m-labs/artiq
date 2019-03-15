@@ -129,8 +129,8 @@ for i in range(4):
             "chip_select": 4 + i,
             "cpld_device": "urukul0_cpld",
             "sw_device": "ttl_urukul0_sw" + str(i),
-            "sync_delay_seed": "eeprom_urukul0:" + str(48 + 4*i),
-            "io_update_delay": "eeprom_urukul0:" + str(48 + 4*i),
+            "sync_delay_seed": "eeprom_urukul0:" + str(64 + 4*i),
+            "io_update_delay": "eeprom_urukul0:" + str(64 + 4*i),
         }
     }
 
