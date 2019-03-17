@@ -305,6 +305,11 @@ def main():
             for entry in os.scandir(bin_dir):
                 if entry.is_dir() and entry.name.startswith(prefix):
                     variants.append(entry.name[len(prefix):])
+        if args.target == "sayma":
+            try:
+                variants.remove("rtm_gateware")
+            except ValueError:
+                pass
         if len(variants) == 0:
             raise FileNotFoundError("no variants found, did you install a board binary package?")
         elif len(variants) == 1:
