@@ -46,7 +46,7 @@ def main():
         exp = get_experiment(module, args.experiment)
         arguments = parse_arguments(args.arguments)
         argument_mgr = ProcessArgumentManager(arguments)
-        exp_inst = exp((device_mgr, dataset_mgr, argument_mgr))
+        exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
 
         if not hasattr(exp.run, "artiq_embedded"):
             raise ValueError("Experiment entry point must be a kernel")
