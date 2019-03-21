@@ -10,7 +10,7 @@ def _run_on_host(k_class, *args, **kwargs):
     device_mgr = dict()
     device_mgr["core"] = sim_devices.Core(device_mgr)
 
-    k_inst = k_class((device_mgr, None, None),
+    k_inst = k_class((device_mgr, None, None, {}),
                      *args, **kwargs)
     k_inst.run()
     return k_inst

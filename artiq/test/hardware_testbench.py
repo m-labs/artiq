@@ -111,7 +111,7 @@ class ExperimentCase(unittest.TestCase):
     def create(self, cls, *args, **kwargs):
         try:
             exp = cls(
-                (self.device_mgr, self.dataset_mgr, None),
+                (self.device_mgr, self.dataset_mgr, None, {}),
                 *args, **kwargs)
         except DeviceError as e:
             # skip if ddb does not match requirements
