@@ -585,6 +585,17 @@ class Satellite(BaseSoC, RTMCommon):
             self.crg.cd_sys.clk,
             gth.txoutclk, gth.rxoutclk)
 
+        # placeholder code to test I/O routing and standards
+        if self.hw_rev == "v2.0":
+            self.clock_domains.cd_ddmtd_helper = ClockDomain(reset_less=True)
+            helper_clk = platform.request("ddmtd_helper_clk")
+            self.specials += Instance("IBUFGDS",
+                i_I=helper_clk.p, i_IB=helper_clk.n,
+                o_O=self.cd_ddmtd_helper.clk)
+            ddmtd = platform.request("ddmtd_results")
+            self.sync.ddmtd_helper += platform.request("tp16").eq(
+                ddmtd.rec_clk ^ ddmtd.main_xo)
+
 
 def main():
     parser = argparse.ArgumentParser(
