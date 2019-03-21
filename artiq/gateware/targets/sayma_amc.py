@@ -154,7 +154,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.config["SI5324_SAYMA_REF"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         # ensure pins are properly biased and terminated
-        si5324_clkout = platform.request("si5324_clkout", 0)
+        si5324_clkout = platform.request("cdr_clk_clean", 0)
         self.specials += Instance(
             "IBUFDS_GTE3", i_CEB=0, i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
             attr={("DONT_TOUCH", "true")})
@@ -351,7 +351,7 @@ class Master(MiniSoC, AMPSoC):
             for i in range(2)
         ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("si5324_clkout", 0),
+            clock_pads=platform.request("cdr_clk_clean", 0),
             data_pads=[platform.request("sfp", i) for i in range(2)] +
                       [platform.request("rtm_gth", i) for i in range(8)],
             sys_clk_freq=self.clk_freq,
@@ -524,7 +524,7 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("si5324_clkout"),
+            clock_pads=platform.request("cdr_clk_clean"),
             data_pads=[platform.request("sfp", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
