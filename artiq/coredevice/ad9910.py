@@ -141,7 +141,10 @@ class AD9910:
                 io_update_delay = word & 0xff
             else:
                 io_update_delay = 0
-            return device, offset, sync_delay_seed, io_update_delay
+            if io_update_delay == 0xff:  # unprogrammed EEPROM
+                io_update_delay = 0
+            # With Numpy, type(int32(-1) >> 1) == int64
+            return device, offset, int32(sync_delay_seed), int32(io_update_delay)
 
         if isinstance(sync_delay_seed, str):
             self.sync_delay_seed_eeprom, self.sync_delay_seed_offset, sync_delay_seed, _ = \
