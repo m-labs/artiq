@@ -11,7 +11,7 @@ from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
 from misoc.cores.a7_gtp import *
-from misoc.targets.sayma_rtm import BaseSoC
+from misoc.targets.sayma_rtm import BaseSoC, soc_sayma_rtm_args, soc_sayma_rtm_argdict
 from misoc.integration.builder import Builder, builder_args, builder_argdict
 
 from artiq.gateware import rtio
@@ -96,9 +96,15 @@ class _SatelliteBase(BaseSoC):
         qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
+        if self.hw_rev == "v1.0":
+            drtio_data_pads = platform.request("sata", 0)
+        elif self.hw_rev == "v2.0":
+            drtio_data_pads = platform.request("rtm_amc_link", 0)
+        else:
+            raise NotImplementedError
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
-            data_pads=[platform.request("sata", 0)],
+            data_pads=[drtio_data_pads],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
@@ -205,12 +211,13 @@ class SatmanSoCBuilder(Builder):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="ARTIQ device binary builder for Kasli systems")
+        description="Sayma RTM gateware and firmware builder")
     builder_args(parser)
+    soc_sayma_rtm_args(parser)
     parser.set_defaults(output_dir="artiq_sayma_rtm")
     args = parser.parse_args()
 
-    soc = Satellite()
+    soc = Satellite(**soc_sayma_rtm_argdict(args))
     builder = SatmanSoCBuilder(soc, **builder_argdict(args))
     try:
         builder.build()
