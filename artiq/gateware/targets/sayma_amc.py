@@ -522,10 +522,13 @@ class Satellite(BaseSoC, RTMCommon):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
+        drtio_data_pads = [platform.request("sfp", 0)]
+        if self.hw_rev == "v2.0":
+            drtio_data_pads.append(platform.request("rtm_amc_link"))
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean"),
-            data_pads=[platform.request("sfp", 0)],
+            data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
