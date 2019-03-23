@@ -1,3 +1,4 @@
+#[cfg(hw_rev = "v1.0")]
 mod clock_mux {
     use board_misoc::csr;
 
@@ -14,6 +15,13 @@ mod clock_mux {
                 1*DAC_CLK_SRC_SEL |  // 1= HMC830 output, 1= clock mezzanine (IC54) to HMC7043 and J58/J59
                 0*REF_LO_CLK_SEL);   // 1= clock mezzanine, 0= HMC830 input  (IC52) to AFEs and J56/J57
         }
+    }
+}
+
+#[cfg(hw_rev = "v2.0")]
+mod clock_mux {
+    pub fn init() {
+        // TODO
     }
 }
 

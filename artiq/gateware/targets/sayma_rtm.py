@@ -5,7 +5,7 @@ import argparse
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.build.platforms.sinara import sayma_rtm
+from migen.build.platforms.sinara import sayma_rtm, sayma_rtm2
 
 from misoc.interconnect import wishbone, stream
 from misoc.interconnect.csr import *
@@ -108,7 +108,7 @@ CSR_RANGE_SIZE = 0x800
 
 
 class SaymaRTM(Module):
-    def __init__(self, platform):
+    def __init__(self, platform, hw_rev):
         csr_devices = []
 
         self.submodules.crg = CRG(platform)
@@ -122,46 +122,55 @@ class SaymaRTM(Module):
         self.submodules.rtm_scratch = RTMScratch()
         csr_devices.append("rtm_scratch")
 
-        # clock mux: 100MHz ext SMA clock to HMC830 input
-        self.submodules.clock_mux = gpio.GPIOOut(Cat(
-            platform.request("clk_src_ext_sel"),
-            platform.request("ref_clk_src_sel"),
-            platform.request("dac_clk_src_sel"),
-            platform.request("ref_lo_clk_sel")),
-            reset_out=0b0111)
-        csr_devices.append("clock_mux")
+        if hw_rev == "v1.0":
+            # clock mux: 100MHz ext SMA clock to HMC830 input
+            self.submodules.clock_mux = gpio.GPIOOut(Cat(
+                platform.request("clk_src_ext_sel"),
+                platform.request("ref_clk_src_sel"),
+                platform.request("dac_clk_src_sel"),
+                platform.request("ref_lo_clk_sel")),
+                reset_out=0b0111)
+            csr_devices.append("clock_mux")
+        elif hw_rev == "v2.0":
+            # TODO
+            self.submodules.clock_mux = gpio.GPIOOut(
+                platform.request("clk_src_ext_sel"))
+            csr_devices.append("clock_mux")
+        else:
+            raise NotImplementedError
 
-        # Allaki: enable RF output, GPIO access to attenuator
-        self.comb += [
-            platform.request("allaki0_rfsw0").eq(1),
-            platform.request("allaki0_rfsw1").eq(1),
-            platform.request("allaki1_rfsw0").eq(1),
-            platform.request("allaki1_rfsw1").eq(1),
-            platform.request("allaki2_rfsw0").eq(1),
-            platform.request("allaki2_rfsw1").eq(1),
-            platform.request("allaki3_rfsw0").eq(1),
-            platform.request("allaki3_rfsw1").eq(1),
-        ]
-        allaki_atts = [
-            platform.request("allaki0_att0"),
-            platform.request("allaki0_att1"),
-            platform.request("allaki1_att0"),
-            platform.request("allaki1_att1"),
-            platform.request("allaki2_att0"),
-            platform.request("allaki2_att1"),
-            platform.request("allaki3_att0"),
-            platform.request("allaki3_att1"),
-        ]
-        allaki_att_gpio = []
-        for allaki_att in allaki_atts:
-            allaki_att_gpio += [
-                allaki_att.le,
-                allaki_att.sin,
-                allaki_att.clk,
-                allaki_att.rst_n,
+        if hw_rev == "v1.0":
+            # Allaki: enable RF output, GPIO access to attenuator
+            self.comb += [
+                platform.request("allaki0_rfsw0").eq(1),
+                platform.request("allaki0_rfsw1").eq(1),
+                platform.request("allaki1_rfsw0").eq(1),
+                platform.request("allaki1_rfsw1").eq(1),
+                platform.request("allaki2_rfsw0").eq(1),
+                platform.request("allaki2_rfsw1").eq(1),
+                platform.request("allaki3_rfsw0").eq(1),
+                platform.request("allaki3_rfsw1").eq(1),
             ]
-        self.submodules.allaki_atts = gpio.GPIOOut(Cat(*allaki_att_gpio))
-        csr_devices.append("allaki_atts")
+            allaki_atts = [
+                platform.request("allaki0_att0"),
+                platform.request("allaki0_att1"),
+                platform.request("allaki1_att0"),
+                platform.request("allaki1_att1"),
+                platform.request("allaki2_att0"),
+                platform.request("allaki2_att1"),
+                platform.request("allaki3_att0"),
+                platform.request("allaki3_att1"),
+            ]
+            allaki_att_gpio = []
+            for allaki_att in allaki_atts:
+                allaki_att_gpio += [
+                    allaki_att.le,
+                    allaki_att.sin,
+                    allaki_att.clk,
+                    allaki_att.rst_n,
+                ]
+            self.submodules.allaki_atts = gpio.GPIOOut(Cat(*allaki_att_gpio))
+            csr_devices.append("allaki_atts")
 
         # HMC clock chip and DAC control
         self.comb += platform.request("ad9154_rst_n").eq(1)
@@ -179,16 +188,30 @@ class SaymaRTM(Module):
 
         # DDMTD
         self.clock_domains.cd_rtio = ClockDomain(reset_less=True)
-        rtio_clock_pads = platform.request("si5324_clkout_fabric")
+        if hw_rev == "v1.0":
+            # HACK - Si5324 needs to be put into bypass mode first.
+            # See: https://github.com/m-labs/artiq/issues/1260
+            rtio_clock_pads = platform.request("si5324_clkout_fabric")
+            sysref_pads = platform.request("rtm_master_aux_clk")
+        elif hw_rev == "v2.0":
+            # https://github.com/sinara-hw/Sayma_RTM/issues/68
+            rtio_clock_pads = platform.request("si5324_clkout_fabric")
+            sysref_pads = platform.request("rtm_fpga_sysref", 1)  # use odd-numbered 7043 output
+        else:
+            raise NotImplementedError
         self.specials += Instance("IBUFGDS", i_I=rtio_clock_pads.p, i_IB=rtio_clock_pads.n,
             o_O=self.cd_rtio.clk)
-        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(
-            platform.request("rtm_master_aux_clk"), 150e6)
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, 150e6)
         csr_devices.append("sysref_ddmtd")
 
         # AMC/RTM serwb
         serwb_pads = platform.request("amc_rtm_serwb")
-        platform.add_period_constraint(serwb_pads.clk, 8.)
+        if hw_rev == "v1.0":
+            platform.add_period_constraint(serwb_pads.clk, 8.)
+        elif hw_rev == "v2.0":
+            platform.add_period_constraint(serwb_pads.clk_p, 8.)
+        else:
+            raise NotImplementedError
         serwb_phy_rtm = serwb.genphy.SERWBPHY(platform.device, serwb_pads, mode="slave")
         self.submodules.serwb_phy_rtm = serwb_phy_rtm
         self.comb += [
@@ -222,6 +245,8 @@ class SaymaRTM(Module):
 def main():
     parser = argparse.ArgumentParser(
         description="Sayma RTM gateware builder")
+    parser.add_argument("--hw-rev", default="v1.0",
+                        help="Sayma RTM hardware revision: v1.0/v2.0")
     parser.add_argument("--output-dir", default="artiq_sayma/rtm_gateware",
                         help="output directory for generated "
                              "source files and binaries")
@@ -233,8 +258,12 @@ def main():
                              "specified file")
     args = parser.parse_args()
 
-    platform = sayma_rtm.Platform()
-    top = SaymaRTM(platform)
+    platform_module = {
+        "v1.0": sayma_rtm,
+        "v2.0": sayma_rtm2
+    }[args.hw_rev]
+    platform = platform_module.Platform()
+    top = SaymaRTM(platform, args.hw_rev)
 
     os.makedirs(args.output_dir, exist_ok=True)
     with open(os.path.join(args.output_dir, "rtm_csr.csv"), "w") as f:
