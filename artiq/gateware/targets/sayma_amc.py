@@ -603,7 +603,7 @@ def main():
     builder_args(parser)
     soc_sayma_amc_args(parser)
     parser.set_defaults(output_dir="artiq_sayma")
-    parser.add_argument("-V", "--variant", default="masterdac",
+    parser.add_argument("-V", "--variant", default="satellite",
         help="variant: masterdac/master/satellite "
              "(default: %(default)s)")
     parser.add_argument("--rtm-csr-csv",
