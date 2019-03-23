@@ -195,7 +195,7 @@ class SaymaRTM(Module):
             sysref_pads = platform.request("rtm_master_aux_clk")
         elif hw_rev == "v2.0":
             # https://github.com/sinara-hw/Sayma_RTM/issues/68
-            rtio_clock_pads = platform.request("si5324_clkout_fabric")
+            rtio_clock_pads = platform.request("cdr_clk_clean_fabric")
             sysref_pads = platform.request("rtm_fpga_sysref", 1)  # use odd-numbered 7043 output
         else:
             raise NotImplementedError

@@ -82,7 +82,7 @@ class _SatelliteBase(BaseSoC):
 
         disable_si5324_ibuf = Signal(reset=1)
         disable_si5324_ibuf.attr.add("no_retiming")
-        si5324_clkout = platform.request("si5324_clkout")
+        si5324_clkout = platform.request("cdr_clk_clean")
         si5324_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=disable_si5324_ibuf,
