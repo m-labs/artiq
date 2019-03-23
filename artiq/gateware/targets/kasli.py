@@ -133,8 +133,11 @@ class StandaloneBase(MiniSoC, AMPSoC):
             [self.rtio.cri, self.rtio_dma.cri],
             [self.rtio_core.cri])
         self.register_kernel_cpu_csrdevice("cri_con")
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
+
+        # Only add MonInj core if there is anything to monitor
+        if any([len(c.probes) for c in rtio_channels]):
+            self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+            self.csr_devices.append("rtio_moninj")
 
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
@@ -596,8 +599,10 @@ class MasterBase(MiniSoC, AMPSoC):
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
+        # Only add MonInj core if there is anything to monitor
+        if any([len(c.probes) for c in rtio_channels]):
+            self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+            self.csr_devices.append("rtio_moninj")
 
         self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
@@ -785,8 +790,10 @@ class SatelliteBase(BaseSoC):
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
+        # Only add MonInj core if there is anything to monitor
+        if any([len(c.probes) for c in rtio_channels]):
+            self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+            self.csr_devices.append("rtio_moninj")
 
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
