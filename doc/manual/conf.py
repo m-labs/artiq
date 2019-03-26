@@ -25,7 +25,6 @@ import sphinx_rtd_theme
 from sphinx.ext import autodoc
 autodoc.repr = str
 
-
 mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
                 "artiq.compiler.module",
@@ -37,6 +36,9 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
 
 for module in mock_modules:
     sys.modules[module] = Mock()
+
+# Use autodoc_mock_imports on artiq.* modules
+autodoc_mock_imports = ["artiq.gui.applets"]
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
