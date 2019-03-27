@@ -37,7 +37,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
 for module in mock_modules:
     sys.modules[module] = Mock()
 
-# Use autodoc_mock_imports on artiq.* modules
+# Use autodoc_mock_imports to mock up modules that has not been mocked up yet
 autodoc_mock_imports = ["artiq.gui.applets"]
 
 
