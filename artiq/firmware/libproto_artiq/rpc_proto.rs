@@ -255,7 +255,7 @@ mod tag {
                 Tag::Int32 => 4,
                 Tag::Int64 => 8,
                 Tag::Float64 => 8,
-                Tag::String => 4,
+                Tag::String => 8,
                 Tag::Bytes => 8,
                 Tag::ByteArray => 8,
                 Tag::Tuple(it, arity) => {
