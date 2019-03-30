@@ -260,8 +260,9 @@ mod tag {
                 Tag::ByteArray => 8,
                 Tag::Tuple(it, arity) => {
                     let mut size = 0;
+                    let mut it = it.clone();
                     for _ in 0..arity {
-                        let tag = it.clone().next().expect("truncated tag");
+                        let tag = it.next().expect("truncated tag");
                         size += tag.size();
                     }
                     size
