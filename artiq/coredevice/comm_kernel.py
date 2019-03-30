@@ -307,7 +307,7 @@ class CommKernel:
                 args.append(value)
 
     def _skip_rpc_value(self, tags):
-        tag = tags.pop(0)
+        tag = chr(tags.pop(0))
         if tag == "t":
             length = tags.pop(0)
             for _ in range(length):
