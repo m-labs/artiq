@@ -1453,6 +1453,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             lhs_elt = self.append(ir.GetElem(lhs, index_phi))
             rhs_elt = self.append(ir.GetElem(rhs, index_phi))
             body_result = self.polymorphic_compare_pair(op, lhs_elt, rhs_elt)
+            body_end = self.current_block
 
             loop_body2 = self.add_block("compare.body2")
             self.current_block = loop_body2
@@ -1468,8 +1469,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             phi.add_incoming(compare_length, head)
             loop_head.append(ir.BranchIf(loop_cond, loop_body, tail))
             phi.add_incoming(ir.Constant(True, builtins.TBool()), loop_head)
-            loop_body.append(ir.BranchIf(body_result, loop_body2, tail))
-            phi.add_incoming(body_result, loop_body)
+            body_end.append(ir.BranchIf(body_result, loop_body2, tail))
+            phi.add_incoming(body_result, body_end)
 
             if isinstance(op, ast.NotEq):
                 result = self.append(ir.Select(phi,
