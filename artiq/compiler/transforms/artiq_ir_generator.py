@@ -1426,7 +1426,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for index in range(len(lhs.type.elts)):
                 lhs_elt = self.append(ir.GetAttr(lhs, index))
                 rhs_elt = self.append(ir.GetAttr(rhs, index))
-                elt_result = self.append(ir.Compare(op, lhs_elt, rhs_elt))
+                elt_result = self.polymorphic_compare_pair(op, lhs_elt, rhs_elt)
                 if result is None:
                     result = elt_result
                 else:
