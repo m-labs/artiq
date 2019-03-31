@@ -1566,6 +1566,11 @@ class LLVMIRGenerator:
             lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
             llconst   = ll.Constant(llty, [lleltsptr, ll.Constant(lli32, len(llelts))])
             return llconst
+        elif types.is_tuple(typ):
+            assert isinstance(value, tuple), fail_msg
+            llelts = [self._quote(v, t, lambda: path() + [str(i)])
+                for i, (v, t) in enumerate(zip(value, typ.elts))]
+            return ll.Constant(llty, llelts)
         elif types.is_rpc(typ) or types.is_c_function(typ) or types.is_builtin_function(typ):
             # RPC, C and builtin functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)

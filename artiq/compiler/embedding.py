@@ -221,6 +221,17 @@ class ASTSynthesizer:
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
+        elif isinstance(value, tuple):
+            begin_loc = self._add("(")
+            elts = []
+            for index, elt in enumerate(value):
+                elts.append(self.quote(elt))
+                self._add(", ")
+            end_loc   = self._add(")")
+            return asttyped.TupleT(elts=elts, ctx=None,
+                                   type=types.TTuple([e.type for e in elts]),
+                                   begin_loc=begin_loc, end_loc=end_loc,
+                                   loc=begin_loc.join(end_loc))
         elif isinstance(value, numpy.ndarray):
             begin_loc = self._add("numpy.array([")
             elts = []
