@@ -277,6 +277,11 @@ fn process_host_message(io: &Io,
                 }
             })?;
             rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                if size == 0 {
+                    // Don't try to allocate zero-length values, as RpcRecvReply(0) is
+                    // used to terminate the kernel-side receive loop.
+                    return Ok(0 as *mut ())
+                }
                 kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
                 Ok(kern_recv(io, |reply| {
                     match reply {
