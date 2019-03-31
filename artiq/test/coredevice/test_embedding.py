@@ -61,6 +61,9 @@ class RoundtripTest(ExperimentCase):
     def test_list_tuple(self):
         self.assertRoundtrip(([1, 2], [3, 4]))
 
+    def test_list_mixed_tuple(self):
+        self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
+
 
 class _DefaultArg(EnvExperiment):
     def build(self):
@@ -344,7 +347,25 @@ class _ListTuple(EnvExperiment):
             [numpy.int32(base_b + i) for i in range(n)]
 
 
+class _NestedTupleList(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.data = [(0x12345678, [("foo", [0.0, 1.0], [2, 3])]),
+                     (0x76543210, [("bar", [4.0, 5.0], [6, 7])])]
+
+    def get_data(self) -> TList(TTuple(
+            [TInt32, TList(TTuple([TStr, TList(TFloat), TList(TInt32)]))])):
+        return self.data
+
+    @kernel
+    def run(self):
+        a = self.get_data()
+        if a != self.data:
+            raise ValueError
+
 class ListTupleTest(ExperimentCase):
     def test_list_tuple(self):
-        exp = self.create(_ListTuple)
-        exp.run()
+        self.create(_ListTuple).run()
+
+    def test_nested_tuple_list(self):
+        self.create(_NestedTupleList).run()
