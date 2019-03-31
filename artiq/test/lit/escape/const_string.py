@@ -9,3 +9,7 @@ def foo():
 @kernel
 def entrypoint():
     foo()
+
+    # Test reassigning strings.
+    a = "a"
+    b = a
