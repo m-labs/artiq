@@ -363,9 +363,27 @@ class _NestedTupleList(EnvExperiment):
         if a != self.data:
             raise ValueError
 
+
+class _EmptyList(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    def get_empty(self) -> TList(TInt32):
+        return []
+
+    @kernel
+    def run(self):
+        a = self.get_empty()
+        if a != []:
+            raise ValueError
+
+
 class ListTupleTest(ExperimentCase):
     def test_list_tuple(self):
         self.create(_ListTuple).run()
 
     def test_nested_tuple_list(self):
         self.create(_NestedTupleList).run()
+
+    def test_empty_list(self):
+        self.create(_EmptyList).run()
