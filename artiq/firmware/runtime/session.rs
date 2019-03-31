@@ -221,7 +221,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8])
                 Err(Error::Load(format!("{}", error)))
             }
             other =>
-                unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                unexpected!("unexpected kernel CPU reply to load request: {:?}", other)
         }
     })
 }
@@ -272,7 +272,8 @@ fn process_host_message(io: &Io,
             let slot = kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(slot) => Ok(slot),
-                    other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
             rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
@@ -280,7 +281,8 @@ fn process_host_message(io: &Io,
                 Ok(kern_recv(io, |reply| {
                     match reply {
                         &kern::RpcRecvRequest(slot) => Ok(slot),
-                        other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                        other => unexpected!(
+                            "expected nested value slot from kernel CPU, not {:?}", other)
                     }
                 })?)
             })?;
@@ -299,8 +301,8 @@ fn process_host_message(io: &Io,
             kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(_) => Ok(()),
-                    other =>
-                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected (ignored) root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
 
