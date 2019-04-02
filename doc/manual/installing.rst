@@ -82,7 +82,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ps.bokeh
         ]))
         # List desired non-Python packages here
-        m-labs.openocd  # needed for flashing boards locally
+        m-labs.openocd  # needed for flashing boards, also provides proxy bitstreams
         pkgs.spyder
       ];
     }
