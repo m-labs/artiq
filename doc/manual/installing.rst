@@ -78,7 +78,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ps.numpy
           ps.scipy
           ps.numba
-          ps.matplotlib.override { enableQt = true; }
+          (ps.matplotlib.override { enableQt = true; })
           ps.bokeh
         ]))
         # List desired non-Python packages here
