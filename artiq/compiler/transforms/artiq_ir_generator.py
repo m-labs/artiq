@@ -1700,6 +1700,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Builtin("round", [arg], node.type))
             else:
                 assert False
+        elif types.is_builtin(typ, "abs"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg = self.visit(node.args[0])
+                neg = self.append(
+                    ir.Arith(ast.Sub(loc=None), ir.Constant(0, arg.type), arg))
+                cond = self.append(
+                    ir.Compare(ast.Lt(loc=None), arg, ir.Constant(0, arg.type)))
+                return self.append(ir.Select(cond, neg, arg))
+            else:
+                assert False
         elif types.is_builtin(typ, "min"):
             if len(node.args) == 2 and len(node.keywords) == 0:
                 arg0, arg1 = map(self.visit, node.args)

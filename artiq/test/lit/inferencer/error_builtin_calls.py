@@ -10,5 +10,8 @@ list(1)
 # CHECK-L: ${LINE:+1}: error: the arguments of min() must be of a numeric type
 min([1], [1])
 
+# CHECK-L: ${LINE:+1}: error: the arguments of abs() must be of a numeric type
+abs([1.0])
+
 # CHECK-L: ${LINE:+1}: error: strings currently cannot be constructed
 str(1)

@@ -30,3 +30,9 @@ len([])
 
 # CHECK-L: round:<function round>(1.0:float):numpy.int?
 round(1.0)
+
+# CHECK-L: abs:<function abs>(1:numpy.int?):numpy.int?
+abs(1)
+
+# CHECK-L: abs:<function abs>(1.0:float):float
+abs(1.0)
