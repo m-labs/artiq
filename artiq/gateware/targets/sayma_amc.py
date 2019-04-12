@@ -162,13 +162,10 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(platform)
         self.csr_devices.append("ad9154_crg")
 
-        self.comb += [
-            platform.request("sfp_tx_disable", i).eq(0)
-            for i in range(2)
-        ]
+        self.comb += platform.request("sfp_tx_disable", 1).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=self.ad9154_crg.refclk,
-            data_pads=[platform.request("sata")] + [platform.request("sfp", i) for i in range(2)],
+            data_pads=[platform.request("sata"), platform.request("sfp", 1)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
@@ -179,7 +176,7 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         drtioaux_csr_group = []
         drtioaux_memory_group = []
         drtio_cri = []
-        for i in range(3):
+        for i in range(len(self.drtio_transceiver.channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
@@ -346,14 +343,12 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.comb += [
-            platform.request("sfp_tx_disable", i).eq(0)
-            for i in range(2)
-        ]
+        self.comb += platform.request("sfp_tx_disable", 1).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean", 0),
-            data_pads=[platform.request("sfp", i) for i in range(2)] +
-                      [platform.request("rtm_gth", i) for i in range(8)],
+            data_pads=[platform.request("sfp", 1)] +
+                      # 6 and not 8 to work around Vivado bug (Xilinx CR 1020646)
+                      [platform.request("rtm_gth", i) for i in range(6)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
@@ -364,7 +359,7 @@ class Master(MiniSoC, AMPSoC):
         drtioaux_csr_group = []
         drtioaux_memory_group = []
         drtio_cri = []
-        for i in range(10):
+        for i in range(len(self.drtio_transceiver.channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
