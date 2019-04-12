@@ -181,6 +181,9 @@ def fn_len():
 def fn_round():
     return types.TBuiltinFunction("round")
 
+def fn_abs():
+    return types.TBuiltinFunction("abs")
+
 def fn_min():
     return types.TBuiltinFunction("min")
 

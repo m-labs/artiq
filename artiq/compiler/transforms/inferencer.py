@@ -811,6 +811,28 @@ class Inferencer(algorithm.Visitor):
                             arg.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "abs"):
+            fn = typ.name
+
+            valid_forms = lambda: [
+                valid_form("abs(x:numpy.int?) -> numpy.int?"),
+                valid_form("abs(x:float) -> float")
+            ]
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                (arg,) = node.args
+                if builtins.is_int(arg.type) or builtins.is_float(arg.type):
+                    self._unify(arg.type, node.type,
+                                arg.loc, node.loc)
+                elif types.is_var(arg.type):
+                    pass # undetermined yet
+                else:
+                    diag = diagnostic.Diagnostic("error",
+                        "the arguments of abs() must be of a numeric type", {},
+                        node.func.loc)
+                    self.engine.process(diag)
+            else:
+                diagnose(valid_forms())
         elif types.is_builtin(typ, "min") or types.is_builtin(typ, "max"):
             fn = typ.name
 
