@@ -72,7 +72,7 @@ If there are other experiments with higher priority (e.g. a high-priority timed 
 Otherwise, ``pause()`` returns immediately.
 To check whether ``pause()`` would in fact *not* return immediately, use :meth:`artiq.master.scheduler.Scheduler.check_pause`.
 
-The experiment must place the hardware in a safe state and disconnect from the core device (typically, by calling ``self.coredevice.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close`) before calling ``pause()``.
+The experiment must place the hardware in a safe state and disconnect from the core device (typically, by calling ``self.core.comm.close()`` from the kernel, which is equivalent to :meth:`artiq.coredevice.core.Core.close`) before calling ``pause()``.
 
 Accessing the ``pause()`` and :meth:`~artiq.master.scheduler.Scheduler.check_pause` methods is done through a virtual device called ``scheduler`` that is accessible to all experiments. The scheduler virtual device is requested like regular devices using :meth:`~artiq.language.environment.HasEnvironment.get_device` (``self.get_device()``) or :meth:`~artiq.language.environment.HasEnvironment.setattr_device` (``self.setattr_device()``).
 
