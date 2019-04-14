@@ -3,5 +3,5 @@
 
 assert abs(1234) == 1234
 assert abs(-1234) == 1234
-assert abs(1234.0) == 1234.0
-assert abs(-1234.0) == 1234
+assert abs(1234.5) == 1234.5
+assert abs(-1234.5) == 1234.5
