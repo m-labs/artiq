@@ -137,8 +137,8 @@ fn startup() {
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324_as_synthesizer()
 {
-    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz
-    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", si5324_ext_ref))]
+    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz loop bandwidth
+    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
     const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
         = board_artiq::si5324::FrequencySettings {
         n1_hs  : 10,
@@ -147,6 +147,19 @@ fn setup_si5324_as_synthesizer()
         n2_ls  : 260,
         n31    : 65,
         n32    : 52,
+        bwsel  : 4,
+        crystal_ref: false
+    };
+    // 125MHz output, from 125MHz CLKIN2 reference, 606 Hz loop bandwidth
+    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "125.0"))]
+    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
+        = board_artiq::si5324::FrequencySettings {
+        n1_hs  : 5,
+        nc1_ls : 8,
+        n2_hs  : 7,
+        n2_ls  : 360,
+        n31    : 63,
+        n32    : 63,
         bwsel  : 4,
         crystal_ref: false
     };
