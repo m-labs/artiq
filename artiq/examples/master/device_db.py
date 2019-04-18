@@ -2,7 +2,7 @@
 # unit tests with release-3.
 # Remove and update buildbot when release-3 is no longer maintained.
 
-core_addr = "kc705-1.lab.m-labs.hk"
+core_addr = "192.168.1.50"
 
 device_db = {
     # Core device
