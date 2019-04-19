@@ -106,7 +106,7 @@ In its :meth:`~artiq.language.environment.Experiment.build` method, the experime
 In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
 
 When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.
-Bidirectional TTL channels (i.e. :class:`~artiq.devices.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.devices.ttl.TTLOut`) are always in output mode.
+Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode.
 There are no input-only TTL channels.
 
 The experiment then drives one million 2 µs long pulses separated by 2 µs each.
