@@ -60,13 +60,13 @@ class ControllerCase(unittest.TestCase):
         entry = {
             "type": "controller",
             "host": "::1",
-            "port": 3253,
+            "port": 1068,
             "command": (sys.executable.replace("\\", "\\\\")
-                        + " -m artiq.frontend.aqctl_lda "
-                        + "-p {port} --simulation")
+                        + " -m artiq.frontend.aqctl_corelog "
+                        + "-p {port} --simulation foo")
         }
         async def test():
-            await self.start("lda_sim", entry)
+            await self.start("corelog", entry)
             remote = await self.get_client(entry["host"], entry["port"])
             await remote.ping()
 
@@ -76,8 +76,8 @@ class ControllerCase(unittest.TestCase):
         entry = {
             "type": "controller",
             "host": "::1",
-            "port": 3253
+            "port": 1068
         }
         with expect_no_log_messages(logging.ERROR):
-            self.controllers["lda_sim"] = entry
+            self.controllers["corelog"] = entry
             self.assertTrue(self.controllers.queue.empty())

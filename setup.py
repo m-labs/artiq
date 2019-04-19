@@ -37,7 +37,6 @@ console_scripts = [
     "artiq_flash = artiq.frontend.artiq_flash:main",
 
     "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
-    "aqctl_lda = artiq.frontend.aqctl_lda:main",
     "aqctl_thorlabs_tcube = artiq.frontend.aqctl_thorlabs_tcube:main",
 ]
 
