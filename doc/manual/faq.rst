@@ -88,7 +88,13 @@ The preferred way to specify a serial device is to make use of the ``hwgrep://``
 URL: it allows to select the serial device by its USB vendor ID, product
 ID and/or serial number. Those never change, unlike the device file name.
 
-See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for an example of ``hwgrep://`` usage.
+For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
+
+``-d "hwgrep://<VID>:<PID> SNR=<serial_number>"``.
+for example:
+
+``-d "hwgrep://0403:faf0 SNR=83852734"``
+
 
 run unit tests?
 ---------------
