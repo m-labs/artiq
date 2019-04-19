@@ -167,6 +167,13 @@ You do not need to remove a record in order to change its value, just overwrite 
    :ref: artiq.frontend.artiq_coremgmt.get_argparser
    :prog: artiq_coremgmt
 
+Core device logging controller
+------------------------------
+
+.. argparse::
+   :ref: artiq.frontend.aqctl_corelog.get_argparser
+   :prog: aqctl_corelog
+
 .. _core-device-rtio-analyzer-tool:
 
 Core device RTIO analyzer tool

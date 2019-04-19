@@ -21,7 +21,6 @@ Contents:
     core_language_reference
     core_drivers_reference
     protocols_reference
-    ndsp_reference
     developing_a_ndsp
     utilities
     default_network_ports

@@ -108,6 +108,8 @@ Executing just ``conda`` should print the help of the ``conda`` command. If your
 
 Download the `ARTIQ installer script <https://raw.githubusercontent.com/m-labs/artiq/master/conda/install-artiq.py>`_ and edit its beginning to define the Conda environment name (you can leave the default environment name if you are just getting started) and select the desired ARTIQ packages. Non-ARTIQ packages should be installed manually later. If you do not need to flash boards, the ``artiq`` package from the ``main`` Hydra build is sufficient.
 
+Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/>`_ to find the names of the corresponding packages, and list them at the beginning of the script.
+
 Make sure the base Conda environment is activated and then run the installer script: ::
 
   $ conda activate base

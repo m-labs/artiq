@@ -8,7 +8,7 @@
 CONDA_ENV_NAME = "artiq"
 # The conda packages to download from hydra and install.
 # Each entry is ("hydra build name", "conda package name"). Hydra builds are:
-#  * main: core ARTIQ packages
+#  * main: core ARTIQ packages, including controllers for third-party devices
 #  * sinara-systems: firmware and gateware builds for generic Sinara systems
 CONDA_PACKAGES = [
     ("main",           "artiq"),

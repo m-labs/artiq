@@ -28,6 +28,7 @@ ARTIQ-5
 * The meaning of the ``-d/--dir`` and ``--srcbuild`` options of ``artiq_flash``
   has changed.
 * Experiments can now programatically set their default pipeline, priority, and flush flag.
+* Controllers for third-party devices are now out-of-tree.
 
 
 ARTIQ-4
