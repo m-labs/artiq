@@ -46,22 +46,6 @@ You can choose the LDA model with the ``-P`` parameter. The default is LDA-102.
    :ref: artiq.frontend.aqctl_lda.get_argparser
    :prog: aqctl_lda
 
-Korad KA3005P
--------------
-
-Driver
-++++++
-
-.. automodule:: artiq.devices.korad_ka3005p.driver
-    :members:
-
-Controller
-++++++++++
-
-.. argparse::
-   :ref: artiq.frontend.aqctl_korad_ka3005p.get_argparser
-   :prog: aqctl_korad_ka3005p
-
 Novatech 409B
 -------------
 
