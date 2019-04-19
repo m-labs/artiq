@@ -46,21 +46,6 @@ You can choose the LDA model with the ``-P`` parameter. The default is LDA-102.
    :ref: artiq.frontend.aqctl_lda.get_argparser
    :prog: aqctl_lda
 
-Novatech 409B
--------------
-
-Driver
-++++++
-
-.. automodule:: artiq.devices.novatech409b.driver
-    :members:
-
-Controller
-++++++++++
-
-.. argparse::
-   :ref: artiq.frontend.aqctl_novatech409b.get_argparser
-   :prog: aqctl_novatech409b
 
 Thorlabs T-Cube
 ---------------

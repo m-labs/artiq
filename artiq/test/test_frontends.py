@@ -10,8 +10,7 @@ class TestFrontends(unittest.TestCase):
         # Skip tests for GUI programs on headless CI environments.
         commands = {
             "aqctl": [
-                "corelog", "lda", "novatech409b",
-                "thorlabs_tcube"
+                "corelog", "lda", "thorlabs_tcube"
             ],
             "artiq": [
                 "client", "compile", "coreanalyzer", "coremgmt", "ctlmgr",
