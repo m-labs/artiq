@@ -29,7 +29,6 @@ requirements:
     - scipy
     - numpy
     - prettytable
-    - asyncserial
     - sphinx 1.4.8
     - sphinx-argparse
     - sphinxcontrib-wavedrom

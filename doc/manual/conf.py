@@ -32,7 +32,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.compiler.embedding",
                 "quamash", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
-                "h5py", "serial", "scipy", "scipy.interpolate", "asyncserial",
+                "h5py", "serial", "scipy", "scipy.interpolate",
                 "llvmlite_artiq", "Levenshtein", "aiohttp", "pythonparser"]
 
 for module in mock_modules:
