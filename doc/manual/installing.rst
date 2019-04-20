@@ -98,6 +98,9 @@ If your favorite package is not available with Nix, contact us.
 Installing via Conda (Windows, Linux)
 -------------------------------------
 
+.. warning::
+    If you can, use the Nix package manager instead of Conda. Conda is buggy, slow, prone to non-reproducible intermittent failures, and limited in features.
+
 First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
 After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
