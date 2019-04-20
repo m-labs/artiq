@@ -4,7 +4,7 @@ import unittest
 import logging
 import asyncio
 
-from artiq.devices.master import Controllers
+from artiq.master.ctlmgr import Controllers
 from artiq.protocols.pc_rpc import AsyncioClient
 from artiq.tools import expect_no_log_messages
 

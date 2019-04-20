@@ -11,7 +11,7 @@ from artiq.protocols.pc_rpc import Server
 from artiq.protocols.logging import LogForwarder, SourceFilter
 from artiq.tools import (simple_network_args, atexit_register_coroutine,
                          bind_address_from_args, add_common_args)
-from artiq.devices.master import ControllerManager
+from artiq.master.ctlmgr import ControllerManager
 
 
 def get_argparser():
