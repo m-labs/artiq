@@ -115,7 +115,7 @@ Download the `ARTIQ installer script <https://raw.githubusercontent.com/m-labs/a
 .. note::
   If you do not need to flash boards, the ``artiq`` package from the ``main`` Hydra build is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board and are never necessary for using an ARTIQ system without reflashing it.
 
-Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/>`_ to find the names of the corresponding packages, and list them at the beginning of the script.
+Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages, and list them at the beginning of the script.
 
 Make sure the base Conda environment is activated and then run the installer script: ::
 
