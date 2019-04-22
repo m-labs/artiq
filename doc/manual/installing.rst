@@ -67,9 +67,10 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
       buildInputs = [
         (pkgs.python3.withPackages(ps: [
           # List desired Python packages here.
-          # The board packages are also "Python" packages. You only need a board
-          # package if you intend to reflash that board.
           m-labs.artiq
+          # The board packages are also "Python" packages. You only need a board
+          # package if you intend to reflash that board (those packages contain
+          # only board firmware).
           m-labs.artiq-board-kc705-nist_clock
           sinara.artiq-board-kasli-wipm
           # from the NixOS package collection:
@@ -109,7 +110,10 @@ After installing either Anaconda or Miniconda, open a new terminal (also known a
 
 Executing just ``conda`` should print the help of the ``conda`` command. If your shell does not find the ``conda`` command, make sure that the Conda binaries are in your ``$PATH``. If ``$ echo $PATH`` does not show the Conda directories, add them: execute ``$ export PATH=$HOME/miniconda3/bin:$PATH`` if you installed Conda into ``~/miniconda3``.
 
-Download the `ARTIQ installer script <https://raw.githubusercontent.com/m-labs/artiq/master/conda/install-artiq.py>`_ and edit its beginning to define the Conda environment name (you can leave the default environment name if you are just getting started) and select the desired ARTIQ packages. Non-ARTIQ packages should be installed manually later. If you do not need to flash boards, the ``artiq`` package from the ``main`` Hydra build is sufficient.
+Download the `ARTIQ installer script <https://raw.githubusercontent.com/m-labs/artiq/master/conda/install-artiq.py>`_ and edit its beginning to define the Conda environment name (you can leave the default environment name if you are just getting started) and select the desired ARTIQ packages. Non-ARTIQ packages should be installed manually later.
+
+.. note::
+  If you do not need to flash boards, the ``artiq`` package from the ``main`` Hydra build is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board and are never necessary for using an ARTIQ system without reflashing it.
 
 Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/>`_ to find the names of the corresponding packages, and list them at the beginning of the script.
 
