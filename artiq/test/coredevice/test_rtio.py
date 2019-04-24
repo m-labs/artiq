@@ -527,8 +527,6 @@ class CoredeviceTest(ExperimentCase):
         with self.assertRaises(exceptions.WatchdogExpired):
             self.execute(Watchdog)
 
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
         t1 = self.dataset_mgr.get("time_at_start")

@@ -6,9 +6,6 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
-
-
 class _Transfer(EnvExperiment):
     def build(self):
         self.setattr_device("core")
@@ -52,24 +49,18 @@ class _Transfer(EnvExperiment):
 
 
 class TransferTest(ExperimentCase):
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_host_to_device(self):
         exp = self.create(_Transfer)
         host_to_device_rate = exp.host_to_device()
         print(host_to_device_rate, "B/s")
         self.assertGreater(host_to_device_rate, 2.0e6)
 
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_device_to_host(self):
         exp = self.create(_Transfer)
         device_to_host_rate = exp.device_to_host()
         print(device_to_host_rate, "B/s")
         self.assertGreater(device_to_host_rate, 2.3e6)
 
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_device_to_host_array(self):
         exp = self.create(_Transfer)
         rate = exp.device_to_host_array()
@@ -95,8 +86,6 @@ class _KernelOverhead(EnvExperiment):
 
 
 class KernelOverheadTest(ExperimentCase):
-    @unittest.skipUnless(artiq_low_latency,
-                         "timings are dependent on CPU load and network conditions")
     def test_kernel_overhead(self):
         exp = self.create(_KernelOverhead)
         kernel_overhead = exp.kernel_overhead()
