@@ -100,7 +100,7 @@ Installing via Conda (Windows, Linux)
 -------------------------------------
 
 .. warning::
-    If you can, use the Nix package manager instead of Conda. Conda is buggy, slow, prone to non-reproducible intermittent failures, and limited in features.
+  For Linux users, the Nix package manager is preferred, as it is more reliable and faster than Conda.
 
 First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
