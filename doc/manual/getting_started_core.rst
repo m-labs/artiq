@@ -176,21 +176,21 @@ Within a parallel block, some statements can be made sequential again using a ``
 
 .. _rtio-analyzer-example:
 
-A for loop inside of a parallel block implicitly shifts to sequential execution of sub-statements, since the for loop is considered the top-level statement.
+A for or while loop inside of a parallel block implicitly shifts to sequential execution of sub-statements, since the for loop is considered the top-level statement.
 If, for convenience, a predefined list of statements needs to be executed in parallel by iterating over the list in a loop, then the timeline cursor must be reset manually.
-An example of this is provided below: ::
+An example of this is provided below, where multiple ``object_with_run_method.run()`` methods are run in parallel with a delay to define the total time of the parallel block: ::
 
-    # set the dio channel in a for loop using funciton pointers
+    # set the dio channel in a for loop using function pointers
     with parallel:
         parallel_start_mu = now_mu()
-        for pulse in self.list_of_objects_with_run_method:
+        for object_with_run_method in self.list_of_objects_with_run_method:
             at_mu(parallel_start_mu)
-            pulse.run()
+            object_with_run_method.run()
         delay(10 * ms)
 
 .. note::
-    Using a for loop to unroll many parallel execution statements can cause the scalable event dispatcher (SED) to throw an RTIO sequence error.
-    This happens if the number of simultaneous events exceeds the number of SED lanes.
+    Using a for loop to unroll many parallel execution statements can cause the scalable event dispatcher (SED) to throw a RTIO sequence error or RTIO busy error.
+    One way to cause this error is if the number of simultaneous events exceeds the number of SED lanes.
     The default number of lanes is 8, and can be increased in the gateware if necessary.
     These errors do not cause exceptions, and if the ``aqctl_corelog`` is not running the only place the error will be visible is the UART.
     It is important that one of these is monitored to avoid uncaught timing errors.
