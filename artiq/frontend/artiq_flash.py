@@ -293,8 +293,10 @@ def main():
     if bin_dir is None:
         bin_dir = os.path.join(artiq_dir, "board-support")
 
+    needs_artifacts = any(action in args.action
+                          for action in ["gateware", "bootloader", "firmware", "load"])
     variant = args.variant
-    if variant is None:
+    if needs_artifacts and variant is None:
         variants = []
         if args.srcbuild:
             for entry in os.scandir(bin_dir):
@@ -317,10 +319,11 @@ def main():
         else:
             raise ValueError("more than one variant found for selected board, specify -V. "
                 "Found variants: {}".format(" ".join(sorted(variants))))
-    if args.srcbuild:
-        variant_dir = variant
-    else:
-        variant_dir = args.target + "-" + variant
+    if needs_artifacts:
+        if args.srcbuild:
+            variant_dir = variant
+        else:
+            variant_dir = args.target + "-" + variant
 
     if args.host is None:
         client = LocalClient()
