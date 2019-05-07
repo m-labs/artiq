@@ -1,5 +1,5 @@
 # This script installs ARTIQ using the conda packages built by the new Nix/Hydra system.
-# It needs to be run in the root (base) conda environment with "python install-artiq.py"
+# It needs to be run in the root (base) conda environment with "python install-with-conda.py"
 # It supports Linux and Windows, but Linux users should consider using the higher-quality
 # Nix package manager instead of Conda.
 

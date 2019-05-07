@@ -29,6 +29,6 @@ The following network device support packages are available for ARTIQ. This list
 
 In the "Nix package" column, ``m-labs`` refer to the Nix channel at https://nixbld.m-labs.hk/channel/custom/artiq/main/channel.
 
-The "Conda package" column gives the line to add into ``install-artiq.py`` to install the corresponding package. Conda packages may also be downloaded from https://nixbld.m-labs.hk/project/artiq and installed manually.
+The "Conda package" column gives the line to add into ``install-with-conda.py`` to install the corresponding package. Conda packages may also be downloaded from https://nixbld.m-labs.hk/project/artiq and installed manually.
 
 For PDQ2 see https://github.com/m-labs/pdq. For PICam see https://github.com/quartiq/picam.
