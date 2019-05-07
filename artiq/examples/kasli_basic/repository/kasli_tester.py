@@ -170,7 +170,13 @@ class KasliTester(EnvExperiment):
         if not self.ttl_outs:
             print("No TTL output channel available to use as stimulus.")
             return
-        ttl_out_name, ttl_out_dev = next(iter(self.ttl_outs))
+        default_ttl_out_name, default_ttl_out_dev = next(iter(self.ttl_outs))
+        ttl_out_name = input("TTL device to use as stimulus (default: {}): ".format(default_ttl_out_name))
+        if ttl_out_name:
+            ttl_out_dev = self.get_device(ttl_out_name)
+        else:
+            ttl_out_name = default_ttl_out_name
+            ttl_out_dev = default_ttl_out_dev
         for ttl_in_name, ttl_in_dev in self.ttl_ins:
             print("Connect {} to {}. Press ENTER when done."
                   .format(ttl_out_name, ttl_in_name))
