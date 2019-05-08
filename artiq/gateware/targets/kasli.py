@@ -662,69 +662,8 @@ class Satellite(SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
-class VLBAIMaster(MasterBase):
-    def __init__(self, hw_rev=None, *args, **kwargs):
-        if hw_rev is None:
-            hw_rev = "v1.1"
-        MasterBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev, *args,
-                             **kwargs)
-
-        self.rtio_channels = []
-        eem.DIO.add_std(self, 0,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 1,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 2,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
-
-        for i in (0, 1):
-            phy = ttl_simple.Output(self.platform.request("user_led", i))
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
-
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
-        self.rtio_channels.append(rtio.LogChannel())
-
-        self.add_rtio(self.rtio_channels)
-
-
-class VLBAISatellite(SatelliteBase):
-    def __init__(self, hw_rev=None, *args, **kwargs):
-        if hw_rev is None:
-            hw_rev = "v1.1"
-        SatelliteBase.__init__(self, rtio_clk_freq=125e6, hw_rev=hw_rev,
-                                *args, **kwargs)
-
-        self.rtio_channels = []
-        eem.DIO.add_std(self, 0,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 1,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 2,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.Sampler.add_std(self, 3, None, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X)
-
-        for i in (0, 1):
-            phy = ttl_simple.Output(self.platform.request("user_led", i))
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
-
-        self.add_rtio(self.rtio_channels)
-
-
 VARIANTS = {cls.__name__.lower(): cls for cls in [
     Opticlock, SUServo,
-    VLBAIMaster, VLBAISatellite,
     Tester, Master, Satellite]}
 
 
