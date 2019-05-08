@@ -88,6 +88,10 @@ class GenericStandalone(StandaloneBase):
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description.get("rtio_frequency", 125e6)/1e6)
+        if "ext_ref_frequency" in description:
+            self.config["SI5324_EXT_REF"] = None
+            self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
+                description["ext_ref_frequency"]/1e6)
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
