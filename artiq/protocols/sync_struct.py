@@ -154,6 +154,8 @@ class Subscriber:
 
                 for notify_cb in self.notify_cbs:
                     notify_cb(mod)
+        except (ConnectionError, asyncio.CancelledError):
+            pass
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()
