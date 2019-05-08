@@ -120,7 +120,7 @@ class Subscriber:
             self.writer.write(_protocol_banner)
             self.writer.write((self.notifier_name + "\n").encode())
             self.receive_task = asyncio.ensure_future(self._receive_cr())
-        except:
+        except Exception:
             self.writer.close()
             del self.reader
             del self.writer
@@ -314,8 +314,7 @@ class Publisher(AsyncioServer):
                     await writer.drain()
             finally:
                 self._recipients[notifier_name].remove(queue)
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
-                TimeoutError):
+        except (ConnectionError, TimeoutError, asyncio.CancelledError):
             # subscribers disconnecting are a normal occurrence
             pass
         finally:
