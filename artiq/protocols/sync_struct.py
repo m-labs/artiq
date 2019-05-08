@@ -120,7 +120,7 @@ class Subscriber:
             self.writer.write(_protocol_banner)
             self.writer.write((self.notifier_name + "\n").encode())
             self.receive_task = asyncio.ensure_future(self._receive_cr())
-        except Exception:
+        except:
             self.writer.close()
             del self.reader
             del self.writer
