@@ -83,6 +83,7 @@ class PeripheralManager:
             class_names[peripheral["bank_direction_low"]],
             class_names[peripheral["bank_direction_high"]]
         ]
+        channel = count(0)
         for i in range(8):
             self.gen("""
                 device_db["{name}"] = {{
@@ -94,8 +95,22 @@ class PeripheralManager:
                 """,
                 name=self.get_name("ttl"),
                 class_name=classes[i//4],
-                channel=rtio_offset+i)
-        return 8
+                channel=rtio_offset+next(channel))
+        if peripheral.get("edge_counter", False):
+            for i in range(8):
+                class_name = classes[i//4]
+                if class_name == "TTLInOut":
+                    self.gen("""
+                        device_db["{name}"] = {{
+                            "type": "local",
+                            "module": "artiq.coredevice.edge_counter",
+                            "class": "EdgeCounter",
+                            "arguments": {{"channel": 0x{channel:06x}}},
+                        }}
+                        """,
+                        name=self.get_name("ttl_counter"),
+                        channel=rtio_offset+next(channel))
+        return next(channel)
 
     # TODO: support 1-EEM mode
     def process_urukul(self, rtio_offset, peripheral):
