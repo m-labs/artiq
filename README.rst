@@ -13,7 +13,7 @@ ARTIQ uses FPGA hardware to perform its time-critical tasks. The `Sinara hardwar
 ARTIQ is designed to be portable to hardware platforms from different vendors and FPGA manufacturers.
 Several different configurations of a `high-end FPGA evaluation kit <http://www.xilinx.com/products/boards-and-kits/ek-k7-kc705-g.html>`_ are also used and supported. FPGA platforms can be combined with any number of additional peripherals, either already accessible from ARTIQ or made accessible with little effort.
 
-ARTIQ and its dependencies are available in the form of `conda packages <https://conda.anaconda.org/m-labs/label/main>`_ for both Linux and Windows.
+ARTIQ and its dependencies are available in the form of Nix packages (for Linux) and Conda packages (for Windows and Linux). See `the manual <http://m-labs.hk/artiq/resources.html>`_ for installation instructions.
 Packages containing pre-compiled binary images to be loaded onto the hardware platforms are supplied for each configuration.
 Like any open source software ARTIQ can equally be built and installed directly from `source <https://github.com/m-labs/artiq>`_.
 
