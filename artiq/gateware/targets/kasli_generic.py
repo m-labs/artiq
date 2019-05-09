@@ -20,9 +20,14 @@ def peripheral_dio(module, peripheral):
     }
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
+    if peripheral.get("edge_counter", False):
+        edge_counter_cls = edge_counter.SimpleEdgeCounter
+    else:
+        edge_counter_cls = None
     eem.DIO.add_std(module, peripheral["ports"][0],
         ttl_classes[peripheral["bank_direction_low"]],
-        ttl_classes[peripheral["bank_direction_high"]])
+        ttl_classes[peripheral["bank_direction_high"]],
+        edge_counter_cls=edge_counter_cls)
 
 
 def peripheral_urukul(module, peripheral):
