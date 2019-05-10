@@ -33,8 +33,8 @@ class ModAction(Enum):
     required.
 
     The path (member field) the change applies to is given in
-    ``m["path"]`` as a list; elements give successive levels of indexing. (There
-    is no ``path`` on initial initialization.)
+    ``m["path"]`` as a list; elements give successive levels of indexing.
+    (There is no ``path`` on initial initialization.)
 
     Details on the modification are stored in additional data fields specific
     to each type.
@@ -97,10 +97,11 @@ class Subscriber:
         from the publisher. The mod is passed as parameter. The function is
         called after the mod has been processed.
         A list of functions may also be used, and they will be called in turn.
-    :param disconnect_cb: An optional function called when disconnection happens
-        from external causes (i.e. not when ``close`` is called).
+    :param disconnect_cb: An optional function called when disconnection
+        happens from external causes (i.e. not when ``close`` is called).
     """
-    def __init__(self, notifier_name, target_builder, notify_cb=None, disconnect_cb=None):
+    def __init__(self, notifier_name, target_builder, notify_cb=None,
+                 disconnect_cb=None):
         self.notifier_name = notifier_name
         self.target_builder = target_builder
         if notify_cb is None:
@@ -162,12 +163,12 @@ class Subscriber:
 class Notifier:
     """Encapsulates a structure whose changes need to be published.
 
-    All mutations to the structure must be made through the :class:`.Notifier`. The
-    original structure must only be accessed for reads.
+    All mutations to the structure must be made through the :class:`.Notifier`.
+    The original structure must only be accessed for reads.
 
-    In addition to the list methods below, the :class:`.Notifier` supports the index
-    syntax for modification and deletion of elements. Modification of nested
-    structures can be also done using the index syntax, for example:
+    In addition to the list methods below, the :class:`.Notifier` supports the
+    index syntax for modification and deletion of elements. Modification of
+    nested structures can be also done using the index syntax, for example:
 
     >>> n = Notifier([])
     >>> n.append([])
@@ -176,8 +177,8 @@ class Notifier:
     [[42]]
 
     This class does not perform any network I/O and is meant to be used with
-    e.g. the :class:`.Publisher` for this purpose. Only one publisher at most can be
-    associated with a :class:`.Notifier`.
+    e.g. the :class:`.Publisher` for this purpose. Only one publisher at most
+    can be associated with a :class:`.Notifier`.
 
     :param backing_struct: Structure to encapsulate.
     """
@@ -269,8 +270,8 @@ class Publisher(AsyncioServer):
     a :class:`.Notifier`.
 
     :param notifiers: A dictionary containing the notifiers to associate with
-        the :class:`.Publisher`. The keys of the dictionary are the names of the
-        notifiers to be used with :class:`.Subscriber`.
+        the :class:`.Publisher`. The keys of the dictionary are the names of
+        the notifiers to be used with :class:`.Subscriber`.
     """
     def __init__(self, notifiers):
         AsyncioServer.__init__(self)
@@ -311,7 +312,8 @@ class Publisher(AsyncioServer):
                     await writer.drain()
             finally:
                 self._recipients[notifier_name].remove(queue)
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, TimeoutError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
+                TimeoutError):
             # subscribers disconnecting are a normal occurrence
             pass
         finally:
