@@ -1,3 +1,5 @@
+# Tester device database
+
 core_addr = "kasli-1.lab.m-labs.hk"
 
 device_db = {
