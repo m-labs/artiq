@@ -235,28 +235,36 @@ Here, ``run()`` calls ``k1()`` which exits leaving the cursor one second after t
   }
 
 
+.. _rtio-handover-synchronization:
+
 Synchronization
 ---------------
 
 The seamless handover of the timeline (cursor and events) across kernels and experiments implies that a kernel can exit long before the events it has submitted have been executed.
 If a previous kernel sets timeline cursor far in the future this effectively locks the system.
-When a kernel should wait until all the events on a particular channel have been executed, use the :meth:`artiq.coredevice.ttl.TTLOut.sync` method of a channel:
+
+When a kernel should wait until all the events have been executed, use the :meth:`artiq.coredevice.core.Core.wait_until_mu` with a timestamp after (or at) the last event:
 
 .. wavedrom::
 
   {
     "signal": [
-      {"name": "kernel", "wave": "x3x.|5.|x", "data": ["on()", "sync()"], "node": "..A.....Y"},
+      {"name": "kernel", "wave": "x3x.|5...|x", "data": ["on()", "wait_until_mu(7000)"], "node": "..A.....Y"},
       {"name": "now", "wave": "2..", "data": ["7000"], "node": "..P"},
       {},
       {},
-      {"name": "rtio_counter", "wave": "x2x.|..2x", "data": ["2000", "7000"], "node": "   ....V"},
+      {"name": "rtio_counter", "wave": "x2x.|..2x..", "data": ["2000", "7000"], "node": "   ....V"},
       {"name": "ttl", "wave": "x1", "node": " R", "phase": -6.5}
     ],
     "edge": [
           "A~>R", "P~>R", "V~>R", "V~>Y"
     ]
   }
+
+In many cases, :meth:`~artiq.language.core.now_mu` will return an appropriate timestamp::
+
+  self.core.wait_until_mu(now_mu())
+
 
 RTIO reset
 -----------
