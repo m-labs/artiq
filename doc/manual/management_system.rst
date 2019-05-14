@@ -57,7 +57,7 @@ The three phases of several experiments are then executed in a pipelined manner 
 .. note:: 
     The next experiment (B) may start :meth:`~artiq.language.environment.Experiment.run` ing before all events placed into (core device) RTIO buffers by the previous experiment (A) have triggered. These events can then trigger when experiment B is :meth:`~artiq.language.environment.Experiment.run` ing. Using :meth:`~artiq.coredevice.core.Core.reset` clears the RTIO buffers, discarding untriggered events, including those left over from A.
     
-    Interactions between events of different experiments, can be avoided by preventing the :meth:`~artiq.language.environment.Experiment.run` method of experiment A from returning before all events have triggered. This can be achieved using :meth:`~artiq.coredevice.core.Core.wait_until_mu`. In most cases, :func:`~artiq.language.core.now_mu.now_mu` will return an appropriate timestamp.
+    Interactions between events of different experiments, can be avoided by preventing the :meth:`~artiq.language.environment.Experiment.run` method of experiment A from returning before all events have triggered. This can be achieved using :meth:`~artiq.coredevice.core.Core.wait_until_mu`. In most cases, :func:`~artiq.language.core.now_mu` will return an appropriate timestamp.
 
 Priorities and timed runs
 -------------------------
