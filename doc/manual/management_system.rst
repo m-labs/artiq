@@ -54,10 +54,10 @@ Experiments are divided into three phases that are programmed by the user:
 
 The three phases of several experiments are then executed in a pipelined manner by the scheduler in the ARTIQ master: experiment A executes its preparation stage, then experiment A executes its running stage while experiment B executes its preparation stage, and so on.
 
-.. note:: 
-    The next experiment (B) may start :meth:`~artiq.language.environment.Experiment.run` ing before all events placed into (core device) RTIO buffers by the previous experiment (A) have triggered. These events can then trigger when experiment B is :meth:`~artiq.language.environment.Experiment.run` ing. Using :meth:`~artiq.coredevice.core.Core.reset` clears the RTIO buffers, discarding untriggered events, including those left over from A.
-    
-    Interactions between events of different experiments, can be avoided by preventing the :meth:`~artiq.language.environment.Experiment.run` method of experiment A from returning before all events have triggered. This can be achieved using :meth:`~artiq.coredevice.core.Core.wait_until_mu`. In most cases, :func:`~artiq.language.core.now_mu` will return an appropriate timestamp.
+.. note::
+    The next experiment (B) may start :meth:`~artiq.language.environment.Experiment.run`\ ing before all events placed into (core device) RTIO buffers by the previous experiment (A) have been execute. These events can then execute while experiment B is :meth:`~artiq.language.environment.Experiment.run`\ ing. Using :meth:`~artiq.coredevice.core.Core.reset` clears the RTIO buffers, discarding pending events, including those left over from A.
+
+    Interactions between events of different experiments can be avoided by preventing the :meth:`~artiq.language.environment.Experiment.run` method of experiment A from returning until all events have been executed. This is discussed in the section on RTIO :ref:`rtio-handover-synchronization`.
 
 Priorities and timed runs
 -------------------------
