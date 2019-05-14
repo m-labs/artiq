@@ -338,11 +338,20 @@ class Pipeline:
 
 
 class Deleter(TaskObject):
+    """Provides a synchronous interface for instigating deletion of runs.
+
+    :meth:`RunPool.delete` is an async function (it needs to close the worker
+    connection, etc.), so we maintain a queue of RIDs to delete on a background task.
+    """
     def __init__(self, pipelines):
         self._pipelines = pipelines
         self._queue = asyncio.Queue()
 
     def delete(self, rid):
+        """Delete the run with the given RID.
+
+        Multiple calls for the same RID are silently ignored.
+        """
         logger.debug("delete request for RID %d", rid)
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
@@ -354,6 +363,8 @@ class Deleter(TaskObject):
         await self._queue.join()
 
     async def _delete(self, rid):
+        # By looking up the run by RID, we implicitly make sure to delete each run only
+        # once.
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
                 logger.debug("deleting RID %d...", rid)
