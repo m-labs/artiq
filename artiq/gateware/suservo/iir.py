@@ -127,7 +127,7 @@ class IIR(Module):
     Each profile stores 8 values, each up to W.coeff bits wide, arranged as:
         [FTW1, B1, POW, CFG, OFFSET, A1, FTW0, B0]
     The lower 8 bits of CFG hold the ADC input channel index SEL.
-    The bits from bit 8 up hold the IIR activation delay DLY.
+    The subsequent 8 bits hold the IIR activation delay DLY.
     The back memory is 2*W.coeff bits wide and each value pair
     (even and odd address)
     are stored in a single location with the odd address value occupying the
