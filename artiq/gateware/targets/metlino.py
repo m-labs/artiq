@@ -170,6 +170,7 @@ def main():
     soc_sdram_args(parser)
     parser.set_defaults(output_dir="artiq_metlino")
     args = parser.parse_args()
+    args.variant = "master"
     soc = Master(**soc_sdram_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
