@@ -223,7 +223,7 @@ class ProgrammerXC7(Programmer):
             "xc7_program xc7.tap")
 
 
-class ProgrammerSaymaMetlino(Programmer):
+class ProgrammerSayma(Programmer):
     _sector_size = 0x10000
 
     def __init__(self, client, preinit_script):
@@ -260,6 +260,39 @@ class ProgrammerSaymaMetlino(Programmer):
         add_commands(self._script, "xcu_program xcu.tap")
 
 
+class ProgrammerMetlino(Programmer):
+    _sector_size = 0x10000
+
+    def __init__(self, client, preinit_script):
+        Programmer.__init__(self, client, preinit_script)
+
+        add_commands(self._board_script,
+            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
+
+            "interface ftdi",
+            "ftdi_device_desc \"Quad RS232-HS\"",
+            "ftdi_vid_pid 0x0403 0x6011",
+            "ftdi_channel 0",
+            # EN_USB_JTAG on ADBUS7: out, high
+            # nTRST on ADBUS4: out, high, but R46 is DNP
+            "ftdi_layout_init 0x0098 0x008b",
+            "reset_config none",
+            "adapter_khz 5000",
+            "transport select jtag",
+            "set CHIP XCKU040",
+            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg")))
+        self.add_flash_bank("spi0", "xcu", index=0)
+        self.add_flash_bank("spi1", "xcu", index=1)
+
+        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
+
+    def load_proxy(self):
+        self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=0)
+
+    def start(self):
+        add_commands(self._script, "xcu_program xcu.tap")
+
+
 def main():
     args = get_argparser().parse_args()
     init_logger(args)
@@ -273,7 +306,7 @@ def main():
             "firmware":     ("spi0", 0x450000),
         },
         "sayma": {
-            "programmer":   ProgrammerSaymaMetlino,
+            "programmer":   ProgrammerSayma,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
@@ -281,7 +314,7 @@ def main():
             "rtm_gateware": ("spi1", 0x200000),
         },
         "metlino": {
-            "programmer":   ProgrammerSaymaMetlino,
+            "programmer":   ProgrammerMetlino,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
