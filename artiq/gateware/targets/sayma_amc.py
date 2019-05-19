@@ -425,7 +425,7 @@ class Master(MiniSoC, AMPSoC):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
                         iostandard="LVDS")
-        eem.Urukul.add_std(self, 1, 0, ttl_simple.Output,
+        eem.Urukul.add_std(self, 0, 1, ttl_simple.Output,
                            iostandard="LVDS")
         eem.Zotino.add_std(self, 3, ttl_simple.Output,
                            iostandard="LVDS")
