@@ -54,7 +54,7 @@ Prerequisites:
                         help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
-                             "kasli sayma kc705")
+                             "kasli sayma metlino kc705")
     parser.add_argument("-V", "--variant", default=None,
                         help="board variant. Autodetected if only one is installed.")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
@@ -223,7 +223,7 @@ class ProgrammerXC7(Programmer):
             "xc7_program xc7.tap")
 
 
-class ProgrammerSayma(Programmer):
+class ProgrammerSaymaMetlino(Programmer):
     _sector_size = 0x10000
 
     def __init__(self, client, preinit_script):
@@ -273,12 +273,19 @@ def main():
             "firmware":     ("spi0", 0x450000),
         },
         "sayma": {
-            "programmer":   ProgrammerSayma,
+            "programmer":   ProgrammerSaymaMetlino,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
             "firmware":     ("spi1", 0x050000),
             "rtm_gateware": ("spi1", 0x200000),
+        },
+        "metlino": {
+            "programmer":   ProgrammerSaymaMetlino,
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi1", 0x000000),
+            "storage":      ("spi1", 0x040000),
+            "firmware":     ("spi1", 0x050000),
         },
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
@@ -394,7 +401,7 @@ def main():
         elif action == "start":
             programmer.start()
         elif action == "erase":
-            if args.target == "sayma":
+            if args.target == "sayma" or args.target == "metlino":
                 programmer.erase_flash("spi0")
                 programmer.erase_flash("spi1")
             else:
