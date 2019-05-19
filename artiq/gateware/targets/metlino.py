@@ -11,7 +11,6 @@ from misoc.targets.metlino import *
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import eem
-from artiq.gateware import fmcdio_vhdci_eem
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale
 from artiq.gateware.drtio.transceiver import gth_ultrascale
@@ -124,20 +123,13 @@ class Master(MiniSoC, AMPSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        #platform.add_extension(fmcdio_vhdci_eem.io)
-        #platform.add_connectors(fmcdio_vhdci_eem.connectors)
-        #fmcdio_dirctl = platform.request("fmcdio_dirctl")
-        #for s in fmcdio_dirctl.clk, fmcdio_dirctl.ser, fmcdio_dirctl.latch:
-        #    phy = ttl_simple.Output(s)
-        #    self.submodules += phy
-        #    rtio_channels.append(rtio.Channel.from_phy(phy))
-        #eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
-        #                iostandard="LVDS")
-        #eem.Urukul.add_std(self, 1, 0, ttl_simple.Output,
-        #                   iostandard="LVDS")
-        #eem.Zotino.add_std(self, 3, ttl_simple.Output,
-        #                   iostandard="LVDS")
-        #workaround_us_lvds_tristate(platform)
+        eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
+                        iostandard="LVDS")
+        eem.Urukul.add_std(self, 0, 1, ttl_simple.Output,
+                           iostandard="LVDS")
+        eem.Zotino.add_std(self, 3, ttl_simple.Output,
+                           iostandard="LVDS")
+        workaround_us_lvds_tristate(platform)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(rtio_channels)
