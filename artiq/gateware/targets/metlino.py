@@ -65,7 +65,8 @@ class Master(MiniSoC, AMPSoC):
 
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean", 0),
-            data_pads=[platform.request("mch_fabric_d", i) for i in range(12)],
+            # use only a few channels to work around Vivado bug
+            data_pads=[platform.request("mch_fabric_d", i) for i in range(3)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
