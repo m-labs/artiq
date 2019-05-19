@@ -231,6 +231,10 @@ fn startup_ethernet() {
             {
                 hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]);
             }
+            #[cfg(soc_platform = "metlino")]
+            {
+                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]);
+            }
             #[cfg(soc_platform = "kc705")]
             {
                 hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
@@ -253,6 +257,10 @@ fn startup_ethernet() {
             #[cfg(soc_platform = "sayma_amc")]
             {
                 protocol_addr = IpAddress::v4(192, 168, 1, 60);
+            }
+            #[cfg(soc_platform = "metlino")]
+            {
+                protocol_addr = IpAddress::v4(192, 168, 1, 65);
             }
             #[cfg(soc_platform = "kc705")]
             {
