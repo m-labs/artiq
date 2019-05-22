@@ -77,10 +77,9 @@ class RTServoMem(Module):
                 address_width=rtlink_address_width,
                 enable_replace=False),
             rtlink.IInterface(
-                data_width=w.coeff,
+                data_width=32,
                 timestamped=False)
             )
-
         # # #
 
         config = Signal(w.coeff, reset=0)
@@ -150,14 +149,25 @@ class RTServoMem(Module):
                     [_.clip.eq(0) for _ in servo.iir.ctrl]
                 )
         ]
+
+        o_data_w = len(self.rtlink.o.data)
+        i_data_w = len(self.rtlink.i.data)
+
+        i_data = Signal(i_data_w)
+        i_data_sign = Signal()
+
         self.comb += [
                 self.rtlink.i.stb.eq(read),
-                self.rtlink.i.data.eq(
-                    Mux(read_state,
-                        Mux(read_config,
-                            status,
-                            m_state.dat_r[w.state - w.coeff:]),
-                        Mux(read_high,
-                            m_coeff.dat_r[w.coeff:],
-                            m_coeff.dat_r[:w.coeff])))
+                self.rtlink.i.data.eq(i_data),
+                i_data[:w.coeff].eq(Mux(read_state,
+                                        Mux(read_config,
+                                            status,
+                                            m_state.dat_r[w.state - w.coeff:]),
+                                        Mux(read_high,
+                                            m_coeff.dat_r[w.coeff:],
+                                            m_coeff.dat_r[:w.coeff]))),
+                i_data_sign.eq(i_data[w.coeff-1]),
+                i_data[w.coeff:].eq(Mux(i_data_sign,
+                                        (1 << i_data_w-w.coeff)-1,
+                                        0))
         ]
