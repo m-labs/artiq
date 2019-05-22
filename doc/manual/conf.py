@@ -72,6 +72,8 @@ extensions = [
     'sphinxcontrib.wavedrom',  # see also below for config
 ]
 
+mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
