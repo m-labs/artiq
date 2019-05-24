@@ -3,6 +3,10 @@ from migen import *
 from artiq.gateware.rtio import rtlink
 
 
+def _sign_extend(x, width):
+    return x[width:].eq(Replicate(x[width - 1], len(x) - width))
+
+
 class RTServoCtrl(Module):
     """Per channel RTIO control interface"""
     def __init__(self, ctrl):
@@ -49,6 +53,10 @@ class RTServoMem(Module):
      IIR state mem  |    0       |   1
      config (write) |    1       |   1
      status (read)  |    1       |   1
+
+    We sign extend values read over the RTIO interface to 32 bits. This
+    assumes that all values are either w.coeff-bit signed, or <w.coeff-bit
+    unsigned.
     """
     def __init__(self, w, servo):
         m_coeff = servo.iir.m_coeff.get_port(write_capable=True,
@@ -166,8 +174,5 @@ class RTServoMem(Module):
                                         Mux(read_high,
                                             m_coeff.dat_r[w.coeff:],
                                             m_coeff.dat_r[:w.coeff]))),
-                i_data_sign.eq(i_data[w.coeff-1]),
-                i_data[w.coeff:].eq(Mux(i_data_sign,
-                                        (1 << i_data_w-w.coeff)-1,
-                                        0))
+                _sign_extend(self.rtlink.i.data, w.coeff)
         ]
