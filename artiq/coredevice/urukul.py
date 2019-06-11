@@ -154,6 +154,10 @@ class CPLD:
         RTIO frequency and the SYNC_IN generator frequency (default: 2 if
         `sync_device` was specified).
     :param core_device: Core device name
+
+    If the clocking is incorrect (for example, setting ``clk_sel`` to the
+    front panel SMA with no clock connected), then the ``init()`` method of
+    the DDS channels can fail with the error message ``PLL lock timeout``.
     """
     kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div"}
 
