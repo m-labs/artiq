@@ -20,6 +20,7 @@ IIRWidths = namedtuple("IIRWidths", [
     "shift",    # fixed point scaling coefficient for a1, b0, b1 (log2!) (11)
     "channel",  # channels (log2!) (3)
     "profile",  # profiles per channel (log2!) (5)
+    "dly",      # the activation delay
 ])
 
 
@@ -179,7 +180,7 @@ class IIR(Module):
 
     IIRWidths(state=25, coeff=18, adc=16,
         asf=14, word=16, accu=48, shift=11,
-        channel=3, profile=5)
+        channel=3, profile=5, dly=8)
 
     X0 = ADC * 2^(25 - 1 - 16)
     X1 = X0 delayed by one cycle
@@ -372,19 +373,17 @@ class IIR(Module):
                 })
         ]
 
-        # selected adc (combinatorial from dat_r)
+        # selected adc and profile delay (combinatorial from dat_r)
+        # both share the same coeff word (sel in the lower 8 bits)
         sel_profile = Signal(w.channel)
-        # profile delay (combinatorial from dat_r)
-        dly_profile = Signal(8)
+        dly_profile = Signal(w.dly)
+        assert w.channel <= 8
+        assert 8 + w.dly <= w.coeff
 
         # latched adc selection
         sel = Signal(w.channel, reset_less=True)
         # iir enable SR
         en = Signal(2, reset_less=True)
-
-        assert w.channel <= 8
-        assert w.profile <= len(dly_profile)
-        assert w.profile + 8 <= len(m_coeff.dat_r)
 
         self.comb += [
                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
@@ -417,7 +416,7 @@ class IIR(Module):
         ]
 
         # internal channel delay counters
-        dlys = Array([Signal(len(dly_profile))
+        dlys = Array([Signal(w.dly)
             for i in range(1 << w.channel)])
         self._dlys = dlys  # expose for debugging only
 
@@ -430,7 +429,7 @@ class IIR(Module):
             ]
 
         # latched channel delay
-        dly = Signal(len(dly_profile), reset_less=True)
+        dly = Signal(w.dly, reset_less=True)
         # latched channel en_out
         en_out = Signal(reset_less=True)
         # latched channel en_iir
