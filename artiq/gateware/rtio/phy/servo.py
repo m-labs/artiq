@@ -23,6 +23,13 @@ class RTServoCtrl(Module):
         ]
 
 
+def _eq_sign_extend(t, s):
+    """Assign target signal `t` from source `s`, sign-extending `s` to the
+    full width.
+    """
+    return t.eq(Cat(s, Replicate(s[-1], len(t) - len(s))))
+
+
 class RTServoMem(Module):
     """All-channel all-profile coefficient and state RTIO control
     interface.
@@ -49,6 +56,11 @@ class RTServoMem(Module):
      IIR state mem  |    0       |   1
      config (write) |    1       |   1
      status (read)  |    1       |   1
+
+    Values returned to the user on the Python side of the RTIO interface are
+    32 bit, so we sign-extend all values from w.coeff to that width. This works
+    (instead of having to decide whether to sign- or zero-extend per address), as
+    all unsigned values are less wide than w.coeff.
     """
     def __init__(self, w, servo):
         m_coeff = servo.iir.m_coeff.get_port(write_capable=True,
@@ -66,6 +78,9 @@ class RTServoMem(Module):
         assert len(m_coeff.dat_w) == 2*w.coeff
         # ensure that the DDS word data fits into the coefficient mem
         assert w.coeff >= w.word
+        # ensure all unsigned values will be zero-extended on sign extension
+        assert w.word < w.coeff
+        assert 8 + w.dly < w.coeff
 
         # coeff, profile, channel, 2 mems, rw
         internal_address_width = 3 + w.profile + w.channel + 1 + 1
@@ -77,7 +92,7 @@ class RTServoMem(Module):
                 address_width=rtlink_address_width,
                 enable_replace=False),
             rtlink.IInterface(
-                data_width=w.coeff,
+                data_width=32,
                 timestamped=False)
             )
 
@@ -152,7 +167,7 @@ class RTServoMem(Module):
         ]
         self.comb += [
                 self.rtlink.i.stb.eq(read),
-                self.rtlink.i.data.eq(
+                _eq_sign_extend(self.rtlink.i.data,
                     Mux(read_state,
                         Mux(read_config,
                             status,
