@@ -123,7 +123,7 @@ class PeripheralManager:
                 "module": "artiq.coredevice.kasli_i2c",
                 "class": "KasliEEPROM",
                 "arguments": {{"port": "EEM{eem}"}}
-            }},
+            }}
 
             device_db["spi_{name}"]={{
                 "type": "local",
