@@ -85,8 +85,9 @@ class KasliTester(EnvExperiment):
                 module, cls = desc["module"], desc["class"]
                 if ((module, cls) == ("artiq.coredevice.ad9910", "AD9910")
                     or (module, cls) == ("artiq.coredevice.ad9912", "AD9912")):
-                    sw_device = desc["arguments"]["sw_device"]
-                    del self.ttl_outs[sw_device]
+                    if "sw_device" in desc["arguments"]:
+                        sw_device = desc["arguments"]["sw_device"]
+                        del self.ttl_outs[sw_device]
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
                     io_update_device = desc["arguments"]["io_update_device"]
                     del self.ttl_outs[io_update_device]
@@ -103,7 +104,7 @@ class KasliTester(EnvExperiment):
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
         self.ttl_outs = sorted(self.ttl_outs.items(), key=lambda x: x[1].channel)
         self.ttl_ins = sorted(self.ttl_ins.items(), key=lambda x: x[1].channel)
-        self.urukuls = sorted(self.urukuls.items(), key=lambda x: x[1].sw.channel)
+        self.urukuls = sorted(self.urukuls.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].chip_select))
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
@@ -204,11 +205,14 @@ class KasliTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
         channel.set(frequency*MHz)
-        channel.sw.on()
+        channel.cfg_sw(1)
         channel.set_att(6.)
 
     @kernel
     def rf_switch_wave(self, channels):
+        self.core.break_realtime()
+        for channel in channels:
+            channel.cfg_sw(0)
         while not is_enter_pressed():
             self.core.break_realtime()
             # do not fill the FIFOs too much to avoid long response times
@@ -256,8 +260,10 @@ class KasliTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
-        print("Testing RF switch control. Press ENTER when done.")
-        self.rf_switch_wave([channel_dev.sw for channel_name, channel_dev in self.urukuls])
+        sw = [channel_dev.sw for channel_name, channel_dev in self.urukuls if hasattr(channel_dev, "sw")]
+        if sw:
+            print("Testing RF switch control. Press ENTER when done.")
+            self.rf_switch_wave(sw)
 
     @kernel
     def get_sampler_voltages(self, sampler, cb):
