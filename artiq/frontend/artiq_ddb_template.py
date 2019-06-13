@@ -112,7 +112,6 @@ class PeripheralManager:
                         channel=rtio_offset+next(channel))
         return next(channel)
 
-    # TODO: support 1-EEM mode
     def process_urukul(self, rtio_offset, peripheral):
         urukul_name = self.get_name("urukul")
         synchronization = peripheral.get("synchronization", False)
@@ -153,17 +152,18 @@ class PeripheralManager:
             }}""",
             name=urukul_name,
             channel=rtio_offset+next(channel))
-        for i in range(4):
-            self.gen("""
-                device_db["ttl_{name}_sw{uchn}"] = {{
-                    "type": "local",
-                    "module": "artiq.coredevice.ttl",
-                    "class": "TTLOut",
-                    "arguments": {{"channel": 0x{channel:06x}}}
-                }}""",
-                name=urukul_name,
-                uchn=i,
-                channel=rtio_offset+next(channel))
+        if len(peripheral["ports"]) > 1:
+            for i in range(4):
+                self.gen("""
+                    device_db["ttl_{name}_sw{uchn}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.ttl",
+                        "class": "TTLOut",
+                        "arguments": {{"channel": 0x{channel:06x}}}
+                    }}""",
+                    name=urukul_name,
+                    uchn=i,
+                    channel=rtio_offset+next(channel))
         self.gen("""
             device_db["{name}_cpld"] = {{
                 "type": "local",
@@ -193,13 +193,13 @@ class PeripheralManager:
                         "arguments": {{
                             "pll_n": 32,
                             "chip_select": {chip_select},
-                            "cpld_device": "{name}_cpld",
-                            "sw_device": "ttl_{name}_sw{uchn}"{pll_vco}{sync_delay_seed}{io_update_delay}
+                            "cpld_device": "{name}_cpld"{pll_vco}{sync_delay_seed}{io_update_delay}
                         }}
                     }}""",
                     name=urukul_name,
                     chip_select=4 + i,
                     uchn=i,
+                    sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                     sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "",
                     io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "")
