@@ -6,7 +6,7 @@ import struct
 import logging
 import re
 
-from artiq.tools import *
+from artiq import tools
 from artiq.protocols.pc_rpc import Server
 from artiq.protocols.logging import log_with_name
 from artiq.coredevice.comm_mgmt import Request, Reply
@@ -15,7 +15,8 @@ from artiq.coredevice.comm_mgmt import Request, Reply
 def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ controller for core device logs")
-    simple_network_args(parser, 1068)
+    tools.add_common_args(parser)
+    tools.simple_network_args(parser, 1068)
     parser.add_argument("--simulation", action="store_true",
                         help="Simulation - does not connect to device")
     parser.add_argument("core_addr", metavar="CORE_ADDR",
@@ -64,6 +65,7 @@ async def get_logs(host):
 
 def main():
     args = get_argparser().parse_args()
+    tools.init_logger(args)
 
     loop = asyncio.get_event_loop()
     try:
@@ -71,9 +73,8 @@ def main():
             get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr))
         try:
             server = Server({"corelog": PingTarget()}, None, True)
-            loop.run_until_complete(server.start(bind_address_from_args(args), args.port))
+            loop.run_until_complete(server.start(tools.bind_address_from_args(args), args.port))
             try:
-                multiline_log_config(logging.TRACE)
                 loop.run_until_complete(server.wait_terminate())
             finally:
                 loop.run_until_complete(server.stop())

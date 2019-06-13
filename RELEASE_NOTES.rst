@@ -26,6 +26,9 @@ ARTIQ-5
   has changed.
 * Experiments can now programatically set their default pipeline, priority, and flush flag.
 * Controllers for third-party devices are now out-of-tree.
+* ``aqctl_corelog`` now filters log messages below the ``WARNING`` level by default.
+  This behavior can be changed using the ``-v`` and ``-q`` options like the other
+  programs.
 
 
 ARTIQ-4
