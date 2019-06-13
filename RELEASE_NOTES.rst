@@ -6,9 +6,6 @@ Release notes
 ARTIQ-5
 -------
 
-5.0
-***
-
 * The :class:`~artiq.coredevice.ad9910.AD9910` and
   :class:`~artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
   have been renamed to ``ref_time_mu`` for consistency, as they are in machine
