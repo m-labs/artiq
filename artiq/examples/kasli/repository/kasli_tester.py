@@ -209,10 +209,12 @@ class KasliTester(EnvExperiment):
         channel.set_att(6.)
 
     @kernel
-    def rf_switch_wave(self, channels):
+    def cfg_sw_off_urukul(self, channel):
         self.core.break_realtime()
-        for channel in channels:
-            channel.cfg_sw(0)
+        channel.cfg_sw(0)
+
+    @kernel
+    def rf_switch_wave(self, channels):
         while not is_enter_pressed():
             self.core.break_realtime()
             # do not fill the FIFOs too much to avoid long response times
@@ -260,10 +262,12 @@ class KasliTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
-        sw = [channel_dev.sw for channel_name, channel_dev in self.urukuls if hasattr(channel_dev, "sw")]
+        sw = [channel_dev for channel_name, channel_dev in self.urukuls if hasattr(channel_dev, "sw")]
         if sw:
             print("Testing RF switch control. Press ENTER when done.")
-            self.rf_switch_wave(sw)
+            for swi in sw:
+                self.cfg_sw_off_urukul(swi)
+            self.rf_switch_wave([swi.sw for swi in sw])
 
     @kernel
     def get_sampler_voltages(self, sampler, cb):
