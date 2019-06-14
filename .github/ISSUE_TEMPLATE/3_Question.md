@@ -1,6 +1,6 @@
 ---
 name: Support question
-about: Questions about ARTIQ that are not covered in the documentation. (The forum is also a very good place for questions: https://forum.m-labs.hk/)
+about: Questions about ARTIQ that are not covered in the documentation
 
 ---
 
