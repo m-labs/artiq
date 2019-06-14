@@ -140,7 +140,7 @@ pub fn init() {
     {
         match get_rtio_clock_cfg() {
             RtioClock::Internal => setup_si5324_as_synthesizer(),
-            RtioClock::External => si5324::bypass(si5324::Input::Ckin2)
+            RtioClock::External => si5324::bypass(si5324::Input::Ckin2).expect("cannot bypass Si5324")
         }
     }
 
