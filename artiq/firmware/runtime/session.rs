@@ -7,7 +7,7 @@ use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
-use rtio_mgt;
+use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
@@ -527,7 +527,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                 return Err(Error::WatchdogExpired(idx))
             }
 
-            if !rtio_mgt::crg::check() {
+            if !rtio_clocking::crg::check() {
                 host_write(stream, host::Reply::ClockFailure)?;
                 return Err(Error::ClockFailure)
             }
@@ -571,7 +571,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
             return Err(Error::WatchdogExpired(idx))
         }
 
-        if !rtio_mgt::crg::check() {
+        if !rtio_clocking::crg::check() {
             return Err(Error::ClockFailure)
         }
 

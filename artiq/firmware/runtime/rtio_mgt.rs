@@ -3,45 +3,9 @@ use urc::Urc;
 use board_misoc::csr;
 #[cfg(has_drtio)]
 use board_misoc::clock;
-#[cfg(has_rtio_clock_switch)]
-use board_misoc::config;
 use board_artiq::drtio_routing;
 use sched::Io;
 use sched::Mutex;
-
-#[cfg(has_rtio_crg)]
-pub mod crg {
-    use board_misoc::{clock, csr};
-
-    pub fn check() -> bool {
-        unsafe { csr::rtio_crg::pll_locked_read() != 0 }
-    }
-
-    #[cfg(has_rtio_clock_switch)]
-    pub fn init(clk: u8) -> bool {
-        unsafe {
-            csr::rtio_crg::pll_reset_write(1);
-            csr::rtio_crg::clock_sel_write(clk);
-            csr::rtio_crg::pll_reset_write(0);
-        }
-        clock::spin_us(150);
-        return check()
-    }
-
-    #[cfg(not(has_rtio_clock_switch))]
-    pub fn init() -> bool {
-        unsafe {
-            csr::rtio_crg::pll_reset_write(0);
-        }
-        clock::spin_us(150);
-        return check()
-    }
-}
-
-#[cfg(not(has_rtio_crg))]
-pub mod crg {
-    pub fn check() -> bool { true }
-}
 
 #[cfg(has_drtio)]
 pub mod drtio {
@@ -51,9 +15,6 @@ pub mod drtio {
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
             up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
-        unsafe {
-            csr::drtio_transceiver::stable_clkin_write(1);
-        }
         let aux_mutex = aux_mutex.clone();
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
@@ -380,52 +341,10 @@ fn async_error_thread(io: Io) {
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
-    // The RTIO CRG may depend on the DRTIO transceiver clock.
-    // Initialize DRTIO first to bring up transceiver clocking.
     drtio::startup(io, aux_mutex, routing_table, up_destinations);
-
-    #[cfg(has_rtio_crg)]
-    {
-        #[cfg(has_rtio_clock_switch)]
-        {
-            #[derive(Debug)]
-            enum RtioClock {
-                Internal = 0,
-                External = 1
-            };
-
-            let clk = config::read("rtio_clock", |result| {
-                match result {
-                    Ok(b"i") => {
-                        info!("using internal RTIO clock");
-                        RtioClock::Internal
-                    },
-                    Ok(b"e") => {
-                        info!("using external RTIO clock");
-                        RtioClock::External
-                    },
-                    _ => {
-                        info!("using internal RTIO clock (by default)");
-                        RtioClock::Internal
-                    },
-                }
-            });
-
-            if !crg::init(clk as u8) {
-                error!("RTIO clock failed");
-            }
-        }
-        #[cfg(not(has_rtio_clock_switch))]
-        {
-            if !crg::init() {
-                error!("RTIO clock failed");
-            }
-        }
-    }
     unsafe {
         csr::rtio_core::reset_phy_write(1);
     }
-
     io.spawn(4096, async_error_thread);
 }
 

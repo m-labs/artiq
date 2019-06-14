@@ -41,6 +41,7 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
+mod rtio_clocking;
 mod rtio_mgt;
 
 mod urc;
@@ -59,14 +60,15 @@ mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
 
-fn startup() {
-    irq::set_mask(0);
-    irq::set_ie(true);
-    clock::init();
-    info!("ARTIQ runtime starting...");
-    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
-    info!("gateware ident {}", ident::read(&mut [0; 64]));
+#[cfg(has_grabber)]
+fn grabber_thread(io: sched::Io) {
+    loop {
+        board_artiq::grabber::tick();
+        io.sleep(200).unwrap();
+    }
+}
 
+fn setup_log_levels() {
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
@@ -84,30 +86,14 @@ fn startup() {
         }
         _ => info!("UART log level set to INFO by default")
     }
+}
 
+fn sayma_hw_init() {
     #[cfg(has_slave_fpga_cfg)]
     board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
     #[cfg(has_serwb_phy_amc)]
     board_artiq::serwb::wait_init();
 
-    #[cfg(has_uart)] {
-        let t = clock::get_ms();
-        info!("press 'e' to erase startup and idle kernels...");
-        while clock::get_ms() < t + 1000 {
-            if unsafe { csr::uart::rxtx_read() == b'e' } {
-                config::remove("startup_kernel").unwrap();
-                config::remove("idle_kernel").unwrap();
-                info!("startup and idle kernels erased");
-                break
-            }
-        }
-        info!("continuing boot");
-    }
-
-    #[cfg(has_i2c)]
-    board_artiq::i2c::init();
-    #[cfg(si5324_as_synthesizer)]
-    setup_si5324_as_synthesizer();
     #[cfg(has_hmc830_7043)]
     /* must be the first SPI init because of HMC830 SPI mode selection */
     board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
@@ -124,98 +110,22 @@ fn startup() {
     }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
-
-    #[cfg(has_ethmac)]
-    startup_ethernet();
-    #[cfg(not(has_ethmac))]
-    {
-        info!("done");
-        loop {}
-    }
 }
 
-#[cfg(si5324_as_synthesizer)]
-fn setup_si5324_as_synthesizer()
-{
-    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz loop bandwidth
-    #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 10,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 260,
-        n31    : 65,
-        n32    : 52,
-        bwsel  : 4,
-        crystal_ref: false
-    };
-    // 125MHz output, from 125MHz CLKIN2 reference, 606 Hz loop bandwidth
-    #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "125.0"))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 5,
-        nc1_ls : 8,
-        n2_hs  : 7,
-        n2_ls  : 360,
-        n31    : 63,
-        n32    : 63,
-        bwsel  : 4,
-        crystal_ref: false
-    };
-    // 125MHz output, from crystal, 7 Hz
-    #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 10,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 19972,
-        n31    : 4993,
-        n32    : 4565,
-        bwsel  : 4,
-        crystal_ref: true
-    };
-    // 150MHz output, from crystal
-    #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 9,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 33732,
-        n31    : 9370,
-        n32    : 7139,
-        bwsel  : 3,
-        crystal_ref: true
-    };
-    // 100MHz output, from crystal. Also used as reference for Sayma HMC830.
-    #[cfg(all(rtio_frequency = "100.0", not(si5324_ext_ref)))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 9,
-        nc1_ls : 6,
-        n2_hs  : 10,
-        n2_ls  : 33732,
-        n31    : 9370,
-        n32    : 7139,
-        bwsel  : 3,
-        crystal_ref: true
-    };
-    board_artiq::si5324::setup(&SI5324_SETTINGS,
-        board_artiq::si5324::Input::Ckin2).expect("cannot initialize Si5324");
-}
+fn startup() {
+    irq::set_mask(0);
+    irq::set_ie(true);
+    clock::init();
+    info!("ARTIQ runtime starting...");
+    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
+    info!("gateware ident {}", ident::read(&mut [0; 64]));
 
-#[cfg(has_grabber)]
-fn grabber_thread(io: sched::Io) {
-    loop {
-        board_artiq::grabber::tick();
-        io.sleep(200).unwrap();
-    }
-}
+    setup_log_levels();
+    #[cfg(has_i2c)]
+    board_artiq::i2c::init();
+    sayma_hw_init();
+    rtio_clocking::init();
 
-#[cfg(has_ethmac)]
-fn startup_ethernet() {
     let hardware_addr;
     match config::read_str("mac", |r| r.map(|s| s.parse())) {
         Ok(Ok(addr)) => {
