@@ -151,7 +151,6 @@ class MasterDAC(MiniSoC, AMPSoC, RTMCommon):
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["SI5324_SAYMA_REF"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         # ensure pins are properly biased and terminated
         si5324_clkout = platform.request("cdr_clk_clean", 0)
