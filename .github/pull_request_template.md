@@ -47,7 +47,6 @@ Closes #XXX
 - [ ] Run `flake8` to check code style (follow PEP-8 style). `flake8` has issues with parsing Migen/gateware code, ignore as necessary.
 - [ ] Test your changes or have someone test them. Mention what was tested and how.
 - [ ] Add and check docstrings and comments
-- [ ] Check, test, and update the conda recipes in [conda/](../doc/)
 - [ ] Check, test, and update the [unittests in /artiq/test/](../artiq/test/) or [gateware simulations in /artiq/gateware/test](../artiq/gateware/test)
 
 ### Documentation Changes

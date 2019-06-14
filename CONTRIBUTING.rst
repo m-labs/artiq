@@ -8,8 +8,8 @@ Reporting Issues/Bugs
 Thanks for `reporting issues to ARTIQ
 <https://github.com/m-labs/artiq/issues/new>`_! You can also discuss issues and
 ask questions on IRC (the `#m-labs channel on freenode
-<https://webchat.freenode.net/?channels=m-labs>`_) or on the `mailing list
-<https://ssl.serverraum.org/lists/listinfo/artiq>`_.
+<https://webchat.freenode.net/?channels=m-labs>`_), the `Mattermost chat
+<https://chat.m-labs.hk>`_, or on the `forum <https://forum.m-labs.hk>`_.
 
 The best bug reports are those which contain sufficient information. With
 accurate and comprehensive context, an issue can be resolved quickly and
@@ -17,18 +17,19 @@ efficiently. Please consider adding the following data to your issue
 report if possible:
 
 * A clear and unique summary that fits into one line. Also check that
-  this issue has not jet been reported. If it has, add additional information there.
+  this issue has not yet been reported. If it has, add additional information there.
 * Precise steps to reproduce (list of actions that leads to the issue)
 * Expected behavior (what should happen)
 * Actual behavior (what happens instead)
 * Logging message, trace backs, screen shots where relevant
-* Components involved:
+* Components involved (omit irrelevant parts):
 
-  * Operating system
-  * Conda version
-  * ARTIQ version (package or git commit id, versions for bitstream, BIOS,
-    runtime and host software)
+  * Operating System
+  * ARTIQ version (with recent versions of ARTIQ, run ``artiq_client --version``)
+  * Version of the gateware and runtime loaded in the core device (in the output of ``artiq_coremgmt -D .... log``)
+  * If using Conda, output of `conda list`
   * Hardware involved
+
 
 For in-depth information on bug reporting, see:
 
@@ -42,10 +43,8 @@ Contributing Code
 ARTIQ welcomes contributions. Write bite-sized patches that can stand alone,
 clean them up, write proper commit messages, add docstrings and unittests. Then
 ``git rebase`` them onto the current master or merge the current master. Verify
-that the testsuite passes. Then prepare a pull request or send patches to the
-`mailing list <https://ssl.serverraum.org/lists/listinfo/artiq>`_ to be
-discussed. Expect your contribution to be held up to coding standards (e.g. use
-``flake8`` to check yourself).
+that the testsuite passes. Then submit a pull request. Expect your contribution
+to be held up to coding standards (e.g. use ``flake8`` to check yourself).
 
 Checklist for Code Contributions
 --------------------------------
@@ -67,7 +66,6 @@ Checklist for Code Contributions
 - Update ``RELEASE_NOTES.md`` if there are noteworthy changes, especially if
   there are changes to existing APIs
 - Check, test, and update the documentation in `doc/`
-- Check, test, and update the conda recipes in `conda/`
 - Check, test, and update the unittests
 - Close and/or update issues
 
