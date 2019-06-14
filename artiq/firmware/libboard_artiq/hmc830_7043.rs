@@ -421,14 +421,6 @@ pub mod hmc7043 {
 }
 
 pub fn init() -> Result<(), &'static str> {
-    // used by MasterDAC - HMC830 is clocked from 100MHz reference
-    #[cfg(all(hmc830_ref = "100", rtio_frequency = "125.0"))]
-    const DIV: (u32, u32, u32, u32) = (1, 20, 0, 1);  // 100MHz -> 2.0GHz
-    #[cfg(all(hmc830_ref = "100", rtio_frequency = "150.0"))]
-    const DIV: (u32, u32, u32, u32) = (1, 24, 0, 1);  // 100MHz -> 2.4GHz
-
-    // used by Satellite - HMC830 is clocked by recovered clock
-    // (or a clock of the same frequency derived from the same oscillator)
     #[cfg(all(hmc830_ref = "125", rtio_frequency = "125.0"))]
     const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 125MHz -> 2.0GHz
     #[cfg(all(hmc830_ref = "150", rtio_frequency = "150.0"))]
