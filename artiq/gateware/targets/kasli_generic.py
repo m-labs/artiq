@@ -99,6 +99,13 @@ def peripheral_grabber(module, peripheral):
     eem.Grabber.add_std(module, port, port_aux, port_aux2)
 
 
+def peripheral_mirny(module, peripheral):
+    if len(peripheral["ports"]) != 1:
+        raise ValueError("wrong number of ports")
+    eem.Mirny.add_std(module, peripheral["ports"][0],
+        ttl_serdes_7series.Output_8X)
+
+
 peripheral_processors = {
     "dio": peripheral_dio,
     "urukul": peripheral_urukul,
@@ -107,6 +114,7 @@ peripheral_processors = {
     "suservo": peripheral_suservo,
     "zotino": peripheral_zotino,
     "grabber": peripheral_grabber,
+    "mirny": peripheral_mirny,
 }
 
 
