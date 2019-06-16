@@ -558,3 +558,48 @@ class SUServo(_EEM):
                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
                 target.specials += DifferentialOutput(
                     su.iir.ctrl[j*4 + i].en_out, pads.p, pads.n)
+
+
+class Mirny(_EEM):
+    @staticmethod
+    def io(eem, iostandard="LVDS_25"):
+        ios = [
+            ("mirny{}_spi_p".format(eem), 0,
+                Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
+                Subsignal("mosi", Pins(_eem_pin(eem, 1, "p"))),
+                Subsignal("miso", Pins(_eem_pin(eem, 2, "p"))),
+                Subsignal("cs_n", Pins(_eem_pin(eem, 3, "p"))),
+                IOStandard(iostandard),
+            ),
+            ("mirny{}_spi_n".format(eem), 0,
+                Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
+                Subsignal("mosi", Pins(_eem_pin(eem, 1, "n"))),
+                Subsignal("miso", Pins(_eem_pin(eem, 2, "n"))),
+                Subsignal("cs_n", Pins(_eem_pin(eem, 3, "n"))),
+                IOStandard(iostandard),
+            ),
+        ]
+        for i in range(4):
+            ios.append(
+                ("mirny{}_io{}".format(eem, i), 0,
+                    Subsignal("p", Pins(_eem_pin(eem, 4 + i, "p"))),
+                    Subsignal("n", Pins(_eem_pin(eem, 4 + i, "n"))),
+                    IOStandard(iostandard)
+                ))
+        return ios
+
+    @classmethod
+    def add_std(cls, target, eem, ttl_out_cls, iostandard="LVDS_25"):
+        cls.add_extension(target, eem, iostandard=iostandard)
+
+        phy = spi2.SPIMaster(
+            target.platform.request("mirny{}_spi_p".format(eem)),
+            target.platform.request("mirny{}_spi_n".format(eem)))
+        target.submodules += phy
+        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        for i in range(4):
+            pads = target.platform.request("mirny{}_io{}".format(eem, i))
+            phy = ttl_out_cls(pads.p, pads.n)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
