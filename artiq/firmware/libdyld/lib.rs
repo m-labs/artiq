@@ -289,7 +289,7 @@ impl<'a> Library<'a> {
         if sym_ent != mem::size_of::<Elf32_Sym>() {
             return Err("incorrect symbol entry size")?
         }
-        if rela_ent != mem::size_of::<Elf32_Rela>() {
+        if rela_ent != 0 && rela_ent != mem::size_of::<Elf32_Rela>() {
             return Err("incorrect relocation entry size")?
         }
 
