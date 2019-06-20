@@ -6,6 +6,7 @@ from artiq.coredevice import urukul, sampler
 
 
 COEFF_WIDTH = 18
+Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 COEFF_DEPTH = 10 + 1
 WE = 1 << COEFF_DEPTH + 1
 STATE_SEL = 1 << COEFF_DEPTH
@@ -18,7 +19,7 @@ COEFF_SHIFT = 11
 @portable
 def y_mu_to_full_scale(y):
     """Convert servo Y data from machine units to units of full scale."""
-    return y*(1./(1 << COEFF_WIDTH - 1))
+    return y / Y_FULL_SCALE_MU
 
 
 @portable
@@ -508,4 +509,6 @@ class Channel:
         :param profile: Profile number (0-31)
         :param y: IIR state in units of full scale
         """
-        self.set_y_mu(profile, int(round((1 << COEFF_WIDTH - 1)*y)))
+        y_mu = int(round(y * Y_FULL_SCALE_MU))
+        self.set_y_mu(profile, y_mu)
+        return y_mu
