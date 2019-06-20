@@ -450,12 +450,12 @@ class Channel:
         """Get a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
 
         :param profile: Profile number (0-31)
-        :return: 18 bit unsigned Y0
+        :return: 17 bit unsigned Y0
         """
         return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
 
@@ -464,7 +464,7 @@ class Channel:
         """Get a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
 
@@ -478,7 +478,7 @@ class Channel:
         """Set a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the
         same location. Either deactivate the profile, or deactivate IIR
@@ -498,7 +498,7 @@ class Channel:
         """Set a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the
         same location. Either deactivate the profile, or deactivate IIR
