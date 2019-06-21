@@ -323,15 +323,14 @@ class KasliTester(EnvExperiment):
         zotino.load()
 
     def test_zotinos(self):
-        if self.zotinos:
-            print("*** Testing Zotino DACs.")
-            print("Voltages:")
-            for card_n, (card_name, card_dev) in enumerate(self.zotinos):
-                voltages = [2*card_n + (-1)**i*0.1*(i//2+1) for i in range(32)]
-                print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
-                self.set_zotino_voltages(card_dev, voltages)
-            print("Press ENTER when done.")
-            input()
+        print("*** Testing Zotino DACs.")
+        print("Voltages:")
+        for card_n, (card_name, card_dev) in enumerate(self.zotinos):
+            voltages = [2*card_n + (-1)**i*0.1*(i//2+1) for i in range(32)]
+            print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
+            self.set_zotino_voltages(card_dev, voltages)
+        print("Press ENTER when done.")
+        input()
 
     @kernel
     def grabber_capture(self, card_dev, rois):
@@ -354,28 +353,34 @@ class KasliTester(EnvExperiment):
         print("ROI sums:", n)
 
     def test_grabbers(self):
-        if self.grabbers:
-            print("*** Testing Grabber Frame Grabbers.")
-            print("Activate the camera's frame grabber output, type 'g', press "
-                  "ENTER, and trigger the camera.")
-            print("Just press ENTER to skip the test.")
-            if input().strip().lower() != "g":
-                print("skipping...")
-                return
-            rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
-            print("ROIs:", rois)
-            for card_n, (card_name, card_dev) in enumerate(self.grabbers):
-                print(card_name)
-                self.grabber_capture(card_dev, rois)
+        print("*** Testing Grabber Frame Grabbers.")
+        print("Activate the camera's frame grabber output, type 'g', press "
+              "ENTER, and trigger the camera.")
+        print("Just press ENTER to skip the test.")
+        if input().strip().lower() != "g":
+            print("skipping...")
+            return
+        rois = [[0, 0, 0, 2, 2], [1, 0, 0, 2048, 2048]]
+        print("ROIs:", rois)
+        for card_n, (card_name, card_dev) in enumerate(self.grabbers):
+            print(card_name)
+            self.grabber_capture(card_dev, rois)
 
     def run(self):
         print("****** Kasli system tester ******")
         print("")
         self.core.reset()
-        self.test_leds()
-        self.test_ttl_outs()
-        self.test_ttl_ins()
-        self.test_urukuls()
-        self.test_samplers()
-        self.test_zotinos()
-        self.test_grabbers()
+        if self.leds:
+            self.test_leds()
+        if self.ttl_outs:
+            self.test_ttl_outs()
+        if self.ttl_ins:
+            self.test_ttl_ins()
+        if self.urukuls:
+            self.test_urukuls()
+        if self.samplers:
+            self.test_samplers()
+        if self.zotinos:
+            self.test_zotinos()
+        if self.grabbers:
+            self.test_grabbers()
