@@ -152,9 +152,9 @@ pub fn init() {
     #[cfg(has_rtio_crg)]
     {
         #[cfg(has_rtio_clock_switch)]
-        let result = !crg::init(get_rtio_clock_cfg());
+        let result = crg::init(get_rtio_clock_cfg());
         #[cfg(not(has_rtio_clock_switch))]
-        let result = !crg::init();
+        let result = crg::init();
         if !result {
             error!("RTIO clock failed");
         }
