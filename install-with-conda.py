@@ -19,6 +19,10 @@ CONDA_PACKAGES = [
 # Set to False if you have already set up conda channels
 ADD_CHANNELS = True
 
+# PROXY: If you are behind a web proxy, configure it in your .condarc (as per
+# the conda manual) and add it to the "curl" command below (add "--proxy
+# http://webproxy.your.com:8080" with your values filled in)
+
 # You should not need to modify the rest of the script below.
 
 import os
