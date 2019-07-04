@@ -30,8 +30,8 @@ def run(command):
         raise SystemExit("command '{}' returned non-zero exit status: {}".format(command, r))
 
 if ADD_CHANNELS:
-    run("conda config --add channels m-labs")
-    run("conda config --add channels conda-forge")
+    run("conda config --prepend channels m-labs")
+    run("conda config --append channels conda-forge")
 run("conda install -y conda-build curl")
 
 # A questionable conda decision is to ignore dependencies when installing .tar.bz2's directly.
