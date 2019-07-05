@@ -1,10 +1,10 @@
 from migen import *
 from migen.genlib.record import Record
 from migen.genlib.fifo import *
+from migen.genlib.cdc import BlindTransfer
 
 from artiq.gateware.rtio import cri
 from artiq.gateware.rtio import rtlink
-from artiq.gateware.rtio.cdc import *
 
 
 __all__ = ["InputCollector"]
@@ -85,7 +85,7 @@ class InputCollector(Module):
             if mode == "sync":
                 overflow_trigger = overflow_io
             elif mode == "async":
-                overflow_transfer = BlindTransfer()
+                overflow_transfer = BlindTransfer("rio", "rsys")
                 self.submodules += overflow_transfer
                 self.comb += overflow_transfer.i.eq(overflow_io)
                 overflow_trigger = overflow_transfer.o

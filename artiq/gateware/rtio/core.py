@@ -3,12 +3,12 @@ from operator import and_
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.cdc import BlindTransfer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import cri
 from artiq.gateware.rtio import rtlink
 from artiq.gateware.rtio.channel import *
-from artiq.gateware.rtio.cdc import *
 from artiq.gateware.rtio.sed.core import *
 from artiq.gateware.rtio.input_collector import *
 
@@ -79,8 +79,8 @@ class Core(Module, AutoCSR):
         self.submodules += inputs
 
         # Asychronous output errors
-        o_collision_sync = BlindTransfer(data_width=16)
-        o_busy_sync = BlindTransfer(data_width=16)
+        o_collision_sync = BlindTransfer("rio", "rsys", data_width=16)
+        o_busy_sync = BlindTransfer("rio", "rsys", data_width=16)
         self.submodules += o_collision_sync, o_busy_sync
         o_collision = Signal()
         o_busy = Signal()

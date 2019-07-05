@@ -1,9 +1,8 @@
 from migen import *
-from migen.genlib.cdc import MultiReg
+from migen.genlib.cdc import MultiReg, BlindTransfer
 
 from misoc.interconnect.csr import *
 
-from artiq.gateware.rtio.cdc import BlindTransfer
 from artiq.gateware.drtio.cdc import CrossDomainRequest
 
 
