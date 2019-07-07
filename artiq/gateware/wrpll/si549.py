@@ -25,7 +25,7 @@ class ADPLLProgrammer(Module):
         self.sda_oe.attr.add("no_retiming")
 
 
-class Si590(Module, AutoCSR):
+class Si549(Module, AutoCSR):
     def __init__(self, pads):
         self.gpio_enable = CSRStorage(reset=1)
         self.gpio_in = CSRStatus(2)
