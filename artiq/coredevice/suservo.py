@@ -195,6 +195,10 @@ class SUServo:
 
         This method does not advance the timeline but consumes all slack.
 
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
+
         :param adc: ADC channel number (0-7)
         :return: 17 bit signed X0
         """
@@ -224,6 +228,10 @@ class SUServo:
         """Get an ADC reading (IIR filter input X0).
 
         This method does not advance the timeline but consumes all slack.
+
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
 
         The PGIA gain setting must be known prior to using this method, either
         by setting the gain (:meth:`set_pgia_mu`) or by supplying it
@@ -454,6 +462,10 @@ class Channel:
 
         This method does not advance the timeline but consumes all slack.
 
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
+
         :param profile: Profile number (0-31)
         :return: 17 bit unsigned Y0
         """
@@ -467,6 +479,10 @@ class Channel:
         scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
+
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
 
         :param profile: Profile number (0-31)
         :return: IIR filter output in Y0 units of full scale
