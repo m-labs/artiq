@@ -12,7 +12,7 @@ WE = 1 << COEFF_DEPTH + 1
 STATE_SEL = 1 << COEFF_DEPTH
 CONFIG_SEL = 1 << COEFF_DEPTH - 1
 CONFIG_ADDR = CONFIG_SEL | STATE_SEL
-T_CYCLE = (2*(8 + 64) + 2 + 1)*8*ns
+T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
 
 
