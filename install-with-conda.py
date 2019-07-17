@@ -21,7 +21,6 @@ ADD_CHANNELS = True
 # You should not need to modify the rest of the script below.
 
 import os
-import tempfile
 
 def run(command):
     r = os.system(command)
