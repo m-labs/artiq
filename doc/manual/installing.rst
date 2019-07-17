@@ -19,10 +19,9 @@ Installing via Nix (Linux)
 
 First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_.
 
-Once Nix is installed, add the M-Labs package channels with: ::
+Once Nix is installed, add the M-Labs package channel with: ::
 
-  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/main/channel m-labs
-  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel sinara
+  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full/artiq-full
 
 Those channels track `nixpkgs 19.03 <https://github.com/NixOS/nixpkgs/tree/release-19.03>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
 
@@ -40,10 +39,10 @@ Nix won't install packages without verifying their cryptographic signature. Add 
   substituters = https://cache.nixos.org https://nixbld.m-labs.hk
   trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -iA m-labs.artiq-env``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -iA artiq-full.artiq-env``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
 .. note::
-  If you are getting the error message ``file 'm-labs' was not found in the Nix search path``, you are probably encountering `this Nix bug <https://github.com/NixOS/nix/issues/2709>`_. As a workaround, enter the command ``$ export NIX_PATH=~/.nix-defexpr/channels:$NIX_PATH`` and try again.
+  If you are getting the error message ``file 'artiq-full' was not found in the Nix search path``, you are probably encountering `this Nix bug <https://github.com/NixOS/nix/issues/2709>`_. As a workaround, enter the command ``$ export NIX_PATH=~/.nix-defexpr/channels:$NIX_PATH`` and try again.
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
@@ -55,24 +54,18 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
     # Contains the NixOS package collection. ARTIQ depends on some of them, and
     # you may also want certain packages from there.
     pkgs = import <nixpkgs> {};
-    # Contains the main ARTIQ packages, their dependencies, and board packages
-    # for systems used in CI.
-    # List: https://nixbld.m-labs.hk/channel/custom/artiq/main/channel
-    m-labs = import <m-labs> { inherit pkgs; };
-    # Contains the board packages for the majority of systems.
-    # List: https://nixbld.m-labs.hk/channel/custom/artiq/sinara-systems/channel
-    sinara = import <sinara> { inherit pkgs; };
+    artiq-full = import <artiq-full> { inherit pkgs; };
   in
     pkgs.mkShell {
       buildInputs = [
         (pkgs.python3.withPackages(ps: [
           # List desired Python packages here.
-          m-labs.artiq
+          artiq-full.artiq
           # The board packages are also "Python" packages. You only need a board
           # package if you intend to reflash that board (those packages contain
           # only board firmware).
-          m-labs.artiq-board-kc705-nist_clock
-          sinara.artiq-board-kasli-wipm
+          artiq-full.artiq-board-kc705-nist_clock
+          artiq-full.artiq-board-kasli-wipm
           # from the NixOS package collection:
           ps.paramiko  # needed for flashing boards remotely (artiq_flash -H)
           ps.pandas
@@ -83,7 +76,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ps.bokeh
         ]))
         # List desired non-Python packages here
-        m-labs.openocd  # needed for flashing boards, also provides proxy bitstreams
+        artiq-full.openocd  # needed for flashing boards, also provides proxy bitstreams
         pkgs.spyder
       ];
     }
@@ -175,7 +168,7 @@ Installing OpenOCD
 
 OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
 
-With Nix, add ``m-labs.openocd`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
+With Nix, add ``artiq-full.openocd`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
 With Conda, the ``artiq`` package installs ``openocd`` automatically but it can also be installed explicitly on both Linux and Windows::
 
