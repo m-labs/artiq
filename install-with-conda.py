@@ -29,7 +29,7 @@ def run(command):
 
 if ADD_CHANNELS:
     run("conda config --prepend channels m-labs")
-    run("conda config --prepend channels https://m-labs.hk/artiq/conda")
+    run("conda config --prepend channels https://conda.m-labs.hk/artiq-beta")
     run("conda config --append channels conda-forge")
 
 # Creating the environment first with python 3.5 hits fewer bugs in conda's broken dependency solver.
@@ -37,5 +37,5 @@ run("conda create -y -n {CONDA_ENV_NAME} python=3.5".format(CONDA_ENV_NAME=CONDA
 for package in CONDA_PACKAGES:
     # Do not activate the environment yet - otherwise "conda install" may not find the SSL module anymore on Windows.
     # Installing into the environment from the outside works around this conda bug.
-    run("conda install -y -n {CONDA_ENV_NAME} -c https://m-labs.hk/artiq/conda {package}"
+    run("conda install -y -n {CONDA_ENV_NAME} -c https://conda.m-labs.hk/artiq-beta {package}"
         .format(CONDA_ENV_NAME=CONDA_ENV_NAME, package=package))
