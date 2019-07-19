@@ -286,6 +286,8 @@ def compile(processor, function):
     arg_r = astcompiler.input(arg)
     for node in body:
         astcompiler.emit(node)
+        if isinstance(node, ast.Return):
+            break
 
     scheduler = Scheduler(processor, len(astcompiler.data), astcompiler.program)
     scheduler.schedule()
