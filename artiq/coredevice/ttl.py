@@ -138,7 +138,11 @@ class TTLInOut:
         cursor.
 
         There must be a delay of at least one RTIO clock cycle before any
-        other command can be issued."""
+        other command can be issued.
+
+        This method only configures the direction at the FPGA. When using
+        buffered I/O interfaces, such as the Sinara TTL cards, the buffer
+        direction must be configured separately in the hardware."""
         self.set_oe(True)
 
     @kernel
@@ -147,7 +151,11 @@ class TTLInOut:
         cursor.
 
         There must be a delay of at least one RTIO clock cycle before any
-        other command can be issued."""
+        other command can be issued.
+
+        This method only configures the direction at the FPGA. When using
+        buffered I/O interfaces, such as the Sinara TTL cards, the buffer
+        direction must be configured separately in the hardware."""
         self.set_oe(False)
 
     @kernel
