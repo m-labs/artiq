@@ -5,6 +5,7 @@ import operator
 from functools import reduce
 
 from migen import *
+from migen.genlib.fsm import *
 
 
 class Isn:
@@ -52,6 +53,9 @@ class InputIsn(Isn):
 
 class OutputIsn(Isn):
     opcode = 6
+
+class EndIsn(Isn):
+    opcode = 7
 
 
 class ASTCompiler:
@@ -298,11 +302,14 @@ def compile(processor, function):
     scheduler = Scheduler(processor, len(astcompiler.data), astcompiler.program)
     scheduler.schedule()
 
-    max_reg = max(max(max(isn.inputs + [0]) for isn in scheduler.output), max(v[1] for k, v in scheduler.exits.items()))
+    program = copy(scheduler.output)
+    program.append(EndIsn())
+
+    max_reg = max(max(max(isn.inputs + [0]) for isn in program), max(v[1] for k, v in scheduler.exits.items()))
 
     return CompiledProgram(
         processor=processor,
-        program=scheduler.output,
+        program=program,
         exits={k: v[1] for k, v in scheduler.exits.items()},
         data=astcompiler.data + [0]*(max_reg - len(astcompiler.data) + 1),
         glbs=astcompiler.globals)
@@ -355,11 +362,11 @@ class CopyUnit(BaseUnit):
 class InputUnit(BaseUnit):
     def __init__(self, data_width, input_stb, input):
         BaseUnit.__init__(self, data_width)
+        self.buffer = Signal(data_width)
 
-        # TODO
         self.comb += [
             self.stb_o.eq(self.stb_i),
-            self.o.eq(42)
+            self.o.eq(self.buffer)
         ]
 
 
@@ -380,6 +387,8 @@ class ProcessorImpl(Module):
 
         self.output_stb = Signal()
         self.output = Signal(pd.data_width)
+
+        self.busy = Signal()
 
         # # #
 
@@ -402,9 +411,6 @@ class ProcessorImpl(Module):
         program_mem_port = program_mem.get_port()
         self.specials += program_mem_port
         self.comb += program_mem_port.adr.eq(pc_next)
-
-        # TODO
-        self.comb += pc_en.eq(1)
 
         s = 0
         opcode = Signal(pd.opcode_bits)
@@ -448,7 +454,7 @@ class ProcessorImpl(Module):
         self.submodules += units
 
         for n, unit in enumerate(units):
-            self.sync += unit.stb_i.eq(opcode == n)
+            self.sync += unit.stb_i.eq(pc_en & (opcode == n))
             self.comb += [
                 unit.i0.eq(data_read_port0.dat_r),
                 unit.i1.eq(data_read_port1.dat_r),
@@ -457,6 +463,22 @@ class ProcessorImpl(Module):
                     data_write_port.dat_w.eq(unit.o)
                 )
             ]
+
+        fsm = FSM()
+        self.submodules += fsm
+        fsm.act("IDLE",
+            pc_en.eq(0),
+            NextValue(inu.buffer, self.input),
+            If(self.input_stb, NextState("PROCESSING"))
+        )
+        fsm.act("PROCESSING",
+            self.busy.eq(1),
+            pc_en.eq(1),
+            If(opcode == EndIsn.opcode,
+                pc_en.eq(0),
+                NextState("IDLE")
+            )
+        )
 
 
 a = 0
@@ -472,8 +494,7 @@ def foo(x):
 
 
 def simple_test(x):
-    a = 5 + 3
-    return a*4
+    return x*2+2
 
 
 if __name__ == "__main__":
@@ -484,9 +505,22 @@ if __name__ == "__main__":
     print(cp.encode())
     proc_impl = proc.implement(cp.encode(), cp.data)
 
-    def wait_result():
-        while not (yield proc_impl.output_stb):
+    def send_values(values):
+        for value in values:
+            yield proc_impl.input.eq(value)
+            yield proc_impl.input_stb.eq(1)
             yield
-        result = yield proc_impl.output
-        print(result)
-    run_simulation(proc_impl, [wait_result()], vcd_name="test.vcd")
+            yield proc_impl.input.eq(0)
+            yield proc_impl.input_stb.eq(0)
+            yield
+            while (yield proc_impl.busy):
+                yield
+    @passive
+    def receive_values(callback):
+        while True:
+            while not (yield proc_impl.output_stb):
+                yield
+            callback((yield proc_impl.output))
+            yield
+
+    run_simulation(proc_impl, [send_values([42, 40]), receive_values(print)])
