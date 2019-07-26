@@ -203,3 +203,10 @@ Data to InfluxDB bridge
 .. argparse::
    :ref: artiq.frontend.artiq_influxdb.get_argparser
    :prog: artiq_influxdb
+
+Schedule to InfluxDB logging bridge
+-----------------------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_influxdb_schedule.get_argparser
+   :prog: artiq_influxdb_schedule

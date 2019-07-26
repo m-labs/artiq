@@ -27,6 +27,7 @@ console_scripts = [
     "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
     "artiq_devtool = artiq.frontend.artiq_devtool:main",
     "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
+    "artiq_influxdb_schedule = artiq.frontend.artiq_influxdb_schedule:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
     "artiq_rtiomon = artiq.frontend.artiq_rtiomon:main",
