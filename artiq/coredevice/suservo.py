@@ -191,7 +191,7 @@ class SUServo:
 
     @kernel
     def get_adc_mu(self, adc):
-        """Get an ADC reading (IIR filter input X0) in machine units.
+        """Get the latest ADC reading (IIR filter input X0) in machine units.
 
         This method does not advance the timeline but consumes all slack.
 
@@ -225,7 +225,7 @@ class SUServo:
 
     @kernel
     def get_adc(self, channel):
-        """Get an ADC reading (IIR filter input X0).
+        """Get the latest ADC reading (IIR filter input X0).
 
         This method does not advance the timeline but consumes all slack.
 
