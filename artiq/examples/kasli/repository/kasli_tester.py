@@ -326,7 +326,7 @@ class KasliTester(EnvExperiment):
         print("*** Testing Zotino DACs.")
         print("Voltages:")
         for card_n, (card_name, card_dev) in enumerate(self.zotinos):
-            voltages = [2*card_n + (-1)**i*0.1*(i//2+1) for i in range(32)]
+            voltages = [(-1)**i*(2.*card_n + .1*(i//2 + 1)) for i in range(32)]
             print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
             self.set_zotino_voltages(card_dev, voltages)
         print("Press ENTER when done.")
