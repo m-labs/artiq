@@ -3,27 +3,12 @@ use board_misoc::clock;
 #[cfg(not(si5324_soft_reset))]
 use board_misoc::csr;
 use i2c;
+use pca9548;
 
 type Result<T> = result::Result<T, &'static str>;
 
 const BUSNO: u8 = 0;
 const ADDRESS: u8 = 0x68;
-
-#[cfg(any(soc_platform = "kasli",
-          soc_platform = "sayma_amc",
-          soc_platform = "sayma_rtm",
-          soc_platform = "kc705"))]
-fn pca9548_select(address: u8, channels: u8) -> Result<()> {
-    i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, address << 1).unwrap() {
-        return Err("PCA9548 failed to ack write address")
-    }
-    if !i2c::write(BUSNO, channels).unwrap() {
-        return Err("PCA9548 failed to ack control word")
-    }
-    i2c::stop(BUSNO).unwrap();
-    Ok(())
-}
 
 #[cfg(not(si5324_soft_reset))]
 fn hard_reset() {
@@ -196,15 +181,15 @@ fn init() -> Result<()> {
 
     #[cfg(soc_platform = "kasli")]
     {
-        pca9548_select(0x70, 0)?;
-        pca9548_select(0x71, 1 << 3)?;
+        pca9548::select(BUSNO, 0x70, 0)?;
+        pca9548::select(BUSNO, 0x71, 1 << 3)?;
     }
     #[cfg(soc_platform = "sayma_amc")]
-    pca9548_select(0x70, 1 << 4)?;
+    pca9548::select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "sayma_rtm")]
-    pca9548_select(0x77, 1 << 5)?;
+    pca9548::select(BUSNO, 0x77, 1 << 5)?;
     #[cfg(soc_platform = "kc705")]
-    pca9548_select(0x74, 1 << 7)?;
+    pca9548::select(BUSNO, 0x74, 1 << 7)?;
 
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");

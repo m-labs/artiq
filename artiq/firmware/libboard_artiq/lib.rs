@@ -25,6 +25,11 @@ pub mod mailbox;
 #[cfg(has_kernel_cpu)]
 pub mod rpc_queue;
 
+#[cfg(any(soc_platform = "kasli",
+          soc_platform = "sayma_amc",
+          soc_platform = "sayma_rtm",
+          soc_platform = "kc705"))]
+mod pca9548;
 #[cfg(has_si5324)]
 pub mod si5324;
 
