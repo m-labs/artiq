@@ -32,6 +32,8 @@ pub mod rpc_queue;
 mod pca9548;
 #[cfg(has_si5324)]
 pub mod si5324;
+#[cfg(soc_platform = "kasli")]
+pub mod i2c_eeprom;
 
 #[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;

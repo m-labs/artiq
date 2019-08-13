@@ -29,6 +29,8 @@ ARTIQ-5
 * ``aqctl_corelog`` now filters log messages below the ``WARNING`` level by default.
   This behavior can be changed using the ``-v`` and ``-q`` options like the other
   programs.
+* On Kasli the firmware now starts with a unique default MAC address
+  from EEPROM if `mac` is absent from the flash config.
 
 
 ARTIQ-4

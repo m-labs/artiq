@@ -135,21 +135,36 @@ fn startup() {
         _ => {
             #[cfg(soc_platform = "kasli")]
             {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
+                let eeprom = board_artiq::i2c_eeprom::EEPROM::kasli_eeprom();
+                hardware_addr =
+                    eeprom.read_eui48()
+                    .map(|addr_buf| {
+                        let hardware_addr = EthernetAddress(addr_buf);
+                        info!("using MAC address {} from EEPROM", hardware_addr);
+                        hardware_addr
+                    })
+                    .unwrap_or_else(|e| {
+                        error!("failed to read MAC address from EEPROM: {}", e);
+                        let hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
+                        warn!("using default MAC address {}; consider changing it", hardware_addr);
+                        hardware_addr
+                    });
             }
             #[cfg(soc_platform = "sayma_amc")]
             {
                 hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]);
+                warn!("using default MAC address {}; consider changing it", hardware_addr);
             }
             #[cfg(soc_platform = "metlino")]
             {
                 hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]);
+                warn!("using default MAC address {}; consider changing it", hardware_addr);
             }
             #[cfg(soc_platform = "kc705")]
             {
                 hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
+                warn!("using default MAC address {}; consider changing it", hardware_addr);
             }
-            warn!("using default MAC address {}; consider changing it", hardware_addr);
         }
     }
 
