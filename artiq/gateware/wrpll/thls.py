@@ -3,6 +3,7 @@ import ast
 from copy import copy
 import operator
 from functools import reduce
+from collections import OrderedDict
 
 from migen import *
 from migen.genlib.fsm import *
@@ -73,7 +74,7 @@ class ASTCompiler:
         self.next_ssa_reg = -1
         self.constants = dict()
         self.names = dict()
-        self.globals = dict()
+        self.globals = OrderedDict()
 
     def get_ssa_reg(self):
         r = self.next_ssa_reg
@@ -81,11 +82,11 @@ class ASTCompiler:
         return r
 
     def add_global(self, name):
-        r = len(self.data)
-        self.data.append(0)
-        self.names[name] = r
-        self.globals[name] = r
-        return r
+        if name not in self.globals:
+            r = len(self.data)
+            self.data.append(0)
+            self.names[name] = r
+            self.globals[name] = r
 
     def input(self, name):
         target = self.get_ssa_reg()
@@ -266,10 +267,19 @@ class Scheduler:
             return False
 
         if isn.outputs:
+            # check that exit slot is free
             latency = self.processor.get_instruction_latency(isn)
             exit = cycle + latency
             if exit in self.exits:
                 return False
+
+            # avoid RAW hazard with global writeback
+            for output in isn.outputs:
+                if output >= 0:
+                    for risn in self.remaining:
+                        for inp in risn.inputs:
+                            if inp == output:
+                                return False
 
         # Instruction can be scheduled
 
@@ -282,7 +292,10 @@ class Scheduler:
 
         if isn.outputs:
             assert len(isn.outputs) == 1
-            output = self.allocate_register()
+            if isn.outputs[0] < 0:
+                output = self.allocate_register()
+            else:
+                output = isn.outputs[0]
             self.exits[exit] = (isn.outputs[0], output)
         self.output.append(isn.__class__(immediate=isn.immediate, inputs=mapped_inputs))
 
@@ -352,6 +365,10 @@ def compile(processor, function):
         astcompiler.emit(node)
         if isinstance(node, ast.Return):
             break
+    for glbl, location in astcompiler.globals.items():
+        new_location = astcompiler.names[glbl]
+        if new_location != location:
+            astcompiler.program.append(CopyIsn(inputs=[new_location], outputs=[location]))
 
     scheduler = Scheduler(processor, len(astcompiler.data), astcompiler.program)
     scheduler.schedule()
@@ -585,7 +602,9 @@ def foo(x):
 
 
 def simple_test(x):
-    return min((x*-2 >> 1) + 2 - 1000, 10)
+    global a
+    a = a + (x*4 >> 1)
+    return a
 
 
 if __name__ == "__main__":
@@ -614,4 +633,4 @@ if __name__ == "__main__":
             callback((yield proc_impl.output))
             yield
 
-    run_simulation(proc_impl, [send_values([42, 40]), receive_values(print)])
+    run_simulation(proc_impl, [send_values([42, 40, 10, 10]), receive_values(print)])
