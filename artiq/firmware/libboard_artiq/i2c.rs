@@ -2,6 +2,8 @@
 mod imp {
     use board_misoc::{csr, clock};
 
+    const INVALID_BUS: &'static str = "Invalid I2C bus";
+
     fn half_period() { clock::spin_us(100) }
     fn sda_bit(busno: u8) -> u8 { 1 << (2 * busno + 1) }
     fn scl_bit(busno: u8) -> u8 { 1 << (2 * busno) }
@@ -76,9 +78,9 @@ mod imp {
         }
     }
 
-    pub fn start(busno: u8) -> Result<(), ()> {
+    pub fn start(busno: u8) -> Result<(), &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         // Set SCL high then SDA low
         scl_o(busno, true);
@@ -88,9 +90,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn restart(busno: u8) -> Result<(), ()> {
+    pub fn restart(busno: u8) -> Result<(), &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         // Set SCL low then SDA high */
         scl_o(busno, false);
@@ -102,9 +104,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn stop(busno: u8) -> Result<(), ()> {
+    pub fn stop(busno: u8) -> Result<(), &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         // First, make sure SCL is low, so that the target releases the SDA line
         scl_o(busno, false);
@@ -118,9 +120,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn write(busno: u8, data: u8) -> Result<bool, ()> {
+    pub fn write(busno: u8, data: u8) -> Result<bool, &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         // MSB first
         for bit in (0..8).rev() {
@@ -144,9 +146,9 @@ mod imp {
         Ok(!sda_i(busno))
     }
 
-    pub fn read(busno: u8, ack: bool) -> Result<u8, ()> {
+    pub fn read(busno: u8, ack: bool) -> Result<u8, &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         // Set SCL low first, otherwise setting SDA as input may cause a transition
         // on SDA with SCL high which will be interpreted as START/STOP condition.
@@ -180,12 +182,13 @@ mod imp {
 
 #[cfg(not(has_i2c))]
 mod imp {
+    const NO_I2C: &'static str = "No I2C support on this platform";
     pub fn init() {}
-    pub fn start(_busno: u8) -> Result<(), ()> { Err(()) }
-    pub fn restart(_busno: u8) -> Result<(), ()> { Err(()) }
-    pub fn stop(_busno: u8) -> Result<(), ()> { Err(()) }
-    pub fn write(_busno: u8, _data: u8) -> Result<bool, ()> { Err(()) }
-    pub fn read(_busno: u8, _ack: bool) -> Result<u8, ()> { Err(()) }
+    pub fn start(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn restart(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
+    pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
 }
 
 pub use self::imp::*;

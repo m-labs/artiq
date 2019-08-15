@@ -26,30 +26,26 @@ impl EEPROM {
     fn select(&self) -> Result<(), &'static str> {
         let mask: u16 = 1 << self.port;
         pca9548::select(self.busno, I2C_SWITCH0, mask as u8)?;
-        pca9548::select(self.busno, I2C_SWITCH1, (mask >> 8) as u8)
+        pca9548::select(self.busno, I2C_SWITCH1, (mask >> 8) as u8)?;
+
+        Ok(())
     }
 
     pub fn read<'a>(&self, addr: u8, buf: &'a mut [u8]) -> Result<(), &'static str> {
         self.select()?;
 
-        Ok(()).and_then(|()| {
-            i2c::start(self.busno)?;
-            i2c::write(self.busno, self.address)?;
-            i2c::write(self.busno, addr)?;
-            Ok(())
-        }).map_err(|()| "I2C address write error")?;
+        i2c::start(self.busno)?;
+        i2c::write(self.busno, self.address)?;
+        i2c::write(self.busno, addr)?;
 
-        Ok(()).and_then(|()| {
-            i2c::restart(self.busno)?;
-            i2c::write(self.busno, self.address | 1)?;
-            let buf_len = buf.len();
-            for (i, byte) in buf.iter_mut().enumerate() {
-                *byte = i2c::read(self.busno, i < buf_len - 1)?;
-            }
+        i2c::restart(self.busno)?;
+        i2c::write(self.busno, self.address | 1)?;
+        let buf_len = buf.len();
+        for (i, byte) in buf.iter_mut().enumerate() {
+            *byte = i2c::read(self.busno, i < buf_len - 1)?;
+        }
 
-            i2c::stop(self.busno)?;
-            Ok(())
-        }).map_err(|()| "I2C read error")?;
+        i2c::stop(self.busno)?;
 
         Ok(())
     }
