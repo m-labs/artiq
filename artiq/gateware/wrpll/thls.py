@@ -530,6 +530,7 @@ class ProcessorImpl(Module):
         self.submodules += units
 
         for unit in units:
+            self.sync += unit.stb_i.eq(0)
             self.comb += [
                 unit.i0.eq(data_read_port0.dat_r),
                 unit.i1.eq(data_read_port1.dat_r),
@@ -552,7 +553,7 @@ class ProcessorImpl(Module):
             (OutputIsn.opcode,         outu)
         ]
         for allocated_opcode, unit in decode_table:
-            self.sync += unit.stb_i.eq(pc_en & (opcode == allocated_opcode))
+            self.sync += If(pc_en & (opcode == allocated_opcode), unit.stb_i.eq(1))
 
         fsm = FSM()
         self.submodules += fsm
