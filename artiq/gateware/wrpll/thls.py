@@ -132,13 +132,28 @@ class ASTCompiler:
             output = self.get_ssa_reg()
             self.program.append(cons(inputs=inputs, outputs=[output]))
             return output
-        elif isinstance(node, ast.Num):
-            if node.n in self.constants:
-                return self.constants[node.n]
+        elif isinstance(node, (ast.Num, ast.UnaryOp)):
+            if isinstance(node, ast.UnaryOp):
+                if not isinstance(node.operand, ast.Num):
+                    raise NotImplementedError
+                if isinstance(node.op, ast.UAdd):
+                    transform = lambda x: x
+                elif isinstance(node.op, ast.USub):
+                    transform = operator.neg
+                elif isinstance(node.op, ast.Invert):
+                    transform = operator.invert
+                else:
+                    raise NotImplementedError
+                node = node.operand
+            else:
+                transform = lambda x: x
+            n = transform(node.n)
+            if n in self.constants:
+                return self.constants[n]
             else:
                 r = len(self.data)
-                self.data.append(node.n)
-                self.constants[node.n] = r
+                self.data.append(n)
+                self.constants[n] = r
                 return r
         elif isinstance(node, ast.Name):
             return self.names[node.id]
@@ -357,10 +372,10 @@ def compile(processor, function):
 class BaseUnit(Module):
     def __init__(self, data_width):
         self.stb_i = Signal()
-        self.i0 = Signal(data_width)
-        self.i1 = Signal(data_width)
+        self.i0 = Signal((data_width, True))
+        self.i1 = Signal((data_width, True))
         self.stb_o = Signal()
-        self.o = Signal(data_width)
+        self.o = Signal((data_width, True))
 
 
 class NopUnit(BaseUnit):
@@ -436,10 +451,10 @@ class OutputUnit(BaseUnit):
 class ProcessorImpl(Module):
     def __init__(self, pd, program, data):
         self.input_stb = Signal()
-        self.input = Signal(pd.data_width)
+        self.input = Signal((pd.data_width, True))
 
         self.output_stb = Signal()
-        self.output = Signal(pd.data_width)
+        self.output = Signal((pd.data_width, True))
 
         self.busy = Signal()
 
@@ -569,7 +584,7 @@ def foo(x):
 
 
 def simple_test(x):
-    return min((x*2 >> 1) + 2, 10)
+    return min((x*-2 >> 1) + 2 - 1000, 10)
 
 
 if __name__ == "__main__":
