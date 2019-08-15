@@ -45,17 +45,19 @@ class SubIsn(Isn):
 class MulShiftIsn(Isn):
     opcode = 3
 
+# opcode = 4: MulShift with alternate shift
+
 class CopyIsn(Isn):
-    opcode = 4
+    opcode = 7
 
 class InputIsn(Isn):
-    opcode = 5
+    opcode = 8
 
 class OutputIsn(Isn):
-    opcode = 6
+    opcode = 9
 
 class EndIsn(Isn):
-    opcode = 7
+    opcode = 10
 
 
 class ASTCompiler:
@@ -139,7 +141,7 @@ class Processor:
         self.multiplier_shifts = []
         self.program_rom_size = None
         self.data_ram_size = None
-        self.opcode_bits = 3
+        self.opcode_bits = 4
         self.reg_bits = None
 
     def get_instruction_latency(self, isn):
@@ -472,8 +474,7 @@ class ProcessorImpl(Module):
         units = [nop, adder, subtractor, multiplier, copier, inu, outu]
         self.submodules += units
 
-        for n, unit in enumerate(units):
-            self.sync += unit.stb_i.eq(pc_en & (opcode == n))
+        for unit in units:
             self.comb += [
                 unit.i0.eq(data_read_port0.dat_r),
                 unit.i1.eq(data_read_port1.dat_r),
@@ -482,6 +483,19 @@ class ProcessorImpl(Module):
                     data_write_port.dat_w.eq(unit.o)
                 )
             ]
+
+        decode_table = [
+            (NopIsn.opcode,            nop),
+            (AddIsn.opcode,            adder),
+            (SubIsn.opcode,            subtractor),
+            (MulShiftIsn.opcode,       multiplier),
+            (MulShiftIsn.opcode + 1,   multiplier),
+            (CopyIsn.opcode,           copier),
+            (InputIsn.opcode,          inu),
+            (OutputIsn.opcode,         outu)
+        ]
+        for allocated_opcode, unit in decode_table:
+            self.sync += unit.stb_i.eq(pc_en & (opcode == allocated_opcode))
 
         fsm = FSM()
         self.submodules += fsm
