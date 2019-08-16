@@ -33,7 +33,8 @@ def get_argparser():
                "Optional + and - pattern prefixes specify to either ignore or "
                "log keys matching the rest of the pattern. "
                "Default (in the absence of prefix) is to ignore. Last matched "
-               "pattern takes precedence.")
+               "pattern takes precedence. \n \n"
+               "For a dataset to be logged, it must be marked as persistent.")
     master_group = parser.add_argument_group("master")
     master_group.add_argument(
         "--server-master", default="::1",
