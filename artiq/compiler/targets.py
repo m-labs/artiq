@@ -256,7 +256,7 @@ class OR1KTarget(Target):
     little_endian = False
 
 class CortexA9Target(Target):
-    triple = "armv7-unknown-linux-gnueabihf"
+    triple = "armv7-linux-gnueabihf"
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
     print_function = "core_log"
