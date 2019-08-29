@@ -64,12 +64,17 @@ def peripheral_zotino(module, peripheral):
 
 def peripheral_grabber(module, peripheral):
     if len(peripheral["ports"]) == 1:
-        port, port_aux = peripheral["ports"][0], None
+        port = peripheral["ports"][0]
+        port_aux = None
+        port_aux2 = None
     elif len(peripheral["ports"]) == 2:
         port, port_aux = peripheral["ports"]
+        port_aux2 = None
+    elif len(peripheral["ports"]) == 3:
+        port, port_aux, port_aux2 = peripheral["ports"]
     else:
         raise ValueError("wrong number of ports")
-    eem.Grabber.add_std(module, port, port_aux)
+    eem.Grabber.add_std(module, port, port_aux, port_aux2)
 
 
 def add_peripherals(module, peripherals):

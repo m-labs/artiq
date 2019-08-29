@@ -431,7 +431,7 @@ class Grabber(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux=None, ttl_out_cls=None, iostandard="LVDS_25"):
+    def add_std(cls, target, eem, eem_aux=None, eem_aux2=None, ttl_out_cls=None, iostandard="LVDS_25"):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         pads = target.platform.request("grabber{}_video".format(eem))
