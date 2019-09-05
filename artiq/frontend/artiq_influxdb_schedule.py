@@ -194,6 +194,8 @@ class MasterReader(TaskObject):
                     ConnectionRefusedError, ConnectionResetError) as e:
                 logger.warning("Connection to master failed (%s: %s)",
                                e.__class__.__name__, str(e))
+            except Exception as e:
+                logger.exception(e)
             else:
                 logger.warning("Connection to master lost")
             logger.warning("Retrying in %.1f seconds", self.retry)
