@@ -150,7 +150,7 @@ class Log(dict):
                         "arguments": v["expid"].get("arguments", {}),
                         "flush": v["flush"],
                     },
-                    keys={
+                    tags={
                         "status": "add",
                         "class_name": v["expid"]["class_name"],
                         "file": v["expid"]["file"],
