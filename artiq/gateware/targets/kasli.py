@@ -148,32 +148,30 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
 
-class Opticlock(StandaloneBase):
+class Tester(StandaloneBase):
     """
-    Opticlock extension variant configuration
+    Configuration for CI tests. Contains the maximum number of different EEMs.
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v1.0"
+            hw_rev = "v1.1"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["SI5324_EXT_REF"] = None
-        self.config["EXT_REF_FREQUENCY"] = "100.0"
+        # self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
 
         self.rtio_channels = []
-        eem.DIO.add_std(self, 0,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 1,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.DIO.add_std(self, 2,
-            ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
-        eem.Novogorny.add_std(self, 3, ttl_serdes_7series.Output_8X)
-        eem.Urukul.add_std(self, 5, 4, ttl_serdes_7series.Output_8X)
+        eem.DIO.add_std(self, 5,
+            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
+            edge_counter_cls=edge_counter.SimpleEdgeCounter)
+        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
+                           ttl_simple.ClockGen)
+        eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
+        eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -181,14 +179,9 @@ class Opticlock(StandaloneBase):
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        eem.Urukul.add_std(self, 6, None, ttl_serdes_7series.Output_8X,
-                           ttl_simple.ClockGen)
-        eem.Zotino.add_std(self, 7, ttl_serdes_7series.Output_8X)
-
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
-
         self.add_rtio(self.rtio_channels)
 
 
@@ -237,43 +230,6 @@ class SUServo(StandaloneBase):
             pads.clkout, self.rtio_crg.cd_rtio.clk)
         self.platform.add_false_path_constraints(
             pads.clkout, self.crg.cd_sys.clk)
-
-
-class Tester(StandaloneBase):
-    """
-    Configuration for CI tests. Contains the maximum number of different EEMs.
-    """
-    def __init__(self, hw_rev=None, **kwargs):
-        if hw_rev is None:
-            hw_rev = "v1.1"
-        StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
-
-        self.config["SI5324_AS_SYNTHESIZER"] = None
-        # self.config["SI5324_EXT_REF"] = None
-        self.config["RTIO_FREQUENCY"] = "125.0"
-        if hw_rev == "v1.0":
-            # EEM clock fan-out from Si5324, not MMCX
-            self.comb += self.platform.request("clk_sel").eq(1)
-
-        self.rtio_channels = []
-        eem.DIO.add_std(self, 5,
-            ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
-            edge_counter_cls=edge_counter.SimpleEdgeCounter)
-        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
-                           ttl_simple.ClockGen)
-        eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
-        eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
-
-        for i in (1, 2):
-            sfp_ctl = self.platform.request("sfp_ctl", i)
-            phy = ttl_simple.Output(sfp_ctl.led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.config["HAS_RTIO_LOG"] = None
-        self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
-        self.rtio_channels.append(rtio.LogChannel())
-        self.add_rtio(self.rtio_channels)
 
 
 class _RTIOClockMultiplier(Module, AutoCSR):
@@ -662,9 +618,7 @@ class Satellite(SatelliteBase):
         self.add_rtio(self.rtio_channels)
 
 
-VARIANTS = {cls.__name__.lower(): cls for cls in [
-    Opticlock, SUServo,
-    Tester, Master, Satellite]}
+VARIANTS = {cls.__name__.lower(): cls for cls in [Tester, SUServo, Master, Satellite]}
 
 
 def main():
@@ -673,7 +627,7 @@ def main():
     builder_args(parser)
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
-    parser.add_argument("-V", "--variant", default="opticlock",
+    parser.add_argument("-V", "--variant", default="tester",
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(VARIANTS.keys()))))
     args = parser.parse_args()
