@@ -45,6 +45,12 @@ def peripheral_urukul(module, peripheral):
         sync_gen_cls)
 
 
+def peripheral_novogorny(module, peripheral):
+    if len(peripheral["ports"]) != 1:
+        raise ValueError("wrong number of ports")
+    eem.Novogorny.add_std(module, peripheral["ports"][0], ttl_serdes_7series.Output_8X)
+
+
 def peripheral_sampler(module, peripheral):
     if len(peripheral["ports"]) == 1:
         port, port_aux = peripheral["ports"][0], None
@@ -81,6 +87,7 @@ def add_peripherals(module, peripherals):
     peripheral_processors = {
         "dio": peripheral_dio,
         "urukul": peripheral_urukul,
+        "novogorny": peripheral_novogorny,
         "sampler": peripheral_sampler,
         "zotino": peripheral_zotino,
         "grabber": peripheral_grabber,
