@@ -226,6 +226,34 @@ class PeripheralManager:
                 raise ValueError
         return next(channel)
 
+    def process_novogorny(self, rtio_offset, peripheral):
+        self.gen("""
+            device_db["spi_{name}_adc"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.spi2",
+                "class": "SPIMaster",
+                "arguments": {{"channel": 0x{adc_channel:06x}}}
+            }}
+            device_db["ttl_{name}_cnv"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLOut",
+                "arguments": {{"channel": 0x{cnv_channel:06x}}},
+            }}
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.novogorny",
+                "class": "Novogorny",
+                "arguments": {{
+                    "spi_adc_device": "spi_{name}_adc",
+                    "cnv_device": "ttl_{name}_cnv"
+                }}
+            }}""",
+            name=self.get_name("novogorny"),
+            adc_channel=rtio_offset,
+            cnv_channel=rtio_offset + 1)
+        return 2
+
     def process_sampler(self, rtio_offset, peripheral):
         self.gen("""
             device_db["spi_{name}_adc"] = {{
