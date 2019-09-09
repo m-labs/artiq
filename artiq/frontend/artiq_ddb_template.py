@@ -240,7 +240,7 @@ class PeripheralManager:
                 "class": "SPIMaster",
                 "arguments": {{"channel": 0x{pgia_channel:06x}}}
             }}
-            device_db["spi_{name}_cnv"] = {{
+            device_db["ttl_{name}_cnv"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.ttl",
                 "class": "TTLOut",
@@ -253,7 +253,7 @@ class PeripheralManager:
                 "arguments": {{
                     "spi_adc_device": "spi_{name}_adc",
                     "spi_pgia_device": "spi_{name}_pgia",
-                    "cnv_device": "spi_{name}_cnv"
+                    "cnv_device": "ttl_{name}_cnv"
                 }}
             }}""",
             name=self.get_name("sampler"),
