@@ -240,7 +240,16 @@ async def asyncio_wait_or_cancel(fs, **kwargs):
 
 class TaskObject:
     def start(self):
-        self.task = asyncio.ensure_future(self._do())
+        async def log_exceptions(awaitable):
+            try:
+                return await awaitable()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.error("Unhandled exception in TaskObject task body", exc_info=True)
+                raise
+
+        self.task = asyncio.ensure_future(log_exceptions(self._do))
 
     async def stop(self):
         self.task.cancel()
