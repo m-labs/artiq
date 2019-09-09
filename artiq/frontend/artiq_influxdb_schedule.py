@@ -148,6 +148,7 @@ class Log(dict):
                         "priority": v["priority"],
                         "due_date": v["due_date"] or -1.,
                         "arguments": v["expid"].get("arguments", {}),
+                        "repo_rev": v["expid"]["repo_rev"],
                         "flush": v["flush"],
                     },
                     tags={
