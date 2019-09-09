@@ -175,7 +175,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         file = getattr(module, "__file__")
     expid = {
         "file": file,
-        "experiment": args.experiment,
+        "class_name": args.experiment,
         "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
