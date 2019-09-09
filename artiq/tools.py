@@ -93,9 +93,9 @@ def file_import(filename, prefix="file_import_"):
     return module
 
 
-def get_experiment(module, experiment=None):
-    if experiment:
-        return getattr(module, experiment)
+def get_experiment(module, class_name=None):
+    if class_name:
+        return getattr(module, class_name)
 
     exps = [(k, v) for k, v in module.__dict__.items()
             if k[0] != "_" and is_experiment(v)]

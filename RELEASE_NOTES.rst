@@ -31,6 +31,8 @@ ARTIQ-5
   programs.
 * On Kasli the firmware now starts with a unique default MAC address
   from EEPROM if `mac` is absent from the flash config.
+* The ``-e/--experiment`` switch of ``artiq_run`` and ``artiq_compile``
+  has been renamed ``-c/--class-name``.
 
 
 ARTIQ-4

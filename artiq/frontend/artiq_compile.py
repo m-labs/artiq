@@ -21,8 +21,8 @@ def get_argparser():
     parser.add_argument("--dataset-db", default="dataset_db.pyon",
                         help="dataset file (default: '%(default)s')")
 
-    parser.add_argument("-e", "--experiment", default=None,
-                        help="experiment to compile")
+    parser.add_argument("-c", "--class-name", default=None,
+                        help="name of the class to compile")
 
     parser.add_argument("-o", "--output", default=None,
                         help="output file")
@@ -43,7 +43,7 @@ def main():
 
     try:
         module = file_import(args.file, prefix="artiq_run_")
-        exp = get_experiment(module, args.experiment)
+        exp = get_experiment(module, args.class_name)
         arguments = parse_arguments(args.arguments)
         argument_mgr = ProcessArgumentManager(arguments)
         exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))

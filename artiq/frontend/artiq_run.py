@@ -132,8 +132,8 @@ def get_argparser(with_file=True):
     parser.add_argument("--dataset-db", default="dataset_db.pyon",
                         help="dataset file (default: '%(default)s')")
 
-    parser.add_argument("-e", "--experiment", default=None,
-                        help="experiment to run")
+    parser.add_argument("-c", "--class-name", default=None,
+                        help="name of the class to run")
     parser.add_argument("-o", "--hdf5", default=None,
                         help="write results to specified HDF5 file"
                              " (default: print them)")
@@ -157,8 +157,8 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         if is_elf or is_ll or is_bc:
             if args.arguments:
                 raise ValueError("arguments not supported for precompiled kernels")
-            if args.experiment:
-                raise ValueError("experiment-by-name not supported "
+            if args.class_name:
+                raise ValueError("class-name not supported "
                                  "for precompiled kernels")
         if is_elf:
             return ELFRunner(managers, file=args.file)
@@ -175,11 +175,11 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         file = getattr(module, "__file__")
     expid = {
         "file": file,
-        "experiment": args.experiment,
+        "class_name": args.class_name,
         "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
-    return get_experiment(module, args.experiment)(managers)
+    return get_experiment(module, args.class_name)(managers)
 
 
 def run(with_file=False):
