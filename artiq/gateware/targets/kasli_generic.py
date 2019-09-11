@@ -61,6 +61,18 @@ def peripheral_sampler(module, peripheral):
     eem.Sampler.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X)
 
 
+def peripheral_suservo(module, peripheral):
+    if len(peripheral["sampler_ports"]) != 2:
+        raise ValueError("wrong number of Sampler ports")
+    if len(peripheral["urukul0_ports"]) != 2:
+        raise ValueError("wrong number of Urukul #0 ports")
+    if len(peripheral["urukul1_ports"]) != 2:
+        raise ValueError("wrong number of Urukul #1 ports")
+    eem.SUServo.add_std(module,
+        peripheral["sampler_ports"],
+        peripheral["urukul0_ports"], peripheral["urukul1_ports"])
+
+
 def peripheral_zotino(module, peripheral):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
@@ -89,6 +101,7 @@ def add_peripherals(module, peripherals):
         "urukul": peripheral_urukul,
         "novogorny": peripheral_novogorny,
         "sampler": peripheral_sampler,
+        "suservo": peripheral_suservo,
         "zotino": peripheral_zotino,
         "grabber": peripheral_grabber,
     }
