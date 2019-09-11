@@ -133,7 +133,7 @@ class GenericStandalone(StandaloneBase):
         self.rtio_channels = []
         add_peripherals(self, description["peripherals"])
         for i in (1, 2):
-            print("SFP LED at RTIO channel {}".format(len(self.rtio_channels)))
+            print("SFP LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
             sfp_ctl = self.platform.request("sfp_ctl", i)
             phy = ttl_simple.Output(sfp_ctl.led)
             self.submodules += phy

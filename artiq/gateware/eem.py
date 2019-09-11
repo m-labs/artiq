@@ -24,7 +24,7 @@ class _EEM:
     def add_extension(cls, target, eem, *args, **kwargs):
         name = cls.__name__
         target.platform.add_extension(cls.io(eem, *args, **kwargs))
-        print("{} (EEM{}) starting at RTIO channel {}"
+        print("{} (EEM{}) starting at RTIO channel 0x{:06x}"
               .format(name, eem, len(target.rtio_channels)))
 
 
