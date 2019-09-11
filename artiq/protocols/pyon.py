@@ -193,6 +193,7 @@ _eval_dict = {
     "null": None,
     "false": False,
     "true": True,
+    "inf": numpy.inf,
     "slice": slice,
     "nan": numpy.nan,
 
