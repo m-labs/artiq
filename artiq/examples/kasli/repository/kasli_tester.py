@@ -195,6 +195,8 @@ class KasliTester(EnvExperiment):
     @kernel
     def calibrate_urukul(self, channel):
         self.core.break_realtime()
+        channel.init()
+        self.core.break_realtime()
         sync_delay_seed, _ = channel.tune_sync_delay()
         self.core.break_realtime()
         io_update_delay = channel.tune_io_update_delay()
