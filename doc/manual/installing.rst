@@ -106,7 +106,7 @@ Executing just ``conda`` should print the help of the ``conda`` command. If your
 Download the `ARTIQ installer script <https://raw.githubusercontent.com/m-labs/artiq/master/install-with-conda.py>`_ and edit its beginning to define the Conda environment name (you can leave the default environment name if you are just getting started) and select the desired ARTIQ packages. Non-ARTIQ packages should be installed manually later.
 
 .. note::
-  If you do not need to flash boards, the ``artiq`` package from the ``main`` Hydra build is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board and are never necessary for using an ARTIQ system without reflashing it.
+  If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board and are never necessary for using an ARTIQ system without reflashing it.
 
 Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages, and list them at the beginning of the script.
 
