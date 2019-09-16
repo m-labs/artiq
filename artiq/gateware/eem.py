@@ -5,7 +5,7 @@ from migen.genlib.io import DifferentialOutput
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
-from artiq.gateware.rtio.phy import servo as rtservo
+from artiq.gateware.rtio.phy import servo as rtservo, fastino
 
 
 def _eem_signal(i):
@@ -603,3 +603,25 @@ class Mirny(_EEM):
             phy = ttl_out_cls(pads.p, pads.n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+
+class Fastino(_EEM):
+    @staticmethod
+    def io(eem, iostandard="LVDS_25"):
+        return [
+            ("fastino{}_ser_{}".format(eem, pol), 0,
+                Subsignal("clk", Pins(_eem_pin(eem, 0, pol))),
+                Subsignal("mosi", Pins(*(_eem_pin(eem, i, pol)
+                    for i in range(1, 7)))),
+                Subsignal("miso", Pins(_eem_pin(eem, 7, pol))),
+                IOStandard(iostandard),
+            ) for pol in "pn"]
+
+    @classmethod
+    def add_std(cls, target, eem, iostandard="LVDS_25"):
+        cls.add_extension(target, eem, iostandard=iostandard)
+
+        phy = fastino.Fastino(target.platform.request("fastino{}_ser_p".format(eem)),
+            target.platform.request("fastino{}_ser_n".format(eem)))
+        target.submodules += phy
+        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
