@@ -158,6 +158,12 @@ DAC/ADC drivers
 .. automodule:: artiq.coredevice.novogorny
     :members:
 
+:mod:`artiq.coredevice.fastino` module
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.fastino
+    :members:
+
 
 Miscellaneous
 -------------

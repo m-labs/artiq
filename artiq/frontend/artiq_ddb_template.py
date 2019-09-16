@@ -473,6 +473,18 @@ class PeripheralManager:
             channel=rtio_offset)
         return 2
 
+    def process_fastino(self, rtio_offset, peripheral):
+        self.gen("""
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.fastino",
+                "class": "Fastino",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=self.get_name("fastino"),
+            channel=rtio_offset)
+        return 1
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
