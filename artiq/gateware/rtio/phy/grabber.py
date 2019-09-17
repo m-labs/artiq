@@ -23,7 +23,6 @@ class Synchronizer(Module):
 
         for count in counts_in:
             count.attr.add("no_retiming")
-        counts_rtio = [Signal.like(count) for count in counts_in]
         self.specials += [MultiReg(i, o, "rtio") for i, o in zip(counts_in, self.counts)]
 
         ps = PulseSynchronizer("cl", "rtio")
