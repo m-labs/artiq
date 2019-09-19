@@ -44,6 +44,8 @@ class AsyncioServer:
 
     def _client_done(self, task):
         self._client_tasks.remove(task)
+        if task.exception() and task.exception() != asyncio.CancelledError:
+            raise task.exception()
 
     def _handle_connection(self, reader, writer):
         task = asyncio.ensure_future(self._handle_connection_cr(reader, writer))
