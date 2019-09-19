@@ -150,6 +150,9 @@ class Client:
             if not more:
                 break
             buf += more.decode()
+        if not buf:
+            self.__socket.close()
+            raise ConnectionError('The RPC server closed the connection')
         return pyon.decode(buf)
 
     def __do_action(self, action):
