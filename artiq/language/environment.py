@@ -261,6 +261,32 @@ class HasEnvironment:
                             "be called from build()")
         return self.__argument_mgr.get(key, processor, group, tooltip)
 
+    def call_children_method(self, method, *args, **kwargs):
+        '''
+        Calls the named method for each child, if it exists for that child.
+
+        :param method: Name of the method to call
+        :type method: str
+        :param args: Tuple of positional arguments to pass to all children
+        :param kwargs: Dict of keyword arguments to pass to all children
+        :return: Dict of output from children which had the requested method.
+                 Keys are tuples of ([child class], [child object id]).
+        '''
+        ret = dict()
+        for child in self.children:
+            try:
+                child_method = getattr(child, method)
+            except AttributeError:
+                pass
+            else:
+                out = child_method(*args, **kwargs)
+                child_id = id(child)
+                child_class = child.__class__
+                ret[(child_class, child_id)] = out
+
+        return ret
+
+
     def setattr_argument(self, key, processor=None, group=None, tooltip=None):
         """Sets an argument as attribute. The names of the argument and of the
         attribute are the same.
@@ -437,9 +463,8 @@ class EnvExperiment(Experiment, HasEnvironment):
         """This default prepare method calls :meth:`~artiq.language.environment.Experiment.prepare`
         for all children, in the order of instantiation, if the child has a
         :meth:`~artiq.language.environment.Experiment.prepare` method."""
-        for child in self.children:
-            if hasattr(child, "prepare"):
-                child.prepare()
+
+        self.call_children_method('prepare')
 
 
 def is_experiment(o):
