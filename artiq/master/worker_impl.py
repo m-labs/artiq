@@ -170,7 +170,7 @@ def examine(device_mgr, dataset_mgr, file):
                 if exp_class.__doc__ is None:
                     name = class_name
                 else:
-                    name = exp_class.__doc__.splitlines()[0].strip()
+                    name = exp_class.__doc__.strip().splitlines()[0].strip()
                     if name[-1] == ".":
                         name = name[:-1]
                 argument_mgr = TraceArgumentManager()
