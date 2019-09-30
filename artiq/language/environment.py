@@ -222,6 +222,23 @@ class HasEnvironment:
     def register_child(self, child):
         self.children.append(child)
 
+    def call_child_method(self, method, *args, **kwargs):
+        """Calls the named method for each child, if it exists for that child,
+        in the order of registration.
+
+        :param method: Name of the method to call
+        :type method: str
+        :param args: Tuple of positional arguments to pass to all children
+        :param kwargs: Dict of keyword arguments to pass to all children
+        """
+        for child in self.children:
+            try:
+                child_method = getattr(child, method)
+            except AttributeError:
+                pass
+            else:
+                child_method(*args, **kwargs)
+
     def build(self):
         """Should be implemented by the user to request arguments.
 
@@ -435,11 +452,9 @@ class EnvExperiment(Experiment, HasEnvironment):
     Most experiments should derive from this class."""
     def prepare(self):
         """This default prepare method calls :meth:`~artiq.language.environment.Experiment.prepare`
-        for all children, in the order of instantiation, if the child has a
+        for all children, in the order of registration, if the child has a
         :meth:`~artiq.language.environment.Experiment.prepare` method."""
-        for child in self.children:
-            if hasattr(child, "prepare"):
-                child.prepare()
+        self.call_child_method("prepare")
 
 
 def is_experiment(o):
