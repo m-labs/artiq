@@ -136,6 +136,8 @@ class _SatelliteBase(BaseSoC):
         self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
+        if self.hw_rev == "v2.0":
+            self.comb += platform.request("filtered_clk_sel").eq(1)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             rx_synchronizer=self.rx_synchronizer,
