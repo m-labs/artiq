@@ -358,27 +358,58 @@ class Satellite(BaseSoC, RTMCommon):
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
 
-        rx0 = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer = rx0(XilinxRXSynchronizer())
-        self.submodules.drtiosat = rx0(DRTIOSatellite(
-            self.rtio_tsc, self.drtio_transceiver.channels[0],
-            self.rx_synchronizer))
-        self.csr_devices.append("drtiosat")
-        self.submodules.drtioaux0 = rx0(DRTIOAuxController(
-            self.drtiosat.link_layer))
-        self.csr_devices.append("drtioaux0")
-        self.add_wb_slave(self.mem_map["drtioaux"], 0x800,
-                          self.drtioaux0.bus)
-        self.add_memory_region("drtioaux0_mem", self.mem_map["drtioaux"] | self.shadow_base, 0x800)
+        drtioaux_csr_group = []
+        drtioaux_memory_group = []
+        drtiorep_csr_group = []
+        drtio_cri = []
+        for i in range(len(self.drtio_transceiver.channels)):
+            coreaux_name = "drtioaux" + str(i)
+            memory_name = "drtioaux" + str(i) + "_mem"
+            drtioaux_csr_group.append(coreaux_name)
+            drtioaux_memory_group.append(memory_name)
+
+            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
+
+            if i == 0:
+                self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
+                core = cdr(DRTIOSatellite(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i],
+                    self.rx_synchronizer))
+                self.submodules.drtiosat = core
+                self.csr_devices.append("drtiosat")
+            else:
+                corerep_name = "drtiorep" + str(i-1)
+                drtiorep_csr_group.append(corerep_name)
+
+                core = cdr(DRTIORepeater(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i]))
+                setattr(self.submodules, corerep_name, core)
+                drtio_cri.append(core.cri)
+                self.csr_devices.append(corerep_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*i
+            self.add_wb_slave(memory_address, 0x800,
+                              coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
-        self.add_csr_group("drtioaux", ["drtioaux0"])
-        self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
+        self.config["HAS_DRTIO_ROUTING"] = None
+        self.add_csr_group("drtioaux", drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
+        self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
-        self.comb += [
-            self.drtiosat.cri.connect(self.local_io.cri),
-            self.drtiosat.async_errors.eq(self.local_io.async_errors),
-        ]
+        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.drtiosat.cri],
+            [self.local_io.cri] + drtio_cri,
+            mode="sync", enable_routing=True)
+        self.csr_devices.append("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         if self.hw_rev == "v2.0":
