@@ -25,6 +25,144 @@ from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
 
+def workaround_us_lvds_tristate(platform):
+    # Those shoddy Kintex Ultrascale FPGAs take almost a microsecond to change the direction of a
+    # LVDS I/O buffer. The application has to cope with it and this cannot be handled at static
+    # timing analysis. Disable the latter for IOBUFDS.
+    # See:
+    # https://forums.xilinx.com/t5/Timing-Analysis/Delay-890-ns-in-OBUFTDS-in-Kintex-UltraScale/td-p/868364
+    platform.add_platform_command(
+        "set_false_path -through [get_pins -filter {{REF_PIN_NAME == T}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]")
+
+
+class RTMUARTForward(Module):
+    def __init__(self, platform):
+        # forward RTM UART to second FTDI UART channel
+        serial_1 = platform.request("serial", 1)
+        serial_rtm = platform.request("serial_rtm")
+        self.comb += [
+            serial_1.tx.eq(serial_rtm.rx),
+            serial_rtm.tx.eq(serial_1.rx)
+        ]
+
+
+class SatelliteBase(BaseSoC):
+    mem_map = {
+        "drtioaux":      0x14000000,
+    }
+    mem_map.update(BaseSoC.mem_map)
+
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", **kwargs):
+        BaseSoC.__init__(self,
+                 cpu_type="or1k",
+                 sdram_controller_type="minicon",
+                 l2_size=128*1024,
+                 **kwargs)
+        add_identifier(self, suffix=identifier_suffix)
+
+        platform = self.platform
+
+        # Use SFP0 to connect to master (Kasli)
+        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
+        drtio_data_pads = [platform.request("sfp", 0)]
+        if self.hw_rev == "v2.0":
+            drtio_data_pads.append(platform.request("rtm_amc_link"))
+        self.submodules.drtio_transceiver = gth_ultrascale.GTH(
+            clock_pads=platform.request("cdr_clk_clean"),
+            data_pads=drtio_data_pads,
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
+        self.csr_devices.append("drtio_transceiver")
+
+        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+
+        drtioaux_csr_group = []
+        drtioaux_memory_group = []
+        drtiorep_csr_group = []
+        self.drtio_cri = []
+        for i in range(len(self.drtio_transceiver.channels)):
+            coreaux_name = "drtioaux" + str(i)
+            memory_name = "drtioaux" + str(i) + "_mem"
+            drtioaux_csr_group.append(coreaux_name)
+            drtioaux_memory_group.append(memory_name)
+
+            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
+
+            if i == 0:
+                self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
+                core = cdr(DRTIOSatellite(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i],
+                    self.rx_synchronizer))
+                self.submodules.drtiosat = core
+                self.csr_devices.append("drtiosat")
+            else:
+                corerep_name = "drtiorep" + str(i-1)
+                drtiorep_csr_group.append(corerep_name)
+
+                core = cdr(DRTIORepeater(
+                    self.rtio_tsc, self.drtio_transceiver.channels[i]))
+                setattr(self.submodules, corerep_name, core)
+                self.drtio_cri.append(core.cri)
+                self.csr_devices.append(corerep_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*i
+            self.add_wb_slave(memory_address, 0x800,
+                              coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+        self.config["HAS_DRTIO"] = None
+        self.config["HAS_DRTIO_ROUTING"] = None
+        self.add_csr_group("drtioaux", drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
+        self.add_csr_group("drtiorep", drtiorep_csr_group)
+
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
+        if self.hw_rev == "v2.0":
+            self.comb += platform.request("filtered_clk_sel").eq(1)
+        self.submodules.siphaser = SiPhaser7Series(
+            si5324_clkin=platform.request("si5324_clkin"),
+            rx_synchronizer=self.rx_synchronizer,
+            ultrascale=True,
+            rtio_clk_freq=rtio_clk_freq)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+        self.csr_devices.append("siphaser")
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
+
+        rtio_clk_period = 1e9/rtio_clk_freq
+        gth = self.drtio_transceiver.gths[0]
+        platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
+        platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            gth.txoutclk, gth.rxoutclk)
+
+    def add_rtio(self, rtio_channels):
+        # Only add MonInj core if there is anything to monitor
+        if any([len(c.probes) for c in rtio_channels]):
+            self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+            self.csr_devices.append("rtio_moninj")
+
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.submodules.cri_con = rtio.CRIInterconnectShared(
+            [self.drtiosat.cri],
+            [self.local_io.cri] + self.drtio_cri,
+            mode="sync", enable_routing=True)
+        self.csr_devices.append("cri_con")
+        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
+        self.csr_devices.append("routing_table")
+
+
 class AD9154(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
@@ -77,16 +215,6 @@ class AD9154NoSAWG(Module, AutoCSR):
             Cat(samples[3]).eq(Cat(samples[1]))
         ]
 
-class RTMUARTForward(Module):
-    def __init__(self, platform):
-        # forward RTM UART to second FTDI UART channel
-        serial_1 = platform.request("serial", 1)
-        serial_rtm = platform.request("serial_rtm")
-        self.comb += [
-            serial_1.tx.eq(serial_rtm.rx),
-            serial_rtm.tx.eq(serial_1.rx)
-        ]
-
 
 class RTMSerWb:
     def __init__(self):
@@ -115,14 +243,95 @@ class RTMSerWb:
         self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
 
 
-def workaround_us_lvds_tristate(platform):
-    # Those shoddy Kintex Ultrascale FPGAs take almost a microsecond to change the direction of a
-    # LVDS I/O buffer. The application has to cope with it and this cannot be handled at static
-    # timing analysis. Disable the latter for IOBUFDS.
-    # See:
-    # https://forums.xilinx.com/t5/Timing-Analysis/Delay-890-ns-in-OBUFTDS-in-Kintex-UltraScale/td-p/868364
-    platform.add_platform_command(
-        "set_false_path -through [get_pins -filter {{REF_PIN_NAME == T}} -of [get_cells -filter {{REF_NAME == IOBUFDS}}]]")
+class Satellite(SatelliteBase, RTMSerWb):
+    """
+    DRTIO satellite with local DAC/SAWG channels.
+    """
+    mem_map = {
+        "serwb":         0x13000000,
+    }
+    mem_map.update(SatelliteBase.mem_map)
+
+    def __init__(self, with_sawg, **kwargs):
+        SatelliteBase.__init__(self, 150e6,
+            identifier_suffix=".without-sawg" if not with_sawg else "",
+            **kwargs)
+        RTMSerWb.__init__(self)
+
+        platform = self.platform
+
+        self.submodules += RTMUARTForward(platform)
+
+        rtio_channels = []
+        for i in range(4):
+            phy = ttl_simple.Output(platform.request("user_led", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 0)
+        self.comb += sma_io.direction.eq(1)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 1)
+        self.comb += sma_io.direction.eq(0)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.config["HMC830_REF"] = "150"
+        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(
+            platform, use_rtio_clock=True)
+        if with_sawg:
+            cls = AD9154
+        else:
+            cls = AD9154NoSAWG
+        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
+        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
+        self.csr_devices.append("ad9154_crg")
+        self.csr_devices.append("ad9154_0")
+        self.csr_devices.append("ad9154_1")
+        self.config["HAS_AD9154"] = None
+        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
+        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
+        rtio_channels.extend(rtio.Channel.from_phy(phy)
+                                for sawg in self.ad9154_0.sawgs +
+                                            self.ad9154_1.sawgs
+                                for phy in sawg.phys)
+
+        self.add_rtio(rtio_channels)
+
+        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
+            platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
+        self.csr_devices.append("sysref_sampler")
+        self.ad9154_0.jesd.core.register_jref(self.sysref_sampler.jref)
+        self.ad9154_1.jesd.core.register_jref(self.sysref_sampler.jref)
+
+
+class SimpleSatellite(SatelliteBase):
+    def __init__(self, **kwargs):
+        SatelliteBase.__init__(self, **kwargs)
+
+        platform = self.platform
+
+        self.submodules += RTMUARTForward(platform)
+
+        rtio_channels = []
+        for i in range(4):
+            phy = ttl_simple.Output(platform.request("user_led", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 0)
+        self.comb += sma_io.direction.eq(1)
+        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        sma_io = platform.request("sma_io", 1)
+        self.comb += sma_io.direction.eq(0)
+        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.add_rtio(rtio_channels)
 
 
 class Master(MiniSoC, AMPSoC):
@@ -279,170 +488,6 @@ class Master(MiniSoC, AMPSoC):
         self.csr_devices.append("routing_table")
 
 
-class Satellite(BaseSoC, RTMSerWb):
-    """
-    DRTIO satellite with local DAC/SAWG channels.
-    Use SFP0 to connect to master (Kasli/Sayma).
-    """
-    mem_map = {
-        "serwb":         0x13000000,
-        "drtioaux":      0x14000000,
-    }
-    mem_map.update(BaseSoC.mem_map)
-
-    def __init__(self, with_sawg, **kwargs):
-        BaseSoC.__init__(self,
-                 cpu_type="or1k",
-                 sdram_controller_type="minicon",
-                 l2_size=128*1024,
-                 **kwargs)
-        RTMSerWb.__init__(self)
-        add_identifier(self, suffix=".without-sawg" if not with_sawg else "")
-        self.config["HMC830_REF"] = "150"
-
-        platform = self.platform
-        rtio_clk_freq = 150e6
-
-        self.submodules += RTMUARTForward(platform)
-
-        rtio_channels = []
-        for i in range(4):
-            phy = ttl_simple.Output(platform.request("user_led", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-        sma_io = platform.request("sma_io", 0)
-        self.comb += sma_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output(4, sma_io.level)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        sma_io = platform.request("sma_io", 1)
-        self.comb += sma_io.direction.eq(0)
-        phy = ttl_serdes_ultrascale.InOut(4, sma_io.level)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(
-            platform, use_rtio_clock=True)
-        if with_sawg:
-            cls = AD9154
-        else:
-            cls = AD9154NoSAWG
-        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
-        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
-        self.csr_devices.append("ad9154_crg")
-        self.csr_devices.append("ad9154_0")
-        self.csr_devices.append("ad9154_1")
-        self.config["HAS_AD9154"] = None
-        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
-        self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
-        rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                for sawg in self.ad9154_0.sawgs +
-                                            self.ad9154_1.sawgs
-                                for phy in sawg.phys)
-
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
-
-        drtio_data_pads = [platform.request("sfp", 0)]
-        if self.hw_rev == "v2.0":
-            drtio_data_pads.append(platform.request("rtm_amc_link"))
-        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
-        self.submodules.drtio_transceiver = gth_ultrascale.GTH(
-            clock_pads=platform.request("cdr_clk_clean"),
-            data_pads=drtio_data_pads,
-            sys_clk_freq=self.clk_freq,
-            rtio_clk_freq=rtio_clk_freq)
-        self.csr_devices.append("drtio_transceiver")
-
-        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
-
-        drtioaux_csr_group = []
-        drtioaux_memory_group = []
-        drtiorep_csr_group = []
-        drtio_cri = []
-        for i in range(len(self.drtio_transceiver.channels)):
-            coreaux_name = "drtioaux" + str(i)
-            memory_name = "drtioaux" + str(i) + "_mem"
-            drtioaux_csr_group.append(coreaux_name)
-            drtioaux_memory_group.append(memory_name)
-
-            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
-
-            if i == 0:
-                self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
-                core = cdr(DRTIOSatellite(
-                    self.rtio_tsc, self.drtio_transceiver.channels[i],
-                    self.rx_synchronizer))
-                self.submodules.drtiosat = core
-                self.csr_devices.append("drtiosat")
-            else:
-                corerep_name = "drtiorep" + str(i-1)
-                drtiorep_csr_group.append(corerep_name)
-
-                core = cdr(DRTIORepeater(
-                    self.rtio_tsc, self.drtio_transceiver.channels[i]))
-                setattr(self.submodules, corerep_name, core)
-                drtio_cri.append(core.cri)
-                self.csr_devices.append(corerep_name)
-
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
-            setattr(self.submodules, coreaux_name, coreaux)
-            self.csr_devices.append(coreaux_name)
-
-            memory_address = self.mem_map["drtioaux"] + 0x800*i
-            self.add_wb_slave(memory_address, 0x800,
-                              coreaux.bus)
-            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
-        self.config["HAS_DRTIO"] = None
-        self.config["HAS_DRTIO_ROUTING"] = None
-        self.add_csr_group("drtioaux", drtioaux_csr_group)
-        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
-        self.add_csr_group("drtiorep", drtiorep_csr_group)
-
-        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
-        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
-        self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri],
-            [self.local_io.cri] + drtio_cri,
-            mode="sync", enable_routing=True)
-        self.csr_devices.append("cri_con")
-        self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
-        self.csr_devices.append("routing_table")
-
-        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        if self.hw_rev == "v2.0":
-            self.comb += platform.request("filtered_clk_sel").eq(1)
-        self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("si5324_clkin"),
-            rx_synchronizer=self.rx_synchronizer,
-            ultrascale=True,
-            rtio_clk_freq=rtio_clk_freq)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-        self.csr_devices.append("siphaser")
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
-        self.csr_devices.append("si5324_rst_n")
-        i2c = self.platform.request("i2c")
-        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-        self.csr_devices.append("i2c")
-        self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-
-        self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
-            platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
-        self.csr_devices.append("sysref_sampler")
-        self.ad9154_0.jesd.core.register_jref(self.sysref_sampler.jref)
-        self.ad9154_1.jesd.core.register_jref(self.sysref_sampler.jref)
-
-        rtio_clk_period = 1e9/rtio_clk_freq
-        gth = self.drtio_transceiver.gths[0]
-        platform.add_period_constraint(gth.txoutclk, rtio_clk_period/2)
-        platform.add_period_constraint(gth.rxoutclk, rtio_clk_period)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            gth.txoutclk, gth.rxoutclk)
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Sayma AMC gateware and firmware builder")
@@ -450,7 +495,7 @@ def main():
     soc_sayma_amc_args(parser)
     parser.set_defaults(output_dir="artiq_sayma")
     parser.add_argument("-V", "--variant", default="satellite",
-        help="variant: master/satellite "
+        help="variant: satellite/simplesatellite/master "
              "(default: %(default)s)")
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
@@ -462,15 +507,8 @@ def main():
     args = parser.parse_args()
 
     variant = args.variant.lower()
-    if variant == "master":
-        cls = lambda with_sawg, **kwargs: Master(**kwargs)
-    elif variant == "satellite":
-        cls = Satellite
-    else:
-        raise SystemExit("Invalid variant (-V/--variant)")
-    soc = cls(with_sawg=not args.without_sawg, **soc_sayma_amc_argdict(args))
-
-    if variant != "master":
+    if variant == "satellite":
+        soc = Satellite(with_sawg=not args.without_sawg, **soc_sayma_amc_argdict(args))
         remote_csr_regions = remote_csr.get_remote_csr_regions(
             soc.mem_map["serwb"] | soc.shadow_base,
             args.rtm_csr_csv)
@@ -481,6 +519,12 @@ def main():
         soc.config["CONVERTER_SPI_HMC830_CS"] = 0
         soc.config["CONVERTER_SPI_HMC7043_CS"] = 1
         soc.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
+    elif variant == "simplesatellite":
+        soc = SimpleSatellite(**soc_sayma_amc_argdict(args))
+    elif variant == "master":
+        soc = Master(**soc_sayma_amc_argdict(args))
+    else:
+        raise SystemExit("Invalid variant (-V/--variant)")
 
     build_artiq_soc(soc, builder_argdict(args))
 
