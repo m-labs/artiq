@@ -77,11 +77,8 @@ class AD9154NoSAWG(Module, AutoCSR):
             Cat(samples[3]).eq(Cat(samples[1]))
         ]
 
-
-class RTMCommon:
-    def __init__(self):
-        platform = self.platform
-
+class RTMUARTForward(Module):
+    def __init__(self, platform):
         # forward RTM UART to second FTDI UART channel
         serial_1 = platform.request("serial", 1)
         serial_rtm = platform.request("serial_rtm")
@@ -89,6 +86,11 @@ class RTMCommon:
             serial_1.tx.eq(serial_rtm.rx),
             serial_rtm.tx.eq(serial_1.rx)
         ]
+
+
+class RTMSerWb:
+    def __init__(self):
+        platform = self.platform
 
         # RTM bitstream upload
         slave_fpga_cfg = self.platform.request("rtm_fpga_cfg")
@@ -153,13 +155,7 @@ class Master(MiniSoC, AMPSoC):
         platform = self.platform
         rtio_clk_freq = 150e6
 
-        # forward RTM UART to second FTDI UART channel
-        serial_1 = platform.request("serial", 1)
-        serial_rtm = platform.request("serial_rtm")
-        self.comb += [
-            serial_1.tx.eq(serial_rtm.rx),
-            serial_rtm.tx.eq(serial_1.rx)
-        ]
+        self.submodules += RTMUARTForward(platform)
 
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
         self.csr_devices.append("si5324_rst_n")
@@ -283,7 +279,7 @@ class Master(MiniSoC, AMPSoC):
         self.csr_devices.append("routing_table")
 
 
-class Satellite(BaseSoC, RTMCommon):
+class Satellite(BaseSoC, RTMSerWb):
     """
     DRTIO satellite with local DAC/SAWG channels.
     Use SFP0 to connect to master (Kasli/Sayma).
@@ -300,12 +296,14 @@ class Satellite(BaseSoC, RTMCommon):
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  **kwargs)
-        RTMCommon.__init__(self)
+        RTMSerWb.__init__(self)
         add_identifier(self, suffix=".without-sawg" if not with_sawg else "")
         self.config["HMC830_REF"] = "150"
 
         platform = self.platform
         rtio_clk_freq = 150e6
+
+        self.submodules += RTMUARTForward(platform)
 
         rtio_channels = []
         for i in range(4):
