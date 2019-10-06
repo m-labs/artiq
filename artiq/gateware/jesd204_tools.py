@@ -20,7 +20,6 @@ class UltrascaleCRG(Module, AutoCSR):
     fabric_freq = int(125e6)
 
     def __init__(self, platform, use_rtio_clock=False):
-        self.ibuf_disable = CSRStorage(reset=1)
         self.jreset = CSRStorage(reset=1)
         self.refclk = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
@@ -29,7 +28,7 @@ class UltrascaleCRG(Module, AutoCSR):
         refclk_pads = platform.request("dac_refclk", 0)
         platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
         self.specials += [
-            Instance("IBUFDS_GTE3", i_CEB=self.ibuf_disable.storage, p_REFCLK_HROW_CK_SEL=0b00,
+            Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b00,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n,
                      o_O=self.refclk, o_ODIV2=refclk2),
             AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
