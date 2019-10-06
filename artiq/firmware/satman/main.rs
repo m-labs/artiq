@@ -421,11 +421,20 @@ fn init_jdcgs() {
     for dacno in 0..csr::JDCG.len() {
         let dacno = dacno as u8;
         info!("DAC-{} initializing...", dacno);
+
         board_artiq::jdcg::jesd_enable(dacno, false);
         board_artiq::jdcg::jesd_prbs(dacno, false);
         board_artiq::jdcg::jesd_stpl(dacno, false);
         clock::spin_us(10000);
         board_artiq::jdcg::jesd_enable(dacno, true);
+        let t = clock::get_ms();
+        while !board_artiq::jdcg::jesd_ready(dacno) {
+            if clock::get_ms() > t + 200 {
+                error!("JESD ready timeout");
+                break;
+            }
+        }
+
         if let Err(e) = drtioaux::send(1, &drtioaux::Packet::JdacSetupRequest {
             destination: 0,
             dacno: dacno
