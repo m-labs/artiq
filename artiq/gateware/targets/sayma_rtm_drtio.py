@@ -21,6 +21,7 @@ from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
+from artiq.gateware import jesd204_tools
 from artiq.build_soc import add_identifier
 from artiq import __artiq_dir__ as artiq_dir
 
@@ -78,6 +79,7 @@ class _SatelliteBase(BaseSoC):
                  cpu_type="or1k",
                  **kwargs)
         add_identifier(self)
+        self.rtio_clk_freq = rtio_clk_freq
 
         platform = self.platform
 
@@ -159,6 +161,31 @@ class _SatelliteBase(BaseSoC):
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
+    def add_rtio(self, rtio_channels):
+        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
+        self.csr_devices.append("rtio_moninj")
+
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.comb += self.drtiosat.cri.connect(self.local_io.cri)
+
+
+class Satellite(_SatelliteBase):
+    def __init__(self, **kwargs):
+        _SatelliteBase.__init__(self, **kwargs)
+
+        platform = self.platform
+
+        rtio_channels = []
+        phy = ttl_serdes_7series.Output_8X(platform.request("allaki0_rfsw0"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+        phy = ttl_serdes_7series.Output_8X(platform.request("allaki0_rfsw1"))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.add_rtio(rtio_channels)
+
         # HMC clock chip and DAC control
         self.comb += [
             platform.request("ad9154_rst_n", 0).eq(1),
@@ -186,28 +213,11 @@ class _SatelliteBase(BaseSoC):
             platform.request("hmc7043_out_en"))
         self.csr_devices.append("hmc7043_out_en")
 
-    def add_rtio(self, rtio_channels):
-        self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
-        self.csr_devices.append("rtio_moninj")
-
-        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
-        self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
-        self.comb += self.drtiosat.cri.connect(self.local_io.cri)
-
-
-class Satellite(_SatelliteBase):
-    def __init__(self, **kwargs):
-        _SatelliteBase.__init__(self, **kwargs)
-
-        self.rtio_channels = []
-        phy = ttl_serdes_7series.Output_8X(self.platform.request("allaki0_rfsw0"))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
-        phy = ttl_serdes_7series.Output_8X(self.platform.request("allaki0_rfsw1"))
-        self.submodules += phy
-        self.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-        self.add_rtio(self.rtio_channels)
+        # DDMTD
+        # https://github.com/sinara-hw/Sayma_RTM/issues/68
+        sysref_pads = platform.request("rtm_fpga_sysref", 1)  # use odd-numbered 7043 output
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, self.rtio_clk_freq)
+        self.csr_devices.append("sysref_ddmtd")
 
 
 class SatmanSoCBuilder(Builder):
