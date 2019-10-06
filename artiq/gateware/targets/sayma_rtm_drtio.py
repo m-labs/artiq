@@ -97,15 +97,9 @@ class _SatelliteBase(BaseSoC):
         qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
-        if self.hw_rev == "v1.0":
-            drtio_data_pads = platform.request("sata", 0)
-        elif self.hw_rev == "v2.0":
-            drtio_data_pads = platform.request("rtm_amc_link", 0)
-        else:
-            raise NotImplementedError
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
-            data_pads=[drtio_data_pads],
+            data_pads=[platform.request("rtm_amc_link", 0)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
@@ -137,8 +131,7 @@ class _SatelliteBase(BaseSoC):
         self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        if self.hw_rev == "v2.0":
-            self.comb += platform.request("filtered_clk_sel").eq(1)
+        self.comb += platform.request("filtered_clk_sel").eq(1)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             rx_synchronizer=self.rx_synchronizer,
@@ -167,9 +160,10 @@ class _SatelliteBase(BaseSoC):
         fix_serdes_timing_path(platform)
 
         # HMC clock chip and DAC control
-        self.comb += platform.request("ad9154_rst_n", 0).eq(1)
-        if self.hw_rev == "v2.0":
-            self.comb += platform.request("ad9154_rst_n", 1).eq(1)
+        self.comb += [
+            platform.request("ad9154_rst_n", 0).eq(1),
+            platform.request("ad9154_rst_n", 1).eq(1)
+        ]
         self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
             platform.request("hmc_spi"),
             platform.request("ad9154_spi", 0),
@@ -181,15 +175,16 @@ class _SatelliteBase(BaseSoC):
         self.submodules.hmc7043_gpo = gpio.GPIOIn(
             platform.request("hmc7043_gpo"))
         self.csr_devices.append("hmc7043_gpo")
-        if self.hw_rev == "v2.0":
-            self.comb += platform.request("hmc830_pwr_en").eq(1)
-            self.submodules.hmc7043_out_en = gpio.GPIOOut(
-                platform.request("hmc7043_out_en"))
-            self.csr_devices.append("hmc7043_out_en")
         self.config["HAS_HMC830_7043"] = None
         self.config["CONVERTER_SPI_HMC830_CS"] = 0
         self.config["CONVERTER_SPI_HMC7043_CS"] = 1
         self.config["HMC830_REF"] = "150"
+
+        # HMC workarounds
+        self.comb += platform.request("hmc830_pwr_en").eq(1)
+        self.submodules.hmc7043_out_en = gpio.GPIOOut(
+            platform.request("hmc7043_out_en"))
+        self.csr_devices.append("hmc7043_out_en")
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
