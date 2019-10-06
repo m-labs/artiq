@@ -162,7 +162,8 @@ class SatelliteBase(BaseSoC):
         self.csr_devices.append("routing_table")
 
 
-class AD9154(Module, AutoCSR):
+# JESD204 DAC Channel Group
+class JDCG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
             platform, sys_crg, jesd_crg, dac)
@@ -175,7 +176,7 @@ class AD9154(Module, AutoCSR):
             self.sync.jesd += conv.eq(Cat(ch.o))
 
 
-class AD9154NoSAWG(Module, AutoCSR):
+class JDCGNoSAWG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
             platform, sys_crg, jesd_crg, dac)
@@ -256,23 +257,23 @@ class Satellite(SatelliteBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(
+        self.submodules.jesd_crg = jesd204_tools.UltrascaleCRG(
             platform, use_rtio_clock=True)
         if with_sawg:
-            cls = AD9154
+            cls = JDCG
         else:
-            cls = AD9154NoSAWG
-        self.submodules.ad9154_0 = cls(platform, self.crg, self.ad9154_crg, 0)
-        self.submodules.ad9154_1 = cls(platform, self.crg, self.ad9154_crg, 1)
-        self.csr_devices.append("ad9154_crg")
-        self.csr_devices.append("ad9154_0")
-        self.csr_devices.append("ad9154_1")
-        self.config["HAS_AD9154"] = None
-        self.add_csr_group("ad9154", ["ad9154_0", "ad9154_1"])
+            cls = JDCGNoSAWG
+        self.submodules.jdcg_0 = cls(platform, self.crg, self.jesd_crg, 0)
+        self.submodules.jdcg_1 = cls(platform, self.crg, self.jesd_crg, 1)
+        self.csr_devices.append("jesd_crg")
+        self.csr_devices.append("jdcg_0")
+        self.csr_devices.append("jdcg_1")
+        self.config["HAS_JDCG"] = None
+        self.add_csr_group("jdcg", ["jdcg_0", "jdcg_1"])
         self.config["RTIO_FIRST_SAWG_CHANNEL"] = len(rtio_channels)
         rtio_channels.extend(rtio.Channel.from_phy(phy)
-                                for sawg in self.ad9154_0.sawgs +
-                                            self.ad9154_1.sawgs
+                                for sawg in self.jdcg_0.sawgs +
+                                            self.jdcg_1.sawgs
                                 for phy in sawg.phys)
 
         self.add_rtio(rtio_channels)
@@ -280,8 +281,8 @@ class Satellite(SatelliteBase):
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
             platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
         self.csr_devices.append("sysref_sampler")
-        self.ad9154_0.jesd.core.register_jref(self.sysref_sampler.jref)
-        self.ad9154_1.jesd.core.register_jref(self.sysref_sampler.jref)
+        self.jdcg_0.jesd.core.register_jref(self.sysref_sampler.jref)
+        self.jdcg_1.jesd.core.register_jref(self.sysref_sampler.jref)
 
 
 class SimpleSatellite(SatelliteBase):
