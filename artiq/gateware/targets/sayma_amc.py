@@ -63,9 +63,10 @@ class SatelliteBase(BaseSoC):
 
         # Use SFP0 to connect to master (Kasli)
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
-        drtio_data_pads = [platform.request("sfp", 0)]
-        if self.hw_rev == "v2.0":
-            drtio_data_pads.append(platform.request("rtm_amc_link"))
+        drtio_data_pads = [
+            platform.request("sfp", 0),
+            platform.request("rtm_amc_link")
+        ]
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean"),
             data_pads=drtio_data_pads,
@@ -119,8 +120,7 @@ class SatelliteBase(BaseSoC):
         self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        if self.hw_rev == "v2.0":
-            self.comb += platform.request("filtered_clk_sel").eq(1)
+        self.comb += platform.request("filtered_clk_sel").eq(1)
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin"),
             rx_synchronizer=self.rx_synchronizer,
