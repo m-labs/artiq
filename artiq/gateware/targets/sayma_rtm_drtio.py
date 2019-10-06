@@ -10,6 +10,7 @@ from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 from misoc.cores import gpio
+from misoc.cores import spi2
 from misoc.cores.a7_gtp import *
 from misoc.targets.sayma_rtm import BaseSoC, soc_sayma_rtm_args, soc_sayma_rtm_argdict
 from misoc.integration.builder import Builder, builder_args, builder_argdict
@@ -164,6 +165,31 @@ class _SatelliteBase(BaseSoC):
         self.submodules.rtio_crg = _RTIOClockMultiplier(rtio_clk_freq)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
+
+        # HMC clock chip and DAC control
+        self.comb += platform.request("ad9154_rst_n", 0).eq(1)
+        if self.hw_rev == "v2.0":
+            self.comb += platform.request("ad9154_rst_n", 1).eq(1)
+        self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(
+            platform.request("hmc_spi"),
+            platform.request("ad9154_spi", 0),
+            platform.request("ad9154_spi", 1)))
+        self.csr_devices.append("converter_spi")
+        self.submodules.hmc7043_reset = gpio.GPIOOut(
+            platform.request("hmc7043_reset"), reset_out=1)
+        self.csr_devices.append("hmc7043_reset")
+        self.submodules.hmc7043_gpo = gpio.GPIOIn(
+            platform.request("hmc7043_gpo"))
+        self.csr_devices.append("hmc7043_gpo")
+        if self.hw_rev == "v2.0":
+            self.comb += platform.request("hmc830_pwr_en").eq(1)
+            self.submodules.hmc7043_out_en = gpio.GPIOOut(
+                platform.request("hmc7043_out_en"))
+            self.csr_devices.append("hmc7043_out_en")
+        self.config["HAS_HMC830_7043"] = None
+        self.config["CONVERTER_SPI_HMC830_CS"] = 0
+        self.config["CONVERTER_SPI_HMC7043_CS"] = 1
+        self.config["HMC830_REF"] = "150"
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
