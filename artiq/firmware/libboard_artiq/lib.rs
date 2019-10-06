@@ -34,8 +34,6 @@ pub mod i2c_eeprom;
 
 #[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;
-#[cfg(has_serwb_phy_amc)]
-pub mod serwb;
 #[cfg(has_hmc830_7043)]
 pub mod hmc830_7043;
 #[cfg(has_ad9154)]

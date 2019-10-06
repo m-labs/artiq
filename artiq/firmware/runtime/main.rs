@@ -91,8 +91,6 @@ fn setup_log_levels() {
 fn sayma_hw_init() {
     #[cfg(has_slave_fpga_cfg)]
     board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
-    #[cfg(has_serwb_phy_amc)]
-    board_artiq::serwb::wait_init();
 
     #[cfg(has_hmc830_7043)]
     /* must be the first SPI init because of HMC830 SPI mode selection */

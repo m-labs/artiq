@@ -14,7 +14,6 @@ from misoc.targets.sayma_amc import *
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import eem
 from artiq.gateware import fmcdio_vhdci_eem
-from artiq.gateware import serwb, remote_csr
 from artiq.gateware import rtio
 from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
@@ -216,9 +215,18 @@ class AD9154NoSAWG(Module, AutoCSR):
         ]
 
 
-class RTMSerWb:
-    def __init__(self):
+class Satellite(SatelliteBase):
+    """
+    DRTIO satellite with local DAC/SAWG channels.
+    """
+    def __init__(self, with_sawg, **kwargs):
+        SatelliteBase.__init__(self, 150e6,
+            identifier_suffix=".without-sawg" if not with_sawg else "",
+            **kwargs)
+
         platform = self.platform
+
+        self.submodules += RTMUARTForward(platform)
 
         # RTM bitstream upload
         slave_fpga_cfg = self.platform.request("rtm_fpga_cfg")
@@ -231,36 +239,6 @@ class RTMSerWb:
         ])
         self.csr_devices.append("slave_fpga_cfg")
         self.config["SLAVE_FPGA_GATEWARE"] = 0x200000
-
-        # AMC/RTM serwb
-        serwb_pads = platform.request("amc_rtm_serwb")
-        serwb_phy_amc = serwb.genphy.SERWBPHY(platform.device, serwb_pads, mode="master")
-        self.submodules.serwb_phy_amc = serwb_phy_amc
-        self.csr_devices.append("serwb_phy_amc")
-
-        serwb_core = serwb.core.SERWBCore(serwb_phy_amc, int(self.clk_freq), mode="slave")
-        self.submodules += serwb_core
-        self.add_wb_slave(self.mem_map["serwb"], 8192, serwb_core.etherbone.wishbone.bus)
-
-
-class Satellite(SatelliteBase, RTMSerWb):
-    """
-    DRTIO satellite with local DAC/SAWG channels.
-    """
-    mem_map = {
-        "serwb":         0x13000000,
-    }
-    mem_map.update(SatelliteBase.mem_map)
-
-    def __init__(self, with_sawg, **kwargs):
-        SatelliteBase.__init__(self, 150e6,
-            identifier_suffix=".without-sawg" if not with_sawg else "",
-            **kwargs)
-        RTMSerWb.__init__(self)
-
-        platform = self.platform
-
-        self.submodules += RTMUARTForward(platform)
 
         rtio_channels = []
         for i in range(4):
@@ -509,16 +487,6 @@ def main():
     variant = args.variant.lower()
     if variant == "satellite":
         soc = Satellite(with_sawg=not args.without_sawg, **soc_sayma_amc_argdict(args))
-        remote_csr_regions = remote_csr.get_remote_csr_regions(
-            soc.mem_map["serwb"] | soc.shadow_base,
-            args.rtm_csr_csv)
-        for name, origin, busword, csrs in remote_csr_regions:
-            soc.add_csr_region(name, origin, busword, csrs)
-        # Configuration for RTM peripherals. Keep in sync with sayma_rtm.py!
-        soc.config["HAS_HMC830_7043"] = None
-        soc.config["CONVERTER_SPI_HMC830_CS"] = 0
-        soc.config["CONVERTER_SPI_HMC7043_CS"] = 1
-        soc.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
     elif variant == "simplesatellite":
         soc = SimpleSatellite(**soc_sayma_amc_argdict(args))
     elif variant == "master":
