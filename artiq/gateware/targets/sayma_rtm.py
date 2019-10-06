@@ -203,8 +203,11 @@ class Satellite(_SatelliteBase):
             platform.request("hmc7043_gpo"))
         self.csr_devices.append("hmc7043_gpo")
         self.config["HAS_HMC830_7043"] = None
+        self.config["HAS_AD9154"] = None
+        self.config["AD9154_COUNT"] = 2
         self.config["CONVERTER_SPI_HMC830_CS"] = 0
         self.config["CONVERTER_SPI_HMC7043_CS"] = 1
+        self.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
         self.config["HMC830_REF"] = "150"
 
         # HMC workarounds

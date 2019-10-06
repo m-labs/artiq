@@ -423,6 +423,12 @@ pub extern fn main() -> i32 {
     #[cfg(has_hmc830_7043)]
     /* must be the first SPI init because of HMC830 SPI mode selection */
     hmc830_7043::init().expect("cannot initialize HMC830/7043");
+    #[cfg(has_ad9154)]
+    {
+        for dacno in 0..csr::CONFIG_AD9154_COUNT {
+            board_artiq::ad9154::reset_and_detect(dacno as u8).expect("AD9154 DAC not detected");
+        }
+    }
     #[cfg(has_allaki_atts)]
     board_artiq::hmc542::program_all(8/*=4dB*/);
 
@@ -451,7 +457,7 @@ pub extern fn main() -> i32 {
         si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
         si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
 
-        #[cfg(has_ad9154)]
+        #[cfg(has_jdcg)]
         {
             /*
              * One side of the JESD204 elastic buffer is clocked by the Si5324, the other
@@ -466,8 +472,8 @@ pub extern fn main() -> i32 {
              * To handle those cases, we simply keep the JESD204 core in reset unless the
              * Si5324 is locked to the recovered clock.
              */
-            board_artiq::ad9154::jesd_reset(false);
-            board_artiq::ad9154::init();
+            board_artiq::jdcg::jesd_reset(false);
+            // TODO: board_artiq::ad9154::init();
         }
 
         drtioaux::reset(0);
@@ -483,7 +489,7 @@ pub extern fn main() -> i32 {
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
-                #[cfg(has_ad9154)]
+                /* TODO: #[cfg(has_jdcg)]
                 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
                         error!("failed to align SYSREF at FPGA: {}", e);
@@ -491,7 +497,7 @@ pub extern fn main() -> i32 {
                     if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
                         error!("failed to align SYSREF at DAC: {}", e);
                     }
-                }
+                } */
                 for rep in repeaters.iter() {
                     if let Err(e) = rep.sync_tsc() {
                         error!("failed to sync TSC ({})", e);
@@ -503,8 +509,8 @@ pub extern fn main() -> i32 {
             }
         }
 
-        #[cfg(has_ad9154)]
-        board_artiq::ad9154::jesd_reset(true);
+        #[cfg(has_jdcg)]
+        board_artiq::jdcg::jesd_reset(true);
 
         drtiosat_reset_phy(true);
         drtiosat_reset(true);
