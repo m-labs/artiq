@@ -288,6 +288,22 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
+        drtioaux::Packet::JdacSetupRequest { destination: _destination, dacno: _dacno } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            #[cfg(has_ad9154)]
+            let succeeded = {
+                #[cfg(rtio_frequency = "125.0")]
+                const LINERATE: u64 = 5_000_000_000;
+                #[cfg(rtio_frequency = "150.0")]
+                const LINERATE: u64 = 6_000_000_000;
+                board_artiq::ad9154::setup(_dacno, LINERATE).is_ok()
+            };
+            #[cfg(not(has_ad9154))]
+            let succeeded = false;
+            drtioaux::send(0,
+                &drtioaux::Packet::JdacBasicReply { succeeded: succeeded })
+        }
+
         _ => {
             warn!("received unexpected aux packet");
             Ok(())
@@ -400,6 +416,32 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
+#[cfg(has_jdcg)]
+fn init_jdcgs() {
+    for dacno in 0..csr::JDCG.len() {
+        let dacno = dacno as u8;
+        info!("DAC-{} initializing...", dacno);
+        board_artiq::jdcg::jesd_enable(dacno, false);
+        board_artiq::jdcg::jesd_prbs(dacno, false);
+        board_artiq::jdcg::jesd_stpl(dacno, false);
+        clock::spin_us(10000);
+        board_artiq::jdcg::jesd_enable(dacno, true);
+        if let Err(e) = drtioaux::send(1, &drtioaux::Packet::JdacSetupRequest {
+            destination: 0,
+            dacno: dacno
+        }) {
+            error!("aux packet error ({})", e);
+        }
+        match drtioaux::recv_timeout(1, Some(1000)) {
+            Ok(drtioaux::Packet::JdacBasicReply { succeeded }) =>
+                if !succeeded { error!("DAC-{} initialization failed", dacno); },
+            Ok(packet) => error!("received unexpected aux packet: {:?}", packet),
+            Err(e) => error!("aux packet error ({})", e),
+        }
+        info!("  ...done");
+    }
+}
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     clock::init();
@@ -473,18 +515,30 @@ pub extern fn main() -> i32 {
              * Si5324 is locked to the recovered clock.
              */
             board_artiq::jdcg::jesd_reset(false);
-            // TODO: board_artiq::ad9154::init();
+            if repeaters[0].is_up() {
+                init_jdcgs();
+            }
         }
 
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
+        #[cfg(has_jdcg)]
+        let mut rep0_was_up = repeaters[0].is_up();
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
+            }
+            #[cfg(has_jdcg)]
+            {
+                let rep0_is_up = repeaters[0].is_up();
+                if rep0_is_up && !rep0_was_up {
+                    init_jdcgs();
+                }
+                rep0_was_up = rep0_is_up;
             }
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
