@@ -245,7 +245,7 @@ class SaymaRTM(Module):
 def main():
     parser = argparse.ArgumentParser(
         description="Sayma RTM gateware builder")
-    parser.add_argument("--hw-rev", default="v1.0",
+    parser.add_argument("--hw-rev", default="v2.0",
                         help="Sayma RTM hardware revision: v1.0/v2.0")
     parser.add_argument("--output-dir", default="artiq_sayma/rtm_gateware",
                         help="output directory for generated "
