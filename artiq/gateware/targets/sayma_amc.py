@@ -256,7 +256,6 @@ class Satellite(SatelliteBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.config["HMC830_REF"] = "150"
         self.submodules.ad9154_crg = jesd204_tools.UltrascaleCRG(
             platform, use_rtio_clock=True)
         if with_sawg:
