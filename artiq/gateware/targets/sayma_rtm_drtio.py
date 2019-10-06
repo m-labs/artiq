@@ -237,7 +237,7 @@ def main():
         description="Sayma RTM gateware and firmware builder")
     builder_args(parser)
     soc_sayma_rtm_args(parser)
-    parser.set_defaults(output_dir="artiq_sayma_rtm")
+    parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))
     args = parser.parse_args()
 
     soc = Satellite(**soc_sayma_rtm_argdict(args))
