@@ -149,22 +149,22 @@ pub mod hmc7043 {
     pub const SYSREF_DIV: u16 = 256;
     const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // must be <= 4MHz
 
-    // enabled, divider, output config
+    // enabled, divider, output config, is sysref
     const OUTPUT_CONFIG: [(bool, u16, u8, bool); 14] = [
-        (true,  DAC_CLK_DIV,  0x08, false),  // 0: DAC2_CLK
-        (true,  SYSREF_DIV,   0x08, true),   // 1: DAC2_SYSREF
-        (true,  DAC_CLK_DIV,  0x08, false),  // 2: DAC1_CLK
-        (true,  SYSREF_DIV,   0x08, true),   // 3: DAC1_SYSREF
-        (false, 0,            0x08, false),  // 4: ADC2_CLK
-        (false, 0,            0x08, true),   // 5: ADC2_SYSREF
-        (false, 0,            0x08, false),  // 6: GTP_CLK2
-        (true,  SYSREF_DIV,   0x10, true),   // 7: FPGA_DAC_SYSREF, LVDS
-        (true,  FPGA_CLK_DIV, 0x08, false),  // 8: GTP_CLK1
-        (false, 0,            0x10, true),   // 9: AMC_MASTER_AUX_CLK
-        (true,  FPGA_CLK_DIV, 0x10, true),   // 10: RTM_MASTER_AUX_CLK, LVDS, used for DDMTD RTIO/SYSREF alignment
-        (false, 0,            0x10, true),   // 11: FPGA_ADC_SYSREF
-        (false, 0,            0x08, false),  // 12: ADC1_CLK
-        (false, 0,            0x08, true),   // 13: ADC1_SYSREF
+        (true,  DAC_CLK_DIV,  0x08, false),  //  0: DAC1_CLK
+        (true,  SYSREF_DIV,   0x08, true),   //  1: DAC1_SYSREF
+        (true,  DAC_CLK_DIV,  0x08, false),  //  2: DAC0_CLK
+        (true,  SYSREF_DIV,   0x08, true),   //  3: DAC0_SYSREF
+        (false, 0,            0x10, true),   //  4: AMC_FPGA_SYSREF0
+        (false, 0,            0x10, true),   //  5: AMC_FPGA_SYSREF1
+        (false, 0,            0x10, false),  //  6: unused
+        (true,  SYSREF_DIV,   0x10, true),   //  7: RTM_FPGA_SYSREF0
+        (true,  FPGA_CLK_DIV, 0x08, false),  //  8: GTP_CLK0_IN
+        (false, 0,            0x10, false),  //  9: unused
+        (false, 0,            0x10, false),  // 10: unused
+        (false, 0,            0x10, false),  // 11: unused / uFL
+        (false, 0,            0x10, false),  // 12: unused
+        (false, SYSREF_DIV,   0x10, true),   // 13: RTM_FPGA_SYSREF1
     ];
 
     fn spi_setup() {
