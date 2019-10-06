@@ -1,30 +1,3 @@
-#[cfg(hw_rev = "v1.0")]
-mod clock_mux {
-    use board_misoc::csr;
-
-    const CLK_SRC_EXT_SEL : u8 = 1 << 0;
-    const REF_CLK_SRC_SEL : u8 = 1 << 1;
-    const DAC_CLK_SRC_SEL : u8 = 1 << 2;
-    const REF_LO_CLK_SEL  : u8 = 1 << 3;
-
-    pub fn init() {
-        unsafe {
-            csr::clock_mux::out_write(
-                1*CLK_SRC_EXT_SEL |  // 1= ext clk from sma, 0= RF backplane (IC46) to IC45
-                1*REF_CLK_SRC_SEL |  // 1= low-noise clock, 0= Si5324 output (IC45) to HMC830
-                1*DAC_CLK_SRC_SEL |  // 1= HMC830 output, 1= clock mezzanine (IC54) to HMC7043 and J58/J59
-                0*REF_LO_CLK_SEL);   // 1= clock mezzanine, 0= HMC830 input  (IC52) to AFEs and J56/J57
-        }
-    }
-}
-
-#[cfg(hw_rev = "v2.0")]
-mod clock_mux {
-    pub fn init() {
-        // TODO
-    }
-}
-
 mod hmc830 {
     use board_misoc::{csr, clock};
 
@@ -426,7 +399,6 @@ pub fn init() -> Result<(), &'static str> {
     #[cfg(all(hmc830_ref = "150", rtio_frequency = "150.0"))]
     const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 150MHz -> 2.4GHz
 
-    clock_mux::init();
     /* do not use other SPI devices before HMC830 SPI mode selection */
     hmc830::select_spi_mode();
     hmc830::detect()?;
