@@ -361,15 +361,14 @@ pub mod hmc7043 {
         Ok(())
     }
 
-    pub fn enable_fpga_ibuf() {
+    pub fn unmute() {
         /*
          * Never missing an opportunity to be awful, the HMC7043 produces broadband noise
-         * prior to intialization, which can upset the FPGA.
-         * One mitigation technique is to disable the input buffer until the HMC7043 is
-         * slightly better behaved.
+         * prior to intialization, which can upset the AMC FPGA.
+         * External circuitry mutes it.
          */
         unsafe {
-            csr::ad9154_crg::ibuf_disable_write(0);
+            csr::hmc7043_out_en::out_write(1);
         }
     }
 
@@ -416,7 +415,7 @@ pub fn init() -> Result<(), &'static str> {
     hmc7043::init();
     hmc7043::test_gpo()?;
     hmc7043::check_phased()?;
-    hmc7043::enable_fpga_ibuf();
+    hmc7043::unmute();
 
     Ok(())
 }
