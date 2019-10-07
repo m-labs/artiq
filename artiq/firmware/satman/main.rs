@@ -15,6 +15,8 @@ use board_artiq::drtio_routing;
 use board_artiq::hmc830_7043;
 
 mod repeater;
+#[cfg(has_jdcg)]
+mod jdcg;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -288,7 +290,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
-        drtioaux::Packet::JdacSetupRequest { destination: _destination, dacno: _dacno } => {
+        drtioaux::Packet::JdacBasicRequest { destination: _destination, dacno: _dacno, reqno: _reqno } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             #[cfg(has_ad9154)]
             let succeeded = {
@@ -296,7 +298,13 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                 const LINERATE: u64 = 5_000_000_000;
                 #[cfg(rtio_frequency = "150.0")]
                 const LINERATE: u64 = 6_000_000_000;
-                board_artiq::ad9154::setup(_dacno, LINERATE).is_ok()
+                match _reqno {
+                    0 => board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(),
+                    1 => { board_artiq::ad9154::status(_dacno); true },
+                    2 => board_artiq::ad9154::prbs(_dacno).is_ok(),
+                    3 => board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(),
+                    _ => false
+                }
             };
             #[cfg(not(has_ad9154))]
             let succeeded = false;
@@ -416,41 +424,6 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
-#[cfg(has_jdcg)]
-fn init_jdcgs() {
-    for dacno in 0..csr::JDCG.len() {
-        let dacno = dacno as u8;
-        info!("DAC-{} initializing...", dacno);
-
-        board_artiq::jdcg::jesd_enable(dacno, false);
-        board_artiq::jdcg::jesd_prbs(dacno, false);
-        board_artiq::jdcg::jesd_stpl(dacno, false);
-        clock::spin_us(10000);
-        board_artiq::jdcg::jesd_enable(dacno, true);
-        let t = clock::get_ms();
-        while !board_artiq::jdcg::jesd_ready(dacno) {
-            if clock::get_ms() > t + 200 {
-                error!("JESD ready timeout");
-                break;
-            }
-        }
-
-        if let Err(e) = drtioaux::send(1, &drtioaux::Packet::JdacSetupRequest {
-            destination: 0,
-            dacno: dacno
-        }) {
-            error!("aux packet error ({})", e);
-        }
-        match drtioaux::recv_timeout(1, Some(1000)) {
-            Ok(drtioaux::Packet::JdacBasicReply { succeeded }) =>
-                if !succeeded { error!("DAC-{} initialization failed", dacno); },
-            Ok(packet) => error!("received unexpected aux packet: {:?}", packet),
-            Err(e) => error!("aux packet error ({})", e),
-        }
-        info!("  ...done");
-    }
-}
-
 #[no_mangle]
 pub extern fn main() -> i32 {
     clock::init();
@@ -523,9 +496,9 @@ pub extern fn main() -> i32 {
              * To handle those cases, we simply keep the JESD204 core in reset unless the
              * Si5324 is locked to the recovered clock.
              */
-            board_artiq::jdcg::jesd_reset(false);
+            jdcg::jesd_reset(false);
             if repeaters[0].is_up() {
-                init_jdcgs();
+                jdcg::init();
             }
         }
 
@@ -545,7 +518,7 @@ pub extern fn main() -> i32 {
             {
                 let rep0_is_up = repeaters[0].is_up();
                 if rep0_is_up && !rep0_was_up {
-                    init_jdcgs();
+                    jdcg::init();
                 }
                 rep0_was_up = rep0_is_up;
             }
@@ -573,7 +546,7 @@ pub extern fn main() -> i32 {
         }
 
         #[cfg(has_jdcg)]
-        board_artiq::jdcg::jesd_reset(true);
+        jdcg::jesd_reset(true);
 
         drtiosat_reset_phy(true);
         drtiosat_reset(true);

@@ -350,7 +350,6 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
             0*ad9154_reg::LINK_MODE | 0*ad9154_reg::CHECKSUM_MODE);
     info!("  ...done");
-    status(dacno);
     Ok(())
 }
 

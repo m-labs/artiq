@@ -42,8 +42,6 @@ mod ad9154_reg;
 pub mod ad9154;
 /* TODO: #[cfg(has_jdcg)]
 pub mod jesd204sync; */
-#[cfg(has_jdcg)]
-pub mod jdcg;
 #[cfg(has_allaki_atts)]
 pub mod hmc542;
 
