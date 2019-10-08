@@ -58,6 +58,7 @@ class SatelliteBase(BaseSoC):
                  l2_size=128*1024,
                  **kwargs)
         add_identifier(self, suffix=identifier_suffix)
+        self.rtio_clk_freq = rtio_clk_freq
 
         platform = self.platform
 
@@ -279,10 +280,16 @@ class Satellite(SatelliteBase):
         self.add_rtio(rtio_channels)
 
         self.submodules.sysref_sampler = jesd204_tools.SysrefSampler(
-            platform.request("dac_sysref"), self.rtio_tsc.coarse_ts)
+            platform.request("amc_fpga_sysref", 0), self.rtio_tsc.coarse_ts)
         self.csr_devices.append("sysref_sampler")
         self.jdcg_0.jesd.core.register_jref(self.sysref_sampler.jref)
         self.jdcg_1.jesd.core.register_jref(self.sysref_sampler.jref)
+
+        # DDMTD
+        # https://github.com/sinara-hw/Sayma_RTM/issues/68
+        sysref_pads = platform.request("amc_fpga_sysref", 1)
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, self.rtio_clk_freq)
+        self.csr_devices.append("sysref_ddmtd")
 
 
 class SimpleSatellite(SatelliteBase):

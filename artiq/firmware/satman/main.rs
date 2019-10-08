@@ -498,9 +498,9 @@ pub extern fn main() -> i32 {
              * To handle those cases, we simply keep the JESD204 core in reset unless the
              * Si5324 is locked to the recovered clock.
              */
-            jdcg::jesd_reset(false);
+            jdcg::jesd::reset(false);
             if repeaters[0].is_up() {
-                jdcg::init();
+                jdcg::jdac::init();
             }
         }
 
@@ -516,26 +516,15 @@ pub extern fn main() -> i32 {
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
-            #[cfg(has_jdcg)]
-            {
-                let rep0_is_up = repeaters[0].is_up();
-                if rep0_is_up && !rep0_was_up {
-                    jdcg::init();
-                }
-                rep0_was_up = rep0_is_up;
-            }
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
-                /* TODO: #[cfg(has_jdcg)]
+                #[cfg(has_jdcg)]
                 {
-                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
-                        error!("failed to align SYSREF at FPGA: {}", e);
+                    if rep0_was_up {
+                        jdcg::jesd204sync::sysref_auto_align();
                     }
-                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
-                        error!("failed to align SYSREF at DAC: {}", e);
-                    }
-                } */
+                }
                 for rep in repeaters.iter() {
                     if let Err(e) = rep.sync_tsc() {
                         error!("failed to sync TSC ({})", e);
@@ -545,10 +534,19 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
+            #[cfg(has_jdcg)]
+            {
+                let rep0_is_up = repeaters[0].is_up();
+                if rep0_is_up && !rep0_was_up {
+                    jdcg::jdac::init();
+                    jdcg::jesd204sync::sysref_auto_align();
+                }
+                rep0_was_up = rep0_is_up;
+            }
         }
 
         #[cfg(has_jdcg)]
-        jdcg::jesd_reset(true);
+        jdcg::jesd::reset(true);
 
         drtiosat_reset_phy(true);
         drtiosat_reset(true);

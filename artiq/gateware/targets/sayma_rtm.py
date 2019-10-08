@@ -21,7 +21,6 @@ from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
-from artiq.gateware import jesd204_tools
 from artiq.build_soc import add_identifier
 from artiq import __artiq_dir__ as artiq_dir
 
@@ -215,12 +214,6 @@ class Satellite(_SatelliteBase):
         self.submodules.hmc7043_out_en = gpio.GPIOOut(
             platform.request("hmc7043_out_en"))
         self.csr_devices.append("hmc7043_out_en")
-
-        # DDMTD
-        # https://github.com/sinara-hw/Sayma_RTM/issues/68
-        sysref_pads = platform.request("rtm_fpga_sysref", 1)  # use odd-numbered 7043 output
-        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, self.rtio_clk_freq)
-        self.csr_devices.append("sysref_ddmtd")
 
 
 class SatmanSoCBuilder(Builder):
