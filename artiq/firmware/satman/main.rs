@@ -17,6 +17,8 @@ use board_artiq::hmc830_7043;
 mod repeater;
 #[cfg(has_jdcg)]
 mod jdcg;
+#[cfg(any(has_ad9154, has_jdcg))]
+pub mod jdac_requests;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -299,10 +301,10 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                 #[cfg(rtio_frequency = "150.0")]
                 const LINERATE: u64 = 6_000_000_000;
                 match _reqno {
-                    0 => board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(),
-                    1 => { board_artiq::ad9154::status(_dacno); true },
-                    2 => board_artiq::ad9154::prbs(_dacno).is_ok(),
-                    3 => board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(),
+                    jdac_requests::INIT => board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(),
+                    jdac_requests::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); true },
+                    jdac_requests::PRBS => board_artiq::ad9154::prbs(_dacno).is_ok(),
+                    jdac_requests::STPL => board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(),
                     _ => false
                 }
             };

@@ -1,6 +1,8 @@
 use board_misoc::{csr, clock};
 use board_artiq::drtioaux;
 
+use super::jdac_requests;
+
 pub fn jesd_reset(reset: bool) {
     unsafe {
         csr::jesd_crg::jreset_write(if reset {1} else {0});
@@ -67,17 +69,17 @@ pub fn init() {
         jesd_prbs(dacno, false);
         jesd_stpl(dacno, false);
 
-        jdac_basic_request(dacno, 0);
+        jdac_basic_request(dacno, jdac_requests::INIT);
 
         jesd_prbs(dacno, true);
-        jdac_basic_request(dacno, 2);
+        jdac_basic_request(dacno, jdac_requests::PRBS);
         jesd_prbs(dacno, false);
 
         jesd_stpl(dacno, true);
-        jdac_basic_request(dacno, 3);
+        jdac_basic_request(dacno, jdac_requests::STPL);
         jesd_stpl(dacno, false);
 
-        jdac_basic_request(dacno, 0);
+        jdac_basic_request(dacno, jdac_requests::INIT);
 
         let t = clock::get_ms();
         while !jesd_ready(dacno) {
@@ -87,7 +89,7 @@ pub fn init() {
             }
         }
         clock::spin_us(5000);
-        jdac_basic_request(dacno, 1);
+        jdac_basic_request(dacno, jdac_requests::PRINT_STATUS);
 
         if !jesd_jsync(dacno) {
             error!("bad SYNC");
