@@ -273,7 +273,7 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, enable_sata=False, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -435,7 +435,7 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, enable_sata=False, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
