@@ -41,9 +41,6 @@ Nix won't install packages without verifying their cryptographic signature. Add 
 
 The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -iA artiq-full.artiq-env``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
-.. note::
-  If you are getting the error message ``file 'artiq-full' was not found in the Nix search path``, you are probably encountering `this Nix bug <https://github.com/NixOS/nix/issues/2709>`_. As a workaround, enter the command ``$ export NIX_PATH=~/.nix-defexpr/channels:$NIX_PATH`` and try again.
-
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
 Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create a file ``my-artiq-env.nix`` with the following contents:
