@@ -719,9 +719,8 @@ class LLVMIRGenerator:
                 self.llbuilder.store(lloperand, llfieldptr)
             return llalloc
 
-    def llptr_to_var(self, llenv, env_ty, var_name, var_type=None):
-        if var_name in env_ty.params and (var_type is None or
-                env_ty.params[var_name] == var_type):
+    def llptr_to_var(self, llenv, env_ty, var_name):
+        if var_name in env_ty.params:
             var_index = list(env_ty.params.keys()).index(var_name)
             return self.llbuilder.gep(llenv, [self.llindex(0), self.llindex(var_index)],
                                       inbounds=True)
