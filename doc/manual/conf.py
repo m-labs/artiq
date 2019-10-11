@@ -23,7 +23,8 @@ import sphinx_rtd_theme
 # Hack-patch Sphinx so that ARTIQ-Python types are correctly printed
 # See: https://github.com/m-labs/artiq/issues/741
 from sphinx.ext import autodoc
-autodoc.repr = str
+from sphinx.util import inspect
+autodoc.repr = inspect.repr = str
 
 
 # we cannot use autodoc_mock_imports (does not help with argparse)
