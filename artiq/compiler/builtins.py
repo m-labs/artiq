@@ -12,6 +12,9 @@ class TNone(types.TMono):
     def __init__(self):
         super().__init__("NoneType")
 
+    def __repr__(self):
+        return "TNone"
+
 class TBool(types.TMono):
     def __init__(self):
         super().__init__("bool")
@@ -23,6 +26,9 @@ class TBool(types.TMono):
     @staticmethod
     def one():
         return True
+
+    def __repr__(self):
+        return "TBool"
 
 class TInt(types.TMono):
     def __init__(self, width=None):
@@ -37,6 +43,17 @@ class TInt(types.TMono):
     @staticmethod
     def one():
         return 1
+
+    def __repr__(self):
+        try:
+            width = self.params["width"].value
+            if width == 32:
+                return "TInt32"
+            if width == 64:
+                return "TInt64"
+        except KeyError:
+            pass
+        return super().__repr__()
 
 def TInt32():
     return TInt(types.TValue(32))
@@ -63,23 +80,38 @@ class TFloat(types.TMono):
     def one():
         return 1.0
 
+    def __repr__(self):
+        return "TFloat"
+
 class TStr(types.TMono):
     def __init__(self):
         super().__init__("str")
+
+    def __repr__(self):
+        return "TStr"
 
 class TBytes(types.TMono):
     def __init__(self):
         super().__init__("bytes")
 
+    def __repr__(self):
+        return "TBytes"
+
 class TByteArray(types.TMono):
     def __init__(self):
         super().__init__("bytearray")
+
+    def __repr__(self):
+        return "TByteArray"
 
 class TList(types.TMono):
     def __init__(self, elt=None):
         if elt is None:
             elt = types.TVar()
         super().__init__("list", {"elt": elt})
+
+    def __repr__(self):
+        return "TList(" + repr(self.params["elt"]) + ")"
 
 class TArray(types.TMono):
     def __init__(self, elt=None):

@@ -185,7 +185,7 @@ class TTuple(Type):
         return fn(accum, self)
 
     def __repr__(self):
-        return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
+        return "TTuple(%s)" % repr(self.elts)
 
     def __eq__(self, other):
         return isinstance(other, TTuple) and \
