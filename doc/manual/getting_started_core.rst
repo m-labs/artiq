@@ -174,6 +174,12 @@ Within a parallel block, some statements can be made sequential again using a ``
             self.ttl1.pulse(4*us)
         delay(4*us)
 
+Particular care needs to be taken when working with ``parallel`` blocks in cases where a large number of RTIO events are generated as it possible to create sequencing errors (`RTIO sequence error`). Sequence errors do not halt execution of the kernel for performance reasons and instead are reported in the core log. If the ``aqctl_corelog`` process has been started with ``artiq_ctlmgr``, then these errors will be posted to the master log. However, if an experiment is executed through ``artiq_run``, these errors will not be visible outside of the core log.
+
+A sequence error is caused when the scalable event dispatcher (SED) cannot queue an RTIO event due to its timestamp being the same as or earlier than another event in its queue. By default, the SED has 8 lanes which allows ``parallel`` events to work without sequence errors in most cases, however if many (>8) events are queued with conflicting timestamps this error can surface.
+
+These errors can usually be overcome by reordering the generation of the events. Alternatively, the number of SED lanes can be increased in the gateware.
+
 .. _rtio-analyzer-example:
 
 RTIO analyzer
