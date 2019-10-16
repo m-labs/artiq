@@ -67,8 +67,8 @@ class InOut(Module):
         override_oe = Signal()
         self.overrides = [override_en, override_o, override_oe]
 
-        #: LSB of the input state (for edge detection; arbitrary choice, support for
-        #: short pulses will need a more involved solution).
+        # LSB of the input state (for edge detection; arbitrary choice, support for
+        # short pulses will need a more involved solution).
         self.input_state = Signal()
 
         # # #
