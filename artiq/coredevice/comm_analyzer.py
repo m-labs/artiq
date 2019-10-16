@@ -462,7 +462,7 @@ def get_ref_period(devices):
 
 def get_dds_sysclk(devices):
     return get_single_device_argument(devices, "artiq.coredevice.ad9914",
-                                      ("ad9914",), "sysclk")
+                                      ("AD9914",), "sysclk")
 
 
 def create_channel_handlers(vcd_manager, devices, ref_period,
@@ -485,8 +485,7 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                 if dds_bus_channel in channel_handlers:
                     dds_handler = channel_handlers[dds_bus_channel]
                 else:
-                    dds_handler = DDSHandler(vcd_manager, desc["class"],
-                        dds_onehot_sel, dds_sysclk)
+                    dds_handler = DDSHandler(vcd_manager, dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
             if (desc["module"] == "artiq.coredevice.spi2" and
