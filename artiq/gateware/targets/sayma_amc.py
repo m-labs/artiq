@@ -361,10 +361,10 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
-        self.comb += platform.request("sfp_tx_disable", 1).eq(0)
+        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean", 0),
-            data_pads=[platform.request("sfp", 1)] +
+            data_pads=[platform.request("sfp", 0)] +
                       # 6 and not 8 to work around Vivado bug (Xilinx CR 1020646)
                       [platform.request("rtm_gth", i) for i in range(6)],
             sys_clk_freq=self.clk_freq,
