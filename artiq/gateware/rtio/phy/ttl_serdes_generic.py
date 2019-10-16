@@ -67,6 +67,8 @@ class InOut(Module):
         override_oe = Signal()
         self.overrides = [override_en, override_o, override_oe]
 
+        # Output enable, for interfacing to external buffers.
+        self.oe = Signal()
         # LSB of the input state (for edge detection; arbitrary choice, support for
         # short pulses will need a more involved solution).
         self.input_state = Signal()
@@ -82,15 +84,17 @@ class InOut(Module):
             override_en=override_en, override_o=override_o)
 
         oe_k = Signal()
+        self.oe.attr.add("no_retiming")
         self.sync.rio_phy += [
             If(self.rtlink.o.stb & (self.rtlink.o.address == 1),
                 oe_k.eq(self.rtlink.o.data[0])),
             If(override_en,
-                serdes.oe.eq(override_oe)
+                self.oe.eq(override_oe)
             ).Else(
-                serdes.oe.eq(oe_k)
+                self.oe.eq(oe_k)
             )
         ]
+        self.comb += serdes.oe.eq(self.oe)
 
         # Input
         sensitivity = Signal(2)
