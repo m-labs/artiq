@@ -1,4 +1,4 @@
-core_addr = "sayma-1.lab.m-labs.hk"
+core_addr = "192.168.1.60"
 
 device_db = {
     "core": {

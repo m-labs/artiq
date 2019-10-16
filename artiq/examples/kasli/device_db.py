@@ -1,6 +1,6 @@
 # Tester device database
 
-core_addr = "kasli-1.lab.m-labs.hk"
+core_addr = "192.168.1.70"
 
 device_db = {
     "core": {
