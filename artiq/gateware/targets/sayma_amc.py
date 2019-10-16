@@ -248,13 +248,13 @@ class Satellite(SatelliteBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 0)
-        self.comb += mcx_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output(4, mcx_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 1)
-        self.comb += mcx_io.direction.eq(0)
         phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -306,13 +306,13 @@ class SimpleSatellite(SatelliteBase):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 0)
-        self.comb += mcx_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output(4, mcx_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 1)
-        self.comb += mcx_io.direction.eq(0)
         phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -424,13 +424,13 @@ class Master(MiniSoC, AMPSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 0)
-        self.comb += mcx_io.direction.eq(1)
-        phy = ttl_serdes_ultrascale.Output(4, mcx_io.level)
+        phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
         mcx_io = platform.request("mcx_io", 1)
-        self.comb += mcx_io.direction.eq(0)
         phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+        self.comb += mcx_io.direction.eq(phy.oe)
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
