@@ -6,9 +6,9 @@ class DDSTest(EnvExperiment):
 
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("dds0")
-        self.setattr_device("dds1")
-        self.setattr_device("dds2")
+        self.dds0 = self.get_device("ad9914dds0")
+        self.dds1 = self.get_device("ad9914dds1")
+        self.dds2 = self.get_device("ad9914dds2")
         self.setattr_device("ttl0")
         self.setattr_device("ttl1")
         self.setattr_device("ttl2")
