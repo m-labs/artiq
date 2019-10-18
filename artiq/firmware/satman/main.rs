@@ -292,26 +292,39 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
-        drtioaux::Packet::JdacBasicRequest { destination: _destination, dacno: _dacno, reqno: _reqno } => {
+        drtioaux::Packet::JdacBasicRequest { destination: _destination, dacno: _dacno,
+                                             reqno: _reqno, param: _param } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             #[cfg(has_ad9154)]
-            let succeeded = {
+            let (succeeded, retval) = {
                 #[cfg(rtio_frequency = "125.0")]
                 const LINERATE: u64 = 5_000_000_000;
                 #[cfg(rtio_frequency = "150.0")]
                 const LINERATE: u64 = 6_000_000_000;
                 match _reqno {
-                    jdac_requests::INIT => board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(),
-                    jdac_requests::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); true },
-                    jdac_requests::PRBS => board_artiq::ad9154::prbs(_dacno).is_ok(),
-                    jdac_requests::STPL => board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(),
-                    _ => false
+                    jdac_requests::INIT => (board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(), 0),
+                    jdac_requests::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); (true, 0) },
+                    jdac_requests::PRBS => (board_artiq::ad9154::prbs(_dacno).is_ok(), 0),
+                    jdac_requests::STPL => (board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(), 0),
+                    jdac_requests::SYSREF_DELAY_DAC => { board_artiq::hmc830_7043::hmc7043::sysref_delay_dac(_dacno, _param); (true, 0) },
+                    jdac_requests::SYSREF_SLIP => { board_artiq::hmc830_7043::hmc7043::sysref_slip(); (true, 0) },
+                    jdac_requests::SYNC => {
+                        match board_artiq::ad9154::sync(_dacno) {
+                            Ok(false) => (true, 0),
+                            Ok(true) => (true, 1),
+                            Err(e) => {
+                                error!("DAC sync failed: {}", e);
+                                (false, 0)
+                            }
+                        }
+                    }
+                    _ => (false, 0)
                 }
             };
             #[cfg(not(has_ad9154))]
-            let succeeded = false;
+            let (succeeded, retval) = (false, 0);
             drtioaux::send(0,
-                &drtioaux::Packet::JdacBasicReply { succeeded: succeeded })
+                &drtioaux::Packet::JdacBasicReply { succeeded: succeeded, retval: retval })
         }
 
         _ => {
@@ -500,7 +513,7 @@ pub extern fn main() -> i32 {
              */
             jdcg::jesd::reset(false);
             if repeaters[0].is_up() {
-                jdcg::jdac::init();
+                let _ = jdcg::jdac::init();
             }
         }
 
@@ -538,7 +551,7 @@ pub extern fn main() -> i32 {
             {
                 let rep0_is_up = repeaters[0].is_up();
                 if rep0_is_up && !rep0_was_up {
-                    jdcg::jdac::init();
+                    let _ = jdcg::jdac::init();
                     jdcg::jesd204sync::sysref_auto_align();
                 }
                 rep0_was_up = rep0_is_up;

@@ -139,14 +139,12 @@ mod hmc830 {
 pub mod hmc7043 {
     use board_misoc::{csr, clock};
 
-    pub const ANALOG_DELAY_RANGE: u8 = 24;
-
     // Warning: dividers are not synchronized with HMC830 clock input!
     // Set DAC_CLK_DIV to 1 or 0 for deterministic phase.
     // (0 bypasses the divider and reduces noise)
-    pub const DAC_CLK_DIV: u16 = 0;
-    pub const FPGA_CLK_DIV: u16 = 16;
-    pub const SYSREF_DIV: u16 = 256;
+    const DAC_CLK_DIV: u16 = 0;
+    const FPGA_CLK_DIV: u16 = 16; // Keep in sync with jdcg.rs
+    const SYSREF_DIV: u16 = 256;  // Keep in sync with jdcg.rs
     const HMC_SYSREF_DIV: u16 = SYSREF_DIV*8; // must be <= 4MHz
 
     // enabled, divider, output config, is sysref

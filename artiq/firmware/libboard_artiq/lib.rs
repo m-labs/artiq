@@ -40,8 +40,6 @@ pub mod hmc830_7043;
 mod ad9154_reg;
 #[cfg(has_ad9154)]
 pub mod ad9154;
-/* TODO: #[cfg(has_jdcg)]
-pub mod jesd204sync; */
 #[cfg(has_allaki_atts)]
 pub mod hmc542;
 
