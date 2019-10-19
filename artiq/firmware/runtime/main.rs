@@ -170,7 +170,7 @@ fn startup() {
     match config::read_str("ip", |r| r.map(|s| s.parse())) {
         Ok(Ok(addr)) => {
             protocol_addr = addr;
-            info!("using IP address {}", protocol_addr);
+            info!("using IPv4 address {}", protocol_addr);
         }
         _ => {
             #[cfg(soc_platform = "kasli")]
@@ -189,9 +189,23 @@ fn startup() {
             {
                 protocol_addr = IpAddress::v4(192, 168, 1, 50);
             }
-            info!("using default IP address {}", protocol_addr);
+            info!("using default IPv4 address {}", protocol_addr);
         }
     }
+    let protocol_addr6_ll = IpAddress::v6(
+        0xfe80, 0x0000, 0x0000, 0x0000,
+        (((hardware_addr.0[0] ^ 0x02) as u16) << 8) | (hardware_addr.0[1] as u16),
+        ((hardware_addr.0[2] as u16) << 8) | 0x00ff,
+        0xfe00 | (hardware_addr.0[3] as u16),
+        ((hardware_addr.0[4] as u16) << 8) | (hardware_addr.0[5] as u16));
+    info!("using IPv6 link-local address {}", protocol_addr6_ll);
+    let protocol_addr6 = match config::read_str("ip6", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) => {
+            info!("using IPv6 configured address {}", addr);
+            Some(addr)
+        }
+        _ => None
+    };
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
@@ -218,12 +232,31 @@ fn startup() {
 
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
-    let mut interface  =
-        smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
-                       .neighbor_cache(neighbor_cache)
+    let mut interface = match protocol_addr6 {
+        Some(addr) => {
+            let ip_addrs = [
+                IpCidr::new(protocol_addr, 0),
+                IpCidr::new(protocol_addr6_ll, 0),
+                IpCidr::new(addr, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
                        .ethernet_addr(hardware_addr)
-                       .ip_addrs([IpCidr::new(protocol_addr, 0)])
-                       .finalize();
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
+        None => {
+            let ip_addrs = [
+                IpCidr::new(protocol_addr, 0),
+                IpCidr::new(protocol_addr6_ll, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+                       .ethernet_addr(hardware_addr)
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
+    };
 
     #[cfg(has_drtio)]
     let drtio_routing_table = urc::Urc::new(RefCell::new(
