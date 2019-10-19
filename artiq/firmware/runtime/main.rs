@@ -28,7 +28,7 @@ extern crate proto_artiq;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+use smoltcp::wire::IpCidr;
 
 use board_misoc::{csr, irq, ident, clock, boot, config};
 #[cfg(has_ethmac)]
@@ -40,6 +40,8 @@ use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
+
+mod net_settings;
 
 mod rtio_clocking;
 mod rtio_mgt;
@@ -124,89 +126,6 @@ fn startup() {
     sayma_hw_init();
     rtio_clocking::init();
 
-    let hardware_addr;
-    match config::read_str("mac", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => {
-            hardware_addr = addr;
-            info!("using MAC address {}", hardware_addr);
-        }
-        _ => {
-            #[cfg(soc_platform = "kasli")]
-            {
-                let eeprom = board_artiq::i2c_eeprom::EEPROM::kasli_eeprom();
-                hardware_addr =
-                    eeprom.read_eui48()
-                    .map(|addr_buf| {
-                        let hardware_addr = EthernetAddress(addr_buf);
-                        info!("using MAC address {} from EEPROM", hardware_addr);
-                        hardware_addr
-                    })
-                    .unwrap_or_else(|e| {
-                        error!("failed to read MAC address from EEPROM: {}", e);
-                        let hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
-                        warn!("using default MAC address {}; consider changing it", hardware_addr);
-                        hardware_addr
-                    });
-            }
-            #[cfg(soc_platform = "sayma_amc")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]);
-                warn!("using default MAC address {}; consider changing it", hardware_addr);
-            }
-            #[cfg(soc_platform = "metlino")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]);
-                warn!("using default MAC address {}; consider changing it", hardware_addr);
-            }
-            #[cfg(soc_platform = "kc705")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
-                warn!("using default MAC address {}; consider changing it", hardware_addr);
-            }
-        }
-    }
-
-    let protocol_addr;
-    match config::read_str("ip", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => {
-            protocol_addr = addr;
-            info!("using IPv4 address {}", protocol_addr);
-        }
-        _ => {
-            #[cfg(soc_platform = "kasli")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 70);
-            }
-            #[cfg(soc_platform = "sayma_amc")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 60);
-            }
-            #[cfg(soc_platform = "metlino")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 65);
-            }
-            #[cfg(soc_platform = "kc705")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 50);
-            }
-            info!("using default IPv4 address {}", protocol_addr);
-        }
-    }
-    let protocol_addr6_ll = IpAddress::v6(
-        0xfe80, 0x0000, 0x0000, 0x0000,
-        (((hardware_addr.0[0] ^ 0x02) as u16) << 8) | (hardware_addr.0[1] as u16),
-        ((hardware_addr.0[2] as u16) << 8) | 0x00ff,
-        0xfe00 | (hardware_addr.0[3] as u16),
-        ((hardware_addr.0[4] as u16) << 8) | (hardware_addr.0[5] as u16));
-    info!("using IPv6 link-local address {}", protocol_addr6_ll);
-    let protocol_addr6 = match config::read_str("ip6", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => {
-            info!("using IPv6 configured address {}", addr);
-            Some(addr)
-        }
-        _ => None
-    };
-
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
 
@@ -232,26 +151,27 @@ fn startup() {
 
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
-    let mut interface = match protocol_addr6 {
+    let net_addresses = net_settings::get_adresses();
+    let mut interface = match net_addresses.ipv6_addr {
         Some(addr) => {
             let ip_addrs = [
-                IpCidr::new(protocol_addr, 0),
-                IpCidr::new(protocol_addr6_ll, 0),
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0),
                 IpCidr::new(addr, 0)
             ];
             smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
-                       .ethernet_addr(hardware_addr)
+                       .ethernet_addr(net_addresses.hardware_addr)
                        .ip_addrs(ip_addrs)
                        .neighbor_cache(neighbor_cache)
                        .finalize()
         }
         None => {
             let ip_addrs = [
-                IpCidr::new(protocol_addr, 0),
-                IpCidr::new(protocol_addr6_ll, 0)
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0)
             ];
             smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
-                       .ethernet_addr(hardware_addr)
+                       .ethernet_addr(net_addresses.hardware_addr)
                        .ip_addrs(ip_addrs)
                        .neighbor_cache(neighbor_cache)
                        .finalize()
