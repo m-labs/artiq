@@ -36,14 +36,8 @@ pub fn get_adresses() -> NetAddresses {
                 let eeprom = i2c_eeprom::EEPROM::kasli_eeprom();
                 hardware_addr =
                     eeprom.read_eui48()
-                    .map(|addr_buf| {
-                        let hardware_addr = EthernetAddress(addr_buf);
-                        hardware_addr
-                    })
-                    .unwrap_or_else(|e| {
-                        let hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
-                        hardware_addr
-                    });
+                    .map(|addr_buf| EthernetAddress(addr_buf))
+                    .unwrap_or_else(|_e| EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]));
             }
             #[cfg(soc_platform = "sayma_amc")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]); }
