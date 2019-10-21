@@ -150,9 +150,9 @@ pub mod hmc7043 {
     // enabled, divider, output config, is sysref
     const OUTPUT_CONFIG: [(bool, u16, u8, bool); 14] = [
         (true,  DAC_CLK_DIV,  0x08, false),  //  0: DAC1_CLK
-        (true,  SYSREF_DIV,   0x08, true),   //  1: DAC1_SYSREF
+        (true,  SYSREF_DIV,   0x00, true),   //  1: DAC1_SYSREF
         (true,  DAC_CLK_DIV,  0x08, false),  //  2: DAC0_CLK
-        (true,  SYSREF_DIV,   0x08, true),   //  3: DAC0_SYSREF
+        (true,  SYSREF_DIV,   0x00, true),   //  3: DAC0_SYSREF
         (true,  SYSREF_DIV,   0x10, true),   //  4: AMC_FPGA_SYSREF0
         (true,  FPGA_CLK_DIV, 0x10, true),   //  5: AMC_FPGA_SYSREF1
         (false, 0,            0x10, false),  //  6: unused
@@ -160,7 +160,7 @@ pub mod hmc7043 {
         (true,  FPGA_CLK_DIV, 0x08, false),  //  8: GTP_CLK0_IN
         (false, 0,            0x10, false),  //  9: unused
         (false, 0,            0x10, false),  // 10: unused
-        (false, 0,            0x10, false),  // 11: unused / uFL
+        (false, 0,            0x08, false),  // 11: unused / uFL
         (false, 0,            0x10, false),  // 12: unused
         (false, SYSREF_DIV,   0x10, true),   // 13: RTM_FPGA_SYSREF1
     ];
