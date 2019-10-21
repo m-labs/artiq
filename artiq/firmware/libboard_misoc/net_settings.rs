@@ -16,7 +16,7 @@ pub struct NetAddresses {
 
 impl fmt::Display for NetAddresses {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "MAC:{} IPv4:{} IPv6-LL:{} IPv6:",
+        write!(f, "MAC={} IPv4={} IPv6-LL={} IPv6=",
             self.hardware_addr, self.ipv4_addr, self.ipv6_ll_addr)?;
         match self.ipv6_addr {
             Some(addr) => write!(f, "{}", addr)?,
