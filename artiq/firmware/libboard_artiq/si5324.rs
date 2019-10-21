@@ -1,9 +1,7 @@
 use core::result;
-use board_misoc::clock;
+use board_misoc::{clock, i2c};
 #[cfg(not(si5324_soft_reset))]
 use board_misoc::csr;
-use i2c;
-use pca9548;
 
 type Result<T> = result::Result<T, &'static str>;
 
@@ -181,15 +179,15 @@ fn init() -> Result<()> {
 
     #[cfg(soc_platform = "kasli")]
     {
-        pca9548::select(BUSNO, 0x70, 0)?;
-        pca9548::select(BUSNO, 0x71, 1 << 3)?;
+        i2c::pca9548_select(BUSNO, 0x70, 0)?;
+        i2c::pca9548_select(BUSNO, 0x71, 1 << 3)?;
     }
     #[cfg(soc_platform = "sayma_amc")]
-    pca9548::select(BUSNO, 0x70, 1 << 4)?;
+    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "sayma_rtm")]
-    pca9548::select(BUSNO, 0x77, 1 << 5)?;
+    i2c::pca9548_select(BUSNO, 0x77, 1 << 5)?;
     #[cfg(soc_platform = "kc705")]
-    pca9548::select(BUSNO, 0x74, 1 << 7)?;
+    i2c::pca9548_select(BUSNO, 0x74, 1 << 7)?;
 
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");

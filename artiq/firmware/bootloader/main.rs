@@ -12,7 +12,7 @@ use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
 use board_misoc::{ident, cache, sdram, boot, mem as board_mem};
 #[cfg(has_ethmac)]
-use board_misoc::{clock, config, ethmac};
+use board_misoc::{clock, config, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 
 fn check_integrity() -> bool {
@@ -155,18 +155,6 @@ fn network_boot() {
 
     println!("Initializing network...");
 
-    let eth_addr = match config::read_str("mac", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => addr,
-        _ => EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01])
-    };
-
-    let ip_addr = match config::read_str("ip", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => addr,
-        _ => IpAddress::v4(192, 168, 1, 50)
-    };
-
-    println!("Using MAC address {} and IP address {}", eth_addr, ip_addr);
-
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
 
@@ -174,12 +162,33 @@ fn network_boot() {
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(&mut neighbor_map[..]);
     let mut ip_addrs = [IpCidr::new(ip_addr, 0)];
-    let mut interface  =
-        smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+    let net_addresses = net_settings::get_adresses();
+    println!("network addresses: {}", net_addresses);
+    let mut interface = match net_addresses.ipv6_addr {
+        Some(addr) => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0),
+                IpCidr::new(addr, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+                       .ethernet_addr(net_addresses.hardware_addr)
+                       .ip_addrs(ip_addrs)
                        .neighbor_cache(neighbor_cache)
-                       .ethernet_addr(eth_addr)
-                       .ip_addrs(&mut ip_addrs[..])
-                       .finalize();
+                       .finalize()
+        }
+        None => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+                       .ethernet_addr(net_addresses.hardware_addr)
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
+    };
 
     let mut socket_set_storage = [];
     let mut sockets =

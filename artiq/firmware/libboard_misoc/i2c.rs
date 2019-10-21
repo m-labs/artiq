@@ -1,6 +1,6 @@
 #[cfg(has_i2c)]
 mod imp {
-    use board_misoc::{csr, clock};
+    use super::super::{csr, clock};
 
     const INVALID_BUS: &'static str = "Invalid I2C bus";
 
@@ -46,7 +46,7 @@ mod imp {
         }
     }
 
-    pub fn init() {
+    pub fn init() -> Result<(), &'static str> {
         for busno in 0..csr::CONFIG_I2C_BUS_COUNT {
             let busno = busno as u8;
             // Set SCL as output, and high level
@@ -61,8 +61,6 @@ mod imp {
             half_period();
             half_period();
             if !sda_i(busno) {
-                warn!("SDA is stuck low on bus #{}, trying to unstuck", busno);
-
                 // Try toggling SCL a few times
                 for _bit in 0..8 {
                     scl_o(busno, false);
@@ -73,9 +71,10 @@ mod imp {
             }
 
             if !sda_i(busno) {
-                error!("SDA is stuck low on bus #{} and doesn't get unstuck", busno);
+                return Err("SDA is stuck low and doesn't get unstuck");
             }
         }
+        Ok(())
     }
 
     pub fn start(busno: u8) -> Result<(), &'static str> {
@@ -178,17 +177,30 @@ mod imp {
 
         Ok(data)
     }
+
+    pub fn pca9548_select(busno: u8, address: u8, channels: u8) -> Result<(), &'static str> {
+        start(busno)?;
+        if !write(busno, address << 1)? {
+            return Err("PCA9548 failed to ack write address")
+        }
+        if !write(busno, channels)? {
+            return Err("PCA9548 failed to ack control word")
+        }
+        stop(busno)?;
+        Ok(())
+    }
 }
 
 #[cfg(not(has_i2c))]
 mod imp {
     const NO_I2C: &'static str = "No I2C support on this platform";
-    pub fn init() {}
+    pub fn init() { Err(NO_I2C) }
     pub fn start(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn restart(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
     pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
+    pub fn pca9548_select(busno: u8, address: u8, channels: u8) -> Result<(), &'static str> { Err(NO_I2C) }
 }
 
 pub use self::imp::*;

@@ -1,5 +1,4 @@
 use i2c;
-use pca9548;
 
 #[cfg(soc_platform = "kasli")]
 const I2C_SWITCH0: u8 = 0x70;
@@ -25,8 +24,8 @@ impl EEPROM {
 
     fn select(&self) -> Result<(), &'static str> {
         let mask: u16 = 1 << self.port;
-        pca9548::select(self.busno, I2C_SWITCH0, mask as u8)?;
-        pca9548::select(self.busno, I2C_SWITCH1, (mask >> 8) as u8)?;
+        i2c::pca9548_select(self.busno, I2C_SWITCH0, mask as u8)?;
+        i2c::pca9548_select(self.busno, I2C_SWITCH1, (mask >> 8) as u8)?;
 
         Ok(())
     }

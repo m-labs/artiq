@@ -30,7 +30,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, boot, config};
+use board_misoc::{csr, irq, ident, clock, boot, config, net_settings};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -40,8 +40,6 @@ use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
-
-mod net_settings;
 
 mod rtio_clocking;
 mod rtio_mgt;
@@ -122,7 +120,7 @@ fn startup() {
 
     setup_log_levels();
     #[cfg(has_i2c)]
-    board_artiq::i2c::init();
+    board_misoc::i2c::init().expect("I2C initialization failed");
     sayma_hw_init();
     rtio_clocking::init();
 
@@ -152,6 +150,7 @@ fn startup() {
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
     let net_addresses = net_settings::get_adresses();
+    info!("network addresses: {}", net_addresses);
     let mut interface = match net_addresses.ipv6_addr {
         Some(addr) => {
             let ip_addrs = [

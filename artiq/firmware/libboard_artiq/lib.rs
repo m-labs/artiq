@@ -17,7 +17,6 @@ extern crate proto_artiq;
 
 pub mod pcr;
 
-pub mod i2c;
 pub mod spi;
 
 #[cfg(has_kernel_cpu)]
@@ -25,12 +24,8 @@ pub mod mailbox;
 #[cfg(has_kernel_cpu)]
 pub mod rpc_queue;
 
-#[cfg(any(soc_platform = "kasli", has_si5324))]
-mod pca9548;
 #[cfg(has_si5324)]
 pub mod si5324;
-#[cfg(soc_platform = "kasli")]
-pub mod i2c_eeprom;
 
 #[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;

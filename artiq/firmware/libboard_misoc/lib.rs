@@ -32,3 +32,8 @@ pub mod uart_console;
 pub mod uart_logger;
 #[cfg(all(has_ethmac, feature = "smoltcp"))]
 pub mod ethmac;
+pub mod i2c;
+#[cfg(soc_platform = "kasli")]
+pub mod i2c_eeprom;
+#[cfg(all(has_ethmac, feature = "smoltcp"))]
+pub mod net_settings;

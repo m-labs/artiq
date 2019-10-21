@@ -8,8 +8,8 @@ extern crate board_misoc;
 extern crate board_artiq;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, irq, ident, clock, uart_logger};
-use board_artiq::{i2c, spi, si5324, drtioaux};
+use board_misoc::{csr, irq, ident, clock, uart_logger, i2c};
+use board_artiq::{spi, si5324, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
@@ -451,7 +451,7 @@ pub extern fn main() -> i32 {
     #[cfg(has_slave_fpga_cfg)]
     board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
 
-    i2c::init();
+    i2c::init().expect("I2C initialization failed");
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
