@@ -43,6 +43,7 @@ impl Repeater {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_up(&self) -> bool {
         self.state == RepeaterState::Up
     }
