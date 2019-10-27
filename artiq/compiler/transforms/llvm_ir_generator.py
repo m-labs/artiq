@@ -124,6 +124,35 @@ class DebugInfoEmitter:
             "scope":           scope
         })
 
+
+class ABILayoutInfo:
+    """Caches DataLayout size/alignment lookup results.
+
+    llvmlite's Type.get_abi_{size, alignment}() are implemented in a very
+    inefficient way, in particular _get_ll_pointer_type() used to construct the
+    corresponding llvm::Type is. We thus cache the results, optionally directly
+    using the compiler type as a key.
+
+    (This is a separate class for use with @memoize.)
+    """
+
+    def __init__(self, lldatalayout, llcontext, llty_of_type):
+        self.cache = {}
+        self.lldatalayout = lldatalayout
+        self.llcontext = llcontext
+        self.llty_of_type = llty_of_type
+
+    @memoize
+    def get_size_align(self, llty):
+        lowered = llty._get_ll_pointer_type(self.lldatalayout, self.llcontext)
+        return (self.lldatalayout.get_pointee_abi_size(lowered),
+                self.lldatalayout.get_pointee_abi_alignment(lowered))
+
+    @memoize
+    def get_size_align_for_type(self, typ):
+        return self.get_size_align(self.llty_of_type(typ))
+
+
 class LLVMIRGenerator:
     def __init__(self, engine, module_name, target, embedding_map):
         self.engine = engine
@@ -134,6 +163,8 @@ class LLVMIRGenerator:
         self.llmodule.triple = target.triple
         self.llmodule.data_layout = target.data_layout
         self.lldatalayout = llvm.create_target_data(self.llmodule.data_layout)
+        self.abi_layout_info = ABILayoutInfo(self.lldatalayout, self.llcontext,
+            self.llty_of_type)
         self.function_flags = None
         self.llfunction = None
         self.llmap = {}
@@ -547,11 +578,8 @@ class LLVMIRGenerator:
             offset = 0
             llrpcattrs = []
             for attr in typ.attributes:
-                attrtyp   = typ.attributes[attr]
-                size      = self.llty_of_type(attrtyp). \
-                    get_abi_size(self.lldatalayout, context=self.llcontext)
-                alignment = self.llty_of_type(attrtyp). \
-                    get_abi_alignment(self.lldatalayout, context=self.llcontext)
+                attrtyp = typ.attributes[attr]
+                size, alignment = self.abi_layout_info.get_size_align_for_type(attrtyp)
 
                 if offset % alignment != 0:
                     offset += alignment - (offset % alignment)
@@ -735,7 +763,7 @@ class LLVMIRGenerator:
 
     def mark_dereferenceable(self, load):
         assert isinstance(load, ll.LoadInstr) and isinstance(load.type, ll.PointerType)
-        pointee_size = load.type.pointee.get_abi_size(self.lldatalayout, context=self.llcontext)
+        pointee_size, _ = self.abi_layout_info.get_size_align(load.type.pointee)
         metadata = self.llmodule.add_metadata([ll.Constant(lli64, pointee_size)])
         load.set_metadata('dereferenceable', metadata)
 
