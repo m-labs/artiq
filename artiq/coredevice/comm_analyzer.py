@@ -360,8 +360,8 @@ class SPIMaster2Handler(WishboneHandler):
     def process_message(self, message):
         self.stb.set_value("1")
         self.stb.set_value("0")
-        data = message.data
         if isinstance(message, OutputMessage):
+            data = message.data
             address = message.address
             if address == 1:
                 logger.debug("SPI config @%d data=0x%08x",
