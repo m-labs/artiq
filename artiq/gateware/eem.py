@@ -87,7 +87,7 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem, "io_update"),
-                (7, eem, "dds_reset_sync_in")]
+                (7, eem, "dds_reset_sync_in", Misc("IOB=TRUE"))]
         if eem_aux is not None:
             ttls += [(0, eem_aux, "sync_clk"),
                      (1, eem_aux, "sync_in"),
@@ -97,12 +97,12 @@ class Urukul(_EEM):
                      (5, eem_aux, "sw1"),
                      (6, eem_aux, "sw2"),
                      (7, eem_aux, "sw3")]
-        for i, j, sig in ttls:
+        for i, j, sig, *extra_args in ttls:
             ios.append(
                 ("urukul{}_{}".format(eem, sig), 0,
                     Subsignal("p", Pins(_eem_pin(j, i, "p"))),
                     Subsignal("n", Pins(_eem_pin(j, i, "n"))),
-                    IOStandard(iostandard)
+                    IOStandard(iostandard), *extra_args
                 ))
         return ios
 
