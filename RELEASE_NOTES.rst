@@ -33,6 +33,7 @@ ARTIQ-5
   from EEPROM if `mac` is absent from the flash config.
 * The ``-e/--experiment`` switch of ``artiq_run`` and ``artiq_compile``
   has been renamed ``-c/--class-name``.
+* ``artiq_devtool`` has been removed.
 
 
 ARTIQ-4

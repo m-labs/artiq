@@ -36,32 +36,6 @@ The board lock file also contains the openocd commands for selecting the corresp
   artiq_flash -I "$(cat /var/lib/artiq/boards/sayma-1)"
 
 
-Using developer tools
-=====================
-
-ARTIQ ships with an ``artiq_devtool`` binary, which automates common actions arising when developing the board gateware and firmware on a machine other than the one to which the board is connected.
-
-.. argparse::
-   :ref: artiq.frontend.artiq_devtool.get_argparser
-   :prog: artiq_devtool
-
-To build and flash the firmware for ``sayma_amc_standalone`` target:
-::
-  artiq_devtool -t sayma_amc_standalone build flash+log
-
-To build the same target, flash it to the 3rd connected board, and forward the core device ports (1380, 1381, ...) as well as logs on the serial port:
-::
-  artiq_devtool -t sayma_amc_standalone -b sayma-3 build flash connect
-
-While the previous command is running, to build a new firmware and hotswap it, i.e. run without reflashing the board:
-::
-  artiq_devtool -t sayma_amc_standalone build hotswap
-
-While the previous command is running, to reset a board, e.g. if it became unresponsive:
-::
-  artiq_devtool -t sayma_amc_standalone reset
-
-
 Deleting git branches
 =====================
 
