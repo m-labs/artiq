@@ -150,6 +150,126 @@ fn flash_boot() {
 }
 
 #[cfg(has_ethmac)]
+enum NetConnState {
+    WaitCommand,
+    FirmwareLength(usize, u8),
+    FirmwareDownload(usize, usize),
+    WaitO,
+    WaitK
+}
+
+#[cfg(has_ethmac)]
+struct NetConn {
+    state: NetConnState,
+    firmware_downloaded: bool
+}
+
+impl NetConn {
+    pub fn new() -> NetConn {
+        NetConn {
+            state: NetConnState::WaitCommand,
+            firmware_downloaded: false
+        }
+    }
+
+    pub fn reset(&mut self) {
+        self.state = NetConnState::WaitCommand;
+        self.firmware_downloaded = false;
+    }
+
+    // buf must contain at least one byte
+    // this function must consume at least one byte
+    fn input_partial(&mut self, buf: &[u8], mut boot_callback: impl FnMut()) -> Result<usize, ()> {
+        match self.state {
+            NetConnState::WaitCommand => {
+                match buf[0] {
+                    b'F' => {
+                        println!("Received firmware load command");
+                        self.state = NetConnState::FirmwareLength(0, 0);
+                        Ok(1)
+                    },
+                    b'B' => {
+                        if self.firmware_downloaded {
+                            println!("Received boot command");
+                            boot_callback();
+                            self.state = NetConnState::WaitCommand;
+                            Ok(1)
+                        } else {
+                            println!("Received boot command, but no firmware downloaded");
+                            Err(())
+                        }
+                    },
+                    _ => {
+                        println!("Received unknown netboot command: 0x{:02x}", buf[0]);
+                        Err(())
+                    }
+                }
+            },
+            NetConnState::FirmwareLength(firmware_length, recv_bytes) => {
+                let firmware_length = (firmware_length << 8) | (buf[0] as usize);
+                let recv_bytes = recv_bytes + 1;
+                if recv_bytes == 4 {
+                    self.state = NetConnState::FirmwareDownload(firmware_length, 0);
+                } else {
+                    self.state = NetConnState::FirmwareLength(firmware_length, recv_bytes);
+                }
+                Ok(1)
+            },
+            NetConnState::FirmwareDownload(firmware_length, recv_bytes) => {
+                let max_length = firmware_length - recv_bytes;
+                let buf = if buf.len() > max_length {
+                    &buf[..max_length]
+                } else {
+                    &buf[..]
+                };
+                let length = buf.len();
+
+                let firmware_in_sdram = unsafe { slice::from_raw_parts_mut((board_mem::MAIN_RAM_BASE + recv_bytes) as *mut u8, length) };
+                firmware_in_sdram.copy_from_slice(buf);
+
+                let recv_bytes = recv_bytes + length;
+                if recv_bytes == firmware_length {
+                    self.state = NetConnState::WaitO;
+                    Ok(length)
+                } else {
+                    self.state = NetConnState::FirmwareDownload(firmware_length, recv_bytes);
+                    Ok(length)
+                }
+            },
+            NetConnState::WaitO => {
+                if buf[0] == b'O' {
+                    self.state = NetConnState::WaitK;
+                    Ok(1)
+                } else {
+                    println!("End-of-firmware confirmation failed");
+                    Err(())
+                }
+            },
+            NetConnState::WaitK => {
+                if buf[0] == b'K' {
+                    println!("Firmware successfully downloaded");
+                    self.state = NetConnState::WaitCommand;
+                    self.firmware_downloaded = true;
+                    Ok(1)
+                } else {
+                    println!("End-of-firmware confirmation failed");
+                    Err(())
+                }
+            }
+        }
+    }
+
+    fn input(&mut self, buf: &[u8], mut boot_callback: impl FnMut()) -> Result<(), ()> {
+        let mut remaining = &buf[..];
+        while !remaining.is_empty() {
+            let read_cnt = self.input_partial(remaining, &mut boot_callback)?;
+            remaining = &remaining[read_cnt..];
+        }
+        Ok(())
+    }
+}
+
+#[cfg(has_ethmac)]
 fn network_boot() {
     use smoltcp::wire::IpCidr;
 
@@ -162,7 +282,7 @@ fn network_boot() {
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(&mut neighbor_map[..]);
     let net_addresses = net_settings::get_adresses();
-    println!("network addresses: {}", net_addresses);
+    println!("Network addresses: {}", net_addresses);
     let mut ip_addrs = [
         IpCidr::new(net_addresses.ipv4_addr, 0),
         IpCidr::new(net_addresses.ipv6_ll_addr, 0),
@@ -185,15 +305,56 @@ fn network_boot() {
                        .finalize()
     };
 
-    let mut socket_set_storage = [];
+    let mut rx_storage = [0; 4096];
+    let mut tx_storage = [0; 128];
+
+    let mut socket_set_entries: [_; 1] = Default::default();
     let mut sockets =
-        smoltcp::socket::SocketSet::new(&mut socket_set_storage[..]);
+        smoltcp::socket::SocketSet::new(&mut socket_set_entries[..]);
+
+    let tcp_rx_buffer = smoltcp::socket::TcpSocketBuffer::new(&mut rx_storage[..]);
+    let tcp_tx_buffer = smoltcp::socket::TcpSocketBuffer::new(&mut tx_storage[..]);
+    let tcp_socket = smoltcp::socket::TcpSocket::new(tcp_rx_buffer, tcp_tx_buffer);
+    let tcp_handle = sockets.add(tcp_socket);
+
+    let mut net_conn = NetConn::new();
+    let mut boot_time = None;
 
     println!("Waiting for connections...");
 
     loop {
-        let timestamp = smoltcp::time::Instant::from_millis(clock::get_ms() as i64);
-        match interface.poll(&mut sockets, timestamp) {
+        let timestamp = clock::get_ms() as i64;
+        {
+            let socket = &mut *sockets.get::<smoltcp::socket::TcpSocket>(tcp_handle);
+
+            match boot_time {
+                None => {
+                    if !socket.is_open() {
+                        socket.listen(4269).unwrap() // 0x10ad
+                    }
+
+                    if socket.may_recv() {
+                        if socket.recv(|data| {
+                                    (data.len(), net_conn.input(data, || { boot_time = Some(timestamp + 20); }).is_err())
+                                }).unwrap() {
+                            net_conn.reset();
+                            socket.close();
+                        }
+                    } else if socket.may_send() {
+                        net_conn.reset();
+                        socket.close();
+                    }
+                },
+                Some(boot_time) => {
+                    if timestamp > boot_time {
+                        println!("Starting firmware.");
+                        unsafe { boot::jump(board_mem::MAIN_RAM_BASE) }
+                    }
+                }
+            }
+        }
+
+        match interface.poll(&mut sockets, smoltcp::time::Instant::from_millis(timestamp)) {
             Ok(_) => (),
             Err(smoltcp::Error::Unrecognized) => (),
             Err(err) => println!("Network error: {}", err)
@@ -214,6 +375,8 @@ pub extern fn main() -> i32 {
     println!("Copyright (c) 2017-2019 M-Labs Limited");
     println!("");
 
+    clock::init();
+
     if startup() {
         println!("");
         flash_boot();
@@ -223,6 +386,7 @@ pub extern fn main() -> i32 {
         println!("Halting.");
     }
 
+    println!("No boot medium.");
     loop {}
 }
 
