@@ -120,7 +120,7 @@ fn flash_boot() {
     let length = BigEndian::read_u32(&header[0..]) as usize;
     let expected_crc = BigEndian::read_u32(&header[4..]);
 
-    if length == 0xffffffff {
+    if length == 0 || length == 0xffffffff {
         println!("No firmware present");
         return
     } else if length > 4 * 1024 * 1024 {
