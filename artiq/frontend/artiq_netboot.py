@@ -4,7 +4,6 @@ import argparse
 import socket
 import struct
 import os
-import time
 
 def main():
     parser = argparse.ArgumentParser(description="ARTIQ netboot tool")
