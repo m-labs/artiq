@@ -45,17 +45,20 @@ class RTMUARTForward(Module):
         ]
 
 
-class SatelliteBase(BaseSoC):
+class SatelliteBase(MiniSoC):
     mem_map = {
         "drtioaux":      0x14000000,
     }
-    mem_map.update(BaseSoC.mem_map)
+    mem_map.update(MiniSoC.mem_map)
 
     def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", **kwargs):
-        BaseSoC.__init__(self,
+        MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 integrated_sram_size=8192,
+                 ethmac_nrxslots=4,
+                 ethmac_ntxslots=4,
                  **kwargs)
         add_identifier(self, suffix=identifier_suffix)
         self.rtio_clk_freq = rtio_clk_freq
