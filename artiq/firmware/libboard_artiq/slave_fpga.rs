@@ -24,21 +24,7 @@ unsafe fn shift_u8(data: u8) {
     }
 }
 
-pub fn load() -> Result<(), &'static str> {
-    info!("Loading slave FPGA gateware...");
-
-    let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
-
-    let magic = BigEndian::read_u32(&header[0..]);
-    let length = BigEndian::read_u32(&header[4..]) as usize;
-    info!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
-    if magic != 0x5352544d {  // "SRTM", see sayma_rtm target as well
-        return Err("Bad magic");
-    }
-    if length > 0x220000 {
-        return Err("Too large (corrupted?)");
-    }
-
+pub fn prepare() -> Result<(), &'static str> {
     unsafe {
         if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
             info!("  DONE before loading");
@@ -61,14 +47,24 @@ pub fn load() -> Result<(), &'static str> {
         if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
             return Err("DONE high despite PROGRAM");
         }
+    }
+    Ok(())
+}
 
-        for i in slice::from_raw_parts(GATEWARE.offset(8), length) {
+pub fn input(data: &[u8]) -> Result<(), &'static str> {
+    unsafe {
+        for i in data {
             shift_u8(*i);
             if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
                 return Err("INIT asserted during load");
             }
         }
+    }
+    Ok(())
+}
 
+pub fn complete() -> Result<(), &'static str> {
+    unsafe {
         let t = clock::get_ms();
         while csr::slave_fpga_cfg::in_read() & DONE_BIT == 0 {
             if clock::get_ms() > t + 100 {
@@ -80,6 +76,27 @@ pub fn load() -> Result<(), &'static str> {
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
         csr::slave_fpga_cfg::oe_write(PROGRAM_B_BIT);
     }
+    Ok(())
+}
+
+pub fn load() -> Result<(), &'static str> {
+    info!("Loading slave FPGA gateware...");
+
+    let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
+
+    let magic = BigEndian::read_u32(&header[0..]);
+    let length = BigEndian::read_u32(&header[4..]) as usize;
+    info!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
+    if magic != 0x5352544d {  // "SRTM", see sayma_rtm target as well
+        return Err("Bad magic");
+    }
+    if length > 0x220000 {
+        return Err("Too large (corrupted?)");
+    }
+
+    prepare()?;
+    input(unsafe { slice::from_raw_parts(GATEWARE.offset(8), length) })?;
+    complete()?;
 
     info!("  ...done");
     Ok(())
