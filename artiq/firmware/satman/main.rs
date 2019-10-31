@@ -448,9 +448,6 @@ pub extern fn main() -> i32 {
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware ident {}", ident::read(&mut [0; 64]));
 
-    #[cfg(has_slave_fpga_cfg)]
-    board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
-
     i2c::init().expect("I2C initialization failed");
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     unsafe {

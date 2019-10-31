@@ -11,6 +11,8 @@ use core::{ptr, slice};
 use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
 use board_misoc::{ident, cache, sdram, boot, mem as board_mem};
+#[cfg(has_slave_fpga_cfg)]
+use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
@@ -109,6 +111,43 @@ fn startup() -> bool {
 
     true
 }
+
+#[cfg(has_slave_fpga_cfg)]
+fn load_slave_fpga() {
+    println!("Loading slave FPGA gateware...");
+
+    const GATEWARE: *mut u8 = board_misoc::csr::CONFIG_SLAVE_FPGA_GATEWARE as *mut u8;
+
+    let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
+    let magic = BigEndian::read_u32(&header[0..]);
+    let length = BigEndian::read_u32(&header[4..]) as usize;
+    println!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
+    if magic != 0x5352544d {
+        println!("  ...Error: bad magic");
+        return
+    }
+    if length > 0x220000 {
+        println!("  ...Error: too long (corrupted?)");
+        return
+    }
+    let payload = unsafe { slice::from_raw_parts(GATEWARE.offset(8), length) };
+
+    if let Err(e) = slave_fpga::prepare() {
+        println!("  ...Error during preparation: {}", e);
+        return
+    }
+    if let Err(e) = slave_fpga::input(payload) {
+        println!("  ...Error during loading: {}", e);
+        return
+    }
+    if let Err(e) = slave_fpga::complete() {
+        println!("  ...Error during completion: {}", e);
+        return
+    }
+
+    println!("  ...done");
+}
+
 
 fn flash_boot() {
     const FIRMWARE: *mut u8 = board_mem::FLASH_BOOT_ADDRESS as *mut u8;
@@ -379,6 +418,8 @@ pub extern fn main() -> i32 {
 
     if startup() {
         println!("");
+        #[cfg(has_slave_fpga_cfg)]
+        load_slave_fpga();
         flash_boot();
         #[cfg(has_ethmac)]
         network_boot();

@@ -27,8 +27,10 @@ pub mod uart;
 pub mod spiflash;
 pub mod config;
 #[cfg(feature = "uart_console")]
+#[macro_use]
 pub mod uart_console;
 #[cfg(all(feature = "uart_console", feature = "log"))]
+#[macro_use]
 pub mod uart_logger;
 #[cfg(all(has_ethmac, feature = "smoltcp"))]
 pub mod ethmac;
@@ -37,3 +39,5 @@ pub mod i2c;
 pub mod i2c_eeprom;
 #[cfg(all(has_ethmac, feature = "smoltcp"))]
 pub mod net_settings;
+#[cfg(has_slave_fpga_cfg)]
+pub mod slave_fpga;

@@ -1,14 +1,10 @@
-use board_misoc::{csr, clock};
-use core::slice;
-use byteorder::{ByteOrder, BigEndian};
+use super::{csr, clock};
 
 const CCLK_BIT: u8 = 1 << 0;
 const DIN_BIT: u8 = 1 << 1;
 const DONE_BIT: u8 = 1 << 2;
 const INIT_B_BIT: u8 = 1 << 3;
 const PROGRAM_B_BIT: u8 = 1 << 4;
-
-const GATEWARE: *mut u8 = csr::CONFIG_SLAVE_FPGA_GATEWARE as *mut u8;
 
 unsafe fn shift_u8(data: u8) {
     for i in 0..8 {
@@ -27,10 +23,10 @@ unsafe fn shift_u8(data: u8) {
 pub fn prepare() -> Result<(), &'static str> {
     unsafe {
         if csr::slave_fpga_cfg::in_read() & DONE_BIT != 0 {
-            info!("  DONE before loading");
+            println!("  DONE before loading");
         }
         if csr::slave_fpga_cfg::in_read() & INIT_B_BIT == 0 {
-            info!("  INIT asserted before loading");
+            println!("  INIT asserted before loading");
         }
 
         csr::slave_fpga_cfg::out_write(0);
@@ -76,28 +72,5 @@ pub fn complete() -> Result<(), &'static str> {
         csr::slave_fpga_cfg::out_write(PROGRAM_B_BIT);
         csr::slave_fpga_cfg::oe_write(PROGRAM_B_BIT);
     }
-    Ok(())
-}
-
-pub fn load() -> Result<(), &'static str> {
-    info!("Loading slave FPGA gateware...");
-
-    let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
-
-    let magic = BigEndian::read_u32(&header[0..]);
-    let length = BigEndian::read_u32(&header[4..]) as usize;
-    info!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
-    if magic != 0x5352544d {  // "SRTM", see sayma_rtm target as well
-        return Err("Bad magic");
-    }
-    if length > 0x220000 {
-        return Err("Too large (corrupted?)");
-    }
-
-    prepare()?;
-    input(unsafe { slice::from_raw_parts(GATEWARE.offset(8), length) })?;
-    complete()?;
-
-    info!("  ...done");
     Ok(())
 }
