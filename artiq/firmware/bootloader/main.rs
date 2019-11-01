@@ -203,6 +203,7 @@ struct NetConn {
     firmware_downloaded: bool
 }
 
+#[cfg(has_ethmac)]
 impl NetConn {
     pub fn new() -> NetConn {
         NetConn {
@@ -414,6 +415,7 @@ pub extern fn main() -> i32 {
     println!("Copyright (c) 2017-2019 M-Labs Limited");
     println!("");
 
+    #[cfg(has_ethmac)]
     clock::init();
 
     if startup() {
