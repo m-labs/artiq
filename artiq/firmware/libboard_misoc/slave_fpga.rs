@@ -59,7 +59,7 @@ pub fn input(data: &[u8]) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub fn complete() -> Result<(), &'static str> {
+pub fn startup() -> Result<(), &'static str> {
     unsafe {
         let t = clock::get_ms();
         while csr::slave_fpga_cfg::in_read() & DONE_BIT == 0 {

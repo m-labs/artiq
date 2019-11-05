@@ -140,14 +140,13 @@ fn load_slave_fpga() {
         println!("  ...Error during loading: {}", e);
         return
     }
-    if let Err(e) = slave_fpga::complete() {
-        println!("  ...Error during completion: {}", e);
+    if let Err(e) = slave_fpga::startup() {
+        println!("  ...Error during startup: {}", e);
         return
     }
 
     println!("  ...done");
 }
-
 
 fn flash_boot() {
     const FIRMWARE: *mut u8 = board_mem::FLASH_BOOT_ADDRESS as *mut u8;
@@ -193,8 +192,16 @@ enum NetConnState {
     WaitCommand,
     FirmwareLength(usize, u8),
     FirmwareDownload(usize, usize),
-    WaitO,
-    WaitK
+    FirmwareWaitO,
+    FirmwareWaitK,
+    #[cfg(has_slave_fpga_cfg)]
+    GatewareLength(usize, u8),
+    #[cfg(has_slave_fpga_cfg)]
+    GatewareDownload(usize, usize),
+    #[cfg(has_slave_fpga_cfg)]
+    GatewareWaitO,
+    #[cfg(has_slave_fpga_cfg)]
+    GatewareWaitK
 }
 
 #[cfg(has_ethmac)]
@@ -228,6 +235,12 @@ impl NetConn {
                         self.state = NetConnState::FirmwareLength(0, 0);
                         Ok(1)
                     },
+                    #[cfg(has_slave_fpga_cfg)]
+                    b'G' => {
+                        println!("Received gateware load command");
+                        self.state = NetConnState::GatewareLength(0, 0);
+                        Ok(1)
+                    }
                     b'B' => {
                         if self.firmware_downloaded {
                             println!("Received boot command");
@@ -245,6 +258,7 @@ impl NetConn {
                     }
                 }
             },
+
             NetConnState::FirmwareLength(firmware_length, recv_bytes) => {
                 let firmware_length = (firmware_length << 8) | (buf[0] as usize);
                 let recv_bytes = recv_bytes + 1;
@@ -269,23 +283,23 @@ impl NetConn {
 
                 let recv_bytes = recv_bytes + length;
                 if recv_bytes == firmware_length {
-                    self.state = NetConnState::WaitO;
+                    self.state = NetConnState::FirmwareWaitO;
                     Ok(length)
                 } else {
                     self.state = NetConnState::FirmwareDownload(firmware_length, recv_bytes);
                     Ok(length)
                 }
             },
-            NetConnState::WaitO => {
+            NetConnState::FirmwareWaitO => {
                 if buf[0] == b'O' {
-                    self.state = NetConnState::WaitK;
+                    self.state = NetConnState::FirmwareWaitK;
                     Ok(1)
                 } else {
                     println!("End-of-firmware confirmation failed");
                     Err(())
                 }
             },
-            NetConnState::WaitK => {
+            NetConnState::FirmwareWaitK => {
                 if buf[0] == b'K' {
                     println!("Firmware successfully downloaded");
                     self.state = NetConnState::WaitCommand;
@@ -293,6 +307,71 @@ impl NetConn {
                     Ok(1)
                 } else {
                     println!("End-of-firmware confirmation failed");
+                    Err(())
+                }
+            }
+
+            #[cfg(has_slave_fpga_cfg)]
+            NetConnState::GatewareLength(gateware_length, recv_bytes) => {
+                let gateware_length = (gateware_length << 8) | (buf[0] as usize);
+                let recv_bytes = recv_bytes + 1;
+                if recv_bytes == 4 {
+                    if let Err(e) = slave_fpga::prepare() {
+                        println!(" Error during slave FPGA preparation: {}", e);
+                        return Err(())
+                    }
+                    self.state = NetConnState::GatewareDownload(gateware_length, 0);
+                } else {
+                    self.state = NetConnState::GatewareLength(gateware_length, recv_bytes);
+                }
+                Ok(1)
+            },
+            #[cfg(has_slave_fpga_cfg)]
+            NetConnState::GatewareDownload(gateware_length, recv_bytes) => {
+                let max_length = gateware_length - recv_bytes;
+                let buf = if buf.len() > max_length {
+                    &buf[..max_length]
+                } else {
+                    &buf[..]
+                };
+                let length = buf.len();
+
+                if let Err(e) = slave_fpga::input(buf) {
+                    println!("Error during slave FPGA loading: {}", e);
+                    return Err(())
+                }
+
+                let recv_bytes = recv_bytes + length;
+                if recv_bytes == gateware_length {
+                    self.state = NetConnState::GatewareWaitO;
+                    Ok(length)
+                } else {
+                    self.state = NetConnState::GatewareDownload(gateware_length, recv_bytes);
+                    Ok(length)
+                }
+            },
+            #[cfg(has_slave_fpga_cfg)]
+            NetConnState::GatewareWaitO => {
+                if buf[0] == b'O' {
+                    self.state = NetConnState::GatewareWaitK;
+                    Ok(1)
+                } else {
+                    println!("End-of-gateware confirmation failed");
+                    Err(())
+                }
+            },
+            #[cfg(has_slave_fpga_cfg)]
+            NetConnState::GatewareWaitK => {
+                if buf[0] == b'K' {
+                    if let Err(e) = slave_fpga::startup() {
+                        println!("Error during slave FPGA startup: {}", e);
+                        return Err(())
+                    }
+                    println!("Gateware successfully downloaded");
+                    self.state = NetConnState::WaitCommand;
+                    Ok(1)
+                } else {
+                    println!("End-of-gateware confirmation failed");
                     Err(())
                 }
             }
