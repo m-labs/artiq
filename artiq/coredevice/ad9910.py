@@ -1,5 +1,4 @@
 from numpy import int32, int64
-import functools
 
 from artiq.language.core import (
     kernel, delay, portable, delay_mu, now_mu, at_mu)
@@ -62,6 +61,43 @@ RAM_MODE_CONT_BIDIR_RAMP = 3
 RAM_MODE_CONT_RAMPUP = 4
 
 
+class SyncDataUser:
+    def __init__(self, core, sync_delay_seed, io_update_delay):
+        self.core = core
+        self.sync_delay_seed = sync_delay_seed
+        self.io_update_delay = io_update_delay
+
+    @kernel
+    def init(self):
+        pass
+
+
+class SyncDataEeprom:
+    def __init__(self, dmgr, core, eeprom_str):
+        self.core = core
+
+        eeprom_device, eeprom_offset = eeprom_str.split(":")
+        self.eeprom_device = dmgr.get(eeprom_device)
+        self.eeprom_offset = int(eeprom_offset)
+
+        self.sync_delay_seed = 0
+        self.io_update_delay = 0
+
+    @kernel
+    def init(self):
+        word = self.eeprom_device.read_i32(self.eeprom_offset) >> 16
+        sync_delay_seed = word >> 8
+        if sync_delay_seed >= 0:
+            io_update_delay = word & 0xff
+        else:
+            io_update_delay = 0
+        if io_update_delay == 0xff:  # unprogrammed EEPROM
+            io_update_delay = 0
+        # With Numpy, type(int32(-1) >> 1) == int64
+        self.sync_delay_seed = int32(sync_delay_seed)
+        self.io_update_delay = int32(io_update_delay)
+
+
 class AD9910:
     """
     AD9910 DDS channel on Urukul.
@@ -88,15 +124,17 @@ class AD9910:
         and set this to the delay tap number returned (default: -1 to signal no
         synchronization and no tuning during :meth:`init`).
         Can be a string of the form "eeprom_device:byte_offset" to read the value
-        from a I2C EEPROM.
+        from a I2C EEPROM; in which case, `io_update_delay` must be set to the
+        same string value.
     :param io_update_delay: IO_UPDATE pulse alignment delay.
         To align IO_UPDATE to SYNC_CLK, run :meth:`tune_io_update_delay` and
         set this to the delay tap number returned.
         Can be a string of the form "eeprom_device:byte_offset" to read the value
-        from a I2C EEPROM.
+        from a I2C EEPROM; in which case, `sync_delay_seed` must be set to the
+        same string value.
     """
     kernel_invariants = {"chip_select", "cpld", "core", "bus",
-                         "ftw_per_hz", "io_update_delay", "sysclk_per_mu"}
+                         "ftw_per_hz", "sysclk_per_mu"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
@@ -128,41 +166,14 @@ class AD9910:
         assert sysclk <= 1e9
         self.ftw_per_hz = (1 << 32)/sysclk
         self.sysclk_per_mu = int(round(sysclk*self.core.ref_period))
+        self.sysclk = sysclk
 
-        @functools.lru_cache(maxsize=2)
-        def get_eeprom_sync_data(eeprom_str):
-            device, offset = eeprom_str.split(":")
-            device = dmgr.get(device)
-            offset = int(offset)
-
-            word = device.read_i32(offset) >> 16
-            sync_delay_seed = word >> 8
-            if sync_delay_seed >= 0:
-                io_update_delay = word & 0xff
-            else:
-                io_update_delay = 0
-            if io_update_delay == 0xff:  # unprogrammed EEPROM
-                io_update_delay = 0
-            # With Numpy, type(int32(-1) >> 1) == int64
-            return device, offset, int32(sync_delay_seed), int32(io_update_delay)
-
-        if isinstance(sync_delay_seed, str):
-            self.sync_delay_seed_eeprom, self.sync_delay_seed_offset, sync_delay_seed, _ = \
-                get_eeprom_sync_data(sync_delay_seed)
+        if isinstance(sync_delay_seed, str) or isinstance(io_update_delay, str):
+            if sync_delay_seed != io_update_delay:
+                raise ValueError("When using EEPROM, sync_delay_seed must be equal to io_update_delay")
+            self.sync_data = SyncDataEeprom(dmgr, self.core, sync_delay_seed)
         else:
-            self.sync_delay_seed_eeprom, self.sync_delay_seed_offset = None, None
-        if isinstance(io_update_delay, str):
-            self.io_update_delay_eeprom, self.io_update_delay_offset, _, io_update_delay = \
-                get_eeprom_sync_data(io_update_delay)
-        else:
-            self.io_update_delay_eeprom, self.io_update_delay_offset = None, None
-
-        if sync_delay_seed >= 0 and not self.cpld.sync_div:
-            raise ValueError("parent cpld does not drive SYNC")
-        self.sync_delay_seed = sync_delay_seed
-        if self.sync_delay_seed >= 0:
-            assert self.sysclk_per_mu == sysclk*self.core.ref_period
-        self.io_update_delay = io_update_delay
+            self.sync_data = SyncDataUser(self.core, sync_delay_seed, io_update_delay)
 
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
@@ -369,6 +380,14 @@ class AD9910:
 
         :param blind: Do not read back DDS identity and do not wait for lock.
         """
+        self.sync_data.init()
+        if self.sync_data.sync_delay_seed >= 0 and not self.cpld.sync_div:
+            raise ValueError("parent cpld does not drive SYNC")
+        if self.sync_data.sync_delay_seed >= 0:
+            if self.sysclk_per_mu != self.sysclk*self.core.ref_period:
+                raise ValueError("incorrect clock ratio for synchronization")
+        delay(50*ms)  # slack
+
         # Set SPI mode
         self.set_cfr1()
         self.cpld.io_update.pulse(1*us)
@@ -406,8 +425,8 @@ class AD9910:
                     if i >= 100 - 1:
                         raise ValueError("PLL lock timeout")
         delay(10*us)  # slack
-        if self.sync_delay_seed >= 0:
-            self.tune_sync_delay(self.sync_delay_seed)
+        if self.sync_data.sync_delay_seed >= 0:
+            self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1*ms)
 
     @kernel
@@ -468,7 +487,7 @@ class AD9910:
                 pow_ += dt*ftw*self.sysclk_per_mu >> 16
         self.write64(_AD9910_REG_PROFILE0 + profile,
                      (asf << 16) | (pow_ & 0xffff), ftw)
-        delay_mu(int64(self.io_update_delay))
+        delay_mu(int64(self.sync_data.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~7)  # clear fine TSC again
         if phase_mode != PHASE_MODE_CONTINUOUS:
