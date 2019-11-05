@@ -14,7 +14,7 @@ use board_misoc::{ident, cache, sdram, boot, mem as board_mem};
 #[cfg(has_slave_fpga_cfg)]
 use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
-use board_misoc::{clock, ethmac, net_settings};
+use board_misoc::{clock, ethmac, config, net_settings};
 use board_misoc::uart_console::Console;
 
 fn check_integrity() -> bool {
@@ -420,9 +420,13 @@ pub extern fn main() -> i32 {
 
     if startup() {
         println!("");
-        #[cfg(has_slave_fpga_cfg)]
-        load_slave_fpga();
-        flash_boot();
+        if !config::read_str("no_flash_boot", |r| r == Ok("1")) {
+            #[cfg(has_slave_fpga_cfg)]
+            load_slave_fpga();
+            flash_boot();
+        } else {
+            println!("Flash booting has been disabled.");
+        }
         #[cfg(has_ethmac)]
         network_boot();
     } else {
