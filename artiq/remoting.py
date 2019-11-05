@@ -7,6 +7,7 @@ import shlex
 import subprocess
 import hashlib
 import random
+import getpass
 
 __all__ = ["LocalClient", "SSHClient"]
 
@@ -62,7 +63,7 @@ class SSHClient(Client):
         self.jump_host = jump_host
         self.ssh = None
         self.sftp = None
-        self._tmpr = "/tmp/artiq"
+        self._tmpr = "/tmp/artiq-" + getpass.getuser()
         self._tmpl = tempfile.TemporaryDirectory(prefix="artiq")
         self._cached = []
         self._downloads = {}
