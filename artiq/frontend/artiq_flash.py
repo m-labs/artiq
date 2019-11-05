@@ -364,6 +364,11 @@ def main():
             variant_dir = variant
         else:
             variant_dir = args.target + "-" + variant
+        if args.target == "sayma":
+            if args.srcbuild:
+                rtm_variant_dir = variant
+            else:
+                rtm_variant_dir = "sayma-rtm"
 
     if args.host is None:
         client = LocalClient()
@@ -405,7 +410,7 @@ def main():
             programmer.write_binary(*config["gateware"], gateware_bin)
             if args.target == "sayma" and variant != "master":
                 rtm_gateware_bin = convert_gateware(
-                    artifact_path("rtm", "gateware", "top.bit"), header=True)
+                    artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
         elif action == "bootloader":
@@ -425,7 +430,7 @@ def main():
         elif action == "load":
             if args.target == "sayma":
                 if variant != "simplesatellite" and variant != "master":
-                    rtm_gateware_bit = artifact_path("rtm", "gateware", "top.bit")
+                    rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
                     programmer.load(rtm_gateware_bit, 0)
                 gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
