@@ -10,11 +10,11 @@ extern crate board_misoc;
 use core::{ptr, slice};
 use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
-use board_misoc::{ident, cache, sdram, boot, mem as board_mem};
+use board_misoc::{ident, cache, sdram, config, boot, mem as board_mem};
 #[cfg(has_slave_fpga_cfg)]
 use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
-use board_misoc::{clock, ethmac, config, net_settings};
+use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 
 fn check_integrity() -> bool {
