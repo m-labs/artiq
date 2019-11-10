@@ -3,9 +3,11 @@ import logging
 from enum import Enum
 from time import time
 
+from sipyco.sync_struct import Notifier
+from sipyco.asyncio_tools import TaskObject
+
 from artiq.master.worker import Worker, log_worker_exception
-from artiq.tools import asyncio_wait_or_cancel, TaskObject, Condition
-from artiq.protocols.sync_struct import Notifier
+from artiq.tools import asyncio_wait_or_cancel, Condition
 
 
 logger = logging.getLogger(__name__)

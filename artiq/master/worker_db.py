@@ -9,8 +9,8 @@ from collections import OrderedDict
 import importlib
 import logging
 
-from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.pc_rpc import AutoTarget, Client, BestEffortClient
+from sipyco.sync_struct import Notifier
+from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
 
 logger = logging.getLogger(__name__)

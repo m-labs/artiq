@@ -15,7 +15,7 @@ class TestFrontends(unittest.TestCase):
             "artiq": [
                 "client", "compile", "coreanalyzer", "coremgmt", "ctlmgr",
                 "netboot", "flash", "influxdb", "master", "mkfs", "route",
-                "rpctool", "rtiomon", "run", "session"
+                "rtiomon", "run", "session"
             ]
         }
 

@@ -7,17 +7,18 @@ import os
 import logging
 import platform
 
-from artiq.protocols.pc_rpc import Server
-from artiq.protocols.logging import LogForwarder, SourceFilter
-from artiq.tools import (simple_network_args, atexit_register_coroutine,
-                         bind_address_from_args, add_common_args)
+from sipyco.pc_rpc import Server
+from sipyco.logging_tools import LogForwarder, SourceFilter
+from sipyco import common_args
+
+from artiq.tools import atexit_register_coroutine
 from artiq.master.ctlmgr import ControllerManager
 
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ controller manager")
 
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
 
     parser.add_argument(
         "-s", "--server", default="::1",
@@ -31,7 +32,7 @@ def get_argparser():
     parser.add_argument(
         "--retry-master", default=5.0, type=float,
         help="retry timer for reconnecting to master")
-    simple_network_args(parser, [("control", "control", 3249)])
+    common_args.simple_network_args(parser, [("control", "control", 3249)])
     return parser
 
 
@@ -73,7 +74,7 @@ def main():
 
     rpc_target = CtlMgrRPC()
     rpc_server = Server({"ctlmgr": rpc_target}, builtin_terminate=True)
-    loop.run_until_complete(rpc_server.start(bind_address_from_args(args),
+    loop.run_until_complete(rpc_server.start(common_args.bind_address_from_args(args),
                                              args.port_control))
     atexit_register_coroutine(rpc_server.stop)
 

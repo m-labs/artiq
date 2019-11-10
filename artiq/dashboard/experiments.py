@@ -7,9 +7,10 @@ from collections import OrderedDict
 from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
+from sipyco import pyon
+
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import procdesc_to_entry, ScanEntry
-from artiq.protocols import pyon
 
 
 logger = logging.getLogger(__name__)

@@ -5,10 +5,12 @@ import shlex
 import socket
 import os
 
-from artiq.protocols.sync_struct import Subscriber
-from artiq.protocols.pc_rpc import AsyncioClient
-from artiq.protocols.logging import LogParser
-from artiq.tools import Condition, TaskObject
+from sipyco.sync_struct import Subscriber
+from sipyco.pc_rpc import AsyncioClient
+from sipyco.logging_tools import LogParser
+from sipyco.asyncio_tools import TaskObject
+
+from artiq.tools import Condition
 
 
 logger = logging.getLogger(__name__)

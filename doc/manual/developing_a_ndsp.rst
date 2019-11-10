@@ -1,7 +1,7 @@
 Developing a Network Device Support Package (NDSP)
 ==================================================
 
-Most ARTIQ devices are interfaced through "controllers" that expose RPC interfaces to the network (based on :class:`artiq.protocols.pc_rpc`). The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
+Most ARTIQ devices are interfaced through "controllers" that expose RPC interfaces to the network (based on SiPyCo). The master never does direct I/O to the devices, but issues RPCs to the controllers when needed. As opposed to running everything on the master, this architecture has those main advantages:
 
 * Each driver can be run on a different machine, which alleviates cabling issues and OS compatibility problems.
 * Reduces the impact of driver crashes.
@@ -15,13 +15,13 @@ A network device support package (NDSP) is composed of several parts:
 
 1. The `driver`, which contains the Python API functions to be called over the network, and performs the I/O to the device. The top-level module of the driver is called ``artiq.devices.XXX.driver``.
 2. The `controller`, which instantiates, initializes and terminates the driver, and sets up the RPC server. The controller is a front-end command-line tool to the user and is called ``artiq.frontend.aqctl_XXX``. A ``setup.py`` entry must also be created to install it.
-3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.aqcli_XXX``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``artiq_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``artiq_rpctool`` command-line parameters.
+3. An optional `client`, which connects to the controller and exposes the functions of the driver as a command-line interface. Clients are front-end tools (called ``artiq.frontend.aqcli_XXX``) that have ``setup.py`` entries. In most cases, a custom client is not needed and the generic ``sipyco_rpctool`` utility can be used instead. Custom clients are only required when large amounts of data must be transferred over the network API, that would be unwieldy to pass as ``sipyco_rpctool`` command-line parameters.
 4. An optional `mediator`, which is code executed on the client that supplements the network API. A mediator may contain kernels that control real-time signals such as TTL lines connected to the device. Simple devices use the network API directly and do not have a mediator. Mediator modules are called ``artiq.devices.XXX.mediator`` and their public classes are exported at the ``artiq.devices.XXX`` level (via ``__init__.py``) for direct import and use by the experiments.
 
 The driver and controller
 -------------------------
 
-A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using :class:`artiq.protocols.pc_rpc`, which makes the network layers transparent for the driver's user.
+A controller is a piece of software that receives commands from a client over the network (or the ``localhost`` interface), drives a device, and returns information about the device to the client. The mechanism used is remote procedure calls (RPCs) using ``sipyco.pc_rpc``, which makes the network layers transparent for the driver's user.
 
 The controller we will develop is for a "device" that is very easy to work with: the console from which the controller is run. The operation that the driver will implement is writing a message to that console.
 
@@ -33,9 +33,9 @@ For using RPC, the functions that a driver provides must be the methods of a sin
 
 For a more complex driver, you would put this class definition into a separate Python module called ``driver``.
 
-To turn it into a server, we use :class:`artiq.protocols.pc_rpc`. Import the function we will use: ::
+To turn it into a server, we use ``sipyco.pc_rpc``. Import the function we will use: ::
 
-    from artiq.protocols.pc_rpc import simple_server_loop
+    from sipyco.pc_rpc import simple_server_loop
 
 and add a ``main`` function that is run when the program is executed: ::
 
@@ -68,24 +68,24 @@ and verify that you can connect to the TCP port: ::
 
 :tip: Use the key combination Ctrl-AltGr-9 to get the ``telnet>`` prompt, and enter ``close`` to quit Telnet. Quit the controller with Ctrl-C.
 
-Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``artiq_rpctool`` program from the ARTIQ front-end tools: ::
+Also verify that a target (service) named "hello" (as passed in the first argument to ``simple_server_loop``) exists using the ``sipyco_rpctool`` program from the ARTIQ front-end tools: ::
 
-    $ artiq_rpctool ::1 3249 list-targets
+    $ sipyco_rpctool ::1 3249 list-targets
     Target(s):   hello
 
 The client
 ----------
 
-Clients are small command-line utilities that expose certain functionalities of the drivers. The ``artiq_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. Try these commands ::
+Clients are small command-line utilities that expose certain functionalities of the drivers. The ``sipyco_rpctool`` utility contains a generic client that can be used in most cases, and developing a custom client is not required. Try these commands ::
 
-    $ artiq_rpctool ::1 3249 list-methods
-    $ artiq_rpctool ::1 3249 call message test
+    $ sipyco_rpctool ::1 3249 list-methods
+    $ sipyco_rpctool ::1 3249 call message test
 
 In case you are developing a NDSP that is complex enough to need a custom client, we will see how to develop one. Create a ``aqcli_hello.py`` file with the following contents: ::
 
     #!/usr/bin/env python3
 
-    from artiq.protocols.pc_rpc import Client
+    from sipyco.pc_rpc import Client
 
 
     def main():
@@ -112,11 +112,11 @@ Command-line arguments
 
 Use the Python ``argparse`` module to make the bind address(es) and port configurable on the controller, and the server address, port and message configurable on the client.
 
-We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The ``artiq.tools.simple_network_args`` library function adds such arguments for the controller, and the ``artiq.tools.bind_address_from_args`` function processes them.
+We suggest naming the controller parameters ``--bind`` (which adds a bind address in addition to a default binding to localhost), ``--no-bind-localhost`` (which disables the default binding to localhost), and ``--port``, so that those parameters stay consistent across controllers. Use ``-s/--server`` and ``--port`` on the client. The ``sipyco.common_args.simple_network_args`` library function adds such arguments for the controller, and the ``sipyco.common_args.bind_address_from_args`` function processes them.
 
 The controller's code would contain something similar to this: ::
 
-    from artiq.tools import simple_network_args
+    from sipyco.common_args import simple_network_args
 
     def get_argparser():
         parser = argparse.ArgumentParser(description="Hello world controller")
@@ -132,14 +132,14 @@ We suggest that you define a function ``get_argparser`` that returns the argumen
 Logging
 -------
 
-For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling :func:`artiq.tools.add_common_args` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
+For the debug, information and warning messages, use the ``logging`` Python module and print the log on the standard error output (the default setting). The logging level is by default "WARNING", meaning that only warning messages and more critical messages will get printed (and no debug nor information messages). By calling ``sipyco.common_args.verbosity_args`` with the parser as argument, you add support for the ``--verbose`` (``-v``) and ``--quiet`` (``-q``) arguments in the parser. Each occurence of ``-v`` (resp. ``-q``) in the arguments will increase (resp. decrease) the log level of the logging module. For instance, if only one ``-v`` is present in the arguments, then more messages (info, warning and above) will get printed. If only one ``-q`` is present in the arguments, then only errors and critical messages will get printed. If ``-qq`` is present in the arguments, then only critical messages will get printed, but no debug/info/warning/error.
 
 The program below exemplifies how to use logging: ::
 
     import argparse
     import logging
 
-    from artiq.tools import add_common_args, init_logger
+    from sipyco.common_args import verbosity_args, init_logger_from_args
 
 
     # get a logger that prints the module name
@@ -151,13 +151,13 @@ The program below exemplifies how to use logging: ::
         parser.add_argument("--someargument",
                             help="some argument")
         # [...]
-        add_common_args(parser) # This adds the -q and -v handling
+        add_verbosity_args(parser) # This adds the -q and -v handling
         return parser
 
 
     def main():
         args = get_argparser().parse_args()
-        init_logger(args) # This initializes logging system log level according to -v/-q args
+        init_logger_from_args(args) # This initializes logging system log level according to -v/-q args
 
         logger.debug("this is a debug message")
         logger.info("this is an info message")
@@ -172,7 +172,7 @@ The program below exemplifies how to use logging: ::
 Remote execution support
 ------------------------
 
-If you wish to support remote execution in your controller, you may do so by simply replacing ``simple_server_loop`` with :class:`artiq.protocols.remote_exec.simple_rexec_server_loop`.
+If you wish to support remote execution in your controller, you may do so by simply replacing ``simple_server_loop`` with :class:`sipyco.remote_exec.simple_rexec_server_loop`.
 
 General guidelines
 ------------------
@@ -184,5 +184,5 @@ General guidelines
 * Controllers must be able to operate in "simulation" mode, where they behave properly even if the associated hardware is not connected. For example, they can print the data to the console instead of sending it to the device, or dump it into a file.
 * The simulation mode is entered whenever the ``--simulation`` option is specified.
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
-* Use docstrings for all public methods of the driver (note that those will be retrieved by ``artiq_rpctool``).
+* Use docstrings for all public methods of the driver (note that those will be retrieved by ``sipyco_rpctool``).
 * Choose a free default TCP port and add it to the default port list in this manual.

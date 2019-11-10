@@ -1,9 +1,9 @@
 import asyncio
 import tokenize
 
-from artiq.protocols.sync_struct import Notifier, process_mod, update_from_dict
-from artiq.protocols import pyon
-from artiq.tools import TaskObject
+from sipyco.sync_struct import Notifier, process_mod, update_from_dict
+from sipyco import pyon
+from sipyco.asyncio_tools import TaskObject
 
 
 def device_db_from_file(filename):

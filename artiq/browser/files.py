@@ -5,7 +5,8 @@ from datetime import datetime
 import h5py
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from artiq.protocols import pyon
+from sipyco import pyon
+
 
 logger = logging.getLogger(__name__)
 

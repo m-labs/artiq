@@ -11,13 +11,13 @@ import time
 import numpy as np
 import aiohttp
 
-from artiq.tools import (
-    simple_network_args, add_common_args, atexit_register_coroutine,
-    bind_address_from_args, init_logger, TaskObject
-)
-from artiq.protocols.sync_struct import Subscriber
-from artiq.protocols.pc_rpc import Server
-from artiq.protocols import pyon
+from sipyco import common_args
+from sipyco.asyncio_tools import TaskObject
+from sipyco.sync_struct import Subscriber
+from sipyco.pc_rpc import Server
+from sipyco import pyon
+
+from artiq.tools import atexit_register_coroutine
 
 
 logger = logging.getLogger(__name__)
@@ -62,8 +62,8 @@ def get_argparser():
         help="file to load the patterns from (default: %(default)s). "
              "If the file is not found, no patterns are loaded "
              "(everything is logged).")
-    simple_network_args(parser, [("control", "control", 3248)])
-    add_common_args(parser)
+    common_args.simple_network_args(parser, [("control", "control", 3248)])
+    common_args.verbosity_args(parser)
     return parser
 
 
@@ -201,7 +201,7 @@ class Filter:
             logger.info("no pattern file found, logging everything")
             self.patterns = []
 
-    # Privatize so that it is not shown in artiq_rpctool list-methods.
+    # Privatize so that it is not shown in sipyco_rpctool list-methods.
     def _filter(self, k):
         take = "+"
         for pattern in self.patterns:
@@ -222,7 +222,7 @@ class Filter:
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     loop = asyncio.get_event_loop()
     atexit.register(loop.close)
@@ -235,7 +235,7 @@ def main():
 
     filter = Filter(args.pattern_file)
     rpc_server = Server({"influxdb_filter": filter}, builtin_terminate=True)
-    loop.run_until_complete(rpc_server.start(bind_address_from_args(args),
+    loop.run_until_complete(rpc_server.start(common_args.bind_address_from_args(args),
                                              args.port_control))
     atexit_register_coroutine(rpc_server.stop)
 

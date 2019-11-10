@@ -6,9 +6,9 @@ import string
 
 from quamash import QEventLoop, QtWidgets, QtCore
 
-from artiq.protocols.sync_struct import Subscriber, process_mod
-from artiq.protocols import pyon
-from artiq.protocols.pipe_ipc import AsyncioChildComm
+from sipyco.sync_struct import Subscriber, process_mod
+from sipyco import pyon
+from sipyco.pipe_ipc import AsyncioChildComm
 
 
 logger = logging.getLogger(__name__)

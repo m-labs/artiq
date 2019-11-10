@@ -5,7 +5,8 @@ import shutil
 import time
 import logging
 
-from artiq.protocols.sync_struct import Notifier, update_from_dict
+from sipyco.sync_struct import Notifier, update_from_dict
+
 from artiq.master.worker import (Worker, WorkerInternalException,
                                  log_worker_exception)
 from artiq.tools import get_windows_drives, exc_to_warning

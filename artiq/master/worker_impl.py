@@ -15,10 +15,12 @@ from collections import OrderedDict
 
 import h5py
 
+from sipyco import pipe_ipc, pyon
+from sipyco.packed_exceptions import raise_packed_exc
+from sipyco.logging_tools import multiline_log_config
+
 import artiq
-from artiq.protocols import pipe_ipc, pyon
-from artiq.protocols.packed_exceptions import raise_packed_exc
-from artiq.tools import multiline_log_config, file_import
+from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (is_experiment, TraceArgumentManager,
                                         ProcessArgumentManager)

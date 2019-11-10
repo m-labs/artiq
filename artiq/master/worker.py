@@ -5,9 +5,10 @@ import logging
 import subprocess
 import time
 
-from artiq.protocols import pipe_ipc, pyon
-from artiq.protocols.logging import LogParser
-from artiq.protocols.packed_exceptions import current_exc_packed
+from sipyco import pipe_ipc, pyon
+from sipyco.logging_tools import LogParser
+from sipyco.packed_exceptions import current_exc_packed
+
 from artiq.tools import asyncio_wait_or_cancel
 
 

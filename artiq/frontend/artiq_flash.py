@@ -10,8 +10,9 @@ import atexit
 from functools import partial
 from collections import defaultdict
 
+from sipyco import common_args
+
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import add_common_args, init_logger
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
 
@@ -41,7 +42,7 @@ Prerequisites:
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
 """)
 
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
 
     parser.add_argument("-n", "--dry-run",
                         default=False, action="store_true",
@@ -295,7 +296,7 @@ class ProgrammerMetlino(Programmer):
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     config = {
         "kasli": {

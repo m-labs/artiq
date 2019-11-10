@@ -10,9 +10,10 @@ from itertools import count
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from artiq.protocols.pipe_ipc import AsyncioParentComm
-from artiq.protocols.logging import LogParser
-from artiq.protocols import pyon
+from sipyco.pipe_ipc import AsyncioParentComm
+from sipyco.logging_tools import LogParser
+from sipyco import pyon
+
 from artiq.gui.tools import QDockWidgetCloseDetect, LayoutWidget
 
 

@@ -9,11 +9,12 @@ import logging
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
+from sipyco.pc_rpc import AsyncioClient, Client
+from sipyco.broadcast import Receiver
+from sipyco import common_args
+
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
-from artiq.tools import (atexit_register_coroutine, add_common_args,
-                         get_user_config_dir)
-from artiq.protocols.pc_rpc import AsyncioClient, Client
-from artiq.protocols.broadcast import Receiver
+from artiq.tools import atexit_register_coroutine, get_user_config_dir
 from artiq.gui.models import ModelSubscriber
 from artiq.gui import state, log
 from artiq.dashboard import (experiments, shortcuts, explorer,
@@ -37,7 +38,7 @@ def get_argparser():
     parser.add_argument(
         "--db-file", default=None,
         help="database file for local GUI settings")
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
     return parser
 
 

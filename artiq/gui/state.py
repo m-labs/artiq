@@ -2,8 +2,8 @@ import asyncio
 from collections import OrderedDict
 import logging
 
-from artiq.tools import TaskObject
-from artiq.protocols import pyon
+from sipyco.asyncio_tools import TaskObject
+from sipyco import pyon
 
 
 logger = logging.getLogger(__name__)

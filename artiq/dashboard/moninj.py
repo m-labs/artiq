@@ -4,7 +4,8 @@ from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from artiq.protocols.sync_struct import Subscriber
+from sipyco.sync_struct import Subscriber
+
 from artiq.coredevice.comm_moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout

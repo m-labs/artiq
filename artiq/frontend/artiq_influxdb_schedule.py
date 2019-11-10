@@ -9,12 +9,13 @@ import time
 import aiohttp
 import numpy as np
 
-from artiq.protocols.sync_struct import Subscriber
-from artiq.tools import (add_common_args, simple_network_args, TaskObject,
-                         init_logger, atexit_register_coroutine,
-                         bind_address_from_args)
-from artiq.protocols.pc_rpc import Server
-from artiq.protocols import pyon
+from sipyco.sync_struct import Subscriber
+from sipyco.pc_rpc import Server
+from sipyco import pyon
+from sipyco import common_args
+from sipyco.asyncio_tools import TaskObject
+
+from artiq.tools import atexit_register_coroutine
 
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,8 @@ def get_argparser():
         "--database", default="db", help="database name to use")
     group.add_argument(
         "--table", default="schedule", help="table name to use")
-    simple_network_args(parser, [("control", "control", 3275)])
-    add_common_args(parser)
+    common_args.simple_network_args(parser, [("control", "control", 3275)])
+    common_args.verbosity_args(parser)
     return parser
 
 
@@ -210,7 +211,7 @@ class Logger:
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     loop = asyncio.get_event_loop()
     atexit.register(loop.close)
@@ -226,7 +227,7 @@ def main():
     server = Logger()
     rpc_server = Server({"schedule_logger": server}, builtin_terminate=True)
     loop.run_until_complete(rpc_server.start(
-        bind_address_from_args(args), args.port_control))
+        common_args.bind_address_from_args(args), args.port_control))
     atexit_register_coroutine(rpc_server.stop)
 
     reader = MasterReader(args.server_master, args.port_master,

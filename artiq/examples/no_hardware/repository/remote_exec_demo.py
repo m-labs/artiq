@@ -1,8 +1,9 @@
 import time
 import inspect
 
+from sipyco.remote_exec import connect_global_rpc
+
 from artiq.experiment import *
-from artiq.protocols.remote_exec import connect_global_rpc
 
 import remote_exec_processing
 

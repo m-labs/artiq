@@ -2,7 +2,8 @@ import warnings
 from collections import OrderedDict
 from inspect import isclass
 
-from artiq.protocols import pyon
+from sipyco import pyon
+
 from artiq.language import units
 from artiq.language.core import rpc
 

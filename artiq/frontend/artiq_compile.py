@@ -2,6 +2,8 @@
 
 import os, sys, logging, argparse
 
+from sipyco import common_args
+
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.language.environment import ProcessArgumentManager
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ static compiler")
 
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
     parser.add_argument("--dataset-db", default="dataset_db.pyon",
@@ -36,7 +38,7 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))

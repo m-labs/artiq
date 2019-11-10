@@ -3,9 +3,10 @@
 import copy
 import unittest
 
+from sipyco.sync_struct import process_mod
+
 from artiq.experiment import EnvExperiment
 from artiq.master.worker_db import DatasetManager
-from artiq.protocols.sync_struct import process_mod
 
 
 class MockDatasetDB:

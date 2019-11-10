@@ -17,11 +17,13 @@ from dateutil.parser import parse as parse_date
 
 from prettytable import PrettyTable
 
-from artiq.protocols.pc_rpc import Client
-from artiq.protocols.sync_struct import Subscriber
-from artiq.protocols.broadcast import Receiver
-from artiq.protocols import pyon
-from artiq.tools import short_format, add_common_args, parse_arguments
+from sipyco.pc_rpc import Client
+from sipyco.sync_struct import Subscriber
+from sipyco.broadcast import Receiver
+from sipyco import pyon
+
+from artiq.tools import short_format, parse_arguments
+from artiq import __version__ as artiq_version
 
 
 def clear_screen():
@@ -39,6 +41,9 @@ def get_argparser():
     parser.add_argument(
         "--port", default=None, type=int,
         help="TCP port to use to connect to the master")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
@@ -64,7 +69,6 @@ def get_argparser():
                                  "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
-    add_common_args(parser)
     parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
