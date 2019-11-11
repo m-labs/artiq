@@ -362,7 +362,7 @@ class AD9910:
         :param ram_enable: RAM mode enable.
         :param manual_osk_external: Enable OSK pin control in manual OSK mode.
         :param osk_enable: Enable OSK mode.
-        :param select_auto_osk: Select manual or automatic OSK mode
+        :param select_auto_osk: Select manual or automatic OSK mode.
         """
         self.write32(_AD9910_REG_CFR1,
                      (ram_enable << 31) |
