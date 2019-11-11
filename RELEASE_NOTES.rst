@@ -34,6 +34,8 @@ ARTIQ-5
 * The ``-e/--experiment`` switch of ``artiq_run`` and ``artiq_compile``
   has been renamed ``-c/--class-name``.
 * ``artiq_devtool`` has been removed.
+* Much of ``artiq.protocols`` has been moved to a separate package ``sipyco``.
+  ``artiq_rpctool`` has been renamed to ``sipyco_rpctool``.
 
 
 ARTIQ-4
