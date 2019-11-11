@@ -360,6 +360,9 @@ class AD9910:
             (:const:`RAM_DEST_FTW`, :const:`RAM_DEST_POW`,
             :const:`RAM_DEST_ASF`, :const:`RAM_DEST_POWASF`).
         :param ram_enable: RAM mode enable.
+        :param manual_osk_external: Enable OSK pin control in manual OSK mode.
+        :param osk_enable: Enable OSK mode.
+        :param select_auto_osk: Select manual or automatic OSK mode
         """
         self.write32(_AD9910_REG_CFR1,
                      (ram_enable << 31) |
@@ -630,6 +633,10 @@ class AD9910:
 
     @kernel
     def set_frequency(self, frequency):
+        """Set the value stored to the AD9910's FTW register
+
+        :param frequency: frequency to be stored, in Hz
+        """
         return self.set_ftw(self.frequency_to_ftw(frequency))
 
     @kernel
