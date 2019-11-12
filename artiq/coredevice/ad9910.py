@@ -345,7 +345,8 @@ class AD9910:
     @kernel
     def set_cfr1(self, power_down=0b0000, phase_autoclear=0,
                  drg_load_lrr=0, drg_autoclear=0,
-                 internal_profile=0, ram_destination=0, ram_enable=0):
+                 internal_profile=0, ram_destination=0, ram_enable=0,
+                 manual_osk_external=0, osk_enable=0, select_auto_osk=0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
@@ -359,14 +360,20 @@ class AD9910:
             (:const:`RAM_DEST_FTW`, :const:`RAM_DEST_POW`,
             :const:`RAM_DEST_ASF`, :const:`RAM_DEST_POWASF`).
         :param ram_enable: RAM mode enable.
+        :param manual_osk_external: Enable OSK pin control in manual OSK mode.
+        :param osk_enable: Enable OSK mode.
+        :param select_auto_osk: Select manual or automatic OSK mode.
         """
         self.write32(_AD9910_REG_CFR1,
                      (ram_enable << 31) |
                      (ram_destination << 29) |
+                     (manual_osk_external << 23) |
                      (internal_profile << 17) |
                      (drg_load_lrr << 15) |
                      (drg_autoclear << 14) |
                      (phase_autoclear << 13) |
+                     (osk_enable << 9) |
+                     (select_auto_osk << 8) |
                      (power_down << 4) |
                      2)  # SDIO input only, MSB first
 
@@ -522,26 +529,14 @@ class AD9910:
 
     @kernel
     def set_ftw(self, ftw):
-        """Set the value stored to the AD9910's frequency tuning word (FTW) register.
-
-        :param ftw: Frequency tuning word to be stored, range: 0 to 0xffffffff.
-        """
         self.write32(_AD9910_REG_FTW, ftw)
 
     @kernel
     def set_asf(self, asf):
-        """Set the value stored to the AD9910's amplitude scale factor (ASF) register.
-
-        :param asf: Amplitude scale factor to be stored, range: 0 to 0x3ffe.
-        """
-        self.write32(_AD9910_REG_ASF, asf<<2)
+        self.write32(_AD9910_REG_ASF, asf)
 
     @kernel
     def set_pow(self, pow_):
-        """Set the value stored to the AD9910's phase offset word (POW) register.
-
-        :param pow_: Phase offset word to be stored, range: 0 to 0xffff.
-        """
         self.write32(_AD9910_REG_POW, pow_)
 
     @portable(flags={"fast-math"})
@@ -638,26 +633,14 @@ class AD9910:
 
     @kernel
     def set_frequency(self, frequency):
-        """Set the value stored to the AD9910's frequency tuning word (FTW) register.
-
-        :param frequency: frequency to be stored, in Hz.
-        """
         return self.set_ftw(self.frequency_to_ftw(frequency))
 
     @kernel
     def set_amplitude(self, amplitude):
-        """Set the value stored to the AD9910's amplitude scale factor (ASF) register.
-
-        :param amplitude: amplitude to be stored, in units of full scale.
-        """
         return self.set_asf(self.amplitude_to_asf(amplitude))
 
     @kernel
     def set_phase(self, turns):
-        """Set the value stored to the AD9910's phase offset word (POW) register.
-
-        :param turns: phase offset to be stored, in turns.
-        """
         return self.set_pow(self.turns_to_pow(turns))
 
     @kernel
