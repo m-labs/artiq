@@ -25,8 +25,12 @@ class DeviceDB:
     def get_device_db(self):
         return self.data.raw_view
 
-    def get(self, key):
-        return self.data.raw_view[key]
+    def get(self, key, resolve_alias=False):
+        desc = self.data.raw_view[key]
+        if resolve_alias:
+            while isinstance(desc, str):
+                desc = self.data.raw_view[desc]
+        return desc
 
 
 class DatasetDB(TaskObject):

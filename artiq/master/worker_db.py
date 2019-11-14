@@ -5,7 +5,6 @@ standalone command line tools).
 """
 
 from operator import setitem
-from collections import OrderedDict
 import importlib
 import logging
 
@@ -60,44 +59,43 @@ class DeviceManager:
     def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
         self.virtual_devices = virtual_devices
-        self.active_devices = OrderedDict()
+        self.active_devices = []
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
         return self.ddb.get_device_db()
 
     def get_desc(self, name):
-        desc = self.ddb.get(name)
-        while isinstance(desc, str):
-            # alias
-            desc = self.ddb.get(desc)
-        return desc
+        return self.ddb.get(name, resolve_alias=True)
 
     def get(self, name):
         """Get the device driver or controller client corresponding to a
         device database entry."""
         if name in self.virtual_devices:
             return self.virtual_devices[name]
-        if name in self.active_devices:
-            return self.active_devices[name]
-        else:
-            try:
-                desc = self.get_desc(name)
-            except Exception as e:
-                raise DeviceError("Failed to get description of device '{}'"
-                                  .format(name)) from e
-            try:
-                dev = _create_device(desc, self)
-            except Exception as e:
-                raise DeviceError("Failed to create device '{}'"
-                                  .format(name)) from e
-            self.active_devices[name] = dev
-            return dev
+
+        try:
+            desc = self.get_desc(name)
+        except Exception as e:
+            raise DeviceError("Failed to get description of device '{}'"
+                              .format(name)) from e
+
+        for existing_desc, existing_dev in self.active_devices:
+            if desc == existing_desc:
+                return existing_dev
+
+        try:
+            dev = _create_device(desc, self)
+        except Exception as e:
+            raise DeviceError("Failed to create device '{}'"
+                              .format(name)) from e
+        self.active_devices.append((desc, dev))
+        return dev
 
     def close_devices(self):
         """Closes all active devices, in the opposite order as they were
         requested."""
-        for dev in reversed(list(self.active_devices.values())):
+        for _desc, dev in reversed(self.active_devices):
             try:
                 if isinstance(dev, (Client, BestEffortClient)):
                     dev.close_rpc()

@@ -142,7 +142,8 @@ def main():
     common_args.init_logger_from_args(args)
 
     if args.device is None:
-        core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
+        ddb = DeviceDB(args.device_db)
+        core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
     mgmt = CommMgmt(core_addr)
