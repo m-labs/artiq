@@ -7,6 +7,8 @@ import textwrap
 from collections import defaultdict
 from itertools import count
 
+from artiq import __version__ as artiq_version
+
 
 def process_header(output, description):
     if description["target"] != "kasli":
@@ -473,6 +475,9 @@ def process(output, master_description, satellites):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device database template builder")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
     parser.add_argument("master_description", metavar="MASTER_DESCRIPTION",
                         help="JSON system description file for the standalone or master node")
     parser.add_argument("-o", "--output",

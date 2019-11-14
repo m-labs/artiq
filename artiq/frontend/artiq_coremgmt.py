@@ -5,6 +5,7 @@ import struct
 
 from sipyco import common_args
 
+from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
@@ -14,6 +15,9 @@ from artiq.coredevice.profiler import CallgrindWriter
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "management tool")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",

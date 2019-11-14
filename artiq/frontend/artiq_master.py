@@ -12,6 +12,7 @@ from sipyco.logging_tools import Server as LoggingServer
 from sipyco.broadcast import Broadcaster
 from sipyco import common_args
 
+from artiq import __version__ as artiq_version
 from artiq.tools import atexit_register_coroutine
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
@@ -25,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     common_args.simple_network_args(parser, [
         ("notify", "notifications", 3250),

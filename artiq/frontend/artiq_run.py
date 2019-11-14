@@ -14,6 +14,7 @@ from llvmlite_artiq import binding as llvm
 
 from sipyco import common_args
 
+from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
 from artiq.language.types import TBool
 from artiq.master.databases import DeviceDB, DatasetDB
@@ -127,6 +128,9 @@ class DummyCCB:
 def get_argparser(with_file=True):
     parser = argparse.ArgumentParser(
         description="Local experiment running tool")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",

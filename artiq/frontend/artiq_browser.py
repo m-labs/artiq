@@ -9,6 +9,7 @@ import logging
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
+from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import (add_common_args, atexit_register_coroutine,
                          get_user_config_dir)
@@ -21,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ Browser")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
     parser.add_argument("--db-file", default=None,
                         help="database file for local browser settings "
                         "(default: %(default)s)")

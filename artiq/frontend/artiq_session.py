@@ -3,7 +3,7 @@
 import argparse
 import sys
 import subprocess
-
+from artiq import __version__ as artiq_version
 
 
 def get_argparser():
@@ -11,6 +11,9 @@ def get_argparser():
         description="ARTIQ session manager. "
                     "Automatically runs the master, dashboard and "
                     "local controller manager on the current machine.")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
     parser.add_argument("-m", action="append", default=[],
                         help="add argument to the master command line")
     parser.add_argument("-d", action="append", default=[],

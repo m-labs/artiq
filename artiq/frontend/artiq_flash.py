@@ -12,6 +12,7 @@ from collections import defaultdict
 
 from sipyco import common_args
 
+from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
@@ -41,6 +42,10 @@ Prerequisites:
       and replug the device. Ensure you are member of the
       plugdev group: 'sudo adduser $USER plugdev' and re-login.
 """)
+
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     common_args.verbosity_args(parser)
 
