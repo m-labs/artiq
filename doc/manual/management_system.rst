@@ -189,7 +189,7 @@ artiq_dashboard
 
 
 artiq_session
----------------
+-------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_session.get_argparser
