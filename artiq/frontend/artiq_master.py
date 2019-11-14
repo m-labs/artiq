@@ -11,9 +11,9 @@ from sipyco.sync_struct import Publisher
 from sipyco.logging_tools import Server as LoggingServer
 from sipyco.broadcast import Broadcaster
 from sipyco import common_args
+from sipyco.asyncio_tools import atexit_register_coroutine
 
 from artiq import __version__ as artiq_version
-from artiq.tools import atexit_register_coroutine
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler

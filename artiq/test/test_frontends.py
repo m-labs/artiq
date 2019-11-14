@@ -13,8 +13,8 @@ class TestFrontends(unittest.TestCase):
                 "corelog"
             ],
             "artiq": [
-                "client", "compile", "coreanalyzer", "coremgmt", "ctlmgr",
-                "netboot", "flash", "influxdb", "master", "mkfs", "route",
+                "client", "compile", "coreanalyzer", "coremgmt",
+                "netboot", "flash", "master", "mkfs", "route",
                 "rtiomon", "run", "session"
             ]
         }

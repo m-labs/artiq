@@ -58,6 +58,7 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
         (pkgs.python3.withPackages(ps: [
           # List desired Python packages here.
           artiq-full.artiq
+          artiq-full.artiq-comtools
           # The board packages are also "Python" packages. You only need a board
           # package if you intend to reflash that board (those packages contain
           # only board firmware).

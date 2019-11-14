@@ -9,6 +9,7 @@ CONDA_ENV_NAME = "artiq"
 # The conda packages to download and install.
 CONDA_PACKAGES = [
     "artiq",
+    "artiq-comtools",
     # Only install board packages if you plan to reflash the board.
     # The two lines below are just examples and probably not what you want.
     # Select the packages that correspond to your board, or remove them

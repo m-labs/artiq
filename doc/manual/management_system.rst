@@ -16,7 +16,7 @@ The master is a headless component, and one or several clients (command-line or 
 Controller manager
 ------------------
 
-:ref:`Controller managers <frontend-artiq-ctlmgr>` are responsible for running and stopping controllers on a machine. There is one controller manager per network node that runs controllers.
+Controller managers (started using the ``artiq_ctlmgr`` command that is part of the ``artiq-comtools`` package) are responsible for running and stopping controllers on a machine. There is one controller manager per network node that runs controllers.
 
 A controller manager connects to the master and uses the device database to determine what controllers need to be run. Changes in the device database are tracked by the manager and controllers are started and stopped accordingly.
 
@@ -156,16 +156,6 @@ artiq_master
 .. argparse::
    :ref: artiq.frontend.artiq_master.get_argparser
    :prog: artiq_master
-
-
-.. _frontend-artiq-ctlmgr:
-
-artiq_ctlmgr
-------------
-
-.. argparse::
-   :ref: artiq.frontend.artiq_ctlmgr.get_argparser
-   :prog: artiq_ctlmgr
 
 
 .. _frontend-artiq-client:

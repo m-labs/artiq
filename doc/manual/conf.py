@@ -35,7 +35,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "quamash", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite_artiq", "Levenshtein", "aiohttp", "pythonparser"]
+                "llvmlite_artiq", "Levenshtein", "pythonparser"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()

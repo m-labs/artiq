@@ -1,7 +1,4 @@
 import asyncio
-import atexit
-import collections
-import contextlib
 import importlib.machinery
 import logging
 import os
@@ -19,9 +16,7 @@ from artiq.language.environment import is_experiment
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
            "get_experiment",
-           "UnexpectedLogMessageError", "expect_no_log_messages",
-           "atexit_register_coroutine", "exc_to_warning",
-           "asyncio_wait_or_cancel", "Condition",
+           "exc_to_warning", "asyncio_wait_or_cancel",
            "get_windows_drives", "get_user_config_dir"]
 
 
@@ -107,42 +102,6 @@ def get_experiment(module, class_name=None):
     return exps[0][1]
 
 
-class UnexpectedLogMessageError(Exception):
-    pass
-
-
-class FailingLogHandler(logging.Handler):
-    def emit(self, record):
-        raise UnexpectedLogMessageError("Unexpected log message: '{}'".format(
-            record.getMessage()))
-
-
-@contextlib.contextmanager
-def expect_no_log_messages(level, logger=None):
-    """Raise an UnexpectedLogMessageError if a log message of the given level
-    (or above) is emitted while the context is active.
-
-    Example: ::
-
-        with expect_no_log_messages(logging.ERROR):
-            do_stuff_that_should_not_log_errors()
-    """
-    if logger is None:
-        logger = logging.getLogger()
-    handler = FailingLogHandler(level)
-    logger.addHandler(handler)
-    try:
-        yield
-    finally:
-        logger.removeHandler(handler)
-
-
-def atexit_register_coroutine(coroutine, loop=None):
-    if loop is None:
-        loop = asyncio.get_event_loop()
-    atexit.register(lambda: loop.run_until_complete(coroutine()))
-
-
 async def exc_to_warning(coro):
     try:
         await coro
@@ -163,29 +122,6 @@ async def asyncio_wait_or_cancel(fs, **kwargs):
         f.cancel()
         await asyncio.wait([f])
     return fs
-
-
-class Condition:
-    def __init__(self, *, loop=None):
-        if loop is not None:
-            self._loop = loop
-        else:
-            self._loop = asyncio.get_event_loop()
-        self._waiters = collections.deque()
-
-    async def wait(self):
-        """Wait until notified."""
-        fut = asyncio.Future(loop=self._loop)
-        self._waiters.append(fut)
-        try:
-            await fut
-        finally:
-            self._waiters.remove(fut)
-
-    def notify(self):
-        for fut in self._waiters:
-            if not fut.done():
-                fut.set_result(False)
 
 
 def get_windows_drives():

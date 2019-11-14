@@ -9,10 +9,11 @@ import logging
 from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
+from sipyco.asyncio_tools import atexit_register_coroutine
+
 from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import (add_common_args, atexit_register_coroutine,
-                         get_user_config_dir)
+from artiq.tools import add_common_args, get_user_config_dir
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
 
