@@ -17,39 +17,39 @@ ARTIQ-5
 Highlights:
 
 * Performance improvements:
- - Faster RTIO event submission (1.5x improvement in pulse rate test)
-   See: https://github.com/m-labs/artiq/issues/636
- - Faster compilation times (3 seconds saved on kernel compilation time on a typical
-   medium-size experiment)
-   See: https://github.com/m-labs/artiq/commit/611bcc4db4ed604a32d9678623617cd50e968cbf
+   - Faster RTIO event submission (1.5x improvement in pulse rate test)
+     See: https://github.com/m-labs/artiq/issues/636
+   - Faster compilation times (3 seconds saved on kernel compilation time on a typical
+     medium-size experiment)
+     See: https://github.com/m-labs/artiq/commit/611bcc4db4ed604a32d9678623617cd50e968cbf
 * Improved packaging and build system:
- - new continuous integration/delivery infrastructure based on Nix and Hydra,
-   providing reproducibility, speed and independence.
- - rolling release process (https://github.com/m-labs/artiq/issues/1326).
- - firmware, gateware and device database templates are automatically built for all
-   supported Kasli variants.
- - new JSON description format for generic Kasli systems.
- - Nix packages are now supported.
- - many Conda problems worked around.
- - controllers are now out-of-tree.
- - split packages that enable lightweight applications that communicate with ARTIQ,
-   e.g. controllers running on non-x86 single-board computers.
+   - new continuous integration/delivery infrastructure based on Nix and Hydra,
+     providing reproducibility, speed and independence.
+   - rolling release process (https://github.com/m-labs/artiq/issues/1326).
+   - firmware, gateware and device database templates are automatically built for all
+     supported Kasli variants.
+   - new JSON description format for generic Kasli systems.
+   - Nix packages are now supported.
+   - many Conda problems worked around.
+   - controllers are now out-of-tree.
+   - split packages that enable lightweight applications that communicate with ARTIQ,
+     e.g. controllers running on non-x86 single-board computers.
 * Improved Urukul support:
- - AD9910 RAM mode.
- - Configurable refclk divider and PLL bypass.
- - More reliable phase synchronization at high sample rates.
- - Synchronization calibration data can be read from EEPROM.
+   - AD9910 RAM mode.
+   - Configurable refclk divider and PLL bypass.
+   - More reliable phase synchronization at high sample rates.
+   - Synchronization calibration data can be read from EEPROM.
 * A gateware-level input edge counter has been added, which offers higher
   throughput and increased flexibility over the usual TTL input PHYs where
-  edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
-  the core device driver and :mod:`artiq.gateware.rtio.phy.edge_counter`/
-  :meth:`artiq.gateware.eem.DIO.add_std` for the gateware components.
+  edge timestamps are not required. See `artiq.coredevice.edge_counter` for
+  the core device driver and `artiq.gateware.rtio.phy.edge_counter`/
+  `artiq.gateware.eem.DIO.add_std` for the gateware components.
 * With DRTIO, Siphaser uses a better calibration mechanism.
   See: https://github.com/m-labs/artiq/commit/cc58318500ecfa537abf24127f2c22e8fe66e0f8
 * Schedule updates can be sent to influxdb (artiq_influxdb_schedule).
 * Experiments can now programatically set their default pipeline, priority, and flush flag.
 * List datasets can now be efficiently appended to from experiments using
-  :meth:`artiq.language.environment.HasEnvironment.append_to_dataset`.
+  `artiq.language.environment.HasEnvironment.append_to_dataset`.
 * The core device now supports IPv6.
 * To make development easier, the bootloader can receive firmware and secondary FPGA
   gateware from the network.
@@ -59,8 +59,8 @@ Highlights:
 
 Breaking changes:
 
-* The :class:`~artiq.coredevice.ad9910.AD9910` and
-  :class:`~artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
+* The `artiq.coredevice.ad9910.AD9910` and
+  `artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
   have been renamed to ``ref_time_mu`` for consistency, as they are in machine
   units.
 * The controller manager now ignores device database entries without the
