@@ -17,28 +17,28 @@ ARTIQ-5
 Highlights:
 
 * Performance improvements:
-  - Faster RTIO event submission (1.5x improvement in pulse rate test)
-    See: https://github.com/m-labs/artiq/issues/636
-  - Faster compilation times (3 seconds saved on kernel compilation time on a typical
-    medium-size experiment)
-    See: https://github.com/m-labs/artiq/commit/611bcc4db4ed604a32d9678623617cd50e968cbf
+ - Faster RTIO event submission (1.5x improvement in pulse rate test)
+   See: https://github.com/m-labs/artiq/issues/636
+ - Faster compilation times (3 seconds saved on kernel compilation time on a typical
+   medium-size experiment)
+   See: https://github.com/m-labs/artiq/commit/611bcc4db4ed604a32d9678623617cd50e968cbf
 * Improved packaging and build system:
-  - new continuous integration/delivery infrastructure based on Nix and Hydra,
-    providing reproducibility, speed and independence.
-  - rolling release process (https://github.com/m-labs/artiq/issues/1326).
-  - firmware, gateware and device database templates are automatically built for all
-    supported Kasli variants.
-  - new JSON description format for generic Kasli systems.
-  - Nix packages are now supported.
-  - many Conda problems worked around.
-  - controllers are now out-of-tree.
-  - split packages that enable lightweight applications that communicate with ARTIQ,
-    e.g. controllers running on non-x86 single-board computers.
+ - new continuous integration/delivery infrastructure based on Nix and Hydra,
+   providing reproducibility, speed and independence.
+ - rolling release process (https://github.com/m-labs/artiq/issues/1326).
+ - firmware, gateware and device database templates are automatically built for all
+   supported Kasli variants.
+ - new JSON description format for generic Kasli systems.
+ - Nix packages are now supported.
+ - many Conda problems worked around.
+ - controllers are now out-of-tree.
+ - split packages that enable lightweight applications that communicate with ARTIQ,
+   e.g. controllers running on non-x86 single-board computers.
 * Improved Urukul support:
-  - AD9910 RAM mode.
-  - Configurable refclk divider and PLL bypass.
-  - More reliable phase synchronization at high sample rates.
-  - Synchronization calibration data can be read from EEPROM.
+ - AD9910 RAM mode.
+ - Configurable refclk divider and PLL bypass.
+ - More reliable phase synchronization at high sample rates.
+ - Synchronization calibration data can be read from EEPROM.
 * A gateware-level input edge counter has been added, which offers higher
   throughput and increased flexibility over the usual TTL input PHYs where
   edge timestamps are not required. See :mod:`artiq.coredevice.edge_counter` for
