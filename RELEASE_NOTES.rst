@@ -3,6 +3,14 @@
 Release notes
 =============
 
+ARTIQ-6
+-------
+
+Highlights:
+
+Breaking changes:
+
+
 ARTIQ-5
 -------
 
