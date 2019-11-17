@@ -684,6 +684,8 @@ class AD9910:
     def set_att_mu(self, att):
         """Set digital step attenuator in machine units.
 
+        This method will write the attenuator settings of all four channels.
+
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att_mu`
 
         :param att: Attenuation setting, 8 bit digital.
@@ -693,6 +695,8 @@ class AD9910:
     @kernel
     def set_att(self, att):
         """Set digital step attenuator in SI units.
+
+        This method will write the attenuator settings of all four channels.
 
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.set_att`
 

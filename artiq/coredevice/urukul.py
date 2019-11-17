@@ -288,7 +288,8 @@ class CPLD:
     def set_att_mu(self, channel, att):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of all four channels.
+        This method will also write the attenuator settings of the three other channels. Use
+        :meth:`get_att_mu` to retrieve the hardware state set in previous experiments.
 
         :param channel: Attenuator channel (0-3).
         :param att: Digital attenuation setting:
@@ -315,6 +316,10 @@ class CPLD:
     def set_att(self, channel, att):
         """Set digital step attenuator in SI units.
 
+        This method will write the attenuator settings of all four channels.
+
+        .. seealso:: :meth:`set_att_mu`
+
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
             attenuation. Minimum attenuation is 0*dB, maximum attenuation is
@@ -325,6 +330,8 @@ class CPLD:
     @kernel
     def get_att_mu(self):
         """Return the digital step attenuator settings in machine units.
+
+        The result is stored and will be used in future calls of :meth:`set_att_mu`.
 
         :return: 32 bit attenuator settings
         """
