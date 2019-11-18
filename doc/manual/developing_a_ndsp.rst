@@ -186,3 +186,8 @@ General guidelines
 * Keep command line parameters consistent across clients/controllers. When adding new command line options, look for a client/controller that does a similar thing and follow its use of ``argparse``. If the original client/controller could use ``argparse`` in a better way, improve it.
 * Use docstrings for all public methods of the driver (note that those will be retrieved by ``sipyco_rpctool``).
 * Choose a free default TCP port and add it to the default port list in this manual.
+
+Hosting your code
+-----------------
+
+We suggest that you create a Git repository for your code, and publish it on https://git.m-labs.hk/, GitLab, GitHub, or a similar website of your choosing. Then send us a message or pull request for your NDSP to be added to the list in this manual.
