@@ -345,7 +345,8 @@ class AD9910:
     @kernel
     def set_cfr1(self, power_down=0b0000, phase_autoclear=0,
                  drg_load_lrr=0, drg_autoclear=0,
-                 internal_profile=0, ram_destination=0, ram_enable=0):
+                 internal_profile=0, ram_destination=0, ram_enable=0,
+                 manual_osk_external=0, osk_enable=0, select_auto_osk=0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
@@ -359,14 +360,20 @@ class AD9910:
             (:const:`RAM_DEST_FTW`, :const:`RAM_DEST_POW`,
             :const:`RAM_DEST_ASF`, :const:`RAM_DEST_POWASF`).
         :param ram_enable: RAM mode enable.
+        :param manual_osk_external: Enable OSK pin control in manual OSK mode.
+        :param osk_enable: Enable OSK mode.
+        :param select_auto_osk: Select manual or automatic OSK mode.
         """
         self.write32(_AD9910_REG_CFR1,
                      (ram_enable << 31) |
                      (ram_destination << 29) |
+                     (manual_osk_external << 23) |
                      (internal_profile << 17) |
                      (drg_load_lrr << 15) |
                      (drg_autoclear << 14) |
                      (phase_autoclear << 13) |
+                     (osk_enable << 9) |
+                     (select_auto_osk << 8) |
                      (power_down << 4) |
                      2)  # SDIO input only, MSB first
 
