@@ -58,12 +58,12 @@ class SamplerPads(Module):
 
 
 class UrukulPads(Module):
-    def __init__(self, platform, eem0, eem1):
+    def __init__(self, platform, *eems):
         spip, spin = [[
                 platform.request("{}_qspi_{}".format(eem, pol), 0)
-                for eem in (eem0, eem1)] for pol in "pn"]
+                for eem in eems] for pol in "pn"]
         ioup = [platform.request("{}_io_update".format(eem), 0)
-                for eem in (eem0, eem1)]
+                for eem in eems]
         self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
@@ -71,12 +71,13 @@ class UrukulPads(Module):
                 DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
                 DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
                 DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
-                for i in range(2)]
+                for i in range(len(eems))]
         for i in range(8):
             mosi = Signal()
             setattr(self, "mosi{}".format(i), mosi)
+        for i in range(4*len(eems)):
             self.specials += [
-                DifferentialOutput(mosi,
+                DifferentialOutput(getattr(self, "mosi{}".format(i)),
                     getattr(spip[i // 4], "mosi{}".format(i % 4)),
                     getattr(spin[i // 4], "mosi{}".format(i % 4)))
             ]
