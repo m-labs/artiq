@@ -170,7 +170,7 @@ class ADPLLProgrammer(Module):
         self.submodules += master
 
         self.comb += [
-            master.cg.load.eq(self.i2c_divider.storage),
+            master.cg.load.eq(self.i2c_divider),
             self.scl.eq(master.scl),
             master.sda_i.eq(self.sda_i),
             self.sda_o.eq(master.sda_o)
@@ -184,7 +184,7 @@ class Si549(Module, AutoCSR):
         self.gpio_out = CSRStorage(2)
         self.gpio_oe = CSRStorage(2)
 
-        self.i2c_divider = CSRStorage(16)
+        self.i2c_divider = CSRStorage(16, reset=2500)
         self.i2c_address = CSRStorage(7)
         self.errors = CSR(2)
 
@@ -205,7 +205,7 @@ class Si549(Module, AutoCSR):
         ]
         self.comb += [
             programmer.adpll.eq(self.adpll),
-            programmer.adpll_stb.eq(self.adpll_stb)
+            programmer.stb.eq(self.adpll_stb)
         ]
 
         self.gpio_enable.storage.attr.add("no_retiming")
