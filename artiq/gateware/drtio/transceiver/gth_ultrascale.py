@@ -37,6 +37,8 @@ class GTHSingle(Module):
         self.rx_ready = Signal()
 
         # transceiver direct clock outputs
+        # for OBUFDS_GTE3
+        self.rxrecclkout = Signal()
         # useful to specify clock constraints in a way palatable to Vivado
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
@@ -521,6 +523,7 @@ class GTHSingle(Module):
             i_RXSYSCLKSEL=0b00,
             i_RXOUTCLKSEL=0b010,
             i_RXPLLCLKSEL=0b00,
+            o_RXRECCLKOUT=self.rxrecclkout,
             o_RXOUTCLK=self.rxoutclk,
             i_RXUSRCLK=ClockSignal("rtio_rx"),
             i_RXUSRCLK2=ClockSignal("rtio_rx"),
@@ -633,7 +636,7 @@ class GTHTXPhaseAlignement(Module):
 
 
 class GTH(Module, TransceiverInterface):
-    def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, rtiox_mul=2, dw=20, master=0):
+    def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, rtiox_mul=2, dw=20, master=0, clock_recout_pads=None):
         self.nchannels = nchannels = len(data_pads)
         self.gths = []
 
@@ -689,3 +692,9 @@ class GTH(Module, TransceiverInterface):
                 getattr(self, "cd_rtio_rx" + str(i)).clk.eq(self.gths[i].cd_rtio_rx.clk),
                 getattr(self, "cd_rtio_rx" + str(i)).rst.eq(self.gths[i].cd_rtio_rx.rst)
             ]
+
+        if clock_recout_pads is not None:
+            self.specials += Instance("OBUFDS_GTE3",
+                i_I=self.gths[0].rxrecclkout,
+                i_CEB=0,
+                o_O=clock_recout_pads.p, o_OB=clock_recout_pads.n)
