@@ -19,6 +19,7 @@ from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
+from artiq.gateware.drtio.wrpll import WRPLL
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
@@ -51,7 +52,7 @@ class SatelliteBase(MiniSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", *, with_wrpll, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -140,6 +141,17 @@ class SatelliteBase(MiniSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
+
+        if with_wrpll:
+            # TODO: check OE polarity (depends on what was installed on the boards)
+            self.comb += [
+                platform.request("ddmtd_main_dcxo_oe").eq(1),
+                platform.request("ddmtd_helper_dcxo_oe").eq(1)
+            ]
+            self.submodules.wrpll = WRPLL(
+                main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
+                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"))
+            self.csr_devices.append("wrpll")
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
@@ -492,13 +504,15 @@ def main():
         default=False, action="store_true",
         help="Remove SAWG RTIO channels feeding the JESD links (speeds up "
         "compilation time). Replaces them with fixed pattern generators.")
+    parser.add_argument("--with-wrpll", default=False, action="store_true")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     if variant == "satellite":
-        soc = Satellite(with_sawg=not args.without_sawg, **soc_sayma_amc_argdict(args))
+        soc = Satellite(with_sawg=not args.without_sawg, with_wrpll=args.with_wrpll,
+                        **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
-        soc = SimpleSatellite(**soc_sayma_amc_argdict(args))
+        soc = SimpleSatellite(with_wrpll=args.with_wrpll, **soc_sayma_amc_argdict(args))
     elif variant == "master":
         soc = Master(**soc_sayma_amc_argdict(args))
     else:
