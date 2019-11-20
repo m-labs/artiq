@@ -66,6 +66,10 @@ class SatelliteBase(MiniSoC):
 
         platform = self.platform
 
+        if with_wrpll:
+            clock_recout_pads = platform.request("ddmtd_rec_clk")
+        else:
+            clock_recout_pads = None
         # Use SFP0 to connect to master (Kasli)
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         drtio_data_pads = [
@@ -76,7 +80,8 @@ class SatelliteBase(MiniSoC):
             clock_pads=platform.request("cdr_clk_clean"),
             data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
-            rtio_clk_freq=rtio_clk_freq)
+            rtio_clk_freq=rtio_clk_freq,
+            clock_recout_pads=clock_recout_pads)
         self.csr_devices.append("drtio_transceiver")
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
