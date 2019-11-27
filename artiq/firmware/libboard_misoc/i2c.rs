@@ -194,13 +194,13 @@ mod imp {
 #[cfg(not(has_i2c))]
 mod imp {
     const NO_I2C: &'static str = "No I2C support on this platform";
-    pub fn init() { Err(NO_I2C) }
+    pub fn init() -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn start(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn restart(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
     pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
-    pub fn pca9548_select(busno: u8, address: u8, channels: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn pca9548_select(_busno: u8, _address: u8, _channels: u8) -> Result<(), &'static str> { Err(NO_I2C) }
 }
 
 pub use self::imp::*;
