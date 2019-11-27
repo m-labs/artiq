@@ -130,26 +130,10 @@ class SatelliteBase(MiniSoC):
         self.add_csr_group("drtiorep", drtiorep_csr_group)
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        self.comb += platform.request("filtered_clk_sel").eq(1)
-        self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("si5324_clkin"),
-            rx_synchronizer=self.rx_synchronizer,
-            ultrascale=True,
-            rtio_clk_freq=rtio_clk_freq)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-        self.csr_devices.append("siphaser")
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
-        self.csr_devices.append("si5324_rst_n")
-        i2c = self.platform.request("i2c")
-        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-        self.csr_devices.append("i2c")
-        self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-
         if with_wrpll:
             # TODO: check OE polarity (depends on what was installed on the boards)
             self.comb += [
+                platform.request("filtered_clk_sel").eq(0),
                 platform.request("ddmtd_main_dcxo_oe").eq(1),
                 platform.request("ddmtd_helper_dcxo_oe").eq(1)
             ]
@@ -157,6 +141,23 @@ class SatelliteBase(MiniSoC):
                 main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
                 helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"))
             self.csr_devices.append("wrpll")
+        else:
+            self.comb += platform.request("filtered_clk_sel").eq(1)
+            self.submodules.siphaser = SiPhaser7Series(
+                si5324_clkin=platform.request("si5324_clkin"),
+                rx_synchronizer=self.rx_synchronizer,
+                ultrascale=True,
+                rtio_clk_freq=rtio_clk_freq)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+            self.csr_devices.append("siphaser")
+            self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+            self.csr_devices.append("si5324_rst_n")
+            i2c = self.platform.request("i2c")
+            self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+            self.csr_devices.append("i2c")
+            self.config["I2C_BUS_COUNT"] = 1
+            self.config["HAS_SI5324"] = None
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gth = self.drtio_transceiver.gths[0]
