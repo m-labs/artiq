@@ -179,10 +179,98 @@ mod i2c {
     }
 }
 
+mod si549 {
+    use board_misoc::clock;
+    use super::i2c;
+
+    const ADDRESS: u8 = 0x55;
+
+    pub fn write(dcxo: i2c::Dcxo, reg: u8, val: u8) -> Result<(), &'static str> {
+        i2c::start(dcxo);
+        if !i2c::write(dcxo, ADDRESS << 1) {
+            return Err("Si549 failed to ack write address")
+        }
+        if !i2c::write(dcxo, reg) {
+            return Err("Si549 failed to ack register")
+        }
+        if !i2c::write(dcxo, val) {
+            return Err("Si549 failed to ack value")
+        }
+        i2c::stop(dcxo);
+        Ok(())
+    }
+
+    pub fn write_no_ack_value(dcxo: i2c::Dcxo, reg: u8, val: u8) -> Result<(), &'static str> {
+        i2c::start(dcxo);
+        if !i2c::write(dcxo, ADDRESS << 1) {
+            return Err("Si549 failed to ack write address")
+        }
+        if !i2c::write(dcxo, reg) {
+            return Err("Si549 failed to ack register")
+        }
+        i2c::write(dcxo, val);
+        i2c::stop(dcxo);
+        Ok(())
+    }
+
+    pub fn read(dcxo: i2c::Dcxo, reg: u8) -> Result<u8, &'static str> {
+        i2c::start(dcxo);
+        if !i2c::write(dcxo, ADDRESS << 1) {
+            return Err("Si549 failed to ack write address")
+        }
+        if !i2c::write(dcxo, reg) {
+            return Err("Si549 failed to ack register")
+        }
+        i2c::restart(dcxo);
+        if !i2c::write(dcxo, (ADDRESS << 1) | 1) {
+            return Err("Si549 failed to ack read address")
+        }
+        let val = i2c::read(dcxo, false);
+        i2c::stop(dcxo);
+        Ok(val)
+    }
+
+    pub fn program(dcxo: i2c::Dcxo, hsdiv: u16, lsdiv: u8, fbdiv: u64) -> Result<(), &'static str> {
+        i2c::init(dcxo)?;
+
+        write(dcxo, 255, 0x00)?;  // PAGE
+        write_no_ack_value(dcxo, 7,   0x80)?;  // RESET
+        clock::spin_us(50_000);   // required? not specified in datasheet.
+
+        write(dcxo, 255, 0x00)?;  // PAGE
+        write(dcxo, 69,  0x00)?;  // Disable FCAL override. Should bit 0 be 1?
+        write(dcxo, 17,  0x00)?;  // Synchronously disable output
+
+        // The Si549 has no ID register, so we check that it responds correctly
+        // by writing values to a RAM-like register and reading them back.
+        for test_value in 0..255 {
+            write(dcxo, 23, test_value)?;
+            let readback = read(dcxo, 23)?;
+            if readback != test_value {
+                return Err("Si549 detection failed");
+            }
+        }
+
+        write(dcxo, 23,  hsdiv as u8)?;
+        write(dcxo, 24,  (hsdiv >> 8) as u8 | (lsdiv << 4))?;
+        write(dcxo, 26,  fbdiv as u8)?;
+        write(dcxo, 27,  (fbdiv >> 8) as u8)?;
+        write(dcxo, 28,  (fbdiv >> 16) as u8)?;
+        write(dcxo, 29,  (fbdiv >> 24) as u8)?;
+        write(dcxo, 30,  (fbdiv >> 32) as u8)?;
+        write(dcxo, 31,  (fbdiv >> 40) as u8)?;
+
+        write(dcxo, 7,   0x08)?;  // Start FCAL
+        write(dcxo, 17,  0x01)?;  // Synchronously enable output
+
+        Ok(())
+    }
+}
+
 pub fn init() {
     info!("initializing...");
-    i2c::init(i2c::Dcxo::Main);
-    i2c::init(i2c::Dcxo::Helper);
+    si549::program(i2c::Dcxo::Main,   0x017, 2, 0x04b5badb98a).expect("cannot initialize main Si549");
+    si549::program(i2c::Dcxo::Helper, 0x017, 2, 0x04b5c447213).expect("cannot initialize helper Si549");
 }
 
 pub fn select_recovered_clock(rc: bool) {
