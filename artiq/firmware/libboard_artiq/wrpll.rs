@@ -234,11 +234,13 @@ mod si549 {
         i2c::init(dcxo)?;
 
         write(dcxo, 255, 0x00)?;  // PAGE
-        write_no_ack_value(dcxo, 7,   0x80)?;  // RESET
+        write_no_ack_value(dcxo, 7, 0x80)?;  // RESET
         clock::spin_us(50_000);   // required? not specified in datasheet.
 
         write(dcxo, 255, 0x00)?;  // PAGE
-        write(dcxo, 69,  0x00)?;  // Disable FCAL override. Should bit 0 be 1?
+        write(dcxo, 69,  0x00)?;  // Disable FCAL override.
+                                  // Note: Value 0x00 from Table 5.6 is inconsistent with Table 5.7,
+                                  // which shows bit 0 as reserved and =1.
         write(dcxo, 17,  0x00)?;  // Synchronously disable output
 
         // The Si549 has no ID register, so we check that it responds correctly
@@ -269,8 +271,16 @@ mod si549 {
 
 pub fn init() {
     info!("initializing...");
-    si549::program(i2c::Dcxo::Main,   0x017, 2, 0x04b5badb98a).expect("cannot initialize main Si549");
-    si549::program(i2c::Dcxo::Helper, 0x017, 2, 0x04b5c447213).expect("cannot initialize helper Si549");
+
+    #[cfg(rtio_frequency = "125.0")]
+    let (m_hsdiv, m_lsdiv, m_fbdiv) = (0x017, 2, 0x04b5badb98a);
+    #[cfg(rtio_frequency = "125.0")]
+    let (h_hsdiv, h_lsdiv, h_fbdiv) = (0x017, 2, 0x04b5c447213);
+
+    si549::program(i2c::Dcxo::Main, m_hsdiv, m_lsdiv, m_fbdiv)
+        .expect("cannot initialize main Si549");
+    si549::program(i2c::Dcxo::Helper, h_hsdiv, h_lsdiv, h_fbdiv)
+        .expect("cannot initialize helper Si549");
 }
 
 pub fn select_recovered_clock(rc: bool) {

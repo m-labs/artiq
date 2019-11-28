@@ -131,7 +131,6 @@ class SatelliteBase(MiniSoC):
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         if with_wrpll:
-            # TODO: check OE polarity (depends on what was installed on the boards)
             self.comb += [
                 platform.request("filtered_clk_sel").eq(0),
                 platform.request("ddmtd_main_dcxo_oe").eq(1),
