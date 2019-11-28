@@ -9,7 +9,7 @@ mod i2c {
         Helper
     }
 
-    fn half_period() { clock::spin_us(100) }
+    fn half_period() { clock::spin_us(10) }
     const SDA_MASK: u8 = 2;
     const SCL_MASK: u8 = 1;
 
