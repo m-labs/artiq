@@ -139,7 +139,8 @@ class SatelliteBase(MiniSoC):
             self.submodules.wrpll = WRPLL(
                 helper_clk_pads=platform.request("ddmtd_helper_clk"),
                 main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
-                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"))
+                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
+                ddmtd_inputs=platform.request("ddmtd_inputs"))
             self.csr_devices.append("wrpll")
         else:
             self.comb += platform.request("filtered_clk_sel").eq(1)

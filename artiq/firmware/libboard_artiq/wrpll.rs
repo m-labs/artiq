@@ -281,6 +281,15 @@ pub fn init() {
 
     clock::spin_us(10_000); // Settling Time after FS Change
     unsafe { csr::wrpll::helper_reset_write(0); }
+
+    info!("DDMTD test:");
+    for _ in 0..20 {
+        unsafe {
+            csr::wrpll::ddmtd_main_arm_write(1);
+            while csr::wrpll::ddmtd_main_arm_read() != 0 {}
+            info!("{}", csr::wrpll::ddmtd_main_tag_read());
+        }
+    }
 }
 
 pub fn select_recovered_clock(rc: bool) {

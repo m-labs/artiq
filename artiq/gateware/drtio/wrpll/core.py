@@ -3,10 +3,11 @@ from migen.genlib.resetsync import AsyncResetSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.drtio.wrpll.si549 import Si549
+from artiq.gateware.drtio.wrpll.ddmtd import DDMTD
 
 
 class WRPLL(Module, AutoCSR):
-    def __init__(self, helper_clk_pads, main_dcxo_i2c, helper_dxco_i2c):
+    def __init__(self, helper_clk_pads, main_dcxo_i2c, helper_dxco_i2c, ddmtd_inputs, N=15):
         self.helper_reset = CSRStorage(reset=1)
 
         self.clock_domains.cd_helper = ClockDomain()
@@ -19,3 +20,6 @@ class WRPLL(Module, AutoCSR):
 
         self.submodules.main_dcxo = Si549(main_dcxo_i2c)
         self.submodules.helper_dcxo = Si549(helper_dxco_i2c)
+
+        self.submodules.ddmtd_helper = DDMTD(N, ddmtd_inputs.rec_clk)
+        self.submodules.ddmtd_main = DDMTD(N, ddmtd_inputs.main_xo)
