@@ -1,3 +1,5 @@
+use board_misoc::{csr, clock};
+
 mod i2c {
     use board_misoc::{csr, clock};
 
@@ -272,6 +274,8 @@ mod si549 {
 pub fn init() {
     info!("initializing...");
 
+    unsafe { csr::wrpll::helper_reset_write(1); }
+
     #[cfg(rtio_frequency = "125.0")]
     let (m_hsdiv, m_lsdiv, m_fbdiv) = (0x017, 2, 0x04b5badb98a);
     #[cfg(rtio_frequency = "125.0")]
@@ -281,6 +285,9 @@ pub fn init() {
         .expect("cannot initialize main Si549");
     si549::program(i2c::Dcxo::Helper, h_hsdiv, h_lsdiv, h_fbdiv)
         .expect("cannot initialize helper Si549");
+
+    clock::spin_us(10_000); // Settling Time after FS Change
+    unsafe { csr::wrpll::helper_reset_write(0); }
 }
 
 pub fn select_recovered_clock(rc: bool) {
