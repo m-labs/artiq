@@ -372,7 +372,7 @@ def main():
             variant_dir = args.target + "-" + variant
         if args.target == "sayma":
             if args.srcbuild:
-                rtm_variant_dir = variant
+                rtm_variant_dir = "rtm"
             else:
                 rtm_variant_dir = "sayma-rtm"
 
@@ -414,7 +414,7 @@ def main():
             gateware_bin = convert_gateware(
                 artifact_path(variant_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
-            if args.target == "sayma" and variant != "master":
+            if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
                 rtm_gateware_bin = convert_gateware(
                     artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
