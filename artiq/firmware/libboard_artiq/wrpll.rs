@@ -105,16 +105,6 @@ mod i2c {
         half_period();
     }
 
-    pub fn restart(dcxo: Dcxo) {
-        // Set SCL low then SDA high */
-        scl_o(dcxo, false);
-        half_period();
-        sda_oe(dcxo, false);
-        half_period();
-        // Do a regular start
-        start(dcxo);
-    }
-
     pub fn stop(dcxo: Dcxo) {
         // First, make sure SCL is low, so that the target releases the SDA line
         scl_o(dcxo, false);
@@ -223,12 +213,15 @@ mod si549 {
         if !i2c::write(dcxo, reg) {
             return Err("Si549 failed to ack register")
         }
-        i2c::restart(dcxo);
+        i2c::stop(dcxo);
+
+        i2c::start(dcxo);
         if !i2c::write(dcxo, (ADDRESS << 1) | 1) {
             return Err("Si549 failed to ack read address")
         }
         let val = i2c::read(dcxo, false);
         i2c::stop(dcxo);
+
         Ok(val)
     }
 
