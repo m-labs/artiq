@@ -474,7 +474,7 @@ class SUServo(_EEM):
         io = (Sampler.io(*eems[0:2], iostandard=iostandard)
                 + Urukul.io_qspi(*eems[2:4], iostandard=iostandard))
         if len(eems) == 6:  # two Urukuls
-            io += Urukul.io_qspi(*eems[4:6], iostandard=iostandard),
+            io += Urukul.io_qspi(*eems[4:6], iostandard=iostandard)
         return io
 
     @classmethod
