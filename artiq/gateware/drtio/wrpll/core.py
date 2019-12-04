@@ -21,5 +21,7 @@ class WRPLL(Module, AutoCSR):
         self.submodules.main_dcxo = Si549(main_dcxo_i2c)
         self.submodules.helper_dcxo = Si549(helper_dxco_i2c)
 
-        self.submodules.ddmtd_helper = DDMTD(N, ddmtd_inputs.rec_clk)
-        self.submodules.ddmtd_main = DDMTD(N, ddmtd_inputs.main_xo)
+        ddmtd_counter = Signal(N)
+        self.sync.helper += ddmtd_counter.eq(ddmtd_counter + 1)
+        self.submodules.ddmtd_helper = DDMTD(ddmtd_counter, ddmtd_inputs.rec_clk)
+        self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)

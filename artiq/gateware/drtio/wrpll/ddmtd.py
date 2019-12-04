@@ -4,13 +4,13 @@ from misoc.interconnect.csr import *
 
 
 class DDMTDEdgeDetector(Module):
-    def __init__(self, i):
+    def __init__(self, input_signal):
         self.rising = Signal()
 
         history = Signal(4)
         deglitched = Signal()
-        self.sync.helper += history.eq(Cat(history[1:], i))
-        self.comb += deglitched.eq(i | history[0] | history[1] | history[2] | history[3])
+        self.sync.helper += history.eq(Cat(history[1:], input_signal))
+        self.comb += deglitched.eq(input_signal | history[0] | history[1] | history[2] | history[3])
 
         deglitched_r = Signal()
         self.sync.helper += [
@@ -20,22 +20,20 @@ class DDMTDEdgeDetector(Module):
 
 
 class DDMTD(Module, AutoCSR):
-    def __init__(self, N, i):
+    def __init__(self, counter, input_signal):
         self.arm = CSR()
-        self.tag = CSRStatus(N)
+        self.tag = CSRStatus(len(counter))
 
         # in helper clock domain
-        self.h_tag = Signal(N)
+        self.h_tag = Signal(len(counter))
         self.h_tag_update = Signal()
 
         # # #
 
-        ed = DDMTDEdgeDetector(i)
+        ed = DDMTDEdgeDetector(input_signal)
         self.submodules += ed
 
-        counter = Signal(N)
         self.sync.helper += [
-            counter.eq(counter + 1),
             self.h_tag_update.eq(0),
             If(ed.rising,
                 self.h_tag_update.eq(1),
@@ -49,7 +47,7 @@ class DDMTD(Module, AutoCSR):
         tag_update = Signal()
         self.sync += tag_update.eq(tag_update_ps.o)
 
-        tag = Signal(N)
+        tag = Signal(len(counter))
         self.h_tag.attr.add("no_retiming")
         self.specials += MultiReg(self.h_tag, tag)
 
