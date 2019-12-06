@@ -26,6 +26,7 @@ def get_argparser():
 Valid actions:
 
     * gateware: write gateware bitstream to flash
+    * rtm_gateware: write RTM board gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash
     * firmware: write firmware to flash
@@ -340,7 +341,7 @@ def main():
         bin_dir = os.path.join(artiq_dir, "board-support")
 
     needs_artifacts = any(action in args.action
-                          for action in ["gateware", "bootloader", "firmware", "load"])
+                          for action in ["gateware", "bootloader", "firmware", "load", "rtm_gateware"])
     variant = args.variant
     if needs_artifacts and variant is None:
         variants = []
@@ -419,6 +420,14 @@ def main():
                     artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
+        elif action == "rtm_gateware":
+            if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
+                rtm_gateware_bin = convert_gateware(
+                    artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
+                programmer.write_binary(*config["rtm_gateware"],
+                                        rtm_gateware_bin)
+            else:
+                raise ValueError("No RTM board for this board and variant.")
         elif action == "bootloader":
             bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
