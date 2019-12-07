@@ -23,5 +23,19 @@ class WRPLL(Module, AutoCSR):
 
         ddmtd_counter = Signal(N)
         self.sync.helper += ddmtd_counter.eq(ddmtd_counter + 1)
-        self.submodules.ddmtd_helper = DDMTD(ddmtd_counter, ddmtd_inputs.rec_clk)
-        self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)
+        if hasattr(ddmtd_inputs, "rec_clk"):
+            ddmtd_input_rec_clk = ddmtd_inputs.rec_clk
+        else:
+            ddmtd_input_rec_clk = Signal()
+            self.specials += Instance("IBUFDS",
+                i_I=ddmtd_inputs.rec_clk_p, i_IB=ddmtd_inputs.rec_clk_n,
+                o_O=ddmtd_input_rec_clk)
+        if hasattr(ddmtd_inputs, "main_xo"):
+            ddmtd_input_main_xo = ddmtd_inputs.main_xo
+        else:
+            ddmtd_input_main_xo = Signal()
+            self.specials += Instance("IBUFDS",
+                i_I=ddmtd_inputs.main_xo_p, i_IB=ddmtd_inputs.main_xo_n,
+                o_O=ddmtd_input_main_xo)
+        self.submodules.ddmtd_helper = DDMTD(ddmtd_counter, ddmtd_input_rec_clk)
+        self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_input_main_xo)
