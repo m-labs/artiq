@@ -19,7 +19,7 @@ from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
-from artiq.gateware.drtio.wrpll import WRPLL
+from artiq.gateware.drtio.wrpll import WRPLL, DDMTDSamplerExtFF
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
@@ -136,11 +136,13 @@ class SatelliteBase(MiniSoC):
                 platform.request("ddmtd_main_dcxo_oe").eq(1),
                 platform.request("ddmtd_helper_dcxo_oe").eq(1)
             ]
+            self.submodules.wrpll_sampler = DDMTDSamplerExtFF(
+                platform.request("ddmtd_inputs"))
             self.submodules.wrpll = WRPLL(
                 helper_clk_pads=platform.request("ddmtd_helper_clk"),
                 main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
                 helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
-                ddmtd_inputs=platform.request("ddmtd_inputs"))
+                ddmtd_inputs=self.wrpll_sampler)
             self.csr_devices.append("wrpll")
         else:
             self.comb += platform.request("filtered_clk_sel").eq(1)

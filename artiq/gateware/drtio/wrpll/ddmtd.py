@@ -3,6 +3,47 @@ from migen.genlib.cdc import PulseSynchronizer, MultiReg
 from misoc.interconnect.csr import *
 
 
+class DDMTDSamplerExtFF(Module):
+    def __init__(self, ddmtd_inputs):
+        # TODO: s/h timing at FPGA pads
+        if hasattr(ddmtd_inputs, "rec_clk"):
+            self.rec_clk = ddmtd_inputs.rec_clk
+        else:
+            self.rec_clk = Signal()
+            self.specials += Instance("IBUFDS",
+                i_I=ddmtd_inputs.rec_clk_p, i_IB=ddmtd_inputs.rec_clk_n,
+                o_O=self.rec_clk)
+        if hasattr(ddmtd_inputs, "main_xo"):
+            self.main_xo = ddmtd_inputs.main_xo
+        else:
+            self.main_xo = Signal()
+            self.specials += Instance("IBUFDS",
+                i_I=ddmtd_inputs.main_xo_p, i_IB=ddmtd_inputs.main_xo_n,
+                o_O=self.main_xo)
+
+
+class DDMTDSamplerGTP(Module):
+    def __init__(self, gtp, main_xo_pads):
+        self.rec_clk = Signal()
+        self.main_xo = Signal()
+
+        # Getting this signal from IBUFDS_GTE2 is problematic because:
+        # 1. the clock gets divided by 2
+        # 2. the transceiver PLL craps out if an improper clock signal is applied,
+        # so we are disabling the buffer until the clock is stable.
+        # 3. UG482 says "The O and ODIV2 outputs are not phase matched to each other",
+        # which may or may not be a problem depending on what it actually means.
+        main_xo_se = Signal()
+        self.specials += Instance("IBUFDS",
+            i_I=main_xo_pads.p, i_IB=main_xo_pads.n,
+            o_O=main_xo_se)
+
+        self.sync.helper += [
+            self.rec_clk.eq(gtp.cd_rtio_rx0.clk),
+            self.main_xo.eq(main_xo_se)
+        ]
+
+
 class DDMTDEdgeDetector(Module):
     def __init__(self, input_signal):
         self.rising = Signal()
