@@ -73,7 +73,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=150e6, **kwargs):
+    def __init__(self, rtio_clk_freq, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  **kwargs)
@@ -207,7 +207,7 @@ class Satellite(_SatelliteBase):
         self.config["CONVERTER_SPI_HMC830_CS"] = 0
         self.config["CONVERTER_SPI_HMC7043_CS"] = 1
         self.config["CONVERTER_SPI_FIRST_AD9154_CS"] = 2
-        self.config["HMC830_REF"] = "150"
+        self.config["HMC830_REF"] = str(int(self.rtio_clk_freq/1e6))
 
         # HMC workarounds
         self.comb += platform.request("hmc830_pwr_en").eq(1)
@@ -243,10 +243,13 @@ def main():
         description="Sayma RTM gateware and firmware builder")
     builder_args(parser)
     soc_sayma_rtm_args(parser)
+    parser.add_argument("--rtio-clk-freq",
+        default=150, type=int, help="RTIO clock frequency in MHz")
     parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))
     args = parser.parse_args()
 
-    soc = Satellite(**soc_sayma_rtm_argdict(args))
+    soc = Satellite(rtio_clk_freq=1e6*args.rtio_clk_freq,
+        **soc_sayma_rtm_argdict(args))
     builder = SatmanSoCBuilder(soc, **builder_argdict(args))
     try:
         builder.build()
