@@ -421,13 +421,13 @@ def main():
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
         elif action == "rtm_gateware":
-            if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
+            if args.target == "sayma":
                 rtm_gateware_bin = convert_gateware(
                     artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
             else:
-                raise ValueError("No RTM board for this board and variant.")
+                raise ValueError("No RTM for this board")
         elif action == "bootloader":
             bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
