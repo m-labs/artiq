@@ -71,8 +71,10 @@ Prerequisites:
     parser.add_argument("-d", "--dir", help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
+    parser.add_argument("--force-rtm", help="force RTM actions on boards/variants that normally do not have a RTM",
+                        default=False, action="store_true")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="gateware bootloader firmware start".split(),
+                        default="gateware rtm_gateware bootloader firmware start".split(),
                         help="actions to perform, default: %(default)s")
     return parser
 
@@ -340,8 +342,9 @@ def main():
     if bin_dir is None:
         bin_dir = os.path.join(artiq_dir, "board-support")
 
-    needs_artifacts = any(action in args.action
-                          for action in ["gateware", "bootloader", "firmware", "load", "rtm_gateware"])
+    needs_artifacts = any(
+        action in args.action
+        for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
     variant = args.variant
     if needs_artifacts and variant is None:
         variants = []
@@ -415,19 +418,13 @@ def main():
             gateware_bin = convert_gateware(
                 artifact_path(variant_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
-            if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
-                rtm_gateware_bin = convert_gateware(
-                    artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
-                programmer.write_binary(*config["rtm_gateware"],
-                                        rtm_gateware_bin)
         elif action == "rtm_gateware":
-            if args.target == "sayma":
+            if args.force_rtm or (
+                    args.target == "sayma" and variant != "simplesatellite" and variant != "master"):
                 rtm_gateware_bin = convert_gateware(
                     artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
                 programmer.write_binary(*config["rtm_gateware"],
                                         rtm_gateware_bin)
-            else:
-                raise ValueError("No RTM for this board")
         elif action == "bootloader":
             bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
@@ -444,14 +441,16 @@ def main():
             programmer.write_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
             if args.target == "sayma":
-                if variant != "simplesatellite" and variant != "master":
-                    rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
-                    programmer.load(rtm_gateware_bit, 0)
                 gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
             else:
                 gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
+        elif action == "rtm_load":
+            if args.force_rtm or (
+                    args.target == "sayma" and variant != "simplesatellite" and variant != "master"):
+                rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
+                programmer.load(rtm_gateware_bit, 0)
         elif action == "start":
             programmer.start()
         elif action == "erase":
