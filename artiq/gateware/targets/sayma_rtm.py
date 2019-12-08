@@ -82,20 +82,20 @@ class _SatelliteBase(BaseSoC):
 
         platform = self.platform
 
-        disable_si5324_ibuf = Signal(reset=1)
-        disable_si5324_ibuf.attr.add("no_retiming")
-        si5324_clkout = platform.request("cdr_clk_clean")
-        si5324_clkout_buf = Signal()
+        disable_cdrclkc_ibuf = Signal(reset=1)
+        disable_cdrclkc_ibuf.attr.add("no_retiming")
+        cdrclkc_clkout = platform.request("cdr_clk_clean")
+        cdrclkc_clkout_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=disable_si5324_ibuf,
-            i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
-            o_O=si5324_clkout_buf)
+            i_CEB=disable_cdrclkc_ibuf,
+            i_I=cdrclkc_clkout.p, i_IB=cdrclkc_clkout.n,
+            o_O=cdrclkc_clkout_buf)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
+        qpll = QPLL(cdrclkc_clkout_buf, qpll_drtio_settings)
         self.submodules += qpll
 
         self.submodules.drtio_transceiver = gtp_7series.GTP(
@@ -104,7 +104,7 @@ class _SatelliteBase(BaseSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += disable_si5324_ibuf.eq(
+        self.sync += disable_cdrclkc_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
