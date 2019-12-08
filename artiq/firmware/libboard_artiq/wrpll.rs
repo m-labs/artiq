@@ -264,6 +264,14 @@ mod si549 {
     }
 }
 
+fn get_helper_frequency() -> u32 {
+    unsafe { csr::wrpll::helper_frequency_start_write(1); }
+    clock::spin_us(10_000);
+    unsafe { csr::wrpll::helper_frequency_stop_write(1); }
+    clock::spin_us(1);
+    unsafe { csr::wrpll::helper_frequency_counter_read() }
+}
+
 pub fn init() {
     info!("initializing...");
 
@@ -281,6 +289,9 @@ pub fn init() {
 
     clock::spin_us(10_000); // Settling Time after FS Change
     unsafe { csr::wrpll::helper_reset_write(0); }
+    clock::spin_us(1);
+
+    info!("helper clock frequency: {}MHz", get_helper_frequency()/10000);
 
     info!("DDMTD test:");
     for _ in 0..20 {
