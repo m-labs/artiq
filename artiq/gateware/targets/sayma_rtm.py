@@ -185,6 +185,8 @@ class Satellite(_SatelliteBase):
 
         self.add_rtio(rtio_channels)
 
+        self.comb += platform.request("clk_src_ext_sel").eq(0)
+
         # HMC clock chip and DAC control
         self.comb += [
             platform.request("ad9154_rst_n", 0).eq(1),
