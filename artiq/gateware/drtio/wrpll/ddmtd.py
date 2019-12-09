@@ -27,12 +27,9 @@ class DDMTDSamplerGTP(Module):
         self.rec_clk = Signal()
         self.main_xo = Signal()
 
-        # Getting the main XO signal from IBUFDS_GTE2 is problematic because:
-        # 1. the clock gets divided by 2
-        # 2. the transceiver PLL craps out if an improper clock signal is applied,
+        # Getting the main XO signal from IBUFDS_GTE2 is problematic because
+        # the transceiver PLL craps out if an improper clock signal is applied,
         # so we are disabling the buffer until the clock is stable.
-        # 3. UG482 says "The O and ODIV2 outputs are not phase matched to each other",
-        # which may or may not be a problem depending on what it actually means.
         main_xo_se = Signal()
         self.specials += [
             Instance("IBUFDS",
