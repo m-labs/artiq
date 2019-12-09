@@ -278,9 +278,9 @@ pub fn init() {
     unsafe { csr::wrpll::helper_reset_write(1); }
 
     #[cfg(rtio_frequency = "125.0")]
-    let (m_hsdiv, m_lsdiv, m_fbdiv) = (0x017, 2, 0x04b5badb98a);
+    let (m_hsdiv, m_lsdiv, m_fbdiv) = (0x05c, 0, 0x04b5badb98a);
     #[cfg(rtio_frequency = "125.0")]
-    let (h_hsdiv, h_lsdiv, h_fbdiv) = (0x017, 2, 0x04b5c447213);
+    let (h_hsdiv, h_lsdiv, h_fbdiv) = (0x05c, 0, 0x04b5c447213);
 
     si549::program(i2c::Dcxo::Main, m_hsdiv, m_lsdiv, m_fbdiv)
         .expect("cannot initialize main Si549");
