@@ -280,6 +280,14 @@ fn get_ddmtd_main_tag() -> u16 {
     }
 }
 
+fn get_ddmtd_helper_tag() -> u16 {
+    unsafe {
+        csr::wrpll::ddmtd_helper_arm_write(1);
+        while csr::wrpll::ddmtd_helper_arm_read() != 0 {}
+        csr::wrpll::ddmtd_helper_tag_read()
+    }
+}
+
 pub fn init() {
     info!("initializing...");
 
@@ -311,4 +319,11 @@ pub fn init() {
 
 pub fn select_recovered_clock(rc: bool) {
     info!("select_recovered_clock: {}", rc);
+    if rc {
+        let mut tags = [0; 10];
+        for i in 0..tags.len() {
+            tags[i] = get_ddmtd_helper_tag();
+        }
+        info!("DDMTD helper tags: {:?}", tags);
+    }
 }
