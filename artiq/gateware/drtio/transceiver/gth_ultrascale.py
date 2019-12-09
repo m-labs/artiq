@@ -695,6 +695,8 @@ class GTH(Module, TransceiverInterface):
 
         if clock_recout_pads is not None:
             self.specials += Instance("OBUFDS_GTE3",
+                p_REFCLK_EN_TX_PATH=0b1,
+                p_REFCLK_ICNTL_TX=0b00111,
                 i_I=self.gths[0].rxrecclkout,
                 i_CEB=0,
                 o_O=clock_recout_pads.p, o_OB=clock_recout_pads.n)
