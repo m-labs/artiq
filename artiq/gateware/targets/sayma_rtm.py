@@ -132,6 +132,8 @@ class _SatelliteBase(BaseSoC):
         self.add_csr_group("drtioaux", ["drtioaux0"])
         self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
 
+        gtp = self.drtio_transceiver.gtps[0]
+        rtio_clk_period = 1e9/rtio_clk_freq
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         if with_wrpll:
             self.comb += [
@@ -148,6 +150,9 @@ class _SatelliteBase(BaseSoC):
                 helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
                 ddmtd_inputs=self.wrpll_sampler)
             self.csr_devices.append("wrpll")
+            platform.add_period_constraint(self.wrpll.cd_helper.clk, rtio_clk_period*0.99)
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.wrpll.cd_helper.clk)
+            platform.add_false_path_constraints(self.wrpll.cd_helper.clk, gtp.rxoutclk)
         else:
             self.comb += platform.request("filtered_clk_sel").eq(1)
             self.submodules.siphaser = SiPhaser7Series(
@@ -165,8 +170,6 @@ class _SatelliteBase(BaseSoC):
             self.config["HAS_SI5324"] = None
             self.config["SI5324_SOFT_RESET"] = None
 
-        rtio_clk_period = 1e9/rtio_clk_freq
-        gtp = self.drtio_transceiver.gtps[0]
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
