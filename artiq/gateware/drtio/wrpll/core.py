@@ -5,6 +5,7 @@ from misoc.interconnect.csr import *
 
 from artiq.gateware.drtio.wrpll.si549 import Si549
 from artiq.gateware.drtio.wrpll.ddmtd import DDMTD
+from artiq.gateware.drtio.wrpll import thls, filters
 
 
 class FrequencyCounter(Module, AutoCSR):
@@ -48,12 +49,22 @@ class WRPLL(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_helper, self.helper_reset.storage)
         ]
 
-        self.submodules.main_dcxo = Si549(main_dcxo_i2c)
         self.submodules.helper_dcxo = Si549(helper_dxco_i2c)
+        self.submodules.main_dcxo = Si549(main_dcxo_i2c)
 
-        self.submodules.helper_frequency = FrequencyCounter()
+        self.submodules.helper_frequency = FrequencyCounter()  # for diagnostics
 
         ddmtd_counter = Signal(N)
         self.sync.helper += ddmtd_counter.eq(ddmtd_counter + 1)
         self.submodules.ddmtd_helper = DDMTD(ddmtd_counter, ddmtd_inputs.rec_clk)
         self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)
+
+        helper_cd = ClockDomainsRenamer("helper")
+        self.submodules.filter_helper = helper_cd(thls.make(filters.helper, data_width=48))
+        self.submodules.filter_main = helper_cd(thls.make(filters.main, data_width=48))
+        self.comb += [
+            self.helper_dcxo.adpll_stb.eq(self.filter_helper.output_stb),
+            self.helper_dcxo.adpll.eq(self.filter_helper.output),
+            self.main_dcxo.adpll_stb.eq(self.filter_main.output_stb),
+            self.main_dcxo.adpll.eq(self.filter_main.output)
+        ]

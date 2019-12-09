@@ -589,6 +589,13 @@ class ProcessorImpl(Module):
         )
 
 
+def make(function, **kwargs):
+    proc = Processor(**kwargs)
+    cp = compile(proc, simple_test)
+    cp.dimension_processor()
+    return proc.implement(cp.encode(), cp.data)
+
+
 a = 0
 b = 0
 c = 0
