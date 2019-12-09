@@ -230,7 +230,7 @@ mod si549 {
 
         write(dcxo, 255, 0x00)?;  // PAGE
         write_no_ack_value(dcxo, 7, 0x80)?;  // RESET
-        clock::spin_us(50_000);   // required? not specified in datasheet.
+        clock::spin_us(100_000);  // required? not specified in datasheet.
 
         write(dcxo, 255, 0x00)?;  // PAGE
         write(dcxo, 69,  0x00)?;  // Disable FCAL override.
@@ -287,7 +287,9 @@ pub fn init() {
     si549::program(i2c::Dcxo::Helper, h_hsdiv, h_lsdiv, h_fbdiv)
         .expect("cannot initialize helper Si549");
 
-    clock::spin_us(10_000); // Settling Time after FS Change
+    // Si549 Settling Time for Large Frequency Change.
+    // Datasheet said 10ms but it lied.
+    clock::spin_us(50_000);
     unsafe { csr::wrpll::helper_reset_write(0); }
     clock::spin_us(1);
 
