@@ -272,6 +272,14 @@ fn get_helper_frequency() -> u32 {
     unsafe { csr::wrpll::helper_frequency_counter_read() }
 }
 
+fn get_ddmtd_main_tag() -> u16 {
+    unsafe {
+        csr::wrpll::ddmtd_main_arm_write(1);
+        while csr::wrpll::ddmtd_main_arm_read() != 0 {}
+        csr::wrpll::ddmtd_main_tag_read()
+    }
+}
+
 pub fn init() {
     info!("initializing...");
 
@@ -286,23 +294,19 @@ pub fn init() {
         .expect("cannot initialize main Si549");
     si549::program(i2c::Dcxo::Helper, h_hsdiv, h_lsdiv, h_fbdiv)
         .expect("cannot initialize helper Si549");
-
     // Si549 Settling Time for Large Frequency Change.
     // Datasheet said 10ms but it lied.
     clock::spin_us(50_000);
+
     unsafe { csr::wrpll::helper_reset_write(0); }
     clock::spin_us(1);
 
     info!("helper clock frequency: {}MHz", get_helper_frequency()/10000);
-
-    info!("DDMTD test:");
-    for _ in 0..20 {
-        unsafe {
-            csr::wrpll::ddmtd_main_arm_write(1);
-            while csr::wrpll::ddmtd_main_arm_read() != 0 {}
-            info!("{}", csr::wrpll::ddmtd_main_tag_read());
-        }
+    let mut tags = [0; 10];
+    for i in 0..tags.len() {
+        tags[i] = get_ddmtd_main_tag();
     }
+    info!("DDMTD main tags: {:?}", tags);
 }
 
 pub fn select_recovered_clock(rc: bool) {
