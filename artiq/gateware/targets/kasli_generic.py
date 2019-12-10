@@ -95,16 +95,18 @@ def peripheral_grabber(module, peripheral):
     eem.Grabber.add_std(module, port, port_aux, port_aux2)
 
 
+peripheral_processors = {
+    "dio": peripheral_dio,
+    "urukul": peripheral_urukul,
+    "novogorny": peripheral_novogorny,
+    "sampler": peripheral_sampler,
+    "suservo": peripheral_suservo,
+    "zotino": peripheral_zotino,
+    "grabber": peripheral_grabber,
+}
+
+
 def add_peripherals(module, peripherals):
-    peripheral_processors = {
-        "dio": peripheral_dio,
-        "urukul": peripheral_urukul,
-        "novogorny": peripheral_novogorny,
-        "sampler": peripheral_sampler,
-        "suservo": peripheral_suservo,
-        "zotino": peripheral_zotino,
-        "grabber": peripheral_grabber,
-    }
     for peripheral in peripherals:
         peripheral_processors[peripheral["type"]](module, peripheral)
 
