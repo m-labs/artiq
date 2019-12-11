@@ -10,10 +10,11 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from quamash import QEventLoop
 
 from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir
-from artiq.tools import add_common_args, get_user_config_dir
+from artiq.tools import get_user_config_dir
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
 
@@ -41,7 +42,7 @@ def get_argparser():
         help="TCP port to use to connect to the master")
     parser.add_argument("select", metavar="SELECT", nargs="?",
                         help="directory to browse or file to load")
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
     return parser
 
 
