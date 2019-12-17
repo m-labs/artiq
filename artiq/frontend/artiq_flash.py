@@ -71,6 +71,8 @@ Prerequisites:
     parser.add_argument("-d", "--dir", help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
+    parser.add_argument("--no-variant", help="do not use the variant machinery - just look in the given directory",
+                        default=False, action="store_true")
     parser.add_argument("--force-rtm", help="force RTM actions on boards/variants that normally do not have a RTM",
                         default=False, action="store_true")
     parser.add_argument("action", metavar="ACTION", nargs="*",
@@ -346,6 +348,9 @@ def main():
         action in args.action
         for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
     variant = args.variant
+    if variant is None and args.no_variant:
+        # Just use default actions in the below.
+        variant = ""
     if needs_artifacts and variant is None:
         variants = []
         if args.srcbuild:
@@ -370,7 +375,9 @@ def main():
             raise ValueError("more than one variant found for selected board, specify -V. "
                 "Found variants: {}".format(" ".join(sorted(variants))))
     if needs_artifacts:
-        if args.srcbuild:
+        if args.no_variant:
+            variant_dir = ""
+        elif args.srcbuild:
             variant_dir = variant
         else:
             variant_dir = args.target + "-" + variant
