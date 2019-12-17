@@ -8,7 +8,7 @@ import numpy
 
 
 __all__ = ["kernel", "portable", "rpc", "syscall", "host_only",
-           "set_time_manager", "set_watchdog_factory",
+           "kernel_from_string", "set_time_manager", "set_watchdog_factory",
            "TerminationRequested"]
 
 # global namespace for kernels
@@ -138,6 +138,59 @@ def host_only(function):
         _ARTIQEmbeddedInfo(core_name=None, portable=False, function=None, syscall=None,
                            forbidden=True, flags={})
     return function
+
+
+def kernel_from_string(parameters, body_code, decorator=kernel):
+    """Build a kernel function from the supplied source code in string form,
+    similar to ``exec()``/``eval()``.
+
+    Operating on pieces of source code as strings is a very brittle form of
+    metaprogramming; kernels generated like this are hard to debug, and
+    inconvenient to write. Nevertheless, this can sometimes be useful to work
+    around restrictions in ARTIQ Python. In that instance, care should be taken
+    to keep string-generated code to a minimum and cleanly separate it from
+    surrounding code.
+
+    The resulting function declaration is also evaluated using ``exec()`` for
+    use from host Python code. To encourage a modicum of code hygiene, no
+    global symbols are available by default; any objects accessed by the
+    function body must be passed in explicitly as parameters.
+
+    :param parameters: A list of parameter names the generated functions
+        accepts. Each entry can either be a string or a tuple of two strings;
+        if the latter, the second element specifies the type annotation.
+    :param body_code: The code for the function body, in string form.
+        ``return`` statements can be used to return values, as usual.
+    :param decorator: One of ``kernel`` or ``portable`` (optionally with
+        parameters) to specify how the function will be executed.
+
+    :return: The function generated from the arguments.
+    """
+
+    # Build complete function declaration.
+    decl = "def kernel_from_string_fn("
+    for p in parameters:
+        type_annotation = ""
+        if isinstance(p, tuple):
+            name, typ = p
+            type_annotation = ": " + typ
+        else:
+            name = p
+        decl += name + type_annotation + ","
+    decl += "):\n"
+    decl += "\n".join("    " + line for line in body_code.split("\n"))
+
+    # Evaluate to get host-side function declaration.
+    context = {}
+    try:
+        exec(decl, context)
+    except SyntaxError:
+        raise SyntaxError("Error parsing kernel function: '{}'".format(decl))
+    fn = decorator(context["kernel_from_string_fn"])
+
+    # Save source code for the compiler to pick up later.
+    fn.artiq_embedded = fn.artiq_embedded._replace(function=decl)
+    return fn
 
 
 class _DummyTimeManager:
