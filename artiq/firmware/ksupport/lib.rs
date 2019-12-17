@@ -58,7 +58,7 @@ pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
         send(&Log(format_args!("panic at unknown location")));
     }
     if let Some(message) = info.message() {
-        send(&Log(format_args!("{}\n", message)));
+        send(&Log(format_args!(": {}\n", message)));
     } else {
         send(&Log(format_args!("\n")));
     }

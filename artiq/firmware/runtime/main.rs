@@ -309,7 +309,7 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
         print!("panic at unknown location");
     }
     if let Some(message) = info.message() {
-        println!("{}", message);
+        println!(": {}", message);
     } else {
         println!("");
     }
