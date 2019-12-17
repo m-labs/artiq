@@ -765,6 +765,9 @@ class Stitcher:
         if hasattr(function, 'artiq_embedded') and function.artiq_embedded.function:
             function = function.artiq_embedded.function
 
+        if isinstance(function, str):
+            return source.Range(source.Buffer(function, "<string>"), 0, 0)
+
         filename = function.__code__.co_filename
         line     = function.__code__.co_firstlineno
         name     = function.__code__.co_name
@@ -848,10 +851,20 @@ class Stitcher:
 
         # Extract function source.
         embedded_function = host_function.artiq_embedded.function
-        source_code = inspect.getsource(embedded_function)
-        filename = embedded_function.__code__.co_filename
-        module_name = embedded_function.__globals__['__name__']
-        first_line = embedded_function.__code__.co_firstlineno
+        if isinstance(embedded_function, str):
+            # This is a function to be eval'd from the given source code in string form.
+            # Mangle the host function's id() into the fully qualified name to make sure
+            # there are no collisions.
+            source_code = embedded_function
+            embedded_function = host_function
+            filename = "<string>"
+            module_name = "__eval_{}".format(id(host_function))
+            first_line = 1
+        else:
+            source_code = inspect.getsource(embedded_function)
+            filename = embedded_function.__code__.co_filename
+            module_name = embedded_function.__globals__['__name__']
+            first_line = embedded_function.__code__.co_firstlineno
 
         # Extract function annotation.
         signature = inspect.signature(embedded_function)
@@ -937,6 +950,9 @@ class Stitcher:
         return function_node
 
     def _extract_annot(self, function, annot, kind, call_loc, fn_kind):
+        if annot is None:
+            annot = builtins.TNone()
+
         if not isinstance(annot, types.Type):
             diag = diagnostic.Diagnostic("error",
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
