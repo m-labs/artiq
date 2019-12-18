@@ -176,12 +176,14 @@ class Satellite(_SatelliteBase):
         platform = self.platform
 
         rtio_channels = []
-        phy = ttl_serdes_7series.Output_8X(platform.request("allaki0_rfsw0"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        phy = ttl_serdes_7series.Output_8X(platform.request("allaki0_rfsw1"))
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(4):
+            phy = ttl_serdes_7series.Output_8X(platform.request("basemod0_rfsw", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(4):
+            phy = ttl_serdes_7series.Output_8X(platform.request("basemod1_rfsw", i))
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.add_rtio(rtio_channels)
 
