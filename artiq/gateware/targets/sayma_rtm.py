@@ -203,16 +203,22 @@ class Satellite(_SatelliteBase):
                 phy = ttl_serdes_7series.Output_8X(platform.request("basemod{}_rfsw".format(bm), i))
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
+
             print("BaseMod{} attenuator starting at RTIO channel 0x{:06x}"
                 .format(bm, len(rtio_channels)))
             basemod_att = platform.request("basemod{}_att".format(bm))
-            for name in "rst_n clk mosi le".split():
+            for name in "rst_n clk le".split():
                 signal = getattr(basemod_att, name)
                 for i in range(len(signal)):
                     phy = ttl_simple.Output(signal[i])
                     self.submodules += phy
                     rtio_channels.append(rtio.Channel.from_phy(phy))
-            phy = ttl_simple.InOut(basemod_att.miso)
+            phy = ttl_simple.Output(basemod_att.mosi[0])
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+            for i in range(3):
+                self.comb += basemod_att.mosi[i+1].eq(basemod_att.miso[i])
+            phy = ttl_simple.InOut(basemod_att.miso[3])
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
