@@ -35,8 +35,6 @@ pub mod hmc830_7043;
 mod ad9154_reg;
 #[cfg(has_ad9154)]
 pub mod ad9154;
-#[cfg(has_allaki_atts)]
-pub mod hmc542;
 
 #[cfg(has_grabber)]
 pub mod grabber;
