@@ -103,8 +103,6 @@ fn sayma_hw_init() {
             error!("failed to align SYSREF at DAC: {}", e);
         }
     }
-    #[cfg(has_allaki_atts)]
-    board_artiq::hmc542::program_all(8/*=4dB*/);
 }
 
 fn startup() {
