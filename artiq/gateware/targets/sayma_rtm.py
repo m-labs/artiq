@@ -16,7 +16,7 @@ from misoc.targets.sayma_rtm import BaseSoC, soc_sayma_rtm_args, soc_sayma_rtm_a
 from misoc.integration.builder import Builder, builder_args, builder_argdict
 
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import ttl_serdes_7series
+from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
@@ -176,12 +176,23 @@ class Satellite(_SatelliteBase):
         platform = self.platform
 
         rtio_channels = []
-        for i in range(4):
-            phy = ttl_serdes_7series.Output_8X(platform.request("basemod0_rfsw", i))
-            self.submodules += phy
-            rtio_channels.append(rtio.Channel.from_phy(phy))
-        for i in range(4):
-            phy = ttl_serdes_7series.Output_8X(platform.request("basemod1_rfsw", i))
+        for bm in range(2):
+            print("BaseMod{} RF switches starting at RTIO channel 0x{:06x}"
+                .format(bm, len(rtio_channels)))
+            for i in range(4):
+                phy = ttl_serdes_7series.Output_8X(platform.request("basemod{}_rfsw".format(bm), i))
+                self.submodules += phy
+                rtio_channels.append(rtio.Channel.from_phy(phy))
+            print("BaseMod{} attenuator starting at RTIO channel 0x{:06x}"
+                .format(bm, len(rtio_channels)))
+            basemod_att = platform.request("basemod{}_att".format(bm))
+            for name in "rst_n clk mosi le".split():
+                signal = getattr(basemod_att, name)
+                for i in range(len(signal)):
+                    phy = ttl_simple.Output(signal[i])
+                    self.submodules += phy
+                    rtio_channels.append(rtio.Channel.from_phy(phy))
+            phy = ttl_simple.InOut(basemod_att.miso)
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
