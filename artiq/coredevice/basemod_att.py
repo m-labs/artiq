@@ -11,7 +11,7 @@ class BaseModAtt:
 
     @kernel
     def reset(self):
-        # HMC's incompetence in digital design an interfaces means that
+        # HMC's incompetence in digital design and interfaces means that
         # the HMC542 needs a level low on RST_N and then a rising edge
         # on Latch Enable. Their "latch" isn't a latch but a DFF.
         # Of course, it also powers up with a random attenuation, and
@@ -27,6 +27,11 @@ class BaseModAtt:
 
     @kernel
     def set_mu(self, att0, att1, att2, att3):
+        """
+        Sets the four attenuators on BaseMod.
+        The values are in half decibels, between 0 (no attenuation)
+        and 63 (31.5dB attenuation).
+        """
         word = (
             (att0 <<  2) |
             (att1 << 10) | 
@@ -37,9 +42,29 @@ class BaseModAtt:
 
     @kernel
     def get_mu(self):
+        """
+        Retrieves the current settings of the four attenuators on BaseMod.
+        """
         word = self.shift_reg.get()
         att0 = (word >>  2) & 0x3f
         att1 = (word >> 10) & 0x3f
         att2 = (word >> 18) & 0x3f
         att3 = (word >> 26) & 0x3f
         return att0, att1, att2, att3
+
+    @kernel
+    def set(self, att0, att1, att2, att3):
+        """
+        Sets the four attenuators on BaseMod.
+        The values are in decibels.
+        """
+        self.set_mu(round(att0*2.0), round(att1*2.0), round(att2*2.0), round(att3*2.0))
+
+    @kernel
+    def get(self):
+        """
+        Retrieves the current settings of the four attenuators on BaseMod.
+        The values are in decibels.
+        """
+        att0, att1, att2, att3 = self.get_mu()
+        return 0.5*att0, 0.5*att1, 0.5*att2, 0.5*att3

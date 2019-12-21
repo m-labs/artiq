@@ -112,6 +112,13 @@ RF generation drivers
     :members:
 
 
+:mod:`artiq.coredevice.basemod_att` module
+++++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.basemod_att
+    :members:
+
+
 DAC/ADC drivers
 ---------------
 
