@@ -43,7 +43,8 @@ class ShiftReg:
         data = 0
         for i in range(self.n):
             data <<= 1
-            if self.ser_in.sample_input():
+            self.ser_in.sample_input()
+            if self.ser_in.sample_get():
                 data |= 1
             delay(self.dt)
             self.clk.on()
