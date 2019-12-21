@@ -25,12 +25,13 @@ def get_argparser():
         epilog="""\
 Valid actions:
 
-    * gateware: write gateware bitstream to flash
-    * rtm_gateware: write RTM board gateware bitstream to flash
+    * gateware: write main gateware bitstream to flash
+    * rtm_gateware: write RTM gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash
     * firmware: write firmware to flash
-    * load: load gateware bitstream into device (volatile but fast)
+    * load: load main gateware bitstream into device (volatile but fast)
+    * rtm_load: load RTM gateware bitstream into device
     * erase: erase flash memory
     * start: trigger the target to (re)load its gateware bitstream from flash
 
