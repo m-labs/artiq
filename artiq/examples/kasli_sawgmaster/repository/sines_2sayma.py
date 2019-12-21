@@ -8,7 +8,7 @@ class Sines2Sayma(EnvExperiment):
 
     @kernel
     def drtio_is_up(self):
-        for i in range(3):
+        for i in range(5):
             if not self.core.get_rtio_destination_status(i):
                 return False
         return True
