@@ -23,7 +23,7 @@ class SinesUrukulSayma(EnvExperiment):
 
     @kernel
     def drtio_is_up(self):
-        for i in range(2):
+        for i in range(3):
             if not self.core.get_rtio_destination_status(i):
                 return False
         return True
