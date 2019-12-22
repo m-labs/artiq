@@ -408,7 +408,7 @@ class CommKernel:
         args, kwargs = self._receive_rpc_args(embedding_map)
         return_tags  = self._read_bytes()
 
-        if service_id is 0:
+        if service_id == 0:
             service  = lambda obj, attr, value: setattr(obj, attr, value)
         else:
             service  = embedding_map.retrieve_object(service_id)
