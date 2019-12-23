@@ -73,7 +73,7 @@ class TVar(Type):
             # path compression
             iter = self
             while iter.__class__ == TVar:
-                if iter is iter.parent:
+                if iter is root:
                     break
                 else:
                     iter, iter.parent = iter.parent, root
@@ -577,13 +577,15 @@ def is_mono(typ, name=None, **params):
     if not isinstance(typ, TMono):
         return False
 
-    params_match = True
+    if name is not None and typ.name != name:
+        return False
+
     for param in params:
         if param not in typ.params:
             return False
-        params_match = params_match and \
-            typ.params[param].find() == params[param].find()
-    return name is None or (typ.name == name and params_match)
+        if typ.params[param].find() != params[param].find():
+            return False
+    return True
 
 def is_polymorphic(typ):
     return typ.fold(False, lambda accum, typ: accum or is_var(typ))
