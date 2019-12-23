@@ -629,7 +629,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
     loop {
         if listener.can_accept() {
             let mut stream = listener.accept().expect("session: cannot accept");
-            stream.set_timeout(Some(1000));
+            stream.set_timeout(Some(2250));
             stream.set_keep_alive(Some(500));
 
             match host::read_magic(&mut stream) {
