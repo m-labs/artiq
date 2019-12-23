@@ -3,8 +3,6 @@ import logging
 import socket
 import struct
 
-from artiq.coredevice.comm import initialize_connection
-
 
 logger = logging.getLogger(__name__)
 
@@ -59,10 +57,11 @@ class CommMgmt:
         self.host = host
         self.port = port
 
-    def open(self, **kwargs):
+    def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = initialize_connection(self.host, self.port, **kwargs)
+        self.socket = socket.create_connection((self.host, self.port))
+        logger.debug("connected to %s:%d", self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
 
     def close(self):
