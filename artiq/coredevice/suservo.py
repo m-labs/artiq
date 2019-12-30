@@ -294,7 +294,7 @@ class Channel:
         base = (self.servo_channel << 8) | (profile << 3)
         self.servo.write(base + 0, ftw >> 16)
         self.servo.write(base + 6, (ftw & 0xffff))
-        self.servo.write(base + 4, offs)
+        self.set_dds_offset_mu(profile, offs)
         self.servo.write(base + 2, pow_)
 
     @kernel
@@ -307,10 +307,8 @@ class Channel:
 
         :param profile: Profile number (0-31)
         :param frequency: DDS frequency in Hz
-        :param offset: IIR offset (negative setpoint) in units of full scale.
-            For positive ADC voltages as setpoints, this should be negative.
-            Due to rounding and representation as two's complement,
-            ``offset=1`` can not be represented while ``offset=-1`` can.
+        :param offset: IIR offset (negative setpoint) in units of full scale,
+            see :meth:`dds_offset_to_mu`
         :param phase: DDS phase in turns
         """
         if self.servo_channel < 4:
@@ -319,8 +317,42 @@ class Channel:
             dds = self.servo.dds1
         ftw = dds.frequency_to_ftw(frequency)
         pow_ = dds.turns_to_pow(phase)
-        offs = int(round(offset*(1 << COEFF_WIDTH - 1)))
+        offs = self.dds_offset_to_mu(offset)
         self.set_dds_mu(profile, ftw, offs, pow_)
+
+    @kernel
+    def set_dds_offset_mu(self, profile, offs):
+        """Set only IIR offset in DDS coefficient profile.
+
+        See :meth:`set_dds_mu` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param offs: IIR offset (17 bit signed)
+        """
+        base = (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base + 4, offs)
+
+    @kernel
+    def set_dds_offset(self, profile, offset):
+        """Set only IIR offset in DDS coefficient profile.
+
+        See :meth:`set_dds` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param offset: IIR offset (negative setpoint) in units of full scale
+        """
+        self.set_dds_offset_mu(profile, self.dds_offset_to_mu(offset))
+
+    @portable
+    def dds_offset_to_mu(self, offset):
+        """Convert IIR offset (negative setpoint) from units of full scale to
+        machine units (see :meth:`set_dds_mu`, :meth:`set_dds_offset_mu`).
+
+        For positive ADC voltages as setpoints, this should be negative. Due to
+        rounding and representation as two's complement, ``offset=1`` can not
+        be represented while ``offset=-1`` can.
+        """
+        return int(round(offset * (1 << COEFF_WIDTH - 1)))
 
     @kernel
     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
