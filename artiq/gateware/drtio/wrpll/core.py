@@ -4,7 +4,7 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.drtio.wrpll.si549 import Si549
-from artiq.gateware.drtio.wrpll.ddmtd import DDMTD
+from artiq.gateware.drtio.wrpll.ddmtd import DDMTD, Collector
 from artiq.gateware.drtio.wrpll import thls, filters
 
 
@@ -72,8 +72,27 @@ class WRPLL(Module, AutoCSR):
         self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)
 
         helper_cd = ClockDomainsRenamer("helper")
+        self.submodules.collector = helper_cd(Collector(N))
         self.submodules.filter_helper = helper_cd(thls.make(filters.helper, data_width=48))
         self.submodules.filter_main = helper_cd(thls.make(filters.main, data_width=48))
+
+        self.comb += [
+            self.collector.tag_helper.eq(self.ddmtd_helper.h_tag),
+            self.collector.tag_helper_update.eq(self.ddmtd_helper.h_tag_update),
+            self.collector.tag_main.eq(self.ddmtd_main.h_tag),
+            self.collector.tag_main_update.eq(self.ddmtd_main.h_tag_update)
+        ]
+
+        # compensate the 1 cycle latency of the collector
+        self.sync.helper += [
+            self.filter_helper.input.eq(self.ddmtd_helper.h_tag),
+            self.filter_helper.input_stb.eq(self.ddmtd_helper.h_tag_update)
+        ]
+        self.comb += [
+            self.filter_main.input.eq(self.collector.output),
+            self.filter_main.input_stb.eq(self.collector.output_update)
+        ]
+
         self.comb += [
             self.helper_dcxo.adpll_stb.eq(self.filter_helper.output_stb),
             self.helper_dcxo.adpll.eq(self.filter_helper.output),

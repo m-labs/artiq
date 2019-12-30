@@ -103,3 +103,23 @@ class DDMTD(Module, AutoCSR):
                 self.arm.w.eq(0),
             )
         ]
+
+
+class Collector(Module):
+    def __init__(self, N):
+        self.tag_helper = Signal(N)
+        self.tag_helper_update = Signal()
+        self.tag_main = Signal(N)
+        self.tag_main_update = Signal()
+
+        self.output = Signal(N)
+        self.output_update = Signal(N)
+
+        # # #
+
+        last_tag_main = Signal(N)
+        self.sync += [
+            If(self.tag_main_update, last_tag_main.eq(self.tag_main)),
+            self.output_update.eq(self.tag_helper_update),
+            self.output.eq(last_tag_main - self.tag_helper)
+        ]
