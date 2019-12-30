@@ -51,6 +51,8 @@ class FrequencyCounter(Module, AutoCSR):
 class WRPLL(Module, AutoCSR):
     def __init__(self, helper_clk_pads, main_dcxo_i2c, helper_dxco_i2c, ddmtd_inputs, N=15):
         self.helper_reset = CSRStorage(reset=1)
+        self.adpll_offset_helper = CSRStorage(24)
+        self.adpll_offset_main = CSRStorage(24)
 
         self.clock_domains.cd_helper = ClockDomain()
         self.helper_reset.storage.attr.add("no_retiming")
@@ -93,9 +95,9 @@ class WRPLL(Module, AutoCSR):
             self.filter_main.input_stb.eq(self.collector.output_update)
         ]
 
-        self.comb += [
+        self.sync.helper += [
             self.helper_dcxo.adpll_stb.eq(self.filter_helper.output_stb),
-            self.helper_dcxo.adpll.eq(self.filter_helper.output),
+            self.helper_dcxo.adpll.eq(self.filter_helper.output + self.adpll_offset_helper.storage),
             self.main_dcxo.adpll_stb.eq(self.filter_main.output_stb),
-            self.main_dcxo.adpll.eq(self.filter_main.output)
+            self.main_dcxo.adpll.eq(self.filter_main.output + self.adpll_offset_main.storage)
         ]
