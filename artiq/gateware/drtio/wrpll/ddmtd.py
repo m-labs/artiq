@@ -44,19 +44,23 @@ class DDMTDSamplerGTP(Module):
         ]
 
 
-class DDMTDEdgeDetector(Module):
-    def __init__(self, input_signal):
-        self.rising = Signal()
+class DDMTDDeglitcherFirstEdge(Module):
+    def __init__(self, input_signal, blind_period=128):
+        self.detect = Signal()
+        self.tag_correction = 0
 
-        history = Signal(4)
-        deglitched = Signal()
-        self.sync.helper += history.eq(Cat(history[1:], input_signal))
-        self.comb += deglitched.eq(input_signal | history[0] | history[1] | history[2] | history[3])
-
-        deglitched_r = Signal()
+        rising = Signal()
+        input_signal_r = Signal()
         self.sync.helper += [
-            deglitched_r.eq(deglitched),
-            self.rising.eq(deglitched & ~deglitched_r)
+            input_signal_r.eq(input_signal),
+            rising.eq(input_signal & ~input_signal_r)
+        ]
+
+        blind_counter = Signal(max=blind_period)
+        self.sync.helper += [
+            If(blind_counter != 0, blind_counter.eq(blind_counter - 1)),
+            If(rising, blind_counter.eq(blind_period - 1)),
+            self.detect.eq(rising & (blind_counter == 0))
         ]
 
 
@@ -71,14 +75,14 @@ class DDMTD(Module, AutoCSR):
 
         # # #
 
-        ed = DDMTDEdgeDetector(input_signal)
-        self.submodules += ed
+        deglitcher = DDMTDDeglitcherFirstEdge(input_signal)
+        self.submodules += deglitcher
 
         self.sync.helper += [
             self.h_tag_update.eq(0),
-            If(ed.rising,
+            If(deglitcher.detect,
                 self.h_tag_update.eq(1),
-                self.h_tag.eq(counter)
+                self.h_tag.eq(counter + deglitcher.tag_correction)
             )
         ]
 
