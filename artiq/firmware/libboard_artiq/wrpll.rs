@@ -269,7 +269,6 @@ fn get_frequencies() -> (u32, u32, u32) {
         csr::wrpll::frequency_counter_update_en_write(1);
         clock::spin_us(200_000); // wait for at least one update
         csr::wrpll::frequency_counter_update_en_write(0);
-        clock::spin_us(1);
         let helper = csr::wrpll::frequency_counter_counter_helper_read();
         let main = csr::wrpll::frequency_counter_counter_rtio_read();
         let cdr = csr::wrpll::frequency_counter_counter_rtio_rx0_read();
