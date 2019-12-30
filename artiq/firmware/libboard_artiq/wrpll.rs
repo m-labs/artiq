@@ -264,12 +264,25 @@ mod si549 {
     }
 }
 
-fn get_helper_frequency() -> u32 {
-    unsafe { csr::wrpll::helper_frequency_start_write(1); }
-    clock::spin_us(10_000);
-    unsafe { csr::wrpll::helper_frequency_stop_write(1); }
-    clock::spin_us(1);
-    unsafe { csr::wrpll::helper_frequency_counter_read() }
+fn get_frequencies() -> (u32, u32, u32) {
+    unsafe {
+        csr::wrpll::frequency_counter_update_en_write(1);
+        clock::spin_us(200_000); // wait for at least one update
+        csr::wrpll::frequency_counter_update_en_write(0);
+        clock::spin_us(1);
+        let helper = csr::wrpll::frequency_counter_counter_helper_read();
+        let main = csr::wrpll::frequency_counter_counter_rtio_read();
+        let cdr = csr::wrpll::frequency_counter_counter_rtio_rx0_read();
+        (helper, main, cdr)
+    }
+}
+
+fn log_frequencies() {
+    let (f_helper, f_main, f_cdr) = get_frequencies();
+    let conv_khz = |f| 4*(f as u64)*(csr::CONFIG_CLOCK_FREQUENCY as u64)/(1000*(1 << 23));
+    info!("helper clock frequency: {}kHz ({})", conv_khz(f_helper), f_helper);
+    info!("main clock frequency: {}kHz ({})", conv_khz(f_main), f_main);
+    info!("CDR clock frequency: {}kHz ({})", conv_khz(f_cdr), f_cdr);
 }
 
 fn get_ddmtd_main_tag() -> u16 {
@@ -309,7 +322,7 @@ pub fn init() {
     unsafe { csr::wrpll::helper_reset_write(0); }
     clock::spin_us(1);
 
-    info!("helper clock frequency: {}MHz", get_helper_frequency()/10000);
+    log_frequencies();
     let mut tags = [0; 10];
     for i in 0..tags.len() {
         tags[i] = get_ddmtd_main_tag();
@@ -319,6 +332,7 @@ pub fn init() {
 
 pub fn select_recovered_clock(rc: bool) {
     info!("select_recovered_clock: {}", rc);
+    log_frequencies();
     if rc {
         let mut tags = [0; 10];
         for i in 0..tags.len() {

@@ -9,32 +9,43 @@ from artiq.gateware.drtio.wrpll import thls, filters
 
 
 class FrequencyCounter(Module, AutoCSR):
-    def __init__(self):
-        self.counter = CSRStatus(32)
-        self.start = CSR()
-        self.stop = CSR()
+    def __init__(self, timer_width=23, counter_width=23, domains=["helper", "rtio", "rtio_rx0"]):
+        for domain in domains:
+            name = "counter_" + domain
+            counter = CSRStatus(counter_width, name=name)
+            setattr(self, name, counter)
+        self.update_en = CSRStorage()
 
-        ps_start = PulseSynchronizer("sys", "helper")
-        ps_stop = PulseSynchronizer("sys", "helper")
-        self.submodules += ps_start, ps_stop
+        timer = Signal(timer_width)
+        timer_tick = Signal()
+        self.sync += Cat(timer, timer_tick).eq(timer + 1)
 
-        self.comb += [
-            ps_start.i.eq(self.start.re & self.start.r),
-            ps_stop.i.eq(self.stop.re & self.stop.r)
-        ]
+        for domain in domains:
+            sync_domain = getattr(self.sync, domain)
+            divider = Signal(2)
+            sync_domain += divider.eq(divider + 1)
 
-        counter = Signal(32)
-        self.specials += MultiReg(counter, self.counter.status)
+            divided = Signal()
+            divided.attr.add("no_retiming")
+            sync_domain += divided.eq(divider[-1])
+            divided_sys = Signal()
+            self.specials += MultiReg(divided, divided_sys)
 
-        counting = Signal()
-        self.sync.helper += [
-            If(counting, counter.eq(counter + 1)),
-            If(ps_start.o,
-                counter.eq(0),
-                counting.eq(1)
-            ),
-            If(ps_stop.o, counting.eq(0))
-        ]
+            divided_sys_r = Signal()
+            divided_tick = Signal()
+            self.sync += divided_sys_r.eq(divided_sys)
+            self.comb += divided_tick.eq(divided_sys & ~divided_sys_r)
+
+            counter = Signal(counter_width)
+            counter_csr = getattr(self, "counter_" + domain)
+            self.sync += [
+                If(timer_tick,
+                    If(self.update_en.storage, counter_csr.status.eq(counter)),
+                    counter.eq(0),
+                ).Else(
+                    If(divided_tick, counter.eq(counter + 1))
+                )
+            ]
 
 
 class WRPLL(Module, AutoCSR):
@@ -52,7 +63,8 @@ class WRPLL(Module, AutoCSR):
         self.submodules.helper_dcxo = Si549(helper_dxco_i2c)
         self.submodules.main_dcxo = Si549(main_dcxo_i2c)
 
-        self.submodules.helper_frequency = FrequencyCounter()  # for diagnostics
+        # for diagnostics and PLL initialization
+        self.submodules.frequency_counter = FrequencyCounter()
 
         ddmtd_counter = Signal(N)
         self.sync.helper += ddmtd_counter.eq(ddmtd_counter + 1)
