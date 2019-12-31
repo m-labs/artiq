@@ -463,6 +463,8 @@ pub extern fn main() -> i32 {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
     clock::spin_us(1500); // wait for CPLL/QPLL lock
+    #[cfg(has_wrpll)]
+    wrpll::diagnostics();
     init_rtio_crg();
 
     #[cfg(has_hmc830_7043)]

@@ -262,6 +262,13 @@ mod si549 {
 
         Ok(())
     }
+
+    pub fn adpll(dcxo: i2c::Dcxo, adpll: i32) -> Result<(), &'static str> {
+        write(dcxo, 231, adpll as u8)?;
+        write(dcxo, 232, (adpll >> 8) as u8)?;
+        write(dcxo, 233, (adpll >> 16) as u8)?;
+        Ok(())
+    }
 }
 
 fn get_frequencies() -> (u32, u32, u32) {
@@ -321,8 +328,19 @@ pub fn init() {
 
     unsafe { csr::wrpll::helper_reset_write(0); }
     clock::spin_us(1);
+}
 
+pub fn diagnostics() {
     log_frequencies();
+
+    info!("ADPLL test:");
+    // +/-10ppm
+    si549::adpll(i2c::Dcxo::Helper, -85911).expect("ADPLL write failed");
+    si549::adpll(i2c::Dcxo::Main, 85911).expect("ADPLL write failed");
+    log_frequencies();
+    si549::adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
+    si549::adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
+
     let mut tags = [0; 10];
     for i in 0..tags.len() {
         tags[i] = get_ddmtd_main_tag();
