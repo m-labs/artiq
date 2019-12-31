@@ -267,7 +267,8 @@ mod si549 {
 fn get_frequencies() -> (u32, u32, u32) {
     unsafe {
         csr::wrpll::frequency_counter_update_en_write(1);
-        clock::spin_us(200_000); // wait for at least one update
+        // wait for at least one full update cycle (> 2 timer periods)
+        clock::spin_us(200_000);
         csr::wrpll::frequency_counter_update_en_write(0);
         let helper = csr::wrpll::frequency_counter_counter_helper_read();
         let main = csr::wrpll::frequency_counter_counter_rtio_read();
