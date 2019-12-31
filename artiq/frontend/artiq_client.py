@@ -20,7 +20,7 @@ from prettytable import PrettyTable
 from sipyco.pc_rpc import Client
 from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
-from sipyco import pyon
+from sipyco import common_args, pyon
 
 from artiq.tools import short_format, parse_arguments
 from artiq import __version__ as artiq_version
@@ -122,6 +122,7 @@ def get_argparser():
         "ls", help="list a directory on the master")
     parser_ls.add_argument("directory", default="", nargs="?")
 
+    common_args.verbosity_args(parser)
     return parser
 
 
