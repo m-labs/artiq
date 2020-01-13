@@ -1,5 +1,6 @@
 from migen import *
 from migen.genlib.cdc import PulseSynchronizer, MultiReg
+from migen.genlib.fsm import FSM
 from misoc.interconnect.csr import *
 
 
@@ -117,9 +118,38 @@ class Collector(Module):
 
         # # #
 
-        last_tag_main = Signal(N)
+        fsm = FSM()
+        self.submodules += fsm
+
+        tag_collector = Signal(N)
+        fsm.act("IDLE",
+            If(self.tag_main_update & self.tag_helper_update,
+                NextValue(tag_collector, 0),
+                NextState("IDLE")
+            ).Elif(self.tag_main_update,
+                NextValue(tag_collector, self.tag_main),
+                NextState("WAITHELPER")
+            ).Elif(self.tag_helper_update,
+                NextValue(tag_collector, -self.tag_helper),
+                NextState("WAITMAIN")
+            )
+        )
+        fsm.act("WAITHELPER",
+            If(self.tag_helper_update,
+                NextValue(tag_collector, tag_collector - self.tag_helper),
+                NextState("IDLE")
+            )
+        )
+        fsm.act("WAITMAIN",
+            If(self.tag_main_update,
+                NextValue(tag_collector, tag_collector + self.tag_main),
+                NextState("IDLE")
+            )
+        )
         self.sync += [
-            If(self.tag_main_update, last_tag_main.eq(self.tag_main)),
-            self.output_update.eq(self.tag_helper_update),
-            self.output.eq(last_tag_main - self.tag_helper)
+            self.output_update.eq(0),
+            If(self.tag_helper_update,
+                self.output_update.eq(1),
+                self.output.eq(tag_collector)
+            )
         ]
