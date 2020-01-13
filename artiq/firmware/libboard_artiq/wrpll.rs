@@ -284,12 +284,13 @@ fn get_frequencies() -> (u32, u32, u32) {
     }
 }
 
-fn log_frequencies() {
+fn log_frequencies() -> (u32, u32, u32) {
     let (f_helper, f_main, f_cdr) = get_frequencies();
     let conv_khz = |f| 4*(f as u64)*(csr::CONFIG_CLOCK_FREQUENCY as u64)/(1000*(1 << 23));
     info!("helper clock frequency: {}kHz ({})", conv_khz(f_helper), f_helper);
     info!("main clock frequency: {}kHz ({})", conv_khz(f_main), f_main);
     info!("CDR clock frequency: {}kHz ({})", conv_khz(f_cdr), f_cdr);
+    (f_helper, f_main, f_cdr)
 }
 
 fn get_ddmtd_main_tag() -> u16 {
@@ -348,14 +349,82 @@ pub fn diagnostics() {
     info!("DDMTD main tags: {:?}", tags);
 }
 
-pub fn select_recovered_clock(rc: bool) {
-    info!("select_recovered_clock: {}", rc);
-    log_frequencies();
+fn trim_dcxos(f_helper: u32, f_main: u32, f_cdr: u32) -> Result<(i32, i32), &'static str> {
+    const DCXO_STEP: i64 = (1.0e6/0.0001164) as i64;
+    const ADPLL_MAX: i64 = (950.0/0.0001164) as i64;
+
+    const TIMER_WIDTH: u32 = 23;
+    const COUNTER_DIV: u32 = 2;
+
+    const F_SYS: f64 = 125.0e6;
+    const F_MAIN: f64 = 125.0e6;
+    const F_HELPER: f64 = F_MAIN * ((1 << 15) as f64)/((1<<15) as f64 + 1.0);
+
+    const SYS_COUNTS: i64 = (1 << (TIMER_WIDTH - COUNTER_DIV)) as i64;
+    const EXP_MAIN_COUNTS: i64 = ((SYS_COUNTS as f64) * (F_MAIN/F_SYS)) as i64;
+    const EXP_HELPER_COUNTS: i64 = ((SYS_COUNTS as f64) * (F_HELPER/F_SYS)) as i64;
+
+    info!("after {} sys counts", SYS_COUNTS);
+    info!("expect {} main/CDR counts", EXP_MAIN_COUNTS);
+    info!("expect {} helper counts", EXP_HELPER_COUNTS);
+
+    // calibrate the SYS clock to the CDR clock and correct the measured counts
+    // assume frequency errors are small so we can make an additive correction
+    // positive error means sys clock is too fast
+    let sys_err: i64 = EXP_MAIN_COUNTS - (f_cdr as i64);
+    let main_err: i64 = EXP_MAIN_COUNTS - (f_main as i64) - sys_err;
+    let helper_err: i64 = EXP_HELPER_COUNTS - (f_helper as i64) - sys_err;
+
+    info!("sys count err {}", sys_err);
+    info!("main counts err {}", main_err);
+    info!("helper counts err {}", helper_err);
+
+    // calculate required adjustment to the ADPLL register see
+    // https://www.silabs.com/documents/public/data-sheets/si549-datasheet.pdf
+    // section 5.6
+    let helper_adpll: i64 = helper_err*DCXO_STEP/EXP_HELPER_COUNTS;
+    let main_adpll: i64 = main_err*DCXO_STEP/EXP_MAIN_COUNTS;
+    if helper_adpll.abs() > ADPLL_MAX {
+        return Err("helper DCXO offset too large");
+    }
+    if main_adpll.abs() > ADPLL_MAX {
+        return Err("main DCXO offset too large");
+    }
+
+    Ok((helper_adpll as i32, main_adpll as i32))
+}
+
+fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
+    let (f_helper, f_main, f_cdr) = log_frequencies();
     if rc {
+        let (helper_adpll, main_adpll) = trim_dcxos(f_helper, f_main, f_cdr)?;
+        si549::adpll(i2c::Dcxo::Helper, helper_adpll).expect("ADPLL write failed");
+        si549::adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
+        unsafe {
+            csr::wrpll::adpll_offset_helper_write(helper_adpll as u32);
+            csr::wrpll::adpll_offset_main_write(main_adpll as u32);
+        }
+
         let mut tags = [0; 10];
         for i in 0..tags.len() {
             tags[i] = get_ddmtd_helper_tag();
         }
         info!("DDMTD helper tags: {:?}", tags);
+    } else {
+        si549::adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
+        si549::adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
+    }
+    Ok(())
+}
+
+pub fn select_recovered_clock(rc: bool) {
+    if rc {
+        info!("switching to recovered clock");
+    } else {
+        info!("switching to local XO clock");
+    }
+    match select_recovered_clock_int(rc) {
+        Ok(()) => info!("clock transition completed"),
+        Err(e) => error!("clock transition failed: {}", e)
     }
 }
