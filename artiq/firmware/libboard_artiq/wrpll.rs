@@ -267,6 +267,7 @@ mod si549 {
         write(dcxo, 231, adpll as u8)?;
         write(dcxo, 232, (adpll >> 8) as u8)?;
         write(dcxo, 233, (adpll >> 16) as u8)?;
+        clock::spin_us(100);
         Ok(())
     }
 }
