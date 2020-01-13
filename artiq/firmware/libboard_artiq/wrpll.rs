@@ -175,7 +175,7 @@ mod si549 {
     use board_misoc::clock;
     use super::i2c;
 
-    const ADDRESS: u8 = 0x55;
+    pub const ADDRESS: u8 = 0x55;
 
     pub fn write(dcxo: i2c::Dcxo, reg: u8, val: u8) -> Result<(), &'static str> {
         i2c::start(dcxo);
@@ -270,6 +270,13 @@ mod si549 {
         clock::spin_us(100);
         Ok(())
     }
+
+    pub fn get_adpll(dcxo: i2c::Dcxo) -> Result<i32, &'static str> {
+        let b1 = read(dcxo, 231)? as i32;
+        let b2 = read(dcxo, 232)? as i32;
+        let b3 = read(dcxo, 233)? as i8 as i32;
+        Ok(b3 << 16 | b2 << 8 | b1)
+    }
 }
 
 fn get_frequencies() -> (u32, u32, u32) {
@@ -314,6 +321,11 @@ pub fn init() {
     info!("initializing...");
 
     unsafe { csr::wrpll::helper_reset_write(1); }
+
+    unsafe {
+        csr::wrpll::helper_dcxo_i2c_address_write(si549::ADDRESS);
+        csr::wrpll::main_dcxo_i2c_address_write(si549::ADDRESS);
+    }
 
     #[cfg(rtio_frequency = "125.0")]
     let (h_hsdiv, h_lsdiv, h_fbdiv) = (0x05c, 0, 0x04b5badb98a);
@@ -403,16 +415,41 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
         let (helper_adpll, main_adpll) = trim_dcxos(f_helper, f_main, f_cdr)?;
         si549::set_adpll(i2c::Dcxo::Helper, helper_adpll).expect("ADPLL write failed");
         si549::set_adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
+
         unsafe {
             csr::wrpll::adpll_offset_helper_write(helper_adpll as u32);
             csr::wrpll::adpll_offset_main_write(main_adpll as u32);
+            csr::wrpll::helper_dcxo_gpio_enable_write(0);
+            csr::wrpll::main_dcxo_gpio_enable_write(0);
+            csr::wrpll::helper_dcxo_errors_write(0xff);
+            csr::wrpll::main_dcxo_errors_write(0xff);
+            csr::wrpll::filter_reset_write(0);
         }
+
+        clock::spin_us(100_000);
 
         let mut tags = [0; 10];
         for i in 0..tags.len() {
             tags[i] = get_ddmtd_helper_tag();
         }
         info!("DDMTD helper tags: {:?}", tags);
+
+        unsafe {
+            csr::wrpll::filter_reset_write(1);
+        }
+        clock::spin_us(50_000);
+        unsafe {
+            csr::wrpll::helper_dcxo_gpio_enable_write(1);
+            csr::wrpll::main_dcxo_gpio_enable_write(1);
+        }
+        unsafe {
+            info!("error {} {}",
+                csr::wrpll::helper_dcxo_errors_read(),
+                csr::wrpll::main_dcxo_errors_read());
+        }
+        info!("new ADPLL: {} {}",
+            si549::get_adpll(i2c::Dcxo::Helper)?,
+            si549::get_adpll(i2c::Dcxo::Main)?);
     } else {
         si549::set_adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
         si549::set_adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
