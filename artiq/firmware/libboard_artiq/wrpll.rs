@@ -263,7 +263,7 @@ mod si549 {
         Ok(())
     }
 
-    pub fn adpll(dcxo: i2c::Dcxo, adpll: i32) -> Result<(), &'static str> {
+    pub fn set_adpll(dcxo: i2c::Dcxo, adpll: i32) -> Result<(), &'static str> {
         write(dcxo, 231, adpll as u8)?;
         write(dcxo, 232, (adpll >> 8) as u8)?;
         write(dcxo, 233, (adpll >> 16) as u8)?;
@@ -337,11 +337,11 @@ pub fn diagnostics() {
 
     info!("ADPLL test:");
     // +/-10ppm
-    si549::adpll(i2c::Dcxo::Helper, -85911).expect("ADPLL write failed");
-    si549::adpll(i2c::Dcxo::Main, 85911).expect("ADPLL write failed");
+    si549::set_adpll(i2c::Dcxo::Helper, -85911).expect("ADPLL write failed");
+    si549::set_adpll(i2c::Dcxo::Main, 85911).expect("ADPLL write failed");
     log_frequencies();
-    si549::adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
-    si549::adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
+    si549::set_adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
+    si549::set_adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
 
     let mut tags = [0; 10];
     for i in 0..tags.len() {
@@ -401,8 +401,8 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
     let (f_helper, f_main, f_cdr) = log_frequencies();
     if rc {
         let (helper_adpll, main_adpll) = trim_dcxos(f_helper, f_main, f_cdr)?;
-        si549::adpll(i2c::Dcxo::Helper, helper_adpll).expect("ADPLL write failed");
-        si549::adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
+        si549::set_adpll(i2c::Dcxo::Helper, helper_adpll).expect("ADPLL write failed");
+        si549::set_adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
         unsafe {
             csr::wrpll::adpll_offset_helper_write(helper_adpll as u32);
             csr::wrpll::adpll_offset_main_write(main_adpll as u32);
@@ -414,8 +414,8 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
         }
         info!("DDMTD helper tags: {:?}", tags);
     } else {
-        si549::adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
-        si549::adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
+        si549::set_adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
+        si549::set_adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
     }
     Ok(())
 }
