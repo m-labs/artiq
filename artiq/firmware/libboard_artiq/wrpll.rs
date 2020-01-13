@@ -391,6 +391,7 @@ fn trim_dcxos(f_helper: u32, f_main: u32, f_cdr: u32) -> Result<(i32, i32), &'st
         return Err("main DCXO offset too large");
     }
 
+    info!("ADPLL offsets: helper={} main={}", helper_adpll, main_adpll);
     Ok((helper_adpll as i32, main_adpll as i32))
 }
 
