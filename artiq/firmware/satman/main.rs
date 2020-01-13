@@ -306,18 +306,6 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     jdac_requests::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); (true, 0) },
                     jdac_requests::PRBS => (board_artiq::ad9154::prbs(_dacno).is_ok(), 0),
                     jdac_requests::STPL => (board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(), 0),
-                    jdac_requests::SYSREF_DELAY_DAC => { board_artiq::hmc830_7043::hmc7043::sysref_delay_dac(_dacno, _param); (true, 0) },
-                    jdac_requests::SYSREF_SLIP => { board_artiq::hmc830_7043::hmc7043::sysref_slip(); (true, 0) },
-                    jdac_requests::SYNC => {
-                        match board_artiq::ad9154::sync(_dacno) {
-                            Ok(false) => (true, 0),
-                            Ok(true) => (true, 1),
-                            Err(e) => {
-                                error!("DAC sync failed: {}", e);
-                                (false, 0)
-                            }
-                        }
-                    }
                     _ => (false, 0)
                 }
             };
@@ -507,9 +495,6 @@ pub extern fn main() -> i32 {
              * Si5324 is locked to the recovered clock.
              */
             jdcg::jesd::reset(false);
-            if repeaters[0].is_up() {
-                let _ = jdcg::jdac::init();
-            }
         }
 
         drtioaux::reset(0);
@@ -517,7 +502,7 @@ pub extern fn main() -> i32 {
         drtiosat_reset_phy(false);
 
         #[cfg(has_jdcg)]
-        let mut rep0_was_up = repeaters[0].is_up();
+        let mut rep0_was_up = false;
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
@@ -527,12 +512,6 @@ pub extern fn main() -> i32 {
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
-                #[cfg(has_jdcg)]
-                {
-                    if rep0_was_up {
-                        jdcg::jesd204sync::sysref_auto_align();
-                    }
-                }
                 for rep in repeaters.iter() {
                     if let Err(e) = rep.sync_tsc() {
                         error!("failed to sync TSC ({})", e);
@@ -546,8 +525,7 @@ pub extern fn main() -> i32 {
             {
                 let rep0_is_up = repeaters[0].is_up();
                 if rep0_is_up && !rep0_was_up {
-                    let _ = jdcg::jdac::init();
-                    jdcg::jesd204sync::sysref_auto_align();
+                    jdcg::jdac::init();
                 }
                 rep0_was_up = rep0_is_up;
             }
