@@ -357,7 +357,8 @@ fn trim_dcxos(f_helper: u32, f_main: u32, f_cdr: u32) -> Result<(i32, i32), &'st
     const TIMER_WIDTH: u32 = 23;
     const COUNTER_DIV: u32 = 2;
 
-    const F_SYS: f64 = 125.0e6;
+    const F_SYS: f64 = csr::CONFIG_CLOCK_FREQUENCY as f64;
+    #[cfg(rtio_frequency = "125.0")]
     const F_MAIN: f64 = 125.0e6;
     const F_HELPER: f64 = F_MAIN * ((1 << 15) as f64)/((1<<15) as f64 + 1.0);
 
