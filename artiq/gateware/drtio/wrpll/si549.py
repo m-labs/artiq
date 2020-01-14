@@ -35,7 +35,7 @@ class I2CMasterMachine(Module):
         self.write = Signal()
         self.ack   = Signal()
         self.data  = Signal(8)
-        self.idle  = Signal()
+        self.ready = Signal()
 
         ###
 
@@ -46,6 +46,7 @@ class I2CMasterMachine(Module):
         self.submodules += fsm
 
         fsm.act("IDLE",
+            self.ready.eq(1),
             If(self.start,
                 NextState("START0"),
             ).Elif(self.stop & self.start,
@@ -110,10 +111,11 @@ class I2CMasterMachine(Module):
         )
 
         run = Signal()
+        idle = Signal()
         self.comb += [
             run.eq(self.start | self.stop | self.write),
-            self.idle.eq(~run & fsm.ongoing("IDLE")),
-            self.cg.ce.eq(~self.idle),
+            idle.eq(~run & fsm.ongoing("IDLE")),
+            self.cg.ce.eq(~idle),
             fsm.ce.eq(run | self.cg.clk2x),
         ]
 
@@ -160,17 +162,17 @@ class ADPLLProgrammer(Module):
         )
         fsm.act("START",
             master.start.eq(1),
-            If(master.idle, NextState("DEVADDRESS"))
+            If(master.ready, NextState("DEVADDRESS"))
         )
         fsm.act("DEVADDRESS",
             master.data.eq(self.i2c_address << 1),
             master.write.eq(1),
-            If(master.idle, NextState("REGADRESS"))
+            If(master.ready, NextState("REGADRESS"))
         )
         fsm.act("REGADRESS",
             master.data.eq(231),
             master.write.eq(1),
-            If(master.idle,
+            If(master.ready,
                 If(master.ack,
                     NextState("DATA0")
                 ).Else(
@@ -182,7 +184,7 @@ class ADPLLProgrammer(Module):
         fsm.act("DATA0",
             master.data.eq(adpll[0:8]),
             master.write.eq(1),
-            If(master.idle,
+            If(master.ready,
                 If(master.ack,
                     NextState("DATA1")
                 ).Else(
@@ -194,7 +196,7 @@ class ADPLLProgrammer(Module):
         fsm.act("DATA1",
             master.data.eq(adpll[8:16]),
             master.write.eq(1),
-            If(master.idle,
+            If(master.ready,
                 If(master.ack,
                     NextState("DATA2")
                 ).Else(
@@ -206,20 +208,40 @@ class ADPLLProgrammer(Module):
         fsm.act("DATA2",
             master.data.eq(adpll[16:24]),
             master.write.eq(1),
-            If(master.idle,
+            If(master.ready,
                 If(~master.ack, self.nack.eq(1)),
                 NextState("STOP")
             )
         )
         fsm.act("STOP",
             master.stop.eq(1),
-            If(master.idle,
+            If(master.ready,
                 If(~master.ack, self.nack.eq(1)),
                 NextState("IDLE")
             )
         )
 
         self.comb += self.busy.eq(~fsm.ongoing("IDLE"))
+
+
+def simulate_programmer():
+    from migen.sim.core import run_simulation
+
+    dut = ADPLLProgrammer()
+
+    def generator():
+        yield dut.i2c_divider.eq(4)
+        yield dut.i2c_address.eq(0x55)
+        yield
+        yield dut.adpll.eq(0x123456)
+        yield dut.stb.eq(1)
+        yield
+        yield dut.stb.eq(0)
+        yield
+        while (yield dut.busy):
+            yield
+
+    run_simulation(dut, generator(), vcd_name="tb.vcd")
 
 
 class Si549(Module, AutoCSR):
@@ -308,3 +330,7 @@ class Si549(Module, AutoCSR):
                 If(self.errors.re & self.errors.r[n], self.errors.w[n].eq(0)),
                 If(trig, self.errors.w[n].eq(1))
             ]
+
+
+if __name__ == "__main__":
+    simulate_programmer()
