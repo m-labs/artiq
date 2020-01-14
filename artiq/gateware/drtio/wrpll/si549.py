@@ -49,8 +49,6 @@ class I2CMasterMachine(Module):
             self.ready.eq(1),
             If(self.start,
                 NextState("START0"),
-            ).Elif(self.stop & self.start,
-                NextState("RESTART0"),
             ).Elif(self.stop,
                 NextState("STOP0"),
             ).Elif(self.write,
@@ -62,40 +60,44 @@ class I2CMasterMachine(Module):
 
         fsm.act("START0",
             NextValue(self.scl, 1),
-            NextState("START1"))
+            NextState("START1")
+        )
         fsm.act("START1",
             NextValue(self.sda_o, 0),
-            NextState("IDLE"))
-
-        fsm.act("RESTART0",
-            NextValue(self.scl, 0),
-            NextState("RESTART1"))
-        fsm.act("RESTART1",
-            NextValue(self.sda_o, 1),
-            NextState("START0"))
+            NextState("IDLE")
+        )
 
         fsm.act("STOP0",
             NextValue(self.scl, 0),
-            NextState("STOP1"))
+            NextState("STOP1")
+        )
         fsm.act("STOP1",
-            NextValue(self.scl, 1),
             NextValue(self.sda_o, 0),
-            NextState("STOP2"))
+            NextState("STOP2")
+        )
         fsm.act("STOP2",
+            NextValue(self.scl, 1),
+            NextState("STOP3")
+        )
+        fsm.act("STOP3",
             NextValue(self.sda_o, 1),
-            NextState("IDLE"))
+            NextState("IDLE")
+        )
 
         fsm.act("WRITE0",
             NextValue(self.scl, 0),
+            NextState("WRITE1")
+        )
+        fsm.act("WRITE1",
             If(bits == 0,
                 NextValue(self.sda_o, 1),
                 NextState("READACK0"),
             ).Else(
                 NextValue(self.sda_o, data[7]),
-                NextState("WRITE1"),
+                NextState("WRITE2"),
             )
         )
-        fsm.act("WRITE1",
+        fsm.act("WRITE2",
             NextValue(self.scl, 1),
             NextValue(data[1:], data[:-1]),
             NextValue(bits, bits - 1),
@@ -239,6 +241,8 @@ def simulate_programmer():
         yield dut.stb.eq(0)
         yield
         while (yield dut.busy):
+            yield
+        for _ in range(20):
             yield
 
     run_simulation(dut, generator(), vcd_name="tb.vcd")
