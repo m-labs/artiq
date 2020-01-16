@@ -200,7 +200,8 @@ class Satellite(_SatelliteBase):
             print("BaseMod{} RF switches starting at RTIO channel 0x{:06x}"
                 .format(bm, len(rtio_channels)))
             for i in range(4):
-                phy = ttl_serdes_7series.Output_8X(platform.request("basemod{}_rfsw".format(bm), i))
+                phy = ttl_serdes_7series.Output_8X(platform.request("basemod{}_rfsw".format(bm), i),
+                    invert=True)
                 self.submodules += phy
                 rtio_channels.append(rtio.Channel.from_phy(phy))
 

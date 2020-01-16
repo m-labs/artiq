@@ -4,7 +4,7 @@ from artiq.gateware.rtio.phy import ttl_serdes_generic
 
 
 class _OSERDESE2_8X(Module):
-    def __init__(self, pad, pad_n=None):
+    def __init__(self, pad, pad_n=None, invert=False):
         self.o = Signal(8)
         self.t_in = Signal()
         self.t_out = Signal()
@@ -16,12 +16,13 @@ class _OSERDESE2_8X(Module):
         self.specials += Instance("OSERDESE2",
             p_DATA_RATE_OQ="DDR", p_DATA_RATE_TQ="BUF",
             p_DATA_WIDTH=8, p_TRISTATE_WIDTH=1,
+            p_INIT_OQ=0b11111111 if invert else 0b00000000,
             o_OQ=pad_o, o_TQ=self.t_out,
             i_RST=ResetSignal("rio_phy"),
             i_CLK=ClockSignal("rtiox4"),
             i_CLKDIV=ClockSignal("rio_phy"),
-            i_D1=o[0], i_D2=o[1], i_D3=o[2], i_D4=o[3],
-            i_D5=o[4], i_D6=o[5], i_D7=o[6], i_D8=o[7],
+            i_D1=o[0] ^ invert, i_D2=o[1] ^ invert, i_D3=o[2] ^ invert, i_D4=o[3] ^ invert,
+            i_D5=o[4] ^ invert, i_D6=o[5] ^ invert, i_D7=o[6] ^ invert, i_D8=o[7] ^ invert,
             i_TCE=1, i_OCE=1,
             i_T1=self.t_in)
         if pad_n is None:
@@ -106,8 +107,8 @@ class _IOSERDESE2_8X(Module):
 
 
 class Output_8X(ttl_serdes_generic.Output):
-    def __init__(self, pad, pad_n=None):
-        serdes = _OSERDESE2_8X(pad, pad_n)
+    def __init__(self, pad, pad_n=None, invert=False):
+        serdes = _OSERDESE2_8X(pad, pad_n, invert=invert)
         self.submodules += serdes
         ttl_serdes_generic.Output.__init__(self, serdes)
 
