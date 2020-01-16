@@ -29,9 +29,9 @@ class Fastino:
         This clears reset, unsets DAC_CLR, enables AFE_PWR,
         clears error counters, then enables error counting
         """
-        self.set_cfg(0x8)
+        self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=1)
         delay(1*us)
-        self.set_cfg(0x0)
+        self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=0)
         delay(1*us)
 
     @kernel
@@ -111,7 +111,7 @@ class Fastino:
             This clears the sticky red error LED. Must be cleared to enable
             error counting.
         """
-        self.write(0x22, (reset << 0) | (afe_pwr_disable << 1) |
+        self.write(0x22, (reset << 0) | (afe_power_down << 1) |
             (dac_clr << 2) | (clr_err << 3))
 
     @kernel
