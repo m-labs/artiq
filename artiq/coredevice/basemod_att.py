@@ -3,6 +3,15 @@ from artiq.language.units import us, ms
 from artiq.coredevice.shiftreg import ShiftReg
 
 
+@portable
+def to_mu(att):
+    return round(att*2.0) ^ 0x3f
+
+@portable
+def from_mu(att_mu):
+    return 0.5*(att_mu ^ 0x3f)
+
+
 class BaseModAtt:
     def __init__(self, dmgr, rst_n, clk, le, mosi, miso):
         self.rst_n = dmgr.get(rst_n)
@@ -58,7 +67,7 @@ class BaseModAtt:
         Sets the four attenuators on BaseMod.
         The values are in decibels.
         """
-        self.set_mu(round(att0*2.0), round(att1*2.0), round(att2*2.0), round(att3*2.0))
+        self.set_mu(to_mu(att0), to_mu(att1), to_mu(att2), to_mu(att3))
 
     @kernel
     def get(self):
@@ -67,4 +76,4 @@ class BaseModAtt:
         The values are in decibels.
         """
         att0, att1, att2, att3 = self.get_mu()
-        return 0.5*att0, 0.5*att1, 0.5*att2, 0.5*att3
+        return from_mu(att0), from_mu(att1), from_mu(att2), from_mu(att3)
