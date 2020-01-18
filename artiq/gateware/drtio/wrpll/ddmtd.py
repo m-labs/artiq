@@ -150,9 +150,4 @@ class Collector(Module):
             NextValue(self.output, tag_collector),
             NextState("IDLE")
         )
-        self.sync += [
-            self.output_update.eq(0),
-            If(self.tag_helper_update,
-                self.output_update.eq(1)
-            )
-        ]
+        self.sync += self.output_update.eq(self.tag_helper_update)
