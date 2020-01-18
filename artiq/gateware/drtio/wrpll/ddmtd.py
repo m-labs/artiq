@@ -113,19 +113,19 @@ class Collector(Module):
         self.tag_main = Signal(N)
         self.tag_main_update = Signal()
 
-        self.output = Signal(N)
+        self.output = Signal((N, True))
         self.output_update = Signal(N)
 
         # # #
 
-        fsm = FSM()
+        fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
         tag_collector = Signal(N)
         fsm.act("IDLE",
             If(self.tag_main_update & self.tag_helper_update,
                 NextValue(tag_collector, 0),
-                NextState("IDLE")
+                NextState("UPDATE")
             ).Elif(self.tag_main_update,
                 NextValue(tag_collector, self.tag_main),
                 NextState("WAITHELPER")
@@ -137,19 +137,22 @@ class Collector(Module):
         fsm.act("WAITHELPER",
             If(self.tag_helper_update,
                 NextValue(tag_collector, tag_collector - self.tag_helper),
-                NextState("IDLE")
+                NextState("UPDATE")
             )
         )
         fsm.act("WAITMAIN",
             If(self.tag_main_update,
                 NextValue(tag_collector, tag_collector + self.tag_main),
-                NextState("IDLE")
+                NextState("UPDATE")
             )
+        )
+        fsm.act("UPDATE",
+            NextValue(self.output, tag_collector),
+            NextState("IDLE")
         )
         self.sync += [
             self.output_update.eq(0),
             If(self.tag_helper_update,
-                self.output_update.eq(1),
-                self.output.eq(tag_collector)
+                self.output_update.eq(1)
             )
         ]
