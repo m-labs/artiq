@@ -288,12 +288,6 @@ class Satellite(SatelliteBase):
         self.jdcg_0.jesd.core.register_jref(self.sysref_sampler.jref)
         self.jdcg_1.jesd.core.register_jref(self.sysref_sampler.jref)
 
-        # DDMTD
-        # https://github.com/sinara-hw/Sayma_RTM/issues/68
-        sysref_pads = platform.request("amc_fpga_sysref", 1)
-        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, self.rtio_clk_freq)
-        self.csr_devices.append("sysref_ddmtd")
-
 
 class SimpleSatellite(SatelliteBase):
     def __init__(self, **kwargs):
