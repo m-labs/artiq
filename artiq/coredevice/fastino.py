@@ -4,7 +4,7 @@ streaming DAC.
 TODO: Example, describe update/hold
 """
 
-from artiq.language.core import kernel, portable
+from artiq.language.core import kernel, portable, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.language.units import us
 
@@ -112,7 +112,7 @@ class Fastino:
             error counting.
         """
         self.write(0x22, (reset << 0) | (afe_power_down << 1) |
-            (dac_clr << 2) | (clr_err << 3))
+                   (dac_clr << 2) | (clr_err << 3))
 
     @kernel
     def set_leds(self, leds):
