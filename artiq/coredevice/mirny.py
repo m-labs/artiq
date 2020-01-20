@@ -1,3 +1,6 @@
+"""RTIO driver for Mirny (4 channel GHz PLLs)
+"""
+
 from artiq.language.core import kernel, delay
 from artiq.language.units import us
 
@@ -17,9 +20,16 @@ SPIT_RD = 16
 
 SPI_CS = 1
 
+WE = 1 << 24
+
+
 class Mirny:
-    WE = 1 << 24
-    kernel_invariants = {"bus", "core", "WE"}
+    """Mirny PLL-based RF generator.
+
+    :param spi_device: SPI bus device
+    :param core_device: Core device name (default: "core")
+    """
+    kernel_invariants = {"bus", "core"}
 
     def __init__(self, dmgr, spi_device, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -27,6 +37,7 @@ class Mirny:
 
     @kernel
     def read_reg(self, addr):
+        """Read a register"""
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_INPUT | spi.SPI_END, 24,
                                SPIT_RD, SPI_CS)
         self.bus.write((addr << 25))
@@ -34,11 +45,14 @@ class Mirny:
 
     @kernel
     def write_reg(self, addr, data):
+        """Write a register"""
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 24, SPIT_WR, SPI_CS)
-        self.bus.write((addr << 25) | self.WE | ((data & 0xffff) << 8))
+        self.bus.write((addr << 25) | WE | ((data & 0xffff) << 8))
 
     @kernel
     def init(self):
+        """Initialize Mirny by reading the status register and verifying
+        compatible hardware and protocol revisions"""
         reg0 = self.read_reg(0)
         if reg0 & 0b11 != 0b11:
             raise ValueError("Mirny HW_REV mismatch")
@@ -57,6 +71,7 @@ class Mirny:
 
     @kernel
     def write_ext(self, addr, length, data):
+        """Perform SPI write to a prefixed address"""
         self.bus.set_config_mu(SPI_CONFIG, 8, SPIT_WR, SPI_CS)
         self.bus.write(addr << 25)
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, length,

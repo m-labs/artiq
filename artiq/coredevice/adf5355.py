@@ -1,5 +1,5 @@
-""""RTIO driver for the Analog Devices ADF[45]35[56] family of GHz PLLs
-on Mirny-style prefixed SPI buses
+"""RTIO driver for the Analog Devices ADF[45]35[56] family of GHz PLLs
+on Mirny-style prefixed SPI buses.
 """
 
 # https://github.com/analogdevicesinc/linux/blob/master/Documentation/devicetree/bindings/iio/frequency/adf5355.txt

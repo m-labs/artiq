@@ -99,6 +99,18 @@ RF generation drivers
 .. automodule:: artiq.coredevice.ad9914
     :members:
 
+:mod:`artiq.coredevice.mirny` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.mirny
+    :members:
+
+:mod:`artiq.coredevice.adf5355` module
++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.adf5355
+    :members:
+
 :mod:`artiq.coredevice.spline` module
 +++++++++++++++++++++++++++++++++++++
 
