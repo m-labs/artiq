@@ -90,13 +90,15 @@ pub mod jdac {
             error!("JESD core PHY not done");
             return Err("JESD core PHY not done");
         }
+
+        basic_request(dacno, jdac_requests::INIT, 0)?;
+
+        // JESD ready depends on JSYNC being valid, so DAC init needs to happen first
         if !jesd::ready(dacno) {
-            error!("JESD core reported not ready, sending status print request");
+            error!("JESD core reported not ready, sending DAC status print request");
             basic_request(dacno, jdac_requests::PRINT_STATUS, 0)?;
             return Err("JESD core reported not ready");
         }
-
-        basic_request(dacno, jdac_requests::INIT, 0)?;
 
         jesd::prbs(dacno, true);
         basic_request(dacno, jdac_requests::PRBS, 0)?;
