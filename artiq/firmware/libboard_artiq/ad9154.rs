@@ -355,6 +355,7 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
 
 pub fn status(dacno: u8) {
     spi_setup(dacno);
+    info!("Status of DAC-{}", dacno);
     info!("SERDES_PLL_LOCK: {}",
         (read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB));
     info!("");
