@@ -95,7 +95,8 @@ pub mod jdac {
                 return Err("JESD core PHY not done");
             }
             if !jesd::ready(dacno) {
-                error!("JESD core reported not ready");
+                error!("JESD core reported not ready, sending status print request");
+                basic_request(dacno, jdac_requests::PRINT_STATUS, 0)?;
                 return Err("JESD core reported not ready");
             }
 
