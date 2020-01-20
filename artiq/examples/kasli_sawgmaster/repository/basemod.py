@@ -20,6 +20,6 @@ class BaseMod(EnvExperiment):
             print(basemod.get_mu())
 
         self.core.break_realtime()
-        for rfws in self.rfsws:
-            rfws.on()
+        for rfsw in self.rfsws:
+            rfsw.on()
             delay(1*ms)
