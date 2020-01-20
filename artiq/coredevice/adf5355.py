@@ -9,12 +9,9 @@ on Mirny-style prefixed SPI buses.
 # https://www.analog.com/media/en/technical-documentation/user-guides/EV-ADF5356SD1Z-UG-1087.pdf
 
 
-from numpy import int32
-
-from artiq.language.core import (kernel, portable, delay_mu, delay, now_mu,
-                                 at_mu)
-from artiq.language.units import ns, us
-from artiq.coredevice import spi2 as spi, mirny
+from artiq.language.core import kernel, delay
+from artiq.language.units import us
+from artiq.coredevice import spi2 as spi
 
 SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
               0*spi.SPI_INPUT | 1*spi.SPI_CS_POLARITY |
