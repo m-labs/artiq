@@ -105,7 +105,7 @@ def peripheral_mirny(module, peripheral):
     eem.Mirny.add_std(module, peripheral["ports"][0],
         ttl_serdes_7series.Output_8X)
 
-    
+
 def peripheral_fastino(module, peripheral):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
