@@ -355,6 +355,8 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
 
 pub fn status(dacno: u8) {
     spi_setup(dacno);
+    info!("Printing status of AD9154-{}", dacno);
+    info!("PRODID: 0x{:04x}", (read(ad9154_reg::PRODIDH) as u16) << 8 | (read(ad9154_reg::PRODIDL) as u16));
     info!("SERDES_PLL_LOCK: {}",
         (read(ad9154_reg::PLL_STATUS) & ad9154_reg::SERDES_PLL_LOCK_RB));
     info!("");
