@@ -111,8 +111,6 @@ pub mod jdac {
         basic_request(dacno, jdac_requests::INIT, 0)?;
         clock::spin_us(5000);
 
-        basic_request(dacno, jdac_requests::PRINT_STATUS, 0)?;
-
         if !jesd::jsync(dacno) {
             error!("JESD core reported bad SYNC");
             return Err("JESD core reported bad SYNC");
