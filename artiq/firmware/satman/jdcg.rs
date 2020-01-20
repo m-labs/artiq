@@ -11,7 +11,12 @@ pub mod jesd {
         unsafe {
             (csr::JDCG[dacno as usize].jesd_control_enable_write)(if en {1} else {0})
         }
-        clock::spin_us(5000);
+    }
+
+    pub fn phy_done(dacno: u8) -> bool {
+       unsafe {
+           (csr::JDCG[dacno as usize].jesd_control_phy_done_read)() != 0
+       }
     }
 
     pub fn ready(dacno: u8) -> bool {
@@ -84,7 +89,11 @@ pub mod jdac {
             info!("DAC-{} initializing...", dacno);
 
             jesd::enable(dacno, true);
-            clock::spin_us(10);
+            clock::spin_us(10_000);
+            if !jesd::phy_done(dacno) {
+                error!("JESD core PHY not done");
+                return Err("JESD core PHY not done");
+            }
             if !jesd::ready(dacno) {
                 error!("JESD core reported not ready");
                 return Err("JESD core reported not ready");
