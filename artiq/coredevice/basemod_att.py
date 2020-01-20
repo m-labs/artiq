@@ -1,4 +1,4 @@
-from artiq.language.core import kernel, delay
+from artiq.language.core import kernel, portable, delay
 from artiq.language.units import us, ms
 from artiq.coredevice.shiftreg import ShiftReg
 
