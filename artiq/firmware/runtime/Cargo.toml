@@ -27,7 +27,7 @@ board_misoc = { path = "../libboard_misoc", features = ["uart_console", "smoltcp
 logger_artiq = { path = "../liblogger_artiq" }
 board_artiq = { path = "../libboard_artiq" }
 proto_artiq = { path = "../libproto_artiq", features = ["log", "alloc"] }
-smoltcp = { version = "0.5.0", default-features = false, features = ["rust-1_28", "alloc", "log", "proto-ipv4", "proto-ipv6", "socket-tcp"] }
+smoltcp = { version = "0.6.0", default-features = false, features = ["rust-1_28", "alloc", "ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp"] }
 
 [dependencies.fringe]
 git = "https://github.com/m-labs/libfringe"
