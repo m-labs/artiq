@@ -1,9 +1,14 @@
+#!/usr/bin/env python3
+
 import sys
 import os
 import select
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
+from artiq.master.databases import DeviceDB
+from artiq.master.worker_db import DeviceManager
+
 
 if os.name == "nt":
     import msvcrt
@@ -34,13 +39,8 @@ def is_enter_pressed() -> TBool:
             return False
 
 
-class KasliTester(EnvExperiment):
+class SinaraTester(EnvExperiment):
     def build(self):
-        # hack to detect artiq_run
-        if self.get_device("scheduler").__class__.__name__ != "DummyScheduler":
-            raise NotImplementedError(
-                "must be run with artiq_run to support keyboard interaction")
-
         self.setattr_device("core")
 
         self.leds = dict()
@@ -365,7 +365,7 @@ class KasliTester(EnvExperiment):
             self.grabber_capture(card_dev, rois)
 
     def run(self):
-        print("****** Kasli system tester ******")
+        print("****** Sinara system tester ******")
         print("")
         self.core.reset()
         if self.leds:
@@ -382,3 +382,18 @@ class KasliTester(EnvExperiment):
             self.test_zotinos()
         if self.grabbers:
             self.test_grabbers()
+
+
+def main():
+    device_mgr = DeviceManager(DeviceDB("device_db.pyon"))
+    try:
+        experiment = SinaraTester((device_mgr, None, None, None))
+        experiment.prepare()
+        experiment.run()
+        experiment.analyze()
+    finally:
+        device_mgr.close_devices()
+
+
+if __name__ == "__main__":
+    main()

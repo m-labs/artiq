@@ -28,6 +28,7 @@ console_scripts = [
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
     "artiq_rtiomon = artiq.frontend.artiq_rtiomon:main",
+    "artiq_sinara_tester = artiq.frontend.artiq_sinara_tester:main",
     "artiq_session = artiq.frontend.artiq_session:main",
     "artiq_route = artiq.frontend.artiq_route:main",
     "artiq_run = artiq.frontend.artiq_run:main",
