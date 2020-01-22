@@ -6,21 +6,34 @@ from misoc.interconnect.csr import *
 
 class DDMTDSamplerExtFF(Module):
     def __init__(self, ddmtd_inputs):
+        self.rec_clk = Signal()
+        self.main_xo = Signal()
+
+        # # #
+
         # TODO: s/h timing at FPGA pads
         if hasattr(ddmtd_inputs, "rec_clk"):
-            self.rec_clk = ddmtd_inputs.rec_clk
+            rec_clk_1 = ddmtd_inputs.rec_clk
         else:
-            self.rec_clk = Signal()
+            rec_clk_1 = Signal()
             self.specials += Instance("IBUFDS",
                 i_I=ddmtd_inputs.rec_clk_p, i_IB=ddmtd_inputs.rec_clk_n,
-                o_O=self.rec_clk)
+                o_O=rec_clk_1)
         if hasattr(ddmtd_inputs, "main_xo"):
-            self.main_xo = ddmtd_inputs.main_xo
+            main_xo_1 = ddmtd_inputs.main_xo
         else:
-            self.main_xo = Signal()
+            main_xo_1 = Signal()
             self.specials += Instance("IBUFDS",
                 i_I=ddmtd_inputs.main_xo_p, i_IB=ddmtd_inputs.main_xo_n,
-                o_O=self.main_xo)
+                o_O=main_xo_1)
+        self.specials += [
+            Instance("FD", i_C=ClockSignal("helper"),
+                i_D=rec_clk_1, o_Q=self.rec_clk,
+                attr={("IOB", "TRUE")}),
+            Instance("FD", i_C=ClockSignal("helper"),
+                i_D=main_xo_1, o_Q=self.main_xo,
+                attr={("IOB", "TRUE")}),
+        ]
 
 
 class DDMTDSamplerGTP(Module):
@@ -28,20 +41,30 @@ class DDMTDSamplerGTP(Module):
         self.rec_clk = Signal()
         self.main_xo = Signal()
 
+        # # #
+
         # Getting the main XO signal from IBUFDS_GTE2 is problematic because
         # the transceiver PLL craps out if an improper clock signal is applied,
         # so we are disabling the buffer until the clock is stable.
         main_xo_se = Signal()
+        rec_clk_1 = Signal()
+        main_xo_1 = Signal()
         self.specials += [
             Instance("IBUFDS",
                 i_I=main_xo_pads.p, i_IB=main_xo_pads.n,
                 o_O=main_xo_se),
             Instance("FD", i_C=ClockSignal("helper"),
-                i_D=gtp.cd_rtio_rx0.clk, o_Q=self.rec_clk,
+                i_D=gtp.cd_rtio_rx0.clk, o_Q=rec_clk_1,
                 attr={("DONT_TOUCH", "TRUE")}),
             Instance("FD", i_C=ClockSignal("helper"),
-                i_D=main_xo_se, o_Q=self.main_xo,
+                i_D=rec_clk_1, o_Q=self.rec_clk,
+                attr={("DONT_TOUCH", "TRUE")}),
+            Instance("FD", i_C=ClockSignal("helper"),
+                i_D=main_xo_se, o_Q=main_xo_1,
                 attr={("IOB", "TRUE")}),
+            Instance("FD", i_C=ClockSignal("helper"),
+                i_D=main_xo_1, o_Q=self.main_xo,
+                attr={("DONT_TOUCH", "TRUE")}),
         ]
 
 
