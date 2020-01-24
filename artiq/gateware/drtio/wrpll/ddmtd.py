@@ -131,20 +131,19 @@ class DDMTD(Module, AutoCSR):
 
 class Collector(Module):
     def __init__(self, N):
-        self.tag_helper = Signal(N)
+        self.tag_helper = Signal((N, True))
         self.tag_helper_update = Signal()
-        self.tag_main = Signal(N)
+        self.tag_main = Signal((N, True))
         self.tag_main_update = Signal()
 
-        self.output = Signal((N, True))
-        self.output_update = Signal(N)
+        self.output = Signal((N + 1, True))
 
         # # #
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
-        tag_collector = Signal(N)
+        tag_collector = Signal((N + 1, True))
         fsm.act("IDLE",
             If(self.tag_main_update & self.tag_helper_update,
                 NextValue(tag_collector, 0),
@@ -160,17 +159,32 @@ class Collector(Module):
         fsm.act("WAITHELPER",
             If(self.tag_helper_update,
                 NextValue(tag_collector, tag_collector - self.tag_helper),
-                NextState("UPDATE")
+                NextState("LEADCHECK")
             )
         )
         fsm.act("WAITMAIN",
             If(self.tag_main_update,
                 NextValue(tag_collector, tag_collector + self.tag_main),
-                NextState("UPDATE")
+                NextState("LAGCHECK")
             )
+        )
+        # To compensate DDMTD counter roll-over when main is ahead of roll-over
+        # and helper is after roll-over
+        fsm.act("LEADCHECK",
+            If(tag_collector > 0,
+                NextValue(tag_collector, tag_collector - (2**N - 1))
+            ),
+            NextState("UPDATE")
+        )
+        # To compensate DDMTD counter roll-over when helper is ahead of roll-over
+        # and main is after roll-over
+        fsm.act("LAGCHECK",
+            If(tag_collector < 0,
+                NextValue(tag_collector, tag_collector + (2**N - 1))
+            ),
+            NextState("UPDATE")
         )
         fsm.act("UPDATE",
             NextValue(self.output, tag_collector),
             NextState("IDLE")
         )
-        self.sync += self.output_update.eq(self.tag_helper_update)
