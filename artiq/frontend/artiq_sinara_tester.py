@@ -385,7 +385,7 @@ class SinaraTester(EnvExperiment):
 
 
 def main():
-    device_mgr = DeviceManager(DeviceDB("device_db.pyon"))
+    device_mgr = DeviceManager(DeviceDB("device_db.py"))
     try:
         experiment = SinaraTester((device_mgr, None, None, None))
         experiment.prepare()
