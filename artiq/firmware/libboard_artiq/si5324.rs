@@ -186,6 +186,8 @@ fn init() -> Result<()> {
     i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "sayma_rtm")]
     i2c::pca9548_select(BUSNO, 0x77, 1 << 5)?;
+    #[cfg(soc_platform = "metlino")]
+    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "kc705")]
     i2c::pca9548_select(BUSNO, 0x74, 1 << 7)?;
 
