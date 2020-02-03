@@ -297,7 +297,7 @@ class ProgrammerMetlino(Programmer):
         add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
 
     def load_proxy(self):
-        self.load(find_proxy_bitfile("bscan_spi_xcku040-sayma.bit"), pld=0)
+        self.load(find_proxy_bitfile("bscan_spi_xcku040.bit"), pld=0)
 
     def start(self):
         add_commands(self._script, "xcu_program xcu.tap")
