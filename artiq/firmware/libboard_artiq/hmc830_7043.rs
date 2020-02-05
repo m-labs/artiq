@@ -373,9 +373,9 @@ pub mod hmc7043 {
     pub fn sysref_delay_dac(dacno: u8, phase_offset: u8) {
         spi_setup();
         if dacno == 0 {
-            write(0x00d5, phase_offset);
-        } else if dacno == 1 {
             write(0x00e9, phase_offset);
+        } else if dacno == 1 {
+            write(0x00d5, phase_offset);
         } else {
             unimplemented!();
         }
