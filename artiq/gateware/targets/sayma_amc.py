@@ -388,6 +388,7 @@ class Master(MiniSoC, AMPSoC):
         self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
+        self.comb += platform.request("filtered_clk_sel").eq(1)
         self.comb += platform.request("sfp_tx_disable", 0).eq(0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean", 0),
