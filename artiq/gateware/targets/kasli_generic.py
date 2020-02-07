@@ -5,6 +5,7 @@ import json
 
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
+from sipyco import common_args
 
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
@@ -246,12 +247,14 @@ class GenericSatellite(SatelliteBase):
 def main():
     parser = argparse.ArgumentParser(
         description="ARTIQ device binary builder for generic Kasli systems")
+    common_args.verbosity_args(parser)
     builder_args(parser)
     soc_kasli_args(parser)
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("description", metavar="DESCRIPTION",
                         help="JSON system description file")
     args = parser.parse_args()
+    common_args.init_logger_from_args(args)
 
     with open(args.description, "r") as f:
         description = json.load(f)
