@@ -551,11 +551,11 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     and desc["class"] in {"TTLOut", "TTLInOut"}):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLHandler(vcd_manager, name)
-            if (desc["module"] == "artiq.coredevice.ttl"
+            elif (desc["module"] == "artiq.coredevice.ttl"
                     and desc["class"] == "TTLClockGen"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = TTLClockGenHandler(vcd_manager, name, ref_period)
-            if (desc["module"] == "artiq.coredevice.ad9914"
+            elif (desc["module"] == "artiq.coredevice.ad9914"
                     and desc["class"] == "AD9914"):
                 dds_bus_channel = desc["arguments"]["bus_channel"]
                 dds_channel = desc["arguments"]["channel"]
@@ -565,11 +565,29 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                     dds_handler = DDSHandler(vcd_manager, dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
-            if (desc["module"] == "artiq.coredevice.spi2" and
+            elif (desc["module"] == "artiq.coredevice.spi2" and
                     desc["class"] == "SPIMaster"):
                 channel = desc["arguments"]["channel"]
                 channel_handlers[channel] = SPIMaster2Handler(
                         vcd_manager, name)
+            elif (
+                "channel" in desc["arguments"].keys() and
+                desc["type"] == "local" and
+                "core" not in name.lower() and
+                "core" not in desc["class"].lower()
+            ):
+                channel = desc["arguments"]["channel"]
+                logger.info(
+                    "Adding Wishbone coreanalyzer channel (RTIO#%i): %s: %s",
+                    channel,
+                    name,
+                    desc,
+                )
+                channel_handlers[channel] = GenericWishboneHandler(
+                    vcd_manager,
+                    name,
+                    channel,
+                )
     return channel_handlers
 
 
