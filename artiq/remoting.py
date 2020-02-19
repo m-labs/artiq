@@ -59,7 +59,7 @@ class LocalClient(Client):
 
 class SSHClient(Client):
     def __init__(self, host, jump_host=None):
-        if host.find("@") >= 0:
+        if "@" in host:
             self.username, self.host = host.split("@")
         else:
             self.host = host
