@@ -140,7 +140,7 @@ class AD9912:
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
-        :param ftw: Frequency tuning word: 32 bit unsigned.
+        :param ftw: Frequency tuning word: 48 bit unsigned.
         :param pow: Phase tuning word: 16 bit unsigned.
         """
         # streaming transfer of FTW and POW
