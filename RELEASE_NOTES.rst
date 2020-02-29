@@ -8,6 +8,10 @@ ARTIQ-6
 
 Highlights:
 
+* Performance improvements:
+  - #1432: SERDES TTL inputs can now detect edges on pulses that are shorter
+    than the RTIO period
+
 Breaking changes:
 
 
