@@ -215,6 +215,8 @@ Then, you can write the flash:
 
       $ artiq_flash -V [your system variant]
 
+The JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you simply need to connect your computer to the micro-USB connector on the Kasli front panel.
+
 * For the KC705 board::
 
     $ artiq_flash -t kc705 -V [nist_clock/nist_qc2]
