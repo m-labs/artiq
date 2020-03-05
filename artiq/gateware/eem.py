@@ -622,6 +622,7 @@ class Fastino(_EEM):
         cls.add_extension(target, eem, iostandard=iostandard)
 
         phy = fastino.Fastino(target.platform.request("fastino{}_ser_p".format(eem)),
-            target.platform.request("fastino{}_ser_n".format(eem)))
+            target.platform.request("fastino{}_ser_n".format(eem)),
+            log2_width=0)
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))

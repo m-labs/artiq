@@ -133,26 +133,36 @@ class SerDes(Module):
 
 
 class Fastino(Module):
-    def __init__(self, pins, pins_n):
+    def __init__(self, pins, pins_n, log2_width=0):
+        width = 1 << log2_width
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(data_width=32, address_width=8,
+            rtlink.OInterface(data_width=max(16*width, 32),
+                address_width=8,
                 enable_replace=False),
             rtlink.IInterface(data_width=32))
 
         self.submodules.serializer = SerDes(pins, pins_n)
 
         # Support staging DAC data (in `dacs`) by writing to the
-        # 32 DAC RTIO addresses, if a channel is not "held" by its
+        # DAC RTIO addresses, if a channel is not "held" by its
         # bit in `hold` the next frame will contain the update.
         # For the DACs held, the update is triggered by setting the
         # corresponding bit in `update`. Update is self-clearing.
         # This enables atomic DAC updates synchronized to a frame edge.
         #
-        # This RTIO layout enables narrow RTIO words (32 bit
-        # compared to 512), efficient few-channel updates,
-        # least amount of DAC state tracking in kernels,
+        # The `log2_width=0` RTIO layout uses one DAC channel per RTIO address
+        # and a dense RTIO address space. The RTIO words are narrow.
+        # (32 bit compared to 512) and few-channel updates are efficient.
+        # There is the least amount of DAC state tracking in kernels,
         # at the cost of more DMA and RTIO data ((n*(32+32+64) vs
         # 32+32*16+64))
+        #
+        # Other `log2_width` (up to `log2_width=5) settings pack multiple
+        # (in powers of two) DAC channels into one group and
+        # into one RTIO write.
+        # The RTIO data width increases accordingly. The `log2_width`
+        # LSBs of the RTIO address for a DAC channel write must be zero and the
+        # address space is sparse.
 
         hold = Signal.like(self.serializer.enable)
 
@@ -174,12 +184,12 @@ class Fastino(Module):
             # reserved
             0x24: self.serializer.cfg[12:].eq(self.rtlink.o.data),
         }
-        for i in range(len(self.serializer.dacs)):
+        for i in range(0, len(self.serializer.dacs), width):
             cases[i] = [
-                self.serializer.dacs[i].eq(self.rtlink.o.data),
-                If(~hold[i],
-                    self.serializer.enable[i].eq(1),
-                )
+                Cat(self.serializer.dacs[i:i + width]).eq(self.rtlink.o.data),
+                [If(~hold[i + j],
+                    self.serializer.enable[i + j].eq(1),
+                ) for j in range(width)]
             ]
 
         self.sync.rio_phy += [

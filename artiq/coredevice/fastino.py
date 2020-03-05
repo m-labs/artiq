@@ -5,8 +5,9 @@ TODO: Example, describe update/hold
 """
 
 from artiq.language.core import kernel, portable, delay
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.rtio import rtio_output, rtio_output_wide, rtio_input_data
 from artiq.language.units import us
+from artiq.language.types import TInt32, TList, TFloat
 
 
 class Fastino:
@@ -14,13 +15,19 @@ class Fastino:
 
     :param channel: RTIO channel number
     :param core_device: Core device name (default: "core")
+    :param log2_width: Width of DAC channel group (power of two,
+        see the RTIO PHY for details). If zero, the
+        :meth:`set_dac`/:meth:`set_dac_mu` interface must be used.
+        If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
+        interface must be used. Value must match the corresponding value
+        in the RTIO PHY.
     """
+    kernel_invariants = {"core", "channel", "width"}
 
-    kernel_invariants = {"core", "channel"}
-
-    def __init__(self, dmgr, channel, core_device="core"):
+    def __init__(self, dmgr, channel, core_device="core", log2_width=0):
         self.channel = channel << 8
         self.core = dmgr.get(core_device)
+        self.width = 1 << log2_width
 
     @kernel
     def init(self):
@@ -65,6 +72,21 @@ class Fastino:
         """
         self.write(dac, data)
 
+    @kernel
+    def set_group_mu(self, dac: TInt32, data: TList(TInt32)):
+        """Write a group of DAC channels in machine units.
+
+        :param dac: First channel in DAC channel group (0-31). The `log2_width`
+            LSBs must be zero.
+        :param data: List of DAC data pairs (2x16 bit unsigned) to write,
+            in machine units. Data exceeding group size is ignored.
+            If the list length is less than group size, the remaining
+            DAC channels within the group are cleared to 0 (machine units).
+        """
+        if dac & (self.width - 1):
+            raise ValueError("Group index LSBs must be zero")
+        rtio_output_wide(self.channel | dac, data)
+
     @portable
     def voltage_to_mu(self, voltage):
         """Convert SI Volts to DAC machine units.
@@ -74,6 +96,20 @@ class Fastino:
         """
         return int(round((0x8000/10.)*voltage)) + 0x8000
 
+    @portable
+    def voltage_group_to_mu(self, voltage, data):
+        """Convert SI Volts to packed DAC channel group machine units.
+
+        :param voltage: List of SI Volt voltages.
+        :param data: List of DAC channel data pairs to write to.
+            Half the length of `voltage`.
+        """
+        for i in range(len(voltage)):
+            v = self.voltage_to_mu(voltage[i])
+            if i & 1:
+                v = data[i // 2] | (v << 16)
+            data[i // 2] = v
+
     @kernel
     def set_dac(self, dac, voltage):
         """Set DAC data to given voltage.
@@ -82,6 +118,17 @@ class Fastino:
         :param voltage: Desired output voltage.
         """
         self.write(dac, self.voltage_to_mu(voltage))
+
+    @kernel
+    def set_group(self, dac, voltage):
+        """Set DAC group data to given voltage.
+
+        :param dac: DAC channel (0-31).
+        :param voltage: Desired output voltage.
+        """
+        data = [int32(0)] * (len(voltage) // 2)
+        self.voltage_group_to_mu(voltage, data)
+        self.set_group_mu(dac, data)
 
     @kernel
     def update(self, update):
