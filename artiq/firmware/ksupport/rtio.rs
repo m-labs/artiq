@@ -91,7 +91,7 @@ mod imp {
         unsafe {
             csr::rtio::target_write(target as u32);
             // writing target clears o_data
-            for i in 0..data.len() {
+            for i in (0..data.len()).rev() {
                 rtio_o_data_write(i, data[i] as _)
             }
             let status = csr::rtio::o_status_read();
