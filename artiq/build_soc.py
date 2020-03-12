@@ -34,21 +34,14 @@ class ReprogrammableIdentifier(Module, AutoCSR):
             raise ValueError("Identifier string must be 255 characters or less")
         contents.insert(0, l)
 
-        init_params = {i: 0 for i in range(0x40)}
-        for i, c in enumerate(contents):
-            # 0x38 was determined empirically. Another Xilinx mystery.
-            row = 0x38 + i//32
-            col = 8*(i % 32)
-            init_params[row] |= c << col
-        init_params = {"p_INIT_{:02X}".format(k): v for k, v in init_params.items()}
-
-        self.specials += Instance("RAMB18E1", name="identifier_str",
-            i_ADDRARDADDR=Cat(C(0, 3), self.address.storage),
-            i_CLKARDCLK=ClockSignal(),
-            o_DOADO=self.data.status,
-            i_ENARDEN=1,
-            p_READ_WIDTH_A=9,
-            **init_params)
+        for i in range(8):
+            self.specials += Instance("ROM256X1", name="identifier_str"+str(i),
+                i_A0=self.address.storage[0], i_A1=self.address.storage[1],
+                i_A2=self.address.storage[2], i_A3=self.address.storage[3],
+                i_A4=self.address.storage[4], i_A5=self.address.storage[5],
+                i_A6=self.address.storage[6], i_A7=self.address.storage[7],
+                o_O=self.data.status[i],
+                p_INIT=sum(1 << j if c & (1 << i) else 0 for j, c in enumerate(contents)))
 
 
 def add_identifier(soc, *args, **kwargs):
