@@ -230,16 +230,18 @@ For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from 
 
 You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network.
 
-If you purchased a device from M-Labs, it already comes with a valid MAC address and an IP address, usually ``192.168.1.75``. Once you can reach this IP, it can be changed with: ::
+If you purchased a Kasli device from M-Labs, it usually comes with the IP address ``192.168.1.75``. Once you can reach this IP, it can be changed with: ::
 
   $ artiq_coremgmt -D 192.168.1.75 config write -s ip [new IP]
 
 and then reboot the device (with ``artiq_flash start`` or a power cycle).
 
-In other cases, install OpenOCD as before, and flash the IP and MAC addresses directly: ::
+In other cases, install OpenOCD as before, and flash the IP (and, if necessary, MAC) addresses directly: ::
 
   $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
+
+For Kasli devices, flashing a MAC address is not necessary as they can obtain it from their EEPROM.
 
 Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware.
 
