@@ -32,7 +32,7 @@ class _SimpleArgProcessor:
         if isinstance(default, list):
             raise NotImplementedError
         if default is not NoDefault:
-            self.default_value = default
+            self.default_value = self.process(default)
 
     def default(self):
         if not hasattr(self, "default_value"):
@@ -54,6 +54,7 @@ class PYONValue(_SimpleArgProcessor):
     def __init__(self, default=NoDefault):
         # Override the _SimpleArgProcessor init, as list defaults are valid
         # PYON values
+        # default stays decoded
         if default is not NoDefault:
             self.default_value = default
 
@@ -69,7 +70,13 @@ class PYONValue(_SimpleArgProcessor):
 
 class BooleanValue(_SimpleArgProcessor):
     """A boolean argument."""
-    pass
+    def process(self, x):
+        if x is True:
+            return True
+        elif x is False:
+            return False
+        else:
+            raise ValueError("Invalid BooleanValue value")
 
 
 class EnumerationValue(_SimpleArgProcessor):
@@ -80,14 +87,19 @@ class EnumerationValue(_SimpleArgProcessor):
         argument.
     """
     def __init__(self, choices, default=NoDefault):
-        _SimpleArgProcessor.__init__(self, default)
-        assert default is NoDefault or default in choices
         self.choices = choices
+        super().__init__(default)
+
+    def process(self, x):
+        if x not in self.choices:
+            raise ValueError("Invalid EnumerationValue value")
+        return x
 
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["choices"] = self.choices
         return d
+
 
 class NumberValue(_SimpleArgProcessor):
     """An argument that can take a numerical value.
@@ -132,8 +144,6 @@ class NumberValue(_SimpleArgProcessor):
                                    "the scale manually".format(unit))
         if step is None:
             step = scale/10.0
-        if default is not NoDefault:
-            self.default_value = default
         self.unit = unit
         self.scale = scale
         self.step = step
@@ -141,18 +151,12 @@ class NumberValue(_SimpleArgProcessor):
         self.max = max
         self.ndecimals = ndecimals
 
+        super().__init__(default)
+
     def _is_int(self):
         return (self.ndecimals == 0
                 and int(self.step) == self.step
                 and self.scale == 1)
-
-    def default(self):
-        if not hasattr(self, "default_value"):
-            raise DefaultMissing
-        if self._is_int():
-            return int(self.default_value)
-        else:
-            return float(self.default_value)
 
     def process(self, x):
         if self._is_int():
