@@ -54,7 +54,6 @@ class PYONValue(_SimpleArgProcessor):
     def __init__(self, default=NoDefault):
         # Override the _SimpleArgProcessor init, as list defaults are valid
         # PYON values
-        # default stays decoded
         if default is not NoDefault:
             self.default_value = default
 
@@ -71,12 +70,9 @@ class PYONValue(_SimpleArgProcessor):
 class BooleanValue(_SimpleArgProcessor):
     """A boolean argument."""
     def process(self, x):
-        if x is True:
-            return True
-        elif x is False:
-            return False
-        else:
+        if type(x) != bool:
             raise ValueError("Invalid BooleanValue value")
+        return x
 
 
 class EnumerationValue(_SimpleArgProcessor):
