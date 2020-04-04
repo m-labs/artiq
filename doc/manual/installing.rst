@@ -23,10 +23,10 @@ Once Nix is installed, add the M-Labs package channel with: ::
 
   $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full-beta/artiq-full
 
-Those channels track `nixpkgs 19.09 <https://github.com/NixOS/nixpkgs/tree/release-19.09>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
+Those channels track `nixpkgs 20.03 <https://github.com/NixOS/nixpkgs/tree/release-20.03>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
 
   $ nix-channel --remove nixpkgs
-  $ nix-channel --add https://nixos.org/channels/nixos-19.09 nixpkgs
+  $ nix-channel --add https://nixos.org/channels/nixos-20.03 nixpkgs
 
 Finally, make all the channel changes effective: ::
 
