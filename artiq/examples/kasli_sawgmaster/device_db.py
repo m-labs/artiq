@@ -25,50 +25,42 @@ device_db = {
     },
 }
 
-for i in range(8):
-    device_db["ttl" + str(i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLInOut" if i < 4 else "TTLOut",
-        "arguments": {"channel": 1+i},
-    }
-
 device_db.update(
     spi_urukul0={
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 9}
+        "arguments": {"channel": 0}
     },
     ttl_urukul0_io_update={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 10}
+        "arguments": {"channel": 1}
     },
     ttl_urukul0_sw0={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 11}
+        "arguments": {"channel": 2}
     },
     ttl_urukul0_sw1={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 12}
+        "arguments": {"channel": 3}
     },
     ttl_urukul0_sw2={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 13}
+        "arguments": {"channel": 4}
     },
     ttl_urukul0_sw3={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
-        "arguments": {"channel": 14}
+        "arguments": {"channel": 5}
     },
     urukul0_cpld={
         "type": "local",

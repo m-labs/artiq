@@ -8,9 +8,6 @@ class SinesUrukulSayma(EnvExperiment):
 
         # Urukul clock output syntonized to the RTIO clock.
         # Can be used as HMC830 reference on Sayma RTM.
-        # The clock output on Sayma AMC cannot be used, as it is derived from
-        # another Si5324 output than the GTH, and the two Si5324 output dividers
-        # are not synchronized with each other.
         # When using this reference, Sayma must be recalibrated every time Urukul
         # is rebooted, as Urukul is not synchronized to the Kasli.
         self.urukul_hmc_ref = self.get_device("urukul0_ch3")
@@ -19,8 +16,16 @@ class SinesUrukulSayma(EnvExperiment):
         # When testing sync, do not reboot Urukul, as it is not
         # synchronized to the Kasli.
         self.urukul_meas = [self.get_device("urukul0_ch" + str(i)) for i in range(3)]
-        self.sawgs = [self.get_device("sawg"+str(i)) for i in range(8)]
+        # The same waveform is output on all first 4 SAWG channels (first DAC).
+        self.sawgs = [self.get_device("sawg"+str(i)) for i in range(4)]
+        self.basemod = self.get_device("basemod_att0")
+        self.rfsws = [self.get_device("sawg_sw"+str(i)) for i in range(4)]
 
+
+    # DRTIO destinations:
+    # 0: local
+    # 1: Sayma AMC
+    # 2: Sayma RTM
     @kernel
     def drtio_is_up(self):
         for i in range(3):
@@ -60,6 +65,15 @@ class SinesUrukulSayma(EnvExperiment):
             print("OK")
 
             self.core.reset()
+
+            delay(10*ms)
+            self.basemod.reset()
+            delay(10*ms)
+            self.basemod.set(3.0, 3.0, 3.0, 3.0)
+            delay(10*ms)
+            for rfsw in self.rfsws:
+                delay(1*ms)
+                rfsw.on()
 
             for sawg in self.sawgs:
                 delay(1*ms)
