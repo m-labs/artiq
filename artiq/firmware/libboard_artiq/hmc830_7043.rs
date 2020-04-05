@@ -154,15 +154,15 @@ pub mod hmc7043 {
         (true,  DAC_CLK_DIV,  0x08, false),  //  2: DAC0_CLK
         (true,  SYSREF_DIV,   0x01, true),   //  3: DAC0_SYSREF
         (true,  SYSREF_DIV,   0x10, true),   //  4: AMC_FPGA_SYSREF0
-        (true,  FPGA_CLK_DIV, 0x10, true),   //  5: AMC_FPGA_SYSREF1
+        (false, FPGA_CLK_DIV, 0x10, true),   //  5: AMC_FPGA_SYSREF1
         (false, 0,            0x10, false),  //  6: unused
-        (true,  SYSREF_DIV,   0x10, true),   //  7: RTM_FPGA_SYSREF0
+        (true,  FPGA_CLK_DIV, 0x10, true),   //  7: RTM_FPGA_SYSREF0
         (true,  FPGA_CLK_DIV, 0x08, false),  //  8: GTP_CLK0_IN
         (false, 0,            0x10, false),  //  9: unused
         (false, 0,            0x10, false),  // 10: unused
         (false, 0,            0x08, false),  // 11: unused / uFL
         (false, 0,            0x10, false),  // 12: unused
-        (false, SYSREF_DIV,   0x10, true),   // 13: RTM_FPGA_SYSREF1
+        (false, FPGA_CLK_DIV, 0x10, true),   // 13: RTM_FPGA_SYSREF1
     ];
 
     fn spi_setup() {

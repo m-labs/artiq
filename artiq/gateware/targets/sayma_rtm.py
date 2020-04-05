@@ -16,6 +16,7 @@ from misoc.targets.sayma_rtm import BaseSoC, soc_sayma_rtm_args, soc_sayma_rtm_a
 from misoc.integration.builder import Builder, builder_args, builder_argdict
 
 from artiq.gateware import rtio
+from artiq.gateware import jesd204_tools
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -256,6 +257,15 @@ class Satellite(_SatelliteBase):
         self.submodules.hmc7043_out_en = gpio.GPIOOut(
             platform.request("hmc7043_out_en"))
         self.csr_devices.append("hmc7043_out_en")
+
+        # DDMTD
+        sysref_pads = platform.request("rtm_fpga_sysref", 0)
+        self.submodules.sysref_ddmtd = jesd204_tools.DDMTD(sysref_pads, self.rtio_clk_freq)
+        self.csr_devices.append("sysref_ddmtd")
+        platform.add_false_path_constraints(
+            self.sysref_ddmtd.cd_helper.clk, self.drtio_transceiver.gtps[0].txoutclk)
+        platform.add_false_path_constraints(
+            self.sysref_ddmtd.cd_helper.clk, self.crg.cd_sys.clk)
 
 
 class SatmanSoCBuilder(Builder):

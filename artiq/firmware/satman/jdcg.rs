@@ -51,7 +51,7 @@ pub mod jdac {
     use board_artiq::drtioaux;
 
     use super::jesd;
-    use super::super::jdac_requests;
+    use super::super::jdac_common;
 
     pub fn basic_request(dacno: u8, reqno: u8, param: u8) -> Result<u8, &'static str> {
         if let Err(e) = drtioaux::send(1, &drtioaux::Packet::JdacBasicRequest {
@@ -95,24 +95,24 @@ pub mod jdac {
                 return Err("JESD core PHY not done");
             }
 
-            basic_request(dacno, jdac_requests::INIT, 0)?;
+            basic_request(dacno, jdac_common::INIT, 0)?;
 
             // JESD ready depends on JSYNC being valid, so DAC init needs to happen first
             if !jesd::ready(dacno) {
                 error!("JESD core reported not ready, sending DAC status print request");
-                basic_request(dacno, jdac_requests::PRINT_STATUS, 0)?;
+                basic_request(dacno, jdac_common::PRINT_STATUS, 0)?;
                 return Err("JESD core reported not ready");
             }
 
             jesd::prbs(dacno, true);
-            basic_request(dacno, jdac_requests::PRBS, 0)?;
+            basic_request(dacno, jdac_common::PRBS, 0)?;
             jesd::prbs(dacno, false);
 
             jesd::stpl(dacno, true);
-            basic_request(dacno, jdac_requests::STPL, 0)?;
+            basic_request(dacno, jdac_common::STPL, 0)?;
             jesd::stpl(dacno, false);
 
-            basic_request(dacno, jdac_requests::INIT, 0)?;
+            basic_request(dacno, jdac_common::INIT, 0)?;
             clock::spin_us(5000);
 
             if !jesd::jsync(dacno) {
@@ -130,7 +130,7 @@ pub mod jesd204sync {
     use board_misoc::{csr, clock, config};
 
     use super::jdac;
-    use super::super::jdac_requests;
+    use super::super::jdac_common;
 
     const HMC7043_ANALOG_DELAY_RANGE: u8 = 24;
 
@@ -138,7 +138,7 @@ pub mod jesd204sync {
     const SYSREF_DIV: u16 = 256;   // Keep in sync with hmc830_7043.rs
 
     fn hmc7043_sysref_delay_dac(dacno: u8, phase_offset: u8) -> Result<(), &'static str> {
-        match jdac::basic_request(dacno, jdac_requests::SYSREF_DELAY_DAC, phase_offset) {
+        match jdac::basic_request(dacno, jdac_common::SYSREF_DELAY_DAC, phase_offset) {
             Ok(_) => Ok(()),
             Err(e) => Err(e)
         }
@@ -146,90 +146,43 @@ pub mod jesd204sync {
 
 
     fn hmc7043_sysref_slip() -> Result<(), &'static str> {
-        match jdac::basic_request(0, jdac_requests::SYSREF_SLIP, 0) {
+        match jdac::basic_request(0, jdac_common::SYSREF_SLIP, 0) {
             Ok(_) => Ok(()),
             Err(e) => Err(e)
         }
     }
 
     fn ad9154_sync(dacno: u8) -> Result<bool, &'static str> {
-        match jdac::basic_request(dacno, jdac_requests::SYNC, 0) {
+        match jdac::basic_request(dacno, jdac_common::SYNC, 0) {
             Ok(0) => Ok(false),
             Ok(_) => Ok(true),
             Err(e) => Err(e)
         }
     }
 
-    fn average_2phases(a: i32, b: i32, modulo: i32) -> i32 {
-        let diff = ((a - b + modulo/2 + modulo) % modulo) - modulo/2;
-        return (modulo + b + diff/2) % modulo;
+
+    fn measure_ddmdt_phase_raw() -> Result<i32, &'static str> {
+        Ok(jdac::basic_request(0, jdac_common::DDMTD_SYSREF_RAW, 0)? as i32)
     }
 
-    fn average_phases(phases: &[i32], modulo: i32) -> i32 {
-        if phases.len() == 1 {
-            panic!("input array length must be a power of 2");
-        } else if phases.len() == 2 {
-            average_2phases(phases[0], phases[1], modulo)
-        } else {
-            let cut = phases.len()/2;
-            average_2phases(
-                average_phases(&phases[..cut], modulo),
-                average_phases(&phases[cut..], modulo),
-                modulo)
-        }
-    }
-
-    const RAW_DDMTD_N_SHIFT: i32 = 6;
-    const RAW_DDMTD_N: i32 = 1 << RAW_DDMTD_N_SHIFT;
-    const DDMTD_DITHER_BITS: i32 = 1;
-    const DDMTD_N_SHIFT: i32 = RAW_DDMTD_N_SHIFT + DDMTD_DITHER_BITS;
-    const DDMTD_N: i32 = 1 << DDMTD_N_SHIFT;
-
-    fn init_ddmtd() -> Result<(), &'static str> {
-        unsafe {
-            csr::sysref_ddmtd::reset_write(1);
-            clock::spin_us(1);
-            csr::sysref_ddmtd::reset_write(0);
-            clock::spin_us(100);
-            if csr::sysref_ddmtd::locked_read() != 0 {
-                Ok(())
-            } else {
-                Err("DDMTD helper PLL failed to lock")
-            }
-        }
-    }
-
-    fn measure_ddmdt_phase_raw() -> i32 {
-        unsafe { csr::sysref_ddmtd::dt_read() as i32 }
-    }
-
-    fn measure_ddmdt_phase() -> i32 {
-        const AVG_PRECISION_SHIFT: i32 = 6;
-        const AVG_PRECISION: i32 = 1 << AVG_PRECISION_SHIFT;
-        const AVG_MOD: i32 = 1 << (RAW_DDMTD_N_SHIFT + AVG_PRECISION_SHIFT + DDMTD_DITHER_BITS);
-
-        let mut measurements = [0; AVG_PRECISION as usize];
-        for i in 0..AVG_PRECISION {
-            measurements[i as usize] = measure_ddmdt_phase_raw() << (AVG_PRECISION_SHIFT + DDMTD_DITHER_BITS);
-            clock::spin_us(10);
-        }
-        average_phases(&measurements, AVG_MOD) >> AVG_PRECISION_SHIFT
+    fn measure_ddmdt_phase() -> Result<i32, &'static str> {
+        Ok(jdac::basic_request(0, jdac_common::DDMTD_SYSREF, 0)? as i32)
     }
 
     fn test_ddmtd_stability(raw: bool, tolerance: i32) -> Result<(), &'static str> {
         info!("testing DDMTD stability (raw={}, tolerance={})...", raw, tolerance);
 
-        let modulo = if raw { RAW_DDMTD_N } else { DDMTD_N };
+        let modulo = if raw { jdac_common::RAW_DDMTD_N } else { jdac_common::DDMTD_N };
         let measurement = if raw { measure_ddmdt_phase_raw } else { measure_ddmdt_phase };
-        let ntests = if raw { 15000 } else { 150 };
+        let ntests = if raw { 150 } else { 15 };
 
         let mut max_pkpk = 0;
         for _ in 0..32 {
             // If we are near the edges, wraparound can throw off the simple min/max computation.
             // In this case, add an offset to get near the center.
-            let quadrant = measure_ddmdt_phase();
+            let quadrant = measure_ddmdt_phase()?;
             let center_offset =
-                if quadrant < DDMTD_N/4 || quadrant > 3*DDMTD_N/4 {
+                if quadrant < jdac_common::DDMTD_N/4 || quadrant > 3*jdac_common::DDMTD_N/4 {
                     modulo/2
                 } else {
                     0
@@ -238,7 +191,7 @@ pub mod jesd204sync {
             let mut min = modulo;
             let mut max = 0;
             for _ in 0..ntests {
-                let m = (measurement() + center_offset) % modulo;
+                let m = (measurement()? + center_offset) % modulo;
                 if m < min {
                     min = m;
                 }
@@ -268,11 +221,11 @@ pub mod jesd204sync {
         let tolerance = 1;
 
         info!("testing HMC7043 SYSREF slip against DDMTD...");
-        let mut old_phase = measure_ddmdt_phase();
+        let mut old_phase = measure_ddmdt_phase()?;
         for _ in 0..1024 {
             hmc7043_sysref_slip();
-            let phase = measure_ddmdt_phase();
-            let step = (DDMTD_N + old_phase - phase) % DDMTD_N;
+            let phase = measure_ddmdt_phase()?;
+            let step = (jdac_common::DDMTD_N + old_phase - phase) % jdac_common::DDMTD_N;
             if (step - expected_step).abs() > tolerance {
                 error!("  ...got unexpected step: {} ({} -> {})", step, old_phase, phase);
                 return Err("HMC7043 SYSREF slip produced unexpected DDMTD step");
@@ -295,7 +248,7 @@ pub mod jesd204sync {
 
     const SYSREF_SH_PRECISION_SHIFT: i32 = 5;
     const SYSREF_SH_PRECISION: i32 = 1 << SYSREF_SH_PRECISION_SHIFT;
-    const SYSREF_SH_MOD: i32 = 1 << (DDMTD_N_SHIFT + SYSREF_SH_PRECISION_SHIFT);
+    const SYSREF_SH_MOD: i32 = 1 << (jdac_common::DDMTD_N_SHIFT + SYSREF_SH_PRECISION_SHIFT);
 
     #[derive(Default)]
     struct SysrefShLimits {
@@ -318,7 +271,7 @@ pub mod jesd204sync {
             }
 
             let current = sysref_sh_error();
-            let phase = measure_ddmdt_phase();
+            let phase = measure_ddmdt_phase()?;
             if current && !previous && rising_n < SYSREF_SH_PRECISION {
                 ret.rising_phases[rising_n as usize] = phase << SYSREF_SH_PRECISION_SHIFT;
                 rising_n += 1;
@@ -335,7 +288,7 @@ pub mod jesd204sync {
     fn max_phase_deviation(average: i32, phases: &[i32]) -> i32 {
         let mut ret = 0;
         for phase in phases.iter() {
-            let deviation = (phase - average + DDMTD_N) % DDMTD_N;
+            let deviation = (phase - average + jdac_common::DDMTD_N) % jdac_common::DDMTD_N;
             if deviation > ret {
                 ret = deviation;
             }
@@ -345,7 +298,7 @@ pub mod jesd204sync {
 
     fn reach_sysref_ddmtd_target(target: i32, tolerance: i32) -> Result<i32, &'static str> {
         for _ in 0..1024 {
-            let delta = (measure_ddmdt_phase() - target + DDMTD_N) % DDMTD_N;
+            let delta = (measure_ddmdt_phase()? - target + jdac_common::DDMTD_N) % jdac_common::DDMTD_N;
             if delta <= tolerance {
                 return Ok(delta)
             }
@@ -360,11 +313,11 @@ pub mod jesd204sync {
             if rising_average < falling_average {
                 (rising_average + falling_average)/2
             } else {
-                ((falling_average - (DDMTD_N - rising_average))/2 + DDMTD_N) % DDMTD_N
+                ((falling_average - (jdac_common::DDMTD_N - rising_average))/2 + jdac_common::DDMTD_N) % jdac_common::DDMTD_N
             };
         info!("  SYSREF calibration coarse target: {}", coarse_target);
         reach_sysref_ddmtd_target(coarse_target, 8)?;
-        let target = measure_ddmdt_phase();
+        let target = measure_ddmdt_phase()?;
         info!("  ...done, target={}", target);
         Ok(target)
     }
@@ -447,15 +400,14 @@ pub mod jesd204sync {
     }
 
     pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
-        init_ddmtd()?;
         test_ddmtd_stability(true, 4)?;
         test_ddmtd_stability(false, 1)?;
         test_slip_ddmtd()?;
 
         info!("determining SYSREF S/H limits...");
         let sysref_sh_limits = measure_sysref_sh_limits()?;
-        let rising_average = average_phases(&sysref_sh_limits.rising_phases, SYSREF_SH_MOD);
-        let falling_average = average_phases(&sysref_sh_limits.falling_phases, SYSREF_SH_MOD);
+        let rising_average = jdac_common::average_phases(&sysref_sh_limits.rising_phases, SYSREF_SH_MOD);
+        let falling_average = jdac_common::average_phases(&sysref_sh_limits.falling_phases, SYSREF_SH_MOD);
         let rising_max_deviation = max_phase_deviation(rising_average, &sysref_sh_limits.rising_phases);
         let falling_max_deviation = max_phase_deviation(falling_average, &sysref_sh_limits.falling_phases);
 
