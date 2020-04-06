@@ -29,6 +29,7 @@ class GTHSingle(Module):
 
         # # #
 
+        self.txenable = Signal()
         nwords = dw//10
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
             Encoder(nwords, True))
@@ -467,7 +468,6 @@ class GTHSingle(Module):
             i_GTREFCLK0=refclk,
 
             # TX clock
-           
             o_TXOUTCLK=self.txoutclk,
             i_TXSYSCLKSEL=0b00,
             i_TXPLLCLKSEL=0b00,
@@ -487,7 +487,7 @@ class GTHSingle(Module):
             o_TXSYNCOUT=self.txsyncout,
 
             # TX data
-
+            i_TXINHIBIT=~self.txenable,
             i_TXCTRL0=Cat(*[txdata[10*i+8] for i in range(nwords)]),
             i_TXCTRL1=Cat(*[txdata[10*i+9] for i in range(nwords)]),
             i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
@@ -675,6 +675,8 @@ class GTH(Module, TransceiverInterface):
         self.submodules.tx_phase_alignment = GTHTXPhaseAlignement(self.gths)
 
         TransceiverInterface.__init__(self, channel_interfaces)
+        for n, gth in enumerate(self.gths):
+            self.comb += gth.txenable.eq(self.txenable.storage[n])
         self.clock_domains.cd_rtiox = ClockDomain(reset_less=True)
         if create_buf:
             # GTH PLLs recover on their own from an interrupted clock input,

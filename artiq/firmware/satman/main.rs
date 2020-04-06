@@ -465,6 +465,10 @@ pub extern fn main() -> i32 {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
     clock::spin_us(1500); // wait for CPLL/QPLL lock
+    #[cfg(not(has_jdcg))]
+    unsafe {
+        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+    }
     #[cfg(has_wrpll)]
     wrpll::diagnostics();
     init_rtio_crg();
@@ -493,6 +497,11 @@ pub extern fn main() -> i32 {
     let mut hardware_tick_ts = 0;
 
     loop {
+        #[cfg(has_jdcg)]
+        unsafe {
+            // Hide from uplink until RTM is ready
+            csr::drtio_transceiver::txenable_write(0xfffffffeu32 as _);
+        }
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
             for mut rep in repeaters.iter_mut() {
@@ -510,33 +519,12 @@ pub extern fn main() -> i32 {
         #[cfg(has_wrpll)]
         wrpll::select_recovered_clock(true);
 
-        #[cfg(has_jdcg)]
-        {
-            /*
-             * One side of the JESD204 elastic buffer is clocked by the Si5324, the other
-             * by the RTM.
-             * The elastic buffer can operate only when those two clocks are derived from
-             * the same oscillator.
-             * This is the case when either of those conditions is true:
-             * (1) The DRTIO master and the RTM are clocked directly from a common external
-             *     source, *and* the Si5324 has locked to the recovered clock.
-             *     This clocking scheme provides less noise and phase drift at the DACs.
-             * (2) The RTM clock is connected to the Si5324 output.
-             * To handle those cases, we simply keep the JESD204 core in reset unless the
-             * Si5324 is locked to the recovered clock.
-             */
-            jdcg::jesd::reset(false);
-            if repeaters[0].is_up() {
-                let _ = jdcg::jdac::init();
-            }
-        }
-
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
         #[cfg(has_jdcg)]
-        let mut rep0_was_up = repeaters[0].is_up();
+        let mut was_up = false;
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
@@ -548,8 +536,14 @@ pub extern fn main() -> i32 {
                 info!("TSC loaded from uplink");
                 #[cfg(has_jdcg)]
                 {
-                    if rep0_was_up {
-                        jdcg::jesd204sync::sysref_auto_align();
+                    // We assume that the RTM on repeater0 is up.
+                    // Uplink should not send a TSC load command unless the link is
+                    // up, and we are hiding when the RTM is down.
+                    if let Err(e) = jdcg::jesd204sync::sysref_rtio_align() {
+                        error!("failed to align SYSREF with TSC ({})", e);
+                    }
+                    if let Err(e) = jdcg::jesd204sync::resync_dacs() {
+                        error!("DAC resync failed after SYSREF/TSC realignment ({})", e);
                     }
                 }
                 for rep in repeaters.iter() {
@@ -563,12 +557,29 @@ pub extern fn main() -> i32 {
             }
             #[cfg(has_jdcg)]
             {
-                let rep0_is_up = repeaters[0].is_up();
-                if rep0_is_up && !rep0_was_up {
+                let is_up = repeaters[0].is_up();
+                if is_up && !was_up {
+                    /*
+                     * One side of the JESD204 elastic buffer is clocked by the jitter filter
+                     * (Si5324 or WRPLL), the other by the RTM.
+                     * The elastic buffer can operate only when those two clocks are derived from
+                     * the same oscillator.
+                     * This is the case when either of those conditions is true:
+                     * (1) The DRTIO master and the RTM are clocked directly from a common external
+                     *     source, *and* the jitter filter has locked to the recovered clock.
+                     *     This clocking scheme may provide less noise and phase drift at the DACs.
+                     * (2) The RTM clock is connected to the jitter filter output.
+                     * To handle those cases, we simply keep the JESD204 core in reset unless the
+                     * jitter filter is locked to the recovered clock.
+                     */
+                    jdcg::jesd::reset(false);
                     let _ = jdcg::jdac::init();
                     jdcg::jesd204sync::sysref_auto_align();
+                    unsafe {
+                        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);  // unhide
+                    }
                 }
-                rep0_was_up = rep0_is_up;
+                was_up = is_up;
             }
         }
 

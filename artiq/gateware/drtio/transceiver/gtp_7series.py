@@ -19,6 +19,7 @@ class GTPSingle(Module):
         # # #
 
         self.stable_clkin = Signal()
+        self.txenable = Signal()
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
             Encoder(2, True))
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rtio_rx")(
@@ -611,7 +612,7 @@ class GTPSingle(Module):
             i_TXDEEMPH                       =0,
             i_TXDIFFCTRL                     =0b1000,
             i_TXDIFFPD                       =0,
-            i_TXINHIBIT                      =0,
+            i_TXINHIBIT                      =~self.txenable,
             i_TXMAINCURSOR                   =0b0000000,
             i_TXPISOPD                       =0,
             # Transmit Ports - TX Fabric Clock Output Control Ports
@@ -747,8 +748,11 @@ class GTP(Module, TransceiverInterface):
         self.submodules.tx_phase_alignment = GTPTXPhaseAlignement(self.gtps)
 
         TransceiverInterface.__init__(self, channel_interfaces)
-        for gtp in self.gtps:
-            self.comb += gtp.stable_clkin.eq(self.stable_clkin.storage)
+        for n, gtp in enumerate(self.gtps):
+            self.comb += [
+                  gtp.stable_clkin.eq(self.stable_clkin.storage),
+                  gtp.txenable.eq(self.txenable.storage[n])
+            ]
 
         self.comb += [
             self.cd_rtio.clk.eq(self.gtps[master].cd_rtio_tx.clk),

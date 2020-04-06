@@ -160,7 +160,6 @@ pub mod jesd204sync {
         }
     }
 
-
     fn measure_ddmdt_phase_raw() -> Result<i32, &'static str> {
         Ok(jdac::basic_request(0, jdac_common::DDMTD_SYSREF_RAW, 0)? as i32)
     }
@@ -566,5 +565,13 @@ pub mod jesd204sync {
         if let Err(e) = sysref_auto_dac_align() {
             error!("failed to align SYSREF at DAC: {}", e);
         }
+    }
+
+    pub fn resync_dacs() -> Result<(), &'static str> {
+        info!("resychronizing DACs");
+        for dacno in 0..csr::JDCG.len() {
+            ad9154_sync(dacno as u8)?;
+        }
+        Ok(())
     }
 }

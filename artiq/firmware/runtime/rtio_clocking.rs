@@ -2,7 +2,7 @@ use board_misoc::config;
 #[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
 #[cfg(has_drtio)]
-use board_misoc::csr;
+use board_misoc::{csr, clock};
 
 #[derive(Debug)]
 pub enum RtioClock {
@@ -160,6 +160,10 @@ pub fn init() {
     #[cfg(has_drtio)]
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
+    }
+    clock::spin_us(1500); // wait for CPLL/QPLL lock
+    unsafe {
+        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
     }
 
     #[cfg(has_rtio_crg)]
