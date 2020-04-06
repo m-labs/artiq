@@ -569,8 +569,8 @@ pub mod jesd204sync {
     }
 
     pub fn resync_dacs() -> Result<(), &'static str> {
-        info!("resychronizing DACs");
         for dacno in 0..csr::JDCG.len() {
+            info!("resychronizing DAC-{}", dacno);
             ad9154_sync(dacno as u8)?;
         }
         Ok(())
