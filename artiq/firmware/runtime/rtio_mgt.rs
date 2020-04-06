@@ -68,7 +68,17 @@ pub mod drtio {
             }
             let reply = aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::EchoRequest);
             match reply {
-                Ok(drtioaux::Packet::EchoReply) => return count,
+                Ok(drtioaux::Packet::EchoReply) => {
+                    // make sure receive buffer is drained
+                    let max_time = clock::get_ms() + 200;
+                    loop {
+                        if clock::get_ms() > max_time {
+                            return count;
+                        }
+                        let _ = drtioaux::recv(linkno);
+                        io.relinquish().unwrap();
+                    }
+                }
                 _ => {}
             }
             io.relinquish().unwrap();
