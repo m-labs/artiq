@@ -527,6 +527,7 @@ pub mod jesd204sync {
         info!("  ...done");
 
         // We tested that the value is correct - now use it
+        info!("sychronizing DAC-{}", dacno);
         hmc7043_sysref_delay_dac(dacno, delay);
         ad9154_sync(dacno)?;
 
