@@ -190,20 +190,19 @@ class SatelliteBase(MiniSoC):
 
 
 # JESD204 DAC Channel Group
-class JDCG(Module, AutoCSR):
+class JDCGSAWG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
             platform, sys_crg, jesd_crg, dac)
 
-        self.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
-        self.submodules += self.sawgs
+        self.submodules.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
 
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
             assert len(Cat(ch.o)) == len(conv)
             self.sync.jesd += conv.eq(Cat(ch.o))
 
 
-class JDCGNoSAWG(Module, AutoCSR):
+class JDCGPattern(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
             platform, sys_crg, jesd_crg, dac)
@@ -243,13 +242,56 @@ class JDCGNoSAWG(Module, AutoCSR):
         ]
 
 
+class JDCGSyncDDS(Module, AutoCSR):
+    def __init__(self, platform, sys_crg, jesd_crg, dac):
+        self.submodules.jesd = jesd204_tools.UltrascaleTX(
+            platform, sys_crg, jesd_crg, dac)
+        self.coarse_ts = Signal(32)
+
+        self.sawgs = []
+
+        ftw = round(2**len(self.coarse_ts)*9e6/150e6)
+        parallelism = 4
+
+        mul_1 = Signal.like(self.coarse_ts)
+        mul_2 = Signal.like(self.coarse_ts)
+        mul_3 = Signal.like(self.coarse_ts)
+        self.sync.rtio += [
+            mul_1.eq(self.coarse_ts*ftw),
+            mul_2.eq(mul_1),
+            mul_3.eq(mul_2)
+        ]
+
+        phases = [Signal.like(self.coarse_ts) for i in range(parallelism)]
+        self.sync.rtio += [phases[i].eq(mul_3 + i*ftw//parallelism)
+                           for i in range(parallelism)]
+
+        resolution = 10
+        steps = 2**resolution
+        from math import pi, cos
+        data = [(2**16 + round(cos(i/steps*2*pi)*((1 << 15) - 1))) & 0xffff
+                for i in range(steps)]
+        samples = [Signal(16) for i in range(4)]
+        for phase, sample in zip(phases, samples):
+            table = Memory(16, steps, init=data)
+            table_port = table.get_port(clock_domain="rtio")
+            self.specials += table, table_port
+            self.comb += [
+                table_port.adr.eq(phase >> (len(self.coarse_ts) - resolution)),
+                sample.eq(table_port.dat_r)
+            ]
+
+        self.sync.rtio += [sink.eq(Cat(samples))
+                           for sink in self.jesd.core.sink.flatten()]
+
+
 class Satellite(SatelliteBase):
     """
     DRTIO satellite with local DAC/SAWG channels.
     """
-    def __init__(self, with_sawg, **kwargs):
+    def __init__(self, jdcg_type, **kwargs):
         SatelliteBase.__init__(self, 150e6,
-            identifier_suffix=".without-sawg" if not with_sawg else "",
+            identifier_suffix="." + jdcg_type,
             **kwargs)
 
         platform = self.platform
@@ -286,10 +328,11 @@ class Satellite(SatelliteBase):
 
         self.submodules.jesd_crg = jesd204_tools.UltrascaleCRG(
             platform, use_rtio_clock=True)
-        if with_sawg:
-            cls = JDCG
-        else:
-            cls = JDCGNoSAWG
+        cls = {
+            "sawg": JDCGSAWG,
+            "pattern": JDCGPattern,
+            "syncdds": JDCGSyncDDS
+        }[jdcg_type]
         self.submodules.jdcg_0 = cls(platform, self.crg, self.jesd_crg, 0)
         self.submodules.jdcg_1 = cls(platform, self.crg, self.jesd_crg, 1)
         self.csr_devices.append("jesd_crg")
@@ -310,6 +353,11 @@ class Satellite(SatelliteBase):
         self.csr_devices.append("sysref_sampler")
         self.jdcg_0.jesd.core.register_jref(self.sysref_sampler.jref)
         self.jdcg_1.jesd.core.register_jref(self.sysref_sampler.jref)
+        if jdcg_type == "syncdds":
+            self.comb += [
+                self.jdcg_0.coarse_ts.eq(self.rtio_tsc.coarse_ts),
+                self.jdcg_1.coarse_ts.eq(self.rtio_tsc.coarse_ts),
+            ]
 
 
 class SimpleSatellite(SatelliteBase):
@@ -506,16 +554,16 @@ def main():
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
-    parser.add_argument("--without-sawg",
-        default=False, action="store_true",
-        help="Remove SAWG RTIO channels feeding the JESD links (speeds up "
-        "compilation time). Replaces them with fixed pattern generators.")
+    parser.add_argument("--jdcg-type",
+        default="sawg",
+        help="Change type of signal generator. This is used exclusively for "
+             "development and debugging.")
     parser.add_argument("--with-wrpll", default=False, action="store_true")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     if variant == "satellite":
-        soc = Satellite(with_sawg=not args.without_sawg, with_wrpll=args.with_wrpll,
+        soc = Satellite(jdcg_type=args.jdcg_type, with_wrpll=args.with_wrpll,
                         **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
         soc = SimpleSatellite(with_wrpll=args.with_wrpll, **soc_sayma_amc_argdict(args))
