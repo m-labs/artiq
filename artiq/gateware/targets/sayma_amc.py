@@ -250,21 +250,20 @@ class JDCGSyncDDS(Module, AutoCSR):
 
         self.sawgs = []
 
-        ftw = round(2**len(self.coarse_ts)*9e6/150e6)
+        ftw = round(2**len(self.coarse_ts)*9e6/600e6)
         parallelism = 4
 
         mul_1 = Signal.like(self.coarse_ts)
         mul_2 = Signal.like(self.coarse_ts)
         mul_3 = Signal.like(self.coarse_ts)
         self.sync.rtio += [
-            mul_1.eq(self.coarse_ts*ftw),
+            mul_1.eq(self.coarse_ts*ftw*parallelism),
             mul_2.eq(mul_1),
             mul_3.eq(mul_2)
         ]
 
         phases = [Signal.like(self.coarse_ts) for i in range(parallelism)]
-        self.sync.rtio += [phases[i].eq(mul_3 + i*ftw//parallelism)
-                           for i in range(parallelism)]
+        self.sync.rtio += [phases[i].eq(mul_3 + i*ftw) for i in range(parallelism)]
 
         resolution = 10
         steps = 2**resolution
