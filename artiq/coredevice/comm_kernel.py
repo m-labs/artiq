@@ -207,10 +207,6 @@ class CommKernel:
     #
     # Exported APIs
     #
-
-    def reset_session(self):
-        self.write(struct.pack(">ll", 0x5a5a5a5a, 0))
-
     def check_system_info(self):
         self._write_empty(Request.SystemInfo)
 
