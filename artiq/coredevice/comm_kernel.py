@@ -92,7 +92,11 @@ class CommKernel:
         del self.socket
         logger.debug("disconnected")
 
-    def read(self, length):
+    #
+    # Reader interface
+    #
+
+    def _read(self, length):
         r = bytes()
         while len(r) < length:
             rn = self.socket.recv(min(8192, length - len(r)))
@@ -101,27 +105,20 @@ class CommKernel:
             r += rn
         return r
 
-    def write(self, data):
-        self.socket.sendall(data)
-
-    #
-    # Reader interface
-    #
-
     def _read_header(self):
         self.open()
 
         # Wait for a synchronization sequence, 5a 5a 5a 5a.
         sync_count = 0
         while sync_count < 4:
-            (sync_byte, ) = struct.unpack("B", self.read(1))
+            (sync_byte, ) = struct.unpack("B", self._read(1))
             if sync_byte == 0x5a:
                 sync_count += 1
             else:
                 sync_count = 0
 
         # Read message header.
-        (raw_type, ) = struct.unpack("B", self.read(1))
+        (raw_type, ) = struct.unpack("B", self._read(1))
         self._read_type = Reply(raw_type)
 
         logger.debug("receiving message: type=%r",
@@ -136,30 +133,27 @@ class CommKernel:
         self._read_header()
         self._read_expect(ty)
 
-    def _read_chunk(self, length):
-        return self.read(length)
-
     def _read_int8(self):
-        (value, ) = struct.unpack("B",  self._read_chunk(1))
+        (value, ) = struct.unpack("B",  self._read(1))
         return value
 
     def _read_int32(self):
-        (value, ) = struct.unpack(">l", self._read_chunk(4))
+        (value, ) = struct.unpack(">l", self._read(4))
         return value
 
     def _read_int64(self):
-        (value, ) = struct.unpack(">q", self._read_chunk(8))
+        (value, ) = struct.unpack(">q", self._read(8))
         return value
 
     def _read_float64(self):
-        (value, ) = struct.unpack(">d", self._read_chunk(8))
+        (value, ) = struct.unpack(">d", self._read(8))
         return value
 
     def _read_bool(self):
         return True if self._read_int8() else False
 
     def _read_bytes(self):
-        return self._read_chunk(self._read_int32())
+        return self._read(self._read_int32())
 
     def _read_string(self):
         return self._read_bytes().decode("utf-8")
@@ -168,38 +162,41 @@ class CommKernel:
     # Writer interface
     #
 
+    def _write(self, data):
+        self.socket.sendall(data)
+
     def _write_header(self, ty):
         self.open()
 
         logger.debug("sending message: type=%r", ty)
 
         # Write synchronization sequence and header.
-        self.write(struct.pack(">lB", 0x5a5a5a5a, ty.value))
+        self._write(struct.pack(">lB", 0x5a5a5a5a, ty.value))
 
     def _write_empty(self, ty):
         self._write_header(ty)
 
     def _write_chunk(self, chunk):
-        self.write(chunk)
+        self._write(chunk)
 
     def _write_int8(self, value):
-        self.write(struct.pack("B", value))
+        self._write(struct.pack("B", value))
 
     def _write_int32(self, value):
-        self.write(struct.pack(">l", value))
+        self._write(struct.pack(">l", value))
 
     def _write_int64(self, value):
-        self.write(struct.pack(">q", value))
+        self._write(struct.pack(">q", value))
 
     def _write_float64(self, value):
-        self.write(struct.pack(">d", value))
+        self._write(struct.pack(">d", value))
 
     def _write_bool(self, value):
-        self.write(struct.pack("B", value))
+        self._write(struct.pack("B", value))
 
     def _write_bytes(self, value):
         self._write_int32(len(value))
-        self.write(value)
+        self._write(value)
 
     def _write_string(self, value):
         self._write_bytes(value.encode("utf-8"))
@@ -207,12 +204,13 @@ class CommKernel:
     #
     # Exported APIs
     #
+
     def check_system_info(self):
         self._write_empty(Request.SystemInfo)
 
         self._read_header()
         self._read_expect(Reply.SystemInfo)
-        runtime_id = self._read_chunk(4)
+        runtime_id = self._read(4)
         if runtime_id != b"AROR":
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
