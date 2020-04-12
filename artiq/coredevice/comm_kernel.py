@@ -211,20 +211,22 @@ class CommKernel:
         self._read_header()
         self._read_expect(Reply.SystemInfo)
         runtime_id = self._read(4)
-        if runtime_id != b"AROR":
+        if runtime_id == b"AROR":
+            gateware_version = self._read_string().split(";")[0]
+            if gateware_version != software_version and not self.warned_of_mismatch:
+                logger.warning("Mismatch between gateware (%s) "
+                               "and software (%s) versions",
+                               gateware_version, software_version)
+                CommKernel.warned_of_mismatch = True
+
+            finished_cleanly = self._read_bool()
+            if not finished_cleanly:
+                logger.warning("Previous kernel did not cleanly finish")
+        elif runtime_id == b"ARZQ":
+            pass
+        else:
             raise UnsupportedDevice("Unsupported runtime ID: {}"
                                     .format(runtime_id))
-
-        gateware_version = self._read_string().split(";")[0]
-        if gateware_version != software_version and not self.warned_of_mismatch:
-            logger.warning("Mismatch between gateware (%s) "
-                           "and software (%s) versions",
-                           gateware_version, software_version)
-            CommKernel.warned_of_mismatch = True
-
-        finished_cleanly = self._read_bool()
-        if not finished_cleanly:
-            logger.warning("Previous kernel did not cleanly finish")
 
     def load(self, kernel_library):
         self._write_header(Request.LoadKernel)
