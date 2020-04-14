@@ -72,11 +72,11 @@ Prerequisites:
     parser.add_argument("-d", "--dir", help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
-    parser.add_argument("--force-rtm", help="force RTM actions on boards/variants that normally do not have a RTM",
+    parser.add_argument("--no-rtm-jtag", help="do not attempt JTAG to the RTM",
                         default=False, action="store_true")
     parser.add_argument("action", metavar="ACTION", nargs="*",
-                        default="gateware rtm_gateware bootloader firmware start".split(),
-                        help="actions to perform, default: %(default)s")
+                        default=[],
+                        help="actions to perform, default: flash everything")
     return parser
 
 
@@ -233,7 +233,7 @@ class ProgrammerXC7(Programmer):
             "xc7_program xc7.tap")
 
 
-class ProgrammerSayma(Programmer):
+class ProgrammerAMCRTM(Programmer):
     _sector_size = 0x10000
 
     def __init__(self, client, preinit_script):
@@ -270,7 +270,7 @@ class ProgrammerSayma(Programmer):
         add_commands(self._script, "xcu_program xcu.tap")
 
 
-class ProgrammerMetlino(Programmer):
+class ProgrammerAMC(Programmer):
     _sector_size = 0x10000
 
     def __init__(self, client, preinit_script):
@@ -316,7 +316,7 @@ def main():
             "firmware":     ("spi0", 0x450000),
         },
         "sayma": {
-            "programmer":   ProgrammerSayma,
+            "programmer":   ProgrammerAMCRTM,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
@@ -324,7 +324,7 @@ def main():
             "rtm_gateware": ("spi1", 0x200000),
         },
         "metlino": {
-            "programmer":   ProgrammerMetlino,
+            "programmer":   ProgrammerAMC,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi1", 0x000000),
             "storage":      ("spi1", 0x040000),
@@ -343,7 +343,7 @@ def main():
     if bin_dir is None:
         bin_dir = os.path.join(artiq_dir, "board-support")
 
-    needs_artifacts = any(
+    needs_artifacts = not args.action or any(
         action in args.action
         for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
     variant = args.variant
@@ -381,12 +381,22 @@ def main():
             else:
                 rtm_variant_dir = "sayma-rtm"
 
+    if not args.action:
+        if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
+            args.action = "gateware rtm_gateware bootloader firmware start".split()
+        else:
+            args.action = "gateware bootloader firmware start".split()
+
     if args.host is None:
         client = LocalClient()
     else:
         client = SSHClient(args.host, args.jump)
 
-    programmer = config["programmer"](client, preinit_script=args.preinit_command)
+    if args.target == "sayma" and args.no_rtm_jtag:
+        programmer_cls = ProgrammerAMC
+    else:
+        programmer_cls = config["programmer"]
+    programmer = programmer_cls(client, preinit_script=args.preinit_command)
 
     def artifact_path(this_variant_dir, *path_filename):
         if args.srcbuild:
@@ -420,12 +430,10 @@ def main():
                 artifact_path(variant_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
         elif action == "rtm_gateware":
-            if args.force_rtm or (
-                    args.target == "sayma" and variant != "simplesatellite" and variant != "master"):
-                rtm_gateware_bin = convert_gateware(
-                    artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
-                programmer.write_binary(*config["rtm_gateware"],
-                                        rtm_gateware_bin)
+            rtm_gateware_bin = convert_gateware(
+                artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
+            programmer.write_binary(*config["rtm_gateware"],
+                                    rtm_gateware_bin)
         elif action == "bootloader":
             bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
@@ -448,10 +456,8 @@ def main():
                 gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
         elif action == "rtm_load":
-            if args.force_rtm or (
-                    args.target == "sayma" and variant != "simplesatellite" and variant != "master"):
-                rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
-                programmer.load(rtm_gateware_bit, 0)
+            rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
+            programmer.load(rtm_gateware_bit, 0)
         elif action == "start":
             programmer.start()
         elif action == "erase":
