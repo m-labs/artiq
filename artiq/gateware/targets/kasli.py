@@ -32,7 +32,10 @@ class _RTIOCRG(Module, AutoCSR):
         self.clock_domains.cd_rtio = ClockDomain()
         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
 
-        clk_synth = platform.request("si5324_clkout_fabric")
+        if platform.hw_rev == "v2.0":
+            clk_synth = platform.request("cdr_clk_clean_fabric")
+        else:
+            clk_synth = platform.request("si5324_clkout_fabric")
         clk_synth_se = Signal()
         platform.add_period_constraint(clk_synth.p, 8.0)
         self.specials += [
@@ -174,11 +177,12 @@ class Tester(StandaloneBase):
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
 
-        for i in (1, 2):
-            sfp_ctl = self.platform.request("sfp_ctl", i)
-            phy = ttl_simple.Output(sfp_ctl.led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if hw_rev in ("v1.0", "v1.1"):
+            for i in (1, 2):
+                sfp_ctl = self.platform.request("sfp_ctl", i)
+                phy = ttl_simple.Output(sfp_ctl.led)
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
