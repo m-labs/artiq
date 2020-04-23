@@ -13,12 +13,21 @@ pub struct EEPROM {
 }
 
 impl EEPROM {
-    pub fn kasli_eeprom() -> Self {
+    pub fn kasli1_eeprom() -> Self {
         EEPROM {
             busno: 0,
             /// Same port as Si5324
             port: 11,
             address: 0xa0,
+        }
+    }
+
+    pub fn kasli2_eeprom() -> Self {
+        EEPROM {
+            busno: 0,
+            /// SHARED I2C bus
+            port: 11,
+            address: 0xae,
         }
     }
 
