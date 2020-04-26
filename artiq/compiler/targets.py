@@ -78,13 +78,15 @@ class Target:
     :var little_endian: (boolean)
         Whether the code will be executed on a little-endian machine. This cannot be always
         determined from data_layout due to JIT.
+    :var now_pinning: (boolean)
+        Whether the target implements the now-pinning RTIO optimization.
     """
     triple = "unknown"
     data_layout = ""
     features = []
     print_function = "printf"
     little_endian = False
-
+    now_pinning = True
 
     def __init__(self):
         self.llcontext = ll.Context()
@@ -254,6 +256,7 @@ class OR1KTarget(Target):
     features = ["mul", "div", "ffl1", "cmov", "addc"]
     print_function = "core_log"
     little_endian = False
+    now_pinning = True
 
 class CortexA9Target(Target):
     triple = "armv7-unknown-linux-gnueabihf"
@@ -261,3 +264,4 @@ class CortexA9Target(Target):
     features = ["dsp", "fp16", "neon", "vfp3"]
     print_function = "core_log"
     little_endian = True
+    now_pinning = False

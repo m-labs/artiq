@@ -380,8 +380,19 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
         elif name == "rpc_recv":
             llty = ll.FunctionType(lli32, [llptr])
+
+        # with now-pinning
         elif name == "now":
             llty = lli64
+
+        # without now-pinning
+        elif name == "now_mu":
+            llty = ll.FunctionType(lli64, [])
+        elif name == "at_mu":
+            llty = ll.FunctionType(llvoid, [lli64])
+        elif name == "delay_mu":
+            llty = ll.FunctionType(llvoid, [lli64])
+
         elif name == "watchdog_set":
             llty = ll.FunctionType(lli32, [lli64])
         elif name == "watchdog_clear":
@@ -1174,35 +1185,43 @@ class LLVMIRGenerator:
             # This is an identity cast at LLVM IR level.
             return self.map(insn.operands[0])
         elif insn.op == "now_mu":
-            llnow = self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
-            return llnow
+            if self.target.now_pinning:
+                return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+            else:
+                return self.llbuilder.call(self.llbuiltin("now_mu"), [])
         elif insn.op == "at_mu":
             time, = insn.operands
             lltime = self.map(time)
-            lltime_hi = self.llbuilder.trunc(self.llbuilder.lshr(lltime, ll.Constant(lli64, 32)), lli32)
-            lltime_lo = self.llbuilder.trunc(lltime, lli32)
-            llnow_hiptr = self.llbuilder.bitcast(self.llbuiltin("now"), lli32.as_pointer())
-            llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
-            if self.target.little_endian:
-                lltime_hi, lltime_lo = lltime_lo, lltime_hi
-            llstore_hi = self.llbuilder.store_atomic(lltime_hi, llnow_hiptr, ordering="seq_cst", align=4)
-            llstore_lo = self.llbuilder.store_atomic(lltime_lo, llnow_loptr, ordering="seq_cst", align=4)
-            return llstore_lo
+            if self.target.now_pinning:
+                lltime_hi = self.llbuilder.trunc(self.llbuilder.lshr(lltime, ll.Constant(lli64, 32)), lli32)
+                lltime_lo = self.llbuilder.trunc(lltime, lli32)
+                llnow_hiptr = self.llbuilder.bitcast(self.llbuiltin("now"), lli32.as_pointer())
+                llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+                if self.target.little_endian:
+                    lltime_hi, lltime_lo = lltime_lo, lltime_hi
+                llstore_hi = self.llbuilder.store_atomic(lltime_hi, llnow_hiptr, ordering="seq_cst", align=4)
+                llstore_lo = self.llbuilder.store_atomic(lltime_lo, llnow_loptr, ordering="seq_cst", align=4)
+                return llstore_lo
+            else:
+                return self.llbuilder.call(self.llbuiltin("at_mu"), [lltime])
         elif insn.op == "delay_mu":
             interval, = insn.operands
-            llnowptr = self.llbuiltin("now")
-            llnow = self.llbuilder.load(llnowptr, name="now.old")
-            lladjusted = self.llbuilder.add(llnow, self.map(interval), name="now.new")
-
-            lladjusted_hi = self.llbuilder.trunc(self.llbuilder.lshr(lladjusted, ll.Constant(lli64, 32)), lli32)
-            lladjusted_lo = self.llbuilder.trunc(lladjusted, lli32)
-            llnow_hiptr = self.llbuilder.bitcast(llnowptr, lli32.as_pointer())
-            llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
-            if self.target.little_endian:
-                lladjusted_hi, lladjusted_lo = lladjusted_lo, lladjusted_hi
-            llstore_hi = self.llbuilder.store_atomic(lladjusted_hi, llnow_hiptr, ordering="seq_cst", align=4)
-            llstore_lo = self.llbuilder.store_atomic(lladjusted_lo, llnow_loptr, ordering="seq_cst", align=4)
-            return llstore_lo
+            llinterval = self.map(interval)
+            if self.target.now_pinning:
+                llnowptr = self.llbuiltin("now")
+                llnow = self.llbuilder.load(llnowptr, name="now.old")
+                lladjusted = self.llbuilder.add(llnow, llinterval, name="now.new")
+                lladjusted_hi = self.llbuilder.trunc(self.llbuilder.lshr(lladjusted, ll.Constant(lli64, 32)), lli32)
+                lladjusted_lo = self.llbuilder.trunc(lladjusted, lli32)
+                llnow_hiptr = self.llbuilder.bitcast(llnowptr, lli32.as_pointer())
+                llnow_loptr = self.llbuilder.gep(llnow_hiptr, [self.llindex(1)])
+                if self.target.little_endian:
+                    lladjusted_hi, lladjusted_lo = lladjusted_lo, lladjusted_hi
+                llstore_hi = self.llbuilder.store_atomic(lladjusted_hi, llnow_hiptr, ordering="seq_cst", align=4)
+                llstore_lo = self.llbuilder.store_atomic(lladjusted_lo, llnow_loptr, ordering="seq_cst", align=4)
+                return llstore_lo
+            else:
+                return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
         elif insn.op == "watchdog_set":
             interval, = insn.operands
             return self.llbuilder.call(self.llbuiltin("watchdog_set"), [self.map(interval)])
