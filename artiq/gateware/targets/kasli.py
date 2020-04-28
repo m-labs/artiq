@@ -158,7 +158,7 @@ class Tester(StandaloneBase):
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v1.1"
+            hw_rev = "v2.0"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
