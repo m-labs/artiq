@@ -68,8 +68,6 @@ class Target:
 
     :var triple: (string)
         LLVM target triple, e.g. ``"or1k"``
-    :var linker: (string)
-        Linker to run.
     :var data_layout: (string)
         LLVM target data layout, e.g. ``"E-m:e-p:32:32-i64:32-f64:32-v64:32-v128:32-a:0:32-n32"``
     :var features: (list of string)
@@ -86,10 +84,14 @@ class Target:
     triple = "unknown"
     data_layout = ""
     features = []
-    linker = "lld"
     print_function = "printf"
     little_endian = False
     now_pinning = True
+
+    tool_ld = "ld.lld"
+    tool_strip = "llvm-strip"
+    tool_addr2line = "llvm-addr2line"
+    tool_cxxfilt = "llvm-cxxfilt"
 
     def __init__(self):
         self.llcontext = ll.Context()
@@ -179,7 +181,7 @@ class Target:
 
     def link(self, objects):
         """Link the relocatable objects into a shared library for this target."""
-        with RunTool([self.linker, "-shared", "--eh-frame-hdr"] +
+        with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-o", "{output}"],
                      output=None,
@@ -196,7 +198,7 @@ class Target:
         return self.link([self.assemble(self.compile(module)) for module in modules])
 
     def strip(self, library):
-        with RunTool([self.triple + "-strip", "--strip-debug", "{library}", "-o", "{output}"],
+        with RunTool([self.tool_strip, "--strip-debug", "{library}", "-o", "{output}"],
                      library=library, output=None) \
                 as results:
             return results["output"].read()
@@ -210,7 +212,7 @@ class Target:
         # inside the call instruction (or its delay slot), since that's what
         # the backtrace entry should point at.
         offset_addresses = [hex(addr - 1) for addr in addresses]
-        with RunTool([self.triple + "-addr2line", "--addresses",  "--functions", "--inlines",
+        with RunTool([self.tool_addr2line, "--addresses",  "--functions", "--inlines",
                       "--demangle", "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
@@ -241,7 +243,7 @@ class Target:
             return backtrace
 
     def demangle(self, names):
-        with RunTool([self.triple + "-c++filt"] + names) as results:
+        with RunTool([self.tool_cxxfilt] + names) as results:
             return results["__stdout__"].read().rstrip().split("\n")
 
 class NativeTarget(Target):
@@ -257,16 +259,19 @@ class OR1KTarget(Target):
     data_layout = "E-m:e-p:32:32-i8:8:8-i16:16:16-i64:32:32-" \
                   "f64:32:32-v64:32:32-v128:32:32-a0:0:32-n32"
     features = ["mul", "div", "ffl1", "cmov", "addc"]
-    linker = "or1k-linux-ld"
     print_function = "core_log"
     little_endian = False
     now_pinning = True
+
+    tool_ld = "or1k-linux-ld"
+    tool_strip = "or1k-linux-strip"
+    tool_addr2line = "or1k-linux-addr2line"
+    tool_cxxfilt = "or1k-linux-c++filt"
 
 class CortexA9Target(Target):
     triple = "armv7-unknown-linux-gnueabihf"
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
-    linker = "ld.lld"
     print_function = "core_log"
     little_endian = True
     now_pinning = False
