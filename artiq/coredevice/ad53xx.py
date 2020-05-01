@@ -82,7 +82,7 @@ def ad53xx_cmd_read_ch(channel, op):
 
 @portable
 def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
-    """Returns the DAC register value required to produce a given output
+    """Returns the 16-bit DAC register value required to produce a given output
     voltage, assuming offset and gain errors have been trimmed out.
 
     Also used to return offset register value required to produce a given
@@ -114,8 +114,8 @@ class _DummyTTL:
 
 
 class AD53xx:
-    """Analog devices AD53[67][0123] family of multi-channel Digital to Analog
-    Converters.
+    """Analog devices AD53[67][0123] family of 16-bit multi-channel Digital to
+    Analog Converters.
 
     :param spi_device: SPI bus device name
     :param ldac_device: LDAC RTIO TTLOut channel name (optional)
