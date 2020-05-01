@@ -89,12 +89,18 @@ def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
     voltage when the DAC register is set to mid-scale.
     An offset of V can be used to trim out a DAC offset error of -V.
 
+    Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset
+
     :param voltage: Voltage
     :param offset_dacs: Register value for the two offset DACs
       (default: 0x2000)
     :param vref: DAC reference voltage (default: 5.)
     """
-    return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
+    volt_lims = [-16 * vref * offset_dacs / (1 << 16),
+                 4 * vref * ((1 << 16) - 1 - 4 * offset_dacs) / (1 << 16)]
+    if voltage < volt_lims[0] or voltage > volt_lims[1]:
+        raise ValueError("Invalid DAC voltage!")
+    return int(round((1 << 16) * (voltage / (4. * vref)) + offset_dacs * 0x4))
 
 
 class _DummyTTL:
