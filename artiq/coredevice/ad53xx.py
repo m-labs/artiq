@@ -80,6 +80,7 @@ def ad53xx_cmd_read_ch(channel, op):
     return AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | (op + (channel << 7))
 
 
+# maintain function definition for backward compatibility
 @portable
 def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
     """Returns the 16-bit DAC register value required to produce a given output
@@ -156,6 +157,9 @@ class AD53xx:
         self.vref = vref
         self.offset_dacs = offset_dacs
         self.core = dmgr.get(core)
+
+    # make driver accessible (see #1341)
+    voltage_to_mu = staticmethod(voltage_to_mu)
 
     @kernel
     def init(self, blind=False):
