@@ -454,13 +454,23 @@ pub extern fn main() -> i32 {
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware ident {}", ident::read(&mut [0; 64]));
 
-    #[cfg(has_si5324)]
+    #[cfg(has_i2c)]
+    i2c::init().expect("I2C initialization failed");
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    let (mut io_expander0, mut io_expander1);
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     {
-        i2c::init().expect("I2C initialization failed");
-        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+        io_expander0 = board_misoc::io_expander::IoExpander::new(0);
+        io_expander1 = board_misoc::io_expander::IoExpander::new(1);
+        io_expander0.init().expect("I2C I/O expander #0 initialization failed");
+        io_expander1.init().expect("I2C I/O expander #1 initialization failed");
     }
+
+    #[cfg(has_si5324)]
+    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     #[cfg(has_wrpll)]
     wrpll::init();
+
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
@@ -507,6 +517,11 @@ pub extern fn main() -> i32 {
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
+            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            {
+                io_expander0.service().expect("I2C I/O expander #0 service failed");
+                io_expander1.service().expect("I2C I/O expander #1 service failed");
+            }
             hardware_tick(&mut hardware_tick_ts);
         }
 
@@ -530,6 +545,11 @@ pub extern fn main() -> i32 {
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
+            }
+            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            {
+                io_expander0.service().expect("I2C I/O expander #0 service failed");
+                io_expander1.service().expect("I2C I/O expander #1 service failed");
             }
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {

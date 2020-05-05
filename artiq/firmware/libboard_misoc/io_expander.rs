@@ -1,0 +1,101 @@
+use i2c;
+
+pub struct IoExpander {
+    busno: u8,
+    port: u8,
+    address: u8,
+    virtual_led_mapping: &'static [(u8, u8, u8)],
+    out_current: [u8; 2],
+    out_target: [u8; 2],
+}
+
+impl IoExpander {
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    pub fn new(index: u8) -> Self {
+        const VIRTUAL_LED_MAPPING0: [(u8, u8, u8); 2] = [(0, 0, 6), (1, 1, 6)];
+        const VIRTUAL_LED_MAPPING1: [(u8, u8, u8); 2] = [(2, 0, 6), (3, 1, 6)];
+        // Both expanders on SHARED I2C bus
+        match index {
+            0 => IoExpander {
+                busno: 0,
+                port: 11,
+                address: 0x40,
+                virtual_led_mapping: &VIRTUAL_LED_MAPPING0,
+                out_current: [0; 2],
+                out_target: [0; 2],
+            },
+            1 => IoExpander {
+                busno: 0,
+                port: 11,
+                address: 0x42,
+                virtual_led_mapping: &VIRTUAL_LED_MAPPING1,
+                out_current: [0; 2],
+                out_target: [0; 2],
+            },
+            _ => panic!("incorrect I/O expander index"),
+        }
+    }
+
+    #[cfg(soc_platform = "kasli")]
+    fn select(&self) -> Result<(), &'static str> {
+        let mask: u16 = 1 << self.port;
+        i2c::pca9548_select(self.busno, 0x70, mask as u8)?;
+        i2c::pca9548_select(self.busno, 0x71, (mask >> 8) as u8)?;
+        Ok(())
+    }
+
+    fn write(&self, addr: u8, value: u8) -> Result<(), &'static str> {
+        i2c::start(self.busno)?;
+        i2c::write(self.busno, self.address)?;
+        i2c::write(self.busno, addr)?;
+        i2c::write(self.busno, value)?;
+        i2c::stop(self.busno)?;
+        Ok(())
+    }
+
+    pub fn init(&mut self) -> Result<(), &'static str> {
+        self.select()?;
+
+        let mut iodir = [0xffu8; 2];
+        for (_led, port, bit) in self.virtual_led_mapping.iter() {
+            iodir[*port as usize] &= !(1 << *bit);
+        }
+        self.write(0x00, iodir[0])?;
+        self.write(0x01, iodir[1])?;
+
+        self.out_current[0] = 0x00;
+        self.write(0x12, 0x00)?;
+        self.out_current[1] = 0x00;
+        self.write(0x13, 0x00)?;
+        Ok(())
+    }
+
+    pub fn set(&mut self, port: u8, bit: u8, high: bool) {
+        if high {
+            self.out_target[port as usize] |= 1 << bit;
+        } else {
+            self.out_target[port as usize] &= !(1 << bit);
+        }
+    }
+
+    pub fn service(&mut self) -> Result<(), &'static str> {
+        for (led, port, bit) in self.virtual_led_mapping.iter() {
+            // TODO: get level from gateware
+            self.set(*port, *bit, false);
+        }
+
+        if self.out_target != self.out_current {
+            self.select()?;
+            if self.out_target[0] != self.out_current[0] {
+                self.write(0x12, self.out_target[0])?;
+                self.out_current[0] = self.out_target[0];
+            }
+            if self.out_target[1] != self.out_current[1] {
+                self.write(0x13, self.out_target[1])?;
+                self.out_current[1] = self.out_target[1];
+            }
+        }
+
+        Ok(())
+    }
+}
