@@ -1,10 +1,5 @@
 use i2c;
 
-#[cfg(soc_platform = "kasli")]
-const I2C_SWITCH0: u8 = 0x70;
-#[cfg(soc_platform = "kasli")]
-const I2C_SWITCH1: u8 = 0x71;
-
 /// [Hardware manual](http://ww1.microchip.com/downloads/en/DeviceDoc/24AA02E48-24AA025E48-24AA02E64-24AA025E64-Data-Sheet-20002124H.pdf)
 pub struct EEPROM {
     busno: u8,
@@ -13,7 +8,8 @@ pub struct EEPROM {
 }
 
 impl EEPROM {
-    pub fn kasli1_eeprom() -> Self {
+    #[cfg(all(soc_platform = "kasli", any(hw_rev = "v1.0", hw_rev = "v1.1")))]
+    pub fn new() -> Self {
         EEPROM {
             busno: 0,
             /// Same port as Si5324
@@ -22,7 +18,8 @@ impl EEPROM {
         }
     }
 
-    pub fn kasli2_eeprom() -> Self {
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    pub fn new() -> Self {
         EEPROM {
             busno: 0,
             /// SHARED I2C bus
@@ -31,11 +28,11 @@ impl EEPROM {
         }
     }
 
+    #[cfg(soc_platform = "kasli")]
     fn select(&self) -> Result<(), &'static str> {
         let mask: u16 = 1 << self.port;
-        i2c::pca9548_select(self.busno, I2C_SWITCH0, mask as u8)?;
-        i2c::pca9548_select(self.busno, I2C_SWITCH1, (mask >> 8) as u8)?;
-
+        i2c::pca9548_select(self.busno, 0x70, mask as u8)?;
+        i2c::pca9548_select(self.busno, 0x71, (mask >> 8) as u8)?;
         Ok(())
     }
 
