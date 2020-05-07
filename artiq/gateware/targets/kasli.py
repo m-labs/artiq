@@ -20,6 +20,7 @@ from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
+from artiq.gateware.drtio.wrpll import WRPLL, DDMTDSamplerGTP
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
@@ -452,7 +453,7 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -556,24 +557,38 @@ class SatelliteBase(BaseSoC):
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
         self.add_csr_group("drtiorep", drtiorep_csr_group)
 
-        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
-                else platform.request("si5324_clkin"),
-            rx_synchronizer=self.rx_synchronizer,
-            ref_clk=self.crg.clk125_div2, ref_div2=True,
-            rtio_clk_freq=rtio_clk_freq)
-        platform.add_false_path_constraints(
-            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-        self.csr_devices.append("siphaser")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
-        self.config["HAS_SI5324"] = None
-        self.config["SI5324_SOFT_RESET"] = None
 
         rtio_clk_period = 1e9/rtio_clk_freq
+        self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
+        if with_wrpll:
+            self.submodules.wrpll_sampler = DDMTDSamplerGTP(
+                self.drtio_transceiver,
+                platform.request("cdr_clk_clean_fabric"))
+            self.submodules.wrpll = WRPLL(
+                helper_clk_pads=platform.request("ddmtd_helper_clk"),
+                main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
+                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
+                ddmtd_inputs=self.wrpll_sampler)
+            self.csr_devices.append("wrpll")
+            platform.add_period_constraint(self.wrpll.cd_helper.clk, rtio_clk_period*0.99)
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.wrpll.cd_helper.clk)
+        else:
+            self.submodules.siphaser = SiPhaser7Series(
+                si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
+                    else platform.request("si5324_clkin"),
+                rx_synchronizer=self.rx_synchronizer,
+                ref_clk=self.crg.clk125_div2, ref_div2=True,
+                rtio_clk_freq=rtio_clk_freq)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+            self.csr_devices.append("siphaser")
+            self.config["HAS_SI5324"] = None
+            self.config["SI5324_SOFT_RESET"] = None
+
         gtp = self.drtio_transceiver.gtps[0]
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
@@ -658,7 +673,12 @@ def main():
     parser.add_argument("-V", "--variant", default="tester",
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(VARIANTS.keys()))))
+    parser.add_argument("--with-wrpll", default=False, action="store_true")
     args = parser.parse_args()
+
+    argdict = dict()
+    if args.with_wrpll:
+        argdict["with_wrpll"] = True
 
     variant = args.variant.lower()
     try:
@@ -666,7 +686,7 @@ def main():
     except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 
-    soc = cls(**soc_kasli_argdict(args))
+    soc = cls(**soc_kasli_argdict(args), **argdict)
     build_artiq_soc(soc, builder_argdict(args))
 
 

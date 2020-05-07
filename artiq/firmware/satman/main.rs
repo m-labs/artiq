@@ -464,6 +464,17 @@ pub extern fn main() -> i32 {
         io_expander1 = board_misoc::io_expander::IoExpander::new(1);
         io_expander0.init().expect("I2C I/O expander #0 initialization failed");
         io_expander1.init().expect("I2C I/O expander #1 initialization failed");
+        #[cfg(has_wrpll)]
+        {
+            io_expander0.set_oe(1, 1 << 7).unwrap();
+            io_expander0.set(1, 7, true);
+            io_expander0.service().unwrap();
+            io_expander1.set_oe(0, 1 << 7).unwrap();
+            io_expander1.set_oe(1, 1 << 7).unwrap();
+            io_expander1.set(0, 7, true);
+            io_expander1.set(1, 7, true);
+            io_expander1.service().unwrap();
+        }
     }
 
     #[cfg(has_si5324)]

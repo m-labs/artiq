@@ -6,6 +6,7 @@ pub struct IoExpander {
     port: u8,
     address: u8,
     virtual_led_mapping: &'static [(u8, u8, u8)],
+    iodir: [u8; 2],
     out_current: [u8; 2],
     out_target: [u8; 2],
 }
@@ -22,6 +23,7 @@ impl IoExpander {
                 port: 11,
                 address: 0x40,
                 virtual_led_mapping: &VIRTUAL_LED_MAPPING0,
+                iodir: [0xff; 2],
                 out_current: [0; 2],
                 out_target: [0; 2],
             },
@@ -30,6 +32,7 @@ impl IoExpander {
                 port: 11,
                 address: 0x42,
                 virtual_led_mapping: &VIRTUAL_LED_MAPPING1,
+                iodir: [0xff; 2],
                 out_current: [0; 2],
                 out_target: [0; 2],
             },
@@ -54,20 +57,30 @@ impl IoExpander {
         Ok(())
     }
 
+    fn update_iodir(&self) -> Result<(), &'static str> {
+        self.write(0x00, self.iodir[0])?;
+        self.write(0x01, self.iodir[1])?;
+        Ok(())
+    }
+
     pub fn init(&mut self) -> Result<(), &'static str> {
         self.select()?;
 
-        let mut iodir = [0xffu8; 2];
         for (_led, port, bit) in self.virtual_led_mapping.iter() {
-            iodir[*port as usize] &= !(1 << *bit);
+            self.iodir[*port as usize] &= !(1 << *bit);
         }
-        self.write(0x00, iodir[0])?;
-        self.write(0x01, iodir[1])?;
+        self.update_iodir()?;
 
         self.out_current[0] = 0x00;
         self.write(0x12, 0x00)?;
         self.out_current[1] = 0x00;
         self.write(0x13, 0x00)?;
+        Ok(())
+    }
+
+    pub fn set_oe(&mut self, port: u8, outputs: u8) -> Result<(), &'static str> {
+        self.iodir[port as usize] &= !outputs;
+        self.update_iodir()?;
         Ok(())
     }
 
