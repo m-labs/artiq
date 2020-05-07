@@ -11,6 +11,7 @@ Highlights:
 * Performance improvements:
   - #1432: SERDES TTL inputs can now detect edges on pulses that are shorter
     than the RTIO period
+* Coredevice SI to mu conversions now always return valid codes, or raise a `ValueError`.
 
 Breaking changes:
 
