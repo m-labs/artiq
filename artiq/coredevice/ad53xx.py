@@ -157,9 +157,6 @@ class AD53xx:
         self.offset_dacs = offset_dacs
         self.core = dmgr.get(core)
 
-    # make driver accessible (see #1341)
-    voltage_to_mu = staticmethod(voltage_to_mu)
-
     @kernel
     def init(self, blind=False):
         """Configures the SPI bus, drives LDAC and CLR high, programmes
@@ -375,3 +372,14 @@ class AD53xx:
         self.core.break_realtime()
         self.write_offset_mu(channel, 0x8000-offset_err)
         self.write_gain_mu(channel, 0xffff-gain_err)
+
+    @portable
+    def voltage_to_mu(self, voltage):
+        """Returns the 16-bit DAC register value required to produce a given
+        output voltage, assuming offset and gain errors have been trimmed out.
+
+        Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset
+
+        :param voltage: Voltage
+        """
+        return voltage_to_mu(voltage, self.offset_dacs, self.vref)
