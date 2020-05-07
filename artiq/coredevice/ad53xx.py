@@ -97,11 +97,10 @@ def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
       (default: 0x2000)
     :param vref: DAC reference voltage (default: 5.)
     """
-    volt_lims = [-16 * vref * offset_dacs / (1 << 16),
-                 4 * vref * ((1 << 16) - 1 - 4 * offset_dacs) / (1 << 16)]
-    if voltage < volt_lims[0] or voltage > volt_lims[1]:
+    code = int(round((1 << 16) * (voltage / (4. * vref)) + offset_dacs * 0x4))
+    if code < 0x0 or code > 0xffff:
         raise ValueError("Invalid DAC voltage!")
-    return int(round((1 << 16) * (voltage / (4. * vref)) + offset_dacs * 0x4))
+    return code
 
 
 class _DummyTTL:
