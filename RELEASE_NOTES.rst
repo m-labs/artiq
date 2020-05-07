@@ -11,6 +11,7 @@ Highlights:
 * Performance improvements:
   - #1432: SERDES TTL inputs can now detect edges on pulses that are shorter
     than the RTIO period
+* Zotino now exposes `voltage_to_mu()`
 
 Breaking changes:
 
@@ -60,7 +61,6 @@ Highlights:
 * Python 3.7 compatibility (Nix and source builds only, no Conda).
 * Various other bugs from 4.0 fixed.
 * Preliminary Sayma v2 and Metlino hardware support.
-* Zotino now exposes `voltage_to_mu()`
 
 Breaking changes:
 
