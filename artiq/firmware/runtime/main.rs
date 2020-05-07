@@ -298,6 +298,11 @@ pub fn oom(layout: core::alloc::Layout) -> ! {
 pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
     irq::set_ie(false);
 
+    #[cfg(has_error_led)]
+    unsafe {
+        csr::error_led::out_write(1);
+    }
+
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
     } else {

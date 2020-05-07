@@ -648,6 +648,11 @@ pub extern fn abort() {
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
 #[panic_implementation]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
+    #[cfg(has_error_led)]
+    unsafe {
+        csr::error_led::out_write(1);
+    }
+
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
     } else {

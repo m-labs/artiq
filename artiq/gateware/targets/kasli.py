@@ -110,9 +110,10 @@ class StandaloneBase(MiniSoC, AMPSoC):
         AMPSoC.__init__(self)
         add_identifier(self)
 
-        self.submodules.leds = gpio.GPIOOut(Cat(
-            self.platform.request("user_led", 0)))
-        self.csr_devices.append("leds")
+        if self.platform.hw_rev == "v2.0":
+            self.submodules.error_led = gpio.GPIOOut(Cat(
+                self.platform.request("error_led")))
+            self.csr_devices.append("error_led")
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
