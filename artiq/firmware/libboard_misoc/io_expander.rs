@@ -1,4 +1,5 @@
 use i2c;
+use csr;
 
 pub struct IoExpander {
     busno: u8,
@@ -80,8 +81,10 @@ impl IoExpander {
 
     pub fn service(&mut self) -> Result<(), &'static str> {
         for (led, port, bit) in self.virtual_led_mapping.iter() {
-            // TODO: get level from gateware
-            self.set(*port, *bit, false);
+            let level = unsafe {
+                (csr::virtual_leds::status_read() >> led) & 1
+            };
+            self.set(*port, *bit, level != 0);
         }
 
         if self.out_target != self.out_current {
