@@ -197,7 +197,7 @@ class SUServo(StandaloneBase):
     """
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v1.1"
+            hw_rev = "v2.0"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
@@ -588,7 +588,7 @@ class SatelliteBase(BaseSoC):
 class Master(MasterBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v1.1"
+            hw_rev = "v2.0"
         MasterBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
@@ -611,7 +611,7 @@ class Master(MasterBase):
 class Satellite(SatelliteBase):
     def __init__(self, hw_rev=None, **kwargs):
         if hw_rev is None:
-            hw_rev = "v1.1"
+            hw_rev = "v2.0"
         SatelliteBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.rtio_channels = []
