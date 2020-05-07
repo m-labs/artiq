@@ -306,9 +306,12 @@ class MasterBase(MiniSoC, AMPSoC):
         if enable_sata:
             drtio_data_pads.append(platform.request("sata"))
         drtio_data_pads += [platform.request("sfp", i) for i in range(1, 3)]
+        if self.platform.hw_rev == "v2.0":
+            drtio_data_pads.append(platform.request("sfp", 3))
 
-        sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
-        self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
+        if self.platform.hw_rev in ("v1.0", "v1.1"):
+            sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
+            self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
 
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
@@ -316,15 +319,19 @@ class MasterBase(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += self.disable_si5324_ibuf.eq(
+        self.sync += self.disable_cdr_clk_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
         else:
             sfp_channels = self.drtio_transceiver.channels
-        self.comb += [sfp_ctl.led.eq(channel.rx_ready)
-            for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
+        if self.platform.hw_rev in ("v1.0", "v1.1"):
+            self.comb += [sfp_ctl.led.eq(channel.rx_ready)
+                for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
+        if self.platform.hw_rev == "v2.0":
+            self.comb += [self.virtual_leds.get(i + 1).eq(channel.rx_ready)
+                          for i, channel in enumerate(sfp_channels)]
 
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
 
@@ -408,14 +415,17 @@ class MasterBase(MiniSoC, AMPSoC):
     def create_qpll(self):
         # The GTP acts up if you send any glitch to its
         # clock input, even while the PLL is held in reset.
-        self.disable_si5324_ibuf = Signal(reset=1)
-        self.disable_si5324_ibuf.attr.add("no_retiming")
-        si5324_clkout = self.platform.request("si5324_clkout")
-        si5324_clkout_buf = Signal()
+        self.disable_cdr_clk_ibuf = Signal(reset=1)
+        self.disable_cdr_clk_ibuf.attr.add("no_retiming")
+        if self.platform.hw_rev == "v2.0":
+            cdr_clk_clean = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_clean = self.platform.request("si5324_clkout")
+        cdr_clk_clean_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=self.disable_si5324_ibuf,
-            i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
-            o_O=si5324_clkout_buf)
+            i_CEB=self.disable_cdr_clk_ibuf,
+            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
+            o_O=cdr_clk_clean_buf)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -430,7 +440,7 @@ class MasterBase(MiniSoC, AMPSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings,
+        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings,
                     self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
@@ -452,44 +462,54 @@ class SatelliteBase(BaseSoC):
 
         platform = self.platform
 
-        disable_si5324_ibuf = Signal(reset=1)
-        disable_si5324_ibuf.attr.add("no_retiming")
-        si5324_clkout = platform.request("si5324_clkout")
-        si5324_clkout_buf = Signal()
+        disable_cdr_clk_ibuf = Signal(reset=1)
+        disable_cdr_clk_ibuf.attr.add("no_retiming")
+        if self.platform.hw_rev == "v2.0":
+            cdr_clk_clean = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_clean = self.platform.request("si5324_clkout")
+        cdr_clk_clean_buf = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=disable_si5324_ibuf,
-            i_I=si5324_clkout.p, i_IB=si5324_clkout.n,
-            o_O=si5324_clkout_buf)
+            i_CEB=disable_cdr_clk_ibuf,
+            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
+            o_O=cdr_clk_clean_buf)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(si5324_clkout_buf, qpll_drtio_settings)
+        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings)
         self.submodules += qpll
 
         drtio_data_pads = []
         if enable_sata:
             drtio_data_pads.append(platform.request("sata"))
         drtio_data_pads += [platform.request("sfp", i) for i in range(3)]
+        if self.platform.hw_rev == "v2.0":
+            drtio_data_pads.append(platform.request("sfp", 3))
 
-        sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
-        self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
+        if self.platform.hw_rev in ("v1.0", "v1.1"):
+            sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
+            self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
             data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += disable_si5324_ibuf.eq(
+        self.sync += disable_cdr_clk_ibuf.eq(
             ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
         else:
             sfp_channels = self.drtio_transceiver.channels
-        self.comb += [sfp_ctl.led.eq(channel.rx_ready)
-            for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
+        if self.platform.hw_rev in ("v1.0", "v1.1"):
+            self.comb += [sfp_ctl.led.eq(channel.rx_ready)
+                for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
+        if self.platform.hw_rev == "v2.0":
+            self.comb += [self.virtual_leds.get(i).eq(channel.rx_ready)
+                          for i, channel in enumerate(sfp_channels)]
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
 
@@ -538,7 +558,8 @@ class SatelliteBase(BaseSoC):
 
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
         self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("si5324_clkin"),
+            si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
+                else platform.request("si5324_clkin"),
             rx_synchronizer=self.rx_synchronizer,
             ref_clk=self.crg.clk125_div2, ref_div2=True,
             rtio_clk_freq=rtio_clk_freq)
