@@ -292,7 +292,7 @@ class CPLD:
         :meth:`get_att_mu` to retrieve the hardware state set in previous experiments.
 
         :param channel: Attenuator channel (0-3).
-        :param att: Digital attenuation setting:
+        :param att: 8-bit digital attenuation setting:
             255 minimum attenuation, 0 maximum attenuation (31.5 dB)
         """
         a = self.att_reg & ~(0xff << (channel * 8))
@@ -325,7 +325,10 @@ class CPLD:
             attenuation. Minimum attenuation is 0*dB, maximum attenuation is
             31.5*dB.
         """
-        self.set_att_mu(channel, 255 - int32(round(att*8)))
+        code = 255 - int32(round(att*8))
+        if code < 0 or code > 255:
+            raise ValueError("Invalid urukul.CPLD attenuation!")
+        self.set_att_mu(channel, code)
 
     @kernel
     def get_att_mu(self):

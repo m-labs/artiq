@@ -558,5 +558,7 @@ class Channel:
         :param y: IIR state in units of full scale
         """
         y_mu = int(round(y * Y_FULL_SCALE_MU))
+        if y_mu < 0 or y_mu > (1 << 17) - 1:
+            raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
