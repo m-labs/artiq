@@ -11,6 +11,7 @@ Highlights:
 * Performance improvements:
   - #1432: SERDES TTL inputs can now detect edges on pulses that are shorter
     than the RTIO period
+* Zotino now exposes `voltage_to_mu()`
 
 Breaking changes:
 
