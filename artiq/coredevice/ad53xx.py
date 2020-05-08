@@ -86,16 +86,19 @@ def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
     """Returns the 16-bit DAC register value required to produce a given output
     voltage, assuming offset and gain errors have been trimmed out.
 
+    The 16-bit register value may also be used with 14-bit DACs. The additional
+    bits are disregarded by 14-bit DACs.
+
     Also used to return offset register value required to produce a given
     voltage when the DAC register is set to mid-scale.
     An offset of V can be used to trim out a DAC offset error of -V.
 
-    Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset
-
-    :param voltage: Voltage
+    :param voltage: Voltage in SI units.
+        Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset.
     :param offset_dacs: Register value for the two offset DACs
       (default: 0x2000)
     :param vref: DAC reference voltage (default: 5.)
+    :return: The 16-bit DAC register value
     """
     code = int(round((1 << 16) * (voltage / (4. * vref)) + offset_dacs * 0x4))
     if code < 0x0 or code > 0xffff:
@@ -114,8 +117,8 @@ class _DummyTTL:
 
 
 class AD53xx:
-    """Analog devices AD53[67][0123] family of 16-bit multi-channel Digital to
-    Analog Converters.
+    """Analog devices AD53[67][0123] family of multi-channel Digital to Analog
+    Converters.
 
     :param spi_device: SPI bus device name
     :param ldac_device: LDAC RTIO TTLOut channel name (optional)
@@ -378,8 +381,11 @@ class AD53xx:
         """Returns the 16-bit DAC register value required to produce a given
         output voltage, assuming offset and gain errors have been trimmed out.
 
-        Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset
+        The 16-bit register value may also be used with 14-bit DACs. The
+        additional bits are disregarded by 14-bit DACs.
 
-        :param voltage: Voltage
+        :param voltage: Voltage in SI units.
+            Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset.
+        :return: The 16-bit DAC register value
         """
         return voltage_to_mu(voltage, self.offset_dacs, self.vref)
