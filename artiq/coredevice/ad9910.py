@@ -539,9 +539,9 @@ class AD9910:
     def set_asf(self, asf):
         """Set the value stored to the AD9910's amplitude scale factor (ASF) register.
 
-        :param asf: Amplitude scale factor to be stored, range: 0 to 0x3ffe.
+        :param asf: Amplitude scale factor to be stored, range: 0 to 0x3fff.
         """
-        self.write32(_AD9910_REG_ASF, asf<<2)
+        self.write32(_AD9910_REG_ASF, asf << 2)
 
     @kernel
     def set_pow(self, pow_):
@@ -581,8 +581,8 @@ class AD9910:
     def amplitude_to_asf(self, amplitude):
         """Return 14-bit amplitude scale factor corresponding to given
         fractional amplitude."""
-        code = int32(round(amplitude * 0x3ffe))
-        if code < 0 or code > (1 << 14) - 1:
+        code = int32(round(amplitude * 0x3fff))
+        if code < 0 or code > 0x3fff:
             raise ValueError("Invalid AD9910 fractional amplitude!")
         return code
 
@@ -590,7 +590,7 @@ class AD9910:
     def asf_to_amplitude(self, asf):
         """Return amplitude as a fraction of full scale corresponding to given
         amplitude scale factor."""
-        return asf / float(0x3ffe)
+        return asf / float(0x3fff)
 
     @portable(flags={"fast-math"})
     def frequency_to_ram(self, frequency, ram):
