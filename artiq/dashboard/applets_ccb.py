@@ -183,16 +183,16 @@ class AppletsCCBDock(applets.AppletsDock):
         else:
             spec = {"ty": "code", "code": code, "command": command}
         if applet is None:
-            logger.debug('Applet {} does not exist: creating'.format(name))
+            logger.debug("Applet %s does not exist: creating", name)
             applet = self.new(name=name, spec=spec, parent=parent)
         else:
             if spec != self.get_spec(applet):
-                logger.debug('Applet {} already exists: updating existing spec'.format(name))
+                logger.debug("Applet %s already exists: updating existing spec", name)
                 self.set_spec(applet, spec)
                 if applet.applet_dock:
                     asyncio.ensure_future(applet.applet_dock.restart())
             else:
-                logger.debug('Applet {} already exists and no update required'.format(name))
+                logger.debug("Applet %s already exists and no update required", name)
 
         if ccbp == "enable":
             applet.setCheckState(0, QtCore.Qt.Checked)
