@@ -13,6 +13,7 @@ Highlights:
     than the RTIO period
 * Coredevice SI to mu conversions now always return valid codes, or raise a `ValueError`.
 * Zotino now exposes `voltage_to_mu()`
+* Applets now restart if they are running and a ccb call changes their spec
 
 Breaking changes:
 
