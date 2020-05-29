@@ -46,6 +46,7 @@ class Master(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
+                         csr_address_width=15,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self)
@@ -67,8 +68,7 @@ class Master(MiniSoC, AMPSoC):
 
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean", 0),
-            # use only a few channels to work around Vivado bug
-            data_pads=[platform.request("mch_fabric_d", i) for i in range(3)],
+            data_pads=[platform.request("mch_fabric_d", i) for i in range(11)],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")

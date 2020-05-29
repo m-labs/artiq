@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 from PyQt5 import QtCore, QtWidgets
@@ -149,15 +150,16 @@ class AppletsCCBDock(applets.AppletsDock):
         corresponds to a single group. If ``group`` is ``None`` or an empty
         list, it corresponds to the root.
 
-        ``command`` gives the command line used to run the applet, as if it
-        was started from a shell. The dashboard substitutes variables such as
-        ``$python`` that gives the complete file name of the Python
-        interpreter running the dashboard.
+        ``command`` gives the command line used to run the applet, as if it was
+        started from a shell. The dashboard substitutes variables such as
+        ``$python`` that gives the complete file name of the Python interpreter
+        running the dashboard.
 
         If the name already exists (after following any specified groups), the
         command or code of the existing applet with that name is replaced, and
-        the applet is shown at its previous position. If not, a new applet
-        entry is created and the applet is shown at any position on the screen.
+        the applet is restarted and shown at its previous position. If not, a
+        new applet entry is created and the applet is shown at any position on
+        the screen.
 
         If the group(s) do not exist, they are created.
 
@@ -181,9 +183,17 @@ class AppletsCCBDock(applets.AppletsDock):
         else:
             spec = {"ty": "code", "code": code, "command": command}
         if applet is None:
+            logger.debug("Applet %s does not exist: creating", name)
             applet = self.new(name=name, spec=spec, parent=parent)
         else:
-            self.set_spec(applet, spec)
+            if spec != self.get_spec(applet):
+                logger.debug("Applet %s already exists: updating existing spec", name)
+                self.set_spec(applet, spec)
+                if applet.applet_dock:
+                    asyncio.ensure_future(applet.applet_dock.restart())
+            else:
+                logger.debug("Applet %s already exists and no update required", name)
+
         if ccbp == "enable":
             applet.setCheckState(0, QtCore.Qt.Checked)
 

@@ -15,6 +15,7 @@ Highlights:
 * Zotino now exposes `voltage_to_mu()`
 * `ad9910`: The maximum amplitude scale factor is now `0x3fff` (was `0x3ffe`
   before).
+* Applets now restart if they are running and a ccb call changes their spec
 
 Breaking changes:
 
