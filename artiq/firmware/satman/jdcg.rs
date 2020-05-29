@@ -527,7 +527,7 @@ pub mod jesd204sync {
         info!("  ...done");
 
         // We tested that the value is correct - now use it
-        info!("sychronizing DAC-{}", dacno);
+        info!("synchronizing DAC-{}", dacno);
         hmc7043_sysref_delay_dac(dacno, delay);
         ad9154_sync(dacno)?;
 
@@ -570,7 +570,7 @@ pub mod jesd204sync {
 
     pub fn resync_dacs() -> Result<(), &'static str> {
         for dacno in 0..csr::JDCG.len() {
-            info!("resychronizing DAC-{}", dacno);
+            info!("resynchronizing DAC-{}", dacno);
             ad9154_sync(dacno as u8)?;
         }
         Ok(())
