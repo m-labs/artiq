@@ -46,6 +46,7 @@ class Master(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
+                         csr_address_width=15,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self)
