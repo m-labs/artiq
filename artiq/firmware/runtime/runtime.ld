@@ -65,7 +65,7 @@ SECTIONS
         _ebss = .;
     } > runtime
 
-    .stack ALIGN(0x1000) :
+    .stack :
     {
         . += 0x4000;
         _fstack = . - 4;
