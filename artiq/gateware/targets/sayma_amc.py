@@ -50,7 +50,7 @@ class SatelliteBase(MiniSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", *, with_wrpll, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", with_sfp=False, *, with_wrpll, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -68,15 +68,15 @@ class SatelliteBase(MiniSoC):
             clock_recout_pads = platform.request("ddmtd_rec_clk")
         else:
             clock_recout_pads = None
-        # Use SFP0 to connect to master (Kasli)
-        self.comb += platform.request("sfp_tx_disable", 0).eq(0)
-        drtio_data_pads = [
-            platform.request("sfp", 0),
-            platform.request("rtm_amc_link")
-        ]
+        if with_sfp:
+            # Use SFP0 to connect to master (Kasli)
+            self.comb += platform.request("sfp_tx_disable", 0).eq(0)
+            drtio_uplink = platform.request("sfp", 0)
+        else:
+            drtio_uplink = platform.request("fat_pipe", 0)
         self.submodules.drtio_transceiver = gth_ultrascale.GTH(
             clock_pads=platform.request("cdr_clk_clean"),
-            data_pads=drtio_data_pads,
+            data_pads=[drtio_uplink, platform.request("rtm_amc_link")],
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq,
             clock_recout_pads=clock_recout_pads)
@@ -393,6 +393,8 @@ def main():
     parser.add_argument("-V", "--variant", default="satellite",
         help="variant: satellite/simplesatellite "
              "(default: %(default)s)")
+    parser.add_argument("--sfp", default=False,
+        help="use SFP port for DRTIO instead of uTCA backplane")
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
         help="CSV file listing remote CSRs on RTM (default: %(default)s)")
@@ -405,10 +407,10 @@ def main():
 
     variant = args.variant.lower()
     if variant == "satellite":
-        soc = Satellite(jdcg_type=args.jdcg_type, with_wrpll=args.with_wrpll,
+        soc = Satellite(with_sfp=args.sfp, jdcg_type=args.jdcg_type, with_wrpll=args.with_wrpll,
                         **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
-        soc = SimpleSatellite(with_wrpll=args.with_wrpll, **soc_sayma_amc_argdict(args))
+        soc = SimpleSatellite(with_sfp=args.sfp, with_wrpll=args.with_wrpll, **soc_sayma_amc_argdict(args))
     else:
         raise SystemExit("Invalid variant (-V/--variant)")
 
