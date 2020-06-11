@@ -123,7 +123,7 @@ Sequence errors
 ---------------
 A sequence error happens when the sequence of coarse timestamps cannot be supported by the gateware. For example, there may have been too many timeline rewinds.
 
-Internally, the gateware stores output events in an array of FIFO buffers (the "lanes") and the timestamps in each lane much be strictly increasing. The gateware selects a different lane when an event with a decreasing or equal timestamp is submitted. A sequence error occurs when no appropriate lane can be found.
+Internally, the gateware stores output events in an array of FIFO buffers (the "lanes") and the timestamps in each lane must be strictly increasing. If an event with a decreasing or equal timestamp is submitted, the gateware selects the next lane, wrapping around if the final lane is reached. If this lane also contains an event with a timestamp beyond the one being submitted then a sequence error occurs. See `this issue <https://github.com/m-labs/artiq/issues/1081>`_ for a real-life example of how this works. 
 
 Notes:
 
@@ -131,6 +131,7 @@ Notes:
 * Configuring the gateware with more lanes for the RTIO core reduces the frequency of sequence errors.
 * The number of lanes is a hard limit on the number of simultaneous RTIO output events.
 * Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the whole sequence does not affect the result.
+* Zero-duration methods (such as :meth:`artiq.coredevice.ttl.TTLOut.on()`) do not advance the timeline and so will consume additional lanes if they are scheduled simultaneously. Adding a tiny delay will prevent this (e.g. ``delay_mu(self.core.ref_multiplier)``, at least one coarse rtio cycle). 
 
 The offending event is discarded and the RTIO core keeps operating.
 
