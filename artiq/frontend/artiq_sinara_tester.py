@@ -324,15 +324,33 @@ class SinaraTester(EnvExperiment):
             i += 1
         zotino.load()
 
+    @kernel
+    def zotinos_led_wave(self, zotinos):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for zotino in zotinos:
+                for i in range(8):
+                    zotino.set_leds(1 << i)
+                    delay(100*ms)
+                zotino.set_leds(0)
+                delay(100*ms)
+
     def test_zotinos(self):
-        print("*** Testing Zotino DACs.")
+        print("*** Testing Zotino DACs and USER LEDs.")
         print("Voltages:")
         for card_n, (card_name, card_dev) in enumerate(self.zotinos):
             voltages = [(-1)**i*(2.*card_n + .1*(i//2 + 1)) for i in range(32)]
             print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
             self.set_zotino_voltages(card_dev, voltages)
         print("Press ENTER when done.")
-        input()
+        # Test switching on/off USR_LEDs at the same time
+        self.zotinos_led_wave(
+            [card_dev for _, (__, card_dev) in enumerate(self.zotinos)]
+        )
 
     @kernel
     def set_fastino_voltages(self, fastino, voltages):
