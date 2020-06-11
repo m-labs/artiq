@@ -50,6 +50,7 @@ class SinaraTester(EnvExperiment):
         self.urukuls = dict()
         self.samplers = dict()
         self.zotinos = dict()
+        self.fastinos = dict()
         self.grabbers = dict()
 
         ddb = self.get_device_db()
@@ -74,6 +75,8 @@ class SinaraTester(EnvExperiment):
                     self.samplers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.zotino", "Zotino"):
                     self.zotinos[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.fastino", "Fastino"):
+                    self.fastinos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
 
@@ -107,6 +110,7 @@ class SinaraTester(EnvExperiment):
         self.urukuls = sorted(self.urukuls.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].chip_select))
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
+        self.fastinos = sorted(self.fastinos.items(), key=lambda x: x[1].channel)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
 
     @kernel
@@ -331,6 +335,45 @@ class SinaraTester(EnvExperiment):
         input()
 
     @kernel
+    def set_fastino_voltages(self, fastino, voltages):
+        self.core.break_realtime()
+        fastino.init()
+        delay(200*us)
+        i = 0
+        for voltage in voltages:
+            fastino.set_dac(i, voltage)
+            delay(100*us)
+            i += 1
+
+    @kernel
+    def fastinos_led_wave(self, fastinos):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for fastino in fastinos:
+                for i in range(8):
+                    fastino.set_leds(1 << i)
+                    delay(100*ms)
+                fastino.set_leds(0)
+                delay(100*ms)
+
+    def test_fastinos(self):
+        print("*** Testing Fastino DACs and USER LEDs.")
+        print("Voltages:")
+        for card_n, (card_name, card_dev) in enumerate(self.fastinos):
+            voltages = [(-1)**i*(2.*card_n + .1*(i//2 + 1)) for i in range(32)]
+            print(card_name, " ".join(["{:.1f}".format(x) for x in voltages]))
+            self.set_fastino_voltages(card_dev, voltages)
+        print("Press ENTER when done.")
+        # Test switching on/off USR_LEDs at the same time
+        self.fastinos_led_wave(
+            [card_dev for _, (__, card_dev) in enumerate(self.fastinos)]
+        )
+
+    @kernel
     def grabber_capture(self, card_dev, rois):
         self.core.break_realtime()
         delay(100*us)
@@ -380,6 +423,8 @@ class SinaraTester(EnvExperiment):
             self.test_samplers()
         if self.zotinos:
             self.test_zotinos()
+        if self.fastinos:
+            self.test_fastinos()
         if self.grabbers:
             self.test_grabbers()
 
