@@ -213,6 +213,11 @@ def setup_diagnostics(experiment_file, repository_path):
     artiq.coredevice.core._DiagnosticEngine.render_diagnostic = \
         render_diagnostic
 
+
+def put_completed():
+    put_object({"action": "completed"})
+
+
 def put_exception_report():
     _, exc, _ = sys.exc_info()
     # When we get CompileError, a more suitable diagnostic has already
@@ -281,14 +286,14 @@ def main():
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
                 exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "prepare":
                 exp_inst.prepare()
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "run":
                 run_time = time.time()
                 exp_inst.run()
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "analyze":
                 try:
                     exp_inst.analyze()
@@ -297,7 +302,7 @@ def main():
                     # write results afterwards
                     put_exception_report()
                 else:
-                    put_object({"action": "completed"})
+                    put_completed()
             elif action == "write_results":
                 filename = "{:09}-{}.h5".format(rid, exp.__name__)
                 with h5py.File(filename, "w") as f:
@@ -307,10 +312,10 @@ def main():
                     f["start_time"] = start_time
                     f["run_time"] = run_time
                     f["expid"] = pyon.encode(expid)
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "terminate":
                 break
     except:
