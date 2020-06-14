@@ -252,6 +252,16 @@ def main():
     exp_inst = None
     repository_path = None
 
+    def write_results():
+        filename = "{:09}-{}.h5".format(rid, exp.__name__)
+        with h5py.File(filename, "w") as f:
+            dataset_mgr.write_hdf5(f)
+            f["artiq_version"] = artiq_version
+            f["rid"] = rid
+            f["start_time"] = start_time
+            f["run_time"] = run_time
+            f["expid"] = pyon.encode(expid)
+
     device_mgr = DeviceManager(ParentDeviceDB,
                                virtual_devices={"scheduler": Scheduler(),
                                                 "ccb": CCB()})
@@ -292,27 +302,20 @@ def main():
                 put_completed()
             elif action == "run":
                 run_time = time.time()
-                exp_inst.run()
+                try:
+                    exp_inst.run()
+                except:
+                    # Only write results in run() on failure; on success wait
+                    # for end of analyze stage.
+                    write_results()
+                    raise
                 put_completed()
             elif action == "analyze":
                 try:
                     exp_inst.analyze()
-                except:
-                    # make analyze failure non-fatal, as we may still want to
-                    # write results afterwards
-                    put_exception_report()
-                else:
                     put_completed()
-            elif action == "write_results":
-                filename = "{:09}-{}.h5".format(rid, exp.__name__)
-                with h5py.File(filename, "w") as f:
-                    dataset_mgr.write_hdf5(f)
-                    f["artiq_version"] = artiq_version
-                    f["rid"] = rid
-                    f["start_time"] = start_time
-                    f["run_time"] = run_time
-                    f["expid"] = pyon.encode(expid)
-                put_completed()
+                finally:
+                    write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_completed()

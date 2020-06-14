@@ -115,7 +115,6 @@ class Run:
     run = _mk_worker_method("run")
     resume = _mk_worker_method("resume")
     analyze = _mk_worker_method("analyze")
-    write_results = _mk_worker_method("write_results")
 
 
 class RunPool:
@@ -309,13 +308,8 @@ class AnalyzeStage(TaskObject):
             try:
                 await run.analyze()
             except:
-                logger.error("got worker exception in analyze stage of RID %d."
-                             " Results will still be saved.", run.rid)
-                log_worker_exception()
-            try:
-                await run.write_results()
-            except:
-                logger.error("failed to write results of RID %d.", run.rid)
+                logger.error("got worker exception in analyze stage of RID %d.",
+                             run.rid)
                 log_worker_exception()
             self.delete_cb(run.rid)
 

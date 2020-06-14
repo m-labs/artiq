@@ -16,6 +16,7 @@ Highlights:
 * `ad9910`: The maximum amplitude scale factor is now `0x3fff` (was `0x3ffe`
   before).
 * Applets now restart if they are running and a ccb call changes their spec
+* Experiment results are now always saved to HDF5, even if run() fails.
 
 Breaking changes:
 
