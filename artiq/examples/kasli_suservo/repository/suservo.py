@@ -6,8 +6,7 @@ class SUServo(EnvExperiment):
         self.setattr_device("core")
         self.setattr_device("led0")
         self.setattr_device("suservo0")
-        for i in range(8):
-            self.setattr_device("suservo0_ch{}".format(i))
+        self.setattr_device("suservo0_ch0")
 
     def run(self):
         self.init()
@@ -63,8 +62,8 @@ class SUServo(EnvExperiment):
             offset=-.5,  # 5 V with above PGIA settings
             frequency=71*MHz,
             phase=0.)
-        # enable RF, IIR updates and profile 0
-        self.suservo0_ch0.set(en_out=1, en_iir=1, profile=0)
+        # enable RF, IIR updates, phase tracking and profile 0
+        self.suservo0_ch0.set(en_out=1, en_iir=1, en_pt=1, profile=0)
         # enable global servo iterations
         self.suservo0.set_config(enable=1)
 

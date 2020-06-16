@@ -343,13 +343,22 @@ class PeripheralManager:
             cnv_channel=rtio_offset + 2)
         return 3
 
-    def process_suservo(self, rtio_offset, peripheral):
+    def process_suservo(self, rtio_offset, peripheral, num_urukuls=2):
         suservo_name = self.get_name("suservo")
         sampler_name = self.get_name("sampler")
-        urukul0_name = self.get_name("urukul")
-        urukul1_name = self.get_name("urukul")
+        urukul_names = [self.get_name("urukul") for i in range(num_urukuls)]
         channel = count(0)
-        for i in range(8):
+        for urukul_name in urukul_names:
+            self.gen("""
+                device_db["ttl_{urukul_name}_io_update"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{ttl_channel:06x}}}
+                }}""",
+                urukul_name=urukul_name,
+                ttl_channel=rtio_offset+next(channel))
+        for i in range(4 * num_urukuls):
             self.gen("""
                 device_db["{suservo_name}_ch{suservo_chn}"] = {{
                     "type": "local",
@@ -368,16 +377,14 @@ class PeripheralManager:
                 "arguments": {{
                     "channel": 0x{suservo_channel:06x},
                     "pgia_device": "spi_{sampler_name}_pgia",
-                    "cpld0_device": "{urukul0_name}_cpld",
-                    "cpld1_device": "{urukul1_name}_cpld",
-                    "dds0_device": "{urukul0_name}_dds",
-                    "dds1_device": "{urukul1_name}_dds"
+                    "cpld_devices": {cpld_names_list},
+                    "dds_devices": {dds_names_list}
                 }}
             }}""",
             suservo_name=suservo_name,
             sampler_name=sampler_name,
-            urukul0_name=urukul0_name,
-            urukul1_name=urukul1_name,
+            cpld_names_list=[urukul_name + "_cpld" for urukul_name in urukul_names],
+            dds_names_list=[urukul_name + "_dds" for urukul_name in urukul_names],
             suservo_channel=rtio_offset+next(channel))
         self.gen("""
             device_db["spi_{sampler_name}_pgia"] = {{
@@ -389,7 +396,7 @@ class PeripheralManager:
             sampler_name=sampler_name,
             sampler_channel=rtio_offset+next(channel))
         pll_vco = peripheral.get("pll_vco", None)
-        for urukul_name in (urukul0_name, urukul1_name):
+        for urukul_name in urukul_names:
             self.gen("""
                 device_db["spi_{urukul_name}"] = {{
                     "type": "local",
@@ -403,6 +410,8 @@ class PeripheralManager:
                     "class": "CPLD",
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
+                        "io_update_device": "ttl_{urukul_name}_io_update",
+                        "sync_device": "clkgen_{suservo_name}_dds_sync_in",
                         "refclk": {refclk},
                         "clk_sel": {clk_sel}
                     }}
@@ -417,12 +426,25 @@ class PeripheralManager:
                         "cpld_device": "{urukul_name}_cpld"{pll_vco}
                     }}
                 }}""",
+                suservo_name=suservo_name,
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
                 refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
                 clk_sel=peripheral["clk_sel"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                 pll_n=peripheral.get("pll_n", 32))
+        self.gen("""
+            device_db["clkgen_{suservo_name}_dds_sync_in"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLClockGen",
+                "arguments": {{
+                    "channel": 0x{clkgen_channel:06x},
+                    "acc_width": 4
+                }}
+            }}""",
+            suservo_name=suservo_name,
+            clkgen_channel=rtio_offset+next(channel))
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):

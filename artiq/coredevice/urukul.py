@@ -24,6 +24,7 @@ SPIT_DDS_RD = 16
 CFG_RF_SW = 0
 CFG_LED = 4
 CFG_PROFILE = 8
+CFG_RB_EN = 11
 CFG_IO_UPDATE = 12
 CFG_MASK_NU = 13
 CFG_CLK_SEL0 = 17
@@ -51,15 +52,19 @@ CS_DDS_CH0 = 4
 CS_DDS_CH1 = 5
 CS_DDS_CH2 = 6
 CS_DDS_CH3 = 7
-
+# chip selects for readback
+CS_RB_PROTO_REV = 1
+CS_RB_PLL_LOCK = 2
+CS_RB_LSBS = 3
 
 @portable
-def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
+def urukul_cfg(rf_sw, led, profile, rb_en, io_update, mask_nu,
                clk_sel, sync_sel, rst, io_rst, clk_div):
     """Build Urukul CPLD configuration register"""
     return ((rf_sw << CFG_RF_SW) |
             (led << CFG_LED) |
             (profile << CFG_PROFILE) |
+            (rb_en << CFG_RB_EN) |
             (io_update << CFG_IO_UPDATE) |
             (mask_nu << CFG_MASK_NU) |
             ((clk_sel & 0x01) << CFG_CLK_SEL0) |
@@ -188,7 +193,7 @@ class CPLD:
             assert sync_div is None
             sync_div = 0
 
-        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
+        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0, rb_en = 0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
                                   sync_sel=sync_sel,
                                   rst=0, io_rst=0, clk_div=clk_div)
@@ -223,6 +228,10 @@ class CPLD:
 
         :return: The status register value.
         """
+        return self.sta_read_impl()
+
+    @kernel
+    def sta_read_impl(self):
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 24,
                                SPIT_CFG_RD, CS_CFG)
         self.bus.write(self.cfg_reg << 8)

@@ -1,20 +1,18 @@
 from artiq.language.core import kernel, delay, delay_mu, portable
 from artiq.language.units import us, ns
+from artiq.language import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.coredevice import spi2 as spi
-from artiq.coredevice import urukul, sampler
+from artiq.coredevice import urukul, ad9910, sampler, spi2 as spi
 
+from numpy import int32, int64
+from math import ceil, log2
 
-COEFF_WIDTH = 18
+COEFF_WIDTH = 18 # Must match gateware IIRWidths.coeff
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
-COEFF_DEPTH = 10 + 1
-WE = 1 << COEFF_DEPTH + 1
-STATE_SEL = 1 << COEFF_DEPTH
-CONFIG_SEL = 1 << COEFF_DEPTH - 1
-CONFIG_ADDR = CONFIG_SEL | STATE_SEL
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
-COEFF_SHIFT = 11
-
+COEFF_SHIFT = 11 # Must match gateware IIRWidths.shift
+PROFILE_WIDTH = 5 # Must match gateware IIRWidths.profile
+FINE_TS_WIDTH = 3 # Must match gateware IIRWidths.ioup_dly
 
 @portable
 def y_mu_to_full_scale(y):
@@ -35,21 +33,21 @@ class SUServo:
     """Sampler-Urukul Servo parent and configuration device.
 
     Sampler-Urukul Servo is a integrated device controlling one
-    8-channel ADC (Sampler) and two 4-channel DDS (Urukuls) with a DSP engine
-    connecting the ADC data and the DDS output amplitudes to enable
+    8-channel ADC (Sampler) and any number of 4-channel DDS (Urukuls) with a DSP
+    engine connecting the ADC data and the DDS output amplitudes to enable
     feedback. SU Servo can for example be used to implement intensity
     stabilization of laser beams with an amplifier and AOM driven by Urukul
     and a photodetector connected to Sampler.
 
     Additionally SU Servo supports multiple preconfigured profiles per channel
-    and features like automatic integrator hold.
+    and features like automatic integrator hold and coherent phase tracking.
 
     Notes:
 
         * See the SU Servo variant of the Kasli target for an example of how to
           connect the gateware and the devices. Sampler and each Urukul need
           two EEM connections.
-        * Ensure that both Urukuls are AD9910 variants and have the on-board
+        * Ensure that all Urukuls are AD9910 variants and have the on-board
           dip switches set to 1100 (first two on, last two off).
         * Refer to the Sampler and Urukul documentation and the SU Servo
           example device database for runtime configuration of the devices
@@ -57,37 +55,44 @@ class SUServo:
 
     :param channel: RTIO channel number
     :param pgia_device: Name of the Sampler PGIA gain setting SPI bus
-    :param cpld0_device: Name of the first Urukul CPLD SPI bus
-    :param cpld1_device: Name of the second Urukul CPLD SPI bus
-    :param dds0_device: Name of the AD9910 device for the DDS on the first
-        Urukul
-    :param dds1_device: Name of the AD9910 device for the DDS on the second
-        Urukul
+    :param cpld_devices: Names of the Urukul CPLD SPI buses
+    :param dds_devices: Names of the AD9910 devices
     :param gains: Initial value for PGIA gains shift register
         (default: 0x0000). Knowledge of this state is not transferred
         between experiments.
     :param core_device: Core device name
     """
-    kernel_invariants = {"channel", "core", "pgia", "cpld0", "cpld1",
-                         "dds0", "dds1", "ref_period_mu"}
+    kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
+                         "ref_period_mu", "num_channels", "coeff_sel",
+                         "state_sel", "io_dly_addr", "config_addr",
+                         "write_enable"}
 
     def __init__(self, dmgr, channel, pgia_device,
-                 cpld0_device, cpld1_device,
-                 dds0_device, dds1_device,
+                 cpld_devices, dds_devices,
                  gains=0x0000, core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.pgia = dmgr.get(pgia_device)
         self.pgia.update_xfer_duration_mu(div=4, length=16)
-        self.dds0 = dmgr.get(dds0_device)
-        self.dds1 = dmgr.get(dds1_device)
-        self.cpld0 = dmgr.get(cpld0_device)
-        self.cpld1 = dmgr.get(cpld1_device)
+        assert len(dds_devices) == len(cpld_devices)
+        self.ddses = [dmgr.get(dds) for dds in dds_devices]
+        self.cplds = [dmgr.get(cpld) for cpld in cpld_devices]
         self.channel = channel
         self.gains = gains
         self.ref_period_mu = self.core.seconds_to_mu(
             self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier
+
+        # The width of parts of the servo memory address depends on the number
+        # of channels.
+        self.num_channels = 4 * len(dds_devices)
+        channel_width = ceil(log2(self.num_channels))
+        coeff_depth = PROFILE_WIDTH + channel_width + 3
+        self.io_dly_addr = 1 << (coeff_depth - 2)
+        self.state_sel = 2 << (coeff_depth - 2)
+        self.config_addr = 3 << (coeff_depth - 2)
+        self.coeff_sel = 1 << coeff_depth
+        self.write_enable = 1 << (coeff_depth + 1)
 
     @kernel
     def init(self):
@@ -109,17 +114,27 @@ class SUServo:
             sampler.SPI_CONFIG | spi.SPI_END,
             16, 4, sampler.SPI_CS_PGIA)
 
-        self.cpld0.init(blind=True)
-        cfg0 = self.cpld0.cfg_reg
-        self.cpld0.cfg_write(cfg0 | (0xf << urukul.CFG_MASK_NU))
-        self.dds0.init(blind=True)
-        self.cpld0.cfg_write(cfg0)
+        for i in range(len(self.cplds)):
+            cpld = self.cplds[i]
+            dds = self.ddses[i]
 
-        self.cpld1.init(blind=True)
-        cfg1 = self.cpld1.cfg_reg
-        self.cpld1.cfg_write(cfg1 | (0xf << urukul.CFG_MASK_NU))
-        self.dds1.init(blind=True)
-        self.cpld1.cfg_write(cfg1)
+            cpld.init(blind=True)
+            prev_cpld_cfg = cpld.cfg_reg
+            cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+            dds.init(blind=True)
+
+            if dds.sync_data.sync_delay_seed != -1:
+                for channel_idx in range(4):
+                    mask_nu_this = 1 << (urukul.CFG_MASK_NU + channel_idx)
+                    cpld.cfg_write(prev_cpld_cfg | mask_nu_this)
+                    delay(8 * us)
+                    dds.tune_sync_delay(dds.sync_data.sync_delay_seed,
+                                        cpld_channel_idx=channel_idx)
+                    delay(50 * us)
+            cpld.cfg_write(prev_cpld_cfg)
+
+        self.set_io_update_delays(
+            [dds.sync_data.io_update_delay for dds in self.ddses])
 
     @kernel
     def write(self, addr, value):
@@ -130,7 +145,7 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
-        addr |= WE
+        addr |= self.write_enable
         value &= (1 << COEFF_WIDTH) - 1
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
@@ -166,7 +181,26 @@ class SUServo:
             Disabling takes up to two servo cycles (~2.3 µs) to clear the
             processing pipeline.
         """
-        self.write(CONFIG_ADDR, enable)
+        self.write(self.config_addr, enable)
+
+    @kernel
+    def reset_dds_phases(self):
+        for i in range(len(self.cplds)):
+            cpld = self.cplds[i]
+            dds = self.ddses[i]
+
+            prev_cpld_cfg = cpld.cfg_reg
+            cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+
+            # Clear phase accumulator. Next IO_UPDATE (first servo write) will remove
+            # clear flag again.
+            dds.set_cfr1(phase_autoclear=1)
+            delay(10 * us)
+            cpld.io_update.pulse(10 * us)
+            delay(10 * us)
+            dds.set_cfr1(phase_autoclear=0)
+
+            cpld.cfg_write(prev_cpld_cfg)
 
     @kernel
     def get_status(self):
@@ -187,7 +221,7 @@ class SUServo:
         :return: Status. Bit 0: enabled, bit 1: done,
           bits 8-15: channel clip indicators.
         """
-        return self.read(CONFIG_ADDR)
+        return self.read(self.config_addr)
 
     @kernel
     def get_adc_mu(self, adc):
@@ -205,7 +239,8 @@ class SUServo:
         # State memory entries are 25 bits. Due to the pre-adder dynamic
         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
         # only returns the 18 MSBs (the width of the coefficient memory).
-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
+        return self.read(self.state_sel | (2 * adc +
+                                           (1 << PROFILE_WIDTH) * self.num_channels))
 
     @kernel
     def set_pgia_mu(self, channel, gain):
@@ -244,6 +279,18 @@ class SUServo:
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain)
 
+    @kernel
+    def set_io_update_delays(self, dlys):
+        """Set IO_UPDATE pulse alignment delays.
+
+        :param dlys: List of delays for each Urukul
+        """
+        bits = 0
+        mask_fine_ts = (1 << FINE_TS_WIDTH) - 1
+        for i in range(len(dlys)):
+            bits |= (dlys[i] & mask_fine_ts) << (FINE_TS_WIDTH * i)
+        self.write(self.io_dly_addr, bits)
+
 
 class Channel:
     """Sampler-Urukul Servo channel
@@ -257,12 +304,14 @@ class Channel:
         self.servo = dmgr.get(servo_device)
         self.core = self.servo.core
         self.channel = channel
-        # FIXME: this assumes the mem channel is right after the control
-        # channels
-        self.servo_channel = self.channel + 8 - self.servo.channel
+        # This assumes the mem channel is right after the control channels
+        # Make sure this is always the case in eem.py
+        self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
+                              self.servo.channel)
+        self.dds = self.servo.ddses[self.servo_channel // 4]
 
     @kernel
-    def set(self, en_out, en_iir=0, profile=0):
+    def set(self, en_out, en_iir=0, profile=0, en_pt=0):
         """Operate channel.
 
         This method does not advance the timeline. Output RF switch setting
@@ -276,9 +325,26 @@ class Channel:
         :param en_out: RF switch enable
         :param en_iir: IIR updates enable
         :param profile: Active profile (0-31)
+        :param en_pt: Coherent phase tracking enable
+            * en_pt=1: "coherent phase mode"
+            * en_pt=0: "continuous phase mode"
+            (see :func:`artiq.coredevice.ad9910.AD9910.set_phase_mode` for a
+            definition of the phase modes)
         """
         rtio_output(self.channel << 8,
-                    en_out | (en_iir << 1) | (profile << 2))
+                    en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
+
+    @kernel
+    def set_reference_time(self):
+        """Set reference time for "coherent phase mode" (see :meth:`set`).
+
+        This method does not advance the timeline.
+        With en_pt=1 (see :meth:`set`), the tracked DDS output phase of
+        this channel will refer to the current timeline position.
+
+        """
+        fine_ts = now_mu() & ((1 << FINE_TS_WIDTH) - 1)
+        rtio_output(self.channel << 8 | 1, self.dds.sysclk_per_mu * fine_ts)
 
     @kernel
     def set_dds_mu(self, profile, ftw, offs, pow_=0):
@@ -291,7 +357,8 @@ class Channel:
         :param offs: IIR offset (17 bit signed)
         :param pow_: Phase offset word (16 bit)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 0, ftw >> 16)
         self.servo.write(base + 6, (ftw & 0xffff))
         self.set_dds_offset_mu(profile, offs)
@@ -311,12 +378,8 @@ class Channel:
             see :meth:`dds_offset_to_mu`
         :param phase: DDS phase in turns
         """
-        if self.servo_channel < 4:
-            dds = self.servo.dds0
-        else:
-            dds = self.servo.dds1
-        ftw = dds.frequency_to_ftw(frequency)
-        pow_ = dds.turns_to_pow(phase)
+        ftw = self.dds.frequency_to_ftw(frequency)
+        pow_ = self.dds.turns_to_pow(phase)
         offs = self.dds_offset_to_mu(offset)
         self.set_dds_mu(profile, ftw, offs, pow_)
 
@@ -329,7 +392,8 @@ class Channel:
         :param profile: Profile number (0-31)
         :param offs: IIR offset (17 bit signed)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 4, offs)
 
     @kernel
@@ -388,7 +452,8 @@ class Channel:
         :param dly: IIR update suppression time. In units of IIR cycles
             (~1.2 µs, 0-255).
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 3, adc | (dly << 8))
         self.servo.write(base + 1, b1)
         self.servo.write(base + 5, a1)
@@ -480,7 +545,9 @@ class Channel:
         :param profile: Profile number (0-31)
         :param data: List of 8 integers to write the profile data into
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        assert len(data) == 1 << 3
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
             delay(4*us)
@@ -501,7 +568,8 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: 17 bit unsigned Y0
         """
-        return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
+        return self.servo.read(self.servo.state_sel | (
+                self.servo_channel << PROFILE_WIDTH) | profile)
 
     @kernel
     def get_y(self, profile):
@@ -539,7 +607,8 @@ class Channel:
         """
         # State memory is 25 bits wide and signed.
         # Reads interact with the 18 MSBs (coefficient memory width)
-        self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
+        self.servo.write(self.servo.state_sel | (
+                self.servo_channel << PROFILE_WIDTH) | profile, y)
 
     @kernel
     def set_y(self, profile, y):
@@ -562,3 +631,225 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+
+class CPLD(urukul.CPLD):
+    """
+    This module contains a subclass of the Urukul driver class in artiq.coredevice
+    adapted to use CPLD read-back via half-duplex SPI.
+    """
+    rb_len = 8
+
+    def __init__(self, dmgr, spi_device, io_update_device=None,
+                 **kwargs):
+        # Separate IO_UPDATE TTL output device used by SUServo core, 
+        # if active, else by artiq.coredevice.suservo.AD9910 
+        # :meth:`measure_io_update_alignment`.
+        # The urukul.CPLD driver utilises the CPLD CFG register 
+        # option instead for pulsing IO_UPDATE of masked DDSs.
+        self.io_update_ttl = dmgr.get(io_update_device)
+        urukul.CPLD.__init__(self, dmgr, spi_device, **kwargs)
+
+    @kernel
+    def enable_readback(self):
+        """
+        This method sets the RB_EN flag in the Urukul CPLD configuration
+        register. Once set, the CPLD expects an alternating sequence of 
+        two SPI transactions:
+
+            * 1: Any transaction. If returning data, the rb_len LSBs
+                of that will be stored in the CPLD.
+
+            * 2: One read transaction in half-duplex SPI mode shifting
+                out data from the CPLD over MOSI (use :meth:`readback`).
+
+        To end this protocol, call :meth:`disable_readback` during step 1.
+        """
+        self.cfg_write(self.cfg_reg | (1 << urukul.CFG_RB_EN))
+
+    @kernel
+    def disable_readback(self):
+        """
+        This method clears the RB_EN flag in the Urukul CPLD configuration
+        register. This marks the end of the readback protocol (see
+        :meth:`enable_readback`).
+        """
+        self.cfg_write(self.cfg_reg & ~(1 << urukul.CFG_RB_EN))
+
+    @kernel
+    def sta_read(self, full=False):
+        """
+        Read rb_len LSBs from status register
+        
+        :param full: retrieve status register by concatenating data from
+            several readback transactions. If rb_len < 8, the (8 - rb_len) 
+            MSBs will be missing from each subtransaction. Also, ifc_mode
+            cannot be read.
+        """
+        self.enable_readback()
+        self.sta_read_impl()
+        delay(16 * us)  # slack
+        r = self.readback() << urukul.STA_RF_SW
+        delay(16 * us)  # slack
+        if full:
+            self.enable_readback()  # dummy write
+            r |= self.readback(urukul.CS_RB_PLL_LOCK) << urukul.STA_PLL_LOCK
+            delay(16 * us)  # slack
+            self.enable_readback()  # dummy write
+            r |= self.readback(urukul.CS_RB_PROTO_REV) << urukul.STA_PROTO_REV
+            delay(16 * us)  # slack
+        self.disable_readback()
+        return r
+
+    @kernel
+    def proto_rev_read(self):
+        """Read rb_len LSBs of proto_rev"""
+        self.enable_readback()
+        self.enable_readback()  # dummy write
+        r = self.readback(urukul.CS_RB_PROTO_REV)
+        self.disable_readback()
+        return r
+
+    @kernel
+    def pll_lock_read(self):
+        """Read min(rb_len - 1, 4) LSBs of pll_lock status"""
+        self.enable_readback()
+        self.enable_readback()  # dummy write
+        r = self.readback(urukul.CS_RB_PLL_LOCK)
+        self.disable_readback()
+        return r & 0xf
+
+    @kernel
+    def get_att_mu(self):
+        # Different behaviour to urukul.CPLD.get_att_mu: Here, the
+        # latch enable of the attenuators activates 31.5dB
+        # attenuation during the transactions.
+        lengths = [self.rb_len] * (32 // self.rb_len + 1)
+        lengths[-1] = 32 % self.rb_len
+        shifts = [0] * len(lengths)
+        for i in range(len(lengths)):
+            cumsum = 0
+            for j in range(i + 1):
+                cumsum += lengths[j]
+            shifts[i] = 32 - cumsum
+
+        att_reg = int32(0)
+        self.enable_readback()
+        for i in range(len(lengths)):
+            num_bits = lengths[i]
+            if num_bits > 0:
+                self.core.break_realtime()
+                self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, num_bits,
+                                       urukul.SPIT_ATT_RD, urukul.CS_ATT)
+                self.bus.write(0)  # shift in zeros, shift out num_bits bits
+                r = self.readback() & ((1 << num_bits) - 1)
+                att_reg |= r << shifts[i]
+
+        delay(16 * us)  # slack
+        self.disable_readback()
+
+        self.att_reg = int32(att_reg)
+        delay(8 * us)  # slack
+        self.set_all_att_mu(self.att_reg)  # shift and latch current value again
+        return self.att_reg
+
+    @kernel
+    def readback(self, cs=urukul.CS_RB_LSBS):
+        """Read from the readback register in half-duplex SPI mode
+        See :meth:`enable_readback` for usage instructions.
+
+        :param cs: Select data to be returned from the readback register.
+             - urukul.CS_RB_LSBS does not modify the readback register upon readback
+             - urukul.CS_RB_PROTO_REV loads the (rb_len - 1) LSBs of proto_rev
+             - urukul.CS_PLL_LOCK loads the min(rb_len - 1, 4) PLL lock status bits  
+        :return: CPLD readback register.
+        """
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT | spi.SPI_HALF_DUPLEX,
+            self.rb_len, urukul.SPIT_CFG_RD, cs)
+        self.bus.write(0)
+        return int32(self.bus.read())
+
+
+class AD9910(ad9910.AD9910):
+    """
+    This module contains a subclass of the AD9910 driver class in artiq.coredevice
+    using CPLD read-back via half-duplex SPI.
+    """
+
+    # Re-declare set of kernel invariants to avoid warning about non-existent
+    # `sw` attribute, as the AD9910 (instance) constructor writes to the
+    # class attributes.
+    kernel_invariants = {
+        "chip_select", "cpld", "core", "bus", "ftw_per_hz", "sysclk_per_mu"
+    }
+
+    @kernel
+    def read32(self, addr):
+        """
+        ! This method returns only the .suservo.CPLD.rb_len least significant bits !
+        """
+        self.cpld.enable_readback()
+        self.read32_impl(addr)
+        delay(12 * us)  # slack
+        r = self.cpld.readback()
+        delay(12 * us)  # slack
+        self.cpld.disable_readback()
+        return r
+
+    @kernel
+    def read64(self, addr):
+        # 3-wire SPI transactions consisting of multiple transfers are not supported.
+        raise NotImplementedError
+
+    @kernel
+    def read_ram(self, data):
+        # 3-wire SPI transactions consisting of multiple transfers are not supported.
+        raise NotImplementedError
+
+    @kernel
+    def measure_io_update_alignment(self, delay_start, delay_stop):
+        """Refer to artiq.coredevice.ad9910 :meth:`measure_io_update_alignment`.
+        In order that this method can operate the io_update_ttl also used by the SUServo
+        core, deactivate the servo before (see :meth:`set_config`).
+        """
+        # set up DRG
+        self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
+        # DRG -> FTW, DRG enable
+        self.write32(ad9910._AD9910_REG_CFR2, 0x01090000)
+        # no limits
+        self.write64(ad9910._AD9910_REG_RAMP_LIMIT, -1, 0)
+        # DRCTL=0, dt=1 t_SYNC_CLK
+        self.write32(ad9910._AD9910_REG_RAMP_RATE, 0x00010000)
+        # dFTW = 1, (work around negative slope)
+        self.write64(ad9910._AD9910_REG_RAMP_STEP, -1, 0)
+        # un-mask DDS
+        cfg_masked = self.cpld.cfg_reg
+        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
+        delay(70 * us)  # slack
+        # delay io_update after RTIO edge
+        t = now_mu() + 8 & ~7
+        at_mu(t + delay_start)
+        # assumes a maximum t_SYNC_CLK period
+        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_start))  # realign
+        # re-mask DDS
+        self.cpld.cfg_write(cfg_masked)
+        delay(10 * us)  # slack
+        # disable DRG autoclear and LRR on io_update
+        self.set_cfr1()
+        delay(10 * us)  # slack
+        # stop DRG
+        self.write64(ad9910._AD9910_REG_RAMP_STEP, 0, 0)
+        delay(10 * us)  # slack
+        # un-mask DDS
+        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
+        at_mu(t + 0x20000 + delay_stop)
+        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_stop))  # realign
+        # re-mask DDS
+        self.cpld.cfg_write(cfg_masked)
+        ftw = self.read32(ad9910._AD9910_REG_FTW)  # read out effective FTW
+        delay(100*us)  # slack
+        # disable DRG
+        self.write32(ad9910._AD9910_REG_CFR2, 0x01010000)
+        self.cpld.io_update.pulse(16 * ns)
+        return ftw & 1

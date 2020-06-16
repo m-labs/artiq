@@ -123,12 +123,12 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_SOFT_RESET"] = None
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, n_sed_lanes=8):
         self.submodules.rtio_crg = _RTIOCRG(self.platform)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=n_sed_lanes)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
@@ -216,9 +216,9 @@ class SUServo(StandaloneBase):
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
 
         # EEM3/2: Sampler, EEM5/4: Urukul, EEM7/6: Urukul
-        eem.SUServo.add_std(
-            self, eems_sampler=(3, 2),
-            eems_urukul0=(5, 4), eems_urukul1=(7, 6))
+        eem.SUServo.add_std(self, 
+                            eems_sampler=(3, 2), 
+                            eems_urukul=[[5, 4], [7, 6]])
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -385,13 +385,13 @@ class MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, n_sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=n_sed_lanes)
         self.csr_devices.append("rtio_core")
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
@@ -604,13 +604,13 @@ class SatelliteBase(BaseSoC):
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, n_sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
-        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=n_sed_lanes)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.drtiosat.cri],

@@ -242,6 +242,10 @@ class AD9910:
 
         :param addr: Register address
         """
+        return self.read32_impl(addr)
+
+    @kernel
+    def read32_impl(self, addr):
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
                                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | 0x80) << 24)
@@ -344,7 +348,7 @@ class AD9910:
 
     @kernel
     def set_cfr1(self, power_down=0b0000, phase_autoclear=0,
-                 drg_load_lrr=0, drg_autoclear=0,
+                 drg_load_lrr=0, drg_autoclear=0, phase_clear=0,
                  internal_profile=0, ram_destination=0, ram_enable=0,
                  manual_osk_external=0, osk_enable=0, select_auto_osk=0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
@@ -353,6 +357,7 @@ class AD9910:
 
         :param power_down: Power down bits.
         :param phase_autoclear: Autoclear phase accumulator.
+        :param phase_clear: Asynchronous, static reset of the phase accumulator.
         :param drg_load_lrr: Load digital ramp generator LRR.
         :param drg_autoclear: Autoclear digital ramp generator.
         :param internal_profile: Internal profile control.
@@ -372,10 +377,35 @@ class AD9910:
                      (drg_load_lrr << 15) |
                      (drg_autoclear << 14) |
                      (phase_autoclear << 13) |
+                     (phase_clear << 11) |
                      (osk_enable << 9) |
                      (select_auto_osk << 8) |
                      (power_down << 4) |
                      2)  # SDIO input only, MSB first
+ 
+    @kernel
+    def set_cfr2(self, asf_profile_enable=1, drg_enable=0, effective_ftw=1, 
+                 sync_validation_disable=0, matched_latency_enable=0):
+        """Set CFR2. See the AD9910 datasheet for parameter meanings.
+
+        This method does not pulse IO_UPDATE.
+
+        :param asf_profile_enable: Enable amplitude scale from single tone profiles.
+        :param drg_enable: Digital ramp enable.
+        :param effective_ftw: Read effective FTW.
+        :param sync_validation_disable: Disable the SYNC_SMP_ERR pin indicating
+            (active high) detection of a synchronization pulse sampling error.
+        :param matched_latency_enable: Simultaneous application of amplitude, 
+            phase, and frequency changes to the DDS arrive at the output 
+            * matched_latency_enable = 0: in the order listed
+            * matched_latency_enable = 1: simultaneously.
+        """
+        self.write32(_AD9910_REG_CFR2, 
+                     (asf_profile_enable << 24) |
+                     (drg_enable << 19) |
+                     (effective_ftw << 16) | 
+                     (matched_latency_enable << 7) |
+                     (sync_validation_disable << 5))
 
     @kernel
     def init(self, blind=False):
@@ -409,7 +439,7 @@ class AD9910:
         # enable amplitude scale from profiles
         # read effective FTW
         # sync timing validation disable (enabled later)
-        self.write32(_AD9910_REG_CFR2, 0x01010020)
+        self.set_cfr2(sync_validation_disable=1)
         self.cpld.io_update.pulse(1*us)
         cfr3 = (0x0807c000 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_en << 8) |
@@ -423,6 +453,7 @@ class AD9910:
                 delay(100*ms)
             else:
                 # Wait for PLL lock, up to 100 ms
+                delay(10*us)
                 for i in range(100):
                     sta = self.cpld.sta_read()
                     lock = urukul_sta_pll_lock(sta)
@@ -432,7 +463,7 @@ class AD9910:
                     if i >= 100 - 1:
                         raise ValueError("PLL lock timeout")
         delay(10*us)  # slack
-        if self.sync_data.sync_delay_seed >= 0:
+        if self.sync_data.sync_delay_seed >= 0 and not blind:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1*ms)
 
@@ -725,20 +756,23 @@ class AD9910:
         self.cpld.cfg_sw(self.chip_select - 4, state)
 
     @kernel
-    def set_sync(self, in_delay, window):
+    def set_sync(self, in_delay, window, en_sync_gen=0):
         """Set the relevant parameters in the multi device synchronization
         register. See the AD9910 datasheet for details. The SYNC clock
         generator preset value is set to zero, and the SYNC_OUT generator is
-        disabled.
+        disabled by default.
 
         :param in_delay: SYNC_IN delay tap (0-31) in steps of ~75ps
         :param window: Symmetric SYNC_IN validation window (0-15) in
             steps of ~75ps for both hold and setup margin.
+        :param en_sync_gen: Whether to enable the DDS-internal sync generator
+            (SYNC_OUT, cf. sync_sel == 1). Should be left off for the normal
+            use case, where the SYNC clock is supplied by the core device.
         """
         self.write32(_AD9910_REG_SYNC,
                      (window << 28) |  # SYNC S/H validation delay
                      (1 << 27) |  # SYNC receiver enable
-                     (0 << 26) |  # SYNC generator disable
+                     (en_sync_gen << 26) |  # SYNC generator enable
                      (0 << 25) |  # SYNC generator SYS rising edge
                      (0 << 18) |  # SYNC preset
                      (0 << 11) |  # SYNC output delay
@@ -754,13 +788,14 @@ class AD9910:
 
         Also modifies CFR2.
         """
-        self.write32(_AD9910_REG_CFR2, 0x01010020)  # clear SMP_ERR
+        self.set_cfr2(sync_validation_disable=1)  # clear SMP_ERR
         self.cpld.io_update.pulse(1*us)
-        self.write32(_AD9910_REG_CFR2, 0x01010000)  # enable SMP_ERR
+        delay(10*us)  # slack
+        self.set_cfr2(sync_validation_disable=0)  # enable SMP_ERR
         self.cpld.io_update.pulse(1*us)
 
     @kernel
-    def tune_sync_delay(self, search_seed=15):
+    def tune_sync_delay(self, search_seed=15, cpld_channel_idx=-1):
         """Find a stable SYNC_IN delay.
 
         This method first locates a valid SYNC_IN delay at zero validation
@@ -776,6 +811,10 @@ class AD9910:
             Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
         """
+        if cpld_channel_idx == -1:
+            cpld_channel_idx = self.chip_select - 4
+        if not 0 <= cpld_channel_idx < 4:
+            raise ValueError("Invalid channel index: {}", int64(cpld_channel_idx))
         if not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
         search_span = 31
@@ -798,7 +837,7 @@ class AD9910:
                 delay(100*us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
                 delay(100*us)  # slack
-                if not (err >> (self.chip_select - 4)) & 1:
+                if not (err >> cpld_channel_idx) & 1:
                     next_seed = in_delay
                     break
             if next_seed >= 0:  # valid delay found, scan next window
@@ -832,7 +871,7 @@ class AD9910:
         # set up DRG
         self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
         # DRG -> FTW, DRG enable
-        self.write32(_AD9910_REG_CFR2, 0x01090000)
+        self.set_cfr2(drg_enable=1)
         # no limits
         self.write64(_AD9910_REG_RAMP_LIMIT, -1, 0)
         # DRCTL=0, dt=1 t_SYNC_CLK
@@ -853,7 +892,7 @@ class AD9910:
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100*us)  # slack
         # disable DRG
-        self.write32(_AD9910_REG_CFR2, 0x01010000)
+        self.set_cfr2(drg_enable=0)
         self.cpld.io_update.pulse_mu(8)
         return ftw & 1
 

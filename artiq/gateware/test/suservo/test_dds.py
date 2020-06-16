@@ -5,6 +5,9 @@ from migen import *
 
 from artiq.gateware.suservo.dds_ser import DDSParams, DDS
 
+class OutIoUpdateTB(Module):
+    def __init__(self):
+        self.fine_ts = Signal(3)
 
 class TB(Module):
     def __init__(self, p):
@@ -15,6 +18,12 @@ class TB(Module):
             setattr(self, "mosi{}".format(i), m)
         self.miso = Signal()
         self.io_update = Signal()
+        self.passthrough = Signal()
+
+        self.io_update_phys = []
+        for i in range(p.channels//4):
+            phy = OutIoUpdateTB()
+            self.io_update_phys.append(phy)
 
         clk0 = Signal()
         self.sync += clk0.eq(self.clk)
@@ -23,16 +32,19 @@ class TB(Module):
 
         self.ddss = []
         for i in range(p.channels):
-            dds = Record([("ftw", 32), ("pow", 16), ("asf", 16), ("cmd", 8)])
-            sr = Signal(len(dds))
+            dds = Record([("ftw", 32), ("pow", 16), ("asf", 16), 
+                          ("cmd", 8), ("accu", 32), ("phase", 19)])
+            sr = Signal(32 + 16 + 16 + 8)
             self.sync += [
+                    dds.accu.eq(dds.accu + p.sysclk_per_clk * dds.ftw),
                     If(~self.cs_n & sample,
                         sr.eq(Cat(self.mosi[i], sr))
                     ),
                     If(self.io_update,
-                        dds.raw_bits().eq(sr)
+                        dds.raw_bits()[:len(sr)].eq(sr)
                     )
             ]
+            self.comb += dds.phase.eq((dds.pow << 3) + (dds.accu >> 13))
             self.ddss.append(dds)
 
     @passive

@@ -6,6 +6,10 @@ from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino
+from artiq.gateware.rtio.phy import ttl_serdes_7series, ttl_simple, edge_counter
+
+import entangler.phy
+import math
 
 
 def _eem_signal(i):
@@ -125,17 +129,17 @@ class Urukul(_EEM):
             ),
         ]
         ttls = [(6, eem0, "io_update"),
-                (7, eem0, "dds_reset_sync_in"),
+                (7, eem0, "dds_reset_sync_in", Misc("IOB=TRUE")),
                 (4, eem1, "sw0"),
                 (5, eem1, "sw1"),
                 (6, eem1, "sw2"),
                 (7, eem1, "sw3")]
-        for i, j, sig in ttls:
+        for i, j, sig, *extra_args in ttls:
             ios.append(
                 ("urukul{}_{}".format(eem0, sig), 0,
                     Subsignal("p", Pins(_eem_pin(j, i, "p"))),
                     Subsignal("n", Pins(_eem_pin(j, i, "n"))),
-                    IOStandard(iostandard)
+                    IOStandard(iostandard), *extra_args
                 ))
         ios += [
             ("urukul{}_qspi_p".format(eem0), 0,
@@ -187,6 +191,7 @@ class Urukul(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
 
 class Sampler(_EEM):
     @staticmethod
@@ -470,18 +475,26 @@ class Grabber(_EEM):
 class SUServo(_EEM):
     @staticmethod
     def io(*eems, iostandard="LVDS_25"):
-        assert len(eems) in (4, 6)
-        io = (Sampler.io(*eems[0:2], iostandard=iostandard)
-                + Urukul.io_qspi(*eems[2:4], iostandard=iostandard))
-        if len(eems) == 6:  # two Urukuls
-            io += Urukul.io_qspi(*eems[4:6], iostandard=iostandard)
+        assert len(eems) >= 4 and len(eems) % 2 == 0
+        io = Sampler.io(*eems[0:2], iostandard=iostandard)
+        for i in range(len(eems)//2-1):
+            io += Urukul.io_qspi(*eems[(2*i+2):(2*i+4)], iostandard = iostandard)
         return io
 
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
-                iostandard="LVDS_25"):
+                sync_gen_cls=ttl_simple.ClockGen,
+                iostandard="LVDS_25", sysclk_per_clk=8):
         """Add a 8-channel Sampler-Urukul Servo
+
+        Extends target.rtio_channels by 6 * len(eems_urukul) + 3 RTIO channels:
+          * len(eems_urukul) IO_UPDATE TTL outputs
+          * 4*len(eems_urukul) SUServo channel controls (en_out, en_iir, en_pt, profile)
+          * SUServo coefficient memory
+          * Sampler PGIA SPI interface
+          * len(eems_urukul) Urukul SPI interfaces
+          * Urukul SYNC clock generator (if not None)
 
         :param t_rtt: upper estimate for clock round-trip propagation time from
             ``sck`` at the FPGA to ``clkout`` at the FPGA, measured in RTIO
@@ -496,6 +509,8 @@ class SUServo(_EEM):
             (default: 11)
         :param profile: log2 of the number of profiles for each DDS channel
             (default: 5)
+        :param sysclk_per_clk: DDS "sysclk" (4*refclk = 1GHz typ.) cycles per
+            FPGA "sys" clock (125MHz typ.) cycles (default: 8)
         """
         cls.add_extension(
             target, *(eems_sampler + sum(eems_urukul, [])),
@@ -507,27 +522,29 @@ class SUServo(_EEM):
         urukul_pads = servo_pads.UrukulPads(
             target.platform, *eem_urukul)
         target.submodules += sampler_pads, urukul_pads
+        target.rtio_channels.extend(
+            rtio.Channel.from_phy(phy) for phy in urukul_pads.io_update_phys)
         # timings in units of RTIO coarse period
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
                                 # account for SCK DDR to CONV latency
                                 # difference (4 cycles measured)
                                 t_conv=57 - 4, t_rtt=t_rtt + 4)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
-                                accu=48, shift=shift, channel=3,
-                                profile=profile, dly=8)
-        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
-                                channels=adc_p.channels, clk=clk)
+                                accu=48, shift=shift, profile=profile, dly=8)
+        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16, sysclk_per_clk=sysclk_per_clk,
+                                channels=4*len(eem_urukul), clk=clk)
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
         su = ClockDomainsRenamer("rio_phy")(su)
         # explicitly name the servo submodule to enable the migen namer to derive
         # a name for the adc return clock domain
         setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
 
-        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
+        ctrls = [rtservo.RTServoCtrl(ctrl, ctrl_reftime)
+                 for ctrl, ctrl_reftime in zip(su.iir.ctrl, su.iir.ctrl_reftime)]
         target.submodules += ctrls
         target.rtio_channels.extend(
             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
-        mem = rtservo.RTServoMem(iir_p, su)
+        mem = rtservo.RTServoMem(iir_p, su, urukul_pads.io_update_phys)
         target.submodules += mem
         target.rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
 
@@ -537,22 +554,24 @@ class SUServo(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        for i in range(2):
-            if len(eem_urukul) > i:
-                spi_p, spi_n = (
-                    target.platform.request("{}_spi_p".format(eem_urukul[i])),
-                    target.platform.request("{}_spi_n".format(eem_urukul[i])))
-            else:  # create a dummy bus
-                spi_p = Record([("clk", 1), ("cs_n", 1)])  # mosi, cs_n
-                spi_n = None
-
+        for eem_urukuli in eem_urukul:
+            spi_p, spi_n = (
+                target.platform.request("{}_spi_p".format(eem_urukuli)),
+                target.platform.request("{}_spi_n".format(eem_urukuli)))
             phy = spi2.SPIMaster(spi_p, spi_n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
+        # sync_in phy (one for all)
+        pad = Signal(reset=0)
+        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+            phy = sync_gen_cls(pad, ftw_width=4)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
         for j, eem_urukuli in enumerate(eem_urukul):
             pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
-            target.specials += DifferentialOutput(0, pads.p, pads.n)
+            target.specials += DifferentialOutput(pad, pads.p, pads.n)
 
             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))

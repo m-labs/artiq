@@ -135,53 +135,66 @@ device_db = {
         "arguments": {"channel": 15},
     },
 
+    "ttl_urukul0_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 16}
+    },
+    "ttl_urukul1_io_update": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": 17}
+    },
+
     "suservo0_ch0": {
-        "type": "local",
-        "module": "artiq.coredevice.suservo",
-        "class": "Channel",
-        "arguments": {"channel": 16, "servo_device": "suservo0"}
-    },
-    "suservo0_ch1": {
-        "type": "local",
-        "module": "artiq.coredevice.suservo",
-        "class": "Channel",
-        "arguments": {"channel": 17, "servo_device": "suservo0"}
-    },
-    "suservo0_ch2": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 18, "servo_device": "suservo0"}
     },
-    "suservo0_ch3": {
+    "suservo0_ch1": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 19, "servo_device": "suservo0"}
     },
-    "suservo0_ch4": {
+    "suservo0_ch2": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 20, "servo_device": "suservo0"}
     },
-    "suservo0_ch5": {
+    "suservo0_ch3": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 21, "servo_device": "suservo0"}
     },
-    "suservo0_ch6": {
+    "suservo0_ch4": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 22, "servo_device": "suservo0"}
     },
-    "suservo0_ch7": {
+    "suservo0_ch5": {
         "type": "local",
         "module": "artiq.coredevice.suservo",
         "class": "Channel",
         "arguments": {"channel": 23, "servo_device": "suservo0"}
+    },
+    "suservo0_ch6": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 24, "servo_device": "suservo0"}
+    },
+    "suservo0_ch7": {
+        "type": "local",
+        "module": "artiq.coredevice.suservo",
+        "class": "Channel",
+        "arguments": {"channel": 25, "servo_device": "suservo0"}
     },
 
     "suservo0": {
@@ -189,12 +202,10 @@ device_db = {
         "module": "artiq.coredevice.suservo",
         "class": "SUServo",
         "arguments": {
-            "channel": 24,
+            "channel": 26,
             "pgia_device": "spi_sampler0_pgia",
-            "cpld0_device": "urukul0_cpld",
-            "cpld1_device": "urukul1_cpld",
-            "dds0_device": "urukul0_dds",
-            "dds1_device": "urukul1_dds"
+            "cpld_devices": ["urukul0_cpld", "urukul1_cpld"],
+            "dds_devices": ["urukul0_dds", "urukul1_dds"],
         }
     },
 
@@ -202,33 +213,37 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 25}
+        "arguments": {"channel": 27}
     },
 
     "spi_urukul0": {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 26}
+        "arguments": {"channel": 28}
     },
     "urukul0_cpld": {
         "type": "local",
-        "module": "artiq.coredevice.urukul",
+        "module": "artiq.coredevice.suservo",
         "class": "CPLD",
         "arguments": {
             "spi_device": "spi_urukul0",
+            "io_update_device": "ttl_urukul0_io_update",
+            "sync_device": "clkgen_dds_sync_in",
             "refclk": 100e6,
             "clk_sel": 0
         }
     },
     "urukul0_dds": {
         "type": "local",
-        "module": "artiq.coredevice.ad9910",
+        "module": "artiq.coredevice.suservo",
         "class": "AD9910",
         "arguments": {
             "pll_n": 40,
             "chip_select": 3,
             "cpld_device": "urukul0_cpld",
+            "io_update_delay": 0,
+            "sync_delay_seed": -1,
         }
     },
 
@@ -236,26 +251,40 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.spi2",
         "class": "SPIMaster",
-        "arguments": {"channel": 27}
+        "arguments": {"channel": 29}
     },
     "urukul1_cpld": {
         "type": "local",
-        "module": "artiq.coredevice.urukul",
+        "module": "artiq.coredevice.suservo",
         "class": "CPLD",
         "arguments": {
             "spi_device": "spi_urukul1",
+            "io_update_device": "ttl_urukul1_io_update",
+            "sync_device": "clkgen_dds_sync_in",
             "refclk": 100e6,
             "clk_sel": 0
         }
     },
     "urukul1_dds": {
         "type": "local",
-        "module": "artiq.coredevice.ad9910",
+        "module": "artiq.coredevice.suservo",
         "class": "AD9910",
         "arguments": {
             "pll_n": 40,
             "chip_select": 3,
             "cpld_device": "urukul1_cpld",
+            "io_update_delay": 0,
+            "sync_delay_seed": -1,
+        }
+    },
+
+    "clkgen_dds_sync_in": {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLClockGen",
+        "arguments": {
+            "channel": 30,
+            "acc_width": 4
         }
     },
 
