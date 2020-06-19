@@ -28,7 +28,18 @@ class BackgroundExperiment(EnvExperiment):
                 sleep(0.2)
         except TerminationRequested:
             self.set_dataset("termination_ok", True,
-                             broadcast=True, save=False)
+                             broadcast=True, archive=False)
+
+
+class CheckPauseBackgroundExperiment(EnvExperiment):
+    def build(self):
+        self.setattr_device("scheduler")
+
+    def run(self):
+        while True:
+            while not self.scheduler.check_pause():
+                sleep(0.2)
+            self.scheduler.pause()
 
 
 def _get_expid(name):
@@ -112,6 +123,161 @@ class SchedulerCase(unittest.TestCase):
 
         # This one (RID 1) gets run instead.
         scheduler.submit("main", expid, 0, None, False)
+
+        loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
+        loop.run_until_complete(scheduler.stop())
+
+    def test_pending_priority(self):
+        """Check due dates take precedence over priorities when waiting to
+        prepare."""
+        loop = self.loop
+        handlers = {}
+        scheduler = Scheduler(_RIDCounter(0), handlers, None)
+        handlers["scheduler_check_pause"] = scheduler.check_pause
+
+        expid_empty = _get_expid("EmptyExperiment")
+
+        expid_bg = _get_expid("CheckPauseBackgroundExperiment")
+        # Suppress the SystemExit backtrace when worker process is killed.
+        expid_bg["log_level"] = logging.CRITICAL
+
+        high_priority = 3
+        middle_priority = 2
+        low_priority = 1
+        late = time() + 100000
+        early = time() + 1
+
+        expect = [
+            {
+                "path": [],
+                "action": "setitem",
+                "value": {
+                    "repo_msg": None,
+                    "priority": low_priority,
+                    "pipeline": "main",
+                    "due_date": None,
+                    "status": "pending",
+                    "expid": expid_bg,
+                    "flush": False
+                },
+                "key": 0
+            },
+            {
+                "path": [],
+                "action": "setitem",
+                "value": {
+                    "repo_msg": None,
+                    "priority": high_priority,
+                    "pipeline": "main",
+                    "due_date": late,
+                    "status": "pending",
+                    "expid": expid_empty,
+                    "flush": False
+                },
+                "key": 1
+            },
+            {
+                "path": [],
+                "action": "setitem",
+                "value": {
+                    "repo_msg": None,
+                    "priority": middle_priority,
+                    "pipeline": "main",
+                    "due_date": early,
+                    "status": "pending",
+                    "expid": expid_empty,
+                    "flush": False
+                },
+                "key": 2
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "preparing",
+                "key": "status"
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "prepare_done",
+                "key": "status"
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "preparing",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "prepare_done",
+                "key": "status"
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "paused",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "run_done",
+                "key": "status"
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "analyzing",
+                "key": "status"
+            },
+            {
+                "path": [2],
+                "action": "setitem",
+                "value": "deleting",
+                "key": "status"
+            },
+            {
+                "path": [],
+                "action": "delitem",
+                "key": 2
+            },
+        ]
+        done = asyncio.Event()
+        expect_idx = 0
+        def notify(mod):
+            nonlocal expect_idx
+            self.assertEqual(mod, expect[expect_idx])
+            expect_idx += 1
+            if expect_idx >= len(expect):
+                done.set()
+        scheduler.notifier.publish = notify
+
+        scheduler.start()
+
+        scheduler.submit("main", expid_bg, low_priority)
+        scheduler.submit("main", expid_empty, high_priority, late)
+        scheduler.submit("main", expid_empty, middle_priority, early)
 
         loop.run_until_complete(done.wait())
         scheduler.notifier.publish = None
