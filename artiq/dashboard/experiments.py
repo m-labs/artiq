@@ -9,8 +9,9 @@ import h5py
 
 from sipyco import pyon
 
-from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import procdesc_to_entry, ScanEntry
+from artiq.gui.fuzzy_select import FuzzySelectWidget
+from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 
 
 logger = logging.getLogger(__name__)
@@ -488,6 +489,60 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.hdf5_load_directory = state["hdf5_load_directory"]
 
 
+class _QuickOpenDialog(QtWidgets.QDialog):
+    """Modal dialog for opening/submitting experiments from a
+    FuzzySelectWidget."""
+    closed = QtCore.pyqtSignal()
+
+    def __init__(self, manager):
+        super().__init__(manager.main_window)
+        self.setModal(True)
+
+        self.manager = manager
+
+        self.setWindowTitle("Quick open…")
+
+        layout = QtWidgets.QGridLayout(self)
+        layout.setSpacing(0)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(layout)
+
+        # Find matching experiment names. Open experiments are preferred to
+        # matches from the repository to ease quick window switching.
+        open_exps = list(self.manager.open_experiments.keys())
+        repo_exps = set("repo:" + k
+                        for k in self.manager.explist.keys()) - set(open_exps)
+        choices = [(o, 100) for o in open_exps] + [(r, 0) for r in repo_exps]
+
+        self.select_widget = FuzzySelectWidget(choices)
+        layout.addWidget(self.select_widget)
+        self.select_widget.aborted.connect(self.close)
+        self.select_widget.finished.connect(self._open_experiment)
+
+        font_metrics = QtGui.QFontMetrics(self.select_widget.line_edit.font())
+        self.select_widget.setMinimumWidth(font_metrics.averageCharWidth() * 70)
+
+    def done(self, r):
+        if self.select_widget:
+            self.select_widget.abort()
+        self.closed.emit()
+        QtWidgets.QDialog.done(self, r)
+
+    def _open_experiment(self, exp_name, modifiers):
+        if modifiers & QtCore.Qt.ControlModifier:
+            try:
+                self.manager.submit(exp_name)
+            except:
+                # Not all open_experiments necessarily still exist in the explist
+                # (e.g. if the repository has been re-scanned since).
+                logger.warning("failed to submit experiment '%s'",
+                               exp_name,
+                               exc_info=True)
+        else:
+            self.manager.open_experiment(exp_name)
+        self.close()
+
+
 class ExperimentManager:
     def __init__(self, main_window,
                  explist_sub, schedule_sub,
@@ -507,6 +562,13 @@ class ExperimentManager:
         schedule_sub.add_setmodel_callback(self.set_schedule_model)
 
         self.open_experiments = dict()
+
+        self.is_quick_open_shown = False
+        quick_open_shortcut = QtWidgets.QShortcut(
+            QtCore.Qt.CTRL + QtCore.Qt.Key_P,
+            main_window)
+        quick_open_shortcut.setContext(QtCore.Qt.ApplicationShortcut)
+        quick_open_shortcut.activated.connect(self.show_quick_open)
 
     def set_explist_model(self, model):
         self.explist = model.backing_store
@@ -708,3 +770,14 @@ class ExperimentManager:
         self.submission_arguments = state["arguments"]
         for expurl in state["open_docks"]:
             self.open_experiment(expurl)
+
+    def show_quick_open(self):
+        if self.is_quick_open_shown:
+            return
+
+        self.is_quick_open_shown = True
+        dialog = _QuickOpenDialog(self)
+        def closed():
+            self.is_quick_open_shown = False
+        dialog.closed.connect(closed)
+        dialog.show()
