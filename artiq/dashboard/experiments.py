@@ -500,7 +500,7 @@ class _QuickOpenDialog(QtWidgets.QDialog):
 
         self.manager = manager
 
-        self.setWindowTitle("Quick open…")
+        self.setWindowTitle("Quick open...")
 
         layout = QtWidgets.QGridLayout(self)
         layout.setSpacing(0)
