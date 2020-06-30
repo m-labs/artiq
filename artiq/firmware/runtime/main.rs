@@ -323,7 +323,10 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
 
     if config::read_str("panic_reset", |r| r == Ok("1")) {
         println!("restarting...");
-        unsafe { boot::reset() }
+        unsafe {
+            kernel::stop();
+            boot::reset();
+        }
     } else {
         println!("halting.");
         println!("use `artiq_coremgmt config write -s panic_reset 1` to restart instead");

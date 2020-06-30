@@ -21,6 +21,8 @@ Highlights:
      be brought up Ctrl-P (Ctrl+Return to immediately submit the selected entry
      with the default arguments).
 * Experiment results are now always saved to HDF5, even if run() fails.
+* Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
+  communication CPU panic occurs.
 
 Breaking changes:
 
