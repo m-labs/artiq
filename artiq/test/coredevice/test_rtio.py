@@ -170,17 +170,6 @@ class PulseRateAD9914DDS(EnvExperiment):
                 return
 
 
-class Watchdog(EnvExperiment):
-    def build(self):
-        self.setattr_device("core")
-
-    @kernel
-    def run(self):
-        with watchdog(50*ms):
-            while True:
-                pass
-
-
 class LoopbackCount(EnvExperiment):
     def build(self, npulses):
         self.setattr_device("core")
@@ -521,11 +510,6 @@ class CoredeviceTest(ExperimentCase):
 
     def test_address_collision(self):
         self.execute_and_test_in_log(AddressCollision, "RTIO collision")
-
-    def test_watchdog(self):
-        # watchdog only works on the device
-        with self.assertRaises(exceptions.WatchdogExpired):
-            self.execute(Watchdog)
 
     def test_time_keeps_running(self):
         self.execute(TimeKeepsRunning)
