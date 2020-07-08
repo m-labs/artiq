@@ -183,11 +183,8 @@ mod imp {
         if !write(busno, address << 1)? {
             return Err("PCA9548 failed to ack write address")
         }
-        // Duplicate control byte: one for SCL, one for SDA
-        for _ in 0..2 {
-            if !write(busno, channels)? {
-                return Err("PCA9548 failed to ack control word")
-            }
+        if !write(busno, channels)? {
+            return Err("PCA9548 failed to ack control word")
         }
         stop(busno)?;
         Ok(())
