@@ -153,12 +153,13 @@ class GenericStandalone(StandaloneBase):
 
         self.rtio_channels = []
         add_peripherals(self, description["peripherals"])
-        for i in (1, 2):
-            print("SFP LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
-            sfp_ctl = self.platform.request("sfp_ctl", i)
-            phy = ttl_simple.Output(sfp_ctl.led)
-            self.submodules += phy
-            self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if hw_rev in ("v1.0", "v1.1"):
+            for i in (1, 2):
+                print("SFP LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                sfp_ctl = self.platform.request("sfp_ctl", i)
+                phy = ttl_simple.Output(sfp_ctl.led)
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
