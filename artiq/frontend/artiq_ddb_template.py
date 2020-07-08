@@ -520,7 +520,7 @@ def process(output, master_description, satellites):
     for peripheral in master_description["peripherals"]:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
-    if base == "standalone":
+    if base == "standalone" and master_description["hw_rev"] in ("v1.0", "v1.1"):
         n_channels = pm.add_sfp_leds(rtio_offset)
         rtio_offset += n_channels
 
