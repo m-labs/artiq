@@ -103,7 +103,7 @@ Executing just ``conda`` should print the help of the ``conda`` command. If your
 
 Set up the Conda channel and install ARTIQ into a new Conda environment: ::
 
-  $ conda config --prepend channels https://conda.m-labs.hk/artiq-beta
+  $ conda config --prepend channels https://conda.m-labs.hk/artiq
   $ conda config --append channels conda-forge
   $ conda create -n artiq artiq
 
