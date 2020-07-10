@@ -170,6 +170,8 @@ class _SatelliteBase(BaseSoC):
             self.config["I2C_BUS_COUNT"] = 1
             self.config["HAS_SI5324"] = None
             self.config["SI5324_SOFT_RESET"] = None
+            if "SI5324_SOFT_RESET" in self.config:
+                self.comb += platform.request("si5324").rst_n.eq(1)
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
