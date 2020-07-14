@@ -14,6 +14,12 @@ mod imp {
         }
     }
 
+    fn scl_i(busno: u8) -> bool {
+        unsafe {
+            csr::i2c::in_read() & scl_bit(busno) != 0
+        }
+    }
+
     fn sda_oe(busno: u8, oe: bool) {
         unsafe {
             let reg = csr::i2c::oe_read();
@@ -49,13 +55,10 @@ mod imp {
     pub fn init() -> Result<(), &'static str> {
         for busno in 0..csr::CONFIG_I2C_BUS_COUNT {
             let busno = busno as u8;
-            // Set SCL as output, and high level
-            scl_o(busno, true);
-            scl_oe(busno, true);
-            // Prepare a zero level on SDA so that sda_oe pulls it down
-            sda_o(busno, false);
-            // Release SDA
+            scl_oe(busno, false);
             sda_oe(busno, false);
+            scl_o(busno, false);
+            sda_o(busno, false);
 
             // Check the I2C bus is ready
             half_period();
@@ -63,9 +66,9 @@ mod imp {
             if !sda_i(busno) {
                 // Try toggling SCL a few times
                 for _bit in 0..8 {
-                    scl_o(busno, false);
+                    scl_oe(busno, true);
                     half_period();
-                    scl_o(busno, true);
+                    scl_oe(busno, false);
                     half_period();
                 }
             }
@@ -73,6 +76,10 @@ mod imp {
             if !sda_i(busno) {
                 return Err("SDA is stuck low and doesn't get unstuck");
             }
+            if !scl_i(busno) {
+                return Err("SCL is stuck low and doesn't get unstuck");
+            }
+            // postcondition: SCL and SDA high
         }
         Ok(())
     }
@@ -81,11 +88,17 @@ mod imp {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
             return Err(INVALID_BUS)
         }
-        // Set SCL high then SDA low
-        scl_o(busno, true);
-        half_period();
+        // precondition: SCL and SDA high
+        if !scl_i(busno) {
+            return Err("SCL is stuck low and doesn't get unstuck");
+        }
+        if !sda_i(busno) {
+            return Err("SDA arbitration lost");
+        }
         sda_oe(busno, true);
         half_period();
+        scl_oe(busno, true);
+        // postcondition: SCL and SDA low
         Ok(())
     }
 
@@ -93,13 +106,13 @@ mod imp {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
             return Err(INVALID_BUS)
         }
-        // Set SCL low then SDA high */
-        scl_o(busno, false);
-        half_period();
+        // precondition SCL and SDA low
         sda_oe(busno, false);
         half_period();
-        // Do a regular start
+        scl_oe(busno, false);
+        half_period();
         start(busno)?;
+        // postcondition: SCL and SDA low
         Ok(())
     }
 
@@ -107,15 +120,16 @@ mod imp {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
             return Err(INVALID_BUS)
         }
-        // First, make sure SCL is low, so that the target releases the SDA line
-        scl_o(busno, false);
+        // precondition: SCL and SDA low
         half_period();
-        // Set SCL high then SDA high
-        sda_oe(busno, true);
-        scl_o(busno, true);
+        scl_oe(busno, false);
         half_period();
         sda_oe(busno, false);
         half_period();
+        if !sda_i(busno) {
+            return Err("SDA arbitration lost");
+        }
+        // postcondition: SCL and SDA high
         Ok(())
     }
 
@@ -123,57 +137,53 @@ mod imp {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
             return Err(INVALID_BUS)
         }
+        // precondition: SCL and SDA low
         // MSB first
         for bit in (0..8).rev() {
-            // Set SCL low and set our bit on SDA
-            scl_o(busno, false);
             sda_oe(busno, data & (1 << bit) == 0);
             half_period();
-            // Set SCL high ; data is shifted on the rising edge of SCL
-            scl_o(busno, true);
+            scl_oe(busno, false);
             half_period();
+            scl_oe(busno, true);
         }
-        // Check ack
-        // Set SCL low, then release SDA so that the I2C target can respond
-        scl_o(busno, false);
-        half_period();
         sda_oe(busno, false);
-        // Set SCL high and check for ack
-        scl_o(busno, true);
         half_period();
-        // returns true if acked (I2C target pulled SDA low)
-        Ok(!sda_i(busno))
+        scl_oe(busno, false);
+        half_period();
+        // Read ack/nack
+        let ack = !sda_i(busno);
+        scl_oe(busno, true);
+        sda_oe(busno, true);
+        // postcondition: SCL and SDA low
+
+        Ok(ack)
     }
 
     pub fn read(busno: u8, ack: bool) -> Result<u8, &'static str> {
         if busno as u32 >= csr::CONFIG_I2C_BUS_COUNT {
             return Err(INVALID_BUS)
         }
-        // Set SCL low first, otherwise setting SDA as input may cause a transition
-        // on SDA with SCL high which will be interpreted as START/STOP condition.
-        scl_o(busno, false);
-        half_period(); // make sure SCL has settled low
+        // precondition: SCL and SDA low
         sda_oe(busno, false);
 
         let mut data: u8 = 0;
 
         // MSB first
         for bit in (0..8).rev() {
-            scl_o(busno, false);
             half_period();
-            // Set SCL high and shift data
-            scl_o(busno, true);
+            scl_oe(busno, false);
             half_period();
             if sda_i(busno) { data |= 1 << bit }
+            scl_oe(busno, true);
         }
-        // Send ack
-        // Set SCL low and pull SDA low when acking
-        scl_o(busno, false);
-        if ack { sda_oe(busno, true) }
+        // Send ack/nack
+        sda_oe(busno, ack);
         half_period();
-        // then set SCL high
-        scl_o(busno, true);
+        scl_oe(busno, false);
         half_period();
+        scl_oe(busno, true);
+        sda_oe(busno, true);
+        // postcondition: SCL and SDA low
 
         Ok(data)
     }
