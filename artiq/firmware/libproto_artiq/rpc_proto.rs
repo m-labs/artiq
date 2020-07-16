@@ -49,6 +49,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
+            #[repr(C)].
             struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
                 (*ptr).length = reader.read_u32()?;
@@ -132,6 +133,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             Ok(())
         }
         Tag::List(it) | Tag::Array(it) => {
+            #[repr(C)].
             struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
                 writer.write_u32((*ptr).length)?;
@@ -151,6 +153,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             Ok(())
         }
         Tag::Keyword(it) => {
+            #[repr(C)].
             struct Keyword<'a> { name: CSlice<'a, u8> };
             consume_value!(Keyword, |ptr| {
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
@@ -162,6 +165,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             // to accurately advance data.
         }
         Tag::Object => {
+            #[repr(C)].
             struct Object { id: u32 };
             consume_value!(*const Object, |ptr|
                 writer.write_u32((**ptr).id))
