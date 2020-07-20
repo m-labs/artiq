@@ -92,16 +92,16 @@ DecodedDump = namedtuple(
 def decode_dump(data):
     parts = struct.unpack(">IQbbb", data[:15])
     (sent_bytes, total_byte_count,
-     overflow_occured, log_channel, dds_onehot_sel) = parts
+     error_occured, log_channel, dds_onehot_sel) = parts
 
     expected_len = sent_bytes + 15
     if expected_len != len(data):
         raise ValueError("analyzer dump has incorrect length "
                          "(got {}, expected {})".format(
                             len(data), expected_len))
-    if overflow_occured:
-        logger.warning("analyzer FIFO overflow occured, "
-                       "some messages have been lost")
+    if error_occured:
+        logger.warning("error occured within the analyzer, "
+                       "data may be corrupted")
     if total_byte_count > sent_bytes:
         logger.info("analyzer ring buffer has wrapped %d times",
                     total_byte_count//sent_bytes)
