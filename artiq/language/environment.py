@@ -100,10 +100,9 @@ class EnumerationValue(_SimpleArgProcessor):
 class NumberValue(_SimpleArgProcessor):
     """An argument that can take a numerical value.
 
-    If ndecimals = 0, scale = 1 and step is integer, then it returns
-    an integer value. Otherwise, it returns a floating point value.
-    The simplest way to represent an integer argument is
-    ``NumberValue(step=1, ndecimals=0)``.
+    If ``type=="auto"``, the result will be a ``float`` unless
+    ndecimals = 0, scale = 1 and step is an integer. Setting ``type`` to
+    ``int`` will also result in an error unless these conditions are met.
 
     When ``scale`` is not specified, and the unit is a common one (i.e.
     defined in ``artiq.language.units``), then the scale is obtained from
@@ -126,9 +125,13 @@ class NumberValue(_SimpleArgProcessor):
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
+    :param type: Type of this number. Accepts ``"float"``, ``"int"`` or
+                 ``"auto"``. Defaults to ``"auto"``.
     """
+    valid_types = ["auto", "float", "int"]
+
     def __init__(self, default=NoDefault, unit="", scale=None,
-                 step=None, min=None, max=None, ndecimals=2):
+                 step=None, min=None, max=None, ndecimals=2, type="auto"):
         if scale is None:
             if unit == "":
                 scale = 1.0
@@ -146,13 +149,33 @@ class NumberValue(_SimpleArgProcessor):
         self.min = min
         self.max = max
         self.ndecimals = ndecimals
+        self.type = type
+
+        if self.type not in NumberValue.valid_types:
+            raise TypeError("type must be 'float', 'int' or 'auto'")
+
+        if self.type == "int" and not self._is_int_compatible():
+            raise ValueError(("Value marked as integer but settings are "
+                              "not compatible. Please set ndecimals = 0, "
+                              "scale = 1 and step to an integer"))
 
         super().__init__(default)
 
-    def _is_int(self):
+    def _is_int_compatible(self):
+        '''
+        Are the settings other than `type` compatible with this being
+        an integer?
+        '''
         return (self.ndecimals == 0
                 and int(self.step) == self.step
                 and self.scale == 1)
+
+    def _is_int(self):
+        '''
+        Will this argument return an integer?
+        '''
+        return (self.type == "int"
+                or (self.type == "auto" and self._is_int_compatible()))
 
     def process(self, x):
         if self._is_int():
@@ -170,6 +193,7 @@ class NumberValue(_SimpleArgProcessor):
         d["min"] = self.min
         d["max"] = self.max
         d["ndecimals"] = self.ndecimals
+        d["type"] = self.type
         return d
 
 

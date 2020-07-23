@@ -23,6 +23,7 @@ Highlights:
 * Experiment results are now always saved to HDF5, even if run() fails.
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
+* NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
 
 Breaking changes:
 
