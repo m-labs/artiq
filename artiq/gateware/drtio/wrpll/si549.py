@@ -46,12 +46,18 @@ class I2CMasterMachine(Module):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            self.ready.eq(1),
+            NextValue(self.ready, 1),
+            NextState("IDLE_WAIT")
+        )
+        fsm.act("IDLE_WAIT",
             If(self.start,
+                NextValue(self.start, 0),
                 NextState("START0"),
             ).Elif(self.stop,
+                NextValue(self.stop, 0),
                 NextState("STOP0"),
             ).Elif(self.write,
+                NextValue(self.write, 0),
                 NextValue(bits, 8),
                 NextValue(data, self.data),
                 NextState("WRITE0")
@@ -116,7 +122,7 @@ class I2CMasterMachine(Module):
         idle = Signal()
         self.comb += [
             run.eq(self.start | self.stop | self.write),
-            idle.eq(~run & fsm.ongoing("IDLE")),
+            idle.eq(~run & fsm.ongoing("IDLE_WAIT")),
             self.cg.ce.eq(~idle),
             fsm.ce.eq(run | self.cg.clk2x),
         ]
@@ -163,62 +169,93 @@ class ADPLLProgrammer(Module):
             )
         )
         fsm.act("START",
-            master.start.eq(1),
-            If(master.ready, NextState("DEVADDRESS"))
+            If(master.ready, NextState("START1"))
         )
-        fsm.act("DEVADDRESS",
-            master.data.eq(self.i2c_address << 1),
-            master.write.eq(1),
-            If(master.ready, NextState("REGADRESS"))
+        fsm.act("START1",
+            NextValue(master.ready, 0),
+            NextValue(master.start, 1),
+            NextState("START2")
         )
-        fsm.act("REGADRESS",
-            master.data.eq(231),
-            master.write.eq(1),
+        fsm.act("START2",
+            If(master.ready, NextState("DEVADDRESS0"))
+        )
+        fsm.act("DEVADDRESS0",
+            NextValue(master.ready, 0),
+            NextValue(master.data, self.i2c_address << 1),
+            NextValue(master.write, 1),
+            NextState("DEVADDRESS1")
+        )
+        fsm.act("DEVADDRESS1",
+            If(master.ready, NextState("REGADRESS0"))
+        )
+        fsm.act("REGADRESS0",
+            NextValue(master.ready, 0),
+            NextValue(master.data, 231),
+            NextValue(master.write, 1),
+            NextState("REGADRESS1")
+        )
+        fsm.act("REGADRESS1",
             If(master.ready,
                 If(master.ack,
                     NextState("DATA0")
                 ).Else(
-                    self.nack.eq(1),
+                    NextValue(self.nack, 1),
                     NextState("STOP")
                 )
             )
         )
         fsm.act("DATA0",
-            master.data.eq(adpll[0:8]),
-            master.write.eq(1),
-            If(master.ready,
-                If(master.ack,
-                    NextState("DATA1")
-                ).Else(
-                    self.nack.eq(1),
-                    NextState("STOP")
-                )
-            )
+            NextValue(master.ready, 0),
+            NextValue(master.data, adpll[0:8]),
+            NextValue(master.write, 1),
+            NextState("DATA1")
         )
         fsm.act("DATA1",
-            master.data.eq(adpll[8:16]),
-            master.write.eq(1),
             If(master.ready,
                 If(master.ack,
                     NextState("DATA2")
                 ).Else(
-                    self.nack.eq(1),
+                    NextValue(self.nack, 1),
                     NextState("STOP")
                 )
             )
         )
         fsm.act("DATA2",
-            master.data.eq(adpll[16:24]),
-            master.write.eq(1),
+            NextValue(master.ready, 0),
+            NextValue(master.data, adpll[8:16]),
+            NextValue(master.write, 1),
+            NextState("DATA3")
+        )
+        fsm.act("DATA3",
             If(master.ready,
-                If(~master.ack, self.nack.eq(1)),
+                If(master.ack,
+                    NextState("DATA4")
+                ).Else(
+                    NextValue(self.nack, 1),
+                    NextState("STOP")
+                )
+            )
+        )
+        fsm.act("DATA4",
+            NextValue(master.ready, 0),
+            NextValue(master.data, adpll[16:24]),
+            NextValue(master.write, 1),
+            NextState("DATA5")
+        )
+        fsm.act("DATA5",
+            If(master.ready,
+                If(~master.ack, NextValue(self.nack, 1)),
                 NextState("STOP")
             )
         )
         fsm.act("STOP",
-            master.stop.eq(1),
+            NextValue(master.ready, 0),
+            NextValue(master.stop, 1),
+            NextState("STOP1")
+        )
+        fsm.act("STOP1",
             If(master.ready,
-                If(~master.ack, self.nack.eq(1)),
+                If(~master.ack, NextValue(self.nack, 1)),
                 NextState("IDLE")
             )
         )
@@ -296,8 +333,8 @@ class Si549(Module, AutoCSR):
                 ts_scl.o.eq(self.gpio_out.storage[0]),
                 ts_scl.oe.eq(self.gpio_oe.storage[0])
             ).Else(
-                ts_scl.o.eq(programmer.scl),
-                ts_scl.oe.eq(1)
+                ts_scl.o.eq(0),
+                ts_scl.oe.eq(~programmer.scl)
             )
         ]
 
