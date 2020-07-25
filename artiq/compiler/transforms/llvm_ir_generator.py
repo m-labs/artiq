@@ -209,7 +209,7 @@ class LLVMIRGenerator:
             if for_return:
                 return llvoid
             else:
-                return ll.LiteralStructType([])
+                return llunit
         elif types._is_pointer(typ):
             return llptr
         elif types.is_function(typ):
@@ -239,7 +239,7 @@ class LLVMIRGenerator:
             if for_return:
                 return llvoid
             else:
-                return ll.LiteralStructType([])
+                return llunit
         elif builtins.is_bool(typ):
             return lli1
         elif builtins.is_int(typ):
@@ -1376,7 +1376,7 @@ class LLVMIRGenerator:
                                        name="rpc.args")
         for index, arg in enumerate(args):
             if builtins.is_none(arg.type):
-                llargslot = self.llbuilder.alloca(ll.LiteralStructType([]),
+                llargslot = self.llbuilder.alloca(llunit,
                                                   name="rpc.arg{}".format(index))
             else:
                 llarg = self.map(arg)
