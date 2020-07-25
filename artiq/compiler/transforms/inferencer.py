@@ -7,6 +7,21 @@ from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
 
+
+def is_rectangular_2d_list(node):
+    if not isinstance(node, asttyped.ListT):
+        return False
+    num_elts = None
+    for e in node.elts:
+        if not isinstance(e, asttyped.ListT):
+            return False
+        if num_elts is None:
+            num_elts = len(e.elts)
+        elif num_elts != len(e.elts):
+            return False
+    return True
+
+
 class Inferencer(algorithm.Visitor):
     """
     :class:`Inferencer` infers types by recursively applying the unification
@@ -706,7 +721,6 @@ class Inferencer(algorithm.Visitor):
                             node.loc, None)
             elif types.is_builtin(typ, "array"):
                 valid_forms = lambda: [
-                    valid_form("array() -> array(elt='a)"),
                     valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
                 ]
 
@@ -715,8 +729,10 @@ class Inferencer(algorithm.Visitor):
             else:
                 assert False
 
-            if len(node.args) == 0 and len(node.keywords) == 0:
-                pass # []
+            if (types.is_builtin(typ, "list") and len(node.args) == 0 and
+                    len(node.keywords) == 0):
+                # Mimic numpy and don't allow array() (but []).
+                pass
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
@@ -732,8 +748,14 @@ class Inferencer(algorithm.Visitor):
                                 {"typeb": printer.name(typeb)},
                                 locb)
                         ]
+                    elt = arg.type.find().params["elt"]
+                    if types.is_builtin(typ, "array") and builtins.is_listish(elt):
+                        # KLUDGE: Support 2D arary creation if lexically specified
+                        # as a rectangular array of lists.
+                        if is_rectangular_2d_list(arg):
+                            elt = elt.find().params["elt"]
                     self._unify(node.type.find().params["elt"],
-                                arg.type.find().params["elt"],
+                                elt,
                                 node.loc, arg.loc, makenotes=makenotes)
                 elif types.is_var(arg.type):
                     pass # undetermined yet
