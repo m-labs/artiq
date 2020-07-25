@@ -881,7 +881,7 @@ class LLVMIRGenerator:
         if types.is_tuple(typ):
             return self.llbuilder.extract_value(self.map(insn.object()), attr,
                                                 name=insn.name)
-        elif not builtins.is_allocated(typ):
+        elif builtins.is_array(typ) or not builtins.is_allocated(typ):
             return self.llbuilder.extract_value(self.map(insn.object()),
                                                 self.attr_index(typ, attr),
                                                 name=insn.name)
