@@ -1481,6 +1481,11 @@ class LLVMIRGenerator:
         else:
             llcall = llresult = self.llbuilder.call(llfun, llargs, name=insn.name)
 
+            if isinstance(llresult.type, ll.VoidType):
+                # We have NoneType-returning functions return void, but None is
+                # {} elsewhere.
+                llresult = ll.Constant(llunit, [])
+
             # Never add TBAA nowrite metadata to a functon with sret!
             # This leads to miscompilations.
             if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
