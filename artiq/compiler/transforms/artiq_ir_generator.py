@@ -1637,7 +1637,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg, node.type))
             else:
                 assert False
-        elif (types.is_builtin(typ, "list") or types.is_builtin(typ, "array") or
+        elif (types.is_builtin(typ, "list") or
               types.is_builtin(typ, "bytearray") or types.is_builtin(typ, "bytes")):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 length = ir.Constant(0, builtins.TInt32())
@@ -1658,6 +1658,77 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     body_gen)
 
                 return result
+            else:
+                assert False
+        elif types.is_builtin(typ, "array"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                result_type = node.type.find()
+                arg = self.visit(node.args[0])
+
+                num_dims = 0
+                result_elt = result_type["elt"].find()
+                inner_type = arg.type.find()
+                while True:
+                    if inner_type == result_elt:
+                        # TODO: What about types needing coercion (e.g. int32 to int64)?
+                        break
+                    assert builtins.is_iterable(inner_type)
+                    num_dims += 1
+                    inner_type = builtins.get_iterable_elt(inner_type)
+
+                # Derive shape from first element on each level (currently, type
+                # inference make sure arrays are always rectangular; in the future, we
+                # might want to insert a runtime check here).
+                #
+                # While we are at it, also total up overall number of elements
+                shape = self.append(
+                    ir.Alloc([ir.Constant(num_dims, self._size_type)],
+                             result_type.attributes["shape"]))
+                first_elt = arg
+                dim_idx = 0
+                num_total_elts = None
+                while True:
+                    length = self.iterable_len(first_elt)
+                    self.append(
+                        ir.SetElem(shape, ir.Constant(dim_idx, length.type), length))
+                    if num_total_elts is None:
+                        num_total_elts = length
+                    else:
+                        num_total_elts = self.append(
+                            ir.Arith(ast.Mult(loc=None), num_total_elts, length))
+
+                    dim_idx += 1
+                    if dim_idx == num_dims:
+                        break
+                    first_elt = self.iterable_get(first_elt,
+                                                  ir.Constant(0, length.type))
+
+                # Assign buffer from nested iterables.
+                buffer = self.append(
+                    ir.Alloc([num_total_elts], result_type.attributes["buffer"]))
+                def body_gen(index):
+                    # TODO: This is hilariously inefficient; we really want to emit a
+                    # nested loop for the source and keep one running index for the
+                    # target buffer.
+                    indices = []
+                    mod_idx = index
+                    for dim_idx in reversed(range(1, num_dims)):
+                        dim_len = self.append(ir.GetElem(shape, ir.Constant(dim_idx, self._size_type)))
+                        indices.append(self.append(ir.Arith(ast.Mod(loc=None), mod_idx, dim_len)))
+                        mod_idx = self.append(ir.Arith(ast.FloorDiv(loc=None), mod_idx, dim_len))
+                    indices.append(mod_idx)
+
+                    elt = arg
+                    for idx in reversed(indices):
+                        elt = self.iterable_get(elt, idx)
+                    self.append(ir.SetElem(buffer, index, elt))
+                    return self.append(
+                        ir.Arith(ast.Add(loc=None), index, ir.Constant(1, length.type)))
+                self._make_loop(
+                    ir.Constant(0, length.type), lambda index: self.append(
+                        ir.Compare(ast.Lt(loc=None), index, num_total_elts)), body_gen)
+
+                return self.append(ir.Alloc([shape, buffer], node.type))
             else:
                 assert False
         elif types.is_builtin(typ, "range"):

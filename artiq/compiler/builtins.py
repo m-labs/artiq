@@ -86,6 +86,10 @@ class TArray(types.TMono):
         if elt is None:
             elt = types.TVar()
         super().__init__("array", {"elt": elt})
+        self.attributes = OrderedDict([
+            ("shape", TList(TInt32())),
+            ("buffer", TList(elt)),
+        ])
 
 def _array_printer(typ, printer, depth, max_depth):
     return "numpy.array(elt={})".format(printer.name(typ["elt"], depth, max_depth))

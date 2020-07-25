@@ -246,6 +246,10 @@ class LLVMIRGenerator:
             return ll.IntType(builtins.get_int_width(typ))
         elif builtins.is_float(typ):
             return lldouble
+        elif builtins.is_array(typ):
+            llshapety = self.llty_of_type(typ.attributes["shape"])
+            llbufferty = self.llty_of_type(typ.attributes["buffer"])
+            return ll.LiteralStructType([llshapety, llbufferty])
         elif builtins.is_listish(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty.as_pointer(), lli32])
@@ -733,7 +737,7 @@ class LLVMIRGenerator:
                                                    name=insn.name)
             else:
                 assert False
-        elif builtins.is_listish(insn.type):
+        elif builtins.is_listish(insn.type) and not builtins.is_array(insn.type):
             llsize = self.map(insn.operands[0])
             lleltty = self.llty_of_type(builtins.get_iterable_elt(insn.type))
             llalloc = self.llbuilder.alloca(lleltty, size=llsize)
@@ -741,7 +745,8 @@ class LLVMIRGenerator:
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 0, name=insn.name)
             llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
             return llvalue
-        elif not builtins.is_allocated(insn.type) or ir.is_keyword(insn.type):
+        elif (not builtins.is_allocated(insn.type) or ir.is_keyword(insn.type)
+              or builtins.is_array(insn.type)):
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
             for index, elt in enumerate(insn.operands):
                 llvalue = self.llbuilder.insert_value(llvalue, self.map(elt), index)
