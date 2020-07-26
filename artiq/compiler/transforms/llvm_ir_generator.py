@@ -738,6 +738,24 @@ class LLVMIRGenerator:
             else:
                 assert False
         elif builtins.is_listish(insn.type) and not builtins.is_array(insn.type):
+            if builtins.is_listish(insn.operands[0].type):
+                # KLUDGE: Offsetting is represented as Alloc with base list in the first
+                # argument and offset in the second. Should probably move this to a
+                # seprate node type (or make it possible to construct lists from
+                # pointer/length).
+                llbase = self.map(insn.operands[0])
+                lloldbase = self.llbuilder.extract_value(llbase, 0)
+                lloldsize = self.llbuilder.extract_value(llbase, 1)
+
+                lloffset = self.map(insn.operands[1])
+                llbase = self.llbuilder.gep(lloldbase, [lloffset], inbounds=True)
+                llsize = self.llbuilder.sub(lloldsize, lloffset)
+
+                llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+                llvalue = self.llbuilder.insert_value(llvalue, llbase, 0)
+                llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
+                return llvalue
+
             llsize = self.map(insn.operands[0])
             lleltty = self.llty_of_type(builtins.get_iterable_elt(insn.type))
             llalloc = self.llbuilder.alloca(lleltty, size=llsize)

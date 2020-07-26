@@ -16,6 +16,15 @@ assert [x * x for x in empty_array] == []
 matrix = array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
 assert len(matrix) == 2
 assert matrix.shape == (2, 3)
+assert matrix[0][0] == 1.0
+assert matrix[0][1] == 2.0
+assert matrix[0][2] == 3.0
+assert matrix[1][0] == 4.0
+assert matrix[1][1] == 5.0
+assert matrix[1][2] == 6.0
+# FIXME: Need to decide on a solution for array comparisons —
+# NumPy returns an array of bools!
+# assert [x for x in matrix] == [array([1.0, 2.0, 3.0]), array([4.0, 5.0, 6.0])]
 
 three_tensor = array([[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]])
 assert len(three_tensor) == 1

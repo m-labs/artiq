@@ -512,8 +512,23 @@ class ARTIQIRGenerator(algorithm.Visitor):
         # Assuming the value is within bounds.
         if builtins.is_array(value.type):
             # Scalar indexing into ndarray.
-            if value.type.find()["num_dims"].value > 1:
-                raise NotImplementedError
+            num_dims = value.type.find()["num_dims"].value
+            if num_dims > 1:
+                old_shape = self.append(ir.GetAttr(value, "shape"))
+                lengths = [self.append(ir.GetAttr(old_shape, i)) for i in range(1, num_dims)]
+                new_shape = self.append(ir.Alloc(lengths, types.TTuple(old_shape.type.elts[1:])))
+
+                stride = reduce(
+                    lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
+                    lengths[1:], lengths[0])
+                offset = self.append(ir.Arith(ast.Mult(loc=None), stride, index))
+                old_buffer = self.append(ir.GetAttr(value, "buffer"))
+                # KLUDGE: Represent offsetting by Alloc with two arguments.
+                new_buffer = self.append(ir.Alloc([old_buffer, offset], old_buffer.type))
+
+                result_type = builtins.TArray(value.type.find()["elt"],
+                    types.TValue(num_dims - 1))
+                return self.append(ir.Alloc([new_shape, new_buffer], result_type))
             else:
                 buffer = self.append(ir.GetAttr(value, "buffer"))
                 return self.append(ir.GetElem(buffer, index))
