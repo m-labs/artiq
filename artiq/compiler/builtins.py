@@ -82,17 +82,24 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 class TArray(types.TMono):
-    def __init__(self, elt=None):
+    def __init__(self, elt=None, num_dims=types.TValue(1)):
         if elt is None:
             elt = types.TVar()
-        super().__init__("array", {"elt": elt})
+        # For now, enforce number of dimensions to be known, as we'd otherwise
+        # need to implement custom unification logic for the type of `shape`.
+        # Default to 1 to keep compatibility with old user code from before
+        # multidimensional array support.
+        assert isinstance(num_dims.value, int), "Number of dimensions must be resolved"
+
+        super().__init__("array", {"elt": elt, "num_dims": num_dims})
         self.attributes = OrderedDict([
-            ("shape", TList(TInt32())),
+            ("shape", types.TTuple([TInt32()] * num_dims.value)),
             ("buffer", TList(elt)),
         ])
 
 def _array_printer(typ, printer, depth, max_depth):
-    return "numpy.array(elt={})".format(printer.name(typ["elt"], depth, max_depth))
+    return "numpy.array(elt={}, num_dims={})".format(
+        printer.name(typ["elt"], depth, max_depth), typ["num_dims"].value)
 types.TypePrinter.custom_printers["array"] = _array_printer
 
 class TRange(types.TMono):

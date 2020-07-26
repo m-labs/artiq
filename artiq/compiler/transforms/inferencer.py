@@ -8,18 +8,28 @@ from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
 
 
-def is_rectangular_2d_list(node):
-    if not isinstance(node, asttyped.ListT):
-        return False
+def match_rectangular_list(elts):
     num_elts = None
-    for e in node.elts:
+    elt_type = None
+    all_child_elts = []
+
+    for e in elts:
+        if elt_type is None:
+            elt_type = e.type.find()
         if not isinstance(e, asttyped.ListT):
-            return False
+            return elt_type, 0
         if num_elts is None:
             num_elts = len(e.elts)
         elif num_elts != len(e.elts):
-            return False
-    return True
+            return elt_type, 0
+        all_child_elts += e.elts
+
+    if not all_child_elts:
+        # This ultimately turned out to be a list (of list, of ...) of empty lists.
+        return elt_type["elt"], 1
+
+    elt, num_dims = match_rectangular_list(all_child_elts)
+    return elt, num_dims + 1
 
 
 class Inferencer(algorithm.Visitor):
@@ -710,29 +720,45 @@ class Inferencer(algorithm.Visitor):
                 "strings currently cannot be constructed", {},
                 node.loc)
             self.engine.process(diag)
-        elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
-            if types.is_builtin(typ, "list"):
-                valid_forms = lambda: [
-                    valid_form("list() -> list(elt='a)"),
-                    valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
-                ]
+        elif types.is_builtin(typ, "array"):
+            valid_forms = lambda: [
+                valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
+            ]
 
-                self._unify(node.type, builtins.TList(),
-                            node.loc, None)
-            elif types.is_builtin(typ, "array"):
-                valid_forms = lambda: [
-                    valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
-                ]
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
 
-                self._unify(node.type, builtins.TArray(),
-                            node.loc, None)
+                if builtins.is_iterable(arg.type):
+                    # KLUDGE: Support multidimensional arary creation if lexically
+                    # specified as a rectangular array of lists.
+                    elt, num_dims = match_rectangular_list([arg])
+                    self._unify(node.type,
+                                builtins.TArray(elt, types.TValue(num_dims)),
+                                node.loc, arg.loc)
+                elif types.is_var(arg.type):
+                    pass  # undetermined yet
+                else:
+                    note = diagnostic.Diagnostic("note",
+                        "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)},
+                        arg.loc)
+                    diag = diagnostic.Diagnostic("error",
+                        "the argument of {builtin}() must be of an iterable type",
+                        {"builtin": typ.find().name},
+                        node.func.loc, notes=[note])
+                    self.engine.process(diag)
             else:
-                assert False
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "list"):
+            valid_forms = lambda: [
+                valid_form("list() -> list(elt='a)"),
+                valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
+            ]
 
-            if (types.is_builtin(typ, "list") and len(node.args) == 0 and
-                    len(node.keywords) == 0):
-                # Mimic numpy and don't allow array() (but []).
-                pass
+            self._unify(node.type, builtins.TList(), node.loc, None)
+
+            if len(node.args) == 0 and len(node.keywords) == 0:
+                pass  # []
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
@@ -748,14 +774,8 @@ class Inferencer(algorithm.Visitor):
                                 {"typeb": printer.name(typeb)},
                                 locb)
                         ]
-                    elt = arg.type.find().params["elt"]
-                    if types.is_builtin(typ, "array") and builtins.is_listish(elt):
-                        # KLUDGE: Support 2D arary creation if lexically specified
-                        # as a rectangular array of lists.
-                        if is_rectangular_2d_list(arg):
-                            elt = elt.find().params["elt"]
                     self._unify(node.type.find().params["elt"],
-                                elt,
+                                arg.type.find().params["elt"],
                                 node.loc, arg.loc, makenotes=makenotes)
                 elif types.is_var(arg.type):
                     pass # undetermined yet

@@ -50,3 +50,9 @@ class ConstnessValidator(algorithm.Visitor):
                     node.loc)
                 self.engine.process(diag)
                 return
+            if builtins.is_array(typ):
+                diag = diagnostic.Diagnostic("error",
+                                             "array attributes cannot be assigned to",
+                                             {}, node.loc)
+                self.engine.process(diag)
+                return

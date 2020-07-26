@@ -1173,7 +1173,7 @@ class LLVMIRGenerator:
             if builtins.is_array(collection.type):
                 # Return length of outermost dimension.
                 shape = self.llbuilder.extract_value(self.map(collection), 0)
-                return self.llbuilder.load(self.llbuilder.extract_value(shape, 0))
+                return self.llbuilder.extract_value(shape, 0)
             return self.llbuilder.extract_value(self.map(collection), 1)
         elif insn.op in ("printf", "rtio_log"):
             # We only get integers, floats, pointers and strings here.

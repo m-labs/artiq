@@ -7,6 +7,7 @@ semantics explicitly.
 """
 
 from collections import OrderedDict, defaultdict
+from functools import reduce
 from pythonparser import algorithm, diagnostic, ast
 from .. import types, builtins, asttyped, ir, iodelay
 
@@ -1665,47 +1666,32 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 result_type = node.type.find()
                 arg = self.visit(node.args[0])
 
-                num_dims = 0
                 result_elt = result_type["elt"].find()
-                inner_type = arg.type.find()
-                while True:
-                    if inner_type == result_elt:
-                        # TODO: What about types needing coercion (e.g. int32 to int64)?
-                        break
-                    assert builtins.is_iterable(inner_type)
-                    num_dims += 1
-                    inner_type = builtins.get_iterable_elt(inner_type)
+                num_dims = result_type["num_dims"].value
 
                 # Derive shape from first element on each level (currently, type
                 # inference make sure arrays are always rectangular; in the future, we
                 # might want to insert a runtime check here).
-                #
-                # While we are at it, also total up overall number of elements
-                shape = self.append(
-                    ir.Alloc([ir.Constant(num_dims, self._size_type)],
-                             result_type.attributes["shape"]))
-                first_elt = arg
-                dim_idx = 0
-                num_total_elts = None
-                while True:
-                    length = self.iterable_len(first_elt)
-                    self.append(
-                        ir.SetElem(shape, ir.Constant(dim_idx, length.type), length))
-                    if num_total_elts is None:
-                        num_total_elts = length
+                first_elt = None
+                lengths = []
+                for dim_idx in range(num_dims):
+                    if first_elt is None:
+                        first_elt = arg
                     else:
-                        num_total_elts = self.append(
-                            ir.Arith(ast.Mult(loc=None), num_total_elts, length))
+                        first_elt = self.iterable_get(first_elt,
+                                                      ir.Constant(0, self._size_type))
+                    lengths.append(self.iterable_len(first_elt))
 
-                    dim_idx += 1
-                    if dim_idx == num_dims:
-                        break
-                    first_elt = self.iterable_get(first_elt,
-                                                  ir.Constant(0, length.type))
+                num_total_elts = reduce(
+                    lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
+                    lengths[1:], lengths[0])
+
+                shape = self.append(ir.Alloc(lengths, result_type.attributes["shape"]))
 
                 # Assign buffer from nested iterables.
                 buffer = self.append(
                     ir.Alloc([num_total_elts], result_type.attributes["buffer"]))
+
                 def body_gen(index):
                     # TODO: This is hilariously inefficient; we really want to emit a
                     # nested loop for the source and keep one running index for the
@@ -1713,9 +1699,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     indices = []
                     mod_idx = index
                     for dim_idx in reversed(range(1, num_dims)):
-                        dim_len = self.append(ir.GetElem(shape, ir.Constant(dim_idx, self._size_type)))
-                        indices.append(self.append(ir.Arith(ast.Mod(loc=None), mod_idx, dim_len)))
-                        mod_idx = self.append(ir.Arith(ast.FloorDiv(loc=None), mod_idx, dim_len))
+                        dim_len = self.append(ir.GetAttr(shape, dim_idx))
+                        indices.append(
+                            self.append(ir.Arith(ast.Mod(loc=None), mod_idx, dim_len)))
+                        mod_idx = self.append(
+                            ir.Arith(ast.FloorDiv(loc=None), mod_idx, dim_len))
                     indices.append(mod_idx)
 
                     elt = arg
@@ -1723,9 +1711,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                         elt = self.iterable_get(elt, idx)
                     self.append(ir.SetElem(buffer, index, elt))
                     return self.append(
-                        ir.Arith(ast.Add(loc=None), index, ir.Constant(1, length.type)))
+                        ir.Arith(ast.Add(loc=None), index,
+                                 ir.Constant(1, self._size_type)))
+
                 self._make_loop(
-                    ir.Constant(0, length.type), lambda index: self.append(
+                    ir.Constant(0, self._size_type), lambda index: self.append(
                         ir.Compare(ast.Lt(loc=None), index, num_total_elts)), body_gen)
 
                 return self.append(ir.Alloc([shape, buffer], node.type))
