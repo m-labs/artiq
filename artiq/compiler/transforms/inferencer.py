@@ -740,6 +740,10 @@ class Inferencer(algorithm.Visitor):
                     # KLUDGE: Support multidimensional arary creation if lexically
                     # specified as a rectangular array of lists.
                     elt, num_dims = match_rectangular_list([arg])
+                    if num_dims == 0:
+                        # Not given as a list, so just default to 1 dimension.
+                        elt = builtins.get_iterable_elt(arg.type)
+                        num_dims = 1
                     self._unify(node.type,
                                 builtins.TArray(elt, types.TValue(num_dims)),
                                 node.loc, arg.loc)
