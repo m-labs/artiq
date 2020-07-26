@@ -510,7 +510,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def iterable_get(self, value, index):
         # Assuming the value is within bounds.
-        if builtins.is_listish(value.type):
+        if builtins.is_array(value.type):
+            # Scalar indexing into ndarray.
+            if value.type.find()["num_dims"].value > 1:
+                raise NotImplementedError
+            else:
+                buffer = self.append(ir.GetAttr(value, "buffer"))
+                return self.append(ir.GetElem(buffer, index))
+        elif builtins.is_listish(value.type):
             return self.append(ir.GetElem(value, index))
         elif builtins.is_range(value.type):
             start  = self.append(ir.GetAttr(value, "start"))
