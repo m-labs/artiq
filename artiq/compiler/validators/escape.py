@@ -103,7 +103,7 @@ class RegionOf(algorithm.Visitor):
             # The cache is borrow checked dynamically
             return Global()
         else:
-            self.visit_sometimes_allocating(node)
+            return self.visit_sometimes_allocating(node)
 
     # Value lives as long as the object/container, if it's mutable,
     # or else forever
