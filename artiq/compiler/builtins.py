@@ -82,9 +82,12 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 class TArray(types.TMono):
-    def __init__(self, elt=None, num_dims=types.TValue(1)):
+    def __init__(self, elt=None, num_dims=1):
         if elt is None:
             elt = types.TVar()
+        if isinstance(num_dims, int):
+            # Make TArray more convenient to instantiate from (ARTIQ) user code.
+            num_dims = types.TValue(num_dims)
         # For now, enforce number of dimensions to be known, as we'd otherwise
         # need to implement custom unification logic for the type of `shape`.
         # Default to 1 to keep compatibility with old user code from before
