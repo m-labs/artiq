@@ -296,8 +296,8 @@ class Si549(Module, AutoCSR):
                 ts_scl.o.eq(self.gpio_out.storage[0]),
                 ts_scl.oe.eq(self.gpio_oe.storage[0])
             ).Else(
-                ts_scl.o.eq(programmer.scl),
-                ts_scl.oe.eq(1)
+                ts_scl.o.eq(0),
+                ts_scl.oe.eq(~programmer.scl)
             )
         ]
 
