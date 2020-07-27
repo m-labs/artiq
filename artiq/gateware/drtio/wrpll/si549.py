@@ -35,7 +35,6 @@ class I2CMasterMachine(Module):
         self.write = Signal()
         self.ack   = Signal()
         self.data  = Signal(8)
-        self.ready = Signal()
 
         ###
 
@@ -46,7 +45,6 @@ class I2CMasterMachine(Module):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            self.ready.eq(1),
             If(self.start,
                 NextState("START0"),
             ).Elif(self.stop,
@@ -113,11 +111,11 @@ class I2CMasterMachine(Module):
         )
 
         run = Signal()
-        idle = Signal()
+        self.idle = Signal()
         self.comb += [
             run.eq(self.start | self.stop | self.write),
-            idle.eq(~run & fsm.ongoing("IDLE")),
-            self.cg.ce.eq(~idle),
+            self.idle.eq(~run & fsm.ongoing("IDLE")),
+            self.cg.ce.eq(~self.idle),
             fsm.ce.eq(run | self.cg.clk2x),
         ]
 
@@ -164,17 +162,26 @@ class ADPLLProgrammer(Module):
         )
         fsm.act("START",
             master.start.eq(1),
-            If(master.ready, NextState("DEVADDRESS"))
+            NextState("START1")
+        )
+        fsm.act("START1",
+            If(master.idle, NextState("DEVADDRESS"))
         )
         fsm.act("DEVADDRESS",
             master.data.eq(self.i2c_address << 1),
             master.write.eq(1),
-            If(master.ready, NextState("REGADRESS"))
+            NextState("DEVADDRESS1")
+        )
+        fsm.act("DEVADDRESS1",
+            If(master.idle, NextState("REGADRESS"))
         )
         fsm.act("REGADRESS",
             master.data.eq(231),
             master.write.eq(1),
-            If(master.ready,
+            NextState("REGADRESS1")
+        )
+        fsm.act("REGADRESS1",
+            If(master.idle,
                 If(master.ack,
                     NextState("DATA0")
                 ).Else(
@@ -186,19 +193,10 @@ class ADPLLProgrammer(Module):
         fsm.act("DATA0",
             master.data.eq(adpll[0:8]),
             master.write.eq(1),
-            If(master.ready,
-                If(master.ack,
-                    NextState("DATA1")
-                ).Else(
-                    self.nack.eq(1),
-                    NextState("STOP")
-                )
-            )
+            NextState("DATA1")
         )
         fsm.act("DATA1",
-            master.data.eq(adpll[8:16]),
-            master.write.eq(1),
-            If(master.ready,
+            If(master.idle,
                 If(master.ack,
                     NextState("DATA2")
                 ).Else(
@@ -208,16 +206,37 @@ class ADPLLProgrammer(Module):
             )
         )
         fsm.act("DATA2",
+            master.data.eq(adpll[8:16]),
+            master.write.eq(1),
+            NextState("DATA3")
+        )
+        fsm.act("DATA3",
+            If(master.idle,
+                If(master.ack,
+                    NextState("DATA4")
+                ).Else(
+                    self.nack.eq(1),
+                    NextState("STOP")
+                )
+            )
+        )
+        fsm.act("DATA4",
             master.data.eq(adpll[16:24]),
             master.write.eq(1),
-            If(master.ready,
+            NextState("DATA5")
+        )
+        fsm.act("DATA5",
+            If(master.idle,
                 If(~master.ack, self.nack.eq(1)),
                 NextState("STOP")
             )
         )
         fsm.act("STOP",
             master.stop.eq(1),
-            If(master.ready,
+            NextState("STOP1")
+        )
+        fsm.act("STOP1",
+            If(master.idle,
                 If(~master.ack, self.nack.eq(1)),
                 NextState("IDLE")
             )
@@ -296,8 +315,10 @@ class Si549(Module, AutoCSR):
                 ts_scl.o.eq(self.gpio_out.storage[0]),
                 ts_scl.oe.eq(self.gpio_oe.storage[0])
             ).Else(
-                ts_scl.o.eq(programmer.scl),
-                ts_scl.oe.eq(1)
+                #ts_scl.o.eq(programmer.scl),
+                #ts_scl.oe.eq(1)
+                ts_scl.o.eq(0),
+                ts_scl.oe.eq(~programmer.scl)
             )
         ]
 
@@ -338,3 +359,4 @@ class Si549(Module, AutoCSR):
 
 if __name__ == "__main__":
     simulate_programmer()
+
