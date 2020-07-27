@@ -211,7 +211,7 @@ class LLVMIRGenerator:
             else:
                 return llunit
         elif types._is_pointer(typ):
-            return llptr
+            return ll.PointerType(self.llty_of_type(typ["elt"]))
         elif types.is_function(typ):
             sretarg = []
             llretty = self.llty_of_type(typ.ret, for_return=True)
@@ -249,7 +249,7 @@ class LLVMIRGenerator:
         elif builtins.is_array(typ):
             llshapety = self.llty_of_type(typ.attributes["shape"])
             llbufferty = self.llty_of_type(typ.attributes["buffer"])
-            return ll.LiteralStructType([llshapety, llbufferty])
+            return ll.LiteralStructType([llbufferty, llshapety])
         elif builtins.is_listish(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty.as_pointer(), lli32])
@@ -737,28 +737,13 @@ class LLVMIRGenerator:
                                                    name=insn.name)
             else:
                 assert False
-        elif builtins.is_listish(insn.type) and not builtins.is_array(insn.type):
-            if builtins.is_listish(insn.operands[0].type):
-                # KLUDGE: Offsetting is represented as Alloc with base list in the first
-                # argument and offset in the second. Should probably move this to a
-                # seprate node type (or make it possible to construct lists from
-                # pointer/length).
-                llbase = self.map(insn.operands[0])
-                lloldbase = self.llbuilder.extract_value(llbase, 0)
-                lloldsize = self.llbuilder.extract_value(llbase, 1)
-
-                lloffset = self.map(insn.operands[1])
-                llbase = self.llbuilder.gep(lloldbase, [lloffset], inbounds=True)
-                llsize = self.llbuilder.sub(lloldsize, lloffset)
-
-                llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-                llvalue = self.llbuilder.insert_value(llvalue, llbase, 0)
-                llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
-                return llvalue
-
+        elif types._is_pointer(insn.type) or (builtins.is_listish(insn.type)
+                                              and not builtins.is_array(insn.type)):
             llsize = self.map(insn.operands[0])
             lleltty = self.llty_of_type(builtins.get_iterable_elt(insn.type))
             llalloc = self.llbuilder.alloca(lleltty, size=llsize)
+            if types._is_pointer(insn.type):
+                return llalloc
             llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
             llvalue = self.llbuilder.insert_value(llvalue, llalloc, 0, name=insn.name)
             llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
@@ -962,20 +947,28 @@ class LLVMIRGenerator:
                                        inbounds=True, name=insn.name)
             return self.llbuilder.store(llvalue, llptr)
 
-    def process_GetElem(self, insn):
-        lst, idx = insn.list(), insn.index()
-        lllst, llidx = map(self.map, (lst, idx))
-        llelts = self.llbuilder.extract_value(lllst, 0)
+    def process_Offset(self, insn):
+        base, idx = insn.base(), insn.index()
+        llelts, llidx = map(self.map, (base, idx))
+        if not types._is_pointer(base.type):
+            # This is list-ish.
+            llelts = self.llbuilder.extract_value(llelts, 0)
         llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
+        return llelt
+
+    def process_GetElem(self, insn):
+        llelt = self.process_Offset(insn)
         llvalue = self.llbuilder.load(llelt)
         if isinstance(llvalue.type, ll.PointerType):
             self.mark_dereferenceable(llvalue)
         return llvalue
 
     def process_SetElem(self, insn):
-        lst, idx = insn.list(), insn.index()
-        lllst, llidx = map(self.map, (lst, idx))
-        llelts = self.llbuilder.extract_value(lllst, 0)
+        base, idx = insn.base(), insn.index()
+        llelts, llidx = map(self.map, (base, idx))
+        if not types._is_pointer(base.type):
+            # This is list-ish.
+            llelts = self.llbuilder.extract_value(llelts, 0)
         llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
         return self.llbuilder.store(self.map(insn.value()), llelt)
 
@@ -1190,7 +1183,8 @@ class LLVMIRGenerator:
             collection, = insn.operands
             if builtins.is_array(collection.type):
                 # Return length of outermost dimension.
-                shape = self.llbuilder.extract_value(self.map(collection), 0)
+                shape = self.llbuilder.extract_value(self.map(collection),
+                    self.attr_index(collection.type, "shape"))
                 return self.llbuilder.extract_value(shape, 0)
             return self.llbuilder.extract_value(self.map(collection), 1)
         elif insn.op in ("printf", "rtio_log"):

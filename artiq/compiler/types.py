@@ -204,8 +204,10 @@ class TTuple(Type):
         return hash(tuple(self.elts))
 
 class _TPointer(TMono):
-    def __init__(self):
-        super().__init__("pointer")
+    def __init__(self, elt=None):
+        if elt is None:
+            elt = TMono("int", {"width": 8})  # i8*
+        super().__init__("pointer", params={"elt": elt})
 
 class TFunction(Type):
     """
@@ -735,6 +737,8 @@ class TypePrinter(object):
             else:
                 return "%s(%s)" % (typ.name, ", ".join(
                     ["%s=%s" % (k, self.name(typ.params[k], depth + 1)) for k in typ.params]))
+        elif isinstance(typ, _TPointer):
+            return "{}*".format(self.name(typ["elt"], depth + 1))
         elif isinstance(typ, TTuple):
             if len(typ.elts) == 1:
                 return "(%s,)" % self.name(typ.elts[0], depth + 1)

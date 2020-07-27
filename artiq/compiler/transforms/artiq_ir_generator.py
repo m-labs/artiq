@@ -523,12 +523,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     lengths[1:], lengths[0])
                 offset = self.append(ir.Arith(ast.Mult(loc=None), stride, index))
                 old_buffer = self.append(ir.GetAttr(value, "buffer"))
-                # KLUDGE: Represent offsetting by Alloc with two arguments.
-                new_buffer = self.append(ir.Alloc([old_buffer, offset], old_buffer.type))
+                new_buffer = self.append(ir.Offset(old_buffer, offset))
 
                 result_type = builtins.TArray(value.type.find()["elt"],
                     types.TValue(num_dims - 1))
-                return self.append(ir.Alloc([new_shape, new_buffer], result_type))
+                return self.append(ir.Alloc([new_buffer, new_shape], result_type))
             else:
                 buffer = self.append(ir.GetAttr(value, "buffer"))
                 return self.append(ir.GetElem(buffer, index))
@@ -1740,7 +1739,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     ir.Constant(0, self._size_type), lambda index: self.append(
                         ir.Compare(ast.Lt(loc=None), index, num_total_elts)), body_gen)
 
-                return self.append(ir.Alloc([shape, buffer], node.type))
+                return self.append(ir.Alloc([buffer, shape], node.type))
             else:
                 assert False
         elif types.is_builtin(typ, "range"):

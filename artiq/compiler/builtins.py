@@ -93,8 +93,8 @@ class TArray(types.TMono):
 
         super().__init__("array", {"elt": elt, "num_dims": num_dims})
         self.attributes = OrderedDict([
+            ("buffer", types._TPointer(elt)),
             ("shape", types.TTuple([TInt32()] * num_dims.value)),
-            ("buffer", TList(elt)),
         ])
 
 def _array_printer(typ, printer, depth, max_depth):
@@ -317,7 +317,7 @@ def is_iterable(typ):
 def get_iterable_elt(typ):
     if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
         return TInt(types.TValue(8))
-    elif is_iterable(typ):
+    elif types._is_pointer(typ) or is_iterable(typ):
         return typ.find()["elt"].find()
     else:
         assert False

@@ -738,6 +738,33 @@ class SetAttr(Instruction):
     def value(self):
         return self.operands[1]
 
+class Offset(Instruction):
+    """
+    An intruction that adds an offset to a pointer (indexes into a list).
+
+    This is used to represent internally generated pointer arithmetic, and must
+    remain inside the same object (see :class:`GetElem` and LLVM's GetElementPtr).
+    """
+
+    """
+    :param lst: (:class:`Value`) list
+    :param index: (:class:`Value`) index
+    """
+    def __init__(self, base, offset, name=""):
+        assert isinstance(base, Value)
+        assert isinstance(offset, Value)
+        typ = types._TPointer(builtins.get_iterable_elt(base.type))
+        super().__init__([base, offset], typ, name)
+
+    def opcode(self):
+        return "offset"
+
+    def base(self):
+        return self.operands[0]
+
+    def index(self):
+        return self.operands[1]
+
 class GetElem(Instruction):
     """
     An intruction that loads an element from a list.
@@ -755,7 +782,7 @@ class GetElem(Instruction):
     def opcode(self):
         return "getelem"
 
-    def list(self):
+    def base(self):
         return self.operands[0]
 
     def index(self):
@@ -781,7 +808,7 @@ class SetElem(Instruction):
     def opcode(self):
         return "setelem"
 
-    def list(self):
+    def base(self):
         return self.operands[0]
 
     def index(self):
@@ -839,6 +866,7 @@ class Arith(Instruction):
 
     def rhs(self):
         return self.operands[1]
+
 
 class Compare(Instruction):
     """
