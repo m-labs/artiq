@@ -24,6 +24,9 @@ Highlights:
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
 * NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
+* In kernels, lifetime of allocated values (e.g. lists) is now correctly tracked across
+  function calls (see #1497, #1394). Previous versions (since ARTIQ 1.0) would accept
+  illegal code that would result in silent memory corruption at runtime.
 
 Breaking changes:
 
