@@ -115,7 +115,7 @@ class I2CMasterMachine(Module):
         run = Signal()
         idle = Signal()
         self.comb += [
-            run.eq(self.start | self.stop | self.write),
+            run.eq((self.start | self.stop | self.write) & self.ready),
             idle.eq(~run & fsm.ongoing("IDLE")),
             self.cg.ce.eq(~idle),
             fsm.ce.eq(run | self.cg.clk2x),
