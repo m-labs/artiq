@@ -224,6 +224,20 @@ class AD9910:
         self.phase_mode = phase_mode
 
     @kernel
+    def write16(self, addr, data):
+        """Write to 16 bit register.
+
+        :param addr: Register address
+        :param data: Data to be written
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write(addr << 24)
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 16,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write(data)
+
+    @kernel
     def write32(self, addr, data):
         """Write to 32 bit register.
 
@@ -550,7 +564,7 @@ class AD9910:
 
         :param pow_: Phase offset word to be stored, range: 0 to 0xffff.
         """
-        self.write32(_AD9910_REG_POW, pow_)
+        self.write16(_AD9910_REG_POW, pow_)
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency) -> TInt32:
