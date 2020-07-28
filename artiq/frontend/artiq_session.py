@@ -34,7 +34,7 @@ def main():
 
     master_cmd    = [sys.executable, "-u", "-m", "artiq.frontend.artiq_master"]
     dashboard_cmd = ["artiq_dashboard"]
-    ctlmgr_cmd    = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"]
+    ctlmgr_cmd    = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"] # in artiq-comtools
     master_cmd    += args.m
     dashboard_cmd += args.d
     ctlmgr_cmd    += args.c
