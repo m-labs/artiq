@@ -244,7 +244,7 @@ class CommKernel:
 
     _rpc_sentinel = object()
 
-    # See session.c:{send,receive}_rpc_value and llvm_ir_generator.py:_rpc_tag.
+    # See rpc_proto.rs and compiler/ir.py:rpc_tag.
     def _receive_rpc_value(self, embedding_map):
         tag = chr(self._read_int8())
         if tag == "\x00":

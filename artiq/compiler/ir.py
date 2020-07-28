@@ -36,6 +36,47 @@ class TKeyword(types.TMono):
 def is_keyword(typ):
     return isinstance(typ, TKeyword)
 
+
+# See rpc_proto.rs and comm_kernel.py:_{send,receive}_rpc_value.
+def rpc_tag(typ, error_handler):
+    typ = typ.find()
+    if types.is_tuple(typ):
+        assert len(typ.elts) < 256
+        return b"t" + bytes([len(typ.elts)]) + \
+                b"".join([rpc_tag(elt_type, error_handler)
+                            for elt_type in typ.elts])
+    elif builtins.is_none(typ):
+        return b"n"
+    elif builtins.is_bool(typ):
+        return b"b"
+    elif builtins.is_int(typ, types.TValue(32)):
+        return b"i"
+    elif builtins.is_int(typ, types.TValue(64)):
+        return b"I"
+    elif builtins.is_float(typ):
+        return b"f"
+    elif builtins.is_str(typ):
+        return b"s"
+    elif builtins.is_bytes(typ):
+        return b"B"
+    elif builtins.is_bytearray(typ):
+        return b"A"
+    elif builtins.is_list(typ):
+        return b"l" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+    elif builtins.is_array(typ):
+        return b"a" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+    elif builtins.is_range(typ):
+        return b"r" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+    elif is_keyword(typ):
+        return b"k" + rpc_tag(typ.params["value"], error_handler)
+    elif types.is_function(typ) or types.is_method(typ) or types.is_rpc(typ):
+        raise ValueError("RPC tag for functional value")
+    elif '__objectid__' in typ.attributes:
+        return b"O"
+    else:
+        error_handler(typ)
+
+
 class Value:
     """
     An SSA value that keeps track of its uses.
