@@ -61,6 +61,9 @@ Breaking changes:
 * ``quamash`` has been replaced with ``qasync``.
 * Protocols are updated to use device endian.
 * Analyzer dump format includes a byte for device endianness.
+* To support variable numbers of Urukul cards in the future, the
+  ``artiq.coredevice.suservo.SUServo`` constructor now accepts two device name lists,
+  ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
 
 ARTIQ-5
 -------
