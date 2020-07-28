@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import os
 import sys
 import subprocess
 from artiq import __version__ as artiq_version
@@ -28,16 +29,19 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
 
-    master_cmd    = [sys.executable, "-u", "-m", "artiq.frontend.artiq_master"]
-    dashboard_cmd = [sys.executable,       "-m", "artiq.frontend.artiq_dashboard"]
-    ctlmgr_cmd    = [sys.executable,       "-m", "artiq_comtools.artiq_ctlmgr"]
+    master_env = os.environ.copy()
+    master_env["PYTHONUNBUFFERED"] = "1"
+
+    master_cmd    = ["artiq_master"]
+    dashboard_cmd = ["artiq_dashboard"]
+    ctlmgr_cmd    = ["artiq_ctlmgr"]
     master_cmd    += args.m
     dashboard_cmd += args.d
     ctlmgr_cmd    += args.c
 
     with subprocess.Popen(master_cmd,
                           stdout=subprocess.PIPE, universal_newlines=True,
-                          bufsize=1) as master:
+                          bufsize=1, env=master_env) as master:
         master_ready = False
         for line in iter(master.stdout.readline, ""):
             sys.stdout.write(line)
