@@ -296,7 +296,7 @@ class TCFunction(TFunction):
 
     attributes = OrderedDict()
 
-    def __init__(self, args, ret, name, flags={}):
+    def __init__(self, args, ret, name, flags=set()):
         assert isinstance(flags, set)
         for flag in flags:
             assert flag in {'nounwind', 'nowrite'}
