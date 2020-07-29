@@ -33,12 +33,15 @@ assert c[0] == 0
 assert c[1] == 1
 assert c[2] == 0
 
-# FIXME: Implement array coercion.
-# c = b / a
-# assert c[0] == 4.0
-# assert c[1] == 2.5
-# assert c[2] == 2.0
+cf = b / a
+assert cf[0] == 4.0
+assert cf[1] == 2.5
+assert cf[2] == 2.0
 
+cf2 = cf + a
+assert cf2[0] == 5.0
+assert cf2[1] == 4.5
+assert cf2[2] == 5.0
 
 d = array([[1, 2], [3, 4]])
 e = array([[5, 6], [7, 8]])

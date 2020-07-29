@@ -1415,9 +1415,21 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if node.type.find() == value.type:
             return value
         else:
-            return self.append(ir.Coerce(value, node.type,
-                                         name="{}.{}".format(_readable_name(value),
-                                                             node.type.name)))
+            if builtins.is_array(node.type):
+                result_elt = node.type.find()["elt"]
+                shape = self.append(ir.GetAttr(value, "shape"))
+                result = self._alloate_new_array(result_elt, shape)
+                func = self._get_array_unaryop("Coerce",
+                                               lambda v: ir.Coerce(v, result_elt),
+                                               node.type, value.type)
+                self._invoke_arrayop(func, [result, value])
+                return result
+            else:
+                return self.append(
+                    ir.Coerce(value,
+                              node.type,
+                              name="{}.{}".format(_readable_name(value),
+                                                  node.type.name)))
 
     def _get_total_array_len(self, shape):
         lengths = [
