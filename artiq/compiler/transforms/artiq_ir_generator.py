@@ -1429,13 +1429,17 @@ class ARTIQIRGenerator(algorithm.Visitor):
         # differ.
         def name_error(typ):
             assert False, "Internal compiler error: No RPC tag for {}".format(typ)
+
         def mangle_name(typ):
             typ = typ.find()
-            return ir.rpc_tag(typ["elt"], name_error).decode() +\
-                str(typ["num_dims"].find().value)
+            # rpc_tag is used to turn element types into mangled names for no
+            # particularly good reason apart from not having to invent yet another
+            # string representation.
+            return (ir.rpc_tag(typ["elt"], name_error).decode() +
+                    str(typ["num_dims"].find().value))
+
         name = "_array_{}_{}_{}_{}".format(
-            type(op).__name__,
-            *(map(mangle_name, (result_type, lhs_type, rhs_type))))
+            type(op).__name__, *(map(mangle_name, (result_type, lhs_type, rhs_type))))
         if name not in self.array_binop_funcs:
             self.array_binop_funcs[name] = self._make_array_binop(
                 name, op, result_type, lhs_type, rhs_type)
