@@ -298,16 +298,27 @@ class Inferencer(algorithm.Visitor):
                     node.operand.loc)
                 self.engine.process(diag)
         else: # UAdd, USub
+            if types.is_var(operand_type):
+                return
+
             if builtins.is_numeric(operand_type):
-                self._unify(node.type, operand_type,
-                            node.loc, None)
-            elif not types.is_var(operand_type):
-                diag = diagnostic.Diagnostic("error",
-                    "expected unary '{op}' operand to be of numeric type, not {type}",
-                    {"op": node.op.loc.source(),
-                     "type": types.TypePrinter().name(operand_type)},
-                    node.operand.loc)
-                self.engine.process(diag)
+                self._unify(node.type, operand_type, node.loc, None)
+                return
+
+            if builtins.is_array(operand_type):
+                elt = operand_type.find()["elt"]
+                if builtins.is_numeric(elt):
+                    self._unify(node.type, operand_type, node.loc, None)
+                    return
+                if types.is_var(elt):
+                    return
+
+            diag = diagnostic.Diagnostic("error",
+                "expected unary '{op}' operand to be of numeric type, not {type}",
+                {"op": node.op.loc.source(),
+                    "type": types.TypePrinter().name(operand_type)},
+                node.operand.loc)
+            self.engine.process(diag)
 
     def visit_CoerceT(self, node):
         self.generic_visit(node)
@@ -436,7 +447,8 @@ class Inferencer(algorithm.Visitor):
                     return typ
 
             def map_return(typ):
-                a = builtins.TArray(elt=typ, num_dims=left_dims)
+                elt = builtins.TFloat() if isinstance(op, ast.Div) else typ
+                a = builtins.TArray(elt=elt, num_dims=left_dims)
                 return (a, a, a)
 
             return self._coerce_numeric((left, right),

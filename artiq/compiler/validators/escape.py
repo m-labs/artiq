@@ -156,7 +156,7 @@ class RegionOf(algorithm.Visitor):
     visit_NameConstantT = visit_immutable
     visit_NumT = visit_immutable
     visit_EllipsisT = visit_immutable
-    visit_UnaryOpT = visit_immutable
+    visit_UnaryOpT = visit_sometimes_allocating   # possibly array op
     visit_CompareT = visit_immutable
 
     # Value lives forever
