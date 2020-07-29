@@ -38,3 +38,12 @@ assert c[2] == 0
 # assert c[0] == 4.0
 # assert c[1] == 2.5
 # assert c[2] == 2.0
+
+
+d = array([[1, 2], [3, 4]])
+e = array([[5, 6], [7, 8]])
+f = d + e
+assert f[0][0] == 6
+assert f[0][1] == 8
+assert f[1][0] == 10
+assert f[1][1] == 12
