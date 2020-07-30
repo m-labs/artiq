@@ -59,7 +59,7 @@ class TransferTest(ExperimentCase):
         exp = self.create(_Transfer)
         device_to_host_rate = exp.device_to_host()
         print(device_to_host_rate, "B/s")
-        self.assertGreater(device_to_host_rate, 2.3e6)
+        self.assertGreater(device_to_host_rate, 2.2e6)
 
     def test_device_to_host_array(self):
         exp = self.create(_Transfer)
