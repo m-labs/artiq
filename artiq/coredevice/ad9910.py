@@ -230,12 +230,9 @@ class AD9910:
         :param addr: Register address
         :param data: Data to be written
         """
-        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 24,
                                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write(addr << 24)
-        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 16,
-                               urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write(data)
+        self.bus.write((addr << 24) | (data << 8))
 
     @kernel
     def write32(self, addr, data):
