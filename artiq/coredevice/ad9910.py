@@ -249,6 +249,21 @@ class AD9910:
         self.bus.write(data)
 
     @kernel
+    def read16(self, addr):
+        """Read from 16 bit register.
+
+        :param addr: Register address
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((addr | 0x80) << 24)
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            16, urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        return self.bus.read()
+
+    @kernel
     def read32(self, addr):
         """Read from 32 bit register.
 
