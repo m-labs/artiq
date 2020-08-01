@@ -225,7 +225,7 @@ The JTAG adapter is integrated into the Kasli board; for flashing (and debugging
 Setting up the core device IP networking
 ----------------------------------------
 
-For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to a gigabit Ethernet port in your network. It is necessary that the port be gigabit - 10/100 ports cannot be used. If you need to interface Kasli with 10/100 network equipment, connect them through a gigabit switch.
+For Kasli, insert a SFP/RJ45 transceiver (normally included with purchases from M-Labs and QUARTIQ) into the SFP0 port and connect it to an Ethernet port in your network. If the port is 10Mbps or 100Mbps and not 1000Mbps, make sure that the SFP/RJ45 transceiver supports the lower rate. Many SFP/RJ45 transceivers only support the 1000Mbps rate. If you do not have a SFP/RJ45 transceiver that supports 10Mbps and 100Mbps rates, you may instead use a gigabit Ethernet switch in the middle to perform rate conversion.
 
 You can also insert other types of SFP transceivers into Kasli if you wish to use it directly in e.g. an optical fiber Ethernet network.
 
