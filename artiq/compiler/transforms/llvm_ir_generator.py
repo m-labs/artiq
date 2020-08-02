@@ -205,7 +205,7 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
-        elif types.is_rpc(typ) or types.is_c_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ):
             if for_return:
                 return llvoid
             else:
@@ -838,7 +838,7 @@ class LLVMIRGenerator:
         closure_type = typ.attributes[attr]
         assert types.is_constructor(typ)
         assert types.is_function(closure_type) or types.is_rpc(closure_type)
-        if types.is_c_function(closure_type) or types.is_rpc(closure_type):
+        if types.is_external_function(closure_type) or types.is_rpc(closure_type):
             return None
 
         llty = self.llty_of_type(typ.attributes[attr])
@@ -1443,7 +1443,7 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
-        elif types.is_c_function(functiontyp):
+        elif types.is_external_function(functiontyp):
             llfun, llargs = self._prepare_ffi_call(insn)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
@@ -1466,7 +1466,7 @@ class LLVMIRGenerator:
 
             # Never add TBAA nowrite metadata to a functon with sret!
             # This leads to miscompilations.
-            if types.is_c_function(functiontyp) and 'nowrite' in functiontyp.flags:
+            if types.is_external_function(functiontyp) and 'nowrite' in functiontyp.flags:
                 llcall.set_metadata('tbaa', self.tbaa_nowrite_call)
 
         return llresult
@@ -1480,7 +1480,7 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
-        elif types.is_c_function(functiontyp):
+        elif types.is_external_function(functiontyp):
             llfun, llargs = self._prepare_ffi_call(insn)
         else:
             llfun, llargs = self._prepare_closure_call(insn)
@@ -1530,7 +1530,7 @@ class LLVMIRGenerator:
                     attrvalue = getattr(value, attr)
                     is_class_function = (types.is_constructor(typ) and
                                          types.is_function(typ.attributes[attr]) and
-                                         not types.is_c_function(typ.attributes[attr]))
+                                         not types.is_external_function(typ.attributes[attr]))
                     if is_class_function:
                         attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
                     if not (types.is_instance(typ) and attr in typ.constant_attributes):
@@ -1600,7 +1600,7 @@ class LLVMIRGenerator:
             llelts = [self._quote(v, t, lambda: path() + [str(i)])
                 for i, (v, t) in enumerate(zip(value, typ.elts))]
             return ll.Constant(llty, llelts)
-        elif types.is_rpc(typ) or types.is_c_function(typ) or types.is_builtin_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ) or types.is_builtin_function(typ):
             # RPC, C and builtin functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):

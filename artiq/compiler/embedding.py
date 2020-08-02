@@ -1001,9 +1001,9 @@ class Stitcher:
             self.engine.process(diag)
             ret_type = types.TVar()
 
-        function_type = types.TCFunction(arg_types, ret_type,
-                                         name=function.artiq_embedded.syscall,
-                                         flags=function.artiq_embedded.flags)
+        function_type = types.TExternalFunction(arg_types, ret_type,
+                                                name=function.artiq_embedded.syscall,
+                                                flags=function.artiq_embedded.flags)
         self.functions[function] = function_type
         return function_type
 

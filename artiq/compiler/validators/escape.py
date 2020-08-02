@@ -99,7 +99,7 @@ class RegionOf(algorithm.Visitor):
     visit_BinOpT = visit_sometimes_allocating
 
     def visit_CallT(self, node):
-        if types.is_c_function(node.func.type, "cache_get"):
+        if types.is_external_function(node.func.type, "cache_get"):
             # The cache is borrow checked dynamically
             return Global()
         else:
