@@ -1398,7 +1398,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             operand = self.visit(node.operand)
             if builtins.is_array(operand.type):
                 shape = self.append(ir.GetAttr(operand, "shape"))
-                result = self._alloate_new_array(node.type.find()["elt"], shape)
+                result = self._allocate_new_array(node.type.find()["elt"], shape)
                 func = self._get_array_unaryop("USub", make_sub, node.type, operand.type)
                 self._invoke_arrayop(func, [result, operand])
                 return result
@@ -1418,7 +1418,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if builtins.is_array(node.type):
                 result_elt = node.type.find()["elt"]
                 shape = self.append(ir.GetAttr(value, "shape"))
-                result = self._alloate_new_array(result_elt, shape)
+                result = self._allocate_new_array(result_elt, shape)
                 func = self._get_array_unaryop("Coerce",
                                                lambda v: ir.Coerce(v, result_elt),
                                                node.type, value.type)
@@ -1438,7 +1438,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return reduce(lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
                       lengths[1:], lengths[0])
 
-    def _alloate_new_array(self, elt, shape):
+    def _allocate_new_array(self, elt, shape):
         total_length = self._get_total_array_len(shape)
         buffer = self.append(ir.Alloc([total_length], types._TPointer(elt=elt)))
         result_type = builtins.TArray(elt, types.TValue(len(shape.type.elts)))
@@ -1554,7 +1554,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             # TODO: Broadcasts; select the widest shape.
             # TODO: Detect and special-case matrix multiplication.
             shape = self.append(ir.GetAttr(lhs, "shape"))
-            result = self._alloate_new_array(node.type.find()["elt"], shape)
+            result = self._allocate_new_array(node.type.find()["elt"], shape)
 
             func = self._get_array_binop(node.op, node.type, node.left.type, node.right.type)
             self._invoke_arrayop(func, [result, lhs, rhs])
