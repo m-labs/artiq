@@ -2217,6 +2217,51 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return result
             else:
                 assert False
+        elif types.is_builtin(typ, "numpy.transpose"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = map(self.visit, node.args)
+
+                num_dims = arg.type.find()["num_dims"].value
+                if num_dims == 1:
+                    # No-op as per NumPy semantics.
+                    return arg
+                assert num_dims == 2
+                arg_shape = self.append(ir.GetAttr(arg, "shape"))
+                dim0 = self.append(ir.GetAttr(arg_shape, 0))
+                dim1 = self.append(ir.GetAttr(arg_shape, 1))
+                shape = self._make_array_shape([dim1, dim0])
+                result = self._allocate_new_array(node.type.find()["elt"], shape)
+                arg_buffer = self.append(ir.GetAttr(arg, "buffer"))
+                result_buffer = self.append(ir.GetAttr(result, "buffer"))
+
+                def outer_gen(idx1):
+                    arg_base = self.append(ir.Offset(arg_buffer, idx1))
+                    result_offset = self.append(ir.Arith(ast.Mult(loc=None), idx1,
+                                                         dim0))
+                    result_base = self.append(ir.Offset(result_buffer, result_offset))
+
+                    def inner_gen(idx0):
+                        arg_offset = self.append(
+                            ir.Arith(ast.Mult(loc=None), idx0, dim1))
+                        val = self.append(ir.GetElem(arg_base, arg_offset))
+                        self.append(ir.SetElem(result_base, idx0, val))
+                        return self.append(
+                            ir.Arith(ast.Add(loc=None), idx0, ir.Constant(1,
+                                                                          idx0.type)))
+
+                    self._make_loop(
+                        ir.Constant(0, self._size_type), lambda idx0: self.append(
+                            ir.Compare(ast.Lt(loc=None), idx0, dim0)), inner_gen)
+                    return self.append(
+                        ir.Arith(ast.Add(loc=None), idx1, ir.Constant(1, idx1.type)))
+
+                self._make_loop(
+                    ir.Constant(0, self._size_type),
+                    lambda idx1: self.append(ir.Compare(ast.Lt(loc=None), idx1, dim1)),
+                    outer_gen)
+                return result
+            else:
+                assert False
         elif types.is_builtin(typ, "print"):
             self.polymorphic_print([self.visit(arg) for arg in node.args],
                                    separator=" ", suffix="\n")

@@ -1074,6 +1074,45 @@ class Inferencer(algorithm.Visitor):
                             arg1.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "numpy.transpose"):
+            valid_forms = lambda: [
+                valid_form("transpose(x: array(elt='a, num_dims=1)) -> array(elt='a, num_dims=1)"),
+                valid_form("transpose(x: array(elt='a, num_dims=2)) -> array(elt='a, num_dims=2)")
+            ]
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+
+                if types.is_var(arg.type):
+                    pass  # undetermined yet
+                elif not builtins.is_array(arg.type):
+                    note = diagnostic.Diagnostic(
+                        "note", "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)}, arg.loc)
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "the argument of {builtin}() must be an array",
+                        {"builtin": typ.find().name},
+                        node.func.loc,
+                        notes=[note])
+                    self.engine.process(diag)
+                else:
+                    num_dims = arg.type.find()["num_dims"].value
+                    if num_dims not in (1, 2):
+                        note = diagnostic.Diagnostic(
+                            "note", "argument is {num_dims}-dimensional",
+                            {"num_dims": num_dims}, arg.loc)
+                        diag = diagnostic.Diagnostic(
+                            "error",
+                            "{builtin}() is currently only supported for up to "
+                            "two-dimensional arrays", {"builtin": typ.find().name},
+                            node.func.loc,
+                            notes=[note])
+                        self.engine.process(diag)
+                    else:
+                        self._unify(node.type, arg.type, node.loc, None)
+            else:
+                diagnose(valid_forms())
         elif types.is_builtin(typ, "rtio_log"):
             valid_forms = lambda: [
                 valid_form("rtio_log(channel:str, args...) -> None"),

@@ -26,6 +26,9 @@ unary_fp_runtime_calls = [
     ("arctan", "atan"),
 ]
 
+#: Array handling builtins (special treatment due to allocations).
+numpy_builtins = ["transpose"]
+
 
 def unary_fp_type(name):
     return types.TExternalFunction(OrderedDict([("arg", builtins.TFloat())]),
@@ -36,6 +39,8 @@ numpy_map = {
     getattr(numpy, symbol): unary_fp_type(mangle)
     for symbol, mangle in (unary_fp_intrinsics + unary_fp_runtime_calls)
 }
+for name in numpy_builtins:
+    numpy_map[getattr(numpy, name)] = types.TBuiltinFunction("numpy." + name)
 
 
 def match(obj):
