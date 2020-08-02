@@ -14,7 +14,7 @@ from pythonparser import lexer as source_lexer, parser as source_parser
 from Levenshtein import ratio as similarity, jaro_winkler
 
 from ..language import core as language_core
-from . import types, builtins, asttyped, prelude
+from . import types, builtins, asttyped, math_fns, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
 from .transforms.asttyped_rewriter import LocalExtractor
 
@@ -246,7 +246,8 @@ class ASTSynthesizer:
                                   loc=begin_loc.join(end_loc))
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
                 isinstance(value, pytypes.BuiltinFunctionType) or \
-                isinstance(value, SpecializedFunction):
+                isinstance(value, SpecializedFunction) or \
+                isinstance(value, numpy.ufunc):
             if inspect.ismethod(value):
                 quoted_self   = self.quote(value.__self__)
                 function_type = self.quote_function(value.__func__, self.expanded_from)
@@ -1057,7 +1058,11 @@ class Stitcher:
             host_function = function
 
         if function in self.functions:
-            pass
+            return self.functions[function]
+
+        math_type = math_fns.match(function)
+        if math_type is not None:
+            self.functions[function] = math_type
         elif not hasattr(host_function, "artiq_embedded") or \
                 (host_function.artiq_embedded.core_name is None and
                  host_function.artiq_embedded.portable is False and
