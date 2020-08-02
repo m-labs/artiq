@@ -480,10 +480,10 @@ class Inferencer(algorithm.Visitor):
                     return typ.find()["num_dims"].value
                 return 0
 
-            # TODO: Broadcasting.
             left_dims = num_dims(left.type)
             right_dims = num_dims(right.type)
-            if left_dims != right_dims:
+            if left_dims != right_dims and left_dims != 0 and right_dims != 0:
+                # Mismatch (only scalar broadcast supported for now).
                 note1 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
                                               {"num_dims": left_dims}, left.loc)
                 note2 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
@@ -495,16 +495,19 @@ class Inferencer(algorithm.Visitor):
                 return
 
             def map_node_type(typ):
-                if builtins.is_array(typ):
-                    return typ.find()["elt"]
-                else:
-                    # This is (if later valid) a single value broadcast across the array.
+                if not builtins.is_array(typ):
+                    # This is a single value broadcast across the array.
                     return typ
+                return typ.find()["elt"]
 
+            # Figure out result type, handling broadcasts.
+            result_dims = left_dims if left_dims else right_dims
             def map_return(typ):
                 elt = builtins.TFloat() if isinstance(op, ast.Div) else typ
-                a = builtins.TArray(elt=elt, num_dims=left_dims)
-                return (a, a, a)
+                result = builtins.TArray(elt=elt, num_dims=result_dims)
+                left = builtins.TArray(elt=elt, num_dims=left_dims) if left_dims else elt
+                right = builtins.TArray(elt=elt, num_dims=right_dims) if right_dims else elt
+                return (result, left, right)
 
             return self._coerce_numeric((left, right),
                                         map_return=map_return,

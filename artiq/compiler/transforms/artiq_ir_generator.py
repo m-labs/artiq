@@ -1513,17 +1513,30 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 # At this point, shapes are assumed to match; could just pass buffer
                 # pointer for two of the three arrays as well.
                 result_buffer = self.append(ir.GetAttr(result, "buffer"))
-                lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
-                rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
                 shape = self.append(ir.GetAttr(result, "shape"))
                 num_total_elts = self._get_total_array_len(shape)
 
+                if builtins.is_array(lhs.type):
+                    lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
+                    def get_left(index):
+                        return self.append(ir.GetElem(lhs_buffer, index))
+                else:
+                    def get_left(index):
+                        return lhs
+
+                if builtins.is_array(rhs.type):
+                    rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
+                    def get_right(index):
+                        return self.append(ir.GetElem(rhs_buffer, index))
+                else:
+                    def get_right(index):
+                        return rhs
+
                 def loop_gen(index):
-                    l = self.append(ir.GetElem(lhs_buffer, index))
-                    r = self.append(ir.GetElem(rhs_buffer, index))
-                    self.append(
-                        ir.SetElem(result_buffer, index, self.append(ir.Arith(op, l,
-                                                                              r))))
+                    l = get_left(index)
+                    r = get_right(index)
+                    result = self.append(ir.Arith(op, l, r))
+                    self.append(ir.SetElem(result_buffer, index, result))
                     return self.append(
                         ir.Arith(ast.Add(loc=None), index,
                                  ir.Constant(1, self._size_type)))
@@ -1700,20 +1713,29 @@ class ARTIQIRGenerator(algorithm.Visitor):
             lhs = self.visit(node.left)
             rhs = self.visit(node.right)
 
-            shape = self.append(ir.GetAttr(lhs, "shape"))
-            # TODO: Broadcasts; select the widest shape.
-            rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
-            self._make_check(
-                self.append(ir.Compare(ast.Eq(loc=None), shape, rhs_shape)),
-                lambda: self.alloc_exn(
-                    builtins.TException("ValueError"),
-                    ir.Constant("operands could not be broadcast together",
-                                builtins.TStr())))
+            # Broadcast scalars.
+            broadcast = False
+            array_arg = lhs
+            if not builtins.is_array(lhs.type):
+                broadcast = True
+                array_arg = rhs
+            elif not builtins.is_array(rhs.type):
+                broadcast = True
+
+            shape = self.append(ir.GetAttr(array_arg, "shape"))
+
+            if not broadcast:
+                rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
+                self._make_check(
+                    self.append(ir.Compare(ast.Eq(loc=None), shape, rhs_shape)),
+                    lambda: self.alloc_exn(
+                        builtins.TException("ValueError"),
+                        ir.Constant("operands could not be broadcast together",
+                                    builtins.TStr())))
+
             result = self._allocate_new_array(node.type.find()["elt"], shape)
-
-            func = self._get_array_binop(node.op, node.type, node.left.type, node.right.type)
+            func = self._get_array_binop(node.op, node.type, lhs.type, rhs.type)
             self._invoke_arrayop(func, [result, lhs, rhs])
-
             return result
         elif builtins.is_numeric(node.type):
             lhs = self.visit(node.left)
