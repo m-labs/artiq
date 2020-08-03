@@ -34,6 +34,8 @@ def unary_fp_type(name):
     return types.TExternalFunction(OrderedDict([("arg", builtins.TFloat())]),
                                    builtins.TFloat(),
                                    name,
+                                   # errno isn't observable from ARTIQ Python.
+                                   flags={"nounwind", "nowrite"},
                                    broadcast_across_arrays=True)
 
 
