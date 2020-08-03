@@ -1232,6 +1232,16 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
             return
 
+        # Array broadcasting for unary functions explicitly marked as such.
+        if len(node.args) == typ_arity == 1 and types.is_broadcast_across_arrays(typ):
+            arg_type = node.args[0].type.find()
+            if builtins.is_array(arg_type):
+                typ_arg, = typ_args.values()
+                self._unify(typ_arg, arg_type["elt"], node.args[0].loc, None)
+                self._unify(node.type, builtins.TArray(typ_ret, arg_type["num_dims"]),
+                            node.loc, None)
+                return
+
         for actualarg, (formalname, formaltyp) in \
                 zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
             self._unify(actualarg.type, formaltyp,

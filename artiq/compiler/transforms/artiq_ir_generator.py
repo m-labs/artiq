@@ -1335,8 +1335,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                   ret=builtins.TNone())
             env_args = [ir.EnvironmentArgument(self.current_env.type, "ARG.ENV")]
 
-            # TODO: What to use for loc?
-            func = ir.Function(typ, name, env_args + args, loc=None)
+            old_loc, self.current_loc = self.current_loc, None
+            func = ir.Function(typ, name, env_args + args)
             func.is_internal = True
             func.is_generated = True
             self.functions.append(func)
@@ -1357,7 +1357,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             def body_gen(index):
                 a = self.append(ir.GetElem(arg_buffer, index))
                 self.append(
-                    ir.SetElem(result_buffer, index, self.append(make_op(a))))
+                    ir.SetElem(result_buffer, index, make_op(a)))
                 return self.append(
                     ir.Arith(ast.Add(loc=None), index, ir.Constant(1, self._size_type)))
 
@@ -1368,6 +1368,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.append(ir.Return(ir.Constant(None, builtins.TNone())))
             return func
         finally:
+            self.current_loc = old_loc
             self.current_function = old_func
             self.current_block = old_block
             self.final_branch = old_final_branch
@@ -1393,8 +1394,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                                         ir.Constant(-1, operand.type), operand))
         elif isinstance(node.op, ast.USub):
             def make_sub(val):
-                return ir.Arith(ast.Sub(loc=None),
-                                        ir.Constant(0, val.type), val)
+                return self.append(ir.Arith(ast.Sub(loc=None),
+                                        ir.Constant(0, val.type), val))
             operand = self.visit(node.operand)
             if builtins.is_array(operand.type):
                 shape = self.append(ir.GetAttr(operand, "shape"))
@@ -1403,7 +1404,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self._invoke_arrayop(func, [result, operand])
                 return result
             else:
-                return self.append(make_sub(operand))
+                return make_sub(operand)
         elif isinstance(node.op, ast.UAdd):
             # No-op.
             return self.visit(node.operand)
@@ -1419,9 +1420,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 result_elt = node.type.find()["elt"]
                 shape = self.append(ir.GetAttr(value, "shape"))
                 result = self._allocate_new_array(result_elt, shape)
-                func = self._get_array_unaryop("Coerce",
-                                               lambda v: ir.Coerce(v, result_elt),
-                                               node.type, value.type)
+                func = self._get_array_unaryop(
+                    "Coerce", lambda v: self.append(ir.Coerce(v, result_elt)),
+                    node.type, value.type)
                 self._invoke_arrayop(func, [result, value])
                 return result
             else:
@@ -2383,12 +2384,32 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if types.is_builtin(node.func.type):
             insn = self.visit_builtin_call(node)
+        elif (types.is_broadcast_across_arrays(node.func.type) and len(args) >= 1
+              and builtins.is_array(args[0].type)):
+            # The iodelay machinery set up in the surrounding code was
+            # deprecated/a relic from the past when array broadcasting support
+            # was added, so no attempt to keep the delay tracking intact is
+            # made.
+            assert len(args) == 1, "Broadcasting for multiple arguments not implemented"
+
+            def make_call(val):
+                return self._user_call(ir.Constant(None, callee.type), [val], {},
+                                       node.arg_exprs)
+
+            shape = self.append(ir.GetAttr(args[0], "shape"))
+            result = self._allocate_new_array(node.type.find()["elt"], shape)
+
+            # TODO: Generate more generically if non-externals are allowed.
+            name = node.func.type.find().name
+            func = self._get_array_unaryop(name, make_call, node.type, args[0].type)
+            self._invoke_arrayop(func, [result, args[0]])
+            insn = result
         else:
             insn = self._user_call(callee, args, keywords, node.arg_exprs)
-
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
-                self.method_map[(attr_node.value.type.find(), attr_node.attr)].append(insn)
+                self.method_map[(attr_node.value.type.find(),
+                                 attr_node.attr)].append(insn)
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block("delay.tail")

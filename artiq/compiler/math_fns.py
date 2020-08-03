@@ -32,7 +32,9 @@ numpy_builtins = ["transpose"]
 
 def unary_fp_type(name):
     return types.TExternalFunction(OrderedDict([("arg", builtins.TFloat())]),
-                                   builtins.TFloat(), name)
+                                   builtins.TFloat(),
+                                   name,
+                                   broadcast_across_arrays=True)
 
 
 numpy_map = {

@@ -298,11 +298,14 @@ class TExternalFunction(TFunction):
         Flag ``nounwind`` means the function never raises an exception.
         Flag ``nowrite`` means the function never writes any memory
         that the ARTIQ Python code can observe.
+    :ivar broadcast_across_arrays: (bool)
+        If True, the function is transparently applied element-wise when called
+        with TArray arguments.
     """
 
     attributes = OrderedDict()
 
-    def __init__(self, args, ret, name, flags=set()):
+    def __init__(self, args, ret, name, flags=set(), broadcast_across_arrays=False):
         assert isinstance(flags, set)
         for flag in flags:
             assert flag in {'nounwind', 'nowrite'}
@@ -310,6 +313,7 @@ class TExternalFunction(TFunction):
         self.name  = name
         self.delay = TFixedDelay(iodelay.Const(0))
         self.flags = flags
+        self.broadcast_across_arrays = broadcast_across_arrays
 
     def unify(self, other):
         if other is self:
@@ -643,6 +647,15 @@ def is_builtin_function(typ, name=None):
     else:
         return isinstance(typ, TBuiltinFunction) and \
             typ.name == name
+
+def is_broadcast_across_arrays(typ):
+    # For now, broadcasting is only exposed to predefined external functions, and
+    # statically selected. Might be extended to user-defined functions if the design
+    # pans out.
+    typ = typ.find()
+    if not isinstance(typ, TExternalFunction):
+        return False
+    return typ.broadcast_across_arrays
 
 def is_constructor(typ, name=None):
     typ = typ.find()
