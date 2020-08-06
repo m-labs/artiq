@@ -579,7 +579,7 @@ class _DMA(EnvExperiment):
     def build(self, trace_name="test_rtio"):
         self.setattr_device("core")
         self.setattr_device("core_dma")
-        self.setattr_device("ttl1")
+        self.setattr_device("ttl_out")
         self.trace_name = trace_name
         self.delta = np.int64(0)
 
@@ -591,9 +591,9 @@ class _DMA(EnvExperiment):
             if not for_handle:
                 delay(1*ms)
             delay(100*ns)
-            self.ttl1.on()
+            self.ttl_out.on()
             delay(100*ns)
-            self.ttl1.off()
+            self.ttl_out.off()
 
     @kernel
     def record_many(self, n):
@@ -601,9 +601,9 @@ class _DMA(EnvExperiment):
         with self.core_dma.record(self.trace_name):
             for i in range(n//2):
                 delay(100*ns)
-                self.ttl1.on()
+                self.ttl_out.on()
                 delay(100*ns)
-                self.ttl1.off()
+                self.ttl_out.off()
         t2 = self.core.get_rtio_counter_mu()
         self.set_dataset("dma_record_time", self.core.mu_to_seconds(t2 - t1))
 
@@ -670,6 +670,7 @@ class DMATest(ExperimentCase):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
         exp = self.create(_DMA)
+        channel = exp.ttl_out.channel
 
         for use_handle in [False, True]:
             exp.record(use_handle)
@@ -680,11 +681,11 @@ class DMATest(ExperimentCase):
             self.assertEqual(len(dump.messages), 3)
             self.assertIsInstance(dump.messages[-1], StoppedMessage)
             self.assertIsInstance(dump.messages[0], OutputMessage)
-            self.assertEqual(dump.messages[0].channel, 1)
+            self.assertEqual(dump.messages[0].channel, channel)
             self.assertEqual(dump.messages[0].address, 0)
             self.assertEqual(dump.messages[0].data, 1)
             self.assertIsInstance(dump.messages[1], OutputMessage)
-            self.assertEqual(dump.messages[1].channel, 1)
+            self.assertEqual(dump.messages[1].channel, channel)
             self.assertEqual(dump.messages[1].address, 0)
             self.assertEqual(dump.messages[1].data, 0)
             self.assertEqual(dump.messages[1].timestamp -
