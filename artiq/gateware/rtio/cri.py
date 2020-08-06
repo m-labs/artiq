@@ -79,7 +79,6 @@ class KernelInitiator(Module, AutoCSR):
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)
         self.i_status = CSRStatus(4)
-        self.i_overflow_reset = CSR()
 
         self.counter = CSRStatus(64)
         self.counter_update = CSR()
