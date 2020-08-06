@@ -183,6 +183,7 @@ class Target:
         """Link the relocatable objects into a shared library for this target."""
         with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
+                     ["-x"] +
                      ["-o", "{output}"],
                      output=None,
                      **{"obj{}".format(index): obj for index, obj in enumerate(objects)}) \
