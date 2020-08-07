@@ -3,6 +3,7 @@ from numpy import int32, int64
 from artiq.language.core import (
     kernel, delay, portable, delay_mu, now_mu, at_mu)
 from artiq.language.units import us, ms
+from artiq.language.types import *
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
@@ -223,6 +224,17 @@ class AD9910:
         self.phase_mode = phase_mode
 
     @kernel
+    def write16(self, addr, data):
+        """Write to 16 bit register.
+
+        :param addr: Register address
+        :param data: Data to be written
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 24,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((addr << 24) | (data << 8))
+
+    @kernel
     def write32(self, addr, data):
         """Write to 32 bit register.
 
@@ -235,6 +247,21 @@ class AD9910:
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
                                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(data)
+
+    @kernel
+    def read16(self, addr):
+        """Read from 16 bit register.
+
+        :param addr: Register address
+        """
+        self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((addr | 0x80) << 24)
+        self.bus.set_config_mu(
+            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT,
+            16, urukul.SPIT_DDS_RD, self.chip_select)
+        self.bus.write(0)
+        return self.bus.read()
 
     @kernel
     def read32(self, addr):
@@ -549,10 +576,10 @@ class AD9910:
 
         :param pow_: Phase offset word to be stored, range: 0 to 0xffff.
         """
-        self.write32(_AD9910_REG_POW, pow_)
+        self.write16(_AD9910_REG_POW, pow_)
 
     @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency):
+    def frequency_to_ftw(self, frequency) -> TInt32:
         """Return the 32-bit frequency tuning word corresponding to the given
         frequency.
         """
@@ -566,7 +593,7 @@ class AD9910:
         return ftw / self.ftw_per_hz
 
     @portable(flags={"fast-math"})
-    def turns_to_pow(self, turns):
+    def turns_to_pow(self, turns) -> TInt32:
         """Return the 16-bit phase offset word corresponding to the given phase
         in turns."""
         return int32(round(turns*0x10000)) & 0xffff
@@ -578,7 +605,7 @@ class AD9910:
         return pow_/0x10000
 
     @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude):
+    def amplitude_to_asf(self, amplitude) -> TInt32:
         """Return 14-bit amplitude scale factor corresponding to given
         fractional amplitude."""
         code = int32(round(amplitude * 0x3fff))
