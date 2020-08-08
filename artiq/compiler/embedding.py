@@ -233,17 +233,7 @@ class ASTSynthesizer:
                                    begin_loc=begin_loc, end_loc=end_loc,
                                    loc=begin_loc.join(end_loc))
         elif isinstance(value, numpy.ndarray):
-            begin_loc = self._add("numpy.array([")
-            elts = []
-            for index, elt in enumerate(value):
-                elts.append(self.quote(elt))
-                if index < len(value) - 1:
-                    self._add(", ")
-            end_loc   = self._add("])")
-
-            return asttyped.ListT(elts=elts, ctx=None, type=builtins.TArray(),
-                                  begin_loc=begin_loc, end_loc=end_loc,
-                                  loc=begin_loc.join(end_loc))
+            return self.call(numpy.array, [list(value)], {})
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
                 isinstance(value, pytypes.BuiltinFunctionType) or \
                 isinstance(value, SpecializedFunction) or \
