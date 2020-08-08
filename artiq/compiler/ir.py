@@ -64,7 +64,8 @@ def rpc_tag(typ, error_handler):
     elif builtins.is_list(typ):
         return b"l" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
     elif builtins.is_array(typ):
-        return b"a" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+        num_dims = typ["num_dims"].value
+        return b"a" + bytes([num_dims]) + rpc_tag(typ["elt"], error_handler)
     elif builtins.is_range(typ):
         return b"r" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
     elif is_keyword(typ):

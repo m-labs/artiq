@@ -48,7 +48,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             }
             Ok(())
         }
-        Tag::List(it) | Tag::Array(it) => {
+        Tag::List(it) => {
             #[repr(C)]
             struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
@@ -60,6 +60,25 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 let mut data = (*ptr).elements;
                 for _ in 0..(*ptr).length as usize {
                     recv_value(reader, tag, &mut data, alloc)?
+                }
+                Ok(())
+            })
+        }
+        Tag::Array(it, num_dims) => {
+            consume_value!(*mut (), |buffer| {
+                let mut total_len: u32 = 1;
+                for _ in 0..num_dims {
+                    let len = reader.read_u32()?;
+                    total_len *= len;
+                    consume_value!(u32, |ptr| *ptr = len )
+                }
+
+                let elt_tag = it.clone().next().expect("truncated tag");
+                *buffer = alloc(elt_tag.size() * total_len as usize)?;
+
+                let mut data = *buffer;
+                for _ in 0..total_len {
+                    recv_value(reader, elt_tag, &mut data, alloc)?
                 }
                 Ok(())
             })
@@ -132,7 +151,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             }
             Ok(())
         }
-        Tag::List(it) | Tag::Array(it) => {
+        Tag::List(it) => {
             #[repr(C)]
             struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
@@ -141,6 +160,25 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = (*ptr).elements;
                 for _ in 0..(*ptr).length as usize {
                     send_value(writer, tag, &mut data)?;
+                }
+                Ok(())
+            })
+        }
+        Tag::Array(it, num_dims) => {
+            writer.write_u8(num_dims)?;
+            consume_value!(*const(), |buffer| {
+                let elt_tag = it.clone().next().expect("truncated tag");
+
+                let mut total_len = 1;
+                for _ in 0..num_dims {
+                    consume_value!(u32, |len| {
+                        writer.write_u32(*len)?;
+                        total_len *= *len;
+                    })
+                }
+                let mut data = *buffer;
+                for _ in 0..total_len as usize {
+                    send_value(writer, elt_tag, &mut data)?;
                 }
                 Ok(())
             })
@@ -226,7 +264,7 @@ mod tag {
         ByteArray,
         Tuple(TagIterator<'a>, u8),
         List(TagIterator<'a>),
-        Array(TagIterator<'a>),
+        Array(TagIterator<'a>, u8),
         Range(TagIterator<'a>),
         Keyword(TagIterator<'a>),
         Object
@@ -245,7 +283,7 @@ mod tag {
                 Tag::ByteArray => b'A',
                 Tag::Tuple(_, _) => b't',
                 Tag::List(_) => b'l',
-                Tag::Array(_) => b'a',
+                Tag::Array(_, _) => b'a',
                 Tag::Range(_) => b'r',
                 Tag::Keyword(_) => b'k',
                 Tag::Object => b'O',
@@ -272,7 +310,7 @@ mod tag {
                     size
                 }
                 Tag::List(_) => 8,
-                Tag::Array(_) => 8,
+                Tag::Array(_, num_dims) => 4 * (1 + num_dims as usize),
                 Tag::Range(it) => {
                     let tag = it.clone().next().expect("truncated tag");
                     tag.size() * 3
@@ -315,7 +353,11 @@ mod tag {
                     Tag::Tuple(self.sub(count), count)
                 }
                 b'l' => Tag::List(self.sub(1)),
-                b'a' => Tag::Array(self.sub(1)),
+                b'a' => {
+                    let count = self.data[0];
+                    self.data = &self.data[1..];
+                    Tag::Array(self.sub(1), count)
+                }
                 b'r' => Tag::Range(self.sub(1)),
                 b'k' => Tag::Keyword(self.sub(1)),
                 b'O' => Tag::Object,
@@ -370,10 +412,10 @@ mod tag {
                         it.fmt(f)?;
                         write!(f, ")")?;
                     }
-                    Tag::Array(it) => {
+                    Tag::Array(it, num_dims) => {
                         write!(f, "Array(")?;
                         it.fmt(f)?;
-                        write!(f, ")")?;
+                        write!(f, ", {})", num_dims)?;
                     }
                     Tag::Range(it) => {
                         write!(f, "Range(")?;

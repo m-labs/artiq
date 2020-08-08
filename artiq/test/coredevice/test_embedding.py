@@ -22,6 +22,12 @@ class RoundtripTest(ExperimentCase):
             self.assertEqual(obj, objcopy)
         exp.roundtrip(obj, callback)
 
+    def assertArrayRoundtrip(self, obj):
+        exp = self.create(_Roundtrip)
+        def callback(objcopy):
+            numpy.testing.assert_array_equal(obj, objcopy)
+        exp.roundtrip(obj, callback)
+
     def test_None(self):
         self.assertRoundtrip(None)
 
@@ -48,9 +54,6 @@ class RoundtripTest(ExperimentCase):
     def test_list(self):
         self.assertRoundtrip([10])
 
-    def test_array(self):
-        self.assertRoundtrip(numpy.array([10]))
-
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)
@@ -63,6 +66,19 @@ class RoundtripTest(ExperimentCase):
 
     def test_list_mixed_tuple(self):
         self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
+
+    def test_array_1d(self):
+        self.assertArrayRoundtrip(numpy.array([1, 2, 3], dtype=numpy.int32))
+        self.assertArrayRoundtrip(numpy.array([1.0, 2.0, 3.0]))
+        self.assertArrayRoundtrip(numpy.array(["a", "b", "c"]))
+
+    def test_array_2d(self):
+        self.assertArrayRoundtrip(numpy.array([[1, 2], [3, 4]], dtype=numpy.int32))
+        self.assertArrayRoundtrip(numpy.array([[1.0, 2.0], [3.0, 4.0]]))
+        self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
+
+    def test_array_jagged(self):
+        self.assertArrayRoundtrip(numpy.array([[1, 2], [3]]))
 
 
 class _DefaultArg(EnvExperiment):
@@ -117,6 +133,12 @@ class _RPCTypes(EnvExperiment):
     def return_range(self) -> TRange32:
         return range(10)
 
+    def return_array(self) -> TArray(TInt32):
+        return numpy.array([1, 2])
+
+    def return_matrix(self) -> TArray(TInt32, 2):
+        return numpy.array([[1, 2], [3, 4]])
+
     def return_mismatch(self):
         return b"foo"
 
@@ -132,6 +154,8 @@ class _RPCTypes(EnvExperiment):
         core_log(self.return_tuple())
         core_log(self.return_list())
         core_log(self.return_range())
+        core_log(self.return_array())
+        core_log(self.return_matrix())
 
     def accept(self, value):
         pass
@@ -150,6 +174,8 @@ class _RPCTypes(EnvExperiment):
         self.accept((2, 3))
         self.accept([1, 2])
         self.accept(range(10))
+        self.accept(numpy.array([1, 2]))
+        self.accept(numpy.array([[1, 2], [3, 4]]))
         self.accept(self)
 
     @kernel

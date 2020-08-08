@@ -276,8 +276,10 @@ class CommKernel:
             length = self._read_int32()
             return [self._receive_rpc_value(embedding_map) for _ in range(length)]
         elif tag == "a":
-            length = self._read_int32()
-            return numpy.array([self._receive_rpc_value(embedding_map) for _ in range(length)])
+            num_dims = self._read_int8()
+            shape = tuple(self._read_int32() for _ in range(num_dims))
+            elems = [self._receive_rpc_value(embedding_map) for _ in range(numpy.prod(shape))]
+            return numpy.array(elems).reshape(shape)
         elif tag == "r":
             start = self._receive_rpc_value(embedding_map)
             stop  = self._receive_rpc_value(embedding_map)
@@ -377,6 +379,18 @@ class CommKernel:
                   lambda: "list")
             self._write_int32(len(value))
             for elt in value:
+                tags_copy = bytearray(tags)
+                self._send_rpc_value(tags_copy, elt, root, function)
+            self._skip_rpc_value(tags)
+        elif tag == "a":
+            check(isinstance(value, numpy.ndarray),
+                  lambda: "numpy.ndarray")
+            num_dims = tags.pop(0)
+            check(num_dims == len(value.shape),
+                lambda: "{}-dimensional numpy.ndarray".format(num_dims))
+            for s in value.shape:
+                self._write_int32(s)
+            for elt in value.reshape((-1,), order="C"):
                 tags_copy = bytearray(tags)
                 self._send_rpc_value(tags_copy, elt, root, function)
             self._skip_rpc_value(tags)
