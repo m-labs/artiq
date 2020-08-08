@@ -8,30 +8,6 @@ from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
 
 
-def match_rectangular_list(elts):
-    num_elts = None
-    elt_type = None
-    all_child_elts = []
-
-    for e in elts:
-        if elt_type is None:
-            elt_type = e.type.find()
-        if not isinstance(e, asttyped.ListT):
-            return elt_type, 0
-        if num_elts is None:
-            num_elts = len(e.elts)
-        elif num_elts != len(e.elts):
-            return elt_type, 0
-        all_child_elts += e.elts
-
-    if not all_child_elts:
-        # This ultimately turned out to be a list (of list, of ...) of empty lists.
-        return elt_type["elt"], 1
-
-    elt, num_dims = match_rectangular_list(all_child_elts)
-    return elt, num_dims + 1
-
-
 class Inferencer(algorithm.Visitor):
     """
     :class:`Inferencer` infers types by recursively applying the unification
@@ -862,29 +838,42 @@ class Inferencer(algorithm.Visitor):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
-                if builtins.is_iterable(arg.type):
-                    # KLUDGE: Support multidimensional arary creation if lexically
-                    # specified as a rectangular array of lists.
-                    elt, num_dims = match_rectangular_list([arg])
-                    if num_dims == 0:
-                        # Not given as a list, so just default to 1 dimension.
-                        elt = builtins.get_iterable_elt(arg.type)
-                        num_dims = 1
-                    self._unify(node.type,
-                                builtins.TArray(elt, types.TValue(num_dims)),
-                                node.loc, arg.loc)
-                elif types.is_var(arg.type):
-                    pass  # undetermined yet
-                else:
-                    note = diagnostic.Diagnostic("note",
-                        "this expression has type {type}",
-                        {"type": types.TypePrinter().name(arg.type)},
-                        arg.loc)
-                    diag = diagnostic.Diagnostic("error",
+                # In the absence of any other information (there currently isn't a way
+                # to specify any), assume that all iterables are expandable into a
+                # (runtime-checked) rectangular array of the innermost element type.
+                elt = arg.type
+                num_dims = 0
+                result_dims = (node.type.find()["num_dims"].value
+                               if builtins.is_array(node.type) else -1)
+                while True:
+                    if num_dims == result_dims:
+                        # If we already know the number of dimensions of the result,
+                        # stop so we can disambiguate the (innermost) element type of
+                        # the argument if it is still unknown (e.g. empty array).
+                        break
+                    if types.is_var(elt):
+                        return  # undetermined yet
+                    if not builtins.is_iterable(elt):
+                        break
+                    num_dims += 1
+                    elt = builtins.get_iterable_elt(elt)
+
+                if num_dims == 0:
+                    note = diagnostic.Diagnostic(
+                        "note", "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)}, arg.loc)
+                    diag = diagnostic.Diagnostic(
+                        "error",
                         "the argument of {builtin}() must be of an iterable type",
                         {"builtin": typ.find().name},
-                        node.func.loc, notes=[note])
+                        node.func.loc,
+                        notes=[note])
                     self.engine.process(diag)
+                    return
+
+                self._unify(node.type,
+                            builtins.TArray(elt, types.TValue(num_dims)),
+                            node.loc, arg.loc)
             else:
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "list"):

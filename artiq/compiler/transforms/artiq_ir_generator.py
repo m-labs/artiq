@@ -1561,9 +1561,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = after_invoke
 
     def _get_array_offset(self, shape, indices):
-        last_stride = None
         result = indices[0]
-        for dim, index in zip(shape[:-1], indices[1:]):
+        for dim, index in zip(shape[1:], indices[1:]):
             result = self.append(ir.Arith(ast.Mult(loc=None), result, dim))
             result = self.append(ir.Arith(ast.Add(loc=None), result, index))
         return result
@@ -2090,9 +2089,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 result_elt = result_type["elt"].find()
                 num_dims = result_type["num_dims"].value
 
-                # Derive shape from first element on each level (currently, type
-                # inference make sure arrays are always rectangular; in the future, we
-                # might want to insert a runtime check here).
+                # Derive shape from first element on each level (and fail later if the
+                # array is in fact jagged).
                 first_elt = None
                 lengths = []
                 for dim_idx in range(num_dims):
@@ -2110,32 +2108,37 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 buffer = self.append(
                     ir.Alloc([num_total_elts], result_type.attributes["buffer"]))
 
-                def body_gen(index):
-                    # TODO: This is hilariously inefficient; we really want to emit a
-                    # nested loop for the source and keep one running index for the
-                    # target buffer.
-                    indices = []
-                    mod_idx = index
-                    for dim_idx in reversed(range(1, num_dims)):
-                        dim_len = self.append(ir.GetAttr(shape, dim_idx))
-                        indices.append(
-                            self.append(ir.Arith(ast.Mod(loc=None), mod_idx, dim_len)))
-                        mod_idx = self.append(
-                            ir.Arith(ast.FloorDiv(loc=None), mod_idx, dim_len))
-                    indices.append(mod_idx)
+                def assign_elems(outer_indices, indexed_arg):
+                    if len(outer_indices) == num_dims:
+                        dest_idx = self._get_array_offset(lengths, outer_indices)
+                        self.append(ir.SetElem(buffer, dest_idx, indexed_arg))
+                    else:
+                        this_level_len = self.iterable_len(indexed_arg)
+                        dim_idx = len(outer_indices)
+                        if dim_idx > 0:
+                            # Check for rectangularity (outermost index is never jagged,
+                            # by definition).
+                            result_len = self.append(ir.GetAttr(shape, dim_idx))
+                            self._make_check(
+                                self.append(ir.Compare(ast.Eq(loc=None), this_level_len, result_len)),
+                                lambda a, b: self.alloc_exn(
+                                    builtins.TException("ValueError"),
+                                    ir.Constant(
+                                        "arrays must be rectangular (lengths were {0} vs. {1})",
+                                        builtins.TStr()), a, b),
+                                params=[this_level_len, result_len],
+                                loc=node.loc)
 
-                    elt = arg
-                    for idx in reversed(indices):
-                        elt = self.iterable_get(elt, idx)
-                    self.append(ir.SetElem(buffer, index, elt))
-                    return self.append(
-                        ir.Arith(ast.Add(loc=None), index,
-                                 ir.Constant(1, self._size_type)))
-
-                self._make_loop(
-                    ir.Constant(0, self._size_type), lambda index: self.append(
-                        ir.Compare(ast.Lt(loc=None), index, num_total_elts)), body_gen)
-
+                        def body_gen(index):
+                            elem = self.iterable_get(indexed_arg, index)
+                            assign_elems(outer_indices + [index], elem)
+                            return self.append(
+                                ir.Arith(ast.Add(loc=None), index,
+                                        ir.Constant(1, self._size_type)))
+                        self._make_loop(
+                            ir.Constant(0, self._size_type), lambda index: self.append(
+                                ir.Compare(ast.Lt(loc=None), index, this_level_len)), body_gen)
+                assign_elems([], arg)
                 return self.append(ir.Alloc([buffer, shape], node.type))
             else:
                 assert False
