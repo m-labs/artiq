@@ -15,8 +15,20 @@ unary_fp_intrinsics = [(name, "llvm." + name + ".f64") for name in [
     "floor",
     "ceil",
     "trunc",
-    "rint",
-]]
+]] + [
+    # numpy.rint() seems to (NumPy 1.19.0, Python 3.8.5, Linux x86_64)
+    # implement round-to-even, but unfortunately, rust-lang/libm only
+    # provides round(), which always rounds away from zero.
+    #
+    # As there is no equivalent of the latter in NumPy (nor any other
+    # basic rounding function), expose round() as numpy.rint anyway,
+    # even if the rounding modes don't match up, so there is some way
+    # to do rounding on the core device. (numpy.round() has entirely
+    # different semantics; it rounds to a configurable number of
+    # decimals.)
+    ("rint", "llvm.round.f64"),
+]
+
 
 #: float -> float numpy.* math functions lowered to runtime calls.
 unary_fp_runtime_calls = [
