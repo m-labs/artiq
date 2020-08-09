@@ -1,4 +1,5 @@
 import numpy
+import unittest
 from time import sleep
 
 from artiq.experiment import *
@@ -77,6 +78,10 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([[1.0, 2.0], [3.0, 4.0]]))
         self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
 
+    # FIXME: This should work, but currently passes as the argument is just
+    # synthesised as the same call to array(), instead of using the "type
+    # inference" result from the host NumPy implementation.
+    @unittest.expectedFailure
     def test_array_jagged(self):
         self.assertArrayRoundtrip(numpy.array([[1, 2], [3]]))
 
