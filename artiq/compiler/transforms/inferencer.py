@@ -832,10 +832,19 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
         elif types.is_builtin(typ, "array"):
             valid_forms = lambda: [
-                valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
+                valid_form("array(x:'a) -> array(elt='b) where 'a is iterable"),
+                valid_form("array(x:'a, dtype:'b) -> array(elt='b) where 'a is iterable")
             ]
 
-            if len(node.args) == 1 and len(node.keywords) == 0:
+            explicit_dtype = None
+            keywords_acceptable = False
+            if len(node.keywords) == 0:
+                keywords_acceptable = True
+            elif len(node.keywords) == 1:
+                if node.keywords[0].arg == "dtype":
+                    keywords_acceptable = True
+                    explicit_dtype = node.keywords[0].value
+            if len(node.args) == 1 and keywords_acceptable:
                 arg, = node.args
 
                 # In the absence of any other information (there currently isn't a way
@@ -857,6 +866,26 @@ class Inferencer(algorithm.Visitor):
                         break
                     num_dims += 1
                     elt = builtins.get_iterable_elt(elt)
+
+                if explicit_dtype is not None:
+                    # TODO: Factor out type detection; support quoted type constructors
+                    # (TList(TInt32), …)?
+                    typ = explicit_dtype.type
+                    if types.is_builtin(typ, "int32"):
+                        elt = builtins.TInt32()
+                    elif types.is_builtin(typ, "int64"):
+                        elt = builtins.TInt64()
+                    elif types.is_constructor(typ):
+                        elt = typ.find().instance
+                    else:
+                        diag = diagnostic.Diagnostic(
+                            "error",
+                            "dtype argument of {builtin}() must be a valid constructor",
+                            {"builtin": typ.find().name},
+                            node.func.loc,
+                            notes=[note])
+                        self.engine.process(diag)
+                        return
 
                 if num_dims == 0:
                     note = diagnostic.Diagnostic(

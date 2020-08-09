@@ -2082,7 +2082,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 assert False
         elif types.is_builtin(typ, "array"):
-            if len(node.args) == 1 and len(node.keywords) == 0:
+            if len(node.args) == 1 and len(node.keywords) in (0, 1):
                 result_type = node.type.find()
                 arg = self.visit(node.args[0])
 
@@ -2111,7 +2111,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 def assign_elems(outer_indices, indexed_arg):
                     if len(outer_indices) == num_dims:
                         dest_idx = self._get_array_offset(lengths, outer_indices)
-                        self.append(ir.SetElem(buffer, dest_idx, indexed_arg))
+                        coerced = self.append(ir.Coerce(indexed_arg, result_elt))
+                        self.append(ir.SetElem(buffer, dest_idx, coerced))
                     else:
                         this_level_len = self.iterable_len(indexed_arg)
                         dim_idx = len(outer_indices)
