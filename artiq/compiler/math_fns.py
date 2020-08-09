@@ -15,6 +15,7 @@ unary_fp_intrinsics = [(name, "llvm." + name + ".f64") for name in [
     "floor",
     "ceil",
     "trunc",
+    "sqrt",
 ]] + [
     # numpy.rint() seems to (NumPy 1.19.0, Python 3.8.5, Linux x86_64)
     # implement round-to-even, but unfortunately, rust-lang/libm only
@@ -36,6 +37,14 @@ unary_fp_runtime_calls = [
     ("arcsin", "asin"),
     ("arccos", "acos"),
     ("arctan", "atan"),
+    ("sinh", "sinh"),
+    ("cosh", "cosh"),
+    ("tanh", "tanh"),
+    ("arcsinh", "asinh"),
+    ("arccosh", "acosh"),
+    ("arctanh", "atanh"),
+    ("expm1", "expm1"),
+    ("cbrt", "cbrt"),
 ]
 
 #: Array handling builtins (special treatment due to allocations).

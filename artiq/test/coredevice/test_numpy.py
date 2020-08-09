@@ -35,7 +35,7 @@ class CompareHostDeviceTest(ExperimentCase):
                 nonlocal checked
                 checked = True
                 self.assertTrue(
-                    numpy.allclose(host, device),
+                    numpy.allclose(host, device, equal_nan=True),
                     "Discrepancy in binop test for '{}': Expexcted ({}, {}) -> {}, got {}"
                     .format(op, a, b, host, device))
 
@@ -56,7 +56,7 @@ class CompareHostDeviceTest(ExperimentCase):
                 nonlocal checked
                 checked = True
                 self.assertTrue(
-                    numpy.allclose(host, device),
+                    numpy.allclose(host, device, equal_nan=True),
                     "Discrepancy in unaryop test for '{}': Expexcted {} -> {}, got {}"
                     .format(op, a, host, device))
 
