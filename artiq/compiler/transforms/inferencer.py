@@ -208,10 +208,9 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
         value = node.value
         if types.is_tuple(value.type):
-            diag = diagnostic.Diagnostic("error",
-                "multi-dimensional slices are not supported", {},
-                node.loc, [])
-            self.engine.process(diag)
+            for elt in value.type.find().elts:
+                self._unify(elt, builtins.TInt(),
+                            value.loc, None)
         else:
             self._unify(value.type, builtins.TInt(),
                         value.loc, None)
@@ -237,12 +236,39 @@ class Inferencer(algorithm.Visitor):
     def visit_SubscriptT(self, node):
         self.generic_visit(node)
         if isinstance(node.slice, ast.Index):
-            self._unify_iterable(element=node, collection=node.value)
+            if types.is_tuple(node.slice.value.type):
+                if not builtins.is_array(node.value.type):
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "multi-dimensional slices only supported for arrays, not {type}",
+                        {"type": types.TypePrinter().name(node.value.type)},
+                        node.loc, [])
+                    self.engine.process(diag)
+                    return
+                num_idxs = len(node.slice.value.type.find().elts)
+                array_type = node.value.type.find()
+                num_dims = array_type["num_dims"].value
+                remaining_dims = num_dims - num_idxs
+                if remaining_dims < 0:
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "too many indices for array of dimension {num_dims}",
+                        {"num_dims": num_dims}, node.slice.loc, [])
+                    self.engine.process(diag)
+                    return
+                if remaining_dims == 0:
+                    self._unify(node.type, array_type["elt"], node.loc,
+                                node.value.loc)
+                else:
+                    self._unify(
+                        node.type,
+                        builtins.TArray(array_type["elt"], remaining_dims))
+            else:
+                self._unify_iterable(element=node, collection=node.value)
         elif isinstance(node.slice, ast.Slice):
-            self._unify(node.type, node.value.type,
-                        node.loc, node.value.loc)
-        else: # ExtSlice
-            pass # error emitted above
+            self._unify(node.type, node.value.type, node.loc, node.value.loc)
+        else:  # ExtSlice
+            pass  # error emitted above
 
     def visit_IfExpT(self, node):
         self.generic_visit(node)

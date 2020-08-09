@@ -5,5 +5,9 @@
 a = array()
 
 b = array([1, 2, 3])
+
+# CHECK-L: ${LINE:+1}: error: too many indices for array of dimension 1
+b[1, 2]
+
 # CHECK-L: ${LINE:+1}: error: array attributes cannot be assigned to
 b.shape = (5, )

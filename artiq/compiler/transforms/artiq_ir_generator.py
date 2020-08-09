@@ -1092,16 +1092,31 @@ class ARTIQIRGenerator(algorithm.Visitor):
             finally:
                 self.current_assign = old_assign
 
-            length = self.iterable_len(value, index.type)
-            mapped_index = self._map_index(length, index,
-                                           loc=node.begin_loc)
-            if self.current_assign is None:
-                result = self.iterable_get(value, mapped_index)
-                result.set_name("{}.at.{}".format(value.name, _readable_name(index)))
-                return result
+            # For multi-dimensional indexes, just apply them sequentially. This
+            # works, as they are only supported for types where we do not
+            # immediately need to distinguish between the Get and Set cases
+            # (i.e. arrays, which are reference types).
+            if types.is_tuple(index.type):
+                num_idxs = len(index.type.find().elts)
+                indices = [
+                    self.append(ir.GetAttr(index, i)) for i in range(num_idxs)
+                ]
             else:
-                self.append(ir.SetElem(value, mapped_index, self.current_assign,
-                                       name="{}.at.{}".format(value.name, _readable_name(index))))
+                indices = [index]
+            indexed = value
+            for i, idx in enumerate(indices):
+                length = self.iterable_len(indexed, idx.type)
+                mapped_index = self._map_index(length, idx, loc=node.begin_loc)
+                if self.current_assign is None or i < len(indices) - 1:
+                    indexed = self.iterable_get(indexed, mapped_index)
+                    indexed.set_name("{}.at.{}".format(indexed.name,
+                                                       _readable_name(idx)))
+                else:
+                    self.append(ir.SetElem(indexed, mapped_index, self.current_assign,
+                                           name="{}.at.{}".format(value.name,
+                                                                  _readable_name(index))))
+            if self.current_assign is None:
+                return indexed
         else: # Slice
             length = self.iterable_len(value, node.slice.type)
 
