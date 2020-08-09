@@ -888,7 +888,7 @@ class Inferencer(algorithm.Visitor):
                         break
                     if types.is_var(elt):
                         return  # undetermined yet
-                    if not builtins.is_iterable(elt):
+                    if not builtins.is_iterable(elt) or builtins.is_str(elt):
                         break
                     num_dims += 1
                     elt = builtins.get_iterable_elt(elt)
