@@ -1103,17 +1103,26 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "make_array"):
             valid_forms = lambda: [
-                valid_form("numpy.full(count:int32, value:'a) -> numpy.array(elt='a)")
+                valid_form("numpy.full(count:int32, value:'a) -> array(elt='a, num_dims=1)"),
+                valid_form("numpy.full(shape:(int32,)*'b, value:'a) -> array(elt='a, num_dims='b)"),
             ]
-
-            self._unify(node.type, builtins.TArray(),
-                        node.loc, None)
 
             if len(node.args) == 2 and len(node.keywords) == 0:
                 arg0, arg1 = node.args
 
-                self._unify(arg0.type, builtins.TInt32(),
-                            arg0.loc, None)
+                if types.is_var(arg0.type):
+                    return  # undetermined yet
+                elif types.is_tuple(arg0.type):
+                    num_dims = len(arg0.type.find().elts)
+                    self._unify(arg0.type, types.TTuple([builtins.TInt32()] * num_dims),
+                                arg0.loc, None)
+                else:
+                    num_dims = 1
+                    self._unify(arg0.type, builtins.TInt32(),
+                                arg0.loc, None)
+
+                self._unify(node.type, builtins.TArray(num_dims=num_dims),
+                            node.loc, None)
                 self._unify(arg1.type, node.type.find()["elt"],
                             arg1.loc, None)
             else:
