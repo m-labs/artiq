@@ -240,7 +240,7 @@ class Inferencer(algorithm.Visitor):
                 if not builtins.is_array(node.value.type):
                     diag = diagnostic.Diagnostic(
                         "error",
-                        "multi-dimensional slices only supported for arrays, not {type}",
+                        "multi-dimensional indexing only supported for arrays, not {type}",
                         {"type": types.TypePrinter().name(node.value.type)},
                         node.loc, [])
                     self.engine.process(diag)

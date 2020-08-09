@@ -3,7 +3,7 @@
 
 x = []
 
-# CHECK-L: ${LINE:+1}: error: multi-dimensional slices are not supported
+# CHECK-L: ${LINE:+1}: error: multi-dimensional indexing only supported for arrays
 x[1,2]
 
 # CHECK-L: ${LINE:+1}: error: multi-dimensional slices are not supported
