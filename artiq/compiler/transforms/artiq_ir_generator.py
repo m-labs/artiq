@@ -88,10 +88,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
     necessary. They are kept track of in global dictionaries, with a mangled name
     containing types and operations as key:
 
-    :ivar array_unaryop_funcs: the map from mangled name to implementation of unary
-        operations for arrays
-    :ivar array_binop_funcs: the map from mangled name to implementation of binary
-        operations between arrays
+    :ivar array_op_funcs: the map from mangled name to implementation of
+        operations on/between arrays
     """
 
     _size_type = builtins.TInt32()
@@ -120,8 +118,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.function_map = dict()
         self.variable_map = dict()
         self.method_map = defaultdict(lambda: [])
-        self.array_unaryop_funcs = dict()
-        self.array_binop_funcs = dict()
+        self.array_op_funcs = dict()
 
     def annotate_calls(self, devirtualization):
         for var_node in devirtualization.variable_map:
@@ -1392,10 +1389,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def _get_array_unaryop(self, name, make_op, result_type, arg_type):
         name = "_array_{}_{}".format(
             name, self._mangle_arrayop_types([result_type, arg_type]))
-        if name not in self.array_unaryop_funcs:
-            self.array_binop_funcs[name] = self._make_array_unaryop(
+        if name not in self.array_op_funcs:
+            self.array_op_funcs[name] = self._make_array_unaryop(
                 name, make_op, result_type, arg_type)
-        return self.array_binop_funcs[name]
+        return self.array_op_funcs[name]
 
     def visit_UnaryOpT(self, node):
         if isinstance(node.op, ast.Not):
@@ -1523,7 +1520,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         name = "_array_{}_{}".format(
             type(op).__name__,
             self._mangle_arrayop_types([result_type, lhs_type, rhs_type]))
-        if name not in self.array_binop_funcs:
+        if name not in self.array_op_funcs:
 
             def body_gen(result, lhs, rhs):
                 # At this point, shapes are assumed to match; could just pass buffer
@@ -1561,9 +1558,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     ir.Constant(0, self._size_type), lambda index: self.append(
                         ir.Compare(ast.Lt(loc=None), index, num_total_elts)), loop_gen)
 
-            self.array_binop_funcs[name] = self._make_array_binop(
+            self.array_op_funcs[name] = self._make_array_binop(
                 name, result_type, lhs_type, rhs_type, body_gen)
-        return self.array_binop_funcs[name]
+        return self.array_op_funcs[name]
 
     def _invoke_arrayop(self, func, params):
         closure = self.append(
@@ -1585,7 +1582,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def _get_matmult(self, result_type, lhs_type, rhs_type):
         name = "_array_MatMult_" + self._mangle_arrayop_types(
             [result_type, lhs_type, rhs_type])
-        if name not in self.array_binop_funcs:
+        if name not in self.array_op_funcs:
 
             def body_gen(result, lhs, rhs):
                 assert builtins.is_array(result.type), \
@@ -1656,9 +1653,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     ir.Constant(0, self._size_type), lambda index: self.append(
                         ir.Compare(ast.Lt(loc=None), index, num_rows)), row_loop)
 
-            self.array_binop_funcs[name] = self._make_array_binop(
+            self.array_op_funcs[name] = self._make_array_binop(
                 name, result_type, lhs_type, rhs_type, body_gen)
-        return self.array_binop_funcs[name]
+        return self.array_op_funcs[name]
 
     def _get_matmult_shapes(self, lhs, rhs):
         lhs_shape = self.append(ir.GetAttr(lhs, "shape"))
