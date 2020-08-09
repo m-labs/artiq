@@ -166,6 +166,10 @@ class ASTSynthesizer:
             typ = builtins.TBool()
             return asttyped.NameConstantT(value=value, type=typ,
                                           loc=self._add(repr(value)))
+        elif value is numpy.float:
+            typ = builtins.fn_float()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.float"))
         elif value is numpy.int32:
             typ = builtins.fn_int32()
             return asttyped.NameConstantT(value=None, type=typ,
