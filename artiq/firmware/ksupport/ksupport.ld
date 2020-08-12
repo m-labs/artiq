@@ -6,12 +6,12 @@ ENTRY(_reset_handler)
  * code/data/heap, then comes kernel memory.
  * Next 4M of main memory are reserved for
  * the background RPC queue.
- * First 256K of kernel memory are for support code.
+ * First 384K of kernel memory are for support code.
  * Support code is loaded at ORIGIN-0x80 so that ELF headers
  * are also loaded.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x40800000, LENGTH = 0x40000
+    ksupport (RWX) : ORIGIN = 0x40800000, LENGTH = 0x60000
 }
 
 /* Kernel stack is at the end of main RAM. */
