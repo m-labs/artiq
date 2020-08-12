@@ -1,6 +1,7 @@
 from artiq.experiment import *
 import numpy
 from artiq.test.hardware_testbench import ExperimentCase
+from artiq.compiler.targets import CortexA9Target
 from artiq.compiler import math_fns
 
 
@@ -88,6 +89,11 @@ class CompareHostDeviceTest(ExperimentCase):
         names = [
             a for a, _ in math_fns.unary_fp_intrinsics + math_fns.unary_fp_runtime_calls
         ]
+        exp = self.create(_RunOnDevice)
+        if exp.core.target_cls != CortexA9Target:
+            names.remove("exp2")
+            names.remove("log2")
+            names.remove("trunc")
         for name in names:
             op = "numpy.{}(a)".format(name)
             # Avoid 0.5, as numpy.rint's rounding mode currently doesn't match.
