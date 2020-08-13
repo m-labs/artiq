@@ -652,6 +652,18 @@ class _DMA(EnvExperiment):
 
 
 class DMATest(ExperimentCase):
+    def setUp(self):
+        super().setUp()
+        # prevent DEBUG log messages causing delay for DMA
+        core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
+        self.mgmt = CommMgmt(core_addr)
+        self.mgmt.set_uart_log_level('INFO')
+
+    def tearDown(self):
+        self.mgmt.set_uart_log_level('DEBUG')
+        self.mgmt.close()
+        super().tearDown()
+
     def test_dma_storage(self):
         exp = self.create(_DMA)
         exp.record()
