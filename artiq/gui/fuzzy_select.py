@@ -32,7 +32,6 @@ class FuzzySelectWidget(LayoutWidget):
         :param entry_count_limit: Maximum number of entries to show.
         """
         super().__init__(*args)
-        self.choices = choices
         self.entry_count_limit = entry_count_limit
         assert entry_count_limit >= 2, ("Need to allow at least two entries " +
                                         "to show the '<n> not shown' hint")
@@ -58,9 +57,12 @@ class FuzzySelectWidget(LayoutWidget):
         self.abort_when_menu_hidden = False
         self.abort_when_line_edit_unfocussed = True
 
+        self.set_choices(choices)
+
     def set_choices(self, choices: List[Tuple[str, int]]) -> None:
         """Update the list of choices available to the user."""
-        self.choices = choices
+        # Keep sorted in the right order for when the query is empty.
+        self.choices = sorted(choices, key=lambda a: (a[1], a[0]))
         if self.menu:
             self._update_menu()
 
@@ -173,19 +175,39 @@ class FuzzySelectWidget(LayoutWidget):
         without interruptions), then the position of the match, and finally
         lexicographically.
         """
+        query = self.line_edit.text()
+        if not query:
+            return [label for label, _ in self.choices]
+
+        # Find all "substring" matches of the given query in the labels,
+        # allowing any number of characters between each query character.
+        # Sort first by length of match (short matches preferred), to which the
+        # set weight is also applied, then by location (early in the label
+        # preferred), and at last alphabetically.
+
         # TODO: More SublimeText-like heuristics taking capital letters and
         # punctuation into account. Also, requiring the matches to be in order
         # seems to be a bit annoying in practice.
-        text = self.line_edit.text()
+
+        # `re` seems to be the fastest way of doing this in CPython, even with
+        # all the (non-greedy) wildcards.
         suggestions = []
-        # `re` seems to be the fastest way of matching this in CPython, even
-        # with all the wildcards.
-        pat = '.*?'.join(map(re.escape, text.lower()))
-        regex = re.compile(pat)
+        pattern_str = ".*?".join(map(re.escape, query))
+        pattern = re.compile(pattern_str, flags=re.IGNORECASE)
         for label, weight in self.choices:
-            r = regex.search(label.lower())
-            if r:
-                suggestions.append((len(r.group()) - weight, r.start(), label))
+            matches = []
+            # Manually loop over shortest matches at each position;
+            # re.finditer() only returns non-overlapping matches.
+            pos = 0
+            while True:
+                r = pattern.search(label, pos=pos)
+                if not r:
+                    break
+                start, stop = r.span()
+                matches.append((stop - start - weight, start, label))
+                pos = start + 1
+            if matches:
+                suggestions.append(min(matches))
         return [x for _, _, x in sorted(suggestions)]
 
     def _close(self):
