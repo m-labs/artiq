@@ -5,7 +5,7 @@ from migen.genlib.io import DifferentialOutput
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
-from artiq.gateware.rtio.phy import servo as rtservo, fastino
+from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
 
 
 def _eem_signal(i):
@@ -613,7 +613,8 @@ class Fastino(_EEM):
                 Subsignal("clk", Pins(_eem_pin(eem, 0, pol))),
                 Subsignal("mosi", Pins(*(_eem_pin(eem, i, pol)
                     for i in range(1, 7)))),
-                Subsignal("miso", Pins(_eem_pin(eem, 7, pol))),
+                Subsignal("miso", Pins(_eem_pin(eem, 7, pol)),
+                          Misc("DIFF_TERM=TRUE")),
                 IOStandard(iostandard),
             ) for pol in "pn"]
 
@@ -626,3 +627,29 @@ class Fastino(_EEM):
             log2_width=0)
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+
+
+class Phaser(_EEM):
+    @staticmethod
+    def io(eem, iostandard="LVDS_25"):
+        return [
+            ("phaser{}_ser_{}".format(eem, pol), 0,
+                Subsignal("clk", Pins(_eem_pin(eem, 0, pol))),
+                Subsignal("mosi", Pins(*(_eem_pin(eem, i, pol)
+                    for i in range(1, 7)))),
+                Subsignal("miso", Pins(_eem_pin(eem, 7, pol)),
+                          Misc("DIFF_TERM=TRUE")),
+                IOStandard(iostandard),
+            ) for pol in "pn"]
+
+    @classmethod
+    def add_std(cls, target, eem, iostandard="LVDS_25"):
+        cls.add_extension(target, eem, iostandard=iostandard)
+
+        phy = phaser.Phaser(target.platform.request("phaser{}_ser_p".format(eem)),
+            target.platform.request("phaser{}_ser_n".format(eem)))
+        target.submodules += phy
+        target.rtio_channels.extend([
+            rtio.Channel(phy.config, ififo_depth=4),
+            rtio.Channel(phy.data),
+        ])

@@ -112,6 +112,12 @@ def peripheral_fastino(module, peripheral):
     eem.Fastino.add_std(module, peripheral["ports"][0])
 
 
+def peripheral_phaser(module, peripheral):
+    if len(peripheral["ports"]) != 1:
+        raise ValueError("wrong number of ports")
+    eem.Phaser.add_std(module, peripheral["ports"][0])
+
+
 peripheral_processors = {
     "dio": peripheral_dio,
     "urukul": peripheral_urukul,
@@ -122,6 +128,7 @@ peripheral_processors = {
     "grabber": peripheral_grabber,
     "mirny": peripheral_mirny,
     "fastino": peripheral_fastino,
+    "phaser": peripheral_phaser,
 }
 
 
