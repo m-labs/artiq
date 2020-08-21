@@ -1,7 +1,7 @@
 from migen import *
 
 from artiq.gateware.rtio import rtlink
-from .fastlink import SerDes
+from .fastlink import SerDes, SerInterface
 
 
 class Phaser(Module):
@@ -15,8 +15,13 @@ class Phaser(Module):
                 enable_replace=True))
 
         self.submodules.serializer = SerDes(
-            pins, pins_n, t_clk=8, d_clk=0b00001111,
-                 n_frame=10, n_crc=6, poly=0x2f)
+            n_data=8, t_clk=8, d_clk=0b00001111,
+            n_frame=10, n_crc=6, poly=0x2f)
+        self.submodules.intf = SerInterface(pins, pins_n)
+        self.comb += [
+            Cat(self.intf.data[:-1]).eq(Cat(self.serializer.data[:-1])),
+            self.serializer.data[-1].eq(self.intf.data[-1]),
+        ]
 
         header = Record([
             ("we", 1),
