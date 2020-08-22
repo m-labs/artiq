@@ -9,7 +9,7 @@ class Phaser(Module):
         self.config = rtlink.Interface(
             rtlink.OInterface(data_width=8, address_width=8,
                 enable_replace=False),
-            rtlink.IInterface(data_width=8))
+            rtlink.IInterface(data_width=10))
         self.data = rtlink.Interface(
             rtlink.OInterface(data_width=32, address_width=8,
                 enable_replace=True))
@@ -31,8 +31,9 @@ class Phaser(Module):
         ])
         n_channels = 2
         n_samples = 8
-        body = [[(Signal(14), Signal(14)) for i in range(n_channels)]
-                for j in range(n_samples)]
+        n_bits = 14
+        body = [[(Signal(n_bits), Signal(n_bits))
+                 for i in range(n_channels)] for j in range(n_samples)]
         assert len(Cat(header.raw_bits(), body)) == \
                 len(self.serializer.payload)
         self.comb += self.serializer.payload.eq(Cat(header.raw_bits(), body))

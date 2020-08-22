@@ -1,6 +1,6 @@
 from migen import *
-from migen.genlib.cdc import MultiReg
-from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
+from migen.genlib.io import (DifferentialOutput, DifferentialInput,
+        DDROutput, DDRInput)
 from misoc.cores.liteeth_mini.mac.crc import LiteEthMACCRCEngine
 
 from artiq.gateware.rtio import rtlink
@@ -17,16 +17,18 @@ class SerDes(Module):
         * One return data lane at slower speed.
         * n_frame//2 - 1 marker bits are used to provide framing.
 
-        * `n_frame` words per frame
+        * `n_data` lanes
         * `t_clk` bits per clk cycle with pattern `d_clk`
-        * `n_crc` CRC bits per frame
+        * `n_frame` words per frame
+        * `n_crc` CRC bits per frame for divisor poly `poly`
         """
         # pins
         self.data = [Signal(2) for _ in range(n_data)]
-        n_lanes = n_data - 2  # number of data lanes
-        n_word = n_lanes*t_clk
-        t_frame = t_clk*n_frame//2
-        n_body = n_word*n_frame - (n_frame//2 + 1) - n_crc
+        n_mosi = n_data - 2  # mosi lanes
+        n_word = n_mosi*t_clk  # bits per word
+        t_frame = t_clk*n_frame  # frame duration
+        n_marker = n_frame//2 + 1
+        n_body = n_word*n_frame - n_marker - n_crc
         t_miso = 0  # miso sampling latency  TODO
 
         # frame data
@@ -39,11 +41,11 @@ class SerDes(Module):
         # # #
 
         self.submodules.crc = LiteEthMACCRCEngine(
-            data_width=2*n_lanes, width=n_crc, polynom=poly)
+            data_width=2*n_mosi, width=n_crc, polynom=poly)
 
         words_ = []
         j = 0
-        # last, LSB to first, MSB
+        # build from LSB to MSB because MSB first
         for i in range(n_frame):  # iterate over words
             if i == 0:  # data and checksum
                 k = n_word - n_crc
@@ -64,65 +66,60 @@ class SerDes(Module):
         self.comb += words.eq(words_)
 
         clk = Signal(t_clk, reset=d_clk)
-        i = Signal(max=t_frame)
+        i = Signal(max=t_frame//2)
         # big shift register for clk and mosi
-        sr = [Signal(t_frame*2 - n_crc//n_lanes, reset_less=True)
-              for i in range(n_lanes)]
+        sr = [Signal(t_frame - n_crc//n_mosi, reset_less=True)
+              for i in range(n_mosi)]
         assert len(Cat(sr)) == len(words)
         # DDR bits for each register
-        ddr_data = Cat([sri[-2] for sri in sr], [sri[-1] for sri in sr])
-        self.comb += [
-            self.stb.eq(i == t_frame - 1),
-            # LiteETHMACCRCEngine takes data LSB first
-            self.crc.data[::-1].eq(ddr_data),
-        ]
-        miso = Signal()
+        crc_data = [sri[-2] for sri in sr] + [sri[-1] for sri in sr]
         miso_sr = Signal(t_frame, reset_less=True)
+        miso_sr_next = Signal.like(miso_sr)
+        self.comb += [
+            self.stb.eq(i == t_frame//2 - 1),
+            # LiteETHMACCRCEngine takes data LSB first
+            self.crc.data.eq(Cat(reversed(crc_data))),
+            miso_sr_next.eq(Cat(self.data[-1], miso_sr)),
+            [di.eq(sri[-2:]) for di, sri in zip(self.data, [clk] + sr)],
+        ]
         self.sync.rio_phy += [
             # shift everything by two bits
-            clk.eq(Cat(clk[-2:], clk)),
-            [sri[2:].eq(sri) for sri in sr],
+            [sri.eq(Cat(sri[-2:], sri)) for sri in [clk] + sr],
+            miso_sr.eq(miso_sr_next),
             self.crc.last.eq(self.crc.next),
-            miso_sr.eq(Cat(miso, miso_sr)),
             i.eq(i + 1),
             If(self.stb,
                 i.eq(0),
                 clk.eq(clk.reset),
                 self.crc.last.eq(0),
                 # transpose, load
-                Cat(sr).eq(Cat(words[mm::n_lanes] for mm in range(n_lanes))),
-                self.readback.eq(Cat([miso_sr[int(round(t_miso + i*t_clk/2.))]
-                    for i in range(n_frame)])),
+                [sri.eq(Cat(words[i::n_mosi])) for i, sri in enumerate(sr)],
+                # unload miso
+                self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
+                                      for i in range(n_frame)])),
             ),
-            If(i == t_frame - 2,
+            If(i == t_frame//2 - 2,
                 # inject crc for the last cycle
-                ddr_data.eq(self.crc.next),
+                Cat(crc_data).eq(self.crc.next),
             ),
-        ]
-
-        self.comb += [
-            self.data[0].eq(clk[-2:]),
-            [di.eq(sri[-2:]) for di, sri in zip(self.data[1:-1], sr)],
-            miso.eq(self.data[-1]),
         ]
 
 
 class SerInterface(Module):
     def __init__(self, pins, pins_n):
-        n_data = 1 + len(pins.mosi) + 1
-        self.data = [Signal(2) for _ in range(n_data)]
-        clk_ddr = Signal()
-        miso_reg = Signal()
-        self.specials += [
-            DDROutput(self.data[0][-1], self.data[0][-2],
-                clk_ddr, ClockSignal("rio_phy")),
-            DifferentialOutput(clk_ddr, pins.clk, pins_n.clk),
-            DifferentialInput(pins.miso, pins_n.miso, miso_reg),
-            MultiReg(miso_reg, self.data[-1], "rio_phy"),
-        ]
-        for i in range(len(pins.mosi)):
+        self.data = [Signal(2) for _ in range(2 + len(pins.mosi))]
+
+        for d, pp, pn in zip(self.data,
+                             [pins.clk] + list(pins.mosi),
+                             [pins_n.clk] + list(pins_n.mosi)):
             ddr = Signal()
             self.specials += [
-                DDROutput(self.data[-1], self.data[-2], ddr, ClockSignal("rio_phy")),
-                DifferentialOutput(ddr, pins.mosi[i], pins_n.mosi[i]),
+                DDROutput(d[-1], d[-2], ddr, ClockSignal("rio_phy")),
+                DifferentialOutput(ddr, pp, pn),
             ]
+        ddr = Signal()
+        self.specials += [
+            DifferentialInput(pins.miso, pins_n.miso, ddr),
+            DDRInput(ddr, self.data[-1][-1], self.data[-1][-2],
+                     ClockSignal("rio_phy")),
+        ]
