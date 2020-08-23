@@ -23,7 +23,7 @@ class SerDes(Module):
         * `n_crc` CRC bits per frame for divisor poly `poly`
         """
         # pins
-        self.data = [Signal(2) for _ in range(n_data)]
+        self.data = [Signal(2, reset_less=True) for _ in range(n_data)]
         n_mosi = n_data - 2  # mosi lanes
         n_word = n_mosi*t_clk  # bits per word
         t_frame = t_clk*n_frame  # frame duration
@@ -48,6 +48,7 @@ class SerDes(Module):
         # build from LSB to MSB because MSB first
         for i in range(n_frame):  # iterate over words
             if i == 0:  # data and checksum
+                words_.append(C(0, n_crc))
                 k = n_word - n_crc
             elif i == 1:  # marker
                 words_.append(C(1))
@@ -61,30 +62,31 @@ class SerDes(Module):
             words_.append(self.payload[j:j + k])
             j += k
         words_ = Cat(words_)
-        assert len(words_) == n_frame*n_word - n_crc
+        assert len(words_) == n_frame*n_word
         words = Signal(len(words_))
         self.comb += words.eq(words_)
 
         clk = Signal(t_clk, reset=d_clk)
         i = Signal(max=t_frame//2)
-        # big shift register for clk and mosi
-        sr = [Signal(t_frame - n_crc//n_mosi, reset_less=True)
-              for i in range(n_mosi)]
+        # big shift register for mosi and
+        sr = [Signal(t_frame, reset_less=True) for i in range(n_mosi)]
         assert len(Cat(sr)) == len(words)
-        # DDR bits for each register
-        crc_data = [sri[-2] for sri in sr] + [sri[-1] for sri in sr]
+        sr_t = [sr[i % n_mosi][i//n_mosi] for i in range(len(words))]
+        data_t = ([d[0] for d in self.data[:-1]] +
+                  [d[1] for d in self.data[:-1]])
         miso_sr = Signal(t_frame, reset_less=True)
         miso_sr_next = Signal.like(miso_sr)
         self.comb += [
             self.stb.eq(i == t_frame//2 - 1),
             # LiteETHMACCRCEngine takes data LSB first
-            self.crc.data.eq(Cat(reversed(crc_data))),
+            self.crc.data.eq(Cat(reversed(sr_t[-2*n_mosi:]))),
             miso_sr_next.eq(Cat(self.data[-1], miso_sr)),
-            [di.eq(sri[-2:]) for di, sri in zip(self.data, [clk] + sr)],
         ]
         self.sync.rio_phy += [
             # shift everything by two bits
-            [sri.eq(Cat(sri[-2:], sri)) for sri in [clk] + sr],
+            [di.eq(sri[-2:]) for di, sri in zip(self.data, [clk] + sr)],
+            clk.eq(Cat(clk[-2:], clk)),
+            [sri.eq(Cat(C(0, 2), sri)) for sri in sr],
             miso_sr.eq(miso_sr_next),
             self.crc.last.eq(self.crc.next),
             i.eq(i + 1),
@@ -97,10 +99,8 @@ class SerDes(Module):
                 # unload miso
                 self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
                                       for i in range(n_frame)])),
-            ),
-            If(i == t_frame//2 - 2,
                 # inject crc for the last cycle
-                Cat(crc_data[-n_crc:]).eq(self.crc.next),
+                Cat(data_t[-n_crc:]).eq(self.crc.next),
             ),
         ]
 
