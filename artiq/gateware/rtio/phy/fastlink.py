@@ -100,7 +100,7 @@ class SerDes(Module):
             ),
             If(i == t_frame//2 - 2,
                 # inject crc for the last cycle
-                Cat(crc_data).eq(self.crc.next),
+                Cat(crc_data[-n_crc:]).eq(self.crc.next),
             ),
         ]
 

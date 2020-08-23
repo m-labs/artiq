@@ -46,7 +46,7 @@ class Phaser(Module):
                 header.we.eq(~self.config.o.address[-1]),
                 header.addr.eq(self.config.o.address),
                 header.data.eq(self.config.o.data),
-                header.type.eq(0),  # reserved
+                header.type.eq(1),  # reserved
             ),
         ]
 
