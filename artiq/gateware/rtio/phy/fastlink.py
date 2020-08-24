@@ -86,6 +86,9 @@ class SerDes(Module):
             self.crcb.data.eq(Cat([sri[-2] for sri in sr[::-1]])),
             self.crcb.last.eq(self.crca.next),
             miso_sr_next.eq(Cat(self.data[-1], miso_sr)),
+            # unload miso
+            self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
+                                  for i in range(n_frame)])),
         ]
         self.sync.rio_phy += [
             # shift everything by two bits
@@ -101,9 +104,6 @@ class SerDes(Module):
                 self.crca.last.eq(0),
                 # transpose, load
                 [sri.eq(Cat(words[i::n_mosi])) for i, sri in enumerate(sr)],
-                # unload miso
-                self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
-                                      for i in range(n_frame)])),
                 # inject crc for the last cycle
                 crc_insert.eq(self.crca.next if n_crc // n_mosi == 1
                               else self.crcb.next),

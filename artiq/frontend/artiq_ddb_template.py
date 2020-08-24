@@ -491,7 +491,10 @@ class PeripheralManager:
                 "type": "local",
                 "module": "artiq.coredevice.phaser",
                 "class": "Phaser",
-                "arguments": {{"channel": 0x{channel:06x}}}
+                "arguments": {{
+                    "channel_base": 0x{channel:06x},
+                    "readback_delay": 1,
+                }}
             }}""",
             name=self.get_name("phaser"),
             channel=rtio_offset)

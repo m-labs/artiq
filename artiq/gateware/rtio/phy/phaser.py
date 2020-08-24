@@ -32,8 +32,7 @@ class Phaser(Module):
         n_channels = 2
         n_samples = 8
         n_bits = 14
-        body = [[(Signal(n_bits), Signal(n_bits))
-                 for i in range(n_channels)] for j in range(n_samples)]
+        body = [Signal(n_bits) for i in range(n_channels*n_samples*2)]
         assert len(Cat(header.raw_bits(), body)) == \
                 len(self.serializer.payload)
         self.comb += self.serializer.payload.eq(Cat(header.raw_bits(), body))
