@@ -485,6 +485,18 @@ class PeripheralManager:
             channel=rtio_offset)
         return 1
 
+    def process_phaser(self, rtio_offset, peripheral):
+        self.gen("""
+            device_db["{name}"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.phaser",
+                "class": "Phaser",
+                "arguments": {{"channel": 0x{channel:06x}}}
+            }}""",
+            name=self.get_name("phaser"),
+            channel=rtio_offset)
+        return 2
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)

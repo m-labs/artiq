@@ -16,27 +16,27 @@ class TestPhaser(unittest.TestCase):
     def record_frame(self, frame):
         clk = 0
         marker = 0
-        state = "start"
+        stb = 0
         while True:
+            if stb == 2:
+                frame.append((yield self.dut.data))
             clk = (clk << 2) & 0xff
             clk |= (yield self.dut.data[0])
             if clk == 0x0f:
                 marker = (marker << 1) & 0x7f
                 marker |= (yield self.dut.data[1]) & 1
                 if marker >> 1 == 0x01:
-                    if state == "start":
-                        state = "end"
-                    elif state == "end":
+                    stb += 1
+                    if stb >= 3:
                         break
             yield
-            if state == "end":
-                data = yield from [(yield d) for d in self.dut.data]
-                frame.append(data)
 
     def test_frame(self):
         frame = []
+        self.dut.comb += self.dut.payload.eq((1 << len(self.dut.payload)) - 1)
         run_simulation(self.dut, self.record_frame(frame),
-            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]})
+            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]},
+            vcd_name="fastlink.vcd")
         self.assertEqual(len(frame), 8*10//2)
         self.assertEqual([d[0] for d in frame], [0, 0, 3, 3] * 10)
         self.assertEqual([d[1] & 1 for d in frame[4*4 - 1:10*4 - 1:4]],

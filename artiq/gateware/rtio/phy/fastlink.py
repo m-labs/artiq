@@ -30,6 +30,7 @@ class SerDes(Module):
         n_marker = n_frame//2 + 1
         n_body = n_word*n_frame - n_marker - n_crc
         t_miso = 0  # miso sampling latency  TODO
+        assert n_crc % n_mosi == 0
 
         # frame data
         self.payload = Signal(n_body)
@@ -40,8 +41,10 @@ class SerDes(Module):
 
         # # #
 
-        self.submodules.crc = LiteEthMACCRCEngine(
-            data_width=2*n_mosi, width=n_crc, polynom=poly)
+        self.submodules.crca = LiteEthMACCRCEngine(
+            data_width=n_mosi, width=n_crc, polynom=poly)
+        self.submodules.crcb = LiteEthMACCRCEngine(
+            data_width=n_mosi, width=n_crc, polynom=poly)
 
         words_ = []
         j = 0
@@ -71,15 +74,17 @@ class SerDes(Module):
         # big shift register for mosi and
         sr = [Signal(t_frame, reset_less=True) for i in range(n_mosi)]
         assert len(Cat(sr)) == len(words)
-        sr_t = [sr[i % n_mosi][i//n_mosi] for i in range(len(words))]
-        data_t = ([d[0] for d in self.data[:-1]] +
-                  [d[1] for d in self.data[:-1]])
+        crc_insert = ([d[1] for d in self.data[:-1]] +
+                      [d[0] for d in self.data[:-1]])
+        crc_insert = Cat(crc_insert[-n_crc:])
         miso_sr = Signal(t_frame, reset_less=True)
         miso_sr_next = Signal.like(miso_sr)
         self.comb += [
             self.stb.eq(i == t_frame//2 - 1),
             # LiteETHMACCRCEngine takes data LSB first
-            self.crc.data.eq(Cat(reversed(sr_t[-2*n_mosi:]))),
+            self.crca.data.eq(Cat([sri[-1] for sri in sr[::-1]])),
+            self.crcb.data.eq(Cat([sri[-2] for sri in sr[::-1]])),
+            self.crcb.last.eq(self.crca.next),
             miso_sr_next.eq(Cat(self.data[-1], miso_sr)),
         ]
         self.sync.rio_phy += [
@@ -88,19 +93,20 @@ class SerDes(Module):
             clk.eq(Cat(clk[-2:], clk)),
             [sri.eq(Cat(C(0, 2), sri)) for sri in sr],
             miso_sr.eq(miso_sr_next),
-            self.crc.last.eq(self.crc.next),
+            self.crca.last.eq(self.crcb.next),
             i.eq(i + 1),
             If(self.stb,
                 i.eq(0),
                 clk.eq(clk.reset),
-                self.crc.last.eq(0),
+                self.crca.last.eq(0),
                 # transpose, load
                 [sri.eq(Cat(words[i::n_mosi])) for i, sri in enumerate(sr)],
                 # unload miso
                 self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
                                       for i in range(n_frame)])),
                 # inject crc for the last cycle
-                Cat(data_t[-n_crc:]).eq(self.crc.next),
+                crc_insert.eq(self.crca.next if n_crc // n_mosi == 1
+                              else self.crcb.next),
             ),
         ]
 
@@ -114,14 +120,14 @@ class SerInterface(Module):
                              [pins_n.clk] + list(pins_n.mosi)):
             ddr = Signal()
             self.specials += [
-                # d1 closer to q, LSB first
+                # d1 closer to q
                 DDROutput(d[1], d[0], ddr, ClockSignal("rio_phy")),
                 DifferentialOutput(ddr, pp, pn),
             ]
         ddr = Signal()
         self.specials += [
             DifferentialInput(pins.miso, pins_n.miso, ddr),
-            # q1 closer to d, MSB first
-            DDRInput(ddr, self.data[-1][1], self.data[-1][0],
+            # q1 closer to d
+            DDRInput(ddr, self.data[-1][0], self.data[-1][1],
                      ClockSignal("rio_phy")),
         ]
