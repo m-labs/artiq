@@ -475,6 +475,9 @@ pub extern fn main() -> i32 {
             io_expander1.set(1, 7, true);
             io_expander1.service().unwrap();
         }
+        io_expander0.set_oe(0, 1 << 1).unwrap();
+        io_expander0.set(0, 1, false);
+        io_expander0.service().unwrap();
     }
 
     #[cfg(has_si5324)]
