@@ -38,20 +38,19 @@ class Phaser(Module):
                 len(self.serializer.payload)
         self.comb += self.serializer.payload.eq(Cat(header.raw_bits(), body))
 
-        self.sync.rio_phy += [
+        re_dly = Signal(3)  # stage, send, respond
+        self.sync.rtio += [
+            header.type.eq(1),  # reserved
             If(self.serializer.stb,
                 header.we.eq(0),
+                re_dly.eq(re_dly[1:]),
             ),
             If(self.config.o.stb,
-                header.we.eq(~self.config.o.address[-1]),
+                re_dly[-1].eq(~self.config.o.address[-1]),
+                header.we.eq(self.config.o.address[-1]),
                 header.addr.eq(self.config.o.address),
                 header.data.eq(self.config.o.data),
-                header.type.eq(1),  # reserved
             ),
-        ]
-
-        self.sync.rtio += [
-            self.config.i.stb.eq(self.config.o.stb &
-                self.config.o.address[-1]),
+            self.config.i.stb.eq(re_dly[0] & self.serializer.stb),
             self.config.i.data.eq(self.serializer.readback),
         ]

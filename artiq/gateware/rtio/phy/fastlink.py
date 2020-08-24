@@ -114,12 +114,14 @@ class SerInterface(Module):
                              [pins_n.clk] + list(pins_n.mosi)):
             ddr = Signal()
             self.specials += [
-                DDROutput(d[-1], d[-2], ddr, ClockSignal("rio_phy")),
+                # d1 closer to q, LSB first
+                DDROutput(d[1], d[0], ddr, ClockSignal("rio_phy")),
                 DifferentialOutput(ddr, pp, pn),
             ]
         ddr = Signal()
         self.specials += [
             DifferentialInput(pins.miso, pins_n.miso, ddr),
-            DDRInput(ddr, self.data[-1][-1], self.data[-1][-2],
+            # q1 closer to d, MSB first
+            DDRInput(ddr, self.data[-1][1], self.data[-1][0],
                      ClockSignal("rio_phy")),
         ]
