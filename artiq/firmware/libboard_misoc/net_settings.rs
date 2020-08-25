@@ -3,7 +3,7 @@ use core::fmt;
 use smoltcp::wire::{EthernetAddress, IpAddress};
 
 use config;
-#[cfg(soc_platform = "kasli")]
+#[cfg(any(soc_platform = "kasli", soc_platform = "metlino"))]
 use i2c_eeprom;
 
 
@@ -37,12 +37,18 @@ pub fn get_adresses() -> NetAddresses {
                 hardware_addr =
                     eeprom.read_eui48()
                     .map(|addr_buf| EthernetAddress(addr_buf))
-                    .unwrap_or_else(|_e| EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]));
+                    .expect("Failed to read MAC address from EEPROM");
             }
             #[cfg(soc_platform = "sayma_amc")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]); }
             #[cfg(soc_platform = "metlino")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]); }
+            {
+                let eeprom = i2c_eeprom::EEPROM::new();
+                hardware_addr =
+                    eeprom.read_eui48()
+                    .map(|addr_buf| EthernetAddress(addr_buf))
+                    .expect("Failed to read MAC address from EEPROM");
+            }
             #[cfg(soc_platform = "kc705")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]); }
         }
