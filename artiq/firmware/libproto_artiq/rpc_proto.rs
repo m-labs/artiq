@@ -1,6 +1,7 @@
 use core::str;
+use core::slice;
 use cslice::{CSlice, CMutSlice};
-
+use byteorder::{NetworkEndian, ByteOrder};
 use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
@@ -53,13 +54,34 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             struct List { elements: *mut (), length: u32 };
             consume_value!(List, |ptr| {
                 (*ptr).length = reader.read_u32()?;
+                let length = (*ptr).length as usize;
 
                 let tag = it.clone().next().expect("truncated tag");
                 (*ptr).elements = alloc(tag.size() * (*ptr).length as usize)?;
 
                 let mut data = (*ptr).elements;
-                for _ in 0..(*ptr).length as usize {
-                    recv_value(reader, tag, &mut data, alloc)?
+                match tag {
+                    Tag::Bool => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length);
+                        reader.read_exact(dest)?;
+                    },
+                    Tag::Int32 => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
+                        reader.read_exact(dest)?;
+                        let dest = slice::from_raw_parts_mut(data as *mut i32, length);
+                        NetworkEndian::from_slice_i32(dest);
+                    },
+                    Tag::Int64 | Tag::Float64 => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
+                        reader.read_exact(dest)?;
+                        let dest = slice::from_raw_parts_mut(data as *mut i64, length);
+                        NetworkEndian::from_slice_i64(dest);
+                    },
+                    _ => {
+                        for _ in 0..length {
+                            recv_value(reader, tag, &mut data, alloc)?
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -72,13 +94,34 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                     total_len *= len;
                     consume_value!(u32, |ptr| *ptr = len )
                 }
+                let length = total_len as usize;
 
                 let elt_tag = it.clone().next().expect("truncated tag");
                 *buffer = alloc(elt_tag.size() * total_len as usize)?;
 
                 let mut data = *buffer;
-                for _ in 0..total_len {
-                    recv_value(reader, elt_tag, &mut data, alloc)?
+                match elt_tag {
+                    Tag::Bool => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length);
+                        reader.read_exact(dest)?;
+                    },
+                    Tag::Int32 => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
+                        reader.read_exact(dest)?;
+                        let dest = slice::from_raw_parts_mut(data as *mut i32, length);
+                        NetworkEndian::from_slice_i32(dest);
+                    },
+                    Tag::Int64 | Tag::Float64 => {
+                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
+                        reader.read_exact(dest)?;
+                        let dest = slice::from_raw_parts_mut(data as *mut i64, length);
+                        NetworkEndian::from_slice_i64(dest);
+                    },
+                    _ => {
+                        for _ in 0..length {
+                            recv_value(reader, elt_tag, &mut data, alloc)?
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -155,11 +198,33 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
             #[repr(C)]
             struct List { elements: *const (), length: u32 };
             consume_value!(List, |ptr| {
+                let length = (*ptr).length as usize;
                 writer.write_u32((*ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
                 let mut data = (*ptr).elements;
-                for _ in 0..(*ptr).length as usize {
-                    send_value(writer, tag, &mut data)?;
+                writer.write_u8(tag.as_u8())?;
+                match tag {
+                    Tag::Bool => {
+                        let slice = slice::from_raw_parts(data as *const u8, length);
+                        writer.write_all(slice)?;
+                    },
+                    Tag::Int32 => {
+                        let slice = slice::from_raw_parts(data as *const u32, length);
+                        for v in slice.iter() {
+                            writer.write_u32(*v)?;
+                        }
+                    },
+                    Tag::Int64 | Tag::Float64 => {
+                        let slice = slice::from_raw_parts(data as *const u64, length);
+                        for v in slice.iter() {
+                            writer.write_u64(*v)?;
+                        }
+                    },
+                    _ => {
+                        for _ in 0..length {
+                            send_value(writer, tag, &mut data)?;
+                        }
+                    }
                 }
                 Ok(())
             })
@@ -176,9 +241,31 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                         total_len *= *len;
                     })
                 }
+                let length = total_len as usize;
                 let mut data = *buffer;
-                for _ in 0..total_len as usize {
-                    send_value(writer, elt_tag, &mut data)?;
+                writer.write_u8(elt_tag.as_u8())?;
+                match elt_tag {
+                    Tag::Bool => {
+                        let slice = slice::from_raw_parts(data as *const u8, length);
+                        writer.write_all(slice)?;
+                    },
+                    Tag::Int32 => {
+                        let slice = slice::from_raw_parts(data as *const u32, length);
+                        for v in slice.iter() {
+                            writer.write_u32(*v)?;
+                        }
+                    },
+                    Tag::Int64 | Tag::Float64 => {
+                        let slice = slice::from_raw_parts(data as *const u64, length);
+                        for v in slice.iter() {
+                            writer.write_u64(*v)?;
+                        }
+                    },
+                    _ => {
+                        for _ in 0..length {
+                            send_value(writer, elt_tag, &mut data)?;
+                        }
+                    }
                 }
                 Ok(())
             })

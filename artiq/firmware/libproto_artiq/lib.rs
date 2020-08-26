@@ -11,6 +11,7 @@ extern crate cslice;
 #[macro_use]
 extern crate log;
 
+extern crate byteorder;
 extern crate io;
 extern crate dyld;
 
