@@ -646,11 +646,12 @@ class Phaser(_EEM):
     def add_std(cls, target, eem, iostandard="LVDS_25"):
         cls.add_extension(target, eem, iostandard=iostandard)
 
-        phy = phaser.Phaser(target.platform.request("phaser{}_ser_p".format(eem)),
+        phy = phaser.Phaser(
+            target.platform.request("phaser{}_ser_p".format(eem)),
             target.platform.request("phaser{}_ser_n".format(eem)))
         target.submodules += phy
         target.rtio_channels.extend([
             rtio.Channel.from_phy(phy, ififo_depth=4),
-            rtio.Channel.from_phy(phy.dds0),
-            rtio.Channel.from_phy(phy.dds1),
+            rtio.Channel.from_phy(phy.ch0),
+            rtio.Channel.from_phy(phy.ch1),
         ])

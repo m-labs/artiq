@@ -48,7 +48,7 @@ class Phaser:
 
     def __init__(self, dmgr, channel_base, miso_delay=1,
                  core_device="core"):
-        self.channel_base = channel_base << 8
+        self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         self.miso_delay = miso_delay
         # frame duration in mu (10 words, 8 clock cycles each 4 ns)
@@ -69,7 +69,7 @@ class Phaser:
         :param addr: Address to write to.
         :param data: Data to write.
         """
-        rtio_output(self.channel_base | addr | 0x80, data)
+        rtio_output((self.channel_base << 8) | addr | 0x80, data)
         delay_mu(int64(self.t_frame))
 
     @kernel
@@ -81,8 +81,8 @@ class Phaser:
         :param addr: Address to read from.
         :return: The data read.
         """
-        rtio_output(self.channel_base | addr, 0)
-        response = rtio_input_data(self.channel_base >> 8)
+        rtio_output((self.channel_base << 8) | addr, 0)
+        response = rtio_input_data(self.channel_base)
         return response >> self.miso_delay
 
     @kernel
@@ -199,3 +199,14 @@ class Phaser:
         self.spi_write(data)
         delay_mu(t_xfer)
         return data
+
+    @kernel
+    def set_frequency_mu(self, ch, osc, ftw):
+        addr = ((self.channel_base + 1 + ch) << 8) | (osc << 1)
+        rtio_output(addr, ftw)
+
+    @kernel
+    def set_amplitude_phase_mu(self, ch, osc, asf=0x7fff, pow=0, clr=0):
+        addr = ((self.channel_base + 1 + ch) << 8) | (osc << 1) | 1
+        data = (asf & 0x7fff) | (clr << 15) | (pow << 16)
+        rtio_output(addr, data)

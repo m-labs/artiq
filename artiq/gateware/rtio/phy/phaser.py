@@ -6,22 +6,48 @@ from .fastlink import SerDes, SerInterface
 
 
 class DDSChannel(Module):
-    def __init__(self):
+    def __init__(self, use_lut=None):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=32, address_width=4,
-                enable_replace=True))
-        self.submodules.dds = MultiDDS(n=5, fwidth=32, xwidth=16)
+                              enable_replace=True))
+        to_rio_phy = ClockDomainsRenamer("rio_phy")
+        self.submodules.dds = to_rio_phy(MultiDDS(
+            n=5, fwidth=32, xwidth=16, z=19, zl=10, use_lut=use_lut))
+        # TODO: latency
+        self.comb += self.dds.stb.eq(1)
+        regs = []
+        for i in self.dds.i:
+            regs.extend([i.f, Cat(i.a, i.clr, i.p)])
+        self.sync.rio_phy += [
+            If(self.rtlink.o.stb,
+                Array(regs)[self.rtlink.o.address].eq(self.rtlink.o.data)
+            )
+        ]
 
 
 class Phaser(Module):
     def __init__(self, pins, pins_n):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=8, address_width=8,
-                enable_replace=False),
+                              enable_replace=False),
             rtlink.IInterface(data_width=10))
 
-        self.submodules.dds0 = DDSChannel()
-        self.submodules.dds1 = DDSChannel()
+        self.submodules.ch0 = DDSChannel()
+        self.submodules.ch1 = DDSChannel(use_lut=self.ch0.dds.mod.cs.lut)
+        n_channels = 2
+        n_samples = 8
+        n_bits = 14
+        body = [Signal(n_channels*2*n_bits, reset_less=True)
+                for i in range(n_samples)]
+        i_sample = Signal(max=n_samples)
+        self.sync.rio_phy += [
+            If(self.ch0.dds.valid,  # & self.ch1.dds.valid,
+                Array(body)[i_sample].eq(Cat(
+                    self.ch0.dds.o.q[2:], self.ch0.dds.o.i[2:],
+                    self.ch1.dds.o.q[2:], self.ch1.dds.o.i[2:])),
+                i_sample.eq(i_sample + 1),
+            ),
+        ]
 
         self.submodules.serializer = SerDes(
             n_data=8, t_clk=8, d_clk=0b00001111,
@@ -31,6 +57,11 @@ class Phaser(Module):
             Cat(self.intf.data[:-1]).eq(Cat(self.serializer.data[:-1])),
             self.serializer.data[-1].eq(self.intf.data[-1]),
         ]
+        self.sync.rio_phy += [
+            If(self.serializer.stb,
+                i_sample.eq(0),
+            ),
+        ]
 
         header = Record([
             ("we", 1),
@@ -38,10 +69,6 @@ class Phaser(Module):
             ("data", 8),
             ("type", 4)
         ])
-        n_channels = 2
-        n_samples = 8
-        n_bits = 14
-        body = [Signal(n_bits) for i in range(n_channels*n_samples*2)]
         assert len(Cat(header.raw_bits(), body)) == \
                 len(self.serializer.payload)
         self.comb += self.serializer.payload.eq(Cat(header.raw_bits(), body))
