@@ -650,6 +650,7 @@ class Phaser(_EEM):
             target.platform.request("phaser{}_ser_n".format(eem)))
         target.submodules += phy
         target.rtio_channels.extend([
-            rtio.Channel(phy.config, ififo_depth=4),
-            rtio.Channel(phy.data),
+            rtio.Channel.from_phy(phy, ififo_depth=4),
+            rtio.Channel.from_phy(phy.dds0),
+            rtio.Channel.from_phy(phy.dds1),
         ])

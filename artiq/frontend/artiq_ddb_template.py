@@ -493,7 +493,7 @@ class PeripheralManager:
                 "class": "Phaser",
                 "arguments": {{
                     "channel_base": 0x{channel:06x},
-                    "readback_delay": 1,
+                    "miso_delay": 1,
                 }}
             }}""",
             name=self.get_name("phaser"),

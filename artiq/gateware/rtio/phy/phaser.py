@@ -1,18 +1,27 @@
 from migen import *
+from misoc.cores.duc import MultiDDS
 
 from artiq.gateware.rtio import rtlink
 from .fastlink import SerDes, SerInterface
 
 
+class DDSChannel(Module):
+    def __init__(self):
+        self.rtlink = rtlink.Interface(
+            rtlink.OInterface(data_width=32, address_width=4,
+                enable_replace=True))
+        self.submodules.dds = MultiDDS(n=5, fwidth=32, xwidth=16)
+
+
 class Phaser(Module):
     def __init__(self, pins, pins_n):
-        self.config = rtlink.Interface(
+        self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=8, address_width=8,
                 enable_replace=False),
             rtlink.IInterface(data_width=10))
-        self.data = rtlink.Interface(
-            rtlink.OInterface(data_width=32, address_width=8,
-                enable_replace=True))
+
+        self.submodules.dds0 = DDSChannel()
+        self.submodules.dds1 = DDSChannel()
 
         self.submodules.serializer = SerDes(
             n_data=8, t_clk=8, d_clk=0b00001111,
@@ -44,12 +53,12 @@ class Phaser(Module):
                 header.we.eq(0),
                 re_dly.eq(re_dly[1:]),
             ),
-            If(self.config.o.stb,
-                re_dly[-1].eq(~self.config.o.address[-1]),
-                header.we.eq(self.config.o.address[-1]),
-                header.addr.eq(self.config.o.address),
-                header.data.eq(self.config.o.data),
+            If(self.rtlink.o.stb,
+                re_dly[-1].eq(~self.rtlink.o.address[-1]),
+                header.we.eq(self.rtlink.o.address[-1]),
+                header.addr.eq(self.rtlink.o.address),
+                header.data.eq(self.rtlink.o.data),
             ),
-            self.config.i.stb.eq(re_dly[0] & self.serializer.stb),
-            self.config.i.data.eq(self.serializer.readback),
+            self.rtlink.i.stb.eq(re_dly[0] & self.serializer.stb),
+            self.rtlink.i.data.eq(self.serializer.readback),
         ]
