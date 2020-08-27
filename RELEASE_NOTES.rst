@@ -25,6 +25,8 @@ Highlights:
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
 * NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
+* A parameter `--identifier-str` has been added to many targets to aid
+  with reproducible builds.
 
 Breaking changes:
 
