@@ -44,10 +44,12 @@ class ReprogrammableIdentifier(Module, AutoCSR):
                 p_INIT=sum(1 << j if c & (1 << i) else 0 for j, c in enumerate(contents)))
 
 
-def add_identifier(soc, *args, **kwargs):
+def add_identifier(soc, *args, identifier_str=None, **kwargs):
     if hasattr(soc, "identifier"):
         raise ValueError
-    identifier_str = get_identifier_string(soc, *args, **kwargs)
+    if identifier_str is None:
+        # not overridden with --identifier-str
+        identifier_str = get_identifier_string(soc, *args, **kwargs)
     soc.submodules.identifier = ReprogrammableIdentifier(identifier_str)
     soc.config["IDENTIFIER_STR"] = identifier_str
 
