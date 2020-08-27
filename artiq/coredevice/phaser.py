@@ -18,7 +18,7 @@ PHASER_ADDR_FAN = 0x07
 PHASER_ADDR_DUC_STB = 0x08
 PHASER_ADDR_ADC_CFG = 0x09
 PHASER_ADDR_SPI_CFG = 0x0a
-PHASER_ADDR_SPI_DIV = 0x0b
+PHASER_ADDR_SPI_DIVLEN = 0x0b
 PHASER_ADDR_SPI_SEL = 0x0c
 PHASER_ADDR_SPI_DATW = 0x0d
 PHASER_ADDR_SPI_DATR = 0x0e
@@ -153,7 +153,7 @@ class Phaser:
     @kernel
     def set_dac_test(self, ch, data: TInt32):
         for addr in range(4):
-            byte = (data >> 24) & 0xff
+            byte = data >> 24
             self.write8(PHASER_ADDR_DAC0_TEST + (ch << 4) + addr, byte)
             data <<= 8
 
@@ -176,9 +176,9 @@ class Phaser:
 
     @kernel
     def spi_cfg(self, select, div, end, clk_phase=0, clk_polarity=0,
-                half_duplex=0, lsb_first=0, offline=0):
+                half_duplex=0, lsb_first=0, offline=0, length=8):
         self.write8(PHASER_ADDR_SPI_SEL, select)
-        self.write8(PHASER_ADDR_SPI_DIV, div)
+        self.write8(PHASER_ADDR_SPI_DIVLEN, (div - 2 >> 3) | (length - 1 << 5))
         self.write8(PHASER_ADDR_SPI_CFG,
                    (offline << 0) | (end << 1) | (clk_phase << 2) |
                    (clk_polarity << 3) | (half_duplex << 4) |
@@ -194,20 +194,20 @@ class Phaser:
 
     @kernel
     def dac_write(self, addr, data):
-        div = 30  # 100 ns min period
-        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+        div = 32  # 100 ns min period
+        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=0)
         self.spi_write(addr)
         delay_mu(t_xfer)
         self.spi_write(data >> 8)
         delay_mu(t_xfer)
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=1)
-        self.spi_write(data & 0xff)
+        self.spi_write(data)
         delay_mu(t_xfer)
 
     @kernel
-    def dac_read(self, addr, div=30) -> TInt32:
-        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+    def dac_read(self, addr, div=32) -> TInt32:
+        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=0)
         self.spi_write(addr | 0x80)
         delay_mu(t_xfer)
@@ -223,16 +223,16 @@ class Phaser:
 
     @kernel
     def att_write(self, ch, data):
-        div = 30  # 30 ns min period
-        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+        div = 32  # 30 ns min period
+        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=1)
         self.spi_write(data)
         delay_mu(t_xfer)
 
     @kernel
     def att_read(self, ch) -> TInt32:
-        div = 30
-        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+        div = 32
+        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=0)
         self.spi_write(0)
         delay_mu(t_xfer)
@@ -245,21 +245,20 @@ class Phaser:
 
     @kernel
     def trf_write(self, ch, data, readback=False):
-        div = 30  # 50 ns min period
-        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+        div = 32  # 50 ns min period
+        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         read = 0
+        end = 0
+        clk_phase = 0
         if readback:
             clk_phase = 1
-        else:
-            clk_phase = 0
-        end = 0
         for i in range(4):
             if i == 0 or i == 3:
                 if i == 3:
                     end = 1
                 self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=div,
                              lsb_first=1, clk_phase=clk_phase, end=end)
-            self.spi_write(data & 0xff)
+            self.spi_write(data)
             data >>= 8
             delay_mu(t_xfer)
             if readback:
@@ -272,8 +271,9 @@ class Phaser:
     def trf_read(self, ch, addr, cnt_mux_sel=0) -> TInt32:
         self.trf_write(ch, 0x80000008 | (addr << 28) | (cnt_mux_sel << 27))
         # single clk pulse to start readback
-        self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=30, end=1, clk_polarity=1)
-        self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=30, end=1, clk_polarity=0)
+        self.spi_cfg(select=0, div=32, end=1, length=1)
+        self.spi_write(0)
+        delay((1 + 1)*32*4*ns)
         return self.trf_write(ch, 0x00000008, readback=True)
 
     @kernel
