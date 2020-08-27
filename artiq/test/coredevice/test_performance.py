@@ -6,138 +6,268 @@ import numpy
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
+# large: 1MB payload
+# small: 1KB payload
+bytes_large = b"\x00" * (1 << 20)
+bytes_small = b"\x00" * (1 << 10)
+
+list_large = [123] * (1 << 18)
+list_small = [123] * (1 << 8)
+
+array_large = numpy.array(list_large, numpy.int32)
+array_small = numpy.array(list_small, numpy.int32)
+
+byte_list_large = [True] * (1 << 20)
+byte_list_small = [True] * (1 << 10)
+
+received_bytes = 0
+time_start = 0
+time_end = 0
 
 class _Transfer(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.data = b"\x00"*(10**6)
+        self.count = 10
+        self.h2d = [0.0] * self.count
+        self.d2h = [0.0] * self.count
 
     @rpc
-    def source(self) -> TBytes:
-        return self.data
+    def get_bytes(self, large: TBool) -> TBytes:
+        if large:
+            return bytes_large
+        else:
+            return bytes_small
 
     @rpc
-    def source_byte_list(self) -> TList(TBool):
-        return [True] * (1 << 15)
+    def get_list(self, large: TBool) -> TList(TInt32):
+        if large:
+            return list_large
+        else:
+            return list_small
 
     @rpc
-    def source_list(self) -> TList(TInt32):
-        return [123] * (1 << 15)
+    def get_byte_list(self, large: TBool) -> TList(TBool):
+        if large:
+            return byte_list_large
+        else:
+            return byte_list_small
 
     @rpc
-    def source_array(self) -> TArray(TInt32):
-        return numpy.array([0] * (1 << 15), numpy.int32)
+    def get_array(self, large: TBool) -> TArray(TInt32):
+        if large:
+            return array_large
+        else:
+            return array_small
+
+    @rpc
+    def get_string_list(self) -> TList(TStr):
+        return string_list
 
     @rpc
     def sink(self, data):
         pass
 
-    @rpc
-    def sink_list(self, data):
-        pass
+    @rpc(flags={"async"})
+    def sink_async(self, data):
+        global received_bytes, time_start, time_end
+        if received_bytes == 0:
+            time_start = time.time()
+        received_bytes += len(data)
+        if received_bytes == (1024 ** 2)*128:
+            time_end = time.time()
 
     @rpc
-    def sink_array(self, data):
-        pass
+    def get_async_throughput(self) -> TFloat:
+        return 128.0 / (time_end - time_start)
 
     @kernel
-    def host_to_device(self):
-        t0 = self.core.get_rtio_counter_mu()
-        data = self.source()
-        t1 = self.core.get_rtio_counter_mu()
-        return len(data)/self.core.mu_to_seconds(t1-t0)
+    def test_bytes(self, large):
+        def inner():
+            t0 = self.core.get_rtio_counter_mu()
+            data = self.get_bytes(large)
+            t1 = self.core.get_rtio_counter_mu()
+            self.sink(data)
+            t2 = self.core.get_rtio_counter_mu()
+            self.h2d[i] = self.core.mu_to_seconds(t1 - t0)
+            self.d2h[i] = self.core.mu_to_seconds(t2 - t1)
+
+        for i in range(self.count):
+            inner()
+        return (self.h2d, self.d2h)
 
     @kernel
-    def host_to_device_list(self):
-        t0 = self.core.get_rtio_counter_mu()
-        data = self.source_list()
-        t1 = self.core.get_rtio_counter_mu()
-        return 4 * len(data)/self.core.mu_to_seconds(t1-t0)
+    def test_byte_list(self, large):
+        def inner():
+            t0 = self.core.get_rtio_counter_mu()
+            data = self.get_byte_list(large)
+            t1 = self.core.get_rtio_counter_mu()
+            self.sink(data)
+            t2 = self.core.get_rtio_counter_mu()
+            self.h2d[i] = self.core.mu_to_seconds(t1 - t0)
+            self.d2h[i] = self.core.mu_to_seconds(t2 - t1)
+
+        for i in range(self.count):
+            inner()
+        return (self.h2d, self.d2h)
 
     @kernel
-    def host_to_device_array(self):
-        t0 = self.core.get_rtio_counter_mu()
-        data = self.source_array()
-        t1 = self.core.get_rtio_counter_mu()
-        return 4 * len(data)/self.core.mu_to_seconds(t1-t0)
+    def test_list(self, large):
+        def inner():
+            t0 = self.core.get_rtio_counter_mu()
+            data = self.get_list(large)
+            t1 = self.core.get_rtio_counter_mu()
+            self.sink(data)
+            t2 = self.core.get_rtio_counter_mu()
+            self.h2d[i] = self.core.mu_to_seconds(t1 - t0)
+            self.d2h[i] = self.core.mu_to_seconds(t2 - t1)
+
+        for i in range(self.count):
+            inner()
+        return (self.h2d, self.d2h)
 
     @kernel
-    def host_to_device_byte_list(self):
-        t0 = self.core.get_rtio_counter_mu()
-        data = self.source_byte_list()
-        t1 = self.core.get_rtio_counter_mu()
-        return len(data)/self.core.mu_to_seconds(t1-t0)
+    def test_array(self, large):
+        def inner():
+            t0 = self.core.get_rtio_counter_mu()
+            data = self.get_array(large)
+            t1 = self.core.get_rtio_counter_mu()
+            self.sink(data)
+            t2 = self.core.get_rtio_counter_mu()
+            self.h2d[i] = self.core.mu_to_seconds(t1 - t0)
+            self.d2h[i] = self.core.mu_to_seconds(t2 - t1)
+
+        for i in range(self.count):
+            inner()
+        return (self.h2d, self.d2h)
 
     @kernel
-    def device_to_host(self):
-        t0 = self.core.get_rtio_counter_mu()
-        self.sink(self.data)
-        t1 = self.core.get_rtio_counter_mu()
-        return len(self.data)/self.core.mu_to_seconds(t1-t0)
-
-    @kernel
-    def device_to_host_list(self):
-        #data = [[0]*8 for _ in range(1 << 12)]
-        data = [0]*(1 << 15)
-        t0 = self.core.get_rtio_counter_mu()
-        self.sink_list(data)
-        t1 = self.core.get_rtio_counter_mu()
-        return ((len(data)*4) /
-                self.core.mu_to_seconds(t1-t0))
-
-    @kernel
-    def device_to_host_array(self):
-        data = self.source_array()
-        t0 = self.core.get_rtio_counter_mu()
-        self.sink_array(data)
-        t1 = self.core.get_rtio_counter_mu()
-        return ((len(data)*4) /
-                self.core.mu_to_seconds(t1-t0))
-
+    def test_async(self):
+        data = self.get_bytes(True)
+        for _ in range(128):
+            self.sink_async(data)
+        return self.get_async_throughput()
 
 class TransferTest(ExperimentCase):
-    def test_host_to_device(self):
-        exp = self.create(_Transfer)
-        host_to_device_rate = exp.host_to_device()
-        print(host_to_device_rate/(1024*1024), "MiB/s")
-        self.assertGreater(host_to_device_rate, 2.0e6)
+    @classmethod
+    def setUpClass(self):
+        self.results = []
 
-    def test_host_to_device_byte_list(self):
-        exp = self.create(_Transfer)
-        host_to_device_rate = exp.host_to_device_byte_list()
-        print(host_to_device_rate/(1024*1024), "MiB/s")
-        self.assertGreater(host_to_device_rate, 2.0e6)
+    @classmethod
+    def tearDownClass(self):
+        if len(self.results) == 0:
+            return
+        max_length = max(max(len(row[0]) for row in self.results), len("Test"))
 
-    def test_host_to_device_list(self):
-        exp = self.create(_Transfer)
-        host_to_device_rate = exp.host_to_device_list()
-        print(host_to_device_rate/(1024*1024), "MiB/s")
-        self.assertGreater(host_to_device_rate, 2.0e6)
+        def pad(name):
+            nonlocal max_length
+            return name + " " * (max_length - len(name))
+        print()
+        print("| {} | Mean (MiB/s) |  std (MiB/s) |".format(pad("Test")))
+        print("| {} | ------------ | ------------ |".format("-" * max_length))
+        for v in self.results:
+            print("| {} | {:>12.2f} | {:>12.2f} |".format(
+                pad(v[0]), v[1], v[2]))
 
-    def test_host_to_device_array(self):
+    def test_bytes_large(self):
         exp = self.create(_Transfer)
-        host_to_device_rate = exp.host_to_device_array()
-        print(host_to_device_rate/(1024*1024), "MiB/s")
-        self.assertGreater(host_to_device_rate, 2.0e6)
+        results = exp.test_bytes(True)
+        host_to_device = (1 << 20) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 20) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["Bytes (1MB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["Bytes (1MB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
 
-    def test_device_to_host(self):
+    def test_bytes_small(self):
         exp = self.create(_Transfer)
-        device_to_host_rate = exp.device_to_host()
-        print(device_to_host_rate/(1024*1024), "MiB/s")
-        self.assertGreater(device_to_host_rate, 2.2e6)
+        results = exp.test_bytes(False)
+        host_to_device = (1 << 10) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 10) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["Bytes (1KB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["Bytes (1KB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
 
-    def test_device_to_host_list(self):
+    def test_byte_list_large(self):
         exp = self.create(_Transfer)
-        rate = exp.device_to_host_list()
-        print(rate/(1024*1024), "MiB/s")
-        self.assertGreater(rate, .15e6)
+        results = exp.test_byte_list(True)
+        host_to_device = (1 << 20) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 20) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["Bytes List (1MB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["Bytes List (1MB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
 
-    def test_device_to_host_array(self):
+    def test_byte_list_small(self):
         exp = self.create(_Transfer)
-        rate = exp.device_to_host_array()
-        print(rate/(1024*1024), "MiB/s")
-        self.assertGreater(rate, .15e6)
+        results = exp.test_byte_list(False)
+        host_to_device = (1 << 10) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 10) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["Bytes List (1KB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["Bytes List (1KB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
 
+    def test_list_large(self):
+        exp = self.create(_Transfer)
+        results = exp.test_list(True)
+        host_to_device = (1 << 20) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 20) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["I32 List (1MB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["I32 List (1MB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
+
+    def test_list_small(self):
+        exp = self.create(_Transfer)
+        results = exp.test_list(False)
+        host_to_device = (1 << 10) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 10) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["I32 List (1KB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["I32 List (1KB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
+
+    def test_array_large(self):
+        exp = self.create(_Transfer)
+        results = exp.test_array(True)
+        host_to_device = (1 << 20) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 20) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["I32 Array (1MB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["I32 Array (1MB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
+
+    def test_array_small(self):
+        exp = self.create(_Transfer)
+        results = exp.test_array(False)
+        host_to_device = (1 << 10) / numpy.array(results[0], numpy.float64)
+        device_to_host = (1 << 10) / numpy.array(results[1], numpy.float64)
+        host_to_device /= 1024*1024
+        device_to_host /= 1024*1024
+        self.results.append(["I32 Array (1KB) H2D", host_to_device.mean(),
+                             host_to_device.std()])
+        self.results.append(["I32 Array (1KB) D2H", device_to_host.mean(),
+                             device_to_host.std()])
+
+    def test_async_throughput(self):
+        exp = self.create(_Transfer)
+        results = exp.test_async()
+        print("Async throughput: {:>6.2f}MiB/s".format(results))
 
 class _KernelOverhead(EnvExperiment):
     def build(self):
