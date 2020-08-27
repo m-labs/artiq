@@ -42,6 +42,13 @@ PHASER_SEL_TRF1 = 1 << 2
 PHASER_SEL_ATT0 = 1 << 3
 PHASER_SEL_ATT1 = 1 << 4
 
+PHASER_STA_DAC_ALARM = 1 << 0
+PHASER_STA_TRF0_LD = 1 << 1
+PHASER_STA_TRF1_LD = 1 << 2
+PHASER_STA_TERM0 = 1 << 3
+PHASER_STA_TERM1 = 1 << 4
+PHASER_STA_SPI_IDLE = 1 << 5
+
 
 class Phaser:
     kernel_invariants = {"core", "channel_base", "t_frame"}
@@ -57,23 +64,23 @@ class Phaser:
 
     @kernel
     def init(self):
-        board_id = self.read(PHASER_ADDR_BOARD_ID)
+        board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
             raise ValueError("invalid board id")
         delay(20*us)
 
     @kernel
-    def write(self, addr, data):
+    def write8(self, addr, data):
         """Write data to a Phaser FPGA register.
 
         :param addr: Address to write to.
         :param data: Data to write.
         """
-        rtio_output((self.channel_base << 8) | addr | 0x80, data)
+        rtio_output((self.channel_base << 8) | (addr & 0x7f) | 0x80, data)
         delay_mu(int64(self.t_frame))
 
     @kernel
-    def read(self, addr):
+    def read8(self, addr) -> TInt32:
         """Read from Phaser FPGA register.
 
         TODO: untested
@@ -81,40 +88,65 @@ class Phaser:
         :param addr: Address to read from.
         :return: The data read.
         """
-        rtio_output((self.channel_base << 8) | addr, 0)
+        rtio_output((self.channel_base << 8) | (addr & 0x7f), 0)
         response = rtio_input_data(self.channel_base)
         return response >> self.miso_delay
 
     @kernel
+    def write32(self, addr, data: TInt32):
+        for offset in range(4):
+            byte = data >> 24
+            self.write8(addr + offset, byte)
+            data <<= 8
+
+    @kernel
+    def read32(self, addr) -> TInt32:
+        data = 0
+        for offset in range(4):
+            data <<= 8
+            data |= self.read8(addr + offset)
+            delay(20*us)  # slack
+        return data
+
+    @kernel
+    def write16(self, addr, data: TInt32):
+        self.write8(addr, data >> 8)
+        self.write8(addr + 1, data)
+
+    @kernel
+    def read16(self, addr) -> TInt32:
+        return (self.read8(addr) << 8) | self.read8(addr)
+
+    @kernel
     def set_leds(self, leds):
-        self.write(PHASER_ADDR_LED, leds)
+        self.write8(PHASER_ADDR_LED, leds)
 
     @kernel
     def set_fan(self, duty):
-        self.write(PHASER_ADDR_FAN, duty)
+        self.write8(PHASER_ADDR_FAN, duty)
 
     @kernel
     def set_cfg(self, clk_sel=0, dac_resetb=1, dac_sleep=0, dac_txena=1,
                 trf0_ps=0, trf1_ps=0, att0_rstn=1, att1_rstn=1):
-        self.write(PHASER_ADDR_CFG,
+        self.write8(PHASER_ADDR_CFG,
             (clk_sel << 0) | (dac_resetb << 1) | (dac_sleep << 2) |
             (dac_txena << 3) | (trf0_ps << 4) | (trf1_ps << 5) |
             (att0_rstn << 6) | (att1_rstn << 7))
 
     @kernel
     def get_sta(self):
-        return self.read(PHASER_ADDR_STA)
+        return self.read8(PHASER_ADDR_STA)
 
     @kernel
     def get_crc_err(self):
-        return self.read(PHASER_ADDR_CRC_ERR)
+        return self.read8(PHASER_ADDR_CRC_ERR)
 
     @kernel
     def get_dac_data(self, ch) -> TInt32:
         data = 0
         for addr in range(4):
             data <<= 8
-            data |= self.read(PHASER_ADDR_DAC0_DATA + (ch << 4) + addr)
+            data |= self.read8(PHASER_ADDR_DAC0_DATA + (ch << 4) + addr)
             delay(20*us)  # slack
         return data
 
@@ -122,32 +154,43 @@ class Phaser:
     def set_dac_test(self, ch, data: TInt32):
         for addr in range(4):
             byte = (data >> 24) & 0xff
-            self.write(PHASER_ADDR_DAC0_TEST + (ch << 4) + addr, byte)
+            self.write8(PHASER_ADDR_DAC0_TEST + (ch << 4) + addr, byte)
             data <<= 8
-        return data
 
     @kernel
     def set_duc_cfg(self, ch, clr=0, clr_once=0, select=0):
-        self.write(PHASER_ADDR_DUC0_CFG + (ch << 4),
+        self.write8(PHASER_ADDR_DUC0_CFG + (ch << 4),
                    (clr << 0) | (clr_once << 1) | (select << 2))
+
+    @kernel
+    def set_duc_frequency_mu(self, ch, ftw):
+        self.write32(PHASER_ADDR_DUC0_F + (ch << 4), ftw)
+
+    @kernel
+    def set_duc_phase_mu(self, ch, pow):
+        self.write16(PHASER_ADDR_DUC0_P + (ch << 4), pow)
+
+    @kernel
+    def duc_stb(self):
+        self.write8(PHASER_ADDR_DUC_STB, 0)
 
     @kernel
     def spi_cfg(self, select, div, end, clk_phase=0, clk_polarity=0,
                 half_duplex=0, lsb_first=0, offline=0):
-        self.write(PHASER_ADDR_SPI_SEL, select)
-        self.write(PHASER_ADDR_SPI_DIV, div)
-        self.write(PHASER_ADDR_SPI_CFG,
+        self.write8(PHASER_ADDR_SPI_SEL, select)
+        self.write8(PHASER_ADDR_SPI_DIV, div)
+        self.write8(PHASER_ADDR_SPI_CFG,
                    (offline << 0) | (end << 1) | (clk_phase << 2) |
                    (clk_polarity << 3) | (half_duplex << 4) |
                    (lsb_first << 5))
 
     @kernel
     def spi_write(self, data):
-        self.write(PHASER_ADDR_SPI_DATW, data)
+        self.write8(PHASER_ADDR_SPI_DATW, data)
 
     @kernel
     def spi_read(self):
-        return self.read(PHASER_ADDR_SPI_DATR)
+        return self.read8(PHASER_ADDR_SPI_DATR)
 
     @kernel
     def dac_write(self, addr, data):
@@ -194,11 +237,44 @@ class Phaser:
         self.spi_write(0)
         delay_mu(t_xfer)
         data = self.spi_read()
-        delay(10*us)
+        delay(10*us)  # slack
         self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=1)
         self.spi_write(data)
         delay_mu(t_xfer)
         return data
+
+    @kernel
+    def trf_write(self, ch, data, readback=False):
+        div = 30  # 50 ns min period
+        t_xfer = self.core.seconds_to_mu((8 + 1)*(div + 2)*4*ns)
+        read = 0
+        if readback:
+            clk_phase = 1
+        else:
+            clk_phase = 0
+        end = 0
+        for i in range(4):
+            if i == 0 or i == 3:
+                if i == 3:
+                    end = 1
+                self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=div,
+                             lsb_first=1, clk_phase=clk_phase, end=end)
+            self.spi_write(data & 0xff)
+            data >>= 8
+            delay_mu(t_xfer)
+            if readback:
+                read >>= 8
+                read |= self.spi_read() << 24
+                delay(10*us)  # slack
+        return read
+
+    @kernel
+    def trf_read(self, ch, addr, cnt_mux_sel=0) -> TInt32:
+        self.trf_write(ch, 0x80000008 | (addr << 28) | (cnt_mux_sel << 27))
+        # single clk pulse to start readback
+        self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=30, end=1, clk_polarity=1)
+        self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=30, end=1, clk_polarity=0)
+        return self.trf_write(ch, 0x00000008, readback=True)
 
     @kernel
     def set_frequency_mu(self, ch, osc, ftw):

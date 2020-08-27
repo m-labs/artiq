@@ -37,15 +37,13 @@ class Phaser(Module):
         n_channels = 2
         n_samples = 8
         n_bits = 14
-        body = [Signal(n_channels*2*n_bits, reset_less=True)
-                for i in range(n_samples)]
-        i_sample = Signal(max=n_samples)
+        body = Signal(n_samples*n_channels*2*n_bits, reset_less=True)
         self.sync.rio_phy += [
             If(self.ch0.dds.valid,  # & self.ch1.dds.valid,
-                Array(body)[i_sample].eq(Cat(
-                    self.ch0.dds.o.q[2:], self.ch0.dds.o.i[2:],
-                    self.ch1.dds.o.q[2:], self.ch1.dds.o.i[2:])),
-                i_sample.eq(i_sample + 1),
+                # recent sample, ch0, i first
+                Cat(body).eq(Cat(self.ch0.dds.o.i[2:], self.ch0.dds.o.q[2:],
+                                 self.ch1.dds.o.i[2:], self.ch1.dds.o.q[2:],
+                                 body)),
             ),
         ]
 
@@ -56,11 +54,6 @@ class Phaser(Module):
         self.comb += [
             Cat(self.intf.data[:-1]).eq(Cat(self.serializer.data[:-1])),
             self.serializer.data[-1].eq(self.intf.data[-1]),
-        ]
-        self.sync.rio_phy += [
-            If(self.serializer.stb,
-                i_sample.eq(0),
-            ),
         ]
 
         header = Record([
