@@ -13,8 +13,6 @@ class DDSChannel(Module):
         to_rio_phy = ClockDomainsRenamer("rio_phy")
         self.submodules.dds = to_rio_phy(MultiDDS(
             n=5, fwidth=32, xwidth=16, z=19, zl=10, use_lut=use_lut))
-        # TODO: latency
-        self.comb += self.dds.stb.eq(1)
         regs = []
         for i in self.dds.i:
             regs.extend([i.f, Cat(i.a, i.clr, i.p)])
@@ -70,6 +68,8 @@ class Phaser(Module):
         self.sync.rtio += [
             header.type.eq(1),  # reserved
             If(self.serializer.stb,
+                self.ch0.dds.stb.eq(1),  # synchronize
+                self.ch1.dds.stb.eq(1),  # synchronize
                 header.we.eq(0),
                 re_dly.eq(re_dly[1:]),
             ),
