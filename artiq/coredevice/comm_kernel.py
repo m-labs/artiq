@@ -139,7 +139,7 @@ receivers = {
     "n": lambda kernel, embedding_map: None,
     "b": lambda kernel, embedding_map: bool(kernel._read_int8()),
     "i": lambda kernel, embedding_map: numpy.int32(kernel._read_int32()),
-    "I": lambda kernel, embedding_map: numpy.int32(kernel._read_int64()),
+    "I": lambda kernel, embedding_map: numpy.int64(kernel._read_int64()),
     "f": lambda kernel, embedding_map: kernel._read_float64(),
     "s": lambda kernel, embedding_map: kernel._read_string(),
     "B": lambda kernel, embedding_map: kernel._read_bytes(),
