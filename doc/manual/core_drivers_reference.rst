@@ -130,6 +130,11 @@ RF generation drivers
 .. automodule:: artiq.coredevice.basemod_att
     :members:
 
+:mod:`artiq.coredevice.phaser` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.phaser
+    :members:
 
 DAC/ADC drivers
 ---------------

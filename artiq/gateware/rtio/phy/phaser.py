@@ -30,6 +30,7 @@ class Phaser(Module):
                               enable_replace=False),
             rtlink.IInterface(data_width=10))
 
+        # share a CosSinGen LUT between the two channels
         self.submodules.ch0 = DDSChannel()
         self.submodules.ch1 = DDSChannel(use_lut=self.ch0.dds.mod.cs.lut)
         n_channels = 2
@@ -38,7 +39,7 @@ class Phaser(Module):
         body = Signal(n_samples*n_channels*2*n_bits, reset_less=True)
         self.sync.rio_phy += [
             If(self.ch0.dds.valid,  # & self.ch1.dds.valid,
-                # recent sample, ch0, i first
+                # recent:ch0:i as low order in body
                 Cat(body).eq(Cat(self.ch0.dds.o.i[2:], self.ch0.dds.o.q[2:],
                                  self.ch1.dds.o.i[2:], self.ch1.dds.o.q[2:],
                                  body)),
@@ -66,7 +67,7 @@ class Phaser(Module):
 
         re_dly = Signal(3)  # stage, send, respond
         self.sync.rtio += [
-            header.type.eq(1),  # reserved
+            header.type.eq(1),  # body type is baseband data
             If(self.serializer.stb,
                 self.ch0.dds.stb.eq(1),  # synchronize
                 self.ch1.dds.stb.eq(1),  # synchronize
