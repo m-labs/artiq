@@ -302,9 +302,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             #[cfg(has_ad9154)]
             let (succeeded, retval) = {
                 #[cfg(rtio_frequency = "125.0")]
-                const LINERATE: u64 = 5_000_000_000;
-                #[cfg(rtio_frequency = "150.0")]
-                const LINERATE: u64 = 6_000_000_000;
+                const LINERATE: u64 = 10_000_000_000;
                 match _reqno {
                     jdac_common::INIT => (board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(), 0),
                     jdac_common::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); (true, 0) },
@@ -418,19 +416,6 @@ fn hardware_tick(ts: &mut u64) {
         *ts = now + 200;
     }
 }
-
-#[cfg(all(has_si5324, rtio_frequency = "150.0"))]
-const SI5324_SETTINGS: si5324::FrequencySettings
-    = si5324::FrequencySettings {
-    n1_hs  : 6,
-    nc1_ls : 6,
-    n2_hs  : 10,
-    n2_ls  : 270,
-    n31    : 75,
-    n32    : 75,
-    bwsel  : 4,
-    crystal_ref: true
-};
 
 #[cfg(all(has_si5324, rtio_frequency = "125.0"))]
 const SI5324_SETTINGS: si5324::FrequencySettings

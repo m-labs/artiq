@@ -15,30 +15,26 @@ from jesd204b.core import JESD204BCoreTXControl
 
 
 class UltrascaleCRG(Module, AutoCSR):
-    linerate = int(6e9)
-    refclk_freq = int(150e6)
+    linerate = int(10e9)  # linerate = 20*data_rate*4/8 = data_rate*10
+    refclk_freq = int(250e6)
     fabric_freq = int(125e6)
 
-    def __init__(self, platform, use_rtio_clock=False):
+    def __init__(self, platform):
         self.jreset = CSRStorage(reset=1)
         self.refclk = Signal()
         self.clock_domains.cd_jesd = ClockDomain()
 
-        refclk2 = Signal()
         refclk_pads = platform.request("dac_refclk", 0)
         platform.add_period_constraint(refclk_pads.p, 1e9/self.refclk_freq)
         self.specials += [
-            Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b00,
+            Instance("IBUFDS_GTE3", i_CEB=0, p_REFCLK_HROW_CK_SEL=0b01,
                      i_I=refclk_pads.p, i_IB=refclk_pads.n,
-                     o_O=self.refclk, o_ODIV2=refclk2),
-            AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
+                     o_O=self.refclk),
         ]
 
-        if use_rtio_clock:
-            self.cd_jesd.clk.attr.add("keep")
-            self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
-        else:
-            self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
+        self.cd_jesd.clk.attr.add("keep")
+        self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
+        self.specials += AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage)
 
 
 PhyPads = namedtuple("PhyPads", "txp txn")
@@ -68,7 +64,7 @@ class UltrascaleTX(Module, AutoCSR):
             phys.append(phy)
 
         self.submodules.core = JESD204BCoreTX(
-            phys, settings, converter_data_width=64)
+            phys, settings, converter_data_width=128)
         self.submodules.control = JESD204BCoreTXControl(self.core)
         self.core.register_jsync(platform.request("dac_sync", dac))
 
@@ -92,7 +88,7 @@ class DDMTDEdgeDetector(Module):
 # See "Digital femtosecond time difference circuit for CERN's timing system"
 # by P. Moreira and I. Darwazeh
 class DDMTD(Module, AutoCSR):
-    def __init__(self, input_pads, rtio_clk_freq=150e6):
+    def __init__(self, input_pads, rtio_clk_freq=125e6):
         N = 64
         self.reset = CSRStorage(reset=1)
         self.locked = CSRStatus()

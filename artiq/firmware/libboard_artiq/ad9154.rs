@@ -34,9 +34,9 @@ fn read(addr: u16) -> u8 {
 }
 
 // ad9154 mode 1
-// linerate 5Gbps or 6Gbps
-// deviceclock_fpga 125MHz or 150MHz
-// deviceclock_dac 500MHz or 600MHz
+// linerate 10Gbps
+// deviceclock_fpga 125MHz
+// deviceclock_dac 1000MHz
 
 struct JESDSettings {
     did: u8,
@@ -146,7 +146,7 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
 
     write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
 
-    write(ad9154_reg::INTERP_MODE, 0x03); // 4x
+    write(ad9154_reg::INTERP_MODE, 0x01); // 2x
     write(ad9154_reg::MIX_MODE, 0);
     write(ad9154_reg::DATA_FORMAT, 0*ad9154_reg::BINARY_FORMAT); // s16
     write(ad9154_reg::DATAPATH_CTRL,
