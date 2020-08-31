@@ -47,12 +47,11 @@ class ReprogrammableIdentifier(Module, AutoCSR):
 def add_identifier(soc, *args, identifier_str=None, **kwargs):
     if hasattr(soc, "identifier"):
         raise ValueError
-    if identifier_str is None:
-        # not overridden with --identifier-str
-        identifier_str = get_identifier_string(soc, *args, **kwargs)
-    soc.submodules.identifier = ReprogrammableIdentifier(identifier_str)
-    soc.config["IDENTIFIER_STR"] = identifier_str
+    software_identifier_str = get_identifier_string(soc, *args, **kwargs)
+    gateware_identifier_str = identifier_str or software_identifier_str
 
+    soc.submodules.identifier = ReprogrammableIdentifier(gateware_identifier_str)
+    soc.config["IDENTIFIER_STR"] = software_identifier_str
 
 
 def build_artiq_soc(soc, argdict):
