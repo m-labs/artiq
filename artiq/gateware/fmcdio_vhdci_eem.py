@@ -19,8 +19,9 @@ def _get_connectors():
         for j, pair in enumerate(eem_fmc_connections[i]):
             for pn in "n", "p":
                 cc = "cc_" if j == 0 else ""
+                lpc_cc = "CC_" if eem_fmc_connections[i][j] in (0, 1, 17, 18) else ""
                 connections["d{}_{}{}".format(j, cc, pn)] = \
-                    "LPC:LA{:02d}_{}{}".format(pair, cc.upper(), pn.upper())
+                    "LPC:LA{:02d}_{}{}".format(pair, lpc_cc, pn.upper())
         connectors.append(("eem{}".format(i), connections))
     return connectors
 
