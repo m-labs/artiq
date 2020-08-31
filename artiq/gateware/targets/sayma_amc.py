@@ -12,8 +12,10 @@ from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import *
 
 from artiq.gateware.amp import AMPSoC
+from artiq.gateware import eem
 from artiq.gateware import rtio
 from artiq.gateware import jesd204_tools
+from artiq.gateware import fmcdio_vhdci_eem
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -284,7 +286,7 @@ class JDCGSyncDDS(Module, AutoCSR):
 
 class Satellite(SatelliteBase):
     """
-    DRTIO satellite with local DAC/SAWG channels.
+    DRTIO satellite with local DAC/SAWG channels, as well as TTL channels via FMC and VHDCI carrier.
     """
     def __init__(self, jdcg_type, **kwargs):
         SatelliteBase.__init__(self, 150e6,
@@ -307,7 +309,7 @@ class Satellite(SatelliteBase):
         self.csr_devices.append("slave_fpga_cfg")
         self.config["SLAVE_FPGA_GATEWARE"] = 0x200000
 
-        rtio_channels = []
+        self.rtio_channels = rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
@@ -342,6 +344,27 @@ class Satellite(SatelliteBase):
                                 for sawg in self.jdcg_0.sawgs +
                                             self.jdcg_1.sawgs
                                 for phy in sawg.phys)
+
+        # FMC-VHDCI-EEM DIOs x 2 (all OUTPUTs)
+        platform.add_connectors(fmcdio_vhdci_eem.connectors)
+        eem.DIO.add_std(self, 0,
+            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+        eem.DIO.add_std(self, 1,
+            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+        # FMC-DIO-32ch-LVDS-a Direction Control Pins (via shift register) as TTLs x 3
+        platform.add_extension(fmcdio_vhdci_eem.io)
+        print("fmcdio_vhdci_eem.[CLK, SER, LATCH] starting at RTIO channel 0x{:06x}"
+              .format(len(rtio_channels)))
+        fmcdio_dirctl = platform.request("fmcdio_dirctl", 0)
+        fmcdio_dirctl_phys = [
+            ttl_simple.Output(fmcdio_dirctl.clk),
+            ttl_simple.Output(fmcdio_dirctl.ser),
+            ttl_simple.Output(fmcdio_dirctl.latch)
+        ]
+        for phy in fmcdio_dirctl_phys:
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        workaround_us_lvds_tristate(platform)
 
         self.add_rtio(rtio_channels)
 
