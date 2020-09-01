@@ -38,7 +38,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -49,7 +49,7 @@ class Master(MiniSoC, AMPSoC):
                          csr_address_width=15,
                          **kwargs)
         AMPSoC.__init__(self)
-        add_identifier(self, identifier_str=identifier_str)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
         rtio_clk_freq = 150e6
@@ -164,11 +164,11 @@ def main():
     builder_args(parser)
     soc_sdram_args(parser)
     parser.set_defaults(output_dir="artiq_metlino")
-    parser.add_argument("--identifier-str", default=None,
+    parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
     args.variant = "master"
-    soc = Master(identifier_str=args.identifier_str, **soc_sdram_argdict(args))
+    soc = Master(gateware_identifier_str=args.gateware_identifier_str, **soc_sdram_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 

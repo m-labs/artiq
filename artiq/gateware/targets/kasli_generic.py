@@ -252,7 +252,7 @@ def main():
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("description", metavar="DESCRIPTION",
                         help="JSON system description file")
-    parser.add_argument("--identifier-str", default=None,
+    parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
 
@@ -271,7 +271,7 @@ def main():
     else:
         raise ValueError("Invalid base")
 
-    soc = cls(description, identifier_str=args.identifier_str, **soc_kasli_argdict(args))
+    soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
     build_artiq_soc(soc, builder_argdict(args))
 

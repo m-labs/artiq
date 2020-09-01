@@ -99,7 +99,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -109,7 +109,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
-        add_identifier(self, identifier_str=identifier_str)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         if self.platform.hw_rev == "v2.0":
             self.submodules.error_led = gpio.GPIOOut(Cat(
@@ -280,7 +280,7 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -290,7 +290,7 @@ class MasterBase(MiniSoC, AMPSoC):
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
-        add_identifier(self, identifier_str=identifier_str)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
 
@@ -453,13 +453,13 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  **kwargs)
-        add_identifier(self, identifier_str=identifier_str)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
 
@@ -674,14 +674,14 @@ def main():
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(VARIANTS.keys()))))
     parser.add_argument("--with-wrpll", default=False, action="store_true")
-    parser.add_argument("--identifier-str", default=None,
+    parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
 
     argdict = dict()
     if args.with_wrpll:
         argdict["with_wrpll"] = True
-    argdict["identifier_str"] = args.identifier_str
+    argdict["gateware_identifier_str"] = args.gateware_identifier_str
 
     variant = args.variant.lower()
     try:

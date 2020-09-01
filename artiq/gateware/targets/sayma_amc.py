@@ -52,7 +52,7 @@ class SatelliteBase(MiniSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", identifier_str=None, with_sfp=False, *, with_wrpll, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", gateware_identifier_str=None, with_sfp=False, *, with_wrpll, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -61,7 +61,7 @@ class SatelliteBase(MiniSoC):
                  ethmac_nrxslots=4,
                  ethmac_ntxslots=4,
                  **kwargs)
-        add_identifier(self, suffix=identifier_suffix, identifier_str=identifier_str)
+        add_identifier(self, suffix=identifier_suffix, gateware_identifier_str=gateware_identifier_str)
         self.rtio_clk_freq = rtio_clk_freq
 
         platform = self.platform
@@ -426,7 +426,7 @@ def main():
         help="Change type of signal generator. This is used exclusively for "
              "development and debugging.")
     parser.add_argument("--with-wrpll", default=False, action="store_true")
-    parser.add_argument("--identifier-str", default=None,
+    parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
 
@@ -436,13 +436,13 @@ def main():
             with_sfp=args.sfp,
             jdcg_type=args.jdcg_type,
             with_wrpll=args.with_wrpll,
-            identifier_str=args.identifier_str,
+            gateware_identifier_str=args.gateware_identifier_str,
             **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
         soc = SimpleSatellite(
             with_sfp=args.sfp,
             with_wrpll=args.with_wrpll,
-            identifier_str=args.identifier_str,
+            gateware_identifier_str=args.gateware_identifier_str,
             **soc_sayma_amc_argdict(args))
     else:
         raise SystemExit("Invalid variant (-V/--variant)")
