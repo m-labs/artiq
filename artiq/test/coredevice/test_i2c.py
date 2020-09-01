@@ -24,6 +24,7 @@ class I2CSwitch(EnvExperiment):
 class NonexistentI2CBus(EnvExperiment):
     def build(self):
         self.setattr_device("core")
+        self.setattr_device("i2c_switch")  # HACK: only run this test on boards with I2C
         self.broken_switch = PCA9548(self._HasEnvironment__device_mgr, 255)
 
     @kernel
