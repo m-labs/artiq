@@ -12,6 +12,7 @@ from artiq.coredevice import exceptions
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, InputMessage,
                                             decode_dump, get_analyzer_dump)
+from artiq.compiler.targets import CortexA9Target
 
 
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
@@ -460,11 +461,15 @@ class CoredeviceTest(ExperimentCase):
 
     def test_pulse_rate(self):
         """Minimum interval for sustained TTL output switching"""
-        self.execute(PulseRate)
+        exp = self.execute(PulseRate)
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
-        self.assertLess(rate, 480*ns)
+        if exp.core.target_cls == CortexA9Target:
+            # Crappy AXI PS/PL interface from Xilinx is slow.
+            self.assertLess(rate, 810*ns)
+        else:
+            self.assertLess(rate, 480*ns)
 
     def test_pulse_rate_ad9914_dds(self):
         """Minimum interval for sustained AD9914 DDS frequency switching"""
