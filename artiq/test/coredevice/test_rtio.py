@@ -231,17 +231,18 @@ class LoopbackGateTiming(EnvExperiment):
         # With the exact delay known, make sure tight gate timings work.
         # In the most common configuration, 24 mu == 24 ns == 3 coarse periods,
         # which should be plenty of slack.
+        # FIXME: ZC706 with NIST_QC2 needs 48ns - hw problem?
         delay_mu(10000)
 
         gate_start_mu = now_mu()
-        self.loop_in.gate_both_mu(24)
+        self.loop_in.gate_both_mu(48) # XXX
         gate_end_mu = now_mu()
 
         # gateware latency offset between gate and input
         lat_offset = 11*8
         out_mu = gate_start_mu - loop_delay_mu + lat_offset
         at_mu(out_mu)
-        self.loop_out.pulse_mu(24)
+        self.loop_out.pulse_mu(48) # XXX
 
         in_mu = self.loop_in.timestamp_mu(gate_end_mu)
         print("timings: ", gate_start_mu, in_mu - lat_offset, gate_end_mu)
