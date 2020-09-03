@@ -1,25 +1,44 @@
 """RTIO driver for the Fastino 32channel, 16 bit, 2.5 MS/s per channel,
 streaming DAC.
-
-TODO: Example, describe update/hold
 """
 
 from artiq.language.core import kernel, portable, delay
-from artiq.coredevice.rtio import rtio_output, rtio_output_wide, rtio_input_data
+from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
+                                   rtio_input_data)
 from artiq.language.units import us
-from artiq.language.types import TInt32, TList, TFloat
+from artiq.language.types import TInt32, TList
 
 
 class Fastino:
     """Fastino 32-channel, 16-bit, 2.5 MS/s per channel streaming DAC
 
+    The RTIO PHY supports staging DAC data before transmitting them by writing
+    to the DAC RTIO addresses, if a channel is not "held" by setting its bit
+    using :meth:`set_hold`, the next frame will contain the update. For the
+    DACs held, the update is triggered explicitly by setting the corresponding
+    bit using :meth:`set_update`. Update is self-clearing. This enables atomic
+    DAC updates synchronized to a frame edge.
+
+    The `log2_width=0` RTIO layout uses one DAC channel per RTIO address
+    and a dense RTIO address space. The RTIO words are narrow.
+    (32 bit compared to 512) and few-channel updates are efficient.
+    There is the least amount of DAC state tracking in kernels,
+    at the cost of more DMA and RTIO data.
+
+    Other `log2_width` (up to `log2_width=5`) settings pack multiple
+    (in powers of two) DAC channels into one group and into one RTIO write.
+    The RTIO data width increases accordingly. The `log2_width`
+    LSBs of the RTIO address for a DAC channel write must be zero and the
+    address space is sparse.
+
+    If `log2_width` is zero, the :meth:`set_dac`/:meth:`set_dac_mu` interface
+    must be used. If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
+    interface must be used.
+
     :param channel: RTIO channel number
     :param core_device: Core device name (default: "core")
     :param log2_width: Width of DAC channel group (power of two,
-        see the RTIO PHY for details). If zero, the
-        :meth:`set_dac`/:meth:`set_dac_mu` interface must be used.
-        If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
-        interface must be used. Value must match the corresponding value
+        see the RTIO PHY for details). Value must match the corresponding value
         in the RTIO PHY.
     """
     kernel_invariants = {"core", "channel", "width"}
@@ -94,7 +113,7 @@ class Fastino:
         :param voltage: Voltage in SI Volts.
         :return: DAC data word in machine units, 16 bit integer.
         """
-        return int(round((0x8000/10.)*voltage)) + 0x8000
+        return (int(round((0x8000/10.)*voltage)) + 0x8000) & 0xffff
 
     @portable
     def voltage_group_to_mu(self, voltage, data):
