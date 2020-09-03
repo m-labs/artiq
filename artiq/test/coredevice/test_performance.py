@@ -264,10 +264,10 @@ class TransferTest(ExperimentCase):
         self.results.append(["I32 Array (1KB) D2H", device_to_host.mean(),
                              device_to_host.std()])
 
-    #def test_async_throughput(self):
-    #    exp = self.create(_Transfer)
-    #    results = exp.test_async()
-    #    print("Async throughput: {:>6.2f}MiB/s".format(results))
+    def test_async_throughput(self):
+        exp = self.create(_Transfer)
+        results = exp.test_async()
+        print("Async throughput: {:>6.2f}MiB/s".format(results))
 
 class _KernelOverhead(EnvExperiment):
     def build(self):
