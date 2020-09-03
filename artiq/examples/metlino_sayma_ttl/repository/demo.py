@@ -59,6 +59,17 @@ class Demo(EnvExperiment):
         )
 
     @kernel
+    def init(self):
+        self.core.break_realtime()
+        print("*** Waiting for DRTIO ready...")
+        drtio_indices = [7]
+        for i in drtio_indices:
+            while not self.drtio_is_up(i):
+                pass
+
+        self.fmcdio_dirctl.set(self.dirctl_word)
+
+    @kernel
     def drtio_is_up(self, drtio_index):
         if not self.core.get_rtio_destination_status(drtio_index):
             return False
@@ -77,15 +88,13 @@ class Demo(EnvExperiment):
                 led.pulse(100*ms)
                 delay(100*ms)
 
-    @kernel
     def test_leds(self):
         print("*** Testing LEDs.")
         print("Check for blinking. Press ENTER when done.")
 
-        for i in range(len(self.leds)):
-            led = self.leds[i:i+1]
-            print("Testing LED:", i)
-            self.test_led([dev for _, dev in led][0])
+        for led_name, led_dev in self.leds:
+            print("Testing LED: {}".format(led_name))
+            self.test_led(led_dev)
 
     @kernel
     def test_ttl_out_chunk(self, ttl_chunk):
@@ -100,7 +109,6 @@ class Demo(EnvExperiment):
                         delay(1*us)
                     delay(10*us)
 
-    @kernel
     def test_ttl_outs(self):
         print("*** Testing TTL outputs.")
         print("Outputs are tested in groups of 4. Touch each TTL connector")
@@ -108,25 +116,12 @@ class Demo(EnvExperiment):
         print("pulses corresponds to its number in the group.")
         print("Press ENTER when done.")
 
-        # for ttl_chunk in chunker(self.ttl_outs, 4):
-        for i in range(len(self.ttl_outs) // 4):
-            chunk_start, chunk_end = i*4, (i+1)*4
-            ttl_chunk = self.ttl_outs[chunk_start:chunk_end]
-            print("Testing TTL outputs:", chunk_start, chunk_start+1, chunk_start+2, chunk_start+3)
-            self.test_ttl_out_chunk([dev for _, dev in ttl_chunk])
+        for ttl_chunk in chunker(self.ttl_outs, 4):
+            print("Testing TTL outputs: {}.".format(", ".join(name for name, dev in ttl_chunk)))
+            self.test_ttl_out_chunk([dev for name, dev in ttl_chunk])
 
-    @kernel
     def run(self):
         self.core.reset()
-        delay(10*ms)
-        print("*** Waiting for DRTIO ready...")
-        drtio_indices = [7]
-        for i in drtio_indices:
-            while not self.drtio_is_up(i):
-                pass
-
-        self.fmcdio_dirctl.set(self.dirctl_word)
-        delay(10*ms)
 
         if self.leds:
             self.test_leds()
