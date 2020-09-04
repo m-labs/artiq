@@ -316,7 +316,7 @@ class CommKernel:
         self._write(self.pack_float64(value))
 
     def _write_bool(self, value):
-        self._write(1 if value == True else 0)
+        self._write(b'\x01' if value else b'\x00')
 
     def _write_bytes(self, value):
         self._write_int32(len(value))
@@ -425,7 +425,7 @@ class CommKernel:
         elif tag == "b":
             check(isinstance(value, bool),
                   lambda: "bool")
-            self._write_int8(value)
+            self._write_bool(value)
         elif tag == "i":
             check(isinstance(value, (int, numpy.int32)) and
                   (-2**31 < value < 2**31-1),
