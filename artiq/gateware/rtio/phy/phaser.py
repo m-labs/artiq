@@ -6,13 +6,13 @@ from .fastlink import SerDes, SerInterface
 
 
 class DDSChannel(Module):
-    def __init__(self, use_lut=None):
+    def __init__(self, share_lut=None):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=32, address_width=4,
                               enable_replace=True))
         to_rio_phy = ClockDomainsRenamer("rio_phy")
         self.submodules.dds = to_rio_phy(MultiDDS(
-            n=5, fwidth=32, xwidth=16, z=19, zl=10, use_lut=use_lut))
+            n=5, fwidth=32, xwidth=16, z=19, zl=10, shae_lut=share_lut))
         regs = []
         for i in self.dds.i:
             regs.extend([i.f, Cat(i.a, i.clr, i.p)])
@@ -32,7 +32,7 @@ class Phaser(Module):
 
         # share a CosSinGen LUT between the two channels
         self.submodules.ch0 = DDSChannel()
-        self.submodules.ch1 = DDSChannel(use_lut=self.ch0.dds.mod.cs.lut)
+        self.submodules.ch1 = DDSChannel(share_lut=self.ch0.dds.mod.cs.lut)
         n_channels = 2
         n_samples = 8
         n_bits = 14
