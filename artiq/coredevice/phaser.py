@@ -223,6 +223,9 @@ class Phaser:
     def get_dac_data(self, ch) -> TInt32:
         """Get a sample of the current DAC data.
 
+        The data is split accross multiple registers and thus the data
+        is only valid if constant.
+
         :param ch: DAC channel pair (0 or 1)
         :return: DAC data as 32 bit IQ
         """
