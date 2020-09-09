@@ -12,7 +12,7 @@ class DDSChannel(Module):
                               enable_replace=True))
         to_rio_phy = ClockDomainsRenamer("rio_phy")
         self.submodules.dds = to_rio_phy(MultiDDS(
-            n=5, fwidth=32, xwidth=16, z=19, zl=10, shae_lut=share_lut))
+            n=5, fwidth=32, xwidth=16, z=19, zl=10, share_lut=share_lut))
         regs = []
         for i in self.dds.i:
             regs.extend([i.f, Cat(i.a, i.clr, i.p)])
