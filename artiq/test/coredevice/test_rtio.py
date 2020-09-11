@@ -627,11 +627,13 @@ class _DMA(EnvExperiment):
         self.delta = now_mu() - start
 
     @kernel
-    def playback_many(self, n):
+    def playback_many(self, n, add_delay=False):
         handle = self.core_dma.get_handle(self.trace_name)
         self.core.break_realtime()
         t1 = self.core.get_rtio_counter_mu()
         for i in range(n):
+            if add_delay:
+                delay(2*us)
             self.core_dma.playback_handle(handle)
         t2 = self.core.get_rtio_counter_mu()
         self.set_dataset("dma_playback_time", self.core.mu_to_seconds(t2 - t1))
@@ -724,13 +726,18 @@ class DMATest(ExperimentCase):
             self.device_mgr.get_desc("ad9914dds0")
         except KeyError:
             raise unittest.SkipTest("skipped on Kasli for now")
+
         exp = self.create(_DMA)
+        is_zynq = exp.core.target_cls == CortexA9Target
         count = 20000
         exp.record_many(40)
-        exp.playback_many(count)
+        exp.playback_many(count, is_zynq)
         dt = self.dataset_mgr.get("dma_playback_time")
         print("dt={}, dt/count={}".format(dt, dt/count))
-        self.assertLess(dt/count, 4.5*us)
+        if is_zynq:
+            self.assertLess(dt/count, 6.2*us)
+        else:
+            self.assertLess(dt/count, 4.5*us)
 
     def test_dma_underflow(self):
         exp = self.create(_DMA)
