@@ -87,6 +87,7 @@ class SerDes(Module):
             self.crcb.last.eq(self.crca.next),
             miso_sr_next.eq(Cat(self.data[-1], miso_sr)),
             # unload miso
+            # TODO: align to marker
             self.readback.eq(Cat([miso_sr_next[t_miso + i*t_clk]
                                   for i in range(n_frame)])),
         ]
