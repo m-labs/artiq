@@ -76,8 +76,9 @@ class Phaser:
 
     The four 16 bit 500 MS/s DAC data streams are sent via a 32 bit parallel
     LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC. On the
-    DAC 2x interpolation, sinx/x compensation, quadrature modulator compensation,
-    fine and coarse mixing as well as group delay capabilities are available.
+    DAC 2x interpolation, sinx/x compensation, quadrature modulator
+    compensation, fine and coarse mixing as well as group delay capabilities
+    are available.
 
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all they
@@ -97,16 +98,19 @@ class Phaser:
     31.5 dB range step attenuator and is available at the front panel.
 
     The DAC, the analog quadrature upconverters and the two attenuators are
-    configured through a shared SPI bus that is accessed and controlled via FPGA
-    registers.
+    configured through a shared SPI bus that is accessed and controlled via
+    FPGA registers.
 
     :param channel: Base RTIO channel number
     :param core_device: Core device name (default: "core")
     :param miso_delay: Fastlink MISO signal delay to account for cable
         and buffer round trip. This might be automated later.
 
-    :attr:`channel`: List of two :class:`PhaserChannel` to access oscillators
-        and digital upconverter.
+    Attributes:
+
+    * :attr:`channel`: List of two :class:`PhaserChannel`
+        To access oscillators, digital upconverters, PLL/VCO analog
+        quadrature upconverters and attenuators.
     """
     kernel_invariants = {"core", "channel_base", "t_frame", "miso_delay"}
 
@@ -185,7 +189,7 @@ class Phaser:
     def set_fan_mu(self, pwm):
         """Set the fan duty cycle.
 
-        :param pwm: Duty cycle (8 bit)
+        :param pwm: Duty cycle in machine units (8 bit)
         """
         self.write8(PHASER_ADDR_FAN, pwm)
 
@@ -228,13 +232,13 @@ class Phaser:
 
         Bit flags are:
 
-        * `PHASER_STA_DAC_ALARM`: DAC alarm pin
-        * `PHASER_STA_TRF0_LD`: Quadrature upconverter 0 lock detect
-        * `PHASER_STA_TRF1_LD`: Quadrature upconverter 1 lock detect
-        * `PHASER_STA_TERM0`: ADC channel 0 termination indicator
-        * `PHASER_STA_TERM1`: ADC channel 1 termination indicator
-        * `PHASER_STA_SPI_IDLE`: SPI machine is idle and data registers can be
-            read/written
+        * :const:`PHASER_STA_DAC_ALARM`: DAC alarm pin
+        * :const:`PHASER_STA_TRF0_LD`: Quadrature upconverter 0 lock detect
+        * :const:`PHASER_STA_TRF1_LD`: Quadrature upconverter 1 lock detect
+        * :const:`PHASER_STA_TERM0`: ADC channel 0 termination indicator
+        * :const:`PHASER_STA_TERM1`: ADC channel 1 termination indicator
+        * :const:`PHASER_STA_SPI_IDLE`: SPI machine is idle and data registers
+            can be read/written
 
         :return: Status register
         """
@@ -339,7 +343,9 @@ class Phaser:
 class PhaserChannel:
     """Phaser channel IQ pair.
 
-    :attr:`oscillator`: List of five :class:`PhaserOscillator`.
+    Attributes:
+
+    * :attr:`oscillator`: List of five :class:`PhaserOscillator`.
 
     .. note:: The amplitude sum of the oscillators must be less than one to
         avoid clipping or overflow. If any of the DDS or DUC frequencies are
@@ -433,7 +439,7 @@ class PhaserChannel:
     def set_att_mu(self, data):
         """Set channel attenuation.
 
-        :param data: Attenuator data
+        :param data: Attenuator data in machine units (8 bit)
         """
         div = 34  # 30 ns min period
         t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
@@ -448,6 +454,7 @@ class PhaserChannel:
 
         :param att: Attenuation in dB
         """
+        # 2 lsb are inactive, resulting in 8 LSB per dB
         data = 0xff - int32(round(att*8))
         if data < 0 or data > 0xff:
             raise ValueError("invalid attenuation")
