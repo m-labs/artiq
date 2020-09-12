@@ -93,11 +93,14 @@ class Phaser:
     def __init__(self, dmgr, channel_base, miso_delay=1, core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
+        # TODO: auto-align miso-delay in phy
         self.miso_delay = miso_delay
         # frame duration in mu (10 words, 8 clock cycles each 4 ns)
         # self.core.seconds_to_mu(10*8*4*ns)  # unfortunately this returns 319
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
+
+        self.channel = [PhaserChannel(self, ch) for ch in range(2)]
 
     @kernel
     def init(self):
@@ -151,17 +154,6 @@ class Phaser:
         return data
 
     @kernel
-    def write16(self, addr, data: TInt32):
-        """Write 16 bit to a sequence of FPGA registers."""
-        self.write8(addr, data >> 8)
-        self.write8(addr + 1, data)
-
-    @kernel
-    def read16(self, addr) -> TInt32:
-        """Read 16 bit from a sequence of FPGA registers."""
-        return (self.read8(addr) << 8) | self.read8(addr)
-
-    @kernel
     def set_leds(self, leds):
         """Set the front panel LEDs.
 
@@ -170,17 +162,30 @@ class Phaser:
         self.write8(PHASER_ADDR_LED, leds)
 
     @kernel
+    def set_fan_mu(self, pwm):
+        """Set the fan duty cycle.
+
+        :param pwm: Duty cycle (8 bit)
+        """
+        self.write8(PHASER_ADDR_FAN, pwm)
+
+    @kernel
     def set_fan(self, duty):
         """Set the fan duty cycle.
 
-        :param duty: Duty cycle (8 bit)
+        :param duty: Duty cycle (0. to 1.)
         """
-        self.write8(PHASER_ADDR_FAN, duty)
+        pwm = int32(round(duty*255.))
+        if pwm < 0 or pwm > 0xff:
+            raise ValueError("invalid duty cycle")
+        self.set_fan_mu(pwm)
 
     @kernel
     def set_cfg(self, clk_sel=0, dac_resetb=1, dac_sleep=0, dac_txena=1,
                 trf0_ps=0, trf1_ps=0, att0_rstn=1, att1_rstn=1):
         """Set the configuration register.
+
+        Each flag is a single bit (0 or 1).
 
         :param clk_sel: Select the external SMA clock input
         :param dac_resetb: Active low DAC reset pin
@@ -192,9 +197,10 @@ class Phaser:
         :param att1_rstn: Active low attenuator 1 reset
         """
         self.write8(PHASER_ADDR_CFG,
-                    (clk_sel << 0) | (dac_resetb << 1) | (dac_sleep << 2) |
-                    (dac_txena << 3) | (trf0_ps << 4) | (trf1_ps << 5) |
-                    (att0_rstn << 6) | (att1_rstn << 7))
+                    ((clk_sel & 1) << 0) | ((dac_resetb & 1) << 1) |
+                    ((dac_sleep & 1) << 2) | ((dac_txena & 1) << 3) |
+                    ((trf0_ps & 1) << 4) | ((trf1_ps & 1) << 5) |
+                    ((att0_rstn & 1) << 6) | ((att1_rstn & 1) << 7))
 
     @kernel
     def get_sta(self):
@@ -216,92 +222,12 @@ class Phaser:
 
     @kernel
     def get_crc_err(self):
-        """Get the frame CRC error counter."""
+        """Get the frame CRC error counter.
+
+        :return: The number of frames with CRC mismatches sind the reset of the
+            device. Overflows at 256.
+        """
         return self.read8(PHASER_ADDR_CRC_ERR)
-
-    @kernel
-    def get_dac_data(self, ch) -> TInt32:
-        """Get a sample of the current DAC data.
-
-        The data is split accross multiple registers and thus the data
-        is only valid if constant.
-
-        :param ch: DAC channel pair (0 or 1)
-        :return: DAC data as 32 bit IQ
-        """
-        data = 0
-        for addr in range(4):
-            data <<= 8
-            data |= self.read8(PHASER_ADDR_DAC0_DATA + (ch << 4) + addr)
-            delay(20*us)  # slack
-        return data
-
-    @kernel
-    def set_dac_test(self, ch, data: TInt32):
-        """Set the DAC test data.
-
-        :param ch: DAC channel pair (0 or 1)
-        :param data: 32 bit IQ test data
-        """
-        for addr in range(4):
-            byte = data >> 24
-            self.write8(PHASER_ADDR_DAC0_TEST + (ch << 4) + addr, byte)
-            data <<= 8
-
-    @kernel
-    def set_duc_cfg(self, ch, clr=0, clr_once=0, select=0):
-        """Set the digital upconverter and interpolator configuration.
-
-        :param ch: DAC channel pair (0 or 1)
-        :param clr: Keep the phase accumulator cleared
-        :param clr_once: Clear the phase accumulator for one cycle
-        :param select: Select the data to send to the DAC (0: DUC data, 1: test
-            data)
-        """
-        self.write8(PHASER_ADDR_DUC0_CFG + (ch << 4),
-                    (clr << 0) | (clr_once << 1) | (select << 2))
-
-    @kernel
-    def set_duc_frequency_mu(self, ch, ftw):
-        """Set the DUC frequency.
-
-        :param ch: DAC channel pair (0 or 1)
-        :param ftw: DUC frequency tuning word
-        """
-        self.write32(PHASER_ADDR_DUC0_F + (ch << 4), ftw)
-
-    @kernel
-    def set_duc_frequency(self, ch, frequency):
-        """Set the DUC frequency.
-
-        :param ch: DAC channel pair (0 or 1)
-        :param frequency: DUC frequency in Hz
-        """
-        if ch < 0 or ch > 1:
-            raise ValueError("invalid channel index")
-        ftw = int32(round(frequency*((1 << 32)/500e6)))
-        self.set_duc_frequency_mu(ch, ftw)
-
-    @kernel
-    def set_duc_phase_mu(self, ch, pow):
-        """Set the DUC phase offset
-
-        :param ch: DAC channel pair (0 or 1)
-        :param pow: DUC phase offset word
-        """
-        self.write16(PHASER_ADDR_DUC0_P + (ch << 4), pow)
-
-    @kernel
-    def set_duc_phase(self, ch, phase):
-        """Set the DUC phase.
-
-        :param ch: DAC channel pair (0 or 1)
-        :param phase: DUC phase in turns
-        """
-        if ch < 0 or ch > 1:
-            raise ValueError("invalid channel index")
-        pow = int32(round(phase*(1 << 16))) & 0xffff
-        self.set_duc_phase_mu(ch, pow)
 
     @kernel
     def duc_stb(self):
@@ -389,50 +315,141 @@ class Phaser:
         data |= self.spi_read()
         return data
 
+
+class PhaserChannel:
+    """Phaser channel IQ pair"""
+    kernel_invariants = {"channel", "phaser"}
+
+    def __init__(self, phaser, channel):
+        self.phaser = phaser
+        self.channel = channel
+        self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
+
     @kernel
-    def att_write(self, ch, data):
+    def get_dac_data(self) -> TInt32:
+        """Get a sample of the current DAC data.
+
+        The data is split accross multiple registers and thus the data
+        is only valid if constant.
+
+        :return: DAC data as 32 bit IQ. I in the 16 LSB, Q in the 16 MSB
+        """
+        return self.phaser.read32(PHASER_ADDR_DAC0_DATA + (self.channel << 4))
+
+    @kernel
+    def set_dac_test(self, data: TInt32):
+        """Set the DAC test data.
+
+        :param data: 32 bit IQ test data, I in the 16 LSB, Q in the 16 MSB
+        """
+        self.phaser.write32(PHASER_ADDR_DAC0_TEST + (self.channel << 4), data)
+
+    @kernel
+    def set_duc_cfg(self, clr=0, clr_once=0, select=0):
+        """Set the digital upconverter and interpolator configuration.
+
+        :param clr: Keep the phase accumulator cleared
+        :param clr_once: Clear the phase accumulator for one cycle
+        :param select: Select the data to send to the DAC (0: DUC data, 1: test
+            data)
+        """
+        if select < 0 or select > 3:
+            raise ValueError("invalid data select")
+        self.phaser.write8(PHASER_ADDR_DUC0_CFG + (self.channel << 4),
+                           ((clr & 1) << 0) | ((clr_once & 1) << 1) |
+                           ((select & 3) << 2))
+
+    @kernel
+    def set_duc_frequency_mu(self, ftw):
+        """Set the DUC frequency.
+
+        :param ftw: DUC frequency tuning word
+        """
+        self.phaser.write32(PHASER_ADDR_DUC0_F + (self.channel << 4), ftw)
+
+    @kernel
+    def set_duc_frequency(self, frequency):
+        """Set the DUC frequency.
+
+        :param frequency: DUC frequency in Hz
+        """
+        ftw = int32(round(frequency*((1 << 32)/500e6)))
+        self.set_duc_frequency_mu(ftw)
+
+    @kernel
+    def set_duc_phase_mu(self, pow):
+        """Set the DUC phase offset
+
+        :param pow: DUC phase offset word
+        """
+        addr = PHASER_ADDR_DUC0_P + (self.channel << 4)
+        self.phaser.write8(addr, pow >> 8)
+        self.phaser.write8(addr + 1, pow)
+
+    @kernel
+    def set_duc_phase(self, phase):
+        """Set the DUC phase.
+
+        :param phase: DUC phase in turns
+        """
+        pow = int32(round(phase*(1 << 16)))
+        self.set_duc_phase_mu(pow)
+
+    @kernel
+    def set_att_mu(self, data):
         """Set channel attenuation.
 
-        :param ch: RF channel (0 or 1)
         :param data: Attenuator data
         """
         div = 34  # 30 ns min period
-        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
-        self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=1)
-        self.spi_write(data)
+        t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+                            end=1)
+        self.phaser.spi_write(data)
         delay_mu(t_xfer)
 
     @kernel
-    def att_read(self, ch) -> TInt32:
+    def set_att(self, att):
+        """Set channel attenuation in SI units.
+
+        :param att: Attenuation in dB
+        """
+        data = 0xff - int32(round(att*8))
+        if data < 0 or data > 0xff:
+            raise ValueError("invalid attenuation")
+        self.set_att_mu(data)
+
+    @kernel
+    def get_att_mu(self) -> TInt32:
         """Read current attenuation.
 
         The current attenuation value is read without side effects.
 
-        :param ch: RF channel (0 or 1)
         :return: Current attenuation
         """
         div = 34
-        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
-        self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=0)
-        self.spi_write(0)
+        t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+                            end=0)
+        self.phaser.spi_write(0)
         delay_mu(t_xfer)
-        data = self.spi_read()
+        data = self.phaser.spi_read()
         delay(10*us)  # slack
-        self.spi_cfg(select=PHASER_SEL_ATT0 << ch, div=div, end=1)
-        self.spi_write(data)
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+                            end=1)
+        self.phaser.spi_write(data)
         delay_mu(t_xfer)
         return data
 
     @kernel
-    def trf_write(self, ch, data, readback=False):
+    def trf_write(self, data, readback=False):
         """Write 32 bits to a TRF upconverter.
 
-        :param ch: RF channel (0 or 1)
-        :param data: Register data (32 bit)
+        :param data: Register data (32 bit) containing encoded address
         :param readback: Whether to return the read back MISO data
         """
         div = 34  # 50 ns min period
-        t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
+        t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
         read = 0
         end = 0
         clk_phase = 0
@@ -442,91 +459,82 @@ class Phaser:
             if i == 0 or i == 3:
                 if i == 3:
                     end = 1
-                self.spi_cfg(select=PHASER_SEL_TRF0 << ch, div=div,
-                             lsb_first=1, clk_phase=clk_phase, end=end)
-            self.spi_write(data)
+                self.phaser.spi_cfg(select=PHASER_SEL_TRF0 << self.channel,
+                                    div=div, lsb_first=1, clk_phase=clk_phase,
+                                    end=end)
+            self.phaser.spi_write(data)
             data >>= 8
             delay_mu(t_xfer)
             if readback:
                 read >>= 8
-                read |= self.spi_read() << 24
+                read |= self.phaser.spi_read() << 24
                 delay(10*us)  # slack
         return read
 
     @kernel
-    def trf_read(self, ch, addr, cnt_mux_sel=0) -> TInt32:
+    def trf_read(self, addr, cnt_mux_sel=0) -> TInt32:
         """TRF upconverter register read.
 
-        :param ch: RF channel (0 or 1)
-        :param addr: Register address to read
+        :param addr: Register address to read (0 to 7)
         :param cnt_mux_sel: Report VCO counter min frequency
             or max frequency
         :return: Register data (32 bit)
         """
-        self.trf_write(ch, 0x80000008 | (addr << 28) | (cnt_mux_sel << 27))
+        self.trf_write(0x80000008 | (addr << 28) | (cnt_mux_sel << 27))
         # single clk pulse with ~LE to start readback
-        self.spi_cfg(select=0, div=34, end=1, length=1)
-        self.spi_write(0)
+        self.phaser.spi_cfg(select=0, div=34, end=1, length=1)
+        self.phaser.spi_write(0)
         delay((1 + 1)*32*4*ns)
-        return self.trf_write(ch, 0x00000008, readback=True)
+        return self.trf_write(0x00000008, readback=True)
+
+
+class PhaserOscillator:
+    """Phaser IQ channel oscillator"""
+    kernel_invariants = {"channel", "base_addr"}
+
+    def __init__(self, channel, oscillator):
+        self.channel = channel
+        self.base_addr = ((self.channel.phaser.channel_base + 1 +
+                           self.channel.channel) << 8) | (oscillator << 1)
 
     @kernel
-    def set_frequency_mu(self, ch, osc, ftw):
+    def set_frequency_mu(self, ftw):
         """Set Phaser MultiDDS frequency tuning word.
 
-        :param ch: RF channel (0 or 1)
-        :param osc: Oscillator number (0 to 4)
         :param ftw: Frequency tuning word (32 bit)
         """
-        addr = ((self.channel_base + 1 + ch) << 8) | (osc << 1)
-        rtio_output(addr, ftw)
+        rtio_output(self.base_addr, ftw)
 
     @kernel
-    def set_frequency(self, ch, osc, frequency):
+    def set_frequency(self, frequency):
         """Set Phaser MultiDDS frequency.
 
-        :param ch: RF channel (0 or 1)
-        :param osc: Oscillator number (0 to 4)
         :param frequency: Frequency in Hz
         """
-        if ch < 0 or ch > 1:
-            raise ValueError("invalid channel index")
-        if osc < 0 or osc > 4:
-            raise ValueError("invalid oscillator index")
         ftw = int32(round(frequency*((1 << 32)/125e6)))
-        self.set_frequency_mu(ch, osc, ftw)
-
+        self.set_frequency_mu(ftw)
 
     @kernel
-    def set_amplitude_phase_mu(self, ch, osc, asf=0x7fff, pow=0, clr=0):
+    def set_amplitude_phase_mu(self, asf=0x7fff, pow=0, clr=0):
         """Set Phaser MultiDDS amplitude, phase offset and accumulator clear.
 
-        :param ch: RF channel (0 or 1)
-        :param osc: Oscillator number (0 to 4)
         :param asf: Amplitude (15 bit)
         :param pow: Phase offset word (16 bit)
         :param clr: Clear the phase accumulator (persistent)
         """
-        addr = ((self.channel_base + 1 + ch) << 8) | (osc << 1) | 1
-        data = (asf & 0x7fff) | ((clr & 1) << 15) | ((pow & 0xffff) << 16)
-        rtio_output(addr, data)
+        data = (asf & 0x7fff) | ((clr & 1) << 15) | (pow << 16)
+        rtio_output(self.base_addr | 1, data)
 
     @kernel
-    def set_amplitude_phase(self, ch, osc, amplitude, phase=0., clr=0):
+    def set_amplitude_phase(self, amplitude, phase=0., clr=0):
         """Set Phaser MultiDDS amplitude and phase.
 
-        :param ch: RF channel (0 or 1)
-        :param osc: Oscillator number (0 to 4)
         :param amplitude: Amplitude in units of full scale
         :param phase: Phase in turns
         :param clr: Clear the phase accumulator (persistent)
         """
-        if ch < 0 or ch > 1:
-            raise ValueError("invalid channel index")
-        if osc < 0 or osc > 4:
-            raise ValueError("invalid oscillator index")
         asf = int32(round(amplitude*0x7fff))
         if asf < 0 or asf > 0x7fff:
             raise ValueError("invalid amplitude")
         pow = int32(round(phase*(1 << 16)))
-        self.set_amplitude_phase_mu(ch, osc, asf, pow, clr)
+        self.set_amplitude_phase_mu(asf, pow, clr)
