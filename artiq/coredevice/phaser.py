@@ -1,6 +1,6 @@
 from artiq.language.core import kernel, delay_mu, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.language.units import us, ns
+from artiq.language.units import us, ns, MHz
 from artiq.language.types import TInt32
 
 
@@ -57,36 +57,56 @@ class Phaser:
     Phaser contains a 4 channel, 1 GS/s DAC chip with integrated upconversion,
     quadrature modulation compensation and interpolation features.
 
-    The coredevice produces 2 IQ data streams with 25 MS/s 14 bit. Each
-    data stream supports 5 independent numerically controlled oscillators (NCOs)
-    added together for each channel. Together with a data clock, framing
-    marker, a checksum and metadata for register access the data is sent in
-    groups of 8 samples over 1.5 Gb/s FastLink via a single EEM connector.
+    The coredevice produces 2 IQ data streams with 25 MS/s and 14 bit per
+    quadrature. Each data stream supports 5 independent numerically controlled
+    IQ oscillators (NCOs, DDSs with 32 bit frequency, 16 bit phase, 15 bit
+    amplitude, and phase accumulator clear functionality) added together.
+    See :class:`PhaserChannel` and :class:`PhaserOscillator`.
 
-    On Phaser the data streams are buffered and interpolated from 25 MS/s to 500
-    MS/s 16 bit followed by a 500 MS/s digital upconverter in the FPGA.
+    Together with a data clock, framing marker, a checksum and metadata for
+    register access the streams are sent in groups of 8 samples over 1.5 Gb/s
+    FastLink via a single EEM connector from coredevice to Phaser.
+
+    On Phaser in the FPGA the data streams are buffered and interpolated
+    from 25 MS/s to 500 MS/s 16 bit followed by a 500 MS/s digital upconverter
+    with adjustable frequency and phase. The interpolation passband is 20 MHz
+    wide, passband ripple is less than 1e-3 amplitude, stopband attenuation
+    is better than 75 dB at offsets > 15 MHz and better than 90 dB at offsets
+    > 30 MHz.
 
     The four 16 bit 500 MS/s DAC data streams are sent via a 32 bit parallel
-    LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC.
+    LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC. On the
+    DAC 2x interpolation, sinx/x compensation, quadrature modulator compensation,
+    fine and coarse mixing as well as group delay capabilities are available.
 
-    The four analog DAC outputs are passed through anti-aliasing filters and In
-    the baseband variant, the even channels feed 31.5 dB range and are
-    available on the front panel. The odd outputs are available on MMCX
-    connectors on board.
+    The latency/group delay from the RTIO events setting
+    :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all they
+    way to the DAC outputs is deterministic. This enables deterministic
+    absolute phase with respect to other RTIO input and output events.
+
+    The four analog DAC outputs are passed through anti-aliasing filters.
+
+    In the baseband variant, the even/in-phase DAC channels feed 31.5 dB range
+    attenuators and are available on the front panel. The odd outputs are
+    available at MMCX connectors on board.
 
     In the upconverter variant, each of the two IQ (in-phase and quadrature)
     output pairs feeds a one quadrature upconverter with integrated PLL/VCO.
-    The output from the upconverter passes through the step attenuator and is
-    available at the front panel.
+    This analog quadrature upconverter supports offset tuning for carrier and
+    sideband suppression. The output from the upconverter passes through the
+    31.5 dB range step attenuator and is available at the front panel.
 
-    The DAC, the TRF upconverters and the two attenuators are configured
-    through a shared SPI bus that is accessed and controlled via FPGA
+    The DAC, the analog quadrature upconverters and the two attenuators are
+    configured through a shared SPI bus that is accessed and controlled via FPGA
     registers.
 
     :param channel: Base RTIO channel number
     :param core_device: Core device name (default: "core")
     :param miso_delay: Fastlink MISO signal delay to account for cable
         and buffer round trip. This might be automated later.
+
+    :attr:`channel`: List of two :class:`PhaserChannel` to access oscillators
+        and digital upconverter.
     """
     kernel_invariants = {"core", "channel_base", "t_frame", "miso_delay"}
 
@@ -176,7 +196,7 @@ class Phaser:
         :param duty: Duty cycle (0. to 1.)
         """
         pwm = int32(round(duty*255.))
-        if pwm < 0 or pwm > 0xff:
+        if pwm < 0 or pwm > 255:
             raise ValueError("invalid duty cycle")
         self.set_fan_mu(pwm)
 
@@ -191,8 +211,8 @@ class Phaser:
         :param dac_resetb: Active low DAC reset pin
         :param dac_sleep: DAC sleep pin
         :param dac_txena: Enable DAC transmission pin
-        :param trf0_ps: TRF0 upconverter power save
-        :param trf1_ps: TRF1 upconverter power save
+        :param trf0_ps: Quadrature upconverter 0 power save
+        :param trf1_ps: Quadrature upconverter 1 power save
         :param att0_rstn: Active low attenuator 0 reset
         :param att1_rstn: Active low attenuator 1 reset
         """
@@ -209,8 +229,8 @@ class Phaser:
         Bit flags are:
 
         * `PHASER_STA_DAC_ALARM`: DAC alarm pin
-        * `PHASER_STA_TRF0_LD`: TRF0 lock detect pin
-        * `PHASER_STA_TRF1_LD`: TRF1 lock detect pin
+        * `PHASER_STA_TRF0_LD`: Quadrature upconverter 0 lock detect
+        * `PHASER_STA_TRF1_LD`: Quadrature upconverter 1 lock detect
         * `PHASER_STA_TERM0`: ADC channel 0 termination indicator
         * `PHASER_STA_TERM1`: ADC channel 1 termination indicator
         * `PHASER_STA_SPI_IDLE`: SPI machine is idle and data registers can be
@@ -255,7 +275,7 @@ class Phaser:
         """
         if div < 2 or div > 257:
             raise ValueError("invalid divider")
-        if length < 0 or length > 8:
+        if length < 1 or length > 8:
             raise ValueError("invalid length")
         self.write8(PHASER_ADDR_SPI_SEL, select)
         self.write8(PHASER_ADDR_SPI_DIVLEN, (div - 2 >> 3) | (length - 1 << 5))
@@ -298,8 +318,8 @@ class Phaser:
         """Read from a DAC register.
 
         :param addr: Register address to read from
-        :param div: SPI clock divider. Needs to be at least 250 to read the
-            temperature register.
+        :param div: SPI clock divider. Needs to be at least 250 (1 µs SPI
+            clock) to read the temperature register.
         """
         t_xfer = self.core.seconds_to_mu((8 + 1)*div*4*ns)
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=0)
@@ -308,7 +328,7 @@ class Phaser:
         self.spi_write(0)
         delay_mu(t_xfer)
         data = self.spi_read() << 8
-        delay(10*us)  # slack
+        delay(20*us)  # slack
         self.spi_cfg(select=PHASER_SEL_DAC, div=div, end=1)
         self.spi_write(0)
         delay_mu(t_xfer)
@@ -317,12 +337,27 @@ class Phaser:
 
 
 class PhaserChannel:
-    """Phaser channel IQ pair"""
-    kernel_invariants = {"channel", "phaser"}
+    """Phaser channel IQ pair.
 
-    def __init__(self, phaser, channel):
+    :attr:`oscillator`: List of five :class:`PhaserOscillator`.
+
+    .. note:: The amplitude sum of the oscillators must be less than one to
+        avoid clipping or overflow. If any of the DDS or DUC frequencies are
+        non-zero, it is not sufficient to ensure that the sum in each
+        quadrature is within range.
+
+    .. note:: The interpolation filter on Phaser has an intrinsic sinc-like
+        overshoot in its step response. That overshoot is an direct consequence
+        of its near-brick-wall frequency response. For large and wide-band
+        changes in oscillator parameters, the overshoot can lead to clipping
+        or overflow after the interpolation. Either band-limit any changes
+        in the oscillator parameters or back off the amplitude sufficiently.
+    """
+    kernel_invariants = {"index", "phaser"}
+
+    def __init__(self, phaser, index):
         self.phaser = phaser
-        self.channel = channel
+        self.index = index
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
 
     @kernel
@@ -334,7 +369,7 @@ class PhaserChannel:
 
         :return: DAC data as 32 bit IQ. I in the 16 LSB, Q in the 16 MSB
         """
-        return self.phaser.read32(PHASER_ADDR_DAC0_DATA + (self.channel << 4))
+        return self.phaser.read32(PHASER_ADDR_DAC0_DATA + (self.index << 4))
 
     @kernel
     def set_dac_test(self, data: TInt32):
@@ -342,20 +377,18 @@ class PhaserChannel:
 
         :param data: 32 bit IQ test data, I in the 16 LSB, Q in the 16 MSB
         """
-        self.phaser.write32(PHASER_ADDR_DAC0_TEST + (self.channel << 4), data)
+        self.phaser.write32(PHASER_ADDR_DAC0_TEST + (self.index << 4), data)
 
     @kernel
     def set_duc_cfg(self, clr=0, clr_once=0, select=0):
         """Set the digital upconverter and interpolator configuration.
 
-        :param clr: Keep the phase accumulator cleared
+        :param clr: Keep the phase accumulator cleared (persistent)
         :param clr_once: Clear the phase accumulator for one cycle
         :param select: Select the data to send to the DAC (0: DUC data, 1: test
-            data)
+            data, other values: reserved)
         """
-        if select < 0 or select > 3:
-            raise ValueError("invalid data select")
-        self.phaser.write8(PHASER_ADDR_DUC0_CFG + (self.channel << 4),
+        self.phaser.write8(PHASER_ADDR_DUC0_CFG + (self.index << 4),
                            ((clr & 1) << 0) | ((clr_once & 1) << 1) |
                            ((select & 3) << 2))
 
@@ -363,26 +396,27 @@ class PhaserChannel:
     def set_duc_frequency_mu(self, ftw):
         """Set the DUC frequency.
 
-        :param ftw: DUC frequency tuning word
+        :param ftw: DUC frequency tuning word (32 bit)
         """
-        self.phaser.write32(PHASER_ADDR_DUC0_F + (self.channel << 4), ftw)
+        self.phaser.write32(PHASER_ADDR_DUC0_F + (self.index << 4), ftw)
 
     @kernel
     def set_duc_frequency(self, frequency):
         """Set the DUC frequency.
 
-        :param frequency: DUC frequency in Hz
+        :param frequency: DUC frequency in Hz (passband from -200 MHz to
+            200 MHz, wrapping around at +- 250 MHz)
         """
-        ftw = int32(round(frequency*((1 << 32)/500e6)))
+        ftw = int32(round(frequency*((1 << 32)/(500*MHz))))
         self.set_duc_frequency_mu(ftw)
 
     @kernel
     def set_duc_phase_mu(self, pow):
         """Set the DUC phase offset
 
-        :param pow: DUC phase offset word
+        :param pow: DUC phase offset word (16 bit)
         """
-        addr = PHASER_ADDR_DUC0_P + (self.channel << 4)
+        addr = PHASER_ADDR_DUC0_P + (self.index << 4)
         self.phaser.write8(addr, pow >> 8)
         self.phaser.write8(addr + 1, pow)
 
@@ -403,7 +437,7 @@ class PhaserChannel:
         """
         div = 34  # 30 ns min period
         t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
-        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.index, div=div,
                             end=1)
         self.phaser.spi_write(data)
         delay_mu(t_xfer)
@@ -425,17 +459,17 @@ class PhaserChannel:
 
         The current attenuation value is read without side effects.
 
-        :return: Current attenuation
+        :return: Current attenuation in machine units
         """
         div = 34
         t_xfer = self.phaser.core.seconds_to_mu((8 + 1)*div*4*ns)
-        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.index, div=div,
                             end=0)
         self.phaser.spi_write(0)
         delay_mu(t_xfer)
         data = self.phaser.spi_read()
-        delay(10*us)  # slack
-        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.channel, div=div,
+        delay(20*us)  # slack
+        self.phaser.spi_cfg(select=PHASER_SEL_ATT0 << self.index, div=div,
                             end=1)
         self.phaser.spi_write(data)
         delay_mu(t_xfer)
@@ -443,7 +477,7 @@ class PhaserChannel:
 
     @kernel
     def trf_write(self, data, readback=False):
-        """Write 32 bits to a TRF upconverter.
+        """Write 32 bits to upconverter.
 
         :param data: Register data (32 bit) containing encoded address
         :param readback: Whether to return the read back MISO data
@@ -459,7 +493,7 @@ class PhaserChannel:
             if i == 0 or i == 3:
                 if i == 3:
                     end = 1
-                self.phaser.spi_cfg(select=PHASER_SEL_TRF0 << self.channel,
+                self.phaser.spi_cfg(select=PHASER_SEL_TRF0 << self.index,
                                     div=div, lsb_first=1, clk_phase=clk_phase,
                                     end=end)
             self.phaser.spi_write(data)
@@ -468,34 +502,38 @@ class PhaserChannel:
             if readback:
                 read >>= 8
                 read |= self.phaser.spi_read() << 24
-                delay(10*us)  # slack
+                delay(20*us)  # slack
         return read
 
     @kernel
     def trf_read(self, addr, cnt_mux_sel=0) -> TInt32:
-        """TRF upconverter register read.
+        """Quadrature upconverter register read.
 
         :param addr: Register address to read (0 to 7)
-        :param cnt_mux_sel: Report VCO counter min frequency
-            or max frequency
+        :param cnt_mux_sel: Report VCO counter min or max frequency
         :return: Register data (32 bit)
         """
         self.trf_write(0x80000008 | (addr << 28) | (cnt_mux_sel << 27))
         # single clk pulse with ~LE to start readback
         self.phaser.spi_cfg(select=0, div=34, end=1, length=1)
         self.phaser.spi_write(0)
-        delay((1 + 1)*32*4*ns)
+        delay((1 + 1)*34*4*ns)
         return self.trf_write(0x00000008, readback=True)
 
 
 class PhaserOscillator:
-    """Phaser IQ channel oscillator"""
+    """Phaser IQ channel oscillator (NCO/DDS).
+
+    .. note:: Latencies between oscillators within a channel and between
+        oscillator paramters (amplitude and phase/frequency) are deterministic
+        (with respect to the 25 MS/s sample clock) but not matched.
+    """
     kernel_invariants = {"channel", "base_addr"}
 
-    def __init__(self, channel, oscillator):
+    def __init__(self, channel, index):
         self.channel = channel
         self.base_addr = ((self.channel.phaser.channel_base + 1 +
-                           self.channel.channel) << 8) | (oscillator << 1)
+                           self.channel.index) << 8) | (index << 1)
 
     @kernel
     def set_frequency_mu(self, ftw):
@@ -509,9 +547,10 @@ class PhaserOscillator:
     def set_frequency(self, frequency):
         """Set Phaser MultiDDS frequency.
 
-        :param frequency: Frequency in Hz
+        :param frequency: Frequency in Hz (passband from -10 MHz to 10 MHz,
+            wrapping around at +- 12.5 MHz)
         """
-        ftw = int32(round(frequency*((1 << 32)/125e6)))
+        ftw = int32(round(frequency*((1 << 32)/(25*MHz))))
         self.set_frequency_mu(ftw)
 
     @kernel
