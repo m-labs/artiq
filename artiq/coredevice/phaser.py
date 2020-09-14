@@ -1,6 +1,6 @@
 from artiq.language.core import kernel, delay_mu, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.language.units import us, ns, MHz
+from artiq.language.units import us, ns, ms, MHz, dB
 from artiq.language.types import TInt32
 
 
@@ -49,6 +49,8 @@ PHASER_STA_SPI_IDLE = 1 << 5
 
 PHASER_DAC_SEL_DUC = 0
 PHASER_DAC_SEL_TEST = 1
+
+PHASER_HW_REV_VARIANT = 1 << 4
 
 
 class Phaser:
@@ -130,13 +132,72 @@ class Phaser:
     def init(self):
         """Initialize the board.
 
-        Verifies board presence by reading the board ID register.
-        Does not alter any state.
+        Verifies board and chip presence, resets components, performs communication
+        and configuration tests and establishes initial conditions.
         """
         board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
             raise ValueError("invalid board id")
         delay(20*us)  # slack
+
+        # allow a few errors during startup and alignment 
+        if self.get_crc_err() > 20:
+            raise ValueError("large number of CRC errors")
+        delay(.1*ms)  # slack
+
+        self.set_cfg(dac_resetb=0, att0_rstn=0, att1_rstn=0)
+        self.set_leds(0x00)
+        self.set_fan_mu(0)
+        self.set_cfg()  # bring everything out of reset
+        delay(.1*ms)  # slack
+
+        # 4 wire SPI, sif4_enable
+        self.dac_write(0x02, 0x0082)
+        if self.dac_read(0x7f) != 0x5409:
+            raise ValueError("DAC version readback invalid")
+        delay(.1*ms)
+        if self.dac_read(0x00) != 0x049c:
+            raise ValueError("DAC config0 readback invalid")
+        delay(.1*ms)
+
+        t = self.get_dac_temperature()
+        if t < 10 or t > 90:
+            raise ValueError("DAC temperature out of bounds")
+        delay(.1*ms)
+
+        patterns = [
+            [0xffff, 0xffff, 0x0000, 0x0000],  # test channel
+            [0xaa55, 0x55aa, 0x55aa, 0xaa5a],  # test iq
+            [0xaa55, 0xaa55, 0x55aa, 0x55aa],  # test byte
+            [0x7a7a, 0xb6b6, 0xeaea, 0x4545],  # ds pattern a
+            [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # ds pattern b
+        ]
+        delay(.5*ms)
+        for i in range(len(patterns)):
+            errors = self.dac_iotest(patterns[i])
+            if errors:
+                raise ValueError("iotest error")
+            delay(.5*ms)
+
+        hw_rev = self.read8(PHASER_ADDR_HW_REV)
+        has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
+        delay(.1*ms)  # slack
+
+        for ch in range(2):
+            # test attenuator write and readback
+            self.channel[ch].set_att_mu(0x55)
+            if self.channel[ch].get_att_mu() != 0x55:
+                raise ValueError("attenuator test failed")
+            delay(.1*ms)
+            self.channel[ch].set_att(31.5*dB)
+
+            # dac test data readback
+            dac_test = [0x10102020, 0x30304040]
+            self.channel[ch].set_duc_cfg(select=1)
+            self.channel[ch].set_dac_test(dac_test[ch])
+            if self.channel[ch].get_dac_data() != dac_test[ch]:
+                raise ValueError("DAC test data readback failed")
+            delay(.1*ms)
 
     @kernel
     def write8(self, addr, data):
@@ -201,7 +262,7 @@ class Phaser:
         """
         pwm = int32(round(duty*255.))
         if pwm < 0 or pwm > 255:
-            raise ValueError("invalid duty cycle")
+            raise ValueError("duty cycle out of bounds")
         self.set_fan_mu(pwm)
 
     @kernel
@@ -278,9 +339,9 @@ class Phaser:
         :param length: SPI transfer length (1 to 8 bits)
         """
         if div < 2 or div > 257:
-            raise ValueError("invalid divider")
+            raise ValueError("divider out of bounds")
         if length < 1 or length > 8:
-            raise ValueError("invalid length")
+            raise ValueError("length out of bounds")
         self.write8(PHASER_ADDR_SPI_SEL, select)
         self.write8(PHASER_ADDR_SPI_DIVLEN, (div - 2 >> 3) | (length - 1 << 5))
         self.write8(PHASER_ADDR_SPI_CFG,
@@ -338,6 +399,52 @@ class Phaser:
         delay_mu(t_xfer)
         data |= self.spi_read()
         return data
+
+    @kernel
+    def get_dac_temperature(self) -> TInt32:
+        """Read the DAC die temperature.
+
+        :return: DAC temperature in degree Celsius
+        """
+        return self.dac_read(0x06, div=257) >> 8
+
+    @kernel
+    def dac_iotest(self, pattern) -> TInt32:
+        """Performs a DAC IO test according to the datasheet.
+
+        :param patterm: List of four int32 containing the pattern
+        :return: Bit error mask (16 bits)
+        """
+        for addr in range(len(pattern)):
+            self.dac_write(0x25 + addr, pattern[addr])
+            self.dac_write(0x29 + addr, pattern[addr])
+        delay(.1*ms)
+        for ch in range(2):
+            self.channel[ch].set_duc_cfg(select=1)  # test
+            # dac test data is i msb, q lsb
+            self.channel[ch].set_dac_test(pattern[2*ch] | (pattern[2*ch + 1] << 16))
+        self.dac_write(0x01, 0x8000)  # iotest_ena
+        errors = 0
+        # A data delay of 3*50 ps heuristically matches FPGA+board+DAC skews.
+        # There is plenty of margin and no need to tune at runtime.
+        # Parity provides another level of safety.
+        for dly in [-3]:  # range(-7, 8)
+            if dly < 0:
+                dly = -dly << 3  # data delay, else clock delay
+            self.dac_write(0x24, dly << 10)
+            self.dac_write(0x04, 0x0000)  # clear iotest_result
+            delay(.2*ms)  # let it rip
+            # no need to go through the alarm register,
+            # just read the error mask
+            # self.dac_write(0x05, 0x0000)  # clear alarms
+            # alarm = self.dac_read(0x05)
+            # delay(.1*ms)  # slack
+            # if alarm & 0x0080:  # alarm_from_iotest
+            errors |= self.dac_read(0x04)
+            delay(.1*ms)  # slack
+        self.dac_write(0x24, 0)  # reset delays
+        # self.dac_write(0x01, 0x0000)  # clear config
+        return errors
 
 
 class PhaserChannel:
@@ -459,7 +566,7 @@ class PhaserChannel:
         # 2 lsb are inactive, resulting in 8 LSB per dB
         data = 0xff - int32(round(att*8))
         if data < 0 or data > 0xff:
-            raise ValueError("invalid attenuation")
+            raise ValueError("attenuation out of bounds")
         self.set_att_mu(data)
 
     @kernel
@@ -583,6 +690,6 @@ class PhaserOscillator:
         """
         asf = int32(round(amplitude*0x7fff))
         if asf < 0 or asf > 0x7fff:
-            raise ValueError("invalid amplitude")
+            raise ValueError("amplitude out of bounds")
         pow = int32(round(phase*(1 << 16)))
         self.set_amplitude_phase_mu(asf, pow, clr)
