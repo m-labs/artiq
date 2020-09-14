@@ -415,7 +415,7 @@ class PhaserChannel:
         :param frequency: DUC frequency in Hz (passband from -200 MHz to
             200 MHz, wrapping around at +- 250 MHz)
         """
-        ftw = int32(round(frequency*((1 << 32)/(500*MHz))))
+        ftw = int32(round(frequency*((1 << 31)/(250*MHz))))
         self.set_duc_frequency_mu(ftw)
 
     @kernel
@@ -559,7 +559,7 @@ class PhaserOscillator:
         :param frequency: Frequency in Hz (passband from -10 MHz to 10 MHz,
             wrapping around at +- 12.5 MHz)
         """
-        ftw = int32(round(frequency*((1 << 32)/(25*MHz))))
+        ftw = int32(round(frequency*((1 << 31)/(12.5*MHz))))
         self.set_frequency_mu(ftw)
 
     @kernel
