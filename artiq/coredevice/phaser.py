@@ -57,11 +57,11 @@ class Phaser:
     Phaser contains a 4 channel, 1 GS/s DAC chip with integrated upconversion,
     quadrature modulation compensation and interpolation features.
 
-    The coredevice produces 2 IQ data streams with 25 MS/s and 14 bit per
-    quadrature. Each data stream supports 5 independent numerically controlled
-    IQ oscillators (NCOs, DDSs with 32 bit frequency, 16 bit phase, 15 bit
-    amplitude, and phase accumulator clear functionality) added together.
-    See :class:`PhaserChannel` and :class:`PhaserOscillator`.
+    The coredevice produces 2 IQ (in-phase and quadrature) data streams with 25
+    MS/s and 14 bit per quadrature. Each data stream supports 5 independent
+    numerically controlled IQ oscillators (NCOs, DDSs with 32 bit frequency, 16
+    bit phase, 15 bit amplitude, and phase accumulator clear functionality)
+    added together. See :class:`PhaserChannel` and :class:`PhaserOscillator`.
 
     Together with a data clock, framing marker, a checksum and metadata for
     register access the streams are sent in groups of 8 samples over 1.5 Gb/s
@@ -91,13 +91,13 @@ class Phaser:
     attenuators and are available on the front panel. The odd outputs are
     available at MMCX connectors on board.
 
-    In the upconverter variant, each of the two IQ (in-phase and quadrature)
-    output pairs feeds a one quadrature upconverter with integrated PLL/VCO.
-    This analog quadrature upconverter supports offset tuning for carrier and
-    sideband suppression. The output from the upconverter passes through the
-    31.5 dB range step attenuator and is available at the front panel.
+    In the upconverter variant, each IQ output pair feeds a one quadrature
+    upconverter with integrated PLL/VCO. This analog quadrature upconverter
+    supports offset tuning for carrier and sideband suppression. The output
+    from the upconverter passes through the 31.5 dB range step attenuator and
+    is available at the front panel.
 
-    The DAC, the analog quadrature upconverters and the two attenuators are
+    The DAC, the analog quadrature upconverters and the attenuators are
     configured through a shared SPI bus that is accessed and controlled via
     FPGA registers.
 
@@ -373,7 +373,8 @@ class PhaserChannel:
         The data is split accross multiple registers and thus the data
         is only valid if constant.
 
-        :return: DAC data as 32 bit IQ. I in the 16 LSB, Q in the 16 MSB
+        :return: DAC data as 32 bit IQ. I/DACA/DACC in the 16 LSB,
+            Q/DACB/DACD in the 16 MSB
         """
         return self.phaser.read32(PHASER_ADDR_DAC0_DATA + (self.index << 4))
 
@@ -381,7 +382,8 @@ class PhaserChannel:
     def set_dac_test(self, data: TInt32):
         """Set the DAC test data.
 
-        :param data: 32 bit IQ test data, I in the 16 LSB, Q in the 16 MSB
+        :param data: 32 bit IQ test data, I/DACA/DACC in the 16 LSB,
+            Q/DACB/DACD in the 16 MSB
         """
         self.phaser.write32(PHASER_ADDR_DAC0_TEST + (self.index << 4), data)
 
