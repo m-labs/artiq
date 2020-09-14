@@ -129,18 +129,20 @@ class Phaser:
         self.channel = [PhaserChannel(self, ch) for ch in range(2)]
 
     @kernel
-    def init(self):
+    def init(self, clk_sel=0):
         """Initialize the board.
 
         Verifies board and chip presence, resets components, performs communication
         and configuration tests and establishes initial conditions.
+
+        :param clk_sel: Select the external SMA clock input (1 or 0)
         """
         board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
             raise ValueError("invalid board id")
         delay(20*us)  # slack
 
-        # allow a few errors during startup and alignment 
+        # allow a few errors during startup and alignment
         if self.get_crc_err() > 20:
             raise ValueError("large number of CRC errors")
         delay(.1*ms)  # slack
@@ -148,7 +150,7 @@ class Phaser:
         self.set_cfg(dac_resetb=0, att0_rstn=0, att1_rstn=0)
         self.set_leds(0x00)
         self.set_fan_mu(0)
-        self.set_cfg()  # bring everything out of reset
+        self.set_cfg(clk_sel=clk_sel)  # bring everything out of reset
         delay(.1*ms)  # slack
 
         # 4 wire SPI, sif4_enable
@@ -165,6 +167,43 @@ class Phaser:
             raise ValueError("DAC temperature out of bounds")
         delay(.1*ms)
 
+        delay(.5*ms)  # slack
+        self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
+        self.dac_write(0x01, 0x040e)  # fifo alarms, parity
+        self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
+        self.dac_write(0x03, 0x6000)  # coarse dac 20.6 mA
+        self.dac_write(0x07, 0x40c1)  # alarm mask
+        self.dac_write(0x09, 0x8000)  # fifo_offset
+        self.dac_write(0x0d, 0x0000)  # fmix, no cmix
+        self.dac_write(0x14, 0x5431)  # fine nco ab
+        self.dac_write(0x15, 0x0323)  # coarse nco ab
+        self.dac_write(0x16, 0x5431)  # fine nco cd
+        self.dac_write(0x17, 0x0323)  # coarse nco cd
+        self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
+        self.dac_write(0x19, 0x8404)  # M=8 N=1
+        self.dac_write(0x1a, 0xfc00)  # pll_vco=63
+        delay(.2*ms)  # slack
+        self.dac_write(0x1b, 0x0800)  # int ref, fuse
+        self.dac_write(0x1e, 0x9999)  # qmc sync from sif and reg
+        self.dac_write(0x1f, 0x9982)  # mix sync, nco sync, istr is istr, sif_sync
+        self.dac_write(0x20, 0x2400)  # fifo sync ISTR-OSTR
+        self.dac_write(0x22, 0x1be4)  # reverse dacs for spectral inversion and layout
+        self.dac_write(0x24, 0x0000)  # clk and data delays
+
+        delay(1*ms)  # lock pll
+        lvolt = self.dac_read(0x18) & 7
+        delay(.1*ms)
+        if lvolt < 2 or lvolt > 5:
+            raise ValueError("DAC PLL tuning voltage out of bounds")
+        self.dac_write(0x20, 0x0000)  # stop fifo sync
+        self.dac_write(0x05, 0x0000)  # clear alarms
+        delay(1*ms)  # run it
+        alarm = self.get_sta() & 1
+        delay(.1*ms)
+        if alarm:
+            alarm = self.dac_read(0x05)
+            raise ValueError("DAC alarm")
+
         patterns = [
             [0xffff, 0xffff, 0x0000, 0x0000],  # test channel
             [0xaa55, 0x55aa, 0x55aa, 0xaa5a],  # test iq
@@ -173,11 +212,18 @@ class Phaser:
             [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # ds pattern b
         ]
         delay(.5*ms)
-        for i in range(len(patterns)):
-            errors = self.dac_iotest(patterns[i])
-            if errors:
-                raise ValueError("iotest error")
-            delay(.5*ms)
+        # A data delay of 3*50 ps heuristically matches FPGA+board+DAC skews.
+        # There is plenty of margin and no need to tune at runtime.
+        # Parity provides another level of safety.
+        for dly in [-3]:  # range(-7, 8)
+            if dly < 0:
+                dly = -dly << 3  # data delay, else clock delay
+            self.dac_write(0x24, dly << 10)
+            for i in range(len(patterns)):
+                errors = self.dac_iotest(patterns[i])
+                if errors:
+                    raise ValueError("iotest error")
+                delay(.5*ms)
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
         has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
@@ -424,26 +470,18 @@ class Phaser:
             # dac test data is i msb, q lsb
             self.channel[ch].set_dac_test(pattern[2*ch] | (pattern[2*ch + 1] << 16))
         self.dac_write(0x01, 0x8000)  # iotest_ena
-        errors = 0
-        # A data delay of 3*50 ps heuristically matches FPGA+board+DAC skews.
-        # There is plenty of margin and no need to tune at runtime.
-        # Parity provides another level of safety.
-        for dly in [-3]:  # range(-7, 8)
-            if dly < 0:
-                dly = -dly << 3  # data delay, else clock delay
-            self.dac_write(0x24, dly << 10)
-            self.dac_write(0x04, 0x0000)  # clear iotest_result
-            delay(.2*ms)  # let it rip
-            # no need to go through the alarm register,
-            # just read the error mask
-            # self.dac_write(0x05, 0x0000)  # clear alarms
-            # alarm = self.dac_read(0x05)
-            # delay(.1*ms)  # slack
-            # if alarm & 0x0080:  # alarm_from_iotest
-            errors |= self.dac_read(0x04)
-            delay(.1*ms)  # slack
-        self.dac_write(0x24, 0)  # reset delays
-        # self.dac_write(0x01, 0x0000)  # clear config
+        self.dac_write(0x04, 0x0000)  # clear iotest_result
+        delay(.2*ms)  # let it rip
+        # no need to go through the alarm register,
+        # just read the error mask
+        # self.dac_write(0x05, 0x0000)  # clear alarms
+        # alarm = self.dac_read(0x05)
+        # delay(.1*ms)  # slack
+        # if alarm & 0x0080:  # alarm_from_iotest
+        errors = self.dac_read(0x04)
+        delay(.1*ms)  # slack
+        self.dac_write(0x01, 0x0000)  # clear config
+        self.dac_write(0x04, 0x0000)  # clear iotest_result
         return errors
 
 
