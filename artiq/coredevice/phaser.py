@@ -77,10 +77,10 @@ class Phaser:
     > 30 MHz.
 
     The four 16 bit 500 MS/s DAC data streams are sent via a 32 bit parallel
-    LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC. On the
-    DAC 2x interpolation, sinx/x compensation, quadrature modulator
-    compensation, fine and coarse mixing as well as group delay capabilities
-    are available.
+    LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC (Texas
+    Instruments DAC34H84). On the DAC 2x interpolation, sinx/x compensation,
+    quadrature modulator compensation, fine and coarse mixing as well as group
+    delay capabilities are available.
 
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all they
@@ -93,11 +93,12 @@ class Phaser:
     attenuators and are available on the front panel. The odd outputs are
     available at MMCX connectors on board.
 
-    In the upconverter variant, each IQ output pair feeds a one quadrature
-    upconverter with integrated PLL/VCO. This analog quadrature upconverter
-    supports offset tuning for carrier and sideband suppression. The output
-    from the upconverter passes through the 31.5 dB range step attenuator and
-    is available at the front panel.
+    In the upconverter variant, each IQ output pair feeds one quadrature
+    upconverter (Texas Instruments TRF372017) with integrated PLL/VCO. This
+    digitally configured analog quadrature upconverter supports offset tuning
+    for carrier and sideband suppression. The output from the upconverter
+    passes through the 31.5 dB range step attenuator and is available at the
+    front panel.
 
     The DAC, the analog quadrature upconverters and the attenuators are
     configured through a shared SPI bus that is accessed and controlled via
@@ -461,8 +462,11 @@ class Phaser:
         :param patterm: List of four int32 containing the pattern
         :return: Bit error mask (16 bits)
         """
+        if len(pattern) != 4:
+            raise ValueError("pattern length out of bounds")
         for addr in range(len(pattern)):
             self.dac_write(0x25 + addr, pattern[addr])
+            # repeat the pattern twice
             self.dac_write(0x29 + addr, pattern[addr])
         delay(.1*ms)
         for ch in range(2):
@@ -534,7 +538,7 @@ class PhaserChannel:
 
     @kernel
     def set_duc_cfg(self, clr=0, clr_once=0, select=0):
-        """Set the digital upconverter and interpolator configuration.
+        """Set the digital upconverter (DUC) and interpolator configuration.
 
         :param clr: Keep the phase accumulator cleared (persistent)
         :param clr_once: Clear the phase accumulator for one cycle
@@ -555,7 +559,7 @@ class PhaserChannel:
 
     @kernel
     def set_duc_frequency(self, frequency):
-        """Set the DUC frequency.
+        """Set the DUC frequency in SI units.
 
         :param frequency: DUC frequency in Hz (passband from -200 MHz to
             200 MHz, wrapping around at +- 250 MHz)
@@ -565,7 +569,7 @@ class PhaserChannel:
 
     @kernel
     def set_duc_phase_mu(self, pow):
-        """Set the DUC phase offset
+        """Set the DUC phase offset.
 
         :param pow: DUC phase offset word (16 bit)
         """
@@ -575,7 +579,7 @@ class PhaserChannel:
 
     @kernel
     def set_duc_phase(self, phase):
-        """Set the DUC phase.
+        """Set the DUC phase in SI units.
 
         :param phase: DUC phase in turns
         """
@@ -631,7 +635,7 @@ class PhaserChannel:
 
     @kernel
     def trf_write(self, data, readback=False):
-        """Write 32 bits to upconverter.
+        """Write 32 bits to quadrature upconverter register.
 
         :param data: Register data (32 bit) containing encoded address
         :param readback: Whether to return the read back MISO data
