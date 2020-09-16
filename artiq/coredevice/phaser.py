@@ -20,7 +20,7 @@ PHASER_ADDR_SPI_DIVLEN = 0x0b
 PHASER_ADDR_SPI_SEL = 0x0c
 PHASER_ADDR_SPI_DATW = 0x0d
 PHASER_ADDR_SPI_DATR = 0x0e
-# PHASER_ADDR_RESERVED0 = 0x0f
+PHASER_ADDR_SYNC_DLY = 0x0f
 PHASER_ADDR_DUC0_CFG = 0x10
 # PHASER_ADDR_DUC0_RESERVED0 = 0x11
 PHASER_ADDR_DUC0_F = 0x12
@@ -172,16 +172,17 @@ class Phaser:
         self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
         self.dac_write(0x01, 0x040e)  # fifo alarms, parity
         self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
-        self.dac_write(0x03, 0x6000)  # coarse dac 20.6 mA
+        self.dac_write(0x03, 0x4000)  # coarse dac 20.6 mA
         self.dac_write(0x07, 0x40c1)  # alarm mask
-        self.dac_write(0x09, 0x8000)  # fifo_offset
+        self.dac_write(0x09, 0x4000)  # fifo_offset
+        self.set_sync_dly(0)
         self.dac_write(0x0d, 0x0000)  # fmix, no cmix
         self.dac_write(0x14, 0x5431)  # fine nco ab
         self.dac_write(0x15, 0x0323)  # coarse nco ab
         self.dac_write(0x16, 0x5431)  # fine nco cd
         self.dac_write(0x17, 0x0323)  # coarse nco cd
         self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
-        self.dac_write(0x19, 0x8404)  # M=8 N=1
+        self.dac_write(0x19, 0x8814)  # M=16 N=2
         self.dac_write(0x1a, 0xfc00)  # pll_vco=63
         delay(.2*ms)  # slack
         self.dac_write(0x1b, 0x0800)  # int ref, fuse
@@ -196,7 +197,7 @@ class Phaser:
         delay(.1*ms)
         if lvolt < 2 or lvolt > 5:
             raise ValueError("DAC PLL tuning voltage out of bounds")
-        self.dac_write(0x20, 0x0000)  # stop fifo sync
+        # self.dac_write(0x20, 0x0000)  # stop fifo sync
         self.dac_write(0x05, 0x0000)  # clear alarms
         delay(1*ms)  # run it
         alarm = self.get_sta() & 1
@@ -487,6 +488,16 @@ class Phaser:
         self.dac_write(0x01, 0x0000)  # clear config
         self.dac_write(0x04, 0x0000)  # clear iotest_result
         return errors
+
+    @kernel
+    def set_sync_dly(self, dly):
+        """Set SYNC delay.
+
+        :param dly: DAC SYNC delay setting (0 to 7)
+        """
+        if dly < 0 or dly > 7:
+            raise ValueError("SYNC delay out of bounds")
+        self.write8(PHASER_ADDR_SYNC_DLY, dly)
 
 
 class PhaserChannel:
