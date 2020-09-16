@@ -36,7 +36,7 @@ class Phaser(Module):
 
         # share a CosSinGen LUT between the two channels
         self.submodules.ch0 = DDSChannel()
-        self.submodules.ch1 = DDSChannel(share_lut=self.ch0.dds.mod.cs.lut)
+        self.submodules.ch1 = DDSChannel(share_lut=self.ch0.dds.cs.lut)
         n_channels = 2
         n_samples = 8
         n_bits = 14
