@@ -21,12 +21,14 @@ PHASER_ADDR_SPI_SEL = 0x0c
 PHASER_ADDR_SPI_DATW = 0x0d
 PHASER_ADDR_SPI_DATR = 0x0e
 PHASER_ADDR_SYNC_DLY = 0x0f
+
 PHASER_ADDR_DUC0_CFG = 0x10
 # PHASER_ADDR_DUC0_RESERVED0 = 0x11
 PHASER_ADDR_DUC0_F = 0x12
 PHASER_ADDR_DUC0_P = 0x16
 PHASER_ADDR_DAC0_DATA = 0x18
 PHASER_ADDR_DAC0_TEST = 0x1c
+
 PHASER_ADDR_DUC1_CFG = 0x20
 # PHASER_ADDR_DUC1_RESERVED0 = 0x21
 PHASER_ADDR_DUC1_F = 0x22
@@ -152,6 +154,7 @@ class Phaser:
         self.set_leds(0x00)
         self.set_fan_mu(0)
         self.set_cfg(clk_sel=clk_sel)  # bring everything out of reset
+        self.set_sync_dly(4)  # tune?
         delay(.1*ms)  # slack
 
         # 4 wire SPI, sif4_enable
@@ -175,7 +178,6 @@ class Phaser:
         self.dac_write(0x03, 0x4000)  # coarse dac 20.6 mA
         self.dac_write(0x07, 0x40c1)  # alarm mask
         self.dac_write(0x09, 0x4000)  # fifo_offset
-        self.set_sync_dly(0)
         self.dac_write(0x0d, 0x0000)  # fmix, no cmix
         self.dac_write(0x14, 0x5431)  # fine nco ab
         self.dac_write(0x15, 0x0323)  # coarse nco ab
@@ -183,7 +185,7 @@ class Phaser:
         self.dac_write(0x17, 0x0323)  # coarse nco cd
         self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
         self.dac_write(0x19, 0x8814)  # M=16 N=2
-        self.dac_write(0x1a, 0xfc00)  # pll_vco=63
+        self.dac_write(0x1a, 0xfc00)  # pll_vco=63, 4 GHz
         delay(.2*ms)  # slack
         self.dac_write(0x1b, 0x0800)  # int ref, fuse
         self.dac_write(0x1e, 0x9999)  # qmc sync from sif and reg
@@ -192,19 +194,20 @@ class Phaser:
         self.dac_write(0x22, 0x1be4)  # reverse dacs for spectral inversion and layout
         self.dac_write(0x24, 0x0000)  # clk and data delays
 
+        self.clear_dac_alarms()
         delay(1*ms)  # lock pll
         lvolt = self.dac_read(0x18) & 7
         delay(.1*ms)
         if lvolt < 2 or lvolt > 5:
             raise ValueError("DAC PLL tuning voltage out of bounds")
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
-        self.dac_write(0x05, 0x0000)  # clear alarms
-        delay(1*ms)  # run it
-        alarm = self.get_sta() & 1
-        delay(.1*ms)
-        if alarm:
-            alarm = self.dac_read(0x05)
+        # alarm = self.get_sta() & 1
+        # delay(.1*ms)
+        alarm = self.get_dac_alarms()
+        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
+            print(alarm)
             raise ValueError("DAC alarm")
+        delay(.5*ms)
 
         patterns = [
             [0xffff, 0xffff, 0x0000, 0x0000],  # test channel
@@ -213,11 +216,10 @@ class Phaser:
             [0x7a7a, 0xb6b6, 0xeaea, 0x4545],  # ds pattern a
             [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # ds pattern b
         ]
-        delay(.5*ms)
-        # A data delay of 3*50 ps heuristically matches FPGA+board+DAC skews.
+        # A data delay of 2*50 ps heuristically matches FPGA+board+DAC skews.
         # There is plenty of margin and no need to tune at runtime.
         # Parity provides another level of safety.
-        for dly in [-3]:  # range(-7, 8)
+        for dly in [-2]:  # range(-7, 8)
             if dly < 0:
                 dly = -dly << 3  # data delay, else clock delay
             self.dac_write(0x24, dly << 10)
@@ -226,6 +228,7 @@ class Phaser:
                 if errors:
                     raise ValueError("iotest error")
                 delay(.5*ms)
+        self.clear_dac_alarms()
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
         has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
@@ -363,6 +366,16 @@ class Phaser:
         return self.read8(PHASER_ADDR_CRC_ERR)
 
     @kernel
+    def set_sync_dly(self, dly):
+        """Set SYNC delay.
+
+        :param dly: DAC SYNC delay setting (0 to 7)
+        """
+        if dly < 0 or dly > 7:
+            raise ValueError("SYNC delay out of bounds")
+        self.write8(PHASER_ADDR_SYNC_DLY, dly)
+
+    @kernel
     def duc_stb(self):
         """Strobe the DUC configuration register update.
 
@@ -457,6 +470,19 @@ class Phaser:
         return self.dac_read(0x06, div=257) >> 8
 
     @kernel
+    def get_dac_alarms(self):
+        """Read the DAC alarm flags.
+
+        :return: DAC alarm flags (see datasheet for bit meaning)
+        """
+        return self.dac_read(0x05)
+
+    @kernel
+    def clear_dac_alarms(self):
+        """Clear DAC alarm flags."""
+        self.dac_write(0x05, 0x0000)
+
+    @kernel
     def dac_iotest(self, pattern) -> TInt32:
         """Performs a DAC IO test according to the datasheet.
 
@@ -479,7 +505,7 @@ class Phaser:
         delay(.2*ms)  # let it rip
         # no need to go through the alarm register,
         # just read the error mask
-        # self.dac_write(0x05, 0x0000)  # clear alarms
+        # self.clear_dac_alarms()
         # alarm = self.dac_read(0x05)
         # delay(.1*ms)  # slack
         # if alarm & 0x0080:  # alarm_from_iotest
@@ -488,16 +514,6 @@ class Phaser:
         self.dac_write(0x01, 0x0000)  # clear config
         self.dac_write(0x04, 0x0000)  # clear iotest_result
         return errors
-
-    @kernel
-    def set_sync_dly(self, dly):
-        """Set SYNC delay.
-
-        :param dly: DAC SYNC delay setting (0 to 7)
-        """
-        if dly < 0 or dly > 7:
-            raise ValueError("SYNC delay out of bounds")
-        self.write8(PHASER_ADDR_SYNC_DLY, dly)
 
 
 class PhaserChannel:
@@ -702,7 +718,7 @@ class PhaserOscillator:
     def __init__(self, channel, index):
         self.channel = channel
         self.base_addr = ((self.channel.phaser.channel_base + 1 +
-                           self.channel.index) << 8) | (index << 1)
+                           2*self.channel.index) << 8) | index
 
     @kernel
     def set_frequency_mu(self, ftw):
@@ -731,7 +747,7 @@ class PhaserOscillator:
         :param clr: Clear the phase accumulator (persistent)
         """
         data = (asf & 0x7fff) | ((clr & 1) << 15) | (pow << 16)
-        rtio_output(self.base_addr | 1, data)
+        rtio_output(self.base_addr | (1 << 8), data)
 
     @kernel
     def set_amplitude_phase(self, amplitude, phase=0., clr=0):

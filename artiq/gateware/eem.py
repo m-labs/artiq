@@ -652,6 +652,8 @@ class Phaser(_EEM):
         target.submodules += phy
         target.rtio_channels.extend([
             rtio.Channel.from_phy(phy, ififo_depth=4),
-            rtio.Channel.from_phy(phy.ch0),
-            rtio.Channel.from_phy(phy.ch1),
+            rtio.Channel.from_phy(phy.ch0.frequency),
+            rtio.Channel.from_phy(phy.ch0.phase_amplitude),
+            rtio.Channel.from_phy(phy.ch1.frequency),
+            rtio.Channel.from_phy(phy.ch1.phase_amplitude),
         ])
