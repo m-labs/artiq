@@ -169,44 +169,6 @@ class Phaser:
         t = self.get_dac_temperature()
         if t < 10 or t > 90:
             raise ValueError("DAC temperature out of bounds")
-        delay(.1*ms)
-
-        delay(.5*ms)  # slack
-        self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
-        self.dac_write(0x01, 0x040e)  # fifo alarms, parity
-        self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
-        self.dac_write(0x03, 0x4000)  # coarse dac 20.6 mA
-        self.dac_write(0x07, 0x40c1)  # alarm mask
-        self.dac_write(0x09, 0x4000)  # fifo_offset
-        self.dac_write(0x0d, 0x0000)  # fmix, no cmix
-        self.dac_write(0x14, 0x5431)  # fine nco ab
-        self.dac_write(0x15, 0x0323)  # coarse nco ab
-        self.dac_write(0x16, 0x5431)  # fine nco cd
-        self.dac_write(0x17, 0x0323)  # coarse nco cd
-        self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
-        self.dac_write(0x19, 0x8814)  # M=16 N=2
-        self.dac_write(0x1a, 0xfc00)  # pll_vco=63, 4 GHz
-        delay(.2*ms)  # slack
-        self.dac_write(0x1b, 0x0800)  # int ref, fuse
-        self.dac_write(0x1e, 0x9999)  # qmc sync from sif and reg
-        self.dac_write(0x1f, 0x9982)  # mix sync, nco sync, istr is istr, sif_sync
-        self.dac_write(0x20, 0x2400)  # fifo sync ISTR-OSTR
-        self.dac_write(0x22, 0x1be4)  # reverse dacs for spectral inversion and layout
-        self.dac_write(0x24, 0x0000)  # clk and data delays
-
-        self.clear_dac_alarms()
-        delay(1*ms)  # lock pll
-        lvolt = self.dac_read(0x18) & 7
-        delay(.1*ms)
-        if lvolt < 2 or lvolt > 5:
-            raise ValueError("DAC PLL tuning voltage out of bounds")
-        # self.dac_write(0x20, 0x0000)  # stop fifo sync
-        # alarm = self.get_sta() & 1
-        # delay(.1*ms)
-        alarm = self.get_dac_alarms()
-        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
-            print(alarm)
-            raise ValueError("DAC alarm")
         delay(.5*ms)
 
         patterns = [
@@ -228,6 +190,35 @@ class Phaser:
                 if errors:
                     raise ValueError("iotest error")
                 delay(.5*ms)
+
+        delay(.5*ms)  # slack
+        self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
+        self.dac_write(0x01, 0x040e)  # fifo alarms, parity
+        self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
+        self.dac_write(0x03, 0xa000)  # coarse dac 20.6 mA
+        self.dac_write(0x07, 0x40c1)  # alarm mask
+        self.dac_write(0x09, 0x4000)  # fifo_offset
+        self.dac_write(0x0d, 0x0000)  # fmix, no cmix
+        self.dac_write(0x14, 0x5431)  # fine nco ab
+        self.dac_write(0x15, 0x0323)  # coarse nco ab
+        self.dac_write(0x16, 0x5431)  # fine nco cd
+        self.dac_write(0x17, 0x0323)  # coarse nco cd
+        self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
+        self.dac_write(0x19, 0x8814)  # M=16 N=2
+        self.dac_write(0x1a, 0xfc00)  # pll_vco=63, 4 GHz
+        delay(.2*ms)  # slack
+        self.dac_write(0x1b, 0x0800)  # int ref, fuse
+        self.dac_write(0x1e, 0x9999)  # qmc sync from sif and reg
+        self.dac_write(0x1f, 0x9982)  # mix sync, nco sync, istr is istr, sif_sync
+        self.dac_write(0x20, 0x2400)  # fifo sync ISTR-OSTR
+        self.dac_write(0x22, 0x1be4)  # reverse dacs for spectral inversion and layout
+        self.dac_write(0x24, 0x0000)  # clk and data delays
+
+        delay(2*ms)  # lock pll
+        lvolt = self.dac_read(0x18) & 7
+        delay(.1*ms)
+        if lvolt < 2 or lvolt > 5:
+            raise ValueError("DAC PLL tuning voltage out of bounds")
         self.clear_dac_alarms()
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
@@ -236,8 +227,8 @@ class Phaser:
 
         for ch in range(2):
             # test attenuator write and readback
-            self.channel[ch].set_att_mu(0x55)
-            if self.channel[ch].get_att_mu() != 0x55:
+            self.channel[ch].set_att_mu(0x5a)
+            if self.channel[ch].get_att_mu() != 0x5a:
                 raise ValueError("attenuator test failed")
             delay(.1*ms)
             self.channel[ch].set_att(31.5*dB)
@@ -249,6 +240,19 @@ class Phaser:
             if self.channel[ch].get_dac_data() != dac_test[ch]:
                 raise ValueError("DAC test data readback failed")
             delay(.1*ms)
+
+        # self.dac_write(0x20, 0x0000)  # stop fifo sync
+        # alarm = self.get_sta() & 1
+        # delay(.1*ms)
+        self.check_dac_alarms()
+
+    @kernel
+    def check_dac_alarms(self):
+        alarm = self.get_dac_alarms()
+        delay(.1*ms)  # slack
+        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
+            print(alarm)
+            raise ValueError("DAC alarm")
 
     @kernel
     def write8(self, addr, data):
@@ -506,11 +510,13 @@ class Phaser:
         # no need to go through the alarm register,
         # just read the error mask
         # self.clear_dac_alarms()
-        # alarm = self.dac_read(0x05)
-        # delay(.1*ms)  # slack
-        # if alarm & 0x0080:  # alarm_from_iotest
-        errors = self.dac_read(0x04)
+        alarm = self.get_dac_alarms()
         delay(.1*ms)  # slack
+        if alarm & 0x0080:  # alarm_from_iotest
+            errors = self.dac_read(0x04)
+            delay(.1*ms)  # slack
+        else:
+            errors = 0
         self.dac_write(0x01, 0x0000)  # clear config
         self.dac_write(0x04, 0x0000)  # clear iotest_result
         return errors
