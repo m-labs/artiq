@@ -79,6 +79,21 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
+class SMAClkinForward(Module):
+    def __init__(self, platform):
+        sma_clkin = platform.request("sma_clkin")
+        sma_clkin_se = Signal()
+        sma_clkin_buffered = Signal()
+        cdr_clk_se = Signal()
+        cdr_clk = platform.request("cdr_clk")
+        self.specials += [
+            Instance("IBUFDS", i_I=sma_clkin.p, i_IB=sma_clkin.n, o_O=sma_clkin_se),
+            Instance("BUFIO", i_I=sma_clkin_se, o_O=sma_clkin_buffered),
+            Instance("ODDR", i_C=sma_clkin_buffered, i_CE=1, i_D1=0, i_D2=1, o_Q=cdr_clk_se),
+            Instance("OBUFDS", i_I=cdr_clk_se, o_O=cdr_clk.p, o_OB=cdr_clk.n)
+        ]
+
+
 def fix_serdes_timing_path(platform):
     # ignore timing of path from OSERDESE2 through the pad to ISERDESE2
     platform.add_platform_command(
@@ -115,6 +130,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.submodules.error_led = gpio.GPIOOut(Cat(
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
+            self.submodules += SMAClkinForward(self.platform)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -293,6 +309,9 @@ class MasterBase(MiniSoC, AMPSoC):
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
+
+        if platform.hw_rev == "v2.0":
+            self.submodules += SMAClkinForward(platform)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
