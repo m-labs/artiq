@@ -178,6 +178,8 @@ class AD53xx:
         self.write_offset_dacs_mu(self.offset_dacs)
         if not blind:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
+            if ctrl == 0xffff:
+                raise ValueError("DAC not found")
             if ctrl & 0b10000:
                 raise ValueError("DAC over temperature")
             delay(25*us)
