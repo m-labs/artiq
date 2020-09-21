@@ -173,11 +173,9 @@ class Phaser:
         delay(.5*ms)
 
         patterns = [
-            [0xffff, 0xffff, 0x0000, 0x0000],  # test channel
-            [0xaa55, 0x55aa, 0x55aa, 0xaa5a],  # test iq
-            [0xaa55, 0xaa55, 0x55aa, 0x55aa],  # test byte
-            [0x7a7a, 0xb6b6, 0xeaea, 0x4545],  # ds pattern a
-            [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # ds pattern b
+            [0xf05a, 0x05af, 0x5af0, 0xaf05],  # test channel/iq/byte/nibble
+            [0x7a7a, 0xb6b6, 0xeaea, 0x4545],  # datasheet pattern a
+            [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # datasheet pattern b
         ]
         # A data delay of 2*50 ps heuristically and reproducibly matches
         # FPGA+board+DAC skews. There is plenty of margin (>= 250 ps
