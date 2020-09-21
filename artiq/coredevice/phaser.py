@@ -145,16 +145,17 @@ class Phaser:
             raise ValueError("invalid board id")
         delay(20*us)  # slack
 
-        # allow a few errors during startup and alignment
+        # allow a few errors during startup and alignment since boot
         if self.get_crc_err() > 20:
-            raise ValueError("large number of CRC errors")
+            raise ValueError("large number of frame CRC errors")
         delay(.1*ms)  # slack
 
+        # reset
         self.set_cfg(dac_resetb=0, att0_rstn=0, att1_rstn=0)
         self.set_leds(0x00)
         self.set_fan_mu(0)
         self.set_cfg(clk_sel=clk_sel)  # bring everything out of reset
-        self.set_sync_dly(4)  # tune?
+        self.set_sync_dly(4)  # TODO: tune this?
         delay(.1*ms)  # slack
 
         # 4 wire SPI, sif4_enable
@@ -163,7 +164,7 @@ class Phaser:
             raise ValueError("DAC version readback invalid")
         delay(.1*ms)
         if self.dac_read(0x00) != 0x049c:
-            raise ValueError("DAC config0 readback invalid")
+            raise ValueError("DAC config0 reset readback invalid")
         delay(.1*ms)
 
         t = self.get_dac_temperature()
@@ -178,8 +179,9 @@ class Phaser:
             [0x7a7a, 0xb6b6, 0xeaea, 0x4545],  # ds pattern a
             [0x1a1a, 0x1616, 0xaaaa, 0xc6c6],  # ds pattern b
         ]
-        # A data delay of 2*50 ps heuristically matches FPGA+board+DAC skews.
-        # There is plenty of margin and no need to tune at runtime.
+        # A data delay of 2*50 ps heuristically and reproducibly matches
+        # FPGA+board+DAC skews. There is plenty of margin (>= 250 ps
+        # either side) and no need to tune at runtime.
         # Parity provides another level of safety.
         for dly in [-2]:  # range(-7, 8)
             if dly < 0:
@@ -188,10 +190,9 @@ class Phaser:
             for i in range(len(patterns)):
                 errors = self.dac_iotest(patterns[i])
                 if errors:
-                    raise ValueError("iotest error")
+                    raise ValueError("DAC iotest failure")
                 delay(.5*ms)
 
-        delay(.5*ms)  # slack
         self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
         self.dac_write(0x01, 0x040e)  # fifo alarms, parity
         self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
@@ -226,20 +227,33 @@ class Phaser:
         delay(.1*ms)  # slack
 
         for ch in range(2):
+            channel = self.channel[ch]
             # test attenuator write and readback
-            self.channel[ch].set_att_mu(0x5a)
-            if self.channel[ch].get_att_mu() != 0x5a:
+            channel.set_att_mu(0x5a)
+            if channel.get_att_mu() != 0x5a:
                 raise ValueError("attenuator test failed")
             delay(.1*ms)
-            self.channel[ch].set_att(31.5*dB)
+            channel.set_att(31.5*dB)
 
-            # dac test data readback
-            dac_test = [0x10102020, 0x30304040]
-            self.channel[ch].set_duc_cfg(select=1)
-            self.channel[ch].set_dac_test(dac_test[ch])
-            if self.channel[ch].get_dac_data() != dac_test[ch]:
-                raise ValueError("DAC test data readback failed")
+            for i in range(len(channel.oscillator)):
+                oscillator = channel.oscillator[i]
+                if i == 0:
+                    asf = 0x7fff
+                else:
+                    asf = 0
+                # pi/4 phase
+                oscillator.set_amplitude_phase_mu(asf=asf, pow=0x2000, clr=1)
+                delay_mu(8)
+            delay(1*us)  # settle link, pipeline and impulse response
+            # test oscillator and DUC and their phase sign
+            channel.set_duc_phase_mu(0)
+            channel.set_duc_cfg(select=0, clr=1)
+            self.duc_stb()
+            data = channel.get_dac_data()
             delay(.1*ms)
+            if data != 0x4a124a12:
+                print(data)
+                raise ValueError("DUC+oscillator phase/amplitude test failed")
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
         # alarm = self.get_sta() & 1
@@ -501,9 +515,14 @@ class Phaser:
             self.dac_write(0x29 + addr, pattern[addr])
         delay(.1*ms)
         for ch in range(2):
-            self.channel[ch].set_duc_cfg(select=1)  # test
+            channel = self.channel[ch]
+            channel.set_duc_cfg(select=1)  # test
             # dac test data is i msb, q lsb
-            self.channel[ch].set_dac_test(pattern[2*ch] | (pattern[2*ch + 1] << 16))
+            data = pattern[2*ch] | (pattern[2*ch + 1] << 16)
+            channel.set_dac_test(data)
+            if channel.get_dac_data() != data:
+                raise ValueError("DAC test data readback failed")
+            delay(.1*ms)
         self.dac_write(0x01, 0x8000)  # iotest_ena
         self.dac_write(0x04, 0x0000)  # clear iotest_result
         delay(.2*ms)  # let it rip
