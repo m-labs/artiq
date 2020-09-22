@@ -151,15 +151,17 @@ class Phaser:
         delay(.1*ms)  # slack
 
         # reset
-        self.set_cfg(dac_resetb=0, att0_rstn=0, att1_rstn=0)
+        self.set_cfg(dac_resetb=0, att0_rstn=0, att1_rstn=0, dac_txena=0)
         self.set_leds(0x00)
         self.set_fan_mu(0)
-        self.set_cfg(clk_sel=clk_sel)  # bring everything out of reset
-        self.set_sync_dly(4)  # TODO: tune this?
+        self.set_cfg(clk_sel=clk_sel, dac_txena=0)  # bring everything out of reset
+        # TODO: crossing dac_clk (125 MHz) edges with sync_dly (0-7 ns)
+        # should change the optimal fifo_offset
+        self.set_sync_dly(4)
         delay(.1*ms)  # slack
 
         # 4 wire SPI, sif4_enable
-        self.dac_write(0x02, 0x0082)
+        self.dac_write(0x02, 0x0080)
         if self.dac_read(0x7f) != 0x5409:
             raise ValueError("DAC version readback invalid")
         delay(.1*ms)
@@ -168,9 +170,9 @@ class Phaser:
         delay(.1*ms)
 
         t = self.get_dac_temperature()
+        delay(.5*ms)
         if t < 10 or t > 90:
             raise ValueError("DAC temperature out of bounds")
-        delay(.5*ms)
 
         patterns = [
             [0xf05a, 0x05af, 0x5af0, 0xaf05],  # test channel/iq/byte/nibble
@@ -182,8 +184,8 @@ class Phaser:
         # either side) and no need to tune at runtime.
         # Parity provides another level of safety.
         for dly in [-2]:  # range(-7, 8)
-            if dly < 0:
-                dly = -dly << 3  # data delay, else clock delay
+            if dly < 0:  # use data delay, else use clock delay
+                dly = -dly << 3
             self.dac_write(0x24, dly << 10)
             for i in range(len(patterns)):
                 errors = self.dac_iotest(patterns[i])
@@ -191,38 +193,195 @@ class Phaser:
                     raise ValueError("DAC iotest failure")
                 delay(.5*ms)
 
-        self.dac_write(0x00, 0x019c)  # I=2, fifo, clkdiv_sync, qmc off
-        self.dac_write(0x01, 0x040e)  # fifo alarms, parity
-        self.dac_write(0x02, 0x70a2)  # clk alarms, sif4, nco off, mix, mix_gain, 2s
-        self.dac_write(0x03, 0xa000)  # coarse dac 20.6 mA
-        self.dac_write(0x07, 0x40c1)  # alarm mask
-        self.dac_write(0x09, 0x4000)  # fifo_offset
-        self.dac_write(0x0d, 0x0000)  # fmix, no cmix
-        self.dac_write(0x14, 0x5431)  # fine nco ab
-        self.dac_write(0x15, 0x0323)  # coarse nco ab
-        self.dac_write(0x16, 0x5431)  # fine nco cd
-        self.dac_write(0x17, 0x0323)  # coarse nco cd
-        self.dac_write(0x18, 0x2c60)  # P=4, pll run, single cp, pll_ndivsync
-        self.dac_write(0x19, 0x8814)  # M=16 N=2
-        self.dac_write(0x1a, 0xfc00)  # pll_vco=63, 4 GHz
-        delay(.2*ms)  # slack
-        self.dac_write(0x1b, 0x0800)  # int ref, fuse
-        self.dac_write(0x1e, 0x9999)  # qmc sync from sif and reg
-        self.dac_write(0x1f, 0x9982)  # mix sync, nco sync, istr is istr, sif_sync
-        self.dac_write(0x20, 0x2400)  # fifo sync ISTR-OSTR
-        self.dac_write(0x22, 0x1be4)  # reverse dacs for spectral inversion and layout
-        self.dac_write(0x24, 0x0000)  # clk and data delays
+        qmc_corr_ena = 0  # msb ab
+        qmc_offset_ena = 0  # msb ab
+        invsinc_ena = 0  # msb ab
 
-        delay(2*ms)  # lock pll
+        interpolation = 1  # 2x
+        fifo_ena = 1
+        alarm_out_ena = 1
+        alarm_out_pol = 1
+        clkdiv_sync_ena = 1
+        self.dac_write(0x00,
+            (qmc_offset_ena << 14) | (qmc_corr_ena << 12) |
+            (interpolation << 8) | (fifo_ena << 7) |
+            (alarm_out_ena << 4) | (alarm_out_pol << 3) |
+            (clkdiv_sync_ena << 2) | (invsinc_ena << 0))
+        iotest_ena = 0
+        cnt64_ena = 0
+        oddeven_parity = 0  # even
+        single_parity_ena = 1
+        dual_parity_ena = 0
+        rev_interface = 0
+        dac_complement = 0b0000  # msb A
+        alarm_fifo = 0b111  # msb 2-away
+        self.dac_write(0x01,
+            (iotest_ena << 15) | (cnt64_ena << 12) |
+            (oddeven_parity << 11) | (single_parity_ena << 10) |
+            (dual_parity_ena << 9) | (rev_interface << 8) |
+            (dac_complement << 4) | (alarm_fifo << 1))
+        dacclkgone_ena = 1
+        dataclkgone_ena = 1
+        collisiongone_ena = 1
+        sif4_ena = 1
+        mixer_ena = 0
+        mixer_gain = 1
+        nco_ena = 0
+        revbus = 0
+        twos = 1
+        self.dac_write(0x02,
+            (dacclkgone_ena << 14) | (dataclkgone_ena << 13) |
+            (collisiongone_ena << 12) | (sif4_ena << 7) |
+            (mixer_ena << 6) | (mixer_gain << 5) |
+            (nco_ena << 4) | (revbus << 3) | (twos << 1))
+        coarse_dac = 0xa  # 20.6 mA, 0-15
+        sif_txenable = 0
+        self.dac_write(0x03, (coarse_dac << 12) | (sif_txenable << 0))
+        mask_alarm_from_zerochk = 0
+        mask_alarm_fifo_collision = 0
+        mask_alarm_fifo_1away = 0
+        mask_alarm_fifo_2away = 0
+        mask_alarm_dacclk_gone = 0
+        mask_alarm_dataclk_gone = 0
+        mask_alarm_output_gone = 0
+        mask_alarm_from_iotest = 0
+        mask_alarm_from_pll = 0
+        mask_alarm_parity = 0b0000  # msb a
+        self.dac_write(0x07,
+            (mask_alarm_from_zerochk << 15) | (1 << 14) |
+            (mask_alarm_fifo_collision << 13) | (mask_alarm_fifo_1away << 12) |
+            (mask_alarm_fifo_2away << 11) | (mask_alarm_dacclk_gone << 10) |
+            (mask_alarm_dataclk_gone << 9) | (mask_alarm_output_gone << 8) |
+            (mask_alarm_from_iotest << 7) | (1 << 6) |
+            (mask_alarm_from_pll << 5) | (mask_alarm_parity << 1))
+        qmc_offseta = 0  # 12b
+        self.dac_write(0x08, qmc_offseta)
+        fifo_offset = 2  # 0-7
+        qmc_offsetb = 0  # 12b
+        self.dac_write(0x09, (fifo_offset << 13) | qmc_offsetb)
+        qmc_offsetc = 0  # 12b
+        self.dac_write(0x0a, qmc_offsetc)
+        qmc_offsetd = 0  # 12b
+        self.dac_write(0x0b, qmc_offsetd)
+        qmc_gaina = 0  # 11b
+        self.dac_write(0x0c, qmc_gaina)
+        cmix_fs8 = 0
+        cmix_fs4 = 0
+        cmix_fs2 = 0
+        cmix_nfs4 = 0
+        qmc_gainb = 0  # 11b
+        self.dac_write(0x0d,
+            (cmix_fs8 << 15) | (cmix_fs4 << 14) | (cmix_fs2 << 12) |
+            (cmix_nfs4 << 11) | qmc_gainb)
+        qmc_gainc = 0  # 11b
+        self.dac_write(0x0e, qmc_gainc)
+        output_delayab = 0b00
+        output_delaycd = 0b00
+        qmc_gaind = 0  # 11b
+        self.dac_write(0x0f, (output_delayab << 14) | (output_delaycd << 12) |
+            qmc_gaind)
+        qmc_phaseab = 0  # 12b
+        self.dac_write(0x10, qmc_phaseab)
+        qmc_phasecd = 0  # 12b
+        self.dac_write(0x11, qmc_phasecd)
+        pll_reset = 0
+        pll_ndivsync_ena = 1
+        pll_ena = 1
+        pll_cp = 0b01  # single charge pump
+        pll_p = 0b100  # p=4
+        self.dac_write(0x18,
+            (0b001 << 13) | (pll_reset << 12) |
+            (pll_ndivsync_ena << 11) | (pll_ena << 10) |
+            (pll_cp << 6) | (pll_p << 3))
+        pll_m2 = 1  # x2
+        pll_m = 8  # m = 8
+        pll_n = 0b0001  # n = 2
+        pll_vcotune = 0b01
+        self.dac_write(0x19,
+            (pll_m2 << 15) | (pll_m << 8) | (pll_n << 4) | (pll_vcotune << 2))
+        delay(.5*ms)  # slack
+        pll_vco = 0x3f  # 4 GHz
+        bias_sleep = 0
+        tsense_sleep = 0
+        pll_sleep = 0
+        clkrecv_sleep = 0
+        dac_sleep = 0b0000  # msb a
+        self.dac_write(0x1a,
+            (pll_vco << 10) | (bias_sleep << 7) | (tsense_sleep << 6) |
+            (pll_sleep << 5) | (clkrecv_sleep << 4) | (dac_sleep << 0))
+        extref_ena = 0
+        fuse_sleep = 1
+        atest = 0b00000  # atest mode
+        self.dac_write(0x1b,
+            (extref_ena << 15) | (fuse_sleep << 11) | (atest << 0))
+        syncsel_qmcoffsetab = 0b1001  # sif_sync and register write
+        syncsel_qmcoffsetcd = 0b1001  # sif_sync and register write
+        syncsel_qmccorrab = 0b1001  # sif_sync and register write
+        syncsel_qmccorrcd = 0b1001  # sif_sync and register write
+        self.dac_write(0x1e,
+            (syncsel_qmcoffsetab << 12) | (syncsel_qmcoffsetcd << 8) |
+            (syncsel_qmccorrab << 4) | (syncsel_qmccorrcd << 0))
+        syncsel_mixerab = 0b1001  # sif_sync and register write
+        syncsel_mixercd = 0b1001  # sif_sync and register write
+        syncsel_nco = 0b1000  # sif_sync
+        syncsel_fifo_input = 0b10  # external lvds istr
+        sif_sync = 1
+        self.dac_write(0x1e,
+            (syncsel_mixerab << 12) | (syncsel_mixercd << 8) |
+            (syncsel_nco << 4) | (syncsel_fifo_input << 2) |
+            (sif_sync << 1))
+        syncsel_fifoin = 0b0010  # istr
+        syncsel_fifoout = 0b0100  # ostr
+        clkdiv_sync_sel = 0  # ostr
+        self.dac_write(0x20,
+            (syncsel_fifoin << 12) | (syncsel_fifoout << 8) |
+            (clkdiv_sync_sel << 0))
+        path_a_sel = 0b00
+        path_b_sel = 0b01
+        path_c_sel = 0b10
+        path_d_sel = 0b11
+        # reverse dacs (DCBA) for spectral inversion and layout
+        dac_a_sel = 0b11
+        dac_b_sel = 0b10
+        dac_c_sel = 0b01
+        dac_d_sel = 0b00
+        self.dac_write(0x22,
+            (path_a_sel << 14) | (path_b_sel << 12) |
+            (path_c_sel << 10) | (path_d_sel << 8) |
+            (dac_a_sel << 6) | (dac_b_sel << 4) |
+            (dac_c_sel << 2) | (dac_d_sel << 0))
+        dac_sleep_en = 0b1111  # msb a
+        clkrecv_sleep_en = 1
+        pll_sleep_en = 1
+        lvds_data_sleep_en = 1
+        lvds_control_sleep_en = 1
+        temp_sense_sleep_en = 1
+        bias_sleep_en = 1
+        self.dac_write(0x23,
+            (dac_sleep_en << 12) | (clkrecv_sleep_en << 11) |
+            (pll_sleep_en << 10) | (lvds_data_sleep_en << 9) |
+            (lvds_control_sleep_en << 8) | (temp_sense_sleep_en << 7) |
+            (1 << 6) | (bias_sleep_en << 5) | (0x1f << 0))
+        # self.dac_write(0x24, 0x0000)  # clk and data delays (tuned above)
+        ostrtodig_sel = 0
+        ramp_ena = 0
+        sifdac_ena = 0
+        self.dac_write(0x2d,
+            (ostrtodig_sel << 14) | (ramp_ena << 13) | (0x002 << 1) |
+            (sifdac_ena << 0))
+        grp_delaya = 0x00
+        grp_delayb = 0x00
+        self.dac_write(0x2e, (grp_delaya << 8) | (grp_delayb << 0))
+        grp_delayc = 0x00
+        grp_delayd = 0x00
+        self.dac_write(0x2f, (grp_delayc << 8) | (grp_delayd << 0))
+        sifdac = 0
+        self.dac_write(0x30, sifdac)
+
         lvolt = self.dac_read(0x18) & 7
         delay(.1*ms)
         if lvolt < 2 or lvolt > 5:
             raise ValueError("DAC PLL tuning voltage out of bounds")
-        self.clear_dac_alarms()
-
-        hw_rev = self.read8(PHASER_ADDR_HW_REV)
-        has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
-        delay(.1*ms)  # slack
 
         for ch in range(2):
             channel = self.channel[ch]
@@ -233,38 +392,43 @@ class Phaser:
             delay(.1*ms)
             channel.set_att(31.5*dB)
 
+            # test oscillators and DUC
             for i in range(len(channel.oscillator)):
                 oscillator = channel.oscillator[i]
+                asf = 0
                 if i == 0:
                     asf = 0x7fff
-                else:
-                    asf = 0
-                # pi/4 phase
-                oscillator.set_amplitude_phase_mu(asf=asf, pow=0x2000, clr=1)
+                # 6pi/4 phase
+                oscillator.set_amplitude_phase_mu(asf=asf, pow=0xc000, clr=1)
                 delay_mu(8)
-            delay(1*us)  # settle link, pipeline and impulse response
-            # test oscillator and DUC and their phase sign
-            channel.set_duc_phase_mu(0)
+            # 3pi/4
+            channel.set_duc_phase_mu(0x6000)
             channel.set_duc_cfg(select=0, clr=1)
             self.duc_stb()
+            delay(.1*ms)  # settle link, pipeline and impulse response
             data = channel.get_dac_data()
             delay(.1*ms)
-            if data != 0x4a124a12:
+            sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
+            data_i = data & 0xffff
+            data_q = (data >> 16) & 0xffff
+            # allow ripple
+            if (data_i < sqrt2 - 30 or data_i > sqrt2 or
+                    abs(data_i - data_q) > 2):
                 print(data)
                 raise ValueError("DUC+oscillator phase/amplitude test failed")
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
         # alarm = self.get_sta() & 1
         # delay(.1*ms)
+        self.clear_dac_alarms()
+        delay(2*ms)  # let it run a bit
         self.check_dac_alarms()
 
-    @kernel
-    def check_dac_alarms(self):
-        alarm = self.get_dac_alarms()
+        hw_rev = self.read8(PHASER_ADDR_HW_REV)
+        has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
         delay(.1*ms)  # slack
-        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
-            print(alarm)
-            raise ValueError("DAC alarm")
+
+        self.set_cfg(clk_sel=clk_sel)  # txena
 
     @kernel
     def write8(self, addr, data):
@@ -494,6 +658,14 @@ class Phaser:
         return self.dac_read(0x05)
 
     @kernel
+    def check_dac_alarms(self):
+        alarm = self.get_dac_alarms()
+        delay(.1*ms)  # slack
+        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
+            print(alarm)
+            raise ValueError("DAC alarm")
+
+    @kernel
     def clear_dac_alarms(self):
         """Clear DAC alarm flags."""
         self.dac_write(0x05, 0x0000)
@@ -541,6 +713,17 @@ class Phaser:
 
 class PhaserChannel:
     """Phaser channel IQ pair.
+
+    A Phaser channel contains:
+
+    * multiple oscillators (in the coredevice phy),
+    * an interpolation chain and digital upconverter (DUC) on Phaser,
+    * several channel-specific settings in the DAC:
+        * quadrature modulation compensation QMC
+        * numerically controlled oscillator NCO or coarse mixer CMIX,
+    * the analog quadrature upconverter (in the Phaser-Upconverter hardware
+        variant), and
+    * a digitally controlled step attenuator.
 
     Attributes:
 
@@ -632,6 +815,42 @@ class PhaserChannel:
         """Set the DUC phase in SI units.
 
         :param phase: DUC phase in turns
+        """
+        pow = int32(round(phase*(1 << 16)))
+        self.set_duc_phase_mu(pow)
+
+    @kernel
+    def set_nco_frequency_mu(self, ftw):
+        """Set the NCO frequency.
+
+        :param ftw: NCO frequency tuning word (32 bit)
+        """
+        self.phaser.dac_write(0x15 + (self.index << 1), ftw >> 16)
+        self.phaser.dac_write(0x14 + (self.index << 1), ftw)
+
+    @kernel
+    def set_nco_frequency(self, frequency):
+        """Set the NCO frequency in SI units.
+
+        :param frequency: NCO frequency in Hz (passband from -400 MHz
+            to 400 MHz, wrapping around at +- 500 MHz)
+        """
+        ftw = int32(round(frequency*((1 << 31)/(500*MHz))))
+        self.set_nco_frequency_mu(ftw)
+
+    @kernel
+    def set_nco_phase_mu(self, pow):
+        """Set the NCO phase offset.
+
+        :param pow: NCO phase offset word (16 bit)
+        """
+        self.phaser.dac_write(0x12 + self.index, pow)
+
+    @kernel
+    def set_nco_phase(self, phase):
+        """Set the NCO phase in SI units.
+
+        :param phase: NCO phase in turns
         """
         pow = int32(round(phase*(1 << 16)))
         self.set_duc_phase_mu(pow)
