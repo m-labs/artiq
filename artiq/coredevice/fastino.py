@@ -19,17 +19,17 @@ class Fastino:
     bit using :meth:`set_update`. Update is self-clearing. This enables atomic
     DAC updates synchronized to a frame edge.
 
-    The `log2_width=0` RTIO layout uses one DAC channel per RTIO address
-    and a dense RTIO address space. The RTIO words are narrow.
-    (32 bit compared to 512) and few-channel updates are efficient.
-    There is the least amount of DAC state tracking in kernels,
-    at the cost of more DMA and RTIO data.
+    The `log2_width=0` RTIO layout uses one DAC channel per RTIO address and a
+    dense RTIO address space. The RTIO words are narrow. (32 bit) and
+    few-channel updates are efficient. There is the least amount of DAC state
+    tracking in kernels, at the cost of more DMA and RTIO data.
+    The setting here and in the RTIO PHY (gateware) must match.
 
     Other `log2_width` (up to `log2_width=5`) settings pack multiple
     (in powers of two) DAC channels into one group and into one RTIO write.
     The RTIO data width increases accordingly. The `log2_width`
     LSBs of the RTIO address for a DAC channel write must be zero and the
-    address space is sparse.
+    address space is sparse. For `log2_width=5` the RTIO data is 512 bit wide.
 
     If `log2_width` is zero, the :meth:`set_dac`/:meth:`set_dac_mu` interface
     must be used. If non-zero, the :meth:`set_group`/:meth:`set_group_mu`
@@ -37,9 +37,8 @@ class Fastino:
 
     :param channel: RTIO channel number
     :param core_device: Core device name (default: "core")
-    :param log2_width: Width of DAC channel group (power of two,
-        see the RTIO PHY for details). Value must match the corresponding value
-        in the RTIO PHY.
+    :param log2_width: Width of DAC channel group (logarithm base 2).
+        Value must match the corresponding value in the RTIO PHY (gateware).
     """
     kernel_invariants = {"core", "channel", "width"}
 
@@ -113,7 +112,10 @@ class Fastino:
         :param voltage: Voltage in SI Volts.
         :return: DAC data word in machine units, 16 bit integer.
         """
-        return (int(round((0x8000/10.)*voltage)) + 0x8000) & 0xffff
+        data = int(round((0x8000/10.)*voltage)) + 0x8000
+        if data < 0 or data > 0xffff:
+            raise ValueError("DAC voltage out of bounds")
+        return data
 
     @portable
     def voltage_group_to_mu(self, voltage, data):

@@ -109,7 +109,8 @@ def peripheral_mirny(module, peripheral):
 def peripheral_fastino(module, peripheral):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
-    eem.Fastino.add_std(module, peripheral["ports"][0])
+    eem.Fastino.add_std(module, peripheral["ports"][0],
+        peripheral.get("log2_width", 0))
 
 
 peripheral_processors = {
