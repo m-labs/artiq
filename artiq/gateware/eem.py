@@ -619,12 +619,12 @@ class Fastino(_EEM):
             ) for pol in "pn"]
 
     @classmethod
-    def add_std(cls, target, eem, iostandard="LVDS_25"):
+    def add_std(cls, target, eem, log2_width, iostandard="LVDS_25"):
         cls.add_extension(target, eem, iostandard=iostandard)
 
         phy = fastino.Fastino(target.platform.request("fastino{}_ser_p".format(eem)),
             target.platform.request("fastino{}_ser_n".format(eem)),
-            log2_width=0)
+            log2_width=log2_width)
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 

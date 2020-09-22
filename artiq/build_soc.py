@@ -44,13 +44,12 @@ class ReprogrammableIdentifier(Module, AutoCSR):
                 p_INIT=sum(1 << j if c & (1 << i) else 0 for j, c in enumerate(contents)))
 
 
-def add_identifier(soc, *args, **kwargs):
+def add_identifier(soc, *args, gateware_identifier_str=None, **kwargs):
     if hasattr(soc, "identifier"):
         raise ValueError
     identifier_str = get_identifier_string(soc, *args, **kwargs)
-    soc.submodules.identifier = ReprogrammableIdentifier(identifier_str)
+    soc.submodules.identifier = ReprogrammableIdentifier(gateware_identifier_str or identifier_str)
     soc.config["IDENTIFIER_STR"] = identifier_str
-
 
 
 def build_artiq_soc(soc, argdict):

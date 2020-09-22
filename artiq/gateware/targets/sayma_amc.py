@@ -12,8 +12,10 @@ from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import *
 
 from artiq.gateware.amp import AMPSoC
+from artiq.gateware import eem
 from artiq.gateware import rtio
 from artiq.gateware import jesd204_tools
+from artiq.gateware import fmcdio_vhdci_eem
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_ultrascale, sawg
 from artiq.gateware.drtio.transceiver import gth_ultrascale
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -50,7 +52,7 @@ class SatelliteBase(MiniSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", with_sfp=False, *, with_wrpll, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", gateware_identifier_str=None, with_sfp=False, *, with_wrpll, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
@@ -59,7 +61,7 @@ class SatelliteBase(MiniSoC):
                  ethmac_nrxslots=4,
                  ethmac_ntxslots=4,
                  **kwargs)
-        add_identifier(self, suffix=identifier_suffix)
+        add_identifier(self, suffix=identifier_suffix, gateware_identifier_str=gateware_identifier_str)
         self.rtio_clk_freq = rtio_clk_freq
 
         platform = self.platform
@@ -284,7 +286,7 @@ class JDCGSyncDDS(Module, AutoCSR):
 
 class Satellite(SatelliteBase):
     """
-    DRTIO satellite with local DAC/SAWG channels.
+    DRTIO satellite with local DAC/SAWG channels, as well as TTL channels via FMC and VHDCI carrier.
     """
     def __init__(self, jdcg_type, **kwargs):
         SatelliteBase.__init__(self, 150e6,
@@ -307,7 +309,7 @@ class Satellite(SatelliteBase):
         self.csr_devices.append("slave_fpga_cfg")
         self.config["SLAVE_FPGA_GATEWARE"] = 0x200000
 
-        rtio_channels = []
+        self.rtio_channels = rtio_channels = []
         for i in range(4):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
@@ -342,6 +344,27 @@ class Satellite(SatelliteBase):
                                 for sawg in self.jdcg_0.sawgs +
                                             self.jdcg_1.sawgs
                                 for phy in sawg.phys)
+
+        # FMC-VHDCI-EEM DIOs x 2 (all OUTPUTs)
+        platform.add_connectors(fmcdio_vhdci_eem.connectors)
+        eem.DIO.add_std(self, 0,
+            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+        eem.DIO.add_std(self, 1,
+            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+        # FMC-DIO-32ch-LVDS-a Direction Control Pins (via shift register) as TTLs x 3
+        platform.add_extension(fmcdio_vhdci_eem.io)
+        print("fmcdio_vhdci_eem.[CLK, SER, LATCH] starting at RTIO channel 0x{:06x}"
+              .format(len(rtio_channels)))
+        fmcdio_dirctl = platform.request("fmcdio_dirctl", 0)
+        fmcdio_dirctl_phys = [
+            ttl_simple.Output(fmcdio_dirctl.clk),
+            ttl_simple.Output(fmcdio_dirctl.ser),
+            ttl_simple.Output(fmcdio_dirctl.latch)
+        ]
+        for phy in fmcdio_dirctl_phys:
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
+        workaround_us_lvds_tristate(platform)
 
         self.add_rtio(rtio_channels)
 
@@ -403,14 +426,24 @@ def main():
         help="Change type of signal generator. This is used exclusively for "
              "development and debugging.")
     parser.add_argument("--with-wrpll", default=False, action="store_true")
+    parser.add_argument("--gateware-identifier-str", default=None,
+                        help="Override ROM identifier")
     args = parser.parse_args()
 
     variant = args.variant.lower()
     if variant == "satellite":
-        soc = Satellite(with_sfp=args.sfp, jdcg_type=args.jdcg_type, with_wrpll=args.with_wrpll,
-                        **soc_sayma_amc_argdict(args))
+        soc = Satellite(
+            with_sfp=args.sfp,
+            jdcg_type=args.jdcg_type,
+            with_wrpll=args.with_wrpll,
+            gateware_identifier_str=args.gateware_identifier_str,
+            **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
-        soc = SimpleSatellite(with_sfp=args.sfp, with_wrpll=args.with_wrpll, **soc_sayma_amc_argdict(args))
+        soc = SimpleSatellite(
+            with_sfp=args.sfp,
+            with_wrpll=args.with_wrpll,
+            gateware_identifier_str=args.gateware_identifier_str,
+            **soc_sayma_amc_argdict(args))
     else:
         raise SystemExit("Invalid variant (-V/--variant)")
 

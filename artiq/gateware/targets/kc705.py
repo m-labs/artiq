@@ -119,7 +119,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, **kwargs):
+    def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -129,7 +129,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
                          ethmac_ntxslots=4,
                          **kwargs)
         AMPSoC.__init__(self)
-        add_identifier(self)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
@@ -416,6 +416,8 @@ def main():
                         help="variant: "
                              "nist_clock/nist_qc2/sma_spi "
                              "(default: %(default)s)")
+    parser.add_argument("--gateware-identifier-str", default=None,
+                        help="Override ROM identifier")
     args = parser.parse_args()
 
     variant = args.variant.lower()
@@ -424,7 +426,7 @@ def main():
     except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 
-    soc = cls(**soc_kc705_argdict(args))
+    soc = cls(gateware_identifier_str=args.gateware_identifier_str, **soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 

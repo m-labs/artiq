@@ -75,11 +75,11 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq, *, with_wrpll, **kwargs):
+    def __init__(self, rtio_clk_freq, *, with_wrpll, gateware_identifier_str, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  **kwargs)
-        add_identifier(self)
+        add_identifier(self, gateware_identifier_str=gateware_identifier_str)
         self.rtio_clk_freq = rtio_clk_freq
 
         platform = self.platform
@@ -299,11 +299,15 @@ def main():
     parser.add_argument("--rtio-clk-freq",
         default=150, type=int, help="RTIO clock frequency in MHz")
     parser.add_argument("--with-wrpll", default=False, action="store_true")
+    parser.add_argument("--gateware-identifier-str", default=None,
+                        help="Override ROM identifier")
     parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))
     args = parser.parse_args()
 
     soc = Satellite(
-        rtio_clk_freq=1e6*args.rtio_clk_freq, with_wrpll=args.with_wrpll,
+        rtio_clk_freq=1e6*args.rtio_clk_freq,
+        with_wrpll=args.with_wrpll,
+        gateware_identifier_str=args.gateware_identifier_str,
         **soc_sayma_rtm_argdict(args))
     builder = SatmanSoCBuilder(soc, **builder_argdict(args))
     try:

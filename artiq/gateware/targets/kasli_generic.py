@@ -109,7 +109,8 @@ def peripheral_mirny(module, peripheral):
 def peripheral_fastino(module, peripheral):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
-    eem.Fastino.add_std(module, peripheral["ports"][0])
+    eem.Fastino.add_std(module, peripheral["ports"][0],
+        peripheral.get("log2_width", 0))
 
 
 def peripheral_phaser(module, peripheral):
@@ -259,6 +260,8 @@ def main():
     parser.set_defaults(output_dir="artiq_kasli")
     parser.add_argument("description", metavar="DESCRIPTION",
                         help="JSON system description file")
+    parser.add_argument("--gateware-identifier-str", default=None,
+                        help="Override ROM identifier")
     args = parser.parse_args()
 
     with open(args.description, "r") as f:
@@ -276,7 +279,7 @@ def main():
     else:
         raise ValueError("Invalid base")
 
-    soc = cls(description, **soc_kasli_argdict(args))
+    soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
     build_artiq_soc(soc, builder_argdict(args))
 
