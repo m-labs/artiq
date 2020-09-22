@@ -32,7 +32,7 @@ class DAC34H84:
     revbus = 0
     twos = 1
 
-    coarse_dac = 0xa  # 20.6 mA, 0-15
+    coarse_dac = 9  # 18.75 mA, 0-15
     sif_txenable = 0
 
     mask_alarm_from_zerochk = 0

@@ -119,6 +119,7 @@ class Phaser:
     :param core_device: Core device name (default: "core")
     :param miso_delay: Fastlink MISO signal delay to account for cable
         and buffer round trip. Tuning this might be automated later.
+    :param clk_sel: Select the external SMA clock input (1 or 0)
     :param dac: DAC34H84 DAC settings as a dictionary.
     :param trf0: Channel 0 TRF372017 quadrature upconverter settings as a
         dictionary.
@@ -134,8 +135,8 @@ class Phaser:
     kernel_invariants = {"core", "channel_base", "t_frame", "miso_delay",
                          "dac_mmap"}
 
-    def __init__(self, dmgr, channel_base, miso_delay=1, core_device="core",
-                 dac=None, trf0=None, trf1=None):
+    def __init__(self, dmgr, channel_base, miso_delay=1, clk_sel=0,
+                 dac=None, trf0=None, trf1=None, core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         # TODO: auto-align miso-delay in phy
@@ -144,6 +145,7 @@ class Phaser:
         # self.core.seconds_to_mu(10*8*4*ns)  # unfortunately this returns 319
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
+        self.clk_sel = clk_sel
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -151,14 +153,13 @@ class Phaser:
                         for ch, trf in enumerate([trf0, trf1])]
 
     @kernel
-    def init(self, clk_sel=0):
+    def init(self):
         """Initialize the board.
 
         Verifies board and chip presence, resets components, performs
         communication and configuration tests and establishes initial
         conditions.
 
-        :param clk_sel: Select the external SMA clock input (1 or 0)
         """
         board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
@@ -167,7 +168,7 @@ class Phaser:
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
         delay(.1*ms)  # slack
-        has_upconverter = hw_rev & PHASER_HW_REV_VARIANT
+        is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
         delay(.1*ms)  # slack
@@ -183,7 +184,7 @@ class Phaser:
         self.set_leds(0x00)
         self.set_fan_mu(0)
         # bring everything out of reset, keep tx off
-        self.set_cfg(clk_sel=clk_sel, dac_txena=0)
+        self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
 
         # TODO: crossing dac_clk (125 MHz) edges with sync_dly (0-7 ns)
         # should change the optimal fifo_offset by 4
@@ -269,7 +270,7 @@ class Phaser:
                     abs(data_i - data_q) > 2):
                 raise ValueError("DUC+oscillator phase/amplitude test failed")
 
-            if has_upconverter:
+            if not is_baseband:
                 for data in channel.trf_mmap:
                     channel.trf_write(data)
                     delay(.1*ms)
@@ -279,7 +280,7 @@ class Phaser:
                 if not lock_detect:
                     raise ValueError("TRF quadrature upconverter lock failure")
 
-        self.set_cfg(clk_sel=clk_sel)  # txena
+        self.set_cfg(clk_sel=self.clk_sel)  # txena
 
     @kernel
     def write8(self, addr, data):

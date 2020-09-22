@@ -12,7 +12,7 @@ class TRF372017:
     cal_clk_sel = 12  # /16, 4b
 
     ndiv = 420  # 16b
-    pll_div_sel = 0b01  # /1, 2b
+    pll_div_sel = 0  # /1, 2b
     prsc_sel = 1  # 8/9
     vco_sel = 2  # 2b
     vcosel_mode = 0
@@ -106,7 +106,7 @@ class TRF372017:
             (self.en_extvco << 17) | (self.en_isource << 18) |
             (self.ld_ana_prec << 19) | (self.cp_tristate << 21) |
             (self.speedup << 23) | (self.ld_dig_prec << 24) |
-            (self.en_dith << 25) | (self.mod_ord << 27) |
+            (self.en_dith << 25) | (self.mod_ord << 26) |
             (self.dith_sel << 28) | (self.del_sd_clk << 29) |
             (self.en_frac << 31))
         mmap.append(
