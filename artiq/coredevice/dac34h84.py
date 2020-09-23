@@ -121,10 +121,11 @@ class DAC34H84:
     path_c_sel = 2
     path_d_sel = 3
     # swap dac pairs (CDAB) for layout
-    dac_a_sel = 2
-    dac_b_sel = 3
-    dac_c_sel = 0
-    dac_d_sel = 1
+    # swap I-Q dacs for spectral inversion
+    dac_a_sel = 3
+    dac_b_sel = 2
+    dac_c_sel = 1
+    dac_d_sel = 0
 
     dac_sleep_en = 0b1111  # msb a
     clkrecv_sleep_en = 1
