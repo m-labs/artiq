@@ -72,6 +72,13 @@ class DAC34H84:
 
     qmc_phasecd = 0  # 12b
 
+    phase_offsetab = 0  # 16b
+    phase_offsetcd = 0  # 16b
+    phase_addab_lsb = 0  # 16b
+    phase_addab_msb = 0  # 16b
+    phase_addcd_lsb = 0  # 16b
+    phase_addcd_msb = 0  # 16b
+
     pll_reset = 0
     pll_ndivsync_ena = 1
     pll_ena = 1
@@ -109,15 +116,15 @@ class DAC34H84:
     syncsel_fifoout = 0b0100  # ostr
     clkdiv_sync_sel = 0  # ostr
 
-    path_a_sel = 0b00
-    path_b_sel = 0b01
-    path_c_sel = 0b10
-    path_d_sel = 0b11
-    # reverse dacs (DCBA) for spectral inversion and layout
-    dac_a_sel = 0b11
-    dac_b_sel = 0b10
-    dac_c_sel = 0b01
-    dac_d_sel = 0b00
+    path_a_sel = 0
+    path_b_sel = 1
+    path_c_sel = 2
+    path_d_sel = 3
+    # swap dac pairs (CDAB) for layout
+    dac_a_sel = 2
+    dac_b_sel = 3
+    dac_c_sel = 0
+    dac_d_sel = 1
 
     dac_sleep_en = 0b1111  # msb a
     clkrecv_sleep_en = 1
@@ -201,6 +208,12 @@ class DAC34H84:
             (self.qmc_gaind << 0))
         mmap.append((0x10 << 16) | (self.qmc_phaseab << 0))
         mmap.append((0x11 << 16) | (self.qmc_phasecd << 0))
+        mmap.append((0x12 << 16) | (self.phase_offsetab << 0))
+        mmap.append((0x13 << 16) | (self.phase_offsetcd << 0))
+        mmap.append((0x14 << 16) | (self.phase_addab_lsb << 0))
+        mmap.append((0x15 << 16) | (self.phase_addab_msb << 0))
+        mmap.append((0x16 << 16) | (self.phase_addcd_lsb << 0))
+        mmap.append((0x17 << 16) | (self.phase_addcd_msb << 0))
         mmap.append(
             (0x18 << 16) |
             (0b001 << 13) | (self.pll_reset << 12) |
