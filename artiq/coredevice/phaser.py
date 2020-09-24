@@ -219,7 +219,7 @@ class Phaser:
         # either side) and no need to tune at runtime.
         # Parity provides another level of safety.
         for i in range(len(patterns)):
-            delay(.2*ms)
+            delay(.5*ms)
             errors = self.dac_iotest(patterns[i])
             if errors:
                 raise ValueError("DAC iotest failure")
