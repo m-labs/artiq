@@ -37,7 +37,7 @@ class TRF372017:
     ld_ana_prec = 0  # 2b
     cp_tristate = 0  # 2b
     speedup = 0
-    ld_dig_prec = 0
+    ld_dig_prec = 1
     en_dith = 1
     mod_ord = 2  # 3rd order, 2b
     dith_sel = 0

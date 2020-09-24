@@ -167,11 +167,11 @@ class Phaser:
         delay(20*us)  # slack
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
-        delay(.1*ms)  # slack
+        delay(20*us)  # slack
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
-        delay(.1*ms)  # slack
+        delay(20*us)  # slack
 
         # allow a few errors during startup and alignment since boot
         if self.get_crc_err() > 20:
@@ -185,11 +185,11 @@ class Phaser:
         self.set_fan_mu(0)
         # bring everything out of reset, keep tx off
         self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
+        delay(.1*ms)  # slack
 
         # TODO: crossing dac_clk (125 MHz) edges with sync_dly (0-7 ns)
         # should change the optimal fifo_offset by 4
         self.set_sync_dly(4)
-        delay(.1*ms)  # slack
 
         # 4 wire SPI, sif4_enable
         self.dac_write(0x02, 0x0080)
@@ -207,7 +207,7 @@ class Phaser:
 
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
-            delay(.1*ms)
+            delay(20*us)
 
         patterns = [
             [0xf05a, 0x05af, 0x5af0, 0xaf05],  # test channel/iq/byte/nibble
@@ -219,16 +219,16 @@ class Phaser:
         # either side) and no need to tune at runtime.
         # Parity provides another level of safety.
         for i in range(len(patterns)):
-            delay(.5*ms)
+            delay(.2*ms)
             errors = self.dac_iotest(patterns[i])
             if errors:
                 raise ValueError("DAC iotest failure")
 
-        delay(10*ms)  # let it settle
+        delay(2*ms)  # let it settle
         lvolt = self.dac_read(0x18) & 7
         delay(.1*ms)
         if lvolt < 2 or lvolt > 5:
-            raise ValueError("DAC PLL tuning voltage out of bounds")
+            raise ValueError("DAC PLL lock failed, check clocking")
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
         # alarm = self.get_sta() & 1
@@ -270,15 +270,24 @@ class Phaser:
                     abs(data_i - data_q) > 2):
                 raise ValueError("DUC+oscillator phase/amplitude test failed")
 
-            if not is_baseband:
-                for data in channel.trf_mmap:
-                    channel.trf_write(data)
-                    delay(.1*ms)
-                delay(1*ms)  # lock
-                lock_detect = self.get_sta() & (PHASER_STA_TRF0_LD << ch)
-                delay(.1*ms)
-                if not lock_detect:
-                    raise ValueError("TRF quadrature upconverter lock failure")
+            if is_baseband:
+                continue
+
+            if channel.trf_read(0) & 0x7f != 0x68:
+                raise ValueError("TRF identification failed")
+            delay(.1*ms)
+
+            delay(.2*ms)
+            for data in channel.trf_mmap:
+                channel.trf_write(data)
+
+            delay(2*ms)  # lock
+            if not (self.get_sta() & (PHASER_STA_TRF0_LD << ch)):
+                raise ValueError("TRF lock failure")
+            delay(.1*ms)
+            if channel.trf_read(0) & 0x1000:
+                raise ValueError("TRF R_SAT_ERR")
+            delay(.1*ms)
 
         self.set_cfg(clk_sel=self.clk_sel)  # txena
 
@@ -799,7 +808,8 @@ class PhaserChannel:
         self.phaser.spi_cfg(select=0, div=34, end=1, length=1)
         self.phaser.spi_write(0)
         delay((1 + 1)*34*4*ns)
-        return self.trf_write(0x00000008, readback=True)
+        return self.trf_write(0x00000008 | (cnt_mux_sel << 27),
+                              readback=True)
 
 
 class PhaserOscillator:
