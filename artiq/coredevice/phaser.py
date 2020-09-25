@@ -153,13 +153,12 @@ class Phaser:
                         for ch, trf in enumerate([trf0, trf1])]
 
     @kernel
-    def init(self):
+    def init(self, debug=False):
         """Initialize the board.
 
         Verifies board and chip presence, resets components, performs
         communication and configuration tests and establishes initial
         conditions.
-
         """
         board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
@@ -179,12 +178,15 @@ class Phaser:
         delay(.1*ms)  # slack
 
         # reset
-        self.set_cfg(dac_resetb=0, dac_sleep=1, att0_rstn=0, att1_rstn=0,
-                     dac_txena=0)
+        self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,
+                     trf0_ps=1, trf1_ps=1,
+                     att0_rstn=0, att1_rstn=0)
         self.set_leds(0x00)
         self.set_fan_mu(0)
-        # bring everything out of reset, keep tx off
-        self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
+        # bring dac out of reset, keep tx off
+        self.set_cfg(clk_sel=self.clk_sel, dac_txena=0,
+                     trf0_ps=1, trf1_ps=1,
+                     att0_rstn=0, att1_rstn=0)
         delay(.1*ms)  # slack
 
         # TODO: crossing dac_clk (125 MHz) edges with sync_dly (0-7 ns)
@@ -235,7 +237,17 @@ class Phaser:
         # delay(.1*ms)
         self.clear_dac_alarms()
         delay(2*ms)  # let it run a bit
-        self.check_dac_alarms()
+        alarms = self.get_dac_alarms()
+        delay(.1*ms)  # slack
+        if alarms & ~0x0040:  # ignore PLL alarms (see DS)
+            if debug:
+                print(alarms)
+                self.core.break_realtime()
+            else:
+                raise ValueError("DAC alarm")
+
+        # power up trfs, release att reset
+        self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
 
         for ch in range(2):
             channel = self.channel[ch]
@@ -244,7 +256,7 @@ class Phaser:
             if channel.get_att_mu() != 0x5a:
                 raise ValueError("attenuator test failed")
             delay(.1*ms)
-            channel.set_att(31.5*dB)
+            channel.set_att_mu(0x00)  # minimum attenuation
 
             # test oscillators and DUC
             for i in range(len(channel.oscillator)):
@@ -289,7 +301,8 @@ class Phaser:
                 raise ValueError("TRF R_SAT_ERR")
             delay(.1*ms)
 
-        self.set_cfg(clk_sel=self.clk_sel)  # txena
+        # enable dac tx
+        self.set_cfg(clk_sel=self.clk_sel)
 
     @kernel
     def write8(self, addr, data):
@@ -519,13 +532,6 @@ class Phaser:
         return self.dac_read(0x05)
 
     @kernel
-    def check_dac_alarms(self):
-        alarm = self.get_dac_alarms()
-        delay(.1*ms)  # slack
-        if alarm & ~0x0040:  # ignore PLL alarms (see DS)
-            raise ValueError("DAC alarm")
-
-    @kernel
     def clear_dac_alarms(self):
         """Clear DAC alarm flags."""
         self.dac_write(0x05, 0x0000)
@@ -561,9 +567,9 @@ class Phaser:
         # no need to go through the alarm register,
         # just read the error mask
         # self.clear_dac_alarms()
-        alarm = self.get_dac_alarms()
+        alarms = self.get_dac_alarms()
         delay(.1*ms)  # slack
-        if alarm & 0x0080:  # alarm_from_iotest
+        if alarms & 0x0080:  # alarm_from_iotest
             errors = self.dac_read(0x04)
             delay(.1*ms)  # slack
         else:
