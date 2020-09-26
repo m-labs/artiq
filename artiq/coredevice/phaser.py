@@ -177,14 +177,14 @@ class Phaser:
         board_id = self.read8(PHASER_ADDR_BOARD_ID)
         if board_id != PHASER_BOARD_ID:
             raise ValueError("invalid board id")
-        delay(20*us)  # slack
+        delay(.1*ms)  # slack
 
         hw_rev = self.read8(PHASER_ADDR_HW_REV)
-        delay(20*us)  # slack
+        delay(.1*ms)  # slack
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
-        delay(20*us)  # slack
+        delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot
         if self.get_crc_err() > 20:
@@ -218,13 +218,13 @@ class Phaser:
         delay(.1*ms)
 
         t = self.get_dac_temperature()
-        delay(.5*ms)
+        delay(.1*ms)
         if t < 10 or t > 90:
             raise ValueError("DAC temperature out of bounds")
 
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
-            delay(20*us)
+            delay(40*us)
 
         # pll_ndivsync_ena disable
         config18 = self.dac_read(0x18)
