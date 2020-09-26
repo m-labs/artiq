@@ -130,6 +130,7 @@ class Phaser:
     :param tune_fifo_offset: Tune the DAC FIFO read pointer offset
         (default=True)
     :param clk_sel: Select the external SMA clock input (1 or 0)
+    :param sync_dly: SYNC delay with respect to ISTR.
     :param dac: DAC34H84 DAC settings as a dictionary.
     :param trf0: Channel 0 TRF372017 quadrature upconverter settings as a
         dictionary.
@@ -146,7 +147,8 @@ class Phaser:
                          "dac_mmap"}
 
     def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
-                 clk_sel=0, dac=None, trf0=None, trf1=None, core_device="core"):
+                 clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None,
+                 core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         # TODO: auto-align miso-delay in phy
@@ -157,6 +159,7 @@ class Phaser:
         self.t_frame = 10*8*4
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
+        self.sync_dly = sync_dly
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -200,9 +203,10 @@ class Phaser:
                      att0_rstn=0, att1_rstn=0)
         delay(.1*ms)  # slack
 
-        # TODO: crossing dac_clk (125 MHz) edges with sync_dly (0-7 ns)
-        # should change the optimal fifo_offset by 4
-        self.set_sync_dly(4)
+        # TODO: crossing dac_clk (125 MHz) edges with sync_dly (2ns long,
+        # 0-14 ns delay in steps of 2ns) should change the optimal
+        # fifo_offset by 4
+        self.set_sync_dly(self.sync_dly)
 
         # 4 wire SPI, sif4_enable
         self.dac_write(0x02, 0x0080)
@@ -221,6 +225,11 @@ class Phaser:
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
             delay(20*us)
+
+        # pll_ndivsync_ena disable
+        config18 = self.dac_read(0x18)
+        delay(.1*ms)
+        self.dac_write(0x18, config18 & ~0x0800)
 
         patterns = [
             [0xf05a, 0x05af, 0x5af0, 0xaf05],  # test channel/iq/byte/nibble
@@ -257,6 +266,7 @@ class Phaser:
             if debug:
                 print(alarms)
                 self.core.break_realtime()
+                # ignore alarms
             else:
                 raise ValueError("DAC alarm")
 
