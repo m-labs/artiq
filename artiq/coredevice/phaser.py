@@ -115,10 +115,20 @@ class Phaser:
         class and applied during `init()`. See the :class:`DAC34H84` and
         :class:`TRF372017` source for details.
 
+    .. note:: To establish deterministic latency between RTIO time base and DAC
+        output, the DAC FIFO read pointer value (`fifo_offset`) must be
+        fixed. If `tune_fifo_offset=True` (the default) a value with maximum
+        margin is determined automatically by `dac_tune_fifo_offset` each time
+        `init()` is called. This value should be used for the `fifo_offset` key
+        of the `dac` settings of Phaser in `device_db.py` and automatic
+        tuning should be disabled by `tune_fifo_offset=False`.
+
     :param channel: Base RTIO channel number
     :param core_device: Core device name (default: "core")
     :param miso_delay: Fastlink MISO signal delay to account for cable
         and buffer round trip. Tuning this might be automated later.
+    :param tune_fifo_offset: Tune the DAC FIFO read pointer offset
+        (default=True)
     :param clk_sel: Select the external SMA clock input (1 or 0)
     :param dac: DAC34H84 DAC settings as a dictionary.
     :param trf0: Channel 0 TRF372017 quadrature upconverter settings as a
@@ -135,8 +145,8 @@ class Phaser:
     kernel_invariants = {"core", "channel_base", "t_frame", "miso_delay",
                          "dac_mmap"}
 
-    def __init__(self, dmgr, channel_base, miso_delay=1, clk_sel=0,
-                 dac=None, trf0=None, trf1=None, core_device="core"):
+    def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
+                 clk_sel=0, dac=None, trf0=None, trf1=None, core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         # TODO: auto-align miso-delay in phy
@@ -146,6 +156,7 @@ class Phaser:
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
         self.clk_sel = clk_sel
+        self.tune_fifo_offset = tune_fifo_offset
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -231,6 +242,9 @@ class Phaser:
         delay(.1*ms)
         if lvolt < 2 or lvolt > 5:
             raise ValueError("DAC PLL lock failed, check clocking")
+
+        if self.tune_fifo_offset:
+            self.dac_tune_fifo_offset()
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
         # alarm = self.get_sta() & 1
@@ -577,6 +591,49 @@ class Phaser:
         self.dac_write(0x01, cfg)  # clear config
         self.dac_write(0x04, 0x0000)  # clear iotest_result
         return errors
+
+    @kernel
+    def dac_tune_fifo_offset(self):
+        """Scan through `fifo_offset` and configure midpoint setting.
+
+        :return: Optimal `fifo_offset` setting with maximum margin to write
+            pointer.
+        """
+        # expect two or three error free offsets:
+        #
+        # read offset 01234567
+        # write pointer  w
+        # distance    32101234
+        # error free  x     xx
+        config9 = self.dac_read(0x09)
+        delay(.1*ms)
+        good = 0
+        for o in range(8):
+            # set new fifo_offset
+            self.dac_write(0x09, (config9 & 0x1fff) | (o << 13))
+            self.clear_dac_alarms()
+            delay(.1*ms)   # run
+            alarms = self.get_dac_alarms()
+            delay(.1*ms)  # slack
+            if (alarms >> 11) & 0x7 == 0:  # any fifo alarm
+                good |= 1 << o
+        # if there are good offsets accross the wrap around
+        # offset for computations
+        if good & 0x81 == 0x81:
+            good = ((good << 4) & 0xf0) | (good >> 4)
+            offset = 4
+        else:
+            offset = 0
+        # calculate mean
+        sum = 0
+        count = 0
+        for o in range(8):
+            if good & (1 << o):
+                sum += o
+                count += 1
+        best = ((sum // count) + offset) % 8
+        self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
+        return best
 
 
 class PhaserChannel:
