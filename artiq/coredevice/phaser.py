@@ -203,9 +203,8 @@ class Phaser:
                      att0_rstn=0, att1_rstn=0)
         delay(.1*ms)  # slack
 
-        # TODO: crossing dac_clk (125 MHz) edges with sync_dly (2ns long,
-        # 0-14 ns delay in steps of 2ns) should change the optimal
-        # fifo_offset by 4
+        # crossing dac_clk (reference) edges with sync_dly
+        # changes the optimal fifo_offset by 4
         self.set_sync_dly(self.sync_dly)
 
         # 4 wire SPI, sif4_enable
@@ -253,7 +252,10 @@ class Phaser:
             raise ValueError("DAC PLL lock failed, check clocking")
 
         if self.tune_fifo_offset:
-            self.dac_tune_fifo_offset()
+            fifo_offset = self.dac_tune_fifo_offset()
+            if debug:
+                print(fifo_offset)
+                self.core.break_realtime()
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
         # alarm = self.get_sta() & 1
