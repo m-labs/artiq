@@ -596,7 +596,7 @@ class AD9910:
     def turns_to_pow(self, turns) -> TInt32:
         """Return the 16-bit phase offset word corresponding to the given phase
         in turns."""
-        return int32(round(turns*0x10000)) & 0xffff
+        return int32(round(turns*0x10000)) & int32(0xffff)
 
     @portable(flags={"fast-math"})
     def pow_to_turns(self, pow_):
