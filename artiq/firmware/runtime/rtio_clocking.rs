@@ -145,15 +145,25 @@ fn setup_si5324_as_synthesizer() {
         bwsel  : 3,
         crystal_ref: true
     };
-    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin2).expect("cannot initialize Si5324");
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0", not(si5324_ext_ref)))]
+    let si5324_ref_input = si5324::Input::Ckin2;
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0", si5324_ext_ref))]
+    let si5324_ref_input = si5324::Input::Ckin1;
+    #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
+    let si5324_ref_input = si5324::Input::Ckin2;
+    si5324::setup(&SI5324_SETTINGS, si5324_ref_input).expect("cannot initialize Si5324");
 }
 
 pub fn init() {
     #[cfg(si5324_as_synthesizer)]
     {
+        #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+        let si5324_ext_input = si5324::Input::Ckin1;
+        #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
+        let si5324_ext_input = si5324::Input::Ckin2;
         match get_rtio_clock_cfg() {
             RtioClock::Internal => setup_si5324_as_synthesizer(),
-            RtioClock::External => si5324::bypass(si5324::Input::Ckin2).expect("cannot bypass Si5324")
+            RtioClock::External => si5324::bypass(si5324_ext_input).expect("cannot bypass Si5324")
         }
     }
 
