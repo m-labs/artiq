@@ -130,61 +130,180 @@ class DDMTD(Module, AutoCSR):
 
 
 class Collector(Module):
-    def __init__(self, N):
-        self.tag_helper = Signal((N, True))
-        self.tag_helper_update = Signal()
-        self.tag_main = Signal((N, True))
-        self.tag_main_update = Signal()
+    """ Generates loop filter inputs from DDMTD outputs.
 
-        self.output = Signal((N + 1, True))
+    When the WR PLL is locked, the following ideally (no noise etc) obtain:
+    - f_main = f_ref
+    - f_helper = f_ref * (2^N-1) / 2^N
+    - f_beat = f_ref - f_helper = f_ref / 2^N (cycle time is: dt=1/f_beat)
+    - the reference and main DCXO tags are equal each cycle
+    - the reference and main DCXO tags decrease by 1 each cycle (the tag
+      difference is f_helper*dt = f_helper/f_beat = (2^N-1) so we are 1 tag
+      away from a complete wrap around of the N-bit DDMTD counter)
+
+    Since the main and reference tags cycle through all possible values when
+    locked, we need to unwrap the collector outputs to avoid glitches
+    (particularly noise around transitions). Currently we do this in hardware,
+    but we should consider extending the processor to allow us to do it
+    inside the filters at a later stage (at which point, the collector
+    essentially becomes a the trigger for the loop filters).
+
+    The input to the main DCXO lock loop filter is the difference between the
+    reference and main tags after phase unwrapping.
+
+    The input to the helper DCXO lock loop filter is the difference between the
+    current reference tag and the previous reference tag plus 1, after
+    phase unwrapping.
+    """
+    def __init__(self, N):
+        self.ref_stb = Signal()
+        self.main_stb = Signal()
+        self.tag_ref = Signal(N)
+        self.tag_main = Signal(N)
+
+        self.out_stb = Signal()
+        self.out_main = Signal((N+2, True))
+        self.out_helper = Signal((N+2, True))
+        self.out_tag_ref = Signal(N)
+        self.out_tag_main = Signal(N)
+
+        tag_ref_r = Signal(N)
+        tag_main_r = Signal(N)
+        main_tag_diff = Signal((N+2, True))
+        helper_tag_diff = Signal((N+2, True))
 
         # # #
 
         fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
-        tag_collector = Signal((N + 1, True))
         fsm.act("IDLE",
-            If(self.tag_main_update & self.tag_helper_update,
-                NextValue(tag_collector, 0),
-                NextState("UPDATE")
-            ).Elif(self.tag_main_update,
-                NextValue(tag_collector, self.tag_main),
-                NextState("WAITHELPER")
-            ).Elif(self.tag_helper_update,
-                NextValue(tag_collector, -self.tag_helper),
+            NextValue(self.out_stb, 0),
+            If(self.ref_stb & self.main_stb,
+                NextValue(tag_ref_r, self.tag_ref),
+                NextValue(tag_main_r, self.tag_main),
+                NextState("DIFF")
+            ).Elif(self.ref_stb,
+                NextValue(tag_ref_r, self.tag_ref),
                 NextState("WAITMAIN")
+            ).Elif(self.main_stb,
+                NextValue(tag_main_r, self.tag_main),
+                NextState("WAITREF")
             )
         )
-        fsm.act("WAITHELPER",
-            If(self.tag_helper_update,
-                NextValue(tag_collector, tag_collector - self.tag_helper),
-                NextState("LEADCHECK")
+        fsm.act("WAITREF",
+            If(self.ref_stb,
+                NextValue(tag_ref_r, self.tag_ref),
+                NextState("DIFF")
             )
         )
         fsm.act("WAITMAIN",
-            If(self.tag_main_update,
-                NextValue(tag_collector, tag_collector + self.tag_main),
-                NextState("LAGCHECK")
+            If(self.main_stb,
+                NextValue(tag_main_r, self.tag_main),
+                NextState("DIFF")
             )
         )
-        # To compensate DDMTD counter roll-over when main is ahead of roll-over
-        # and helper is after roll-over
-        fsm.act("LEADCHECK",
-            If(tag_collector > 0,
-                NextValue(tag_collector, tag_collector - (2**N - 1))
-            ),
-            NextState("UPDATE")
+        fsm.act("DIFF",
+            NextValue(main_tag_diff, tag_main_r - tag_ref_r),
+            NextValue(helper_tag_diff, tag_ref_r - self.out_tag_ref + 1),
+            NextState("UNWRAP")
         )
-        # To compensate DDMTD counter roll-over when helper is ahead of roll-over
-        # and main is after roll-over
-        fsm.act("LAGCHECK",
-            If(tag_collector < 0,
-                NextValue(tag_collector, tag_collector + (2**N - 1))
+        fsm.act("UNWRAP",
+            If(main_tag_diff - self.out_main > 2**(N-1),
+               NextValue(main_tag_diff, main_tag_diff - 2**N)
+            ).Elif(self.out_main - main_tag_diff > 2**(N-1),
+               NextValue(main_tag_diff, main_tag_diff + 2**N)
             ),
-            NextState("UPDATE")
+
+            If(helper_tag_diff - self.out_helper > 2**(N-1),
+               NextValue(helper_tag_diff, helper_tag_diff - 2**N)
+            ).Elif(self.out_helper - helper_tag_diff > 2**(N-1),
+               NextValue(helper_tag_diff, helper_tag_diff + 2**N)
+            ),
+
+            NextState("OUTPUT")
         )
-        fsm.act("UPDATE",
-            NextValue(self.output, tag_collector),
+        fsm.act("OUTPUT",
+            NextValue(self.out_tag_ref, tag_ref_r),
+            NextValue(self.out_tag_main, tag_main_r),
+            NextValue(self.out_main, main_tag_diff),
+            NextValue(self.out_helper, helper_tag_diff),
+            NextValue(self.out_stb, 1),
             NextState("IDLE")
         )
+
+
+def test_collector_main():
+
+    N = 2
+    collector = Collector(N=N)
+    # check collector phase unwrapping
+    tags = [(0, 0, 0),
+            (0, 1, 1),
+            (2, 1, -1),
+            (3, 1, -2),
+            (0, 1, -3),
+            (1, 1, -4),
+            (2, 1, -5),
+            (3, 1, -6),
+            (3, 3, -4),
+            (0, 0, -4),
+            (0, 1, -3),
+            (0, 2, -2),
+            (0, 3, -1),
+            (0, 0, 0)]
+    for i in range(10):
+        tags.append((i % (2**N), (i+1) % (2**N), 1))
+
+    def generator():
+        for tag_ref, tag_main, out in tags:
+            yield collector.tag_ref.eq(tag_ref)
+            yield collector.tag_main.eq(tag_main)
+            yield collector.main_stb.eq(1)
+            yield collector.ref_stb.eq(1)
+
+            yield
+
+            yield collector.main_stb.eq(0)
+            yield collector.ref_stb.eq(0)
+
+            while not (yield collector.out_stb):
+                yield
+
+            out_main = yield collector.out_main
+            assert out_main == out
+
+    run_simulation(collector, generator())
+
+
+def test_collector_helper():
+
+    N = 3
+    collector = Collector(N=N)
+    # check collector phase unwrapping
+    tags = [((2**N - 1 - tag) % (2**N), 0) for tag in range(20)]
+    tags += [((tags[-1][0] + 1 + tag) % (2**N), 2) for tag in range(20)]
+    tags += [((tags[-1][0] - 2 - 2*tag) % (2**N), -1) for tag in range(20)]
+
+    def generator():
+        for tag_ref, out in tags:
+            yield collector.tag_ref.eq(tag_ref)
+            yield collector.main_stb.eq(1)
+            yield collector.ref_stb.eq(1)
+
+            yield
+
+            yield collector.main_stb.eq(0)
+            yield collector.ref_stb.eq(0)
+
+            while not (yield collector.out_stb):
+                yield
+
+            out_helper = yield collector.out_helper
+            assert out_helper == out
+
+    run_simulation(collector, generator())
+
+if __name__ == "__main__":
+    test_collector_main()
+    test_collector_helper()
