@@ -283,7 +283,7 @@ class Scheduler:
 
         # Instruction can be scheduled
 
-        self.remaining.remove(isn)            
+        self.remaining.remove(isn)
 
         for inp, minp in zip(isn.inputs, mapped_inputs):
             can_free = inp < 0 and all(inp != rinp for risn in self.remaining for rinp in risn.inputs)
@@ -354,7 +354,7 @@ def compile(processor, function):
     assert len(node.args.args) == 1
     arg = node.args.args[0].arg
     body = node.body
-    
+
     astcompiler = ASTCompiler()
     for node in body:
         if isinstance(node, ast.Global):
@@ -591,7 +591,7 @@ class ProcessorImpl(Module):
 
 def make(function, **kwargs):
     proc = Processor(**kwargs)
-    cp = compile(proc, simple_test)
+    cp = compile(proc, function)
     cp.dimension_processor()
     return proc.implement(cp.encode(), cp.data)
 
@@ -605,7 +605,7 @@ def foo(x):
     c = b
     b = a
     a = x
-    return 4748*a + 259*b - 155*c 
+    return 4748*a + 259*b - 155*c
 
 
 def simple_test(x):
