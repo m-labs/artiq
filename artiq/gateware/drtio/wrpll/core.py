@@ -76,32 +76,28 @@ class WRPLL(Module, AutoCSR):
 
         ddmtd_counter = Signal(N)
         self.sync.helper += ddmtd_counter.eq(ddmtd_counter + 1)
-        self.submodules.ddmtd_helper = DDMTD(ddmtd_counter, ddmtd_inputs.rec_clk)
+        self.submodules.ddmtd_ref = DDMTD(ddmtd_counter, ddmtd_inputs.rec_clk)
         self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)
-
-        collector_update = Signal()
-        self.sync.helper += collector_update.eq(ddmtd_counter == (2**N - 1))
 
         filter_cd = ClockDomainsRenamer("filter")
         self.submodules.collector = filter_cd(Collector(N))
-        self.submodules.filter_helper = filter_cd(thls.make(filters.helper, data_width=48))
-        self.submodules.filter_main = filter_cd(thls.make(filters.main, data_width=48))
+        self.submodules.filter_helper = filter_cd(
+            thls.make(filters.helper, data_width=48))
+        self.submodules.filter_main = filter_cd(
+            thls.make(filters.main, data_width=48))
 
         self.comb += [
-            self.collector.tag_helper.eq(self.ddmtd_helper.h_tag),
-            self.collector.tag_helper_update.eq(self.ddmtd_helper.h_tag_update),
+            self.collector.tag_ref.eq(self.ddmtd_ref.h_tag),
+            self.collector.ref_stb.eq(self.ddmtd_ref.h_tag_update),
             self.collector.tag_main.eq(self.ddmtd_main.h_tag),
-            self.collector.tag_main_update.eq(self.ddmtd_main.h_tag_update)
+            self.collector.main_stb.eq(self.ddmtd_main.h_tag_update)
         ]
 
-        # compensate the 1 cycle latency of the collector
-        self.sync.helper += [
-            self.filter_helper.input.eq(self.ddmtd_helper.h_tag),
-            self.filter_helper.input_stb.eq(self.ddmtd_helper.h_tag_update)
-        ]
         self.comb += [
-            self.filter_main.input.eq(self.collector.output),
-            self.filter_main.input_stb.eq(collector_update)
+            self.filter_helper.input.eq(self.collector.out_helper),
+            self.filter_helper.input_stb.eq(self.collector.out_stb),
+            self.filter_main.input.eq(self.collector.out_main),
+            self.filter_main.input_stb.eq(self.collector.out_stb)
         ]
 
         self.sync.helper += [
