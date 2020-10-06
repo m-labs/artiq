@@ -266,6 +266,9 @@ mod si549 {
         Ok(())
     }
 
+    // Si549 digital frequency trim ("all-digital PLL" register)
+    // ∆ f_out = adpll * 0.0001164e-6 (0.1164 ppb/lsb)
+    // max trim range is +- 950 ppm
     pub fn set_adpll(dcxo: i2c::Dcxo, adpll: i32) -> Result<(), &'static str> {
         write(dcxo, 231, adpll as u8)?;
         write(dcxo, 232, (adpll >> 8) as u8)?;
@@ -280,6 +283,20 @@ mod si549 {
         let b3 = read(dcxo, 233)? as i8 as i32;
         Ok(b3 << 16 | b2 << 8 | b1)
     }
+}
+
+// to do: load from gateware config
+const DDMTD_COUNTER_N: u32 = 15;
+const DDMTD_COUNTER_M: u32 = (1 << DDMTD_COUNTER_N);
+const F_SYS: f64 = csr::CONFIG_CLOCK_FREQUENCY as f64;
+
+const F_MAIN: f64 = 125.0e6;
+const F_HELPER: f64 = F_MAIN * DDMTD_COUNTER_M as f64 / (DDMTD_COUNTER_M + 1) as f64;
+const F_BEAT: f64 = F_MAIN - F_HELPER;
+const TIME_STEP: f32 = 1./F_BEAT as f32;
+
+fn ddmtd_tag_to_s(mu: f32) -> f32 {
+    return (mu as f32)*TIME_STEP;
 }
 
 fn get_frequencies() -> (u32, u32, u32) {
@@ -304,24 +321,58 @@ fn log_frequencies() -> (u32, u32, u32) {
     (f_helper, f_main, f_cdr)
 }
 
-fn get_ddmtd_main_tag() -> u16 {
+fn get_tags() -> (i32, i32, u16, u16) {
     unsafe {
-        csr::wrpll::ddmtd_main_arm_write(1);
-        while csr::wrpll::ddmtd_main_arm_read() != 0 {}
-        csr::wrpll::ddmtd_main_tag_read()
+        csr::wrpll::tag_arm_write(1);
+        while csr::wrpll::tag_arm_read() != 0 {}
+
+        let main_diff = csr::wrpll::main_diff_tag_read() as i32;
+        let helper_diff = csr::wrpll::helper_diff_tag_read() as i32;
+        let ref_tag = csr::wrpll::ref_tag_read();
+        let main_tag = csr::wrpll::main_tag_read();
+        (main_diff, helper_diff, ref_tag, main_tag)
     }
 }
 
-fn get_ddmtd_helper_tag() -> u16 {
-    unsafe {
-        csr::wrpll::ddmtd_helper_arm_write(1);
-        while csr::wrpll::ddmtd_helper_arm_read() != 0 {}
-        csr::wrpll::ddmtd_helper_tag_read()
+fn print_tags() {
+    const NUM_TAGS: usize = 30;
+    let mut main_diffs = [0; NUM_TAGS];  // input to main loop filter
+    let mut helper_diffs = [0; NUM_TAGS];  // input to helper loop filter
+    let mut ref_tags = [0; NUM_TAGS];
+    let mut main_tags = [0; NUM_TAGS];
+    let mut jitter = [0 as f32; NUM_TAGS];
+
+    for i in 0..NUM_TAGS {
+        let (main_diff, helper_diff, ref_tag, main_tag) = get_tags();
+        main_diffs[i] =  main_diff;
+        helper_diffs[i] = helper_diff;
+        ref_tags[i] = ref_tag;
+        main_tags[i] = main_tag;
     }
+    info!("DDMTD ref tags: {:?}", ref_tags);
+    info!("DDMTD main tags: {:?}", main_tags);
+    info!("DDMTD main diffs: {:?}", main_diffs);
+    info!("DDMTD helper diffs: {:?}", helper_diffs);
+
+    // look at the difference between the main DCXO and reference...
+    let t0 = main_diffs[0];
+    main_diffs.iter_mut().for_each(|x| *x -= t0);
+
+    // crude estimate of the max difference across our sample set (assumes no unwrapping issues...)
+    let delta = main_diffs[main_diffs.len()-1] as f32 / (main_diffs.len()-1) as f32;
+    info!("detla: {:?} tags", delta);
+    let delta_f: f32 = delta/DDMTD_COUNTER_M as f32 * F_BEAT as f32;
+    info!("MAIN <-> ref frequency difference: {:?} Hz ({:?} ppm)", delta_f, delta_f/F_HELPER as f32 * 1e6);
+
+    jitter.iter_mut().enumerate().for_each(|(i, x)| *x = main_diffs[i] as f32 - delta*(i as f32));
+    info!("jitter: {:?} tags", jitter);
+
+    let var = jitter.iter().map(|x| x*x).fold(0 as f32, |acc, x| acc + x as f32) / NUM_TAGS as f32;
+    info!("variance: {:?} tags^2", var);
 }
 
 pub fn init() {
-    info!("initializing...");
+    info!("initializing WR PLL...");
 
     unsafe { csr::wrpll::helper_reset_write(1); }
 
@@ -348,42 +399,28 @@ pub fn init() {
 }
 
 pub fn diagnostics() {
+    info!("WRPLL diagnostics...");
+    info!("Untrimmed oscillator frequencies:");
     log_frequencies();
 
-    info!("ADPLL test:");
-    // +/-10ppm
-    si549::set_adpll(i2c::Dcxo::Helper, -85911).expect("ADPLL write failed");
-    si549::set_adpll(i2c::Dcxo::Main, 85911).expect("ADPLL write failed");
+    info!("Increase helper DCXO frequency by +10ppm (1.25kHz):");
+    si549::set_adpll(i2c::Dcxo::Helper, 85911).expect("ADPLL write failed");
+    // to do: add check on frequency?
     log_frequencies();
-    si549::set_adpll(i2c::Dcxo::Helper, 0).expect("ADPLL write failed");
-    si549::set_adpll(i2c::Dcxo::Main, 0).expect("ADPLL write failed");
-
-    let mut tags = [0; 10];
-    for i in 0..tags.len() {
-        tags[i] = get_ddmtd_main_tag();
-    }
-    info!("DDMTD main tags: {:?}", tags);
 }
 
 fn trim_dcxos(f_helper: u32, f_main: u32, f_cdr: u32) -> Result<(i32, i32), &'static str> {
+    info!("Trimming oscillator frequencies...");
     const DCXO_STEP: i64 = (1.0e6/0.0001164) as i64;
     const ADPLL_MAX: i64 = (950.0/0.0001164) as i64;
 
     const TIMER_WIDTH: u32 = 23;
     const COUNTER_DIV: u32 = 2;
 
-    const F_SYS: f64 = csr::CONFIG_CLOCK_FREQUENCY as f64;
-    #[cfg(rtio_frequency = "125.0")]
-    const F_MAIN: f64 = 125.0e6;
-    const F_HELPER: f64 = F_MAIN * ((1 << 15) as f64)/((1<<15) as f64 + 1.0);
-
+    // how many counts we expect to measure
     const SYS_COUNTS: i64 = (1 << (TIMER_WIDTH - COUNTER_DIV)) as i64;
     const EXP_MAIN_COUNTS: i64 = ((SYS_COUNTS as f64) * (F_MAIN/F_SYS)) as i64;
     const EXP_HELPER_COUNTS: i64 = ((SYS_COUNTS as f64) * (F_HELPER/F_SYS)) as i64;
-
-    info!("after {} sys counts", SYS_COUNTS);
-    info!("expect {} main/CDR counts", EXP_MAIN_COUNTS);
-    info!("expect {} helper counts", EXP_HELPER_COUNTS);
 
     // calibrate the SYS clock to the CDR clock and correct the measured counts
     // assume frequency errors are small so we can make an additive correction
@@ -412,11 +449,33 @@ fn trim_dcxos(f_helper: u32, f_main: u32, f_cdr: u32) -> Result<(i32, i32), &'st
     Ok((helper_adpll as i32, main_adpll as i32))
 }
 
+fn statistics(data: &[u16]) -> (f32, f32) {
+    let sum = data.iter().fold(0 as u32, |acc, x| acc + *x as u32);
+    let mean = sum as f32 / data.len() as f32;
+
+    let squared_sum = data.iter().fold(0 as u32, |acc, x| acc + (*x as u32).pow(2));
+    let variance = (squared_sum as f32 / data.len() as f32) - mean;
+    return (mean, variance)
+}
+
 fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
+    info!("Untrimmed oscillator frequencies:");
     let (f_helper, f_main, f_cdr) = log_frequencies();
     if rc {
         let (helper_adpll, main_adpll) = trim_dcxos(f_helper, f_main, f_cdr)?;
+        // to do: add assertion on max frequency shift here?
         si549::set_adpll(i2c::Dcxo::Helper, helper_adpll).expect("ADPLL write failed");
+        si549::set_adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
+
+        log_frequencies();
+        clock::spin_us(100_000);  // TO DO: remove/reduce!
+        print_tags();
+
+        info!("increasing main DCXO by 1ppm (125Hz):");
+        si549::set_adpll(i2c::Dcxo::Main, main_adpll + 8591).expect("ADPLL write failed");
+        clock::spin_us(100_000);
+        print_tags();
+
         si549::set_adpll(i2c::Dcxo::Main, main_adpll).expect("ADPLL write failed");
 
         unsafe {
@@ -431,11 +490,12 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
 
         clock::spin_us(100_000);
 
-        let mut tags = [0; 10];
-        for i in 0..tags.len() {
-            tags[i] = get_ddmtd_helper_tag();
-        }
-        info!("DDMTD helper tags: {:?}", tags);
+        print_tags();
+//        let mut tags = [0; 10];
+//        for i in 0..tags.len() {
+//            tags[i] = get_ddmtd_helper_tag();
+//        }
+//        info!("DDMTD helper tags: {:?}", tags);
 
         unsafe {
             csr::wrpll::filter_reset_write(1);
