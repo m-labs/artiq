@@ -408,6 +408,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             length = self.iterable_len(insn)
             return self.append(ir.Compare(ast.NotEq(loc=None), length, ir.Constant(0, length.type)),
                                block=block)
+        elif builtins.is_none(insn.type):
+            return ir.Constant(False, builtins.TBool())
         else:
             note = diagnostic.Diagnostic("note",
                 "this expression has type {type}",
