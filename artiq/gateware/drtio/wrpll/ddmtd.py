@@ -83,7 +83,7 @@ class DDMTDDeglitcherFirstEdge(Module):
         blind_counter = Signal(max=blind_period)
         self.sync.helper += [
             If(blind_counter != 0, blind_counter.eq(blind_counter - 1)),
-            If(rising, blind_counter.eq(blind_period - 1)),
+            If(input_signal_r, blind_counter.eq(blind_period - 1)),
             self.detect.eq(rising & (blind_counter == 0))
         ]
 
