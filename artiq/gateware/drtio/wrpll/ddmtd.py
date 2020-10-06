@@ -132,28 +132,37 @@ class DDMTD(Module, AutoCSR):
 class Collector(Module):
     """Generates loop filter inputs from DDMTD outputs.
 
-    When the WR PLL is locked, the following ideally (no noise etc) obtain:
-    - f_main = f_ref
-    - f_helper = f_ref * (2^N-1) / 2^N
-    - f_beat = f_ref - f_helper = f_ref / 2^N (cycle time is: dt=1/f_beat)
-    - the reference and main DCXO tags are equal each cycle
-    - the reference and main DCXO tags decrease by 1 each cycle (the tag
-      difference is f_helper*dt = f_helper/f_beat = (2^N-1) so we are 1 tag
-      away from a complete wrap around of the N-bit DDMTD counter)
-
-    Since the main and reference tags cycle through all possible values when
-    locked, we need to unwrap the collector outputs to avoid glitches
-    (particularly noise around transitions). Currently we do this in hardware,
-    but we should consider extending the processor to allow us to do it
-    inside the filters at a later stage (at which point, the collector
-    essentially becomes a the trigger for the loop filters).
-
     The input to the main DCXO lock loop filter is the difference between the
-    reference and main tags after phase unwrapping.
+    reference and main tags after unwrapping (see below).
 
     The input to the helper DCXO lock loop filter is the difference between the
-    current reference tag and the previous reference tag plus 1, after
-    phase unwrapping.
+    current reference tag and the previous reference tag after unwrapping.
+
+    When the WR PLL is locked, the following ideally (no noise/jitter) obtain:
+    - f_main = f_ref
+    - f_helper = f_ref * 2^N/(2^N+1)
+    - f_beat = f_ref - f_helper = f_ref / (2^N + 1) (cycle time is: dt=1/f_beat)
+    - the reference and main DCXO tags are equal to each other at every cycle
+      (the main DCXO lock drives this difference to 0)
+    - the reference and main DCXO tags both have the same value at each cycle
+      (the tag difference for each DDMTD is given by
+      f_helper*dt = f_helper/f_beat = 2^N, which causes the N-bit DDMTD counter
+      to wrap around and come back to its previous value)
+
+    Note that we currently lock the frequency of the helper DCXO to the
+    reference clock, not it's phase. As a result, while the tag differences are
+    controlled, their absolute values are arbitrary. We could consider moving
+    the helper lock to a phase lock at some point in the future...
+
+    Since the DDMTD counter is only N bits, it is possible for tag values to
+    wrap around. This will happen frequently if the locked tags happens to be
+    near the edges of the counter, so that jitter can easily cause a phase wrap.
+    But, it can also easily happen during lock acquisition or other transients.
+    To avoid glitches in the output, we unwrap the tag differences. Currently
+    we do this in hardware, but we should consider extending the processor to
+    allow us to do it inside the filters. Since the processor uses wider
+    signals, this would significantly extend the overall glitch-free
+    range of the PLL and may aid lock acquisition.
     """
     def __init__(self, N):
         self.ref_stb = Signal()
@@ -205,7 +214,7 @@ class Collector(Module):
         )
         fsm.act("DIFF",
             NextValue(main_tag_diff, tag_main_r - tag_ref_r),
-            NextValue(helper_tag_diff, tag_ref_r - self.out_tag_ref + 1),
+            NextValue(helper_tag_diff, tag_ref_r - self.out_tag_ref),
             NextState("UNWRAP")
         )
         fsm.act("UNWRAP",
@@ -220,7 +229,6 @@ class Collector(Module):
             ).Elif(self.out_helper - helper_tag_diff > 2**(N-1),
                NextValue(helper_tag_diff, helper_tag_diff + 2**N)
             ),
-
             NextState("OUTPUT")
         )
         fsm.act("OUTPUT",
