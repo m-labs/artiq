@@ -88,10 +88,8 @@ class DDMTDDeglitcherFirstEdge(Module):
         ]
 
 
-class DDMTD(Module, AutoCSR):
+class DDMTD(Module):
     def __init__(self, counter, input_signal):
-        self.arm = CSR()
-        self.tag = CSRStatus(len(counter))
 
         # in helper clock domain
         self.h_tag = Signal(len(counter))
@@ -107,24 +105,6 @@ class DDMTD(Module, AutoCSR):
             If(deglitcher.detect,
                 self.h_tag_update.eq(1),
                 self.h_tag.eq(counter + deglitcher.tag_correction)
-            )
-        ]
-
-        tag_update_ps = PulseSynchronizer("helper", "sys")
-        self.submodules += tag_update_ps
-        self.comb += tag_update_ps.i.eq(self.h_tag_update)
-        tag_update = Signal()
-        self.sync += tag_update.eq(tag_update_ps.o)
-
-        tag = Signal(len(counter))
-        self.h_tag.attr.add("no_retiming")
-        self.specials += MultiReg(self.h_tag, tag)
-
-        self.sync += [
-            If(self.arm.re & self.arm.r, self.arm.w.eq(1)),
-            If(tag_update,
-                If(self.arm.w, self.tag.status.eq(tag)),
-                self.arm.w.eq(0),
             )
         ]
 
