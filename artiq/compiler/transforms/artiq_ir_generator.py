@@ -853,8 +853,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     self.current_assign = None
 
                 none = self.append(ir.Alloc([], builtins.TNone()))
-                cleanup.append(lambda:
-                    self._user_call(exit_fn, [none, none, none], {}))
+                call = self._user_call(exit_fn, [none, none, none], {})
+                cleanup.append(lambda: call)
 
         self._try_finally(
             body_gen=lambda: self.visit(node.body),
