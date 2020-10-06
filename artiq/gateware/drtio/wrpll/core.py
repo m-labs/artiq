@@ -93,7 +93,8 @@ class WRPLL(Module, AutoCSR):
         self.submodules.ddmtd_main = DDMTD(ddmtd_counter, ddmtd_inputs.main_xo)
 
         filter_cd = ClockDomainsRenamer("filter")
-        self.submodules.collector = filter_cd(Collector(N))
+        helper_cd = ClockDomainsRenamer("helper")
+        self.submodules.collector = helper_cd(Collector(N))
         self.submodules.filter_helper = filter_cd(
             thls.make(filters.helper, data_width=48))
         self.submodules.filter_main = filter_cd(
