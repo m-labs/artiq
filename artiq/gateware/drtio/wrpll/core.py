@@ -8,6 +8,13 @@ from artiq.gateware.drtio.wrpll.ddmtd import DDMTD, Collector
 from artiq.gateware.drtio.wrpll import thls, filters
 
 
+def _eq_sign_extend(t, s):
+    """Assign target signal `t` from source `s`, sign-extending `s` to the
+    full width.
+    """
+    return t.eq(Cat(s, Replicate(s[-1], len(t) - len(s))))
+
+
 class FrequencyCounter(Module, AutoCSR):
     def __init__(self, timer_width=23, counter_width=23, domains=["helper", "rtio", "rtio_rx0"]):
         for domain in domains:
@@ -55,6 +62,12 @@ class WRPLL(Module, AutoCSR):
         self.adpll_offset_helper = CSRStorage(24)
         self.adpll_offset_main = CSRStorage(24)
 
+        self.tag_arm = CSR()
+        self.main_diff_tag = CSRStatus(32)
+        self.helper_diff_tag = CSRStatus(32)
+        self.ref_tag = CSRStatus(N)
+        self.main_tag = CSRStatus(N)
+
         self.clock_domains.cd_helper = ClockDomain()
         self.clock_domains.cd_filter = ClockDomain()
         self.helper_reset.storage.attr.add("no_retiming")
@@ -91,6 +104,34 @@ class WRPLL(Module, AutoCSR):
             self.collector.ref_stb.eq(self.ddmtd_ref.h_tag_update),
             self.collector.tag_main.eq(self.ddmtd_main.h_tag),
             self.collector.main_stb.eq(self.ddmtd_main.h_tag_update)
+        ]
+
+        collector_stb_ps = PulseSynchronizer("helper", "sys")
+        self.submodules += collector_stb_ps
+        self.sync.helper += collector_stb_ps.i.eq(self.collector.out_stb)
+        collector_stb_sys = Signal()
+        self.sync += collector_stb_sys.eq(collector_stb_ps.o)
+
+        main_diff_tag_sys = Signal((N+2, True))
+        helper_diff_tag_sys = Signal((N+2, True))
+        ref_tag_sys = Signal(N)
+        main_tag_sys = Signal(N)
+        self.specials += MultiReg(self.collector.out_main, main_diff_tag_sys)
+        self.specials += MultiReg(self.collector.out_helper, helper_diff_tag_sys)
+        self.specials += MultiReg(self.collector.tag_ref, ref_tag_sys)
+        self.specials += MultiReg(self.collector.tag_main, main_tag_sys)
+
+        self.sync += [
+            If(self.tag_arm.re & self.tag_arm.r, self.tag_arm.w.eq(1)),
+            If(collector_stb_sys,
+               self.tag_arm.w.eq(0),
+               If(self.tag_arm.w,
+                  _eq_sign_extend(self.main_diff_tag.status, main_diff_tag_sys),
+                  _eq_sign_extend(self.helper_diff_tag.status, helper_diff_tag_sys),
+                  self.ref_tag.status.eq(ref_tag_sys),
+                  self.main_tag.status.eq(main_tag_sys)
+                 )
+              )
         ]
 
         self.comb += [
