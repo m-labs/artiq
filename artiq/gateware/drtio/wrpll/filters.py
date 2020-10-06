@@ -32,9 +32,9 @@ def helper(tag_diff):
     helper_xn2 = helper_xn1
     helper_xn1 = helper_xn0
 
-    helper_yn0 = min(helper_yn0, helper_yr)
-    helper_yn0 = max(helper_yn0, 0 - helper_yr)
     helper_out = 268435456*helper_yn0 >> 44
+    helper_out = min(helper_out, helper_yr)
+    helper_out = max(helper_out, 0 - helper_yr)
 
     return helper_out
 
