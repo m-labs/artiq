@@ -255,7 +255,7 @@ class Si549(Module, AutoCSR):
         self.gpio_out = CSRStorage(2)
         self.gpio_oe = CSRStorage(2)
 
-        self.i2c_divider = CSRStorage(16, reset=2500)
+        self.i2c_divider = CSRStorage(16, reset=75)
         self.i2c_address = CSRStorage(7)
         self.errors = CSR(2)
 
