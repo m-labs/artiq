@@ -30,12 +30,19 @@ autodoc.repr = inspect.repr = str
 # we cannot use autodoc_mock_imports (does not help with argparse)
 mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
+                "artiq.gui.state",
+                "artiq.gui.log",
+                "artiq.gui.models",
                 "artiq.compiler.module",
                 "artiq.compiler.embedding",
+                "artiq.dashboard",
                 "quamash", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite_artiq", "Levenshtein", "pythonparser", "sipyco"]
+                "llvmlite_artiq", "Levenshtein", "pythonparser",
+                "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
+                "sipyco.asyncio_tools", "sipyco.logging_tools",
+                "sipyco.broadcast", "sipyco.packed_exceptions"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
