@@ -15,7 +15,6 @@ from sipyco.broadcast import Receiver
 from sipyco import common_args
 from sipyco.asyncio_tools import atexit_register_coroutine
 
-from artiq import __version__ as artiq_version
 from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 from artiq.tools import get_user_config_dir
 from artiq.gui.models import ModelSubscriber
