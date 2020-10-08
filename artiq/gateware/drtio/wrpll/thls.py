@@ -403,10 +403,28 @@ class OpUnit(BaseUnit):
     def __init__(self, op, data_width, stages):
         BaseUnit.__init__(self, data_width)
 
-        o = op(self.i0, self.i1)
-        stb_o = self.stb_i
-        for i in range(stages):
+        if stages > 1:
+            # Vivado backward retiming for DSP does not work correctly if DSP inputs
+            # are not registered.
+            i0 = Signal.like(self.i0)
+            i1 = Signal.like(self.i1)
+            stb_i = Signal()
+            self.sync += [
+                i0.eq(self.i0),
+                i1.eq(self.i1),
+                stb_i.eq(self.stb_i)
+            ]
+            output_stages = stages - 1
+        else:
+            i0, i1, stb_i = self.i0, self.i1, self.stb_i
+            output_stages = stages
+
+        o = op(i0, i1)
+        stb_o = stb_i
+        for i in range(output_stages):
             n_o = Signal(data_width)
+            if stages > 1:
+                n_o.attr.add(("retiming_backward", 1))
             n_stb_o = Signal()
             self.sync += [
                 n_o.eq(o),
