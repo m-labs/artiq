@@ -1914,7 +1914,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             return result
         else:
-            assert False
+            loc = lhs.loc
+            loc.end = rhs.loc.end
+            diag = diagnostic.Diagnostic("error",
+                "Custom object comparison is not supported",
+                {},
+                loc)
+            self.engine.process(diag)
 
     def polymorphic_compare_pair_inclusion(self, needle, haystack):
         if builtins.is_range(haystack.type):
@@ -1958,7 +1964,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             result = phi
         else:
-            assert False
+            loc = needle.loc
+            loc.end = haystack.loc.end
+            diag = diagnostic.Diagnostic("error",
+                "Custom object inclusion test is not supported",
+                {},
+                loc)
+            self.engine.process(diag)
 
         return result
 
