@@ -614,6 +614,9 @@ class SatelliteBase(BaseSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
+        if with_wrpll:
+            platform.add_false_path_constraints(
+                self.wrpll.cd_helper.clk, gtp.rxoutclk)
         for gtp in self.drtio_transceiver.gtps[1:]:
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
