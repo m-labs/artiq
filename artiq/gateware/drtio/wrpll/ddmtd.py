@@ -130,7 +130,7 @@ class DDMTD(Module, AutoCSR):
 
 
 class Collector(Module):
-    """ Generates loop filter inputs from DDMTD outputs.
+    """Generates loop filter inputs from DDMTD outputs.
 
     When the WR PLL is locked, the following ideally (no noise etc) obtain:
     - f_main = f_ref
@@ -234,7 +234,6 @@ class Collector(Module):
 
 
 def test_collector_main():
-
     N = 2
     collector = Collector(N=N)
     # check collector phase unwrapping
@@ -277,7 +276,6 @@ def test_collector_main():
 
 
 def test_collector_helper():
-
     N = 3
     collector = Collector(N=N)
     # check collector phase unwrapping
@@ -303,6 +301,7 @@ def test_collector_helper():
             assert out_helper == out
 
     run_simulation(collector, generator())
+
 
 if __name__ == "__main__":
     test_collector_main()
