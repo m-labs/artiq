@@ -94,7 +94,7 @@ class WRPLL(Module, AutoCSR):
         ]
 
         self.comb += [
-            self.filter_helper.input.eq(self.collector.out_helper),
+            self.filter_helper.input.eq(self.collector.out_helper << 22),
             self.filter_helper.input_stb.eq(self.collector.out_stb),
             self.filter_main.input.eq(self.collector.out_main),
             self.filter_main.input_stb.eq(self.collector.out_stb)
