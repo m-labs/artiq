@@ -152,31 +152,34 @@ class WRPLL(Module, AutoCSR):
         ]
 
 
-def helper_sim(N=15):
-    class WRPLL(Module):
-        def __init__(self, N):
-            self.tag_ref = Signal(N)
-            self.input_stb = Signal()
-            self.adpll = Signal((24, True))
-            self.out_stb = Signal()
+class HelperTB(Module):
+    def __init__(self, N):
+        self.tag_ref = Signal(N)
+        self.input_stb = Signal()
+        self.adpll = Signal((24, True))
+        self.out_stb = Signal()
 
-            # # # #
-            loop_filter = thls.make(filters.helper, data_width=48)
-            self.submodules.loop_filter = loop_filter
-            self.submodules.collector = collector = Collector(N)
+        ###
 
-            self.comb += [
-                self.collector.tag_ref.eq(self.tag_ref),
-                self.collector.ref_stb.eq(self.input_stb),
-                self.collector.main_stb.eq(self.input_stb),
-                self.loop_filter.input.eq(self.collector.out_helper << 22),
-                self.loop_filter.input_stb.eq(self.collector.out_stb),
-                self.adpll.eq(self.loop_filter.output),
-                self.out_stb.eq(self.loop_filter.output_stb),
-            ]
-    pll = WRPLL(N=N)
+        loop_filter = thls.make(filters.helper, data_width=48)
+        self.submodules.loop_filter = loop_filter
+        self.submodules.collector = collector = Collector(N)
 
-    # check filter against output from MatLab model
+        self.comb += [
+            self.collector.tag_ref.eq(self.tag_ref),
+            self.collector.ref_stb.eq(self.input_stb),
+            self.collector.main_stb.eq(self.input_stb),
+            self.loop_filter.input.eq(self.collector.out_helper << 22),
+            self.loop_filter.input_stb.eq(self.collector.out_stb),
+            self.adpll.eq(self.loop_filter.output),
+            self.out_stb.eq(self.loop_filter.output_stb),
+        ]
+
+
+# check filter against output from MatLab model
+def helper_sim():
+    pll = HelperTB(15)
+
     initial_helper_out = -8000
     ref_tags = np.array([
        24778, 16789,  8801,   814, 25596, 17612,  9628,  1646,
