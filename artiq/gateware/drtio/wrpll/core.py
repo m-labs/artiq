@@ -8,13 +8,6 @@ from artiq.gateware.drtio.wrpll.ddmtd import DDMTD, Collector
 from artiq.gateware.drtio.wrpll import thls, filters
 
 
-def _eq_sign_extend(t, s):
-    """Assign target signal `t` from source `s`, sign-extending `s` to the
-    full width.
-    """
-    return t.eq(Cat(s, Replicate(s[-1], len(t) - len(s))))
-
-
 class FrequencyCounter(Module, AutoCSR):
     def __init__(self, timer_width=23, counter_width=23, domains=["helper", "rtio", "rtio_rx0"]):
         for domain in domains:
@@ -67,6 +60,13 @@ class WRPLL(Module, AutoCSR):
         self.helper_diff_tag = CSRStatus(32)
         self.ref_tag = CSRStatus(N)
         self.main_tag = CSRStatus(N)
+
+        main_diff_tag_32 = Signal((32, True))
+        helper_diff_tag_32 = Signal((32, True))
+        self.comb += [
+            self.main_diff_tag.status.eq(main_diff_tag_32),
+            self.helper_diff_tag.status.eq(helper_diff_tag_32)
+        ]
 
         self.clock_domains.cd_helper = ClockDomain()
         self.clock_domains.cd_filter = ClockDomain()
@@ -126,8 +126,8 @@ class WRPLL(Module, AutoCSR):
             If(collector_stb_sys,
                self.tag_arm.w.eq(0),
                If(self.tag_arm.w,
-                  _eq_sign_extend(self.main_diff_tag.status, main_diff_tag_sys),
-                  _eq_sign_extend(self.helper_diff_tag.status, helper_diff_tag_sys),
+                  main_diff_tag_32.eq(main_diff_tag_sys),
+                  helper_diff_tag_32.eq(helper_diff_tag_sys),
                   self.ref_tag.status.eq(ref_tag_sys),
                   self.main_tag.status.eq(main_tag_sys)
                  )
