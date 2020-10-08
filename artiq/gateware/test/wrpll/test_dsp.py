@@ -73,14 +73,13 @@ class TestDSP(unittest.TestCase):
 
         run_simulation(collector, generator())
 
-    @unittest.skip("FIXME")
     def test_helper_collector(self):
         N = 3
         collector = Collector(N=N)
         # check collector phase unwrapping
-        tags = [((2**N - 1 - tag) % (2**N), 0) for tag in range(20)]
-        tags += [((tags[-1][0] + 1 + tag) % (2**N), 2) for tag in range(20)]
-        tags += [((tags[-1][0] - 2 - 2*tag) % (2**N), -1) for tag in range(20)]
+        tags = [((2**N - 1 - tag) % (2**N), -1) for tag in range(20)]
+        tags += [((tags[-1][0] + 1 + tag) % (2**N), 1) for tag in range(20)]
+        tags += [((tags[-1][0] - 2 - 2*tag) % (2**N), -2) for tag in range(20)]
 
         def generator():
             for tag_ref, out in tags:
