@@ -587,14 +587,19 @@ class SatelliteBase(BaseSoC):
             self.submodules.wrpll_sampler = DDMTDSamplerGTP(
                 self.drtio_transceiver,
                 platform.request("cdr_clk_clean_fabric"))
+            helper_clk_pads = platform.request("ddmtd_helper_clk")
             self.submodules.wrpll = WRPLL(
-                helper_clk_pads=platform.request("ddmtd_helper_clk"),
+                helper_clk_pads=helper_clk_pads,
                 main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
                 helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
                 ddmtd_inputs=self.wrpll_sampler)
             self.csr_devices.append("wrpll")
-            platform.add_period_constraint(self.wrpll.cd_helper.clk, rtio_clk_period*0.99)
-            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.wrpll.cd_helper.clk)
+            # note: do not use self.wrpll.cd_helper.clk; otherwise, vivado craps out with:
+            # critical warning: create_clock attempting to set clock on an unknown port/pin
+            # command: "create_clock -period 7.920000 -waveform {0.000000 3.960000} -name
+            # helper_clk [get_xlnx_outside_genome_inst_pin 20 0]
+            platform.add_period_constraint(helper_clk_pads.p, rtio_clk_period*0.99)
+            platform.add_false_path_constraints(self.crg.cd_sys.clk, helper_clk_pads.p)
         else:
             self.submodules.siphaser = SiPhaser7Series(
                 si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
@@ -616,7 +621,7 @@ class SatelliteBase(BaseSoC):
             gtp.txoutclk, gtp.rxoutclk)
         if with_wrpll:
             platform.add_false_path_constraints(
-                self.wrpll.cd_helper.clk, gtp.rxoutclk)
+                helper_clk_pads.p, gtp.rxoutclk)
         for gtp in self.drtio_transceiver.gtps[1:]:
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
