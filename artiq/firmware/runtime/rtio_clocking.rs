@@ -67,7 +67,7 @@ pub mod crg {
 
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324_as_synthesizer() {
-    // 125 MHz output from 10 MHz CLKIN2, 504 Hz BW
+    // 125 MHz output from 10 MHz CLKINx reference, 504 Hz BW
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "10.0"))]
     const SI5324_SETTINGS: si5324::FrequencySettings
         = si5324::FrequencySettings {
@@ -75,12 +75,12 @@ fn setup_si5324_as_synthesizer() {
         nc1_ls : 4,
         n2_hs  : 10,
         n2_ls  : 300,
-        n31    : 75,
+        n31    : 6,
         n32    : 6,
         bwsel  : 4,
         crystal_ref: false
     };
-    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz loop bandwidth
+    // 125MHz output, from 100MHz CLKINx reference, 586 Hz loop bandwidth
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
     const SI5324_SETTINGS: si5324::FrequencySettings
         = si5324::FrequencySettings {
@@ -88,12 +88,12 @@ fn setup_si5324_as_synthesizer() {
         nc1_ls : 4,
         n2_hs  : 10,
         n2_ls  : 260,
-        n31    : 65,
+        n31    : 52,
         n32    : 52,
         bwsel  : 4,
         crystal_ref: false
     };
-    // 125MHz output, from 125MHz CLKIN2 reference, 606 Hz loop bandwidth
+    // 125MHz output, from 125MHz CLKINx reference, 606 Hz loop bandwidth
     #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "125.0"))]
     const SI5324_SETTINGS: si5324::FrequencySettings
         = si5324::FrequencySettings {
@@ -114,7 +114,7 @@ fn setup_si5324_as_synthesizer() {
         nc1_ls : 4,
         n2_hs  : 10,
         n2_ls  : 19972,
-        n31    : 4993,
+        n31    : 4565,
         n32    : 4565,
         bwsel  : 4,
         crystal_ref: true
@@ -127,7 +127,7 @@ fn setup_si5324_as_synthesizer() {
         nc1_ls : 4,
         n2_hs  : 10,
         n2_ls  : 33732,
-        n31    : 9370,
+        n31    : 7139,
         n32    : 7139,
         bwsel  : 3,
         crystal_ref: true
@@ -140,7 +140,7 @@ fn setup_si5324_as_synthesizer() {
         nc1_ls : 6,
         n2_hs  : 10,
         n2_ls  : 33732,
-        n31    : 9370,
+        n31    : 7139,
         n32    : 7139,
         bwsel  : 3,
         crystal_ref: true
