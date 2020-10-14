@@ -163,6 +163,8 @@ pub fn init() {
         let si5324_ext_input = si5324::Input::Ckin1;
         #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
         let si5324_ext_input = si5324::Input::Ckin2;
+        #[cfg(soc_platform = "metlino")]
+        let si5324_ext_input = si5324::Input::Ckin2;
         match get_rtio_clock_cfg() {
             RtioClock::Internal => setup_si5324_as_synthesizer(),
             RtioClock::External => si5324::bypass(si5324_ext_input).expect("cannot bypass Si5324")
