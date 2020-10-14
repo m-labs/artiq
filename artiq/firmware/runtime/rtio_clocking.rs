@@ -151,6 +151,8 @@ fn setup_si5324_as_synthesizer() {
     let si5324_ref_input = si5324::Input::Ckin1;
     #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
     let si5324_ref_input = si5324::Input::Ckin2;
+    #[cfg(soc_platform = "metlino")]
+    let si5324_ref_input = si5324::Input::Ckin2;
     si5324::setup(&SI5324_SETTINGS, si5324_ref_input).expect("cannot initialize Si5324");
 }
 
