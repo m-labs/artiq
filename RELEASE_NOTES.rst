@@ -33,15 +33,15 @@ Highlights:
    - Synchronization calibration data can be read from EEPROM.
 * A gateware-level input edge counter has been added, which offers higher
   throughput and increased flexibility over the usual TTL input PHYs where
-  edge timestamps are not required. See `artiq.coredevice.edge_counter` for
-  the core device driver and `artiq.gateware.rtio.phy.edge_counter`/
-  `artiq.gateware.eem.DIO.add_std` for the gateware components.
+  edge timestamps are not required. See ``martiq.coredevice.edge_counter`` for
+  the core device driver and ``artiq.gateware.rtio.phy.edge_counter``/
+  ``artiq.gateware.eem.DIO.add_std`` for the gateware components.
 * With DRTIO, Siphaser uses a better calibration mechanism.
   See: https://github.com/m-labs/artiq/commit/cc58318500ecfa537abf24127f2c22e8fe66e0f8
 * Schedule updates can be sent to influxdb (artiq_influxdb_schedule).
 * Experiments can now programatically set their default pipeline, priority, and flush flag.
 * List datasets can now be efficiently appended to from experiments using
-  `artiq.language.environment.HasEnvironment.append_to_dataset`.
+  ``artiq.language.environment.HasEnvironment.append_to_dataset``.
 * The core device now supports IPv6.
 * To make development easier, the bootloader can receive firmware and secondary FPGA
   gateware from the network.
@@ -51,8 +51,8 @@ Highlights:
 
 Breaking changes:
 
-* The `artiq.coredevice.ad9910.AD9910` and
-  `artiq.coredevice.ad9914.AD9914` phase reference timestamp parameters
+* The ``artiq.coredevice.ad9910.AD9910`` and
+  ``artiq.coredevice.ad9914.AD9914`` phase reference timestamp parameters
   have been renamed to ``ref_time_mu`` for consistency, as they are in machine
   units.
 * The controller manager now ignores device database entries without the
