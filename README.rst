@@ -48,9 +48,10 @@ The ARTIQ manifesto
 ===================
 
 The free and open dissemination of methods and results is central to scientific progress.
-The ARTIQ authors, contributors, and supporters consider the free and open exchange of scientific tools to be equally important and have chosen the licensing terms of ARTIQ accordingly.
-ARTIQ, including its gateware, the firmware, and the ARTIQ tools and libraries are licensed as LGPLv3+.
-This ensures that a user of ARTIQ obtains broad rights to use, redistribute, and modify it.
+
+The ARTIQ and Sinara authors, contributors, and supporters consider the free and open exchange of scientific tools to be equally important and have chosen the licensing terms of ARTIQ and Sinara accordingly. ARTIQ, including its gateware, the firmware, and the ARTIQ tools and libraries are licensed as LGPLv3+. The Sinara hardware designs are licensed under CERN OHL.
+This ensures that a user of ARTIQ or Sinara hardware designs obtains broad rights to use, redistribute, study, and modify them.
+
 The following statements are intended to clarify the interpretation and application of the licensing terms:
 
 * There is no requirement to distribute any unmodified, modified, or extended versions of ARTIQ. Only when distributing ARTIQ the source needs to be made available.
