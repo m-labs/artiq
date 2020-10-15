@@ -13,7 +13,7 @@ class TestFrontends(unittest.TestCase):
             ],
             "artiq": [
                 "client", "compile", "coreanalyzer", "coremgmt",
-                "netboot", "flash", "master", "mkfs", "route",
+                "flash", "master", "mkfs", "route",
                 "rtiomon", "run", "session", "browser", "dashboard"
             ]
         }
