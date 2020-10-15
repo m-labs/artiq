@@ -75,7 +75,7 @@ Highlights:
    - Synchronization calibration data can be read from EEPROM.
 * A gateware-level input edge counter has been added, which offers higher
   throughput and increased flexibility over the usual TTL input PHYs where
-  edge timestamps are not required. See ``martiq.coredevice.edge_counter`` for
+  edge timestamps are not required. See ``artiq.coredevice.edge_counter`` for
   the core device driver and ``artiq.gateware.rtio.phy.edge_counter``/
   ``artiq.gateware.eem.DIO.add_std`` for the gateware components.
 * With DRTIO, Siphaser uses a better calibration mechanism.
