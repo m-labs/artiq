@@ -9,12 +9,12 @@ ARTIQ-6
 Highlights:
 
 * New hardware support:
-  - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with
-    a floating-point unit for faster computations. This currently requires an external
-    repository (https://git.m-labs.hk/m-labs/artiq-zynq) and only supports the ZC706.
-  - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
-  - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
-  - Kasli 2.0
+   - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with a floating-point
+     unit for faster computations. This currently requires an external
+     repository (https://git.m-labs.hk/m-labs/artiq-zynq) and only supports the ZC706.
+   - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
+   - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
+   - Kasli 2.0
 * Matrix math support on the core device.
 * Trigonometric functions and miscellaneous math library support on the core device.
 * Performance improvements:
@@ -22,7 +22,7 @@ Highlights:
      than the RTIO period
    - Improved performance for kernel RPC involving list and array.
 * Coredevice SI to mu conversions now always return valid codes, or raise a ``ValueError``.
-* Zotino now exposes   ``voltage_to_mu()``
+* Zotino now exposes  ``voltage_to_mu()``
 * ``ad9910``: The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe``
   before).
 * Dashboard:
