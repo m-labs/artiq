@@ -18,8 +18,8 @@ Highlights:
 * Matrix math support on the core device.
 * Trigonometric functions and miscellaneous math library support on the core device.
 * Performance improvements:
-   - #1432: SERDES TTL inputs can now detect edges on pulses that are shorter
-     than the RTIO period
+   - SERDES TTL inputs can now detect edges on pulses that are shorter
+     than the RTIO period (https://github.com/m-labs/artiq/issues/1432)
    - Improved performance for kernel RPC involving list and array.
 * Coredevice SI to mu conversions now always return valid codes, or raise a ``ValueError``.
 * Zotino now exposes  ``voltage_to_mu()``
