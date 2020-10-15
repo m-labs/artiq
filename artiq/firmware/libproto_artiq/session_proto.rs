@@ -105,7 +105,6 @@ pub enum Reply<'a> {
 
     RpcRequest { async: bool },
 
-    WatchdogExpired,
     ClockFailure,
 }
 
@@ -191,9 +190,6 @@ impl<'a> Reply<'a> {
                 writer.write_u8(async as u8)?;
             },
 
-            Reply::WatchdogExpired => {
-                writer.write_u8(14)?;
-            },
             Reply::ClockFailure => {
                 writer.write_u8(15)?;
             },

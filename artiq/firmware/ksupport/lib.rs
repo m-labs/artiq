@@ -200,21 +200,6 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
     loop {}
 }
 
-#[unwind(allowed)]
-extern fn watchdog_set(ms: i64) -> i32 {
-    if ms < 0 {
-        raise!("ValueError", "cannot set a watchdog with a negative timeout")
-    }
-
-    send(&WatchdogSetRequest { ms: ms as u64 });
-    recv!(&WatchdogSetReply { id } => id) as i32
-}
-
-#[unwind(aborts)]
-extern fn watchdog_clear(id: i32) {
-    send(&WatchdogClear { id: id as usize })
-}
-
 #[unwind(aborts)]
 extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
     send(&CacheGetRequest {

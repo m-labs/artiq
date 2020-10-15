@@ -53,7 +53,6 @@ mod mgmt;
 mod profiler;
 mod kernel;
 mod kern_hwreq;
-mod watchdog;
 mod session;
 #[cfg(any(has_rtio_moninj, has_drtio))]
 mod moninj;

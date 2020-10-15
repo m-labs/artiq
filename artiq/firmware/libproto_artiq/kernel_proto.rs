@@ -52,10 +52,6 @@ pub enum Message<'a> {
     },
     RunAborted,
 
-    WatchdogSetRequest { ms: u64 },
-    WatchdogSetReply   { id: usize },
-    WatchdogClear      { id: usize },
-
     RpcSend {
         async: bool,
         service: u32,

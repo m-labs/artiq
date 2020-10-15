@@ -11,7 +11,6 @@ use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
-use watchdog::WatchdogSet;
 use board_artiq::drtio_routing;
 
 use rpc_proto as rpc;
@@ -28,10 +27,6 @@ pub enum Error<T> {
     InvalidPointer(usize),
     #[fail(display = "RTIO clock failure")]
     ClockFailure,
-    #[fail(display = "watchdog {} expired", _0)]
-    WatchdogExpired(usize),
-    #[fail(display = "out of watchdogs")]
-    OutOfWatchdogs,
     #[fail(display = "protocol error: {}", _0)]
     Protocol(#[cause] host::Error<T>),
     #[fail(display = "{}", _0)]
@@ -91,7 +86,6 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: WatchdogSet,
     log_buffer: String
 }
 
@@ -100,7 +94,6 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: WatchdogSet::new(),
             log_buffer: String::new()
         }
     }
@@ -396,15 +389,6 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 })
             }
 
-            &kern::WatchdogSetRequest { ms } => {
-                let id = session.watchdog_set.set_ms(ms).map_err(|()| Error::OutOfWatchdogs)?;
-                kern_send(io, &kern::WatchdogSetReply { id: id })
-            }
-            &kern::WatchdogClear { id } => {
-                session.watchdog_set.clear(id);
-                kern_acknowledge()
-            }
-
             &kern::RpcSend { async, service, tag, data } => {
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
@@ -522,11 +506,6 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if session.kernel_state == KernelState::Running {
-            if let Some(idx) = session.watchdog_set.expired() {
-                host_write(stream, host::Reply::WatchdogExpired)?;
-                return Err(Error::WatchdogExpired(idx))
-            }
-
             if !rtio_clocking::crg::check() {
                 host_write(stream, host::Reply::ClockFailure)?;
                 return Err(Error::ClockFailure)
@@ -565,10 +544,6 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
             if process_kern_message(io, aux_mutex, routing_table, up_destinations, None, &mut session)? {
                 return Ok(())
             }
-        }
-
-        if let Some(idx) = session.watchdog_set.expired() {
-            return Err(Error::WatchdogExpired(idx))
         }
 
         if !rtio_clocking::crg::check() {
