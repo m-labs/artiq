@@ -400,8 +400,11 @@ class NopUnit(BaseUnit):
 
 
 class OpUnit(BaseUnit):
-    def __init__(self, op, data_width, stages):
+    def __init__(self, op, data_width, stages, op_data_width=None):
         BaseUnit.__init__(self, data_width)
+        # work around Migen's mishandling of Verilog's cretinous operator width rules
+        if op_data_width is None:
+            op_data_width = data_width
 
         if stages > 1:
             # Vivado backward retiming for DSP does not work correctly if DSP inputs
@@ -419,10 +422,11 @@ class OpUnit(BaseUnit):
             i0, i1, stb_i = self.i0, self.i1, self.stb_i
             output_stages = stages
 
-        o = op(i0, i1)
+        o = Signal((op_data_width, True))
+        self.comb += o.eq(op(i0, i1))
         stb_o = stb_i
         for i in range(output_stages):
-            n_o = Signal(data_width)
+            n_o = Signal((data_width, True))
             if stages > 1:
                 n_o.attr.add(("retiming_backward", 1))
             n_stb_o = Signal()
@@ -552,9 +556,8 @@ class ProcessorImpl(Module):
         if pd.multiplier_shifts:
             if len(pd.multiplier_shifts) != 1:
                 raise NotImplementedError
-            # work around Migen's mishandling of Verilog's cretinous operator width rules
-            multiplier = OpUnit(lambda a, b: Cat(a, C(0, pd.data_width)) * Cat(b, C(0, pd.data_width)) >> pd.multiplier_shifts[0],
-                pd.data_width, pd.multiplier_stages)
+            multiplier = OpUnit(lambda a, b: a * b >> pd.multiplier_shifts[0],
+                pd.data_width, pd.multiplier_stages, op_data_width=2*pd.data_width)
         else:
             multiplier = NopUnit(pd.data_width)
         minu = SelectUnit(operator.lt, pd.data_width)
