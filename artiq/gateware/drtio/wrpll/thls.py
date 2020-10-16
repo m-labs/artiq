@@ -552,7 +552,8 @@ class ProcessorImpl(Module):
         if pd.multiplier_shifts:
             if len(pd.multiplier_shifts) != 1:
                 raise NotImplementedError
-            multiplier = OpUnit(lambda a, b: a * b >> pd.multiplier_shifts[0],
+            # work around Migen's mishandling of Verilog's cretinous operator width rules
+            multiplier = OpUnit(lambda a, b: Cat(a, C(0, pd.data_width)) * Cat(b, C(0, pd.data_width)) >> pd.multiplier_shifts[0],
                 pd.data_width, pd.multiplier_stages)
         else:
             multiplier = NopUnit(pd.data_width)
