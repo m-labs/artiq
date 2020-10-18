@@ -74,9 +74,8 @@ class SerDes(Module):
         # big shift register for mosi and
         sr = [Signal(t_frame, reset_less=True) for i in range(n_mosi)]
         assert len(Cat(sr)) == len(words)
-        crc_insert = ([d[1] for d in self.data[:-1]] +
-                      [d[0] for d in self.data[:-1]])
-        crc_insert = Cat(crc_insert[-n_crc:])
+        crc_insert = Cat(([d[0] for d in self.data[1:-1]] +
+                          [d[1] for d in self.data[1:-1]])[:n_crc])
         miso_sr = Signal(t_frame, reset_less=True)
         miso_sr_next = Signal.like(miso_sr)
         self.comb += [
@@ -106,8 +105,8 @@ class SerDes(Module):
                 # transpose, load
                 [sri.eq(Cat(words[i::n_mosi])) for i, sri in enumerate(sr)],
                 # inject crc for the last cycle
-                crc_insert.eq(self.crca.next if n_crc // n_mosi == 1
-                              else self.crcb.next),
+                crc_insert.eq(self.crca.next if n_crc // n_mosi <= 1
+                              else self.crca.last),
             ),
         ]
 

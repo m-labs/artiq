@@ -36,8 +36,7 @@ class TestPhaser(unittest.TestCase):
         frame = []
         self.dut.comb += self.dut.payload.eq((1 << len(self.dut.payload)) - 1)
         run_simulation(self.dut, self.record_frame(frame),
-            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]},
-            vcd_name="fastlink.vcd")
+            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]})
         self.assertEqual(len(frame), 8*10//2)
         self.assertEqual([d[0] for d in frame], [0, 0, 3, 3] * 10)
         self.assertEqual([d[1] & 1 for d in frame[4*4 - 1:10*4 - 1:4]],
@@ -79,12 +78,7 @@ class TestFastino(unittest.TestCase):
         frame = []
         self.dut.comb += self.dut.payload.eq((1 << len(self.dut.payload)) - 1)
         run_simulation(self.dut, self.record_frame(frame),
-            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]},
-            vcd_name="fastlink.vcd")
+            clocks={n: 2 for n in ["sys", "rio", "rio_phy"]})
         self.assertEqual(len(frame), 7*14//2)
         self.assertEqual([d[0] for d in frame], [3, 0, 1, 3, 2, 0, 3] * 7)
-        self.assertEqual(ref, frame)
-        print(frame)
-
-
-ref = [[3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 2, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 1, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 2, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 1, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 2, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 1, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 2, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [1, 3, 3, 3, 3, 3, 3, 0], [3, 3, 3, 3, 3, 3, 3, 0], [2, 3, 3, 3, 3, 3, 3, 0], [0, 3, 3, 3, 3, 3, 3, 0], [3, 3, 1, 1, 1, 2, 1, 0]]
+        self.assertEqual(frame[-1], [3, 3, 1, 1, 1, 2, 1, 0])  # crc12
