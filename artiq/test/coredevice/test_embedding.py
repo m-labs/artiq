@@ -423,3 +423,40 @@ class ListTupleTest(ExperimentCase):
 
     def test_empty_list(self):
         self.create(_EmptyList).run()
+
+
+class _ArrayQuoting(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.vec_i32 = np.array([0, 1], dtype=np.int32)
+        self.mat_i64 = np.array([[0, 1], [2, 3]], dtype=np.int64)
+        self.arr_f64 = np.array([[[0.0, 1.0], [2.0, 3.0]],
+                                 [[4.0, 5.0], [6.0, 7.0]]])
+        self.strs = np.array(["foo", "bar"])
+
+    @kernel
+    def run(self):
+        assert self.vec_i32[0] == 0
+        assert self.vec_i32[1] == 1
+
+        assert self.mat_i64[0, 0] == 0
+        assert self.mat_i64[0, 1] == 1
+        assert self.mat_i64[1, 0] == 2
+        assert self.mat_i64[1, 1] == 3
+
+        assert self.arr_f64[0, 0, 0] == 0.0
+        assert self.arr_f64[0, 0, 1] == 1.0
+        assert self.arr_f64[0, 1, 0] == 2.0
+        assert self.arr_f64[0, 1, 1] == 3.0
+        assert self.arr_f64[1, 0, 0] == 4.0
+        assert self.arr_f64[1, 0, 1] == 5.0
+        assert self.arr_f64[1, 1, 0] == 6.0
+        assert self.arr_f64[1, 1, 1] == 7.0
+
+        assert self.strs[0] == "foo"
+        assert self.strs[1] == "bar"
+
+
+class ArrayQuotingTest(ExperimentCase):
+    def test_quoting(self):
+        self.create(_ArrayQuoting).run()

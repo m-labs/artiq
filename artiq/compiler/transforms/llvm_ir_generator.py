@@ -1503,6 +1503,17 @@ class LLVMIRGenerator:
 
         return llcall
 
+    def _quote_listish_to_llglobal(self, value, elt_type, path, kind_name):
+        llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
+                     for i in range(len(value))]
+        lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
+                                list(llelts))
+        name = self.llmodule.scope.deduplicate("quoted.{}".format(kind_name))
+        llglobal = ll.GlobalVariable(self.llmodule, lleltsary.type, name)
+        llglobal.initializer = lleltsary
+        llglobal.linkage = "private"
+        return llglobal.bitcast(lleltsary.type.element.as_pointer())
+
     def _quote(self, value, typ, path):
         value_id = id(value)
         if value_id in self.llobject_map:
@@ -1579,21 +1590,19 @@ class LLVMIRGenerator:
             llstr     = self.llstr_of_str(as_bytes)
             llconst   = ll.Constant(llty, [llstr, ll.Constant(lli32, len(as_bytes))])
             return llconst
+        elif builtins.is_array(typ):
+            assert isinstance(value, numpy.ndarray), fail_msg
+            typ = typ.find()
+            assert len(value.shape) == typ["num_dims"].find().value
+            flattened = value.reshape((-1,))
+            lleltsptr = self._quote_listish_to_llglobal(flattened, typ["elt"], path, "array")
+            llshape = ll.Constant.literal_struct([ll.Constant(lli32, s) for s in value.shape])
+            return ll.Constant(llty, [lleltsptr, llshape])
         elif builtins.is_listish(typ):
             assert isinstance(value, (list, numpy.ndarray)), fail_msg
             elt_type  = builtins.get_iterable_elt(typ)
-            llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
-                         for i in range(len(value))]
-            lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
-                                    list(llelts))
-
-            name      = self.llmodule.scope.deduplicate("quoted.{}".format(typ.name))
-            llglobal  = ll.GlobalVariable(self.llmodule, lleltsary.type, name)
-            llglobal.initializer = lleltsary
-            llglobal.linkage = "private"
-
-            lleltsptr = llglobal.bitcast(lleltsary.type.element.as_pointer())
-            llconst   = ll.Constant(llty, [lleltsptr, ll.Constant(lli32, len(llelts))])
+            lleltsptr = self._quote_listish_to_llglobal(value, elt_type, path, typ.find().name)
+            llconst   = ll.Constant(llty, [lleltsptr, ll.Constant(lli32, len(value))])
             return llconst
         elif types.is_tuple(typ):
             assert isinstance(value, tuple), fail_msg
