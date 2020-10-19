@@ -51,6 +51,7 @@ class SinaraTester(EnvExperiment):
         self.samplers = dict()
         self.zotinos = dict()
         self.fastinos = dict()
+        self.phasers = dict()
         self.grabbers = dict()
 
         ddb = self.get_device_db()
@@ -77,6 +78,8 @@ class SinaraTester(EnvExperiment):
                     self.zotinos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.fastino", "Fastino"):
                     self.fastinos[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.phaser", "Phaser"):
+                    self.phasers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
 
@@ -111,6 +114,7 @@ class SinaraTester(EnvExperiment):
         self.samplers = sorted(self.samplers.items(), key=lambda x: x[1].cnv.channel)
         self.zotinos = sorted(self.zotinos.items(), key=lambda x: x[1].bus.channel)
         self.fastinos = sorted(self.fastinos.items(), key=lambda x: x[1].channel)
+        self.phasers = sorted(self.phasers.items(), key=lambda x: x[1].channel_base)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
 
     @kernel
@@ -392,6 +396,57 @@ class SinaraTester(EnvExperiment):
         )
 
     @kernel
+    def set_phaser_frequencies(self, phaser, duc, osc):
+        self.core.break_realtime()
+        phaser.init()
+        delay(1*ms)
+        phaser.channel[0].set_duc_frequency(duc)
+        phaser.channel[0].set_duc_cfg()
+        phaser.channel[0].set_att(6*dB)
+        phaser.channel[1].set_duc_frequency(-duc)
+        phaser.channel[1].set_duc_cfg()
+        phaser.channel[1].set_att(6*dB)
+        phaser.duc_stb()
+        delay(1*ms)
+        for i in range(len(osc)):
+            phaser.channel[0].oscillator[i].set_frequency(osc[i])
+            phaser.channel[0].oscillator[i].set_amplitude_phase(.2)
+            phaser.channel[1].oscillator[i].set_frequency(-osc[i])
+            phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
+            delay(1*ms)
+
+    @kernel
+    def phaser_led_wave(self, phasers):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for phaser in phasers:
+                for i in range(6):
+                    phaser.set_leds(1 << i)
+                    delay(100*ms)
+                phaser.set_leds(0)
+                delay(100*ms)
+
+    def test_phasers(self):
+        print("*** Testing Phaser DACs and 6 USER LEDs.")
+        print("Frequencies:")
+        for card_n, (card_name, card_dev) in enumerate(self.phasers):
+            duc = (card_n + 1)*10*MHz
+            osc = [i*1*MHz for i in range(5)]
+            print(card_name,
+                  " ".join(["{:.0f}+{:.0f}".format(duc/MHz, f/MHz) for f in osc]),
+                  "MHz")
+            self.set_phaser_frequencies(card_dev, duc, osc)
+        print("Press ENTER when done.")
+        # Test switching on/off USR_LEDs at the same time
+        self.phaser_led_wave(
+            [card_dev for _, (__, card_dev) in enumerate(self.phasers)]
+        )
+
+    @kernel
     def grabber_capture(self, card_dev, rois):
         self.core.break_realtime()
         delay(100*us)
@@ -443,6 +498,8 @@ class SinaraTester(EnvExperiment):
             self.test_zotinos()
         if self.fastinos:
             self.test_fastinos()
+        if self.phasers:
+            self.test_phasers()
         if self.grabbers:
             self.test_grabbers()
 
