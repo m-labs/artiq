@@ -237,6 +237,8 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
         if isinstance(node.slice, ast.Index):
             if types.is_tuple(node.slice.value.type):
+                if types.is_var(node.value.type):
+                    return
                 if not builtins.is_array(node.value.type):
                     diag = diagnostic.Diagnostic(
                         "error",
