@@ -42,6 +42,9 @@ assert matrix[1, 0] == 4.0
 assert matrix[1, 1] == 8.0
 assert matrix[1, 2] == 6.0
 
+array_of_matrices = array([matrix, matrix])
+assert array_of_matrices.shape == (2, 2, 3)
+
 three_tensor = array([[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]])
 assert len(three_tensor) == 1
 assert three_tensor.shape == (1, 2, 3)

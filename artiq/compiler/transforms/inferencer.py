@@ -892,7 +892,10 @@ class Inferencer(algorithm.Visitor):
                         return  # undetermined yet
                     if not builtins.is_iterable(elt) or builtins.is_str(elt):
                         break
-                    num_dims += 1
+                    if builtins.is_array(elt):
+                        num_dims += elt.find()["num_dims"].value
+                    else:
+                        num_dims += 1
                     elt = builtins.get_iterable_elt(elt)
 
                 if explicit_dtype is not None:
