@@ -428,11 +428,11 @@ class ListTupleTest(ExperimentCase):
 class _ArrayQuoting(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.vec_i32 = np.array([0, 1], dtype=np.int32)
-        self.mat_i64 = np.array([[0, 1], [2, 3]], dtype=np.int64)
-        self.arr_f64 = np.array([[[0.0, 1.0], [2.0, 3.0]],
-                                 [[4.0, 5.0], [6.0, 7.0]]])
-        self.strs = np.array(["foo", "bar"])
+        self.vec_i32 = numpy.array([0, 1], dtype=numpy.int32)
+        self.mat_i64 = numpy.array([[0, 1], [2, 3]], dtype=numpy.int64)
+        self.arr_f64 = numpy.array([[[0.0, 1.0], [2.0, 3.0]],
+                                    [[4.0, 5.0], [6.0, 7.0]]])
+        self.strs = numpy.array(["foo", "bar"])
 
     @kernel
     def run(self):
