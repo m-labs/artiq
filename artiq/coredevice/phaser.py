@@ -87,7 +87,7 @@ class Phaser:
     delay capabilities are available.
 
     The latency/group delay from the RTIO events setting
-    :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all they
+    :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
     way to the DAC outputs is deterministic. This enables deterministic
     absolute phase with respect to other RTIO input and output events.
 
@@ -672,7 +672,7 @@ class PhaserChannel:
         quadrature is within range.
 
     .. note:: The interpolation filter on Phaser has an intrinsic sinc-like
-        overshoot in its step response. That overshoot is an direct consequence
+        overshoot in its step response. That overshoot is a direct consequence
         of its near-brick-wall frequency response. For large and wide-band
         changes in oscillator parameters, the overshoot can lead to clipping
         or overflow after the interpolation. Either band-limit any changes
