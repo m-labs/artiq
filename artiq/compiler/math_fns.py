@@ -1,3 +1,9 @@
+r"""
+The :mod:`math_fns` module lists math-related functions from NumPy recognized
+by the ARTIQ compiler so host function objects can be :func:`match`\ ed to
+the compiler type metadata describing their core device analogue.
+"""
+
 from collections import OrderedDict
 import numpy
 from . import builtins, types
