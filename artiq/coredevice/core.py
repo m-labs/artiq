@@ -106,7 +106,8 @@ class Core:
 
             module = Module(stitcher,
                 ref_period=self.ref_period,
-                attribute_writeback=attribute_writeback)
+                attribute_writeback=attribute_writeback,
+                raise_assertion_errors=self.target_cls.raise_assertion_errors)
             target = self.target_cls()
 
             library = target.compile_and_link([module])

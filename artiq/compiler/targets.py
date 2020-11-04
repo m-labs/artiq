@@ -80,6 +80,9 @@ class Target:
         determined from data_layout due to JIT.
     :var now_pinning: (boolean)
         Whether the target implements the now-pinning RTIO optimization.
+    :var raise_assertion_errors: (bool)
+        Whether to raise an AssertionError on failed assertions or abort/panic
+        instead.
     """
     triple = "unknown"
     data_layout = ""
@@ -87,6 +90,7 @@ class Target:
     print_function = "printf"
     little_endian = False
     now_pinning = True
+    raise_assertion_errors = False
 
     tool_ld = "ld.lld"
     tool_strip = "llvm-strip"
@@ -276,6 +280,10 @@ class CortexA9Target(Target):
     print_function = "core_log"
     little_endian = True
     now_pinning = False
+
+    # Support for marshalling kernel CPU panics as RunAborted errors is not
+    # implemented in the ARTIQ Zynq runtime.
+    raise_assertion_errors = True
 
     tool_ld = "armv7-unknown-linux-gnueabihf-ld"
     tool_strip = "armv7-unknown-linux-gnueabihf-strip"

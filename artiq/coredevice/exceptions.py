@@ -11,6 +11,7 @@ ZeroDivisionError = builtins.ZeroDivisionError
 ValueError = builtins.ValueError
 IndexError = builtins.IndexError
 RuntimeError = builtins.RuntimeError
+AssertionError = builtins.AssertionError
 
 
 class CoreException:
