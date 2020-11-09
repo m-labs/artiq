@@ -63,6 +63,17 @@ class ADF5356Exp(EnvExperiment):
         self.set_dataset("muxout", self.dev.read_muxout())
 
     @kernel
+    def muxout_lock_detect_no_lock(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        # set external SMA reference input
+        self.dev.cpld.write_reg(1, (1 << 4))
+        self.dev.set_frequency(100 * MHz)
+        delay(5 * ms)
+        self.set_dataset("muxout", self.dev.read_muxout())
+
+    @kernel
     def set_get_output_power(self):
         self.core.break_realtime()
         self.dev.cpld.init()
@@ -167,6 +178,11 @@ class ADF5356Test(ExperimentCase):
         self.execute(ADF5356Exp, "muxout_lock_detect")
         muxout = self.dataset_mgr.get("muxout")
         self.assertTrue(muxout)
+
+    def test_muxout_lock_detect_no_lock(self):
+        self.execute(ADF5356Exp, "muxout_lock_detect_no_lock")
+        muxout = self.dataset_mgr.get("muxout")
+        self.assertFalse(muxout)
 
     def test_set_too_high_frequency(self):
         with self.assertRaises(ValueError):
