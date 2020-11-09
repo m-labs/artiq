@@ -485,6 +485,10 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
             csr::wrpll::main_dcxo_gpio_enable_write(0);
             csr::wrpll::helper_dcxo_errors_write(0xff);
             csr::wrpll::main_dcxo_errors_write(0xff);
+            csr::wrpll::collector_reset_write(0);
+        }
+        clock::spin_us(1_000); // wait for the collector to produce meaningful output
+        unsafe {
             csr::wrpll::filter_reset_write(0);
         }
 
@@ -499,6 +503,7 @@ fn select_recovered_clock_int(rc: bool) -> Result<(), &'static str> {
 
         unsafe {
             csr::wrpll::filter_reset_write(1);
+            csr::wrpll::collector_reset_write(1);
         }
         clock::spin_us(50_000);
         unsafe {
