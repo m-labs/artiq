@@ -1,4 +1,6 @@
 import unittest
+import numpy as np
+
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.adf5356 import (
@@ -29,7 +31,7 @@ class ADF5356Exp(EnvExperiment):
         self.dev.init()
 
     @kernel
-    def set_get_simple(self):
+    def set_get_freq(self):
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
@@ -59,6 +61,35 @@ class ADF5356Exp(EnvExperiment):
         self.dev.set_frequency(f)
         delay(5 * ms)
         self.set_dataset("muxout", self.dev.read_muxout())
+
+    @kernel
+    def set_get_output_power(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        self.dev.set_att_mu(0)
+        self.dev.set_frequency(100 * MHz)
+        self.set_dataset("get_power", np.full(4, np.nan))
+        for n in range(4):
+            delay(10 * ms)
+            self.dev.set_output_power_mu(n)
+            m = self.dev.output_power_mu()
+            self.mutate_dataset("get_power", n, m)
+
+    @kernel
+    def invalid_output_power_setting(self):
+        self.dev.set_output_power_mu(42)
+
+    @kernel
+    def enable_disable_output(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        self.dev.set_att_mu(0)
+        self.dev.set_frequency(100 * MHz)
+        self.dev.disable_output()
+        delay(100 * us)
+        self.dev.enable_output()
 
 
 class TestCalculateParameters(unittest.TestCase):
@@ -126,8 +157,8 @@ class ADF5356Test(ExperimentCase):
     def test_init(self):
         self.execute(ADF5356Exp, "init")
 
-    def test_set_get_simple(self):
-        self.execute(ADF5356Exp, "set_get_simple")
+    def test_set_get_freq(self):
+        self.execute(ADF5356Exp, "set_get_freq")
         f_set = self.dataset_mgr.get("freq_set")
         f_get = self.dataset_mgr.get("freq_get")
         self.assertEqual(f_set, f_get)
@@ -144,3 +175,16 @@ class ADF5356Test(ExperimentCase):
     def test_set_too_low_frequency(self):
         with self.assertRaises(ValueError):
             self.execute(ADF5356Exp, "set_too_low_frequency")
+
+    def test_set_get_output_power(self):
+        self.execute(ADF5356Exp, "set_get_output_power")
+        get_power = self.dataset_mgr.get("get_power")
+        for n in range(4):
+            self.assertEqual(n, get_power[n])
+
+    def test_invalid_output_power_setting(self):
+        with self.assertRaises(ValueError):
+            self.execute(ADF5356Exp, "invalid_output_power_setting")
+
+    def test_enable_disable_output(self):
+        self.execute(ADF5356Exp, "enable_disable_output")
