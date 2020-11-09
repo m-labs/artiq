@@ -475,6 +475,18 @@ class ADF5355:
 
 
 @portable
+def gcd(a, b):
+    while b:
+        a, b = b, a % b
+    return a
+
+
+@portable
+def split_msb_lsb_28b(v):
+    return int32((v >> 14) & 0x3FFF), int32(v & 0x3FFF)
+
+
+@portable
 def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
     """
     Calculate fractional-N PLL parameters such that
@@ -489,20 +501,21 @@ def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
     f_vco = int64(f_vco)
 
     # integral part
-    n = int32(f_vco / f_pfd)
-    r = f_vco / f_pfd - n
+    n, r = int32(f_vco // f_pfd), f_vco % f_pfd
 
     # main fractional part
-    frac1 = int32(ADF5355_MODULUS1 * r)
-    r = r * ADF5355_MODULUS1 - frac1
+    r *= ADF5355_MODULUS1
+    frac1, frac2 = int32(r // f_pfd), r % f_pfd
 
     # auxiliary fractional part
-    # FIXME: calculate optimal MOD2
-    mod2 = ADF5355_MAX_MODULUS2
-    frac2 = int32(r * mod2)
+    mod2 = f_pfd
 
-    # split frac2, mod2
-    frac2_msb, frac2_lsb = (frac2 >> 14) & 0x3FFF, frac2 & 0x3FFF
-    mod2_msb, mod2_lsb = (mod2 >> 14) & 0x3FFF, mod2 & 0x3FFF
+    while mod2 > ADF5355_MAX_MODULUS2:
+        mod2 >>= 1
+        frac2 >>= 1
 
-    return n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb)
+    gcd_div = gcd(frac2, mod2)
+    mod2 //= gcd_div
+    frac2 //= gcd_div
+
+    return n, frac1, split_msb_lsb_28b(frac2), split_msb_lsb_28b(mod2)
