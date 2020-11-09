@@ -117,6 +117,43 @@ class ADF5356:
         return bool(self.cpld.read_reg(0) & (1 << (self.channel + 8)))
 
     @kernel
+    def set_output_power_mu(self, n):
+        """
+        Set the power level at output A of the PLL chip in machine units.
+
+        This driver defaults to `n = 3` at init.
+
+        :param n: output power setting, 0, 1, 2, or 3 (see ADF5356 datasheet, fig. 44).
+        """
+        if n not in [0, 1, 2, 3]:
+            raise ValueError("invalid power setting")
+        self.regs[6] = ADF5356_REG6_RF_OUTPUT_A_POWER_UPDATE(self.regs[6], n)
+        self.sync()
+
+    @portable
+    def output_power_mu(self):
+        """
+        Return the power level at output A of the PLL chip in machine units.
+        """
+        return ADF5356_REG6_RF_OUTPUT_A_POWER_GET(self.regs[6])
+
+    @kernel
+    def enable_output(self):
+        """
+        Enable output A of the PLL chip. This is the default after init.
+        """
+        self.regs[6] |= ADF5356_REG6_RF_OUTPUT_A_ENABLE(1)
+        self.sync()
+
+    @kernel
+    def disable_output(self):
+        """
+        Disable output A of the PLL chip.
+        """
+        self.regs[6] &= ~ADF5356_REG6_RF_OUTPUT_A_ENABLE(1)
+        self.sync()
+
+    @kernel
     def set_frequency(self, f):
         """
         Output given frequency on output A.
