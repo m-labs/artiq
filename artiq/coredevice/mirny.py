@@ -38,7 +38,7 @@ class Mirny:
         frequency in Hz
     :param clk_sel: Reference clock selection.
         valid options are: 0 - internal 100MHz XO; 1 - front-panel SMA; 2 -
-    internal MMCX
+        internal MMCX
     :param core_device: Core device name (default: "core")
     """
 
