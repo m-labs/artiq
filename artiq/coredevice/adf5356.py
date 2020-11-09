@@ -32,11 +32,6 @@ SPI_CONFIG = (
 
 ADF5356_MIN_VCO_FREQ = int64(3.4 * GHz)
 ADF5356_MAX_VCO_FREQ = int64(6.8 * GHz)
-ADF5356_MAX_OUTA_FREQ = ADF5356_MAX_VCO_FREQ
-ADF5356_MIN_OUTA_FREQ = ADF5356_MIN_VCO_FREQ / 64
-ADF5356_MAX_OUTB_FREQ = ADF5356_MAX_VCO_FREQ * 2
-ADF5356_MIN_OUTB_FREQ = ADF5356_MIN_VCO_FREQ * 2
-
 ADF5356_MAX_FREQ_PFD = int32(125.0 * MHz)
 ADF5356_MODULUS1 = int32(1 << 24)
 ADF5356_MAX_MODULUS2 = int32(1 << 28)  # FIXME: ADF5356 has 28 bits MOD2
@@ -114,6 +109,11 @@ class ADF5356:
 
     @kernel
     def read_muxout(self):
+        """
+        Read the state of the MUXOUT line.
+
+        By default, this is configured to be the digital lock detection.
+        """
         return bool(self.cpld.read_reg(0) & (1 << (self.channel + 8)))
 
     @kernel
@@ -346,6 +346,9 @@ class ADF5356:
         return 1 << ADF5356_REG6_RF_DIVIDER_SELECT_GET(self.regs[6])
 
     def info(self):
+        """
+        Return a summary of high-level parameters as a dict.
+        """
         prescaler = ADF5356_REG0_PRESCALER_GET(self.regs[0])
         return {
             # output
@@ -533,11 +536,14 @@ def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
     """
     Calculate fractional-N PLL parameters such that
 
-    f_vco = f_pfd * (n + (frac1 + frac2/mod2) / mod1)
+    ``f_vco`` = ``f_pfd`` * (``n`` + (``frac1`` + ``frac2``/``mod2``) / ``mod1``)
 
     where
-        mod1 = 2**24
-        mod2 = 2**28
+        ``mod1 = 2**24`` and ``mod2 <= 2**28``
+
+    :param f_vco: target VCO frequency
+    :param f_pfd: PFD frequency
+    :return: ``(n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb))``
     """
     f_pfd = int64(f_pfd)
     f_vco = int64(f_vco)
