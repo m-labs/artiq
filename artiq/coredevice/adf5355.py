@@ -9,13 +9,12 @@ on Mirny-style prefixed SPI buses.
 # https://www.analog.com/media/en/technical-documentation/user-guides/EV-ADF5356SD1Z-UG-1087.pdf
 
 
-from artiq.language.core import kernel, portable, rpc, delay
+from artiq.language.core import kernel, portable, delay
 from artiq.language.units import us, GHz, MHz
 from artiq.language.types import TInt32, TInt64
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice.adf5355_reg import *
 
-from fractions import Fraction
 from numpy import int32, int64, floor, ceil
 
 
@@ -303,7 +302,6 @@ class ADF5355:
         """
         return ADF5355_REG4_R_COUNTER_GET(self.regs[4])
 
-    @rpc
     def info(self):
         output_divider = 1 << ADF5355_REG6_RF_DIVIDER_SELECT_GET(self.regs[6])
         prescaler = ADF5355_REG0_PRESCALER_GET(self.regs[0])
