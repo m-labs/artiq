@@ -79,11 +79,11 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
 
     # FIXME: This should work, but currently passes as the argument is just
-    # synthesised as the same call to array(), instead of using the "type
-    # inference" result from the host NumPy implementation.
+    # synthesised as a call to array() without forwarding the dype form the host
+    # NumPy object.
     @unittest.expectedFailure
     def test_array_jagged(self):
-        self.assertArrayRoundtrip(numpy.array([[1, 2], [3]]))
+        self.assertArrayRoundtrip(numpy.array([[1, 2], [3]], dtype=object))
 
 
 class _DefaultArg(EnvExperiment):
