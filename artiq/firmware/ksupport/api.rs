@@ -63,7 +63,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(__powidf2),
 
     /* libc */
-    api!(abort = ::abort),
     api!(memcmp, extern { fn memcmp(a: *const u8, b: *mut u8, size: usize); }),
 
     /* libm */

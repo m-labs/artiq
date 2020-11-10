@@ -374,8 +374,6 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [self.llty_of_type(builtins.TException())])
         elif name == "__artiq_reraise":
             llty = ll.FunctionType(llvoid, [])
-        elif name in "abort":
-            llty = ll.FunctionType(llvoid, [])
         elif name == "memcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr, lli32])
         elif name == "rpc_send":
@@ -1143,8 +1141,6 @@ class LLVMIRGenerator:
     def process_Builtin(self, insn):
         if insn.op == "nop":
             return self.llbuilder.call(self.llbuiltin("llvm.donothing"), [])
-        if insn.op == "abort":
-            return self.llbuilder.call(self.llbuiltin("abort"), [])
         elif insn.op == "is_some":
             lloptarg = self.map(insn.operands[0])
             return self.llbuilder.extract_value(lloptarg, 0,
