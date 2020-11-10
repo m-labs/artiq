@@ -40,8 +40,7 @@ class Source:
             return cls(source.Buffer(f.read(), filename, 1), engine=engine)
 
 class Module:
-    def __init__(self, src, ref_period=1e-6, attribute_writeback=True, remarks=False,
-                 raise_assertion_errors=False):
+    def __init__(self, src, ref_period=1e-6, attribute_writeback=True, remarks=False):
         self.attribute_writeback = attribute_writeback
         self.engine = src.engine
         self.embedding_map = src.embedding_map
@@ -56,11 +55,9 @@ class Module:
         iodelay_estimator = transforms.IODelayEstimator(engine=self.engine,
                                                         ref_period=ref_period)
         constness_validator = validators.ConstnessValidator(engine=self.engine)
-        artiq_ir_generator = transforms.ARTIQIRGenerator(
-            engine=self.engine,
-            module_name=src.name,
-            ref_period=ref_period,
-            raise_assertion_errors=raise_assertion_errors)
+        artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
+                                                         module_name=src.name,
+                                                         ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
         local_demoter = transforms.LocalDemoter()

@@ -15,8 +15,10 @@ Highlights:
    - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
    - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
    - Kasli 2.0
-* Matrix math support on the core device.
-* Trigonometric functions and miscellaneous math library support on the core device.
+* ARTIQ Python (core device kernels):
+   - Matrix math support on the core device.
+   - Trigonometric functions and miscellaneous math library support on the core device.
+   - Failed assertions now raise ``AssertionError``\ s instead of aborting kernel execution.
 * Performance improvements:
    - SERDES TTL inputs can now detect edges on pulses that are shorter
      than the RTIO period (https://github.com/m-labs/artiq/issues/1432)

@@ -53,12 +53,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         a component of a composite right-hand side when visiting
         a composite left-hand side, such as, in ``x, y = z``,
         the 2nd tuple element when visting ``y``
-    :ivar current_assert_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
-        the environment where the individual components of current assert
-        statement are stored until display
-    :ivar current_assert_subexprs: (list of (:class:`ast.AST`, string))
-        the mapping from components of current assert statement to the names
-        their values have in :ivar:`current_assert_env`
     :ivar break_target: (:class:`ir.BasicBlock` or None)
         the basic block to which ``break`` will transfer control
     :ivar continue_target: (:class:`ir.BasicBlock` or None)
@@ -94,12 +88,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     _size_type = builtins.TInt32()
 
-    def __init__(self, module_name, engine, ref_period, raise_assertion_errors):
+    def __init__(self, module_name, engine, ref_period):
         self.engine = engine
         self.functions = []
         self.name = [module_name] if module_name != "" else []
         self.ref_period = ir.Constant(ref_period, builtins.TFloat())
-        self.raise_assertion_errors = raise_assertion_errors
         self.current_loc = None
         self.current_function = None
         self.current_class = None
@@ -109,8 +102,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_private_env = None
         self.current_args = None
         self.current_assign = None
-        self.current_assert_env = None
-        self.current_assert_subexprs = None
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -1324,7 +1315,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         for value_node in node.values:
             value_head = self.current_block
             value = self.visit(value_node)
-            self.instrument_assert(value_node, value)
             value_tail = self.current_block
 
             blocks.append((value, value_head, value_tail))
@@ -2014,11 +2004,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         # of comparisons.
         blocks = []
         lhs = self.visit(node.left)
-        self.instrument_assert(node.left, lhs)
         for op, rhs_node in zip(node.ops, node.comparators):
             result_head = self.current_block
             rhs = self.visit(rhs_node)
-            self.instrument_assert(rhs_node, rhs)
             result = self.polymorphic_compare_pair(op, lhs, rhs)
             result_tail = self.current_block
 
@@ -2475,22 +2463,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_QuoteT(self, node):
         return self.append(ir.Quote(node.value, node.type))
 
-    def instrument_assert(self, node, value):
-        if self.current_assert_env is not None:
-            if isinstance(value, ir.Constant):
-                return # don't display the values of constants
-
-            if any([algorithm.compare(node, subexpr)
-                    for (subexpr, name) in self.current_assert_subexprs]):
-                return # don't display the same subexpression twice
-
-            name = self.current_assert_env.type.add("$subexpr", ir.TOption(node.type))
-            value_opt = self.append(ir.Alloc([value], ir.TOption(node.type)),
-                                    loc=node.loc)
-            self.append(ir.SetLocal(self.current_assert_env, name, value_opt),
-                        loc=node.loc)
-            self.current_assert_subexprs.append((node, name))
-
     def _get_raise_assert_func(self):
         """Emit the helper function that constructs AssertionErrors and raises
         them, if it does not already exist in the current module.
@@ -2542,38 +2514,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return self.raise_assert_func
 
     def visit_Assert(self, node):
-        try:
-            assert_suffix   = ".assert@{}:{}".format(node.loc.line(), node.loc.column())
-            assert_env_type = ir.TEnvironment(name=self.current_function.name + assert_suffix,
-                                              vars={})
-            assert_env = self.current_assert_env = \
-                self.append(ir.Alloc([], assert_env_type, name="assertenv"))
-            assert_subexprs = self.current_assert_subexprs = []
-            init = self.current_block
-
-            prehead = self.current_block = self.add_block("assert.prehead")
-            cond = self.visit(node.test)
-            head = self.current_block
-        finally:
-            self.current_assert_env = None
-            self.current_assert_subexprs = None
-
-        for subexpr_node, subexpr_name in assert_subexprs:
-            empty = init.append(ir.Alloc([], ir.TOption(subexpr_node.type)))
-            init.append(ir.SetLocal(assert_env, subexpr_name, empty))
-        init.append(ir.Branch(prehead))
+        cond = self.visit(node.test)
+        head = self.current_block
 
         if_failed = self.current_block = self.add_block("assert.fail")
-
-        if self.raise_assertion_errors:
-            self._raise_assertion_error(node)
-        else:
-            self._abort_after_assertion(node, assert_subexprs, assert_env)
-
-        tail = self.current_block = self.add_block("assert.tail")
-        self.append(ir.BranchIf(cond, tail, if_failed), block=head)
-
-    def _raise_assertion_error(self, node):
         text = str(node.msg.s) if node.msg else "AssertionError"
         msg = ir.Constant(text, builtins.TStr())
         loc_file = ir.Constant(node.loc.source_buffer.name, builtins.TStr())
@@ -2584,39 +2528,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             msg, loc_file, loc_line, loc_column, loc_function
         ], "assert.fail")
 
-    def _abort_after_assertion(self, node, assert_subexprs, assert_env):
-        if node.msg:
-            explanation = node.msg.s
-        else:
-            explanation = node.loc.source()
-        self.append(ir.Builtin("printf", [
-                ir.Constant("assertion failed at %.*s: %.*s\n\x00", builtins.TStr()),
-                ir.Constant(str(node.loc.begin()), builtins.TStr()),
-                ir.Constant(str(explanation), builtins.TStr()),
-            ], builtins.TNone()))
-
-        for subexpr_node, subexpr_name in assert_subexprs:
-            subexpr_head = self.current_block
-            subexpr_value_opt = self.append(ir.GetLocal(assert_env, subexpr_name))
-            subexpr_cond = self.append(ir.Builtin("is_some", [subexpr_value_opt],
-                                                  builtins.TBool()))
-
-            subexpr_body = self.current_block = self.add_block("assert.subexpr.body")
-            self.append(ir.Builtin("printf", [
-                    ir.Constant("  (%.*s) = \x00", builtins.TStr()),
-                    ir.Constant(subexpr_node.loc.source(), builtins.TStr())
-                ], builtins.TNone()))
-            subexpr_value = self.append(ir.Builtin("unwrap", [subexpr_value_opt],
-                                                   subexpr_node.type))
-            self.polymorphic_print([subexpr_value], separator="", suffix="\n")
-            subexpr_postbody = self.current_block
-
-            subexpr_tail = self.current_block = self.add_block("assert.subexpr.tail")
-            self.append(ir.Branch(subexpr_tail), block=subexpr_postbody)
-            self.append(ir.BranchIf(subexpr_cond, subexpr_body, subexpr_tail), block=subexpr_head)
-
-        self.append(ir.Builtin("abort", [], builtins.TNone()))
-        self.append(ir.Unreachable())
+        tail = self.current_block = self.add_block("assert.tail")
+        self.append(ir.BranchIf(cond, tail, if_failed), block=head)
 
     def polymorphic_print(self, values, separator, suffix="", as_repr=False, as_rtio=False):
         def printf(format_string, *args):

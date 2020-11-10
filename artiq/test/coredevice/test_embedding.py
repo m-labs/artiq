@@ -466,9 +466,6 @@ class _Assert(EnvExperiment):
     def build(self):
         self.setattr_device("core")
 
-    def raises_assertion_errors(self):
-        return self.core.target_cls.raises_assertion_errors
-
     @kernel
     def check(self, value):
         assert value
@@ -483,15 +480,9 @@ class AssertTest(ExperimentCase):
         exp = self.create(_Assert)
 
         def check_fail(fn, msg):
-            if exp.raises_assertion_errors:
-                with self.assertRaises(AssertionError) as ctx:
-                    fn()
-                self.assertEqual(str(ctx.exception), msg)
-            else:
-                # Without assertion exceptions, core device panics should still lead
-                # to a cleanly dropped connectionr rather than a hang/…
-                with self.assertRaises(ConnectionResetError):
-                    fn()
+            with self.assertRaises(AssertionError) as ctx:
+                fn()
+            self.assertEqual(str(ctx.exception), msg)
 
         exp.check(True)
         check_fail(lambda: exp.check(False), "AssertionError")
