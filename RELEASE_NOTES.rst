@@ -16,9 +16,14 @@ Highlights:
    - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
    - Kasli 2.0
 * ARTIQ Python (core device kernels):
-   - Matrix math support on the core device.
-   - Trigonometric functions and miscellaneous math library support on the core device.
-   - Failed assertions now raise ``AssertionError``\ s instead of aborting kernel execution.
+   - Multidimensional arrays are now available on the core device, using NumPy syntax.
+     Elementwise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and
+     multidimensional indexing are supported; slices and views are not yet.
+   - Trigonometric and other common math functions from NumPy are now available on the
+     core device (e.g. ``numpy.sin``), both for scalar arguments and implicitly
+     broadcast across multidimensional arrays.
+   - Failed assertions now raise ``AssertionError``\ s instead of aborting kernel
+     execution.
 * Performance improvements:
    - SERDES TTL inputs can now detect edges on pulses that are shorter
      than the RTIO period (https://github.com/m-labs/artiq/issues/1432)
@@ -45,6 +50,10 @@ Breaking changes:
 * ``artiq_netboot`` has been moved to its own repository at
   https://git.m-labs.hk/m-labs/artiq-netboot
 * Core device watchdogs have been removed.
+* The ARTIQ compiler now implements arrays following NumPy semantics, rather than as a
+  thin veneer around lists. Most prior use cases of NumPy arrays in kernels should work
+  unchanged with the new implementation, but the behavior might differ slightly in some
+  cases (for instance, non-rectangular arrays are not currently supported).
 
 
 ARTIQ-5
