@@ -301,7 +301,7 @@ class _CenterScan(LayoutWidget):
         apply_properties(center)
         center.setPrecision()
         center.setRelativeStep()
-        center.setValue(state["center"])
+        center.setValue(state["center"]/scale)
         self.addWidget(center, 0, 1)
         self.addWidget(QtWidgets.QLabel("Center:"), 0, 0)
 
@@ -311,7 +311,7 @@ class _CenterScan(LayoutWidget):
         span.setPrecision()
         span.setRelativeStep()
         span.setMinimum(0)
-        span.setValue(state["span"])
+        span.setValue(state["span"]/scale)
         self.addWidget(span, 1, 1)
         self.addWidget(QtWidgets.QLabel("Span:"), 1, 0)
 
@@ -321,7 +321,7 @@ class _CenterScan(LayoutWidget):
         step.setPrecision()
         step.setRelativeStep()
         step.setMinimum(0)
-        step.setValue(state["step"])
+        step.setValue(state["step"]/scale)
         self.addWidget(step, 2, 1)
         self.addWidget(QtWidgets.QLabel("Step:"), 2, 0)
 
