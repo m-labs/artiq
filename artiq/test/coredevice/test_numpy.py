@@ -27,7 +27,7 @@ class CompareHostDeviceTest(ExperimentCase):
     def _test_binop(self, op, a, b):
         exp = self.create(_RunOnDevice)
         exp.run = kernel_from_string(["a", "b", "callback", "numpy"],
-                                     "callback(a " + op + "b)",
+                                     "callback(" + op + ")",
                                      decorator=portable)
         checked = False
 
@@ -74,16 +74,17 @@ class CompareHostDeviceTest(ExperimentCase):
                 for typ in [numpy.int32, numpy.int64, numpy.float]]
         for op in ELEM_WISE_BINOPS:
             for arg in args:
-                self._test_binop(op, *arg)
+                self._test_binop("a" + op + "b", *arg)
 
     def test_scalar_matrix_binops(self):
         for typ in [numpy.int32, numpy.int64, numpy.float]:
             scalar = typ(3)
             matrix = numpy.array([[4, 5, 6], [7, 8, 9]], dtype=typ)
             for op in ELEM_WISE_BINOPS:
-                self._test_binop(op, scalar, matrix)
-                self._test_binop(op, matrix, scalar)
-                self._test_binop(op, matrix, matrix)
+                code = "a" + op + "b"
+                self._test_binop(code, scalar, matrix)
+                self._test_binop(code, matrix, scalar)
+                self._test_binop(code, matrix, matrix)
 
     def test_unary_math_fns(self):
         names = [
@@ -99,3 +100,17 @@ class CompareHostDeviceTest(ExperimentCase):
             # Avoid 0.5, as numpy.rint's rounding mode currently doesn't match.
             self._test_unaryop(op, 0.51)
             self._test_unaryop(op, numpy.array([[0.3, 0.4], [0.51, 0.6]]))
+
+    def test_binary_math_fns(self):
+        names = [name for name, _ in math_fns.binary_fp_runtime_calls]
+        exp = self.create(_RunOnDevice)
+        if exp.core.target_cls != CortexA9Target:
+            names.remove("fmax")
+            names.remove("fmin")
+        for name in names:
+            code = "numpy.{}(a, b)".format(name)
+            # Avoid 0.5, as numpy.rint's rounding mode currently doesn't match.
+            self._test_binop(code, 1.0, 2.0)
+            self._test_binop(code, 1.0, numpy.array([2.0, 3.0]))
+            self._test_binop(code, numpy.array([1.0, 2.0]), 3.0)
+            self._test_binop(code, numpy.array([1.0, 2.0]), numpy.array([3.0, 4.0]))

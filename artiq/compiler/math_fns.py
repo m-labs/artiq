@@ -53,23 +53,36 @@ unary_fp_runtime_calls = [
     ("cbrt", "cbrt"),
 ]
 
+#: (float, float) -> float numpy.* math functions lowered to runtime calls.
+binary_fp_runtime_calls = [
+    ("arctan2", "atan2"),
+    ("copysign", "copysign"),
+    ("fmax", "fmax"),
+    ("fmin", "fmin"),
+    # ("ldexp", "ldexp"),  # One argument is an int; would need a bit more plumbing.
+    ("hypot", "hypot"),
+    ("nextafter", "nextafter"),
+]
+
 #: Array handling builtins (special treatment due to allocations).
 numpy_builtins = ["transpose"]
 
 
-def unary_fp_type(name):
-    return types.TExternalFunction(OrderedDict([("arg", builtins.TFloat())]),
+def fp_runtime_type(name, arity):
+    args = [("arg{}".format(i), builtins.TFloat()) for i in range(arity)]
+    return types.TExternalFunction(OrderedDict(args),
                                    builtins.TFloat(),
                                    name,
                                    # errno isn't observable from ARTIQ Python.
                                    flags={"nounwind", "nowrite"},
                                    broadcast_across_arrays=True)
 
-
 numpy_map = {
-    getattr(numpy, symbol): unary_fp_type(mangle)
+    getattr(numpy, symbol): fp_runtime_type(mangle, arity=1)
     for symbol, mangle in (unary_fp_intrinsics + unary_fp_runtime_calls)
 }
+for symbol, mangle in binary_fp_runtime_calls:
+    numpy_map[getattr(numpy, symbol)] = fp_runtime_type(mangle, arity=2)
 for name in numpy_builtins:
     numpy_map[getattr(numpy, name)] = types.TBuiltinFunction("numpy." + name)
 

@@ -1502,6 +1502,48 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.final_branch = old_final_branch
             self.unwind_target = old_unwind
 
+    def _make_array_elementwise_binop(self, name, result_type, lhs_type,
+                                      rhs_type, make_op):
+        def body_gen(result, lhs, rhs):
+            # At this point, shapes are assumed to match; could just pass buffer
+            # pointer for two of the three arrays as well.
+            result_buffer = self.append(ir.GetAttr(result, "buffer"))
+            shape = self.append(ir.GetAttr(result, "shape"))
+            num_total_elts = self._get_total_array_len(shape)
+
+            if builtins.is_array(lhs.type):
+                lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
+                def get_left(index):
+                    return self.append(ir.GetElem(lhs_buffer, index))
+            else:
+                def get_left(index):
+                    return lhs
+
+            if builtins.is_array(rhs.type):
+                rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
+                def get_right(index):
+                    return self.append(ir.GetElem(rhs_buffer, index))
+            else:
+                def get_right(index):
+                    return rhs
+
+            def loop_gen(index):
+                l = get_left(index)
+                r = get_right(index)
+                result = make_op(l, r)
+                self.append(ir.SetElem(result_buffer, index, result))
+                return self.append(
+                    ir.Arith(ast.Add(loc=None), index,
+                             ir.Constant(1, self._size_type)))
+
+            self._make_loop(
+                ir.Constant(0, self._size_type), lambda index: self.append(
+                    ir.Compare(ast.Lt(loc=None), index, num_total_elts)),
+                loop_gen)
+
+        return self._make_array_binop(name, result_type, lhs_type, rhs_type,
+                                      body_gen)
+
     def _mangle_arrayop_types(self, types):
         def name_error(typ):
             assert False, "Internal compiler error: No RPC tag for {}".format(typ)
@@ -1517,53 +1559,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         return "_".join(mangle_name(t) for t in types)
 
-    def _get_array_binop(self, op, result_type, lhs_type, rhs_type):
+    def _get_array_elementwise_binop(self, name, make_op, result_type, lhs_type, rhs_type):
         # Currently, we always have any type coercions resolved explicitly in the AST.
         # In the future, this might no longer be true and the three types might all
         # differ.
         name = "_array_{}_{}".format(
-            type(op).__name__,
+            name,
             self._mangle_arrayop_types([result_type, lhs_type, rhs_type]))
         if name not in self.array_op_funcs:
-
-            def body_gen(result, lhs, rhs):
-                # At this point, shapes are assumed to match; could just pass buffer
-                # pointer for two of the three arrays as well.
-                result_buffer = self.append(ir.GetAttr(result, "buffer"))
-                shape = self.append(ir.GetAttr(result, "shape"))
-                num_total_elts = self._get_total_array_len(shape)
-
-                if builtins.is_array(lhs.type):
-                    lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
-                    def get_left(index):
-                        return self.append(ir.GetElem(lhs_buffer, index))
-                else:
-                    def get_left(index):
-                        return lhs
-
-                if builtins.is_array(rhs.type):
-                    rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
-                    def get_right(index):
-                        return self.append(ir.GetElem(rhs_buffer, index))
-                else:
-                    def get_right(index):
-                        return rhs
-
-                def loop_gen(index):
-                    l = get_left(index)
-                    r = get_right(index)
-                    result = self.append(ir.Arith(op, l, r))
-                    self.append(ir.SetElem(result_buffer, index, result))
-                    return self.append(
-                        ir.Arith(ast.Add(loc=None), index,
-                                 ir.Constant(1, self._size_type)))
-
-                self._make_loop(
-                    ir.Constant(0, self._size_type), lambda index: self.append(
-                        ir.Compare(ast.Lt(loc=None), index, num_total_elts)), loop_gen)
-
-            self.array_op_funcs[name] = self._make_array_binop(
-                name, result_type, lhs_type, rhs_type, body_gen)
+            self.array_op_funcs[name] = self._make_array_elementwise_binop(
+                name, result_type, lhs_type, rhs_type, make_op)
         return self.array_op_funcs[name]
 
     def _invoke_arrayop(self, func, params):
@@ -1721,6 +1726,34 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return self.append(ir.Alloc([result_buffer, shape], node.type))
         return self.append(ir.GetElem(result_buffer, ir.Constant(0, self._size_type)))
 
+    def _broadcast_binop(self, name, make_op, result_type, lhs, rhs):
+        # Broadcast scalars (broadcasting higher dimensions is not yet allowed in the
+        # language).
+        broadcast = False
+        array_arg = lhs
+        if not builtins.is_array(lhs.type):
+            broadcast = True
+            array_arg = rhs
+        elif not builtins.is_array(rhs.type):
+            broadcast = True
+
+        shape = self.append(ir.GetAttr(array_arg, "shape"))
+
+        if not broadcast:
+            rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
+            self._make_check(
+                self.append(ir.Compare(ast.Eq(loc=None), shape, rhs_shape)),
+                lambda: self.alloc_exn(
+                    builtins.TException("ValueError"),
+                    ir.Constant("operands could not be broadcast together",
+                                builtins.TStr())))
+
+        elt = result_type.find()["elt"]
+        result, _ = self._allocate_new_array(elt, shape)
+        func = self._get_array_elementwise_binop(name, make_op, result_type, lhs.type,
+            rhs.type)
+        self._invoke_arrayop(func, [result, lhs, rhs])
+        return result
 
     def visit_BinOpT(self, node):
         if isinstance(node.op, ast.MatMult):
@@ -1728,31 +1761,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
         elif builtins.is_array(node.type):
             lhs = self.visit(node.left)
             rhs = self.visit(node.right)
-
-            # Broadcast scalars.
-            broadcast = False
-            array_arg = lhs
-            if not builtins.is_array(lhs.type):
-                broadcast = True
-                array_arg = rhs
-            elif not builtins.is_array(rhs.type):
-                broadcast = True
-
-            shape = self.append(ir.GetAttr(array_arg, "shape"))
-
-            if not broadcast:
-                rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
-                self._make_check(
-                    self.append(ir.Compare(ast.Eq(loc=None), shape, rhs_shape)),
-                    lambda: self.alloc_exn(
-                        builtins.TException("ValueError"),
-                        ir.Constant("operands could not be broadcast together",
-                                    builtins.TStr())))
-
-            result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
-            func = self._get_array_binop(node.op, node.type, lhs.type, rhs.type)
-            self._invoke_arrayop(func, [result, lhs, rhs])
-            return result
+            name = type(node.op).__name__
+            def make_op(l, r):
+                return self.append(ir.Arith(node.op, l, r))
+            return self._broadcast_binop(name, make_op, node.type, lhs, rhs)
         elif builtins.is_numeric(node.type):
             lhs = self.visit(node.left)
             rhs = self.visit(node.right)
@@ -2427,25 +2439,27 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if types.is_builtin(node.func.type):
             insn = self.visit_builtin_call(node)
         elif (types.is_broadcast_across_arrays(node.func.type) and len(args) >= 1
-              and builtins.is_array(args[0].type)):
+              and any(builtins.is_array(arg.type) for arg in args)):
             # The iodelay machinery set up in the surrounding code was
             # deprecated/a relic from the past when array broadcasting support
             # was added, so no attempt to keep the delay tracking intact is
             # made.
-            assert len(args) == 1, "Broadcasting for multiple arguments not implemented"
-
-            def make_call(val):
-                return self._user_call(ir.Constant(None, callee.type), [val], {},
+            def make_call(*args):
+                return self._user_call(ir.Constant(None, callee.type), args, {},
                                        node.arg_exprs)
-
-            shape = self.append(ir.GetAttr(args[0], "shape"))
-            result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
-
             # TODO: Generate more generically if non-externals are allowed.
             name = node.func.type.find().name
-            func = self._get_array_unaryop(name, make_call, node.type, args[0].type)
-            self._invoke_arrayop(func, [result, args[0]])
-            insn = result
+
+            if len(args) == 1:
+                shape = self.append(ir.GetAttr(args[0], "shape"))
+                result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
+                func = self._get_array_unaryop(name, make_call, node.type, args[0].type)
+                self._invoke_arrayop(func, [result, args[0]])
+                insn = result
+            elif len(args) == 2:
+                insn = self._broadcast_binop(name, make_call, node.type, *args)
+            else:
+                assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
             insn = self._user_call(callee, args, keywords, node.arg_exprs)
             if isinstance(node.func, asttyped.AttributeT):

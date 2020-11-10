@@ -28,3 +28,4 @@ def entrypoint():
     assert numpy.arcsin(0.0) == 0.0
     assert numpy.arccos(1.0) == 0.0
     assert numpy.arctan(0.0) == 0.0
+    assert numpy.arctan2(0.0, 1.0) == 0.0

@@ -405,6 +405,47 @@ class Inferencer(algorithm.Visitor):
         else:
             assert False
 
+    def _coerce_binary_broadcast_op(self, left, right, map_return_elt, op_loc):
+        def num_dims(typ):
+            if builtins.is_array(typ):
+                # TODO: If number of dimensions is ever made a non-fixed parameter,
+                # need to acutally unify num_dims in _coerce_binop/….
+                return typ.find()["num_dims"].value
+            return 0
+
+        left_dims = num_dims(left.type)
+        right_dims = num_dims(right.type)
+        if left_dims != right_dims and left_dims != 0 and right_dims != 0:
+            # Mismatch (only scalar broadcast supported for now).
+            note1 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
+                                            {"num_dims": left_dims}, left.loc)
+            note2 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
+                                            {"num_dims": right_dims}, right.loc)
+            diag = diagnostic.Diagnostic(
+                "error", "dimensions of '{op}' array operands must match",
+                {"op": op_loc.source()}, op_loc, [left.loc, right.loc], [note1, note2])
+            self.engine.process(diag)
+            return
+
+        def map_node_type(typ):
+            if not builtins.is_array(typ):
+                # This is a single value broadcast across the array.
+                return typ
+            return typ.find()["elt"]
+
+        # Figure out result type, handling broadcasts.
+        result_dims = left_dims if left_dims else right_dims
+        def map_return(typ):
+            elt = map_return_elt(typ)
+            result = builtins.TArray(elt=elt, num_dims=result_dims)
+            left = builtins.TArray(elt=elt, num_dims=left_dims) if left_dims else elt
+            right = builtins.TArray(elt=elt, num_dims=right_dims) if right_dims else elt
+            return (result, left, right)
+
+        return self._coerce_numeric((left, right),
+                                    map_return=map_return,
+                                    map_node_type=map_node_type)
+
     def _coerce_binop(self, op, left, right):
         if isinstance(op, ast.MatMult):
             if types.is_var(left.type) or types.is_var(right.type):
@@ -477,45 +518,11 @@ class Inferencer(algorithm.Visitor):
                 self.engine.process(diag)
                 return
 
-            def num_dims(typ):
-                if builtins.is_array(typ):
-                    # TODO: If number of dimensions is ever made a non-fixed parameter,
-                    # need to acutally unify num_dims in _coerce_binop.
-                    return typ.find()["num_dims"].value
-                return 0
-
-            left_dims = num_dims(left.type)
-            right_dims = num_dims(right.type)
-            if left_dims != right_dims and left_dims != 0 and right_dims != 0:
-                # Mismatch (only scalar broadcast supported for now).
-                note1 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
-                                              {"num_dims": left_dims}, left.loc)
-                note2 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
-                                              {"num_dims": right_dims}, right.loc)
-                diag = diagnostic.Diagnostic(
-                    "error", "dimensions of '{op}' array operands must match",
-                    {"op": op.loc.source()}, op.loc, [left.loc, right.loc], [note1, note2])
-                self.engine.process(diag)
-                return
-
-            def map_node_type(typ):
-                if not builtins.is_array(typ):
-                    # This is a single value broadcast across the array.
-                    return typ
-                return typ.find()["elt"]
-
-            # Figure out result type, handling broadcasts.
-            result_dims = left_dims if left_dims else right_dims
-            def map_return(typ):
-                elt = builtins.TFloat() if isinstance(op, ast.Div) else typ
-                result = builtins.TArray(elt=elt, num_dims=result_dims)
-                left = builtins.TArray(elt=elt, num_dims=left_dims) if left_dims else elt
-                right = builtins.TArray(elt=elt, num_dims=right_dims) if right_dims else elt
-                return (result, left, right)
-
-            return self._coerce_numeric((left, right),
-                                        map_return=map_return,
-                                        map_node_type=map_node_type)
+            def map_result(typ):
+                if isinstance(op, ast.Div):
+                    return builtins.TFloat()
+                return typ
+            return self._coerce_binary_broadcast_op(left, right, map_result, op.loc)
         elif isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor,
                            ast.LShift, ast.RShift)):
             # bitwise operators require integers
@@ -1290,15 +1297,26 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
             return
 
-        # Array broadcasting for unary functions explicitly marked as such.
-        if len(node.args) == typ_arity == 1 and types.is_broadcast_across_arrays(typ):
-            arg_type = node.args[0].type.find()
-            if builtins.is_array(arg_type):
-                typ_arg, = typ_args.values()
-                self._unify(typ_arg, arg_type["elt"], node.args[0].loc, None)
-                self._unify(node.type, builtins.TArray(typ_ret, arg_type["num_dims"]),
-                            node.loc, None)
-                return
+        # Array broadcasting for functions explicitly marked as such.
+        if len(node.args) == typ_arity and types.is_broadcast_across_arrays(typ):
+            if typ_arity == 1:
+                arg_type = node.args[0].type.find()
+                if builtins.is_array(arg_type):
+                    typ_arg, = typ_args.values()
+                    self._unify(typ_arg, arg_type["elt"], node.args[0].loc, None)
+                    self._unify(node.type, builtins.TArray(typ_ret, arg_type["num_dims"]),
+                                node.loc, None)
+                    return
+            elif typ_arity == 2:
+                if any(builtins.is_array(arg.type) for arg in node.args):
+                    ret, arg0, arg1 = self._coerce_binary_broadcast_op(
+                        node.args[0], node.args[1], lambda t: typ_ret, node.loc)
+                    node.args[0] = self._coerce_one(arg0, node.args[0],
+                                                    other_node=node.args[1])
+                    node.args[1] = self._coerce_one(arg1, node.args[1],
+                                                    other_node=node.args[0])
+                    self._unify(node.type, ret, node.loc, None)
+                    return
 
         for actualarg, (formalname, formaltyp) in \
                 zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
