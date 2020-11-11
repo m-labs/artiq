@@ -1,5 +1,6 @@
 from artiq.experiment import *
 import numpy
+import scipy.special
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.compiler.targets import CortexA9Target
 from artiq.compiler import math_fns
@@ -10,12 +11,12 @@ class _RunOnDevice(EnvExperiment):
         self.setattr_device("core")
 
     @kernel
-    def run_on_kernel_unary(self, a, callback, numpy):
-        self.run(a, callback, numpy)
+    def run_on_kernel_unary(self, a, callback, numpy, scipy):
+        self.run(a, callback, numpy, scipy)
 
     @kernel
-    def run_on_kernel_binary(self, a, b, callback, numpy):
-        self.run(a, b, callback, numpy)
+    def run_on_kernel_binary(self, a, b, callback, numpy, scipy):
+        self.run(a, b, callback, numpy, scipy)
 
 
 # Binary operations supported for scalars and arrays of any dimension, including
@@ -26,7 +27,7 @@ ELEM_WISE_BINOPS = ["+", "*", "//", "%", "**", "-", "/"]
 class CompareHostDeviceTest(ExperimentCase):
     def _test_binop(self, op, a, b):
         exp = self.create(_RunOnDevice)
-        exp.run = kernel_from_string(["a", "b", "callback", "numpy"],
+        exp.run = kernel_from_string(["a", "b", "callback", "numpy", "scipy"],
                                      "callback(" + op + ")",
                                      decorator=portable)
         checked = False
@@ -40,14 +41,14 @@ class CompareHostDeviceTest(ExperimentCase):
                     "Discrepancy in binop test for '{}': Expexcted ({}, {}) -> {}, got {}"
                     .format(op, a, b, host, device))
 
-            exp.run_on_kernel_binary(a, b, with_both_results, numpy)
+            exp.run_on_kernel_binary(a, b, with_both_results, numpy, scipy)
 
-        exp.run(a, b, with_host_result, numpy)
+        exp.run(a, b, with_host_result, numpy, scipy)
         self.assertTrue(checked, "Test did not run")
 
     def _test_unaryop(self, op, a):
         exp = self.create(_RunOnDevice)
-        exp.run = kernel_from_string(["a", "callback", "numpy"],
+        exp.run = kernel_from_string(["a", "callback", "numpy", "scipy"],
                                      "callback(" + op + ")",
                                      decorator=portable)
         checked = False
@@ -61,9 +62,9 @@ class CompareHostDeviceTest(ExperimentCase):
                     "Discrepancy in unaryop test for '{}': Expexcted {} -> {}, got {}"
                     .format(op, a, host, device))
 
-            exp.run_on_kernel_unary(a, with_both_results, numpy)
+            exp.run_on_kernel_unary(a, with_both_results, numpy, scipy)
 
-        exp.run(a, with_host_result, numpy)
+        exp.run(a, with_host_result, numpy, scipy)
         self.assertTrue(checked, "Test did not run")
 
     def test_scalar_scalar_binops(self):
@@ -100,6 +101,15 @@ class CompareHostDeviceTest(ExperimentCase):
             # Avoid 0.5, as numpy.rint's rounding mode currently doesn't match.
             self._test_unaryop(op, 0.51)
             self._test_unaryop(op, numpy.array([[0.3, 0.4], [0.51, 0.6]]))
+
+    def test_unary_scipy_fns(self):
+        names = [name for name, _ in math_fns.scipy_special_unary_runtime_calls]
+        if self.create(_RunOnDevice).core.target_cls != CortexA9Target:
+            names.remove("gamma")
+        for name in names:
+            op = "scipy.special.{}(a)".format(name)
+            self._test_unaryop(op, 0.5)
+            self._test_unaryop(op, numpy.array([[0.3, 0.4], [0.5, 0.6]]))
 
     def test_binary_math_fns(self):
         names = [name for name, _ in math_fns.binary_fp_runtime_calls]
