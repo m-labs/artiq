@@ -112,9 +112,9 @@ class XYHistPlot(QtWidgets.QSplitter):
 
     def data_changed(self, data, mods):
         try:
-            xs = data[self.args.xs][1]
-            histogram_bins = data[self.args.histogram_bins][1]
-            histograms_counts = data[self.args.histograms_counts][1]
+            xs = data[self.args.xs]["value"]
+            histogram_bins = data[self.args.histogram_bins]["value"]
+            histograms_counts = data[self.args.histograms_counts]["value"]
         except KeyError:
             return
         if self._can_use_partial(mods):

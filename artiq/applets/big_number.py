@@ -13,7 +13,7 @@ class NumberWidget(QtWidgets.QLCDNumber):
 
     def data_changed(self, data, mods):
         try:
-            n = float(data[self.dataset_name][1])
+            n = float(data[self.dataset_name]["value"])
         except (KeyError, ValueError, TypeError):
             n = "---"
         self.display(n)

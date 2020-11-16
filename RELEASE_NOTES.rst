@@ -13,6 +13,10 @@ Highlights:
    - Improved documentation
    - Expose the DAC coarse mixer and sif_sync
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
+* HDF5 options can now be passed when creating datasets with ``set_dataset``. This allows
+  in particular to use transparent compression filters as follows:
+  ``set_dataset(name, value, compression="gzip")``.
+
 
 Breaking changes:
 * Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
@@ -20,6 +24,9 @@ Breaking changes:
 * `Phaser.init()` now disables all Kasli-oscillators. This avoids full power RF output being
   generated for some configurations.
 * Phaser: fixed coarse mixer frequency configuration
+* The internal dataset representation was changed to support tracking HDF5 options like e.g.
+  a compression method. This requires changes to code reading the dataset persistence file
+  (``dataset_db.pyon``) and to custom applets.
 
 
 ARTIQ-6
@@ -88,6 +95,7 @@ Breaking changes:
 * Analyzer dump format includes a byte for device endianness.
 * Experiment classes with underscore-prefixed names are now ignored when ``artiq_client``
   determines which experiment to submit (consistent with ``artiq_run``).
+
 
 ARTIQ-5
 -------

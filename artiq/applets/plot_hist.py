@@ -13,11 +13,11 @@ class HistogramPlot(pyqtgraph.PlotWidget):
 
     def data_changed(self, data, mods, title):
         try:
-            y = data[self.args.y][1]
+            y = data[self.args.y]["value"]
             if self.args.x is None:
                 x = None
             else:
-                x = data[self.args.x][1]
+                x = data[self.args.x]["value"]
         except KeyError:
             return
         if x is None:
