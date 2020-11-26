@@ -259,6 +259,8 @@ class SinaraTester(EnvExperiment):
                 eeprom.write_i32(offset, eeprom_word)
         print("...done")
 
+        print("All urukul channels active.")
+        print("Check each channel amplitude (~1.6Vpp/8dbm at 50ohm) and frequency.")
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.urukuls, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
@@ -270,7 +272,8 @@ class SinaraTester(EnvExperiment):
 
         sw = [channel_dev for channel_name, channel_dev in self.urukuls if hasattr(channel_dev, "sw")]
         if sw:
-            print("Testing RF switch control. Press ENTER when done.")
+            print("Testing RF switch control. Check LEDs at urukul RF ports.")
+            print("Press ENTER when done.")
             for swi in sw:
                 self.cfg_sw_off_urukul(swi)
             self.rf_switch_wave([swi.sw for swi in sw])
