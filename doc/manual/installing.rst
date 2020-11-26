@@ -285,9 +285,9 @@ For DRTIO systems, the startup kernel should wait until the desired destinations
 
 If you are using DRTIO and the default routing table (for a star topology) is not suitable to your needs, prepare and load a different routing table. See :ref:`Using DRTIO <using-drtio>`.
 
-* Select the RTIO clock source (KC705 only)
+* Select the RTIO clock source (KC705 and Kasli)
 
-The KC705 may use either an external clock signal or its internal clock. The clock is selected at power-up. Use one of these commands: ::
+The KC705 may use either an external clock signal or its internal clock. The clock is selected at power-up. For Kasli, setting the RTIO clock source to "external" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
 
   $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
   $ artiq_coremgmt config write -s rtio_clock e  # external clock
