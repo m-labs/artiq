@@ -25,6 +25,7 @@ def globals():
         "IndexError":           builtins.fn_IndexError(),
         "ValueError":           builtins.fn_ValueError(),
         "ZeroDivisionError":    builtins.fn_ZeroDivisionError(),
+        "RuntimeError":         builtins.fn_RuntimeError(),
 
         # Built-in Python functions
         "len":                  builtins.fn_len(),
