@@ -399,6 +399,9 @@ class _DeviceManager:
                     self.disconnect_cb)
             try:
                 await new_core_connection.connect(self.core_addr, 1383)
+            except asyncio.CancelledError:
+                logger.info("cancelled connection to core device moninj")
+                break
             except:
                 logger.error("failed to connect to core device moninj", exc_info=True)
                 await asyncio.sleep(10.)
