@@ -498,7 +498,7 @@ class PeripheralManager:
             }}""",
             name=self.get_name("phaser"),
             channel=rtio_offset)
-        return 6
+        return 5
 
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
