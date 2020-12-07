@@ -416,7 +416,7 @@ def main():
     parser.add_argument("-V", "--variant", default="satellite",
         help="variant: satellite/simplesatellite "
              "(default: %(default)s)")
-    parser.add_argument("--sfp", default=False,
+    parser.add_argument("--sfp", default=False, action="store_true",
         help="use SFP port for DRTIO instead of uTCA backplane")
     parser.add_argument("--rtm-csr-csv",
         default=os.path.join("artiq_sayma", "rtm_gateware", "rtm_csr.csv"),
