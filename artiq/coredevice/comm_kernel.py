@@ -36,7 +36,6 @@ class Reply(Enum):
 
     RPCRequest = 10
 
-    WatchdogExpired = 14
     ClockFailure = 15
 
 
@@ -627,8 +626,6 @@ class CommKernel:
                 self._serve_rpc(embedding_map)
             elif self._read_type == Reply.KernelException:
                 self._serve_exception(embedding_map, symbolizer, demangler)
-            elif self._read_type == Reply.WatchdogExpired:
-                raise exceptions.WatchdogExpired
             elif self._read_type == Reply.ClockFailure:
                 raise exceptions.ClockFailure
             else:
