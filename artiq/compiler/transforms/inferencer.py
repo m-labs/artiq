@@ -1211,9 +1211,6 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "at_mu"):
             simple_form("at_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
-        elif types.is_builtin(typ, "watchdog"):
-            simple_form("watchdog(time:float) -> [builtin context manager]",
-                        [builtins.TFloat()], builtins.TNone())
         elif types.is_constructor(typ):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,
@@ -1458,9 +1455,7 @@ class Inferencer(algorithm.Visitor):
 
         typ = node.context_expr.type
         if (types.is_builtin(typ, "interleave") or types.is_builtin(typ, "sequential") or
-            types.is_builtin(typ, "parallel") or
-                (isinstance(node.context_expr, asttyped.CallT) and
-                 types.is_builtin(node.context_expr.func.type, "watchdog"))):
+            types.is_builtin(typ, "parallel")):
             # builtin context managers
             if node.optional_vars is not None:
                 self._unify(node.optional_vars.type, builtins.TNone(),

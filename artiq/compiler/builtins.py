@@ -222,9 +222,6 @@ def obj_interleave():
 def obj_sequential():
     return types.TBuiltin("sequential")
 
-def fn_watchdog():
-    return types.TBuiltinFunction("watchdog")
-
 def fn_delay():
     return types.TBuiltinFunction("delay")
 

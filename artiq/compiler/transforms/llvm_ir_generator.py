@@ -395,10 +395,6 @@ class LLVMIRGenerator:
         elif name == "delay_mu":
             llty = ll.FunctionType(llvoid, [lli64])
 
-        elif name == "watchdog_set":
-            llty = ll.FunctionType(lli32, [lli64])
-        elif name == "watchdog_clear":
-            llty = ll.FunctionType(llvoid, [lli32])
         else:
             assert False
 
@@ -407,7 +403,6 @@ class LLVMIRGenerator:
             if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
             if name in ("rtio_log", "rpc_send", "rpc_send_async",
-                        "watchdog_set", "watchdog_clear",
                         self.target.print_function):
                 llglobal.attributes.add("nounwind")
             if name.find("__py_") == 0:
@@ -1239,12 +1234,6 @@ class LLVMIRGenerator:
                 return llstore_lo
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
-        elif insn.op == "watchdog_set":
-            interval, = insn.operands
-            return self.llbuilder.call(self.llbuiltin("watchdog_set"), [self.map(interval)])
-        elif insn.op == "watchdog_clear":
-            id, = insn.operands
-            return self.llbuilder.call(self.llbuiltin("watchdog_clear"), [self.map(id)])
         else:
             assert False
 

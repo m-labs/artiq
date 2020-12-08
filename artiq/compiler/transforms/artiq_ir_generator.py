@@ -851,35 +851,23 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         cleanup = []
         for item_node in node.items:
+            # user-defined context manager
             context_expr_node  = item_node.context_expr
             optional_vars_node = item_node.optional_vars
+            context_mgr = self.visit(context_expr_node)
+            enter_fn    = self.append(ir.GetAttr(context_mgr, '__enter__'))
+            exit_fn     = self.append(ir.GetAttr(context_mgr, '__exit__'))
 
-            if isinstance(context_expr_node, asttyped.CallT) and \
-                    types.is_builtin(context_expr_node.func.type, "watchdog"):
-                timeout        = self.visit(context_expr_node.args[0])
-                timeout_ms     = self.append(ir.Arith(ast.Mult(loc=None), timeout,
-                                                      ir.Constant(1000, builtins.TFloat())))
-                timeout_ms_int = self.append(ir.Coerce(timeout_ms, builtins.TInt64()))
+            try:
+                self.current_assign = self._user_call(enter_fn, [], {})
+                if optional_vars_node is not None:
+                    self.visit(optional_vars_node)
+            finally:
+                self.current_assign = None
 
-                watchdog_id = self.append(ir.Builtin("watchdog_set", [timeout_ms_int],
-                                                     builtins.TInt32()))
-                cleanup.append(lambda:
-                    self.append(ir.Builtin("watchdog_clear", [watchdog_id], builtins.TNone())))
-            else: # user-defined context manager
-                context_mgr = self.visit(context_expr_node)
-                enter_fn    = self.append(ir.GetAttr(context_mgr, '__enter__'))
-                exit_fn     = self.append(ir.GetAttr(context_mgr, '__exit__'))
-
-                try:
-                    self.current_assign = self._user_call(enter_fn, [], {})
-                    if optional_vars_node is not None:
-                        self.visit(optional_vars_node)
-                finally:
-                    self.current_assign = None
-
-                none = self.append(ir.Alloc([], builtins.TNone()))
-                cleanup.append(lambda:
-                    self._user_call(exit_fn, [none, none, none], {}))
+            none = self.append(ir.Alloc([], builtins.TNone()))
+            cleanup.append(lambda:
+                self._user_call(exit_fn, [none, none, none], {}))
 
         self._try_finally(
             body_gen=lambda: self.visit(node.body),

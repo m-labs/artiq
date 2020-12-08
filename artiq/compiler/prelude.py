@@ -44,7 +44,6 @@ def globals():
         "parallel":             builtins.obj_parallel(),
         "interleave":           builtins.obj_interleave(),
         "sequential":           builtins.obj_sequential(),
-        "watchdog":             builtins.fn_watchdog(),
 
         # ARTIQ time management functions
         "delay":                builtins.fn_delay(),

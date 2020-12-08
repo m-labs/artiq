@@ -76,14 +76,3 @@ fn terminate(exception: &eh_artiq::Exception, mut _backtrace: &mut [usize]) -> !
 
 #[export_name = "now"]
 pub static mut NOW: i64 = 0;
-
-#[export_name = "watchdog_set"]
-pub extern fn watchdog_set(ms: i64) -> i32 {
-    println!("watchdog_set {}", ms);
-    ms as i32
-}
-
-#[export_name = "watchdog_clear"]
-pub extern fn watchdog_clear(id: i32) {
-    println!("watchdog_clear {}", id);
-}
