@@ -54,6 +54,7 @@ Breaking changes:
   thin veneer around lists. Most prior use cases of NumPy arrays in kernels should work
   unchanged with the new implementation, but the behavior might differ slightly in some
   cases (for instance, non-rectangular arrays are not currently supported).
+* ``quamash`` has been replaced with ``qasync``.
 
 
 ARTIQ-5

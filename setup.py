@@ -14,7 +14,7 @@ if sys.version_info[:3] < (3, 5, 3):
 requirements = [
     "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
-    "quamash", "pyqtgraph", "pygit2",
+    "qasync", "pyqtgraph", "pygit2",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
 ]
 
