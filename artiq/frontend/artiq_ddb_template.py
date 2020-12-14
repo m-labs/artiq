@@ -257,8 +257,8 @@ class PeripheralManager:
             self.gen("""
                 device_db["{name}_ch{mchn}"] = {{
                     "type": "local",
-                    "module": "artiq.coredevice.adf5355",
-                    "class": "ADF5355",
+                    "module": "artiq.coredevice.adf5356",
+                    "class": "ADF5356",
                     "arguments": {{
                         "channel": {mchn},
                         "sw_device": "ttl_{name}_sw{mchn}",
