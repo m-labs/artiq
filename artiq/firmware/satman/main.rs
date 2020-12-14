@@ -526,6 +526,9 @@ pub extern fn main() -> i32 {
                 let rep0_is_up = repeaters[0].is_up();
                 if rep0_is_up && !rep0_was_up {
                     jdcg::jdac::init();
+                    if let Err(e) = jdcg::jdac::stpl() {
+                        error!("STPL test failed: {}", e);
+                    }
                 }
                 rep0_was_up = rep0_is_up;
             }
