@@ -273,9 +273,15 @@ class PeripheralManager:
                 "type": "local",
                 "module": "artiq.coredevice.mirny",
                 "class": "Mirny",
-                "arguments": {{"spi_device": "spi_{name}"}},
+                "arguments": {{
+                    "spi_device": "spi_{name}",
+                    "refclk": {refclk},
+                    "clk_sel": {clk_sel}
+                }},
             }}""",
-            name=mirny_name)
+            name=mirny_name,
+            refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
+            clk_sel=peripheral["clk_sel"])
 
         return next(channel)
 
