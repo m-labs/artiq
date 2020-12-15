@@ -169,6 +169,8 @@ class SatelliteBase(MiniSoC):
 # JESD204 DAC Channel Group
 class JDCG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
+        # Kintex Ultrascale GTH, speed grade -1C:
+        # CPLL linerate (D=1): 4.0 - 8.5 Gb/s
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
             platform, sys_crg, jesd_crg, dac)
 
