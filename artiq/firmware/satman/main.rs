@@ -594,6 +594,7 @@ pub extern fn main() -> i32 {
                     jdcg::jesd::reset(false);
                     let _ = jdcg::jdac::init();
                     jdcg::jesd204sync::sysref_auto_align();
+                    jdcg::jdac::stpl();
                     unsafe {
                         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);  // unhide
                     }

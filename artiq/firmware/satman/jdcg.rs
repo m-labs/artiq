@@ -108,10 +108,6 @@ pub mod jdac {
             basic_request(dacno, jdac_common::PRBS, 0)?;
             jesd::prbs(dacno, false);
 
-            jesd::stpl(dacno, true);
-            basic_request(dacno, jdac_common::STPL, 0)?;
-            jesd::stpl(dacno, false);
-
             basic_request(dacno, jdac_common::INIT, 0)?;
             clock::spin_us(5000);
 
@@ -120,7 +116,22 @@ pub mod jdac {
                 return Err("JESD core reported bad SYNC");
             }
 
-            info!("  ...done");
+            info!("  ...done initializing");
+        }
+        Ok(())
+    }
+
+    pub fn stpl() -> Result<(), &'static str> {
+        for dacno in 0..csr::JDCG.len() {
+            let dacno = dacno as u8;
+
+            info!("Running STPL test on DAC-{}...", dacno);
+
+            jesd::stpl(dacno, true);
+            basic_request(dacno, jdac_common::STPL, 0)?;
+            jesd::stpl(dacno, false);
+
+            info!("  ...done STPL test");
         }
         Ok(())
     }
