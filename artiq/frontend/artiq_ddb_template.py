@@ -280,8 +280,8 @@ class PeripheralManager:
                 }},
             }}""",
             name=mirny_name,
-            refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
-            clk_sel=peripheral["clk_sel"])
+            refclk=peripheral.get("refclk", 100e6),
+            clk_sel=peripheral.get("clk_sel", 0))
 
         return next(channel)
 
