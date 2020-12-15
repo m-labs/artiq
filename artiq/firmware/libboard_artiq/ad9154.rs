@@ -87,7 +87,7 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     np: 16,
     f: 2,
     s: 2,
-    k: 16,
+    k: 32,
     cs: 0,
 
     subclassv: 1,
@@ -349,6 +349,28 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::GENERAL_JRX_CTRL_0,
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
             0*ad9154_reg::LINK_MODE | 0*ad9154_reg::CHECKSUM_MODE);
+
+    // JESD Checks
+    let jesd_checks = read(ad9154_reg::JESD_CHECKS);
+    if jesd_checks & ad9154_reg::ERR_DLYOVER == ad9154_reg::ERR_DLYOVER {
+        error!("LMFC_Delay > JESD_K Parameter")
+    }
+    if jesd_checks & ad9154_reg::ERR_WINLIMIT == ad9154_reg::ERR_WINLIMIT {
+        error!("Unsupported Window Limit")
+    }
+    if jesd_checks & ad9154_reg::ERR_JESDBAD == ad9154_reg::ERR_JESDBAD {
+        error!("Unsupported M/L/S/F Selection")
+    }
+    if jesd_checks & ad9154_reg::ERR_KUNSUPP == ad9154_reg::ERR_KUNSUPP {
+        error!("Unsupported K Values")
+    }
+    if jesd_checks & ad9154_reg::ERR_SUBCLASS == ad9154_reg::ERR_SUBCLASS {
+        error!("Unsupported SUBCLASSV Value")
+    }
+    if jesd_checks & ad9154_reg::ERR_INTSUPP == ad9154_reg::ERR_INTSUPP {
+        error!("Unsupported Interpolation Factor")
+    }
+
     info!("  ...done");
     Ok(())
 }

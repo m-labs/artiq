@@ -190,8 +190,10 @@ class SatelliteBase(MiniSoC):
 # JESD204 DAC Channel Group
 class JDCGSAWG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
+        # Kintex Ultrascale GTH, speed grade -1C:
+        # QPLL0 linerate (D=1): 9.8 - 12.5 Gb/s
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
 
         self.submodules.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(4)]
 
@@ -203,7 +205,7 @@ class JDCGSAWG(Module, AutoCSR):
 class JDCGPattern(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
 
         self.sawgs = []
 
@@ -243,7 +245,7 @@ class JDCGPattern(Module, AutoCSR):
 class JDCGSyncDDS(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
         self.coarse_ts = Signal(32)
 
         self.sawgs = []
