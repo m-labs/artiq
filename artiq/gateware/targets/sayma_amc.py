@@ -224,15 +224,23 @@ class JDCGPattern(Module, AutoCSR):
                 samples[0][i][:-4].eq(0x7ff if i % 2 else 0x800)
             ]
         # ch1: 50 MHz
+        # - Formulae:
+        #                   target cosine wave frequency:    f = 50e6
+        #                         DAC sampling frequency:   fs = 1000e6
+        #       number of samples per coarse RTIO period:    P = 8
+        #       number of samples needed per wave period:    M = (1/f) / (1/fs)) = 20
+        #             number of repeating samples needed:    N = LCM(P, M) = 40
+        #    number of RTIO periods needed for repeating:    k = N/P = 5
+        #                  discretized value of the wave: y[i] = cos(i/M * 2pi)
         from math import pi, cos
-        data = [int(round(cos(i/24*2*pi)*((1 << 15) - 1)))
-                for i in range(24)]
-        k = Signal(2)
-        self.sync.rtio += If(k == 2, k.eq(0)).Else(k.eq(k + 1))
+        data = [int(round(cos(i/20*2*pi)*((1 << 15) - 1)))
+                for i in range(40)]
+        k = Signal(max=5)
+        self.sync.rtio += If(k == 4, k.eq(0)).Else(k.eq(k + 1))
         self.comb += [
             Case(k, {
                 i: [samples[1][j].eq(data[i*8 + j]) for j in range(8)]
-                for i in range(3)
+                for i in range(5)
             })
         ]
         # ch2: ch0, ch3: ch1
