@@ -8,14 +8,19 @@ from misoc.interconnect.csr import *
 from jesd204b.common import (JESD204BTransportSettings,
                              JESD204BPhysicalSettings,
                              JESD204BSettings)
-from jesd204b.phy.gth import GTHChannelPLL as JESD204BGTHChannelPLL
+from jesd204b.phy.gth import (GTHChannelPLL as JESD204BGTHChannelPLL,
+                              GTHQuadPLL as JESD204BGTHQuadPLL,
+                              GTHTransmitter as JESD204BGTHTransmitter,
+                              GTHInit as JESD204BGTHInit,
+                              GTHTransmitterInterconnect as JESD204BGTHTransmitterInterconnect)
 from jesd204b.phy import JESD204BPhyTX
 from jesd204b.core import JESD204BCoreTX
 from jesd204b.core import JESD204BCoreTXControl
 
 
 class UltrascaleCRG(Module, AutoCSR):
-    linerate = int(6e9)
+    linerate = int(6e9)  # linerate = 20*data_rate*4/8 = data_rate*10
+                          # data_rate = dac_rate/interp_factor
     refclk_freq = int(150e6)
     fabric_freq = int(125e6)
 
@@ -45,27 +50,96 @@ PhyPads = namedtuple("PhyPads", "txp txn")
 
 
 class UltrascaleTX(Module, AutoCSR):
-    def __init__(self, platform, sys_crg, jesd_crg, dac):
+    def __init__(self, platform, sys_crg, jesd_crg, dac, pll_type="cpll", tx_half=False):
+        # Note: In general, the choice between channel and quad PLLs can be made based on the "nominal operating ranges", which are (see UG576, Ch.2):
+        #  CPLL: 2.0 -  6.25  GHz
+        # QPLL0: 9.8 - 16.375 GHz
+        # QPLL1: 8.0 - 13.0   GHz
+        # However, the exact frequency and/or linerate range should be checked according to the model and speed grade from their corresponding datasheets.
+        pll_cls = {
+            "cpll": JESD204BGTHChannelPLL,
+            "qpll": JESD204BGTHQuadPLL
+        }[pll_type]
         ps = JESD204BPhysicalSettings(l=8, m=4, n=16, np=16)
         ts = JESD204BTransportSettings(f=2, s=2, k=16, cs=0)
         settings = JESD204BSettings(ps, ts, did=0x5a, bid=0x5)
 
         jesd_pads = platform.request("dac_jesd", dac)
+        plls = []
         phys = []
         for i in range(len(jesd_pads.txp)):
-            cpll = JESD204BGTHChannelPLL(
-                    jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate)
-            self.submodules += cpll
+            pll = pll_cls(
+                jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate)
+            self.submodules += pll
+            plls.append(pll)
+        # QPLL quads
+        if pll_type == "qpll":
+            gthe3_common_cfgs = []
+            for i in range(0, len(plls), 4):
+                # GTHE3_COMMON common signals
+                qpll_clk = Signal()
+                qpll_refclk = Signal()
+                qpll_reset = Signal()
+                qpll_lock = Signal()
+                # GTHE3_COMMON
+                self.specials += pll_cls.get_gthe3_common(
+                    jesd_crg.refclk, jesd_crg.refclk_freq, jesd_crg.linerate,
+                    qpll_clk, qpll_refclk, qpll_reset, qpll_lock)
+                gthe3_common_cfgs.append({
+                    "clk": qpll_clk, 
+                    "refclk": qpll_refclk,
+                    "reset": qpll_reset,
+                    "lock": qpll_lock
+                })
+        # Per-channel PLL phys
+        for i, pll in enumerate(plls):
+            # PhyTX
             phy = JESD204BPhyTX(
-                    cpll, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
-                    jesd_crg.fabric_freq, transceiver="gth")
-            platform.add_period_constraint(phy.transmitter.cd_tx.clk,
-                    40*1e9/jesd_crg.linerate)
-            platform.add_false_path_constraints(
-                sys_crg.cd_sys.clk,
-                jesd_crg.cd_jesd.clk,
-                phy.transmitter.cd_tx.clk)
+                pll, jesd_crg.refclk, PhyPads(jesd_pads.txp[i], jesd_pads.txn[i]),
+                jesd_crg.fabric_freq, transceiver="gth", tx_half=tx_half)
             phys.append(phy)
+            if tx_half:
+                platform.add_period_constraint(phy.transmitter.cd_tx_half.clk,
+                    80*1e9/jesd_crg.linerate)
+                platform.add_false_path_constraints(
+                    sys_crg.cd_sys.clk,
+                    jesd_crg.cd_jesd.clk,
+                    phy.transmitter.cd_tx_half.clk)
+            else:
+                platform.add_period_constraint(phy.transmitter.cd_tx.clk,
+                    40*1e9/jesd_crg.linerate)
+                platform.add_false_path_constraints(
+                    sys_crg.cd_sys.clk,
+                    jesd_crg.cd_jesd.clk,
+                    phy.transmitter.cd_tx.clk)
+        # CHANNEL & init interconnects
+        for i, (pll, phy) in enumerate(zip(plls, phys)):
+            # CPLLs: 1 init per channel
+            if pll_type == "cpll":
+                phy_channel_cfg = {}
+                # Connect reset/lock to init
+                pll_reset = pll.reset
+                pll_lock = pll.lock
+                self.submodules += JESD204BGTHTransmitterInterconnect(
+                    pll_reset, pll_lock, phy.transmitter, phy.transmitter.init)
+            # QPLL: 4 inits and 4 channels per quad
+            elif pll_type == "qpll":
+                # Connect clk/refclk to CHANNEL
+                phy_cfg = gthe3_common_cfgs[int(i//4)]
+                phy_channel_cfg = {
+                    "qpll_clk": phy_cfg["clk"],
+                    "qpll_refclk": phy_cfg["refclk"]
+                }
+                # Connect reset/lock to init
+                pll_reset = phy_cfg["reset"]
+                pll_lock = phy_cfg["lock"]
+                if i % 4 == 0:
+                    self.submodules += JESD204BGTHTransmitterInterconnect(
+                        pll_reset, pll_lock, phy.transmitter, 
+                        [phys[j].transmitter.init for j in range(i, min(len(phys), i+4))])
+            # GTHE3_CHANNEL
+            self.specials += JESD204BGTHTransmitter.get_gthe3_channel(
+                    pll, phy.transmitter, **phy_channel_cfg)
 
         self.submodules.core = JESD204BCoreTX(
             phys, settings, converter_data_width=64)
