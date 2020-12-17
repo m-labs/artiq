@@ -37,6 +37,8 @@ Highlights:
    - A "Quick Open" dialog to open experiments by typing part of their name can
      be brought up Ctrl-P (Ctrl+Return to immediately submit the selected entry
      with the default arguments).
+* Browser:
+   - Calls to the deprecated `.value` API for HDF5 Datasets have been updated to use NumPy indexing
 * Experiment results are now always saved to HDF5, even if run() fails.
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
