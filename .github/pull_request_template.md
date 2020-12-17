@@ -38,7 +38,7 @@ Closes #XXX
 ### All Pull Requests
 
 - [x] Use correct spelling and grammar.
-- [ ] Update [RELEASE_NOTES.md](../RELEASE_NOTES.md) if there are noteworthy changes, especially if there are changes to existing APIs.
+- [ ] Update [RELEASE_NOTES.rst](../RELEASE_NOTES.rst) if there are noteworthy changes, especially if there are changes to existing APIs.
 - [ ] Close/update issues.
 - [ ] Check the copyright situation of your changes and sign off your patches (`git commit --signoff`, see [copyright](../CONTRIBUTING.rst#copyright-and-sign-off)).
 
