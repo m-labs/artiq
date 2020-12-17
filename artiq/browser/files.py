@@ -42,7 +42,7 @@ class ThumbnailIconProvider(QtWidgets.QFileIconProvider):
             except KeyError:
                 return
             try:
-                img = QtGui.QImage.fromData(t.value)
+                img = QtGui.QImage.fromData(t[()])
             except:
                 logger.warning("unable to read thumbnail from %s",
                                info.filePath(), exc_info=True)
@@ -102,13 +102,13 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
             h5 = open_h5(info)
             if h5 is not None:
                 try:
-                    expid = pyon.decode(h5["expid"].value)
-                    start_time = datetime.fromtimestamp(h5["start_time"].value)
+                    expid = pyon.decode(h5["expid"][()])
+                    start_time = datetime.fromtimestamp(h5["start_time"][()])
                     v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
                          "class_name: {}\nrid: {}\nstart_time: {}").format(
-                             h5["artiq_version"].value, expid["repo_rev"],
+                             h5["artiq_version"][()], expid["repo_rev"],
                              expid["file"], expid["class_name"],
-                             h5["rid"].value, start_time)
+                             h5["rid"][()], start_time)
                     return v
                 except:
                     logger.warning("unable to read metadata from %s",
@@ -174,14 +174,14 @@ class FilesDock(QtWidgets.QDockWidget):
         logger.debug("loading datasets from %s", info.filePath())
         with f:
             try:
-                expid = pyon.decode(f["expid"].value)
-                start_time = datetime.fromtimestamp(f["start_time"].value)
+                expid = pyon.decode(f["expid"][()])
+                start_time = datetime.fromtimestamp(f["start_time"][()])
                 v = {
-                    "artiq_version": f["artiq_version"].value,
+                    "artiq_version": f["artiq_version"][()],
                     "repo_rev": expid["repo_rev"],
                     "file": expid["file"],
                     "class_name": expid["class_name"],
-                    "rid": f["rid"].value,
+                    "rid": f["rid"][()],
                     "start_time": start_time,
                 }
                 self.metadata_changed.emit(v)
@@ -190,13 +190,13 @@ class FilesDock(QtWidgets.QDockWidget):
                                info.filePath(), exc_info=True)
             rd = dict()
             if "archive" in f:
-                rd = {k: (True, v.value) for k, v in f["archive"].items()}
+                rd = {k: (True, v[()]) for k, v in f["archive"].items()}
             if "datasets" in f:
                 for k, v in f["datasets"].items():
                     if k in rd:
                         logger.warning("dataset '%s' is both in archive and "
                                        "outputs", k)
-                    rd[k] = (True, v.value)
+                    rd[k] = (True, v[()])
             if rd:
                 self.datasets.init(rd)
         self.dataset_changed.emit(info.filePath())
