@@ -123,6 +123,7 @@ def main():
         "scheduler_request_termination": scheduler.request_termination,
         "scheduler_get_status": scheduler.get_status,
         "scheduler_check_pause": scheduler.check_pause,
+        "scheduler_get_wd": scheduler.get_wd,
         "ccb_issue": ccb_issue,
     })
     experiment_db.scan_repository_async()
