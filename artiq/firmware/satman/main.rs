@@ -475,9 +475,18 @@ pub extern fn main() -> i32 {
             io_expander1.set(1, 7, true);
             io_expander1.service().unwrap();
         }
+
+        // Actively drive TX_DISABLE to false on SFP0..3
         io_expander0.set_oe(0, 1 << 1).unwrap();
+        io_expander0.set_oe(1, 1 << 1).unwrap();
+        io_expander1.set_oe(0, 1 << 1).unwrap();
+        io_expander1.set_oe(1, 1 << 1).unwrap();
         io_expander0.set(0, 1, false);
+        io_expander0.set(1, 1, false);
+        io_expander1.set(0, 1, false);
+        io_expander1.set(1, 1, false);
         io_expander0.service().unwrap();
+        io_expander1.service().unwrap();
     }
 
     #[cfg(has_si5324)]
