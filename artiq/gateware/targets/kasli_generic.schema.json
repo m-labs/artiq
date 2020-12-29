@@ -42,7 +42,8 @@
         "core_addr": {
             "type": "string",
             "format": "ipv4",
-            "description": "IPv4 address"
+            "description": "IPv4 address",
+            "default": "192.168.1.70"
         },
         "vendor": {
             "type": "string",
@@ -262,7 +263,8 @@
 		            "maximum": 3
 		        },
 		        "pll_n": {
-                            "type": "integer"
+                            "type": "integer",
+                            "default": 32
                         },
 		        "pll_vco": {
                             "type": "integer"
