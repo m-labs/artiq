@@ -44,6 +44,8 @@ Highlights:
 * A parameter ``--identifier-str`` has been added to many targets to aid
   with reproducible builds.
 * Python 3.7 support in Conda packages.
+* `kasli_generic` JSON descriptions are now validated against a
+  schema. Description defaults have moved from Python to the schema.
 
 Breaking changes:
 
