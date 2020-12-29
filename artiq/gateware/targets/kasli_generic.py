@@ -1,14 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
 
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
 
-from artiq.gateware import rtio
+from artiq.gateware import rtio, eem, jsondesc
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
-from artiq.gateware import eem
 from artiq.gateware.targets.kasli import StandaloneBase, MasterBase, SatelliteBase
 from artiq.build_soc import *
 
@@ -20,7 +18,7 @@ def peripheral_dio(module, peripheral):
     }
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
-    if peripheral.get("edge_counter", False):
+    if peripheral["edge_counter"]:
         edge_counter_cls = edge_counter.SimpleEdgeCounter
     else:
         edge_counter_cls = None
@@ -37,7 +35,7 @@ def peripheral_urukul(module, peripheral):
         port, port_aux = peripheral["ports"]
     else:
         raise ValueError("wrong number of ports")
-    if peripheral.get("synchronization", False):
+    if peripheral["synchronization"]:
         sync_gen_cls = ttl_simple.ClockGen
     else:
         sync_gen_cls = None
@@ -110,7 +108,7 @@ def peripheral_fastino(module, peripheral):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
     eem.Fastino.add_std(module, peripheral["ports"][0],
-        peripheral.get("log2_width", 0))
+        peripheral["log2_width"])
 
 
 def peripheral_phaser(module, peripheral):
@@ -146,7 +144,7 @@ class GenericStandalone(StandaloneBase):
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
-        self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description.get("rtio_frequency", 125e6)/1e6)
+        self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
             self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
@@ -189,8 +187,8 @@ class GenericMaster(MasterBase):
         self.class_name_override = description["variant"]
         MasterBase.__init__(self,
             hw_rev=hw_rev,
-            rtio_clk_freq=description.get("rtio_frequency", 125e6),
-            enable_sata=description.get("enable_sata_drtio", False),
+            rtio_clk_freq=description["rtio_frequency"],
+            enable_sata=description["enable_sata_drtio"],
             **kwargs)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
@@ -226,8 +224,8 @@ class GenericSatellite(SatelliteBase):
         self.class_name_override = description["variant"]
         SatelliteBase.__init__(self,
                                hw_rev=hw_rev,
-                               rtio_clk_freq=description.get("rtio_frequency", 125e6),
-                               enable_sata=description.get("enable_sata_drtio", False),
+                               rtio_clk_freq=description["rtio_frequency"],
+                               enable_sata=description["enable_sata_drtio"],
                                **kwargs)
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
@@ -263,9 +261,7 @@ def main():
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
-
-    with open(args.description, "r") as f:
-        description = json.load(f)
+    description = jsondesc.load(args.description)
 
     if description["target"] != "kasli":
         raise ValueError("Description is for a different target")

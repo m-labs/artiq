@@ -2,12 +2,12 @@
 
 import argparse
 import sys
-import json
 import textwrap
 from collections import defaultdict
 from itertools import count
 
 from artiq import __version__ as artiq_version
+from artiq.gateware import jsondesc
 
 
 def process_header(output, description):
@@ -57,8 +57,8 @@ def process_header(output, description):
         }}
         """).format(
             variant=description["variant"],
-            core_addr=description.get("core_addr", "192.168.1.70"),
-            ref_period=1/(8*description.get("rtio_frequency", 125e6))),
+            core_addr=description["core_addr"],
+            ref_period=1/(8*description["rtio_frequency"])),
         file=output)
 
 
@@ -116,7 +116,7 @@ class PeripheralManager:
 
     def process_urukul(self, rtio_offset, peripheral):
         urukul_name = self.get_name("urukul")
-        synchronization = peripheral.get("synchronization", False)
+        synchronization = peripheral["synchronization"]
         channel = count(0)
         self.gen("""
             device_db["eeprom_{name}"]={{
@@ -181,10 +181,10 @@ class PeripheralManager:
             }}""",
             name=urukul_name,
             sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
-            refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
+            refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
             clk_sel=peripheral["clk_sel"])
-        dds = peripheral.get("dds", "ad9910")
-        pll_vco = peripheral.get("pll_vco", None)
+        dds = peripheral["dds"]
+        pll_vco = peripheral.get("pll_vco")
         for i in range(4):
             if dds == "ad9910":
                 self.gen("""
@@ -280,8 +280,8 @@ class PeripheralManager:
                 }},
             }}""",
             name=mirny_name,
-            refclk=peripheral.get("refclk", 100e6),
-            clk_sel=peripheral.get("clk_sel", 0))
+            refclk=peripheral["refclk"],
+            clk_sel=peripheral["clk_sel"])
 
         return next(channel)
 
@@ -394,7 +394,7 @@ class PeripheralManager:
             }}""",
             sampler_name=sampler_name,
             sampler_channel=rtio_offset+next(channel))
-        pll_vco = peripheral.get("pll_vco", None)
+        pll_vco = peripheral.get("pll_vco")
         for urukul_name in (urukul0_name, urukul1_name):
             self.gen("""
                 device_db["spi_{urukul_name}"] = {{
@@ -425,10 +425,10 @@ class PeripheralManager:
                 }}""",
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
-                refclk=peripheral.get("refclk", self.master_description.get("rtio_frequency", 125e6)),
+                refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                pll_n=peripheral.get("pll_n", 32))
+                pll_n=peripheral["pll_n"])
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):
@@ -573,13 +573,12 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.master_description, "r") as f:
-        master_description = json.load(f)
+    master_description = jsondesc.load(args.master_description)
 
     satellites = []
-    for destination, description in args.satellite:
-        with open(description, "r") as f:
-            satellites.append((int(destination, 0), json.load(f)))
+    for destination, description_path in args.satellite:
+        satellite_description = jsondesc.load(description_path)
+        satellites.append((int(destination, 0), satellite_description))
 
     if args.output is not None:
         with open(args.output, "w") as f:
