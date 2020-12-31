@@ -7,20 +7,12 @@ build = "build.rs"
 [lib]
 name = "satman"
 crate-type = ["staticlib"]
-path = "lib.rs"
+path = "main.rs"
 
 [build-dependencies]
-build_artiq = { path = "../libbuild_artiq" }
+build_misoc = { path = "../libbuild_misoc" }
 
 [dependencies]
-alloc_list = { path = "../liballoc_list" }
-std_artiq = { path = "../libstd_artiq", features = ["alloc"] }
-logger_artiq = { path = "../liblogger_artiq" }
-board = { path = "../libboard", features = ["uart_console"] }
-drtioaux = { path = "../libdrtioaux" }
-log = { version = "0.3", default-features = false }
-
-[dependencies.compiler_builtins]
-git = "https://github.com/rust-lang-nursery/compiler-builtins"
-rev = "631b568"
-features = ["mem"]
+log = { version = "0.4", default-features = false }
+board_misoc = { path = "../libboard_misoc", features = ["uart_console", "log"] }
+board_artiq = { path = "../libboard_artiq" }

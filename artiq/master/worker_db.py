@@ -1,88 +1,18 @@
+"""Client-side interfaces to the master databases (devices, datasets).
+
+These artefacts are intended for out-of-process use (i.e. from workers or the
+standalone command line tools).
+"""
+
 from operator import setitem
-from collections import OrderedDict
 import importlib
 import logging
-import os
-import tempfile
-import re
 
-from artiq.protocols.sync_struct import Notifier
-from artiq.protocols.pc_rpc import AutoTarget, Client, BestEffortClient
+from sipyco.sync_struct import Notifier
+from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
 
 logger = logging.getLogger(__name__)
-
-
-class RIDCounter:
-    def __init__(self, cache_filename="last_rid.pyon", results_dir="results"):
-        self.cache_filename = cache_filename
-        self.results_dir = results_dir
-        self._next_rid = self._last_rid() + 1
-        logger.debug("Next RID is %d", self._next_rid)
-
-    def get(self):
-        rid = self._next_rid
-        self._next_rid += 1
-        self._update_cache(rid)
-        return rid
-
-    def _last_rid(self):
-        try:
-            rid = self._last_rid_from_cache()
-        except FileNotFoundError:
-            logger.debug("Last RID cache not found, scanning results")
-            rid = self._last_rid_from_results()
-            self._update_cache(rid)
-            return rid
-        else:
-            logger.debug("Using last RID from cache")
-            return rid
-
-    def _update_cache(self, rid):
-        contents = str(rid) + "\n"
-        directory = os.path.abspath(os.path.dirname(self.cache_filename))
-        with tempfile.NamedTemporaryFile("w", dir=directory, delete=False
-                                         ) as f:
-            f.write(contents)
-            tmpname = f.name
-        os.replace(tmpname, self.cache_filename)
-
-    def _last_rid_from_cache(self):
-        with open(self.cache_filename, "r") as f:
-            return int(f.read())
-
-    def _last_rid_from_results(self):
-        r = -1
-        try:
-            day_folders = os.listdir(self.results_dir)
-        except:
-            return r
-        day_folders = filter(
-            lambda x: re.fullmatch("\\d\\d\\d\\d-\\d\\d-\\d\\d", x),
-            day_folders)
-        for df in day_folders:
-            day_path = os.path.join(self.results_dir, df)
-            try:
-                hm_folders = os.listdir(day_path)
-            except:
-                continue
-            hm_folders = filter(lambda x: re.fullmatch("\\d\\d(-\\d\\d)?", x),
-                                hm_folders)
-            for hmf in hm_folders:
-                hm_path = os.path.join(day_path, hmf)
-                try:
-                    h5files = os.listdir(hm_path)
-                except:
-                    continue
-                for x in h5files:
-                    m = re.fullmatch(
-                        "(\\d\\d\\d\\d\\d\\d\\d\\d\\d)-.*\\.h5", x)
-                    if m is None:
-                        continue
-                    rid = int(m.group(1))
-                    if rid > r:
-                        r = rid
-        return r
 
 
 class DummyDevice:
@@ -129,44 +59,43 @@ class DeviceManager:
     def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
         self.virtual_devices = virtual_devices
-        self.active_devices = OrderedDict()
+        self.active_devices = []
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
         return self.ddb.get_device_db()
 
     def get_desc(self, name):
-        desc = self.ddb.get(name)
-        while isinstance(desc, str):
-            # alias
-            desc = self.ddb.get(desc)
-        return desc
+        return self.ddb.get(name, resolve_alias=True)
 
     def get(self, name):
         """Get the device driver or controller client corresponding to a
         device database entry."""
         if name in self.virtual_devices:
             return self.virtual_devices[name]
-        if name in self.active_devices:
-            return self.active_devices[name]
-        else:
-            try:
-                desc = self.get_desc(name)
-            except Exception as e:
-                raise DeviceError("Failed to get description of device '{}'"
-                                  .format(name)) from e
-            try:
-                dev = _create_device(desc, self)
-            except Exception as e:
-                raise DeviceError("Failed to create device '{}'"
-                                  .format(name)) from e
-            self.active_devices[name] = dev
-            return dev
+
+        try:
+            desc = self.get_desc(name)
+        except Exception as e:
+            raise DeviceError("Failed to get description of device '{}'"
+                              .format(name)) from e
+
+        for existing_desc, existing_dev in self.active_devices:
+            if desc == existing_desc:
+                return existing_dev
+
+        try:
+            dev = _create_device(desc, self)
+        except Exception as e:
+            raise DeviceError("Failed to create device '{}'"
+                              .format(name)) from e
+        self.active_devices.append((desc, dev))
+        return dev
 
     def close_devices(self):
         """Closes all active devices, in the opposite order as they were
         requested."""
-        for dev in reversed(list(self.active_devices.values())):
+        for _desc, dev in reversed(self.active_devices):
             try:
                 if isinstance(dev, (Client, BestEffortClient)):
                     dev.close_rpc()
@@ -179,14 +108,14 @@ class DeviceManager:
 
 class DatasetManager:
     def __init__(self, ddb):
-        self.broadcast = Notifier(dict())
+        self._broadcaster = Notifier(dict())
         self.local = dict()
         self.archive = dict()
 
         self.ddb = ddb
-        self.broadcast.publish = ddb.update
+        self._broadcaster.publish = ddb.update
 
-    def set(self, key, value, broadcast=False, persist=False, save=True):
+    def set(self, key, value, broadcast=False, persist=False, archive=True):
         if key in self.archive:
             logger.warning("Modifying dataset '%s' which is in archive, "
                            "archive will remain untouched",
@@ -194,26 +123,29 @@ class DatasetManager:
 
         if persist:
             broadcast = True
+
         if broadcast:
-            self.broadcast[key] = persist, value
-        elif key in self.broadcast.read:
-            del self.broadcast[key]
-        if save:
+            self._broadcaster[key] = persist, value
+        elif key in self._broadcaster.raw_view:
+            del self._broadcaster[key]
+
+        if archive:
             self.local[key] = value
         elif key in self.local:
             del self.local[key]
 
-    def mutate(self, key, index, value):
-        target = None
-        if key in self.local:
-            target = self.local[key]
-        if key in self.broadcast.read:
+    def _get_mutation_target(self, key):
+        target = self.local.get(key, None)
+        if key in self._broadcaster.raw_view:
             if target is not None:
-                assert target is self.broadcast.read[key][1]
-            target = self.broadcast[key][1]
+                assert target is self._broadcaster.raw_view[key][1]
+            return self._broadcaster[key][1]
         if target is None:
-            raise KeyError("Cannot mutate non-existing dataset")
+            raise KeyError("Cannot mutate nonexistent dataset '{}'".format(key))
+        return target
 
+    def mutate(self, key, index, value):
+        target = self._get_mutation_target(key)
         if isinstance(index, tuple):
             if isinstance(index[0], tuple):
                 index = tuple(slice(*e) for e in index)
@@ -221,22 +153,36 @@ class DatasetManager:
                 index = slice(*index)
         setitem(target, index, value)
 
+    def append_to(self, key, value):
+        self._get_mutation_target(key).append(value)
+
     def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
-        else:
-            data = self.ddb.get(key)
-            if archive:
-                if key in self.archive:
-                    logger.warning("Dataset '%s' is already in archive, "
-                                   "overwriting", key, stack_info=True)
-                self.archive[key] = data
-            return data
+        
+        data = self.ddb.get(key)
+        if archive:
+            if key in self.archive:
+                logger.warning("Dataset '%s' is already in archive, "
+                               "overwriting", key, stack_info=True)
+            self.archive[key] = data
+        return data
 
     def write_hdf5(self, f):
         datasets_group = f.create_group("datasets")
         for k, v in self.local.items():
-            datasets_group[k] = v
+            _write(datasets_group, k, v)
+
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
-            archive_group[k] = v
+            _write(archive_group, k, v)
+
+
+def _write(group, k, v):
+    # Add context to exception message when the user writes a dataset that is
+    # not representable in HDF5.
+    try:
+        group[k] = v
+    except TypeError as e:
+        raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
+            k, type(v), e))

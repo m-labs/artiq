@@ -15,7 +15,7 @@ def _register_unit(unit, prefixes):
 
 
 _register_unit("s", "pnum_")
-_register_unit("Hz", "_kMG")
+_register_unit("Hz", "m_kMG")
 _register_unit("dB", "_")
 _register_unit("V", "um_k")
 _register_unit("A", "um_")

@@ -7,6 +7,7 @@ from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
 
+
 class Inferencer(algorithm.Visitor):
     """
     :class:`Inferencer` infers types by recursively applying the unification
@@ -183,6 +184,14 @@ class Inferencer(algorithm.Visitor):
         if builtins.is_bytes(collection.type) or builtins.is_bytearray(collection.type):
             self._unify(element.type, builtins.get_iterable_elt(collection.type),
                         element.loc, None)
+        elif builtins.is_array(collection.type):
+            array_type = collection.type.find()
+            elem_dims = array_type["num_dims"].value - 1
+            if elem_dims > 0:
+                elem_type = builtins.TArray(array_type["elt"], types.TValue(elem_dims))
+            else:
+                elem_type = array_type["elt"]
+            self._unify(element.type, elem_type, element.loc, collection.loc)
         elif builtins.is_iterable(collection.type) and not builtins.is_str(collection.type):
             rhs_type = collection.type.find()
             rhs_wrapped_lhs_type = types.TMono(rhs_type.name, {"elt": element.type})
@@ -199,10 +208,9 @@ class Inferencer(algorithm.Visitor):
         self.generic_visit(node)
         value = node.value
         if types.is_tuple(value.type):
-            diag = diagnostic.Diagnostic("error",
-                "multi-dimensional slices are not supported", {},
-                node.loc, [])
-            self.engine.process(diag)
+            for elt in value.type.find().elts:
+                self._unify(elt, builtins.TInt(),
+                            value.loc, None)
         else:
             self._unify(value.type, builtins.TInt(),
                         value.loc, None)
@@ -228,12 +236,41 @@ class Inferencer(algorithm.Visitor):
     def visit_SubscriptT(self, node):
         self.generic_visit(node)
         if isinstance(node.slice, ast.Index):
-            self._unify_iterable(element=node, collection=node.value)
+            if types.is_tuple(node.slice.value.type):
+                if types.is_var(node.value.type):
+                    return
+                if not builtins.is_array(node.value.type):
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "multi-dimensional indexing only supported for arrays, not {type}",
+                        {"type": types.TypePrinter().name(node.value.type)},
+                        node.loc, [])
+                    self.engine.process(diag)
+                    return
+                num_idxs = len(node.slice.value.type.find().elts)
+                array_type = node.value.type.find()
+                num_dims = array_type["num_dims"].value
+                remaining_dims = num_dims - num_idxs
+                if remaining_dims < 0:
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "too many indices for array of dimension {num_dims}",
+                        {"num_dims": num_dims}, node.slice.loc, [])
+                    self.engine.process(diag)
+                    return
+                if remaining_dims == 0:
+                    self._unify(node.type, array_type["elt"], node.loc,
+                                node.value.loc)
+                else:
+                    self._unify(
+                        node.type,
+                        builtins.TArray(array_type["elt"], remaining_dims))
+            else:
+                self._unify_iterable(element=node, collection=node.value)
         elif isinstance(node.slice, ast.Slice):
-            self._unify(node.type, node.value.type,
-                        node.loc, node.value.loc)
-        else: # ExtSlice
-            pass # error emitted above
+            self._unify(node.type, node.value.type, node.loc, node.value.loc)
+        else:  # ExtSlice
+            pass  # error emitted above
 
     def visit_IfExpT(self, node):
         self.generic_visit(node)
@@ -265,20 +302,35 @@ class Inferencer(algorithm.Visitor):
                     node.operand.loc)
                 self.engine.process(diag)
         else: # UAdd, USub
+            if types.is_var(operand_type):
+                return
+
             if builtins.is_numeric(operand_type):
-                self._unify(node.type, operand_type,
-                            node.loc, None)
-            elif not types.is_var(operand_type):
-                diag = diagnostic.Diagnostic("error",
-                    "expected unary '{op}' operand to be of numeric type, not {type}",
-                    {"op": node.op.loc.source(),
-                     "type": types.TypePrinter().name(operand_type)},
-                    node.operand.loc)
-                self.engine.process(diag)
+                self._unify(node.type, operand_type, node.loc, None)
+                return
+
+            if builtins.is_array(operand_type):
+                elt = operand_type.find()["elt"]
+                if builtins.is_numeric(elt):
+                    self._unify(node.type, operand_type, node.loc, None)
+                    return
+                if types.is_var(elt):
+                    return
+
+            diag = diagnostic.Diagnostic("error",
+                "expected unary '{op}' operand to be of numeric type, not {type}",
+                {"op": node.op.loc.source(),
+                    "type": types.TypePrinter().name(operand_type)},
+                node.operand.loc)
+            self.engine.process(diag)
 
     def visit_CoerceT(self, node):
         self.generic_visit(node)
         if builtins.is_numeric(node.type) and builtins.is_numeric(node.value.type):
+            pass
+        elif (builtins.is_array(node.type) and builtins.is_array(node.value.type)
+              and builtins.is_numeric(node.type.find()["elt"])
+              and builtins.is_numeric(node.value.type.find()["elt"])):
             pass
         else:
             printer = types.TypePrinter()
@@ -305,14 +357,23 @@ class Inferencer(algorithm.Visitor):
         self.visit(node)
         return node
 
-    def _coerce_numeric(self, nodes, map_return=lambda typ: typ):
+    def _coerce_numeric(self, nodes, map_return=lambda typ: typ, map_node_type =lambda typ:typ):
         # See https://docs.python.org/3/library/stdtypes.html#numeric-types-int-float-complex.
         node_types = []
         for node in nodes:
             if isinstance(node, asttyped.CoerceT):
-                node_types.append(node.value.type)
+                # If we already know exactly what we coerce this value to, use that type,
+                # or we'll get an unification error in case the coerced type is not the same
+                # as the type of the coerced value.
+                # Otherwise, use the potentially more specific subtype when considering possible
+                # coercions, or we may get stuck.
+                if node.type.fold(False, lambda acc, ty: acc or types.is_var(ty)):
+                    node_types.append(node.value.type)
+                else:
+                    node_types.append(node.type)
             else:
                 node_types.append(node.type)
+        node_types = [map_node_type(typ) for typ in node_types]
         if any(map(types.is_var, node_types)): # not enough info yet
             return
         elif not all(map(builtins.is_numeric, node_types)):
@@ -344,8 +405,125 @@ class Inferencer(algorithm.Visitor):
         else:
             assert False
 
+    def _coerce_binary_broadcast_op(self, left, right, map_return_elt, op_loc):
+        def num_dims(typ):
+            if builtins.is_array(typ):
+                # TODO: If number of dimensions is ever made a non-fixed parameter,
+                # need to acutally unify num_dims in _coerce_binop/….
+                return typ.find()["num_dims"].value
+            return 0
+
+        left_dims = num_dims(left.type)
+        right_dims = num_dims(right.type)
+        if left_dims != right_dims and left_dims != 0 and right_dims != 0:
+            # Mismatch (only scalar broadcast supported for now).
+            note1 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
+                                            {"num_dims": left_dims}, left.loc)
+            note2 = diagnostic.Diagnostic("note", "operand of dimension {num_dims}",
+                                            {"num_dims": right_dims}, right.loc)
+            diag = diagnostic.Diagnostic(
+                "error", "dimensions of '{op}' array operands must match",
+                {"op": op_loc.source()}, op_loc, [left.loc, right.loc], [note1, note2])
+            self.engine.process(diag)
+            return
+
+        def map_node_type(typ):
+            if not builtins.is_array(typ):
+                # This is a single value broadcast across the array.
+                return typ
+            return typ.find()["elt"]
+
+        # Figure out result type, handling broadcasts.
+        result_dims = left_dims if left_dims else right_dims
+        def map_return(typ):
+            elt = map_return_elt(typ)
+            result = builtins.TArray(elt=elt, num_dims=result_dims)
+            left = builtins.TArray(elt=elt, num_dims=left_dims) if left_dims else elt
+            right = builtins.TArray(elt=elt, num_dims=right_dims) if right_dims else elt
+            return (result, left, right)
+
+        return self._coerce_numeric((left, right),
+                                    map_return=map_return,
+                                    map_node_type=map_node_type)
+
     def _coerce_binop(self, op, left, right):
-        if isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor,
+        if isinstance(op, ast.MatMult):
+            if types.is_var(left.type) or types.is_var(right.type):
+                return
+
+            def num_dims(operand):
+                if not builtins.is_array(operand.type):
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "expected matrix multiplication operand to be of array type, not {type}",
+                        {
+                            "op": op.loc.source(),
+                            "type": types.TypePrinter().name(operand.type)
+                        }, op.loc, [operand.loc])
+                    self.engine.process(diag)
+                    return
+                num_dims = operand.type.find()["num_dims"].value
+                if num_dims not in (1, 2):
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "expected matrix multiplication operand to be 1- or 2-dimensional, not {type}",
+                        {
+                            "op": op.loc.source(),
+                            "type": types.TypePrinter().name(operand.type)
+                        }, op.loc, [operand.loc])
+                    self.engine.process(diag)
+                    return
+                return num_dims
+
+            left_dims = num_dims(left)
+            if not left_dims:
+                return
+            right_dims = num_dims(right)
+            if not right_dims:
+                return
+
+            def map_node_type(typ):
+                return typ.find()["elt"]
+
+            def map_return(typ):
+                if left_dims == 1:
+                    if right_dims == 1:
+                        result_dims = 0
+                    else:
+                        result_dims = 1
+                elif right_dims == 1:
+                    result_dims = 1
+                else:
+                    result_dims = 2
+                result = typ if result_dims == 0 else builtins.TArray(
+                    typ, result_dims)
+                return (result, builtins.TArray(typ, left_dims),
+                        builtins.TArray(typ, right_dims))
+
+            return self._coerce_numeric((left, right),
+                                        map_return=map_return,
+                                        map_node_type=map_node_type)
+        elif builtins.is_array(left.type) or builtins.is_array(right.type):
+            # Operations on arrays are element-wise (possibly using broadcasting).
+
+            # TODO: Allow only for integer arrays.
+            # allowed_int_array_ops = (ast.BitAnd, ast.BitOr, ast.BitXor, ast.LShift,
+            #                      ast.RShift)
+            allowed_array_ops = (ast.Add, ast.Mult, ast.FloorDiv, ast.Mod,
+                                 ast.Pow, ast.Sub, ast.Div)
+            if not isinstance(op, allowed_array_ops):
+                diag = diagnostic.Diagnostic(
+                    "error", "operator '{op}' not valid for array types",
+                    {"op": op.loc.source()}, op.loc)
+                self.engine.process(diag)
+                return
+
+            def map_result(typ):
+                if isinstance(op, ast.Div):
+                    return builtins.TFloat()
+                return typ
+            return self._coerce_binary_broadcast_op(left, right, map_result, op.loc)
+        elif isinstance(op, (ast.BitAnd, ast.BitOr, ast.BitXor,
                            ast.LShift, ast.RShift)):
             # bitwise operators require integers
             for operand in (left, right):
@@ -444,7 +622,7 @@ class Inferencer(algorithm.Visitor):
             # division always returns a float
             return self._coerce_numeric((left, right),
                         lambda typ: (builtins.TFloat(), builtins.TFloat(), builtins.TFloat()))
-        else: # MatMult
+        else:
             diag = diagnostic.Diagnostic("error",
                 "operator '{op}' is not supported", {"op": op.loc.source()},
                 op.loc)
@@ -682,28 +860,99 @@ class Inferencer(algorithm.Visitor):
                 pass
             else:
                 diagnose(valid_forms())
-        elif types.is_builtin(typ, "list") or types.is_builtin(typ, "array"):
-            if types.is_builtin(typ, "list"):
-                valid_forms = lambda: [
-                    valid_form("list() -> list(elt='a)"),
-                    valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
-                ]
+        elif types.is_builtin(typ, "str"):
+            diag = diagnostic.Diagnostic("error",
+                "strings currently cannot be constructed", {},
+                node.loc)
+            self.engine.process(diag)
+        elif types.is_builtin(typ, "array"):
+            valid_forms = lambda: [
+                valid_form("array(x:'a) -> array(elt='b) where 'a is iterable"),
+                valid_form("array(x:'a, dtype:'b) -> array(elt='b) where 'a is iterable")
+            ]
 
-                self._unify(node.type, builtins.TList(),
-                            node.loc, None)
-            elif types.is_builtin(typ, "array"):
-                valid_forms = lambda: [
-                    valid_form("array() -> array(elt='a)"),
-                    valid_form("array(x:'a) -> array(elt='b) where 'a is iterable")
-                ]
+            explicit_dtype = None
+            keywords_acceptable = False
+            if len(node.keywords) == 0:
+                keywords_acceptable = True
+            elif len(node.keywords) == 1:
+                if node.keywords[0].arg == "dtype":
+                    keywords_acceptable = True
+                    explicit_dtype = node.keywords[0].value
+            if len(node.args) == 1 and keywords_acceptable:
+                arg, = node.args
 
-                self._unify(node.type, builtins.TArray(),
-                            node.loc, None)
+                # In the absence of any other information (there currently isn't a way
+                # to specify any), assume that all iterables are expandable into a
+                # (runtime-checked) rectangular array of the innermost element type.
+                elt = arg.type
+                num_dims = 0
+                result_dims = (node.type.find()["num_dims"].value
+                               if builtins.is_array(node.type) else -1)
+                while True:
+                    if num_dims == result_dims:
+                        # If we already know the number of dimensions of the result,
+                        # stop so we can disambiguate the (innermost) element type of
+                        # the argument if it is still unknown (e.g. empty array).
+                        break
+                    if types.is_var(elt):
+                        return  # undetermined yet
+                    if not builtins.is_iterable(elt) or builtins.is_str(elt):
+                        break
+                    if builtins.is_array(elt):
+                        num_dims += elt.find()["num_dims"].value
+                    else:
+                        num_dims += 1
+                    elt = builtins.get_iterable_elt(elt)
+
+                if explicit_dtype is not None:
+                    # TODO: Factor out type detection; support quoted type constructors
+                    # (TList(TInt32), …)?
+                    typ = explicit_dtype.type
+                    if types.is_builtin(typ, "int32"):
+                        elt = builtins.TInt32()
+                    elif types.is_builtin(typ, "int64"):
+                        elt = builtins.TInt64()
+                    elif types.is_constructor(typ):
+                        elt = typ.find().instance
+                    else:
+                        diag = diagnostic.Diagnostic(
+                            "error",
+                            "dtype argument of {builtin}() must be a valid constructor",
+                            {"builtin": typ.find().name},
+                            node.func.loc,
+                            notes=[note])
+                        self.engine.process(diag)
+                        return
+
+                if num_dims == 0:
+                    note = diagnostic.Diagnostic(
+                        "note", "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)}, arg.loc)
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "the argument of {builtin}() must be of an iterable type",
+                        {"builtin": typ.find().name},
+                        node.func.loc,
+                        notes=[note])
+                    self.engine.process(diag)
+                    return
+
+                self._unify(node.type,
+                            builtins.TArray(elt, types.TValue(num_dims)),
+                            node.loc, arg.loc)
             else:
-                assert False
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "list"):
+            valid_forms = lambda: [
+                valid_form("list() -> list(elt='a)"),
+                valid_form("list(x:'a) -> list(elt='b) where 'a is iterable")
+            ]
+
+            self._unify(node.type, builtins.TList(), node.loc, None)
 
             if len(node.args) == 0 and len(node.keywords) == 0:
-                pass # []
+                pass  # []
             elif len(node.args) == 1 and len(node.keywords) == 0:
                 arg, = node.args
 
@@ -798,6 +1047,28 @@ class Inferencer(algorithm.Visitor):
                             arg.loc, None)
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "abs"):
+            fn = typ.name
+
+            valid_forms = lambda: [
+                valid_form("abs(x:numpy.int?) -> numpy.int?"),
+                valid_form("abs(x:float) -> float")
+            ]
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                (arg,) = node.args
+                if builtins.is_int(arg.type) or builtins.is_float(arg.type):
+                    self._unify(arg.type, node.type,
+                                arg.loc, node.loc)
+                elif types.is_var(arg.type):
+                    pass # undetermined yet
+                else:
+                    diag = diagnostic.Diagnostic("error",
+                        "the arguments of abs() must be of a numeric type", {},
+                        node.func.loc)
+                    self.engine.process(diag)
+            else:
+                diagnose(valid_forms())
         elif types.is_builtin(typ, "min") or types.is_builtin(typ, "max"):
             fn = typ.name
 
@@ -844,19 +1115,67 @@ class Inferencer(algorithm.Visitor):
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "make_array"):
             valid_forms = lambda: [
-                valid_form("numpy.full(count:int32, value:'a) -> numpy.array(elt='a)")
+                valid_form("numpy.full(count:int32, value:'a) -> array(elt='a, num_dims=1)"),
+                valid_form("numpy.full(shape:(int32,)*'b, value:'a) -> array(elt='a, num_dims='b)"),
             ]
-
-            self._unify(node.type, builtins.TArray(),
-                        node.loc, None)
 
             if len(node.args) == 2 and len(node.keywords) == 0:
                 arg0, arg1 = node.args
 
-                self._unify(arg0.type, builtins.TInt32(),
-                            arg0.loc, None)
+                if types.is_var(arg0.type):
+                    return  # undetermined yet
+                elif types.is_tuple(arg0.type):
+                    num_dims = len(arg0.type.find().elts)
+                    self._unify(arg0.type, types.TTuple([builtins.TInt32()] * num_dims),
+                                arg0.loc, None)
+                else:
+                    num_dims = 1
+                    self._unify(arg0.type, builtins.TInt32(),
+                                arg0.loc, None)
+
+                self._unify(node.type, builtins.TArray(num_dims=num_dims),
+                            node.loc, None)
                 self._unify(arg1.type, node.type.find()["elt"],
                             arg1.loc, None)
+            else:
+                diagnose(valid_forms())
+        elif types.is_builtin(typ, "numpy.transpose"):
+            valid_forms = lambda: [
+                valid_form("transpose(x: array(elt='a, num_dims=1)) -> array(elt='a, num_dims=1)"),
+                valid_form("transpose(x: array(elt='a, num_dims=2)) -> array(elt='a, num_dims=2)")
+            ]
+
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = node.args
+
+                if types.is_var(arg.type):
+                    pass  # undetermined yet
+                elif not builtins.is_array(arg.type):
+                    note = diagnostic.Diagnostic(
+                        "note", "this expression has type {type}",
+                        {"type": types.TypePrinter().name(arg.type)}, arg.loc)
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "the argument of {builtin}() must be an array",
+                        {"builtin": typ.find().name},
+                        node.func.loc,
+                        notes=[note])
+                    self.engine.process(diag)
+                else:
+                    num_dims = arg.type.find()["num_dims"].value
+                    if num_dims not in (1, 2):
+                        note = diagnostic.Diagnostic(
+                            "note", "argument is {num_dims}-dimensional",
+                            {"num_dims": num_dims}, arg.loc)
+                        diag = diagnostic.Diagnostic(
+                            "error",
+                            "{builtin}() is currently only supported for up to "
+                            "two-dimensional arrays", {"builtin": typ.find().name},
+                            node.func.loc,
+                            notes=[note])
+                        self.engine.process(diag)
+                    else:
+                        self._unify(node.type, arg.type, node.loc, None)
             else:
                 diagnose(valid_forms())
         elif types.is_builtin(typ, "rtio_log"):
@@ -892,9 +1211,6 @@ class Inferencer(algorithm.Visitor):
         elif types.is_builtin(typ, "at_mu"):
             simple_form("at_mu(time_mu:numpy.int64) -> None",
                         [builtins.TInt64()])
-        elif types.is_builtin(typ, "watchdog"):
-            simple_form("watchdog(time:float) -> [builtin context manager]",
-                        [builtins.TFloat()], builtins.TNone())
         elif types.is_constructor(typ):
             # An user-defined class.
             self._unify(node.type, typ.find().instance,
@@ -978,6 +1294,27 @@ class Inferencer(algorithm.Visitor):
             self.engine.process(diag)
             return
 
+        # Array broadcasting for functions explicitly marked as such.
+        if len(node.args) == typ_arity and types.is_broadcast_across_arrays(typ):
+            if typ_arity == 1:
+                arg_type = node.args[0].type.find()
+                if builtins.is_array(arg_type):
+                    typ_arg, = typ_args.values()
+                    self._unify(typ_arg, arg_type["elt"], node.args[0].loc, None)
+                    self._unify(node.type, builtins.TArray(typ_ret, arg_type["num_dims"]),
+                                node.loc, None)
+                    return
+            elif typ_arity == 2:
+                if any(builtins.is_array(arg.type) for arg in node.args):
+                    ret, arg0, arg1 = self._coerce_binary_broadcast_op(
+                        node.args[0], node.args[1], lambda t: typ_ret, node.loc)
+                    node.args[0] = self._coerce_one(arg0, node.args[0],
+                                                    other_node=node.args[1])
+                    node.args[1] = self._coerce_one(arg1, node.args[1],
+                                                    other_node=node.args[0])
+                    self._unify(node.type, ret, node.loc, None)
+                    return
+
         for actualarg, (formalname, formaltyp) in \
                 zip(node.args, list(typ_args.items()) + list(typ_optargs.items())):
             self._unify(actualarg.type, formaltyp,
@@ -999,6 +1336,17 @@ class Inferencer(algorithm.Visitor):
             elif keyword.arg in typ_optargs:
                 self._unify(keyword.value.type, typ_optargs[keyword.arg],
                             keyword.value.loc, None)
+            else:
+                note = diagnostic.Diagnostic("note",
+                    "extraneous argument", {},
+                    keyword.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "this function of type {type} does not accept argument '{name}'",
+                    {"type": types.TypePrinter().name(node.func.type),
+                     "name": keyword.arg},
+                    node.func.loc, [], [note])
+                self.engine.process(diag)
+                return
             passed_args[keyword.arg] = keyword.arg_loc
 
         for formalname in typ_args:
@@ -1107,9 +1455,7 @@ class Inferencer(algorithm.Visitor):
 
         typ = node.context_expr.type
         if (types.is_builtin(typ, "interleave") or types.is_builtin(typ, "sequential") or
-            types.is_builtin(typ, "parallel") or
-                (isinstance(node.context_expr, asttyped.CallT) and
-                 types.is_builtin(node.context_expr.func.type, "watchdog"))):
+            types.is_builtin(typ, "parallel")):
             # builtin context managers
             if node.optional_vars is not None:
                 self._unify(node.optional_vars.type, builtins.TNone(),

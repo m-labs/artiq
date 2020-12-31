@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, tokenize
 from pythonparser import diagnostic
 from ...language.environment import ProcessArgumentManager
 from ...master.databases import DeviceDB, DatasetDB
@@ -22,7 +22,7 @@ def main():
     engine = diagnostic.Engine()
     engine.process = process_diagnostic
 
-    with open(sys.argv[1]) as f:
+    with tokenize.open(sys.argv[1]) as f:
         testcase_code = compile(f.read(), f.name, "exec")
         testcase_vars = {'__name__': 'testbench'}
         exec(testcase_code, testcase_vars)

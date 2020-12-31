@@ -11,7 +11,7 @@ from artiq.language.units import *
 
 from artiq.compiler.module import Module
 from artiq.compiler.embedding import Stitcher
-from artiq.compiler.targets import OR1KTarget
+from artiq.compiler.targets import OR1KTarget, CortexA9Target
 
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 # Import for side effects (creating the exception classes).
@@ -44,6 +44,10 @@ def rtio_init() -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall(flags={"nounwind", "nowrite"})
+def rtio_get_destination_status(linkno: TInt32) -> TBool:
+    raise NotImplementedError("syscall not simulated")
+
+@syscall(flags={"nounwind", "nowrite"})
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
@@ -58,8 +62,6 @@ class Core:
         clocked at 125MHz and a SERDES multiplication factor of 8, the
         reference period is 1ns.
         The time machine unit is equal to this period.
-    :param external_clock: whether the core device should switch to its
-        external RTIO clock input instead of using its internal oscillator.
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
@@ -67,14 +69,17 @@ class Core:
 
     kernel_invariants = {
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
-        "external_clock",
     }
 
-    def __init__(self, dmgr, host, ref_period, external_clock=False,
-                 ref_multiplier=8):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="or1k"):
         self.ref_period = ref_period
-        self.external_clock = external_clock
         self.ref_multiplier = ref_multiplier
+        if target == "or1k":
+            self.target_cls = OR1KTarget
+        elif target == "cortexa9":
+            self.target_cls = CortexA9Target
+        else:
+            raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
@@ -102,7 +107,7 @@ class Core:
             module = Module(stitcher,
                 ref_period=self.ref_period,
                 attribute_writeback=attribute_writeback)
-            target = OR1KTarget()
+            target = self.target_cls()
 
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
@@ -125,7 +130,6 @@ class Core:
 
         if self.first_run:
             self.comm.check_system_info()
-            self.comm.switch_clock(self.external_clock)
             self.first_run = False
 
         self.comm.load(kernel_library)
@@ -136,7 +140,7 @@ class Core:
 
     @portable
     def seconds_to_mu(self, seconds):
-        """Converts seconds to the corresponding number of machine units
+        """Convert seconds to the corresponding number of machine units
         (RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
@@ -145,7 +149,7 @@ class Core:
 
     @portable
     def mu_to_seconds(self, mu):
-        """Converts machine units (RTIO cycles) to seconds.
+        """Convert machine units (RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
@@ -153,7 +157,34 @@ class Core:
 
     @kernel
     def get_rtio_counter_mu(self):
+        """Retrieve the current value of the hardware RTIO timeline counter.
+
+        As the timing of kernel code executed on the CPU is inherently
+        non-deterministic, the return value is by necessity only a lower bound
+        for the actual value of the hardware register at the instant when
+        execution resumes in the caller.
+
+        For a more detailed description of these concepts, see :doc:`/rtio`.
+        """
         return rtio_get_counter()
+
+    @kernel
+    def wait_until_mu(self, cursor_mu):
+        """Block execution until the hardware RTIO counter reaches the given
+        value (see :meth:`get_rtio_counter_mu`).
+
+        If the hardware counter has already passed the given time, the function
+        returns immediately.
+        """
+        while self.get_rtio_counter_mu() < cursor_mu:
+            pass
+
+    @kernel
+    def get_rtio_destination_status(self, destination):
+        """Returns whether the specified RTIO destination is up.
+        This is particularly useful in startup kernels to delay
+        startup until certain DRTIO destinations are up."""
+        return rtio_get_destination_status(destination)
 
     @kernel
     def reset(self):

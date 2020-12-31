@@ -1,32 +1,30 @@
 include ../include/generated/variables.mak
 include $(MISOC_DIRECTORY)/software/common.mak
 
-LDFLAGS += -L../libbase
+CFLAGS += \
+	-I$(LIBUNWIND_DIRECTORY) \
+	-I$(LIBUNWIND_DIRECTORY)/../unwinder/include
 
-RUSTFLAGS += -Cpanic=abort
+LDFLAGS += \
+	-L../libunwind
 
-all: runtime.bin runtime.fbi
+RUSTFLAGS += -Cpanic=unwind
+
+all:: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT)/libruntime.a
 $(RUSTOUT)/libruntime.a:
 	$(cargo) --manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
-	$(LD) $(LDFLAGS) -T $(RUNTIME_DIRECTORY)/runtime.ld -o $@ $^
-	@chmod -x $@
+	$(link) -T $(RUNTIME_DIRECTORY)/runtime.ld \
+		-lunwind-bare
 
 ksupport_data.o: ../ksupport/ksupport.elf
 	$(LD) -r -b binary -o $@ $<
 
 %.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
-	@chmod -x $@
+	$(objcopy) -O binary
 
 %.fbi: %.bin
-	@echo " MSCIMG  " $@ && $(PYTHON) -m misoc.tools.mkmscimg -f -o $@ $<
-
-clean:
-	$(RM) *.o runtime.elf runtime.bin runtime.fbi
-	$(RM) -rf cargo
-
-.PHONY: all clean
+	$(mscimg) -f

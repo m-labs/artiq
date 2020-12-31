@@ -7,10 +7,11 @@ from collections import OrderedDict
 from PyQt5 import QtCore, QtGui, QtWidgets
 import h5py
 
+from sipyco import pyon
+
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.gui.tools import LayoutWidget, log_level_to_name, get_open_file_name
 from artiq.gui.entries import procdesc_to_entry
-from artiq.protocols import pyon
 from artiq.master.worker import Worker, log_worker_exception
 
 logger = logging.getLogger(__name__)
@@ -258,8 +259,9 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
     def dropEvent(self, ev):
         for uri in ev.mimeData().urls():
             if uri.scheme() == "file":
-                logger.debug("Loading HDF5 arguments from %s", uri.path())
-                asyncio.ensure_future(self.load_hdf5_task(uri.path()))
+                filename = QtCore.QDir.toNativeSeparators(uri.toLocalFile())
+                logger.debug("Loading HDF5 arguments from %s", filename)
+                asyncio.ensure_future(self.load_hdf5_task(filename))
                 break
 
     async def compute_arginfo(self):

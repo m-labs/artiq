@@ -14,7 +14,7 @@ from pythonparser import lexer as source_lexer, parser as source_parser
 from Levenshtein import ratio as similarity, jaro_winkler
 
 from ..language import core as language_core
-from . import types, builtins, asttyped, prelude
+from . import types, builtins, asttyped, math_fns, prelude
 from .transforms import ASTTypedRewriter, Inferencer, IntMonomorphizer, TypedtreePrinter
 from .transforms.asttyped_rewriter import LocalExtractor
 
@@ -166,6 +166,10 @@ class ASTSynthesizer:
             typ = builtins.TBool()
             return asttyped.NameConstantT(value=value, type=typ,
                                           loc=self._add(repr(value)))
+        elif value is numpy.float:
+            typ = builtins.fn_float()
+            return asttyped.NameConstantT(value=None, type=typ,
+                                          loc=self._add("numpy.float"))
         elif value is numpy.int32:
             typ = builtins.fn_int32()
             return asttyped.NameConstantT(value=None, type=typ,
@@ -221,21 +225,23 @@ class ASTSynthesizer:
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
-        elif isinstance(value, numpy.ndarray):
-            begin_loc = self._add("numpy.array([")
+        elif isinstance(value, tuple):
+            begin_loc = self._add("(")
             elts = []
             for index, elt in enumerate(value):
                 elts.append(self.quote(elt))
-                if index < len(value) - 1:
-                    self._add(", ")
-            end_loc   = self._add("])")
-
-            return asttyped.ListT(elts=elts, ctx=None, type=builtins.TArray(),
-                                  begin_loc=begin_loc, end_loc=end_loc,
-                                  loc=begin_loc.join(end_loc))
+                self._add(", ")
+            end_loc   = self._add(")")
+            return asttyped.TupleT(elts=elts, ctx=None,
+                                   type=types.TTuple([e.type for e in elts]),
+                                   begin_loc=begin_loc, end_loc=end_loc,
+                                   loc=begin_loc.join(end_loc))
+        elif isinstance(value, numpy.ndarray):
+            return self.call(numpy.array, [list(value)], {})
         elif inspect.isfunction(value) or inspect.ismethod(value) or \
                 isinstance(value, pytypes.BuiltinFunctionType) or \
-                isinstance(value, SpecializedFunction):
+                isinstance(value, SpecializedFunction) or \
+                isinstance(value, numpy.ufunc):
             if inspect.ismethod(value):
                 quoted_self   = self.quote(value.__self__)
                 function_type = self.quote_function(value.__func__, self.expanded_from)
@@ -749,6 +755,14 @@ class Stitcher:
                               quote_function=self._quote_function)
 
     def _function_loc(self, function):
+        if isinstance(function, SpecializedFunction):
+            function = function.host_function
+        if hasattr(function, 'artiq_embedded') and function.artiq_embedded.function:
+            function = function.artiq_embedded.function
+
+        if isinstance(function, str):
+            return source.Range(source.Buffer(function, "<string>"), 0, 0)
+
         filename = function.__code__.co_filename
         line     = function.__code__.co_firstlineno
         name     = function.__code__.co_name
@@ -832,10 +846,20 @@ class Stitcher:
 
         # Extract function source.
         embedded_function = host_function.artiq_embedded.function
-        source_code = inspect.getsource(embedded_function)
-        filename = embedded_function.__code__.co_filename
-        module_name = embedded_function.__globals__['__name__']
-        first_line = embedded_function.__code__.co_firstlineno
+        if isinstance(embedded_function, str):
+            # This is a function to be eval'd from the given source code in string form.
+            # Mangle the host function's id() into the fully qualified name to make sure
+            # there are no collisions.
+            source_code = embedded_function
+            embedded_function = host_function
+            filename = "<string>"
+            module_name = "__eval_{}".format(id(host_function))
+            first_line = 1
+        else:
+            source_code = inspect.getsource(embedded_function)
+            filename = embedded_function.__code__.co_filename
+            module_name = embedded_function.__globals__['__name__']
+            first_line = embedded_function.__code__.co_firstlineno
 
         # Extract function annotation.
         signature = inspect.signature(embedded_function)
@@ -921,6 +945,9 @@ class Stitcher:
         return function_node
 
     def _extract_annot(self, function, annot, kind, call_loc, fn_kind):
+        if annot is None:
+            annot = builtins.TNone()
+
         if not isinstance(annot, types.Type):
             diag = diagnostic.Diagnostic("error",
                 "type annotation for {kind}, '{annot}', is not an ARTIQ type",
@@ -969,9 +996,9 @@ class Stitcher:
             self.engine.process(diag)
             ret_type = types.TVar()
 
-        function_type = types.TCFunction(arg_types, ret_type,
-                                         name=function.artiq_embedded.syscall,
-                                         flags=function.artiq_embedded.flags)
+        function_type = types.TExternalFunction(arg_types, ret_type,
+                                                name=function.artiq_embedded.syscall,
+                                                flags=function.artiq_embedded.flags)
         self.functions[function] = function_type
         return function_type
 
@@ -1014,7 +1041,7 @@ class Stitcher:
 
         function_type = types.TRPC(ret_type,
                                    service=self.embedding_map.store_object(host_function),
-                                   async=is_async)
+                                   is_async=is_async)
         self.functions[function] = function_type
         return function_type
 
@@ -1025,7 +1052,11 @@ class Stitcher:
             host_function = function
 
         if function in self.functions:
-            pass
+            return self.functions[function]
+
+        math_type = math_fns.match(function)
+        if math_type is not None:
+            self.functions[function] = math_type
         elif not hasattr(host_function, "artiq_embedded") or \
                 (host_function.artiq_embedded.core_name is None and
                  host_function.artiq_embedded.portable is False and

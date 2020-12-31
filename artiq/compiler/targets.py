@@ -1,5 +1,5 @@
-import os, sys, tempfile, subprocess
-from artiq.compiler import types
+import os, sys, tempfile, subprocess, io
+from artiq.compiler import types, ir
 from llvmlite_artiq import ir as ll, binding as llvm
 
 llvm.initialize()
@@ -8,40 +8,44 @@ llvm.initialize_all_asmprinters()
 
 class RunTool:
     def __init__(self, pattern, **tempdata):
-        self.files = []
-        self.pattern = pattern
-        self.tempdata = tempdata
-
-    def maketemp(self, data):
-        f = tempfile.NamedTemporaryFile()
-        f.write(data)
-        f.flush()
-        self.files.append(f)
-        return f
+        self._pattern   = pattern
+        self._tempdata  = tempdata
+        self._tempnames = {}
+        self._tempfiles = {}
 
     def __enter__(self):
-        tempfiles = {}
-        tempnames = {}
-        for key in self.tempdata:
-            tempfiles[key] = self.maketemp(self.tempdata[key])
-            tempnames[key] = tempfiles[key].name
+        for key, data in self._tempdata.items():
+            if data is None:
+                fd, filename = tempfile.mkstemp()
+                os.close(fd)
+                self._tempnames[key] = filename
+            else:
+                with tempfile.NamedTemporaryFile(delete=False) as f:
+                    f.write(data)
+                    self._tempnames[key] = f.name
 
         cmdline = []
-        for argument in self.pattern:
-            cmdline.append(argument.format(**tempnames))
+        for argument in self._pattern:
+            cmdline.append(argument.format(**self._tempnames))
 
-        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   universal_newlines=True)
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             raise Exception("{} invocation failed: {}".
-                            format(cmdline[0], stderr.decode('utf-8')))
+                            format(cmdline[0], stderr))
 
-        tempfiles["__stdout__"] = stdout.decode('utf-8')
-        return tempfiles
+        self._tempfiles["__stdout__"] = io.StringIO(stdout)
+        for key in self._tempdata:
+            if self._tempdata[key] is None:
+                self._tempfiles[key] = open(self._tempnames[key], "rb")
+        return self._tempfiles
 
     def __exit__(self, exc_typ, exc_value, exc_trace):
-        for f in self.files:
-            f.close()
+        for file in self._tempfiles.values():
+            file.close()
+        for filename in self._tempnames.values():
+            os.unlink(filename)
 
 def _dump(target, kind, suffix, content):
     if target is not None:
@@ -71,12 +75,23 @@ class Target:
     :var print_function: (string)
         Name of a formatted print functions (with the signature of ``printf``)
         provided by the target, e.g. ``"printf"``.
+    :var little_endian: (boolean)
+        Whether the code will be executed on a little-endian machine. This cannot be always
+        determined from data_layout due to JIT.
+    :var now_pinning: (boolean)
+        Whether the target implements the now-pinning RTIO optimization.
     """
     triple = "unknown"
     data_layout = ""
     features = []
     print_function = "printf"
+    little_endian = False
+    now_pinning = True
 
+    tool_ld = "ld.lld"
+    tool_strip = "llvm-strip"
+    tool_addr2line = "llvm-addr2line"
+    tool_cxxfilt = "llvm-cxxfilt"
 
     def __init__(self):
         self.llcontext = ll.Context()
@@ -127,6 +142,9 @@ class Target:
             print("====== MODULE_SIGNATURE DUMP ======", file=sys.stderr)
             print(module, file=sys.stderr)
 
+        if os.getenv("ARTIQ_IR_NO_LOC") is not None:
+            ir.BasicBlock._dump_loc = False
+
         type_printer = types.TypePrinter()
         _dump(os.getenv("ARTIQ_DUMP_IR"), "ARTIQ IR", ".txt",
               lambda: "\n".join(fn.as_entity(type_printer) for fn in module.artiq_ir))
@@ -163,10 +181,11 @@ class Target:
 
     def link(self, objects):
         """Link the relocatable objects into a shared library for this target."""
-        with RunTool([self.triple + "-ld", "-shared", "--eh-frame-hdr"] +
+        with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
+                     ["-x"] +
                      ["-o", "{output}"],
-                     output=b"",
+                     output=None,
                      **{"obj{}".format(index): obj for index, obj in enumerate(objects)}) \
                 as results:
             library = results["output"].read()
@@ -180,8 +199,8 @@ class Target:
         return self.link([self.assemble(self.compile(module)) for module in modules])
 
     def strip(self, library):
-        with RunTool([self.triple + "-strip", "--strip-debug", "{library}", "-o", "{output}"],
-                     library=library, output=b"") \
+        with RunTool([self.tool_strip, "--strip-debug", "{library}", "-o", "{output}"],
+                     library=library, output=None) \
                 as results:
             return results["output"].read()
 
@@ -194,11 +213,11 @@ class Target:
         # inside the call instruction (or its delay slot), since that's what
         # the backtrace entry should point at.
         offset_addresses = [hex(addr - 1) for addr in addresses]
-        with RunTool([self.triple + "-addr2line", "--addresses",  "--functions", "--inlines",
+        with RunTool([self.tool_addr2line, "--addresses",  "--functions", "--inlines",
                       "--demangle", "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
-            lines = iter(results["__stdout__"].rstrip().split("\n"))
+            lines = iter(results["__stdout__"].read().rstrip().split("\n"))
             backtrace = []
             while True:
                 try:
@@ -216,18 +235,25 @@ class Target:
                 filename, line = location.rsplit(":", 1)
                 if filename == "??" or filename == "<synthesized>":
                     continue
+                if line == "?":
+                    line = -1
+                else:
+                    line = int(line)
                 # can't get column out of addr2line D:
-                backtrace.append((filename, int(line), -1, function, address))
+                backtrace.append((filename, line, -1, function, address))
             return backtrace
 
     def demangle(self, names):
-        with RunTool([self.triple + "-c++filt"] + names) as results:
-            return results["__stdout__"].rstrip().split("\n")
+        with RunTool([self.tool_cxxfilt] + names) as results:
+            return results["__stdout__"].read().rstrip().split("\n")
 
 class NativeTarget(Target):
     def __init__(self):
         super().__init__()
         self.triple = llvm.get_default_triple()
+        host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
+        assert host_data_layout[0] in "eE"
+        self.little_endian = host_data_layout[0] == "e"
 
 class OR1KTarget(Target):
     triple = "or1k-linux"
@@ -235,3 +261,23 @@ class OR1KTarget(Target):
                   "f64:32:32-v64:32:32-v128:32:32-a0:0:32-n32"
     features = ["mul", "div", "ffl1", "cmov", "addc"]
     print_function = "core_log"
+    little_endian = False
+    now_pinning = True
+
+    tool_ld = "or1k-linux-ld"
+    tool_strip = "or1k-linux-strip"
+    tool_addr2line = "or1k-linux-addr2line"
+    tool_cxxfilt = "or1k-linux-c++filt"
+
+class CortexA9Target(Target):
+    triple = "armv7-unknown-linux-gnueabihf"
+    data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
+    features = ["dsp", "fp16", "neon", "vfp3"]
+    print_function = "core_log"
+    little_endian = True
+    now_pinning = False
+
+    tool_ld = "armv7-unknown-linux-gnueabihf-ld"
+    tool_strip = "armv7-unknown-linux-gnueabihf-strip"
+    tool_addr2line = "armv7-unknown-linux-gnueabihf-addr2line"
+    tool_cxxfilt = "armv7-unknown-linux-gnueabihf-c++filt"

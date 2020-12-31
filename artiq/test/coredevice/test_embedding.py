@@ -1,4 +1,5 @@
 import numpy
+import unittest
 from time import sleep
 
 from artiq.experiment import *
@@ -20,6 +21,12 @@ class RoundtripTest(ExperimentCase):
         exp = self.create(_Roundtrip)
         def callback(objcopy):
             self.assertEqual(obj, objcopy)
+        exp.roundtrip(obj, callback)
+
+    def assertArrayRoundtrip(self, obj):
+        exp = self.create(_Roundtrip)
+        def callback(objcopy):
+            numpy.testing.assert_array_equal(obj, objcopy)
         exp.roundtrip(obj, callback)
 
     def test_None(self):
@@ -48,15 +55,35 @@ class RoundtripTest(ExperimentCase):
     def test_list(self):
         self.assertRoundtrip([10])
 
-    def test_array(self):
-        self.assertRoundtrip(numpy.array([10]))
-
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)
 
     def test_object_list(self):
         self.assertRoundtrip([object(), object()])
+
+    def test_list_tuple(self):
+        self.assertRoundtrip(([1, 2], [3, 4]))
+
+    def test_list_mixed_tuple(self):
+        self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
+
+    def test_array_1d(self):
+        self.assertArrayRoundtrip(numpy.array([1, 2, 3], dtype=numpy.int32))
+        self.assertArrayRoundtrip(numpy.array([1.0, 2.0, 3.0]))
+        self.assertArrayRoundtrip(numpy.array(["a", "b", "c"]))
+
+    def test_array_2d(self):
+        self.assertArrayRoundtrip(numpy.array([[1, 2], [3, 4]], dtype=numpy.int32))
+        self.assertArrayRoundtrip(numpy.array([[1.0, 2.0], [3.0, 4.0]]))
+        self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
+
+    # FIXME: This should work, but currently passes as the argument is just
+    # synthesised as a call to array() without forwarding the dype form the host
+    # NumPy object.
+    @unittest.expectedFailure
+    def test_array_jagged(self):
+        self.assertArrayRoundtrip(numpy.array([[1, 2], [3]], dtype=object))
 
 
 class _DefaultArg(EnvExperiment):
@@ -80,7 +107,6 @@ class DefaultArgTest(ExperimentCase):
 class _RPCTypes(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("led")
 
     def return_bool(self) -> TBool:
         return True
@@ -112,6 +138,12 @@ class _RPCTypes(EnvExperiment):
     def return_range(self) -> TRange32:
         return range(10)
 
+    def return_array(self) -> TArray(TInt32):
+        return numpy.array([1, 2])
+
+    def return_matrix(self) -> TArray(TInt32, 2):
+        return numpy.array([[1, 2], [3, 4]])
+
     def return_mismatch(self):
         return b"foo"
 
@@ -127,6 +159,8 @@ class _RPCTypes(EnvExperiment):
         core_log(self.return_tuple())
         core_log(self.return_list())
         core_log(self.return_range())
+        core_log(self.return_array())
+        core_log(self.return_matrix())
 
     def accept(self, value):
         pass
@@ -140,9 +174,13 @@ class _RPCTypes(EnvExperiment):
         self.accept("foo")
         self.accept(b"foo")
         self.accept(bytearray(b"foo"))
+        self.accept(bytes([1, 2]))
+        self.accept(bytearray([1, 2]))
         self.accept((2, 3))
         self.accept([1, 2])
         self.accept(range(10))
+        self.accept(numpy.array([1, 2]))
+        self.accept(numpy.array([[1, 2], [3, 4]]))
         self.accept(self)
 
     @kernel
@@ -212,8 +250,27 @@ class _RPCCalls(EnvExperiment):
         return numpy.full(10, 20)
 
     @kernel
+    def numpy_full_matrix(self):
+        return numpy.full((3, 2), 13)
+
+    @kernel
+    def numpy_nan(self):
+        return numpy.full(10, numpy.nan)
+
+    @kernel
     def builtin(self):
         sleep(1.0)
+
+    @rpc(flags={"async"})
+    def async_rpc(self):
+        pass
+
+    @kernel
+    def async_in_try(self):
+        try:
+            self.async_rpc()
+        except ValueError:
+            pass
 
 
 class RPCCallsTest(ExperimentCase):
@@ -229,7 +286,10 @@ class RPCCallsTest(ExperimentCase):
         self.assertEqual(exp.numpy_things(),
                          (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
         self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
+        self.assertTrue((exp.numpy_full_matrix() == numpy.full((3, 2), 13)).all())
+        self.assertTrue(numpy.isnan(exp.numpy_nan()).all())
         exp.builtin()
+        exp.async_in_try()
 
 
 class _Annotation(EnvExperiment):
@@ -290,3 +350,141 @@ class LargePayloadTest(ExperimentCase):
     def test_1MB(self):
         exp = self.create(_Payload1MB)
         exp.run()
+
+
+class _ListTuple(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        # Make sure lifetime for the array data in tuples of lists is managed
+        # correctly. This is written in a somewhat convoluted fashion to provoke
+        # memory corruption even in the face of compiler optimizations.
+        for _ in range(self.get_num_iters()):
+            a, b = self.get_values(0, 1, 32)
+            c, d = self.get_values(2, 3, 64)
+            self.verify(a)
+            self.verify(c)
+            self.verify(b)
+            self.verify(d)
+
+    @kernel
+    def verify(self, data):
+        for i in range(len(data)):
+            if data[i] != data[0] + i:
+                raise ValueError
+
+    def get_num_iters(self) -> TInt32:
+        return 2
+
+    def get_values(self, base_a, base_b, n) -> TTuple([TList(TInt32), TList(TInt32)]):
+        return [numpy.int32(base_a + i) for i in range(n)], \
+            [numpy.int32(base_b + i) for i in range(n)]
+
+
+class _NestedTupleList(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.data = [(0x12345678, [("foo", [0.0, 1.0], [2, 3])]),
+                     (0x76543210, [("bar", [4.0, 5.0], [6, 7])])]
+
+    def get_data(self) -> TList(TTuple(
+            [TInt32, TList(TTuple([TStr, TList(TFloat), TList(TInt32)]))])):
+        return self.data
+
+    @kernel
+    def run(self):
+        a = self.get_data()
+        if a != self.data:
+            raise ValueError
+
+
+class _EmptyList(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    def get_empty(self) -> TList(TInt32):
+        return []
+
+    @kernel
+    def run(self):
+        a = self.get_empty()
+        if a != []:
+            raise ValueError
+
+
+class ListTupleTest(ExperimentCase):
+    def test_list_tuple(self):
+        self.create(_ListTuple).run()
+
+    def test_nested_tuple_list(self):
+        self.create(_NestedTupleList).run()
+
+    def test_empty_list(self):
+        self.create(_EmptyList).run()
+
+
+class _ArrayQuoting(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.vec_i32 = numpy.array([0, 1], dtype=numpy.int32)
+        self.mat_i64 = numpy.array([[0, 1], [2, 3]], dtype=numpy.int64)
+        self.arr_f64 = numpy.array([[[0.0, 1.0], [2.0, 3.0]],
+                                    [[4.0, 5.0], [6.0, 7.0]]])
+        self.strs = numpy.array(["foo", "bar"])
+
+    @kernel
+    def run(self):
+        assert self.vec_i32[0] == 0
+        assert self.vec_i32[1] == 1
+
+        assert self.mat_i64[0, 0] == 0
+        assert self.mat_i64[0, 1] == 1
+        assert self.mat_i64[1, 0] == 2
+        assert self.mat_i64[1, 1] == 3
+
+        assert self.arr_f64[0, 0, 0] == 0.0
+        assert self.arr_f64[0, 0, 1] == 1.0
+        assert self.arr_f64[0, 1, 0] == 2.0
+        assert self.arr_f64[0, 1, 1] == 3.0
+        assert self.arr_f64[1, 0, 0] == 4.0
+        assert self.arr_f64[1, 0, 1] == 5.0
+        assert self.arr_f64[1, 1, 0] == 6.0
+        assert self.arr_f64[1, 1, 1] == 7.0
+
+        assert self.strs[0] == "foo"
+        assert self.strs[1] == "bar"
+
+
+class ArrayQuotingTest(ExperimentCase):
+    def test_quoting(self):
+        self.create(_ArrayQuoting).run()
+
+
+class _Assert(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def check(self, value):
+        assert value
+
+    @kernel
+    def check_msg(self, value):
+        assert value, "foo"
+
+
+class AssertTest(ExperimentCase):
+    def test_assert(self):
+        exp = self.create(_Assert)
+
+        def check_fail(fn, msg):
+            with self.assertRaises(AssertionError) as ctx:
+                fn()
+            self.assertEqual(str(ctx.exception), msg)
+
+        exp.check(True)
+        check_fail(lambda: exp.check(False), "AssertionError")
+        exp.check_msg(True)
+        check_fail(lambda: exp.check_msg(False), "foo")

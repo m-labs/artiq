@@ -60,12 +60,14 @@ class Module:
                                                          ref_period=ref_period)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
+        local_demoter = transforms.LocalDemoter()
+        constant_hoister = transforms.ConstantHoister()
         devirtualization = analyses.Devirtualization()
         interleaver = transforms.Interleaver(engine=self.engine)
         invariant_detection = analyses.InvariantDetection(engine=self.engine)
 
-        cast_monomorphizer.visit(src.typedtree)
         int_monomorphizer.visit(src.typedtree)
+        cast_monomorphizer.visit(src.typedtree)
         inferencer.visit(src.typedtree)
         monomorphism_validator.visit(src.typedtree)
         escape_validator.visit(src.typedtree)
@@ -77,6 +79,8 @@ class Module:
         dead_code_eliminator.process(self.artiq_ir)
         interleaver.process(self.artiq_ir)
         local_access_validator.process(self.artiq_ir)
+        local_demoter.process(self.artiq_ir)
+        constant_hoister.process(self.artiq_ir)
         if remarks:
             invariant_detection.process(self.artiq_ir)
 

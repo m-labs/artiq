@@ -18,7 +18,7 @@ class PacketLayoutManager:
         self.layouts = dict()
         self.types = dict()
         self.type_names = dict()
-    
+
     def add_type(self, name, *fields, pad=True):
         type_n = len(self.types)
         self.types[name] = type_n
@@ -47,16 +47,15 @@ def get_m2s_layouts(alignment):
 
     plm.add_type("echo_request")
     plm.add_type("set_time", ("timestamp", 64))
-    plm.add_type("reset", ("phy", 1))
 
     plm.add_type("write", ("timestamp", 64),
-                          ("channel", 16),
-                          ("address", 16),
+                          ("chan_sel", 24),
+                          ("address", 8),
                           ("extra_data_cnt", 8),
                           ("short_data", short_data_len))
-    plm.add_type("fifo_space_request", ("channel", 16))
+    plm.add_type("buffer_space_request", ("destination", 8))
 
-    plm.add_type("read_request", ("channel", 16), ("timeout", 64))
+    plm.add_type("read_request", ("chan_sel", 24), ("timeout", 64))
 
     return plm
 
@@ -66,7 +65,7 @@ def get_s2m_layouts(alignment):
 
     plm.add_type("echo_reply")
 
-    plm.add_type("fifo_space_reply", ("space", 16))
+    plm.add_type("buffer_space_reply", ("space", 16))
 
     plm.add_type("read_reply", ("timestamp", 64), ("data", 32))
     plm.add_type("read_reply_noevent", ("overflow", 1))  # overflow=0→timeout
@@ -110,7 +109,7 @@ class ReceiveDatapath(Module):
         packet_buffer_count = Signal(max=w_in_packet+1)
         self.sync += \
             If(self.packet_buffer_load,
-                Case(packet_buffer_count, 
+                Case(packet_buffer_count,
                      {i: packet_buffer[i*ws:(i+1)*ws].eq(self.data_r)
                       for i in range(w_in_packet)}),
                 packet_buffer_count.eq(packet_buffer_count + 1)

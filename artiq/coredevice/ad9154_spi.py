@@ -10,9 +10,8 @@ class AD9154:
         self.chip_select = chip_select
 
     @kernel
-    def setup_bus(self, write_div=16, read_div=16):
-        self.bus.set_config_mu(0, write_div, read_div)
-        self.bus.set_xfer(self.chip_select, 24, 0)
+    def setup_bus(self, div=16):
+        self.bus.set_config_mu(0, 24, div, self.chip_select)
 
     @kernel
     def write(self, addr, data):

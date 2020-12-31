@@ -33,6 +33,110 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
+@kernel
+def i2c_poll(busno, busaddr):
+    """Poll I2C device at address.
+
+    :param busno: I2C bus number
+    :param busaddr: 8 bit I2C device address (LSB=0)
+    :returns: True if the poll was ACKed
+    """
+    i2c_start(busno)
+    ack = i2c_write(busno, busaddr)
+    i2c_stop(busno)
+    return ack
+
+
+@kernel
+def i2c_write_byte(busno, busaddr, data, ack=True):
+    """Write one byte to a device.
+
+    :param busno: I2C bus number
+    :param busaddr: 8 bit I2C device address (LSB=0)
+    :param data: Data byte to be written
+    :param nack: Allow NACK
+    """
+    i2c_start(busno)
+    try:
+        if not i2c_write(busno, busaddr):
+            raise I2CError("failed to ack bus address")
+        if not i2c_write(busno, data) and ack:
+            raise I2CError("failed to ack write data")
+    finally:
+        i2c_stop(busno)
+
+
+@kernel
+def i2c_read_byte(busno, busaddr):
+    """Read one byte from a device.
+
+    :param busno: I2C bus number
+    :param busaddr: 8 bit I2C device address (LSB=0)
+    :returns: Byte read
+    """
+    i2c_start(busno)
+    data = 0
+    try:
+        if not i2c_write(busno, busaddr | 1):
+            raise I2CError("failed to ack bus read address")
+        data = i2c_read(busno, ack=False)
+    finally:
+        i2c_stop(busno)
+    return data
+
+
+@kernel
+def i2c_write_many(busno, busaddr, addr, data, ack_last=True):
+    """Transfer multiple bytes to a device.
+
+    :param busno: I2c bus number
+    :param busaddr: 8 bit I2C device address (LSB=0)
+    :param addr: 8 bit data address
+    :param data: Data bytes to be written
+    :param ack_last: Expect I2C ACK of the last byte written. If `False`,
+        the last byte may be NACKed (e.g. EEPROM full page writes).
+    """
+    n = len(data)
+    i2c_start(busno)
+    try:
+        if not i2c_write(busno, busaddr):
+            raise I2CError("failed to ack bus address")
+        if not i2c_write(busno, addr):
+            raise I2CError("failed to ack data address")
+        for i in range(n):
+            if not i2c_write(busno, data[i]) and (
+                    i < n - 1 or ack_last):
+                raise I2CError("failed to ack write data")
+    finally:
+        i2c_stop(busno)
+
+
+@kernel
+def i2c_read_many(busno, busaddr, addr, data):
+    """Transfer multiple bytes from a device.
+
+    :param busno: I2c bus number
+    :param busaddr: 8 bit I2C device address (LSB=0)
+    :param addr: 8 bit data address
+    :param data: List of integers to be filled with the data read.
+        One entry ber byte.
+    """
+    m = len(data)
+    i2c_start(busno)
+    try:
+        if not i2c_write(busno, busaddr):
+            raise I2CError("failed to ack bus address")
+        if not i2c_write(busno, addr):
+            raise I2CError("failed to ack data address")
+        i2c_restart(busno)
+        if not i2c_write(busno, busaddr | 1):
+            raise I2CError("failed to ack bus read address")
+        for i in range(m):
+            data[i] = i2c_read(busno, ack=i < m - 1)
+    finally:
+        i2c_stop(busno)
+
+
 class PCA9548:
     """Driver for the PCA9548 I2C bus switch.
 
@@ -48,34 +152,24 @@ class PCA9548:
         self.address = address
 
     @kernel
-    def set(self, channel):
-        """Select one channel.
+    def select(self, mask):
+        """Enable/disable channels.
 
-        Selecting multiple channels at the same time is not supported by this
-        driver.
+        :param mask: Bit mask of enabled channels
+        """
+        i2c_write_byte(self.busno, self.address, mask)
+
+    @kernel
+    def set(self, channel):
+        """Enable one channel.
 
         :param channel: channel number (0-7)
         """
-        i2c_start(self.busno)
-        try:
-            if not i2c_write(self.busno, self.address):
-                raise I2CError("PCA9548 failed to ack address")
-            if not i2c_write(self.busno, 1 << channel):
-                raise I2CError("PCA9548 failed to ack control word")
-        finally:
-            i2c_stop(self.busno)
+        self.select(1 << channel)
 
     @kernel
     def readback(self):
-        i2c_start(self.busno)
-        r = 0
-        try:
-            if not i2c_write(self.busno, self.address | 1):
-                raise I2CError("PCA9548 failed to ack address")
-            r = i2c_read(self.busno, False)
-        finally:
-            i2c_stop(self.busno)
-        return r
+        return i2c_read_byte(self.busno, self.address)
 
 
 class TCA6424A:
@@ -92,19 +186,9 @@ class TCA6424A:
         self.address = address
 
     @kernel
-    def _write24(self, command, value):
-        i2c_start(self.busno)
-        try:
-            if not i2c_write(self.busno, self.address):
-                raise I2CError("TCA6424A failed to ack address")
-            if not i2c_write(self.busno, command):
-                raise I2CError("TCA6424A failed to ack command")
-            for i in range(3):
-                if not i2c_write(self.busno, value >> 16):
-                    raise I2CError("TCA6424A failed to ack data")
-                value <<= 8
-        finally:
-            i2c_stop(self.busno)
+    def _write24(self, addr, value):
+        i2c_write_many(self.busno, self.address, addr,
+                       [value >> 16, value >> 8, value])
 
     @kernel
     def set(self, outputs):

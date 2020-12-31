@@ -4,7 +4,8 @@ from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
-from artiq.protocols.sync_struct import Subscriber
+from sipyco.sync_struct import Subscriber
+
 from artiq.coredevice.comm_moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
@@ -74,6 +75,7 @@ class _TTLWidget(QtWidgets.QFrame):
         self.cur_level = False
         self.cur_oe = False
         self.cur_override = False
+        self.cur_override_level = False
         self.refresh_display()
 
     def enterEvent(self, event):
@@ -106,7 +108,9 @@ class _TTLWidget(QtWidgets.QFrame):
                 self.set_mode(self.channel, "0")
 
     def refresh_display(self):
-        value_s = "1" if self.cur_level else "0"
+        level = self.cur_override_level if self.cur_override else self.cur_level
+        value_s = "1" if level else "0"
+
         if self.cur_override:
             value_s = "<b>" + value_s + "</b>"
             color = " color=\"red\""
@@ -215,17 +219,15 @@ def setup_from_ddb(ddb):
                     force_out = v["class"] == "TTLOut"
                     widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
                     description.add(widget)
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSGroupAD9914"):
-                    dds_sysclk = v["arguments"]["sysclk"]
-                elif (v["module"] == "artiq.coredevice.dds"
-                        and v["class"] == "DDSChannelAD9914"):
+                elif (v["module"] == "artiq.coredevice.ad9914"
+                        and v["class"] == "AD9914"):
                     bus_channel = v["arguments"]["bus_channel"]
                     channel = v["arguments"]["channel"]
+                    dds_sysclk = v["arguments"]["sysclk"]
                     widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
                     description.add(widget)
-                elif (v["module"] == "artiq.coredevice.ad5360"
-                        and v["class"] == "AD5360"):
+                elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53XX")
+                      or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
                     spi_device = v["arguments"]["spi_device"]
                     spi_device = ddb[spi_device]
                     while isinstance(spi_device, str):
@@ -242,7 +244,7 @@ def setup_from_ddb(ddb):
 class _DeviceManager:
     def __init__(self):
         self.core_addr = None
-        self.new_core_addr = asyncio.Event()
+        self.reconnect_core = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
 
@@ -267,7 +269,7 @@ class _DeviceManager:
 
         if core_addr != self.core_addr:
             self.core_addr = core_addr
-            self.new_core_addr.set()
+            self.reconnect_core.set()
 
         self.dds_sysclk = dds_sysclk
 
@@ -341,18 +343,20 @@ class _DeviceManager:
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, channel, TTLProbe.level.value)
-            self.core_connection.monitor(enable, channel, TTLProbe.oe.value)
+            self.core_connection.monitor_probe(enable, channel, TTLProbe.level.value)
+            self.core_connection.monitor_probe(enable, channel, TTLProbe.oe.value)
+            self.core_connection.monitor_injection(enable, channel, TTLOverride.en.value)
+            self.core_connection.monitor_injection(enable, channel, TTLOverride.level.value)
             if enable:
                 self.core_connection.get_injection_status(channel, TTLOverride.en.value)
 
     def setup_dds_monitoring(self, enable, bus_channel, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, bus_channel, channel)
+            self.core_connection.monitor_probe(enable, bus_channel, channel)
 
     def setup_dac_monitoring(self, enable, spi_channel, channel):
         if self.core_connection is not None:
-            self.core_connection.monitor(enable, spi_channel, channel)
+            self.core_connection.monitor_probe(enable, spi_channel, channel)
 
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
@@ -373,21 +377,35 @@ class _DeviceManager:
 
     def injection_status_cb(self, channel, override, value):
         if channel in self.ttl_widgets:
-            self.ttl_widgets[channel].cur_override = bool(value)
+            widget = self.ttl_widgets[channel]
+            if override == TTLOverride.en.value:
+                widget.cur_override = bool(value)
+            if override == TTLOverride.level.value:
+                widget.cur_override_level = bool(value)
+            widget.refresh_display()
+
+    def disconnect_cb(self):
+        logger.error("lost connection to core device moninj")
+        self.reconnect_core.set()
 
     async def core_connector(self):
         while True:
-            await self.new_core_addr.wait()
-            self.new_core_addr.clear()
+            await self.reconnect_core.wait()
+            self.reconnect_core.clear()
             if self.core_connection is not None:
                 await self.core_connection.close()
                 self.core_connection = None
             new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
-                    lambda: logger.error("lost connection to core device moninj"))
+                    self.disconnect_cb)
             try:
                 await new_core_connection.connect(self.core_addr, 1383)
+            except asyncio.CancelledError:
+                logger.info("cancelled connection to core device moninj")
+                break
             except:
                 logger.error("failed to connect to core device moninj", exc_info=True)
+                await asyncio.sleep(10.)
+                self.reconnect_core.set()
             else:
                 self.core_connection = new_core_connection
                 for ttl_channel in self.ttl_widgets.keys():

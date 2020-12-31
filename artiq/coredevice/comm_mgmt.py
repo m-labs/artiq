@@ -14,14 +14,31 @@ class Request(Enum):
     SetLogFilter = 3
     SetUartLogFilter = 6
 
+    ConfigRead = 12
+    ConfigWrite = 13
+    ConfigRemove = 14
+    ConfigErase = 15
+
+    StartProfiler = 9
+    StopProfiler = 10
+    GetProfile = 11
+
     Hotswap = 4
     Reboot = 5
+
+    DebugAllocator = 8
 
 
 class Reply(Enum):
     Success = 1
+    Error = 6
+    Unavailable = 4
 
     LogContent = 2
+
+    ConfigData = 7
+
+    Profile = 5
 
     RebootImminent = 3
 
@@ -35,13 +52,6 @@ class LogLevel(Enum):
     TRACE = 5
 
 
-def initialize_connection(host, port):
-    sock = socket.create_connection((host, port), 5.0)
-    sock.settimeout(None)
-    logger.debug("connected to host %s on port %d", host, port)
-    return sock
-
-
 class CommMgmt:
     def __init__(self, host, port=1380):
         self.host = host
@@ -50,7 +60,8 @@ class CommMgmt:
     def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = initialize_connection(self.host, self.port)
+        self.socket = socket.create_connection((self.host, self.port))
+        logger.debug("connected to %s:%d", self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
 
     def close(self):
@@ -80,6 +91,9 @@ class CommMgmt:
     def _write_bytes(self, value):
         self._write_int32(len(value))
         self._write(value)
+
+    def _write_string(self, value):
+        self._write_bytes(value.encode("utf-8"))
 
     def _read(self, length):
         r = bytes()
@@ -143,6 +157,66 @@ class CommMgmt:
         self._write_int8(getattr(LogLevel, level).value)
         self._read_expect(Reply.Success)
 
+    def config_read(self, key):
+        self._write_header(Request.ConfigRead)
+        self._write_string(key)
+        self._read_expect(Reply.ConfigData)
+        return self._read_string()
+
+    def config_write(self, key, value):
+        self._write_header(Request.ConfigWrite)
+        self._write_string(key)
+        self._write_bytes(value)
+        ty = self._read_header()
+        if ty == Reply.Error:
+            raise IOError("Flash storage is full")
+        elif ty != Reply.Success:
+            raise IOError("Incorrect reply from device: {} (expected {})".
+                          format(ty, Reply.Success))
+
+    def config_remove(self, key):
+        self._write_header(Request.ConfigRemove)
+        self._write_string(key)
+        self._read_expect(Reply.Success)
+
+    def config_erase(self):
+        self._write_header(Request.ConfigErase)
+        self._read_expect(Reply.Success)
+
+    def start_profiler(self, interval, edges_size, hits_size):
+        self._write_header(Request.StartProfiler)
+        self._write_int32(interval)
+        self._write_int32(edges_size)
+        self._write_int32(hits_size)
+        self._read_expect(Reply.Success)
+
+    def stop_profiler(self):
+        self._write_header(Request.StopProfiler)
+        self._read_expect(Reply.Success)
+
+    def stop_profiler(self):
+        self._write_header(Request.StopProfiler)
+        self._read_expect(Reply.Success)
+
+    def get_profile(self):
+        self._write_header(Request.GetProfile)
+        self._read_expect(Reply.Profile)
+
+        hits = {}
+        for _ in range(self._read_int32()):
+            addr = self._read_int32()
+            count = self._read_int32()
+            hits[addr] = count
+
+        edges = {}
+        for _ in range(self._read_int32()):
+            caller = self._read_int32()
+            callee = self._read_int32()
+            count = self._read_int32()
+            edges[(caller, callee)] = count
+
+        return hits, edges
+
     def hotswap(self, firmware):
         self._write_header(Request.Hotswap)
         self._write_bytes(firmware)
@@ -151,3 +225,6 @@ class CommMgmt:
     def reboot(self):
         self._write_header(Request.Reboot)
         self._read_expect(Reply.RebootImminent)
+
+    def debug_allocator(self):
+        self._write_header(Request.DebugAllocator)

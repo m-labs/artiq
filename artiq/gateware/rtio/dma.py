@@ -12,9 +12,7 @@ def _reverse_bytes(s, g):
 
 
 class WishboneReader(Module):
-    def __init__(self, bus=None):
-        if bus is None:
-            bus = wishbone.Interface
+    def __init__(self, bus):
         self.bus = bus
 
         aw = len(bus.adr)
@@ -148,7 +146,7 @@ record_layout = [
     ("length", 8),  # of whole record (header+data)
     ("channel", 24),
     ("timestamp", 64),
-    ("address", 16),
+    ("address", 8),
     ("data", 512)  # variable length
 ]
 
@@ -242,9 +240,7 @@ class TimeOffset(Module, AutoCSR):
 
 class CRIMaster(Module, AutoCSR):
     def __init__(self):
-        self.error_status = CSRStatus(3)  # same encoding as RTIO status
-        self.error_underflow_reset = CSR()
-        self.error_sequence_error_reset = CSR()
+        self.error = CSR(2)
 
         self.error_channel = CSRStatus(24)
         self.error_timestamp = CSRStatus(64)
@@ -256,23 +252,27 @@ class CRIMaster(Module, AutoCSR):
 
         # # #
 
-        error_set = Signal(2)
-        for i, rcsr in enumerate([self.error_underflow_reset, self.error_sequence_error_reset]):
-            # bit 0 is RTIO wait and always 0 here
-            bit = i + 1
-            self.sync += [
-                If(error_set[i],
-                    self.error_status.status[bit].eq(1),
-                    self.error_channel.status.eq(self.sink.channel),
-                    self.error_timestamp.status.eq(self.sink.timestamp),
-                    self.error_address.status.eq(self.sink.address)
-                ),
-                If(rcsr.re, self.error_status.status[bit].eq(0))
-            ]
+        underflow_trigger = Signal()
+        link_error_trigger = Signal()
+        self.sync += [
+            If(underflow_trigger,
+                self.error.w.eq(1),
+                self.error_channel.status.eq(self.sink.channel),
+                self.error_timestamp.status.eq(self.sink.timestamp),
+                self.error_address.status.eq(self.sink.address)
+            ),
+            If(link_error_trigger,
+                self.error.w.eq(2),
+                self.error_channel.status.eq(self.sink.channel),
+                self.error_timestamp.status.eq(self.sink.timestamp),
+                self.error_address.status.eq(self.sink.address)
+            ),
+            If(self.error.re, self.error.w.eq(0))
+        ]
 
         self.comb += [
             self.cri.chan_sel.eq(self.sink.channel),
-            self.cri.timestamp.eq(self.sink.timestamp),
+            self.cri.o_timestamp.eq(self.sink.timestamp),
             self.cri.o_address.eq(self.sink.address),
             self.cri.o_data.eq(self.sink.data)
         ]
@@ -281,7 +281,7 @@ class CRIMaster(Module, AutoCSR):
         self.submodules += fsm
 
         fsm.act("IDLE",
-            If(self.error_status.status == 0,
+            If(self.error.w == 0,
                 If(self.sink.stb,
                     If(self.sink.eop,
                         # last packet contains dummy data, discard it
@@ -307,15 +307,20 @@ class CRIMaster(Module, AutoCSR):
                 NextState("IDLE")
             ),
             If(self.cri.o_status[1], NextState("UNDERFLOW")),
-            If(self.cri.o_status[2], NextState("SEQUENCE_ERROR"))
+            If(self.cri.o_status[2], NextState("LINK_ERROR"))
         )
-        for n, name in enumerate(["UNDERFLOW", "SEQUENCE_ERROR"]):
-            fsm.act(name,
-                self.busy.eq(1),
-                error_set.eq(1 << n),
-                self.sink.ack.eq(1),
-                NextState("IDLE")
-            )
+        fsm.act("UNDERFLOW",
+            self.busy.eq(1),
+            underflow_trigger.eq(1),
+            self.sink.ack.eq(1),
+            NextState("IDLE")
+        )
+        fsm.act("LINK_ERROR",
+            self.busy.eq(1),
+            link_error_trigger.eq(1),
+            self.sink.ack.eq(1),
+            NextState("IDLE")
+        )
 
 
 class DMA(Module):

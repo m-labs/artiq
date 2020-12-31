@@ -1,3 +1,5 @@
+use board_misoc::csr;
+
 macro_rules! api {
     ($i:ident) => ({
         extern { static $i: u8; }
@@ -31,8 +33,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(__ltdf2),
     api!(__nedf2),
     api!(__gtdf2),
-    api!(__negsf2),
-    api!(__negdf2),
     api!(__addsf3),
     api!(__subsf3),
     api!(__mulsf3),
@@ -57,35 +57,72 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(__fixdfsi),
     api!(__fixdfdi),
     api!(__fixunsdfsi),
-    api!(__clzsi2),
-    api!(__ctzsi2),
     api!(__udivdi3),
     api!(__umoddi3),
     api!(__moddi3),
     api!(__powidf2),
 
     /* libc */
-    api!(abort = ::abort),
     api!(memcmp, extern { fn memcmp(a: *const u8, b: *mut u8, size: usize); }),
 
     /* libm */
-    api!(sqrt),
-    api!(round),
+    // commented out functions are not available with the libm used here, but are available in NAR3.
+    api!(acos),
+    api!(acosh),
+    api!(asin),
+    api!(asinh),
+    api!(atan),
+    api!(atan2),
+    api!(atanh),
+    api!(cbrt),
+    api!(ceil),
+    api!(copysign),
+    api!(cos),
+    api!(cosh),
+    api!(erf),
+    api!(erfc),
+    api!(exp),
+    //api!(exp2),
+    //api!(exp10),
+    api!(expm1),
+    api!(fabs),
     api!(floor),
+    // api!(fmax),
+    // api!(fmin),
+    //api!(fma),
+    api!(fmod),
+    api!(hypot),
+    api!(j0),
+    api!(j1),
+    api!(jn),
+    api!(lgamma),
+    api!(log),
+    //api!(log2),
+    api!(log10),
+    api!(nextafter),
+    api!(pow),
+    api!(round),
+    api!(sin),
+    api!(sinh),
+    api!(sqrt),
+    api!(tan),
+    api!(tanh),
+    //api!(tgamma),
+    //api!(trunc),
+    api!(y0),
+    api!(y1),
+    api!(yn),
 
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
-    api!(__artiq_personality = ::eh::personality),
-    api!(__artiq_raise = ::eh::raise),
-    api!(__artiq_reraise = ::eh::reraise),
+    api!(__artiq_personality = ::eh_artiq::personality),
+    api!(__artiq_raise = ::eh_artiq::raise),
+    api!(__artiq_reraise = ::eh_artiq::reraise),
 
     /* proxified syscalls */
     api!(core_log),
 
-    api!(now = &::NOW as *const _),
-
-    api!(watchdog_set = ::watchdog_set),
-    api!(watchdog_clear = ::watchdog_clear),
+    api!(now = csr::rtio::NOW_HI_ADDR as *const _),
 
     api!(rpc_send = ::rpc_send),
     api!(rpc_send_async = ::rpc_send_async),
@@ -94,29 +131,25 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(cache_get = ::cache_get),
     api!(cache_put = ::cache_put),
 
-    api!(mfspr = ::board::spr::mfspr),
-    api!(mtspr = ::board::spr::mtspr),
+    api!(mfspr = ::board_misoc::spr::mfspr),
+    api!(mtspr = ::board_misoc::spr::mtspr),
 
     /* direct syscalls */
     api!(rtio_init = ::rtio::init),
+    api!(rtio_get_destination_status = ::rtio::get_destination_status),
     api!(rtio_get_counter = ::rtio::get_counter),
     api!(rtio_log),
     api!(rtio_output = ::rtio::output),
     api!(rtio_output_wide = ::rtio::output_wide),
     api!(rtio_input_timestamp = ::rtio::input_timestamp),
     api!(rtio_input_data = ::rtio::input_data),
+    api!(rtio_input_timestamped_data = ::rtio::input_timestamped_data),
 
     api!(dma_record_start = ::dma_record_start),
     api!(dma_record_stop = ::dma_record_stop),
     api!(dma_erase = ::dma_erase),
     api!(dma_retrieve = ::dma_retrieve),
     api!(dma_playback = ::dma_playback),
-
-    api!(drtio_get_channel_state = ::rtio::drtio_dbg::get_channel_state),
-    api!(drtio_reset_channel_state = ::rtio::drtio_dbg::reset_channel_state),
-    api!(drtio_get_fifo_space = ::rtio::drtio_dbg::get_fifo_space),
-    api!(drtio_get_packet_counts = ::rtio::drtio_dbg::get_packet_counts),
-    api!(drtio_get_fifo_space_req_count = ::rtio::drtio_dbg::get_fifo_space_req_count),
 
     api!(i2c_start = ::nrt_bus::i2c::start),
     api!(i2c_restart = ::nrt_bus::i2c::restart),
@@ -125,7 +158,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_read = ::nrt_bus::i2c::read),
 
     api!(spi_set_config = ::nrt_bus::spi::set_config),
-    api!(spi_set_xfer = ::nrt_bus::spi::set_xfer),
     api!(spi_write = ::nrt_bus::spi::write),
     api!(spi_read = ::nrt_bus::spi::read),
 ];

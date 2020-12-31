@@ -8,7 +8,7 @@ from artiq.compiler import types, builtins
 __all__ = ["TNone", "TTuple",
            "TBool", "TInt32", "TInt64", "TFloat",
            "TStr", "TBytes", "TByteArray",
-           "TList", "TRange32", "TRange64",
+           "TList", "TArray", "TRange32", "TRange64",
            "TVar"]
 
 TNone      = builtins.TNone()
@@ -21,6 +21,7 @@ TBytes     = builtins.TBytes()
 TByteArray = builtins.TByteArray()
 TTuple     = types.TTuple
 TList      = builtins.TList
+TArray      = builtins.TArray
 TRange32   = builtins.TRange(builtins.TInt(types.TValue(32)))
 TRange64   = builtins.TRange(builtins.TInt(types.TValue(64)))
 TVar       = types.TVar

@@ -1,13 +1,15 @@
 from migen import *
 from migen.genlib.cdc import MultiReg
+from migen.genlib.io import DifferentialInput, DifferentialOutput
 
 from artiq.gateware.rtio import rtlink
 
 
 class Output(Module):
-    def __init__(self, pad):
+    def __init__(self, pad, pad_n=None):
         self.rtlink = rtlink.Interface(rtlink.OInterface(1))
-        self.probes = [pad]
+        pad_o = Signal(reset_less=True)
+        self.probes = [pad_o]
         override_en = Signal()
         override_o = Signal()
         self.overrides = [override_en, override_o]
@@ -20,20 +22,27 @@ class Output(Module):
                 pad_k.eq(self.rtlink.o.data)
             ),
             If(override_en,
-                pad.eq(override_o)
+                pad_o.eq(override_o)
             ).Else(
-                pad.eq(pad_k)
+                pad_o.eq(pad_k)
             )
         ]
+        if pad_n is None:
+            self.comb += pad.eq(pad_o)
+        else:
+            self.specials += DifferentialOutput(pad_o, pad, pad_n)
 
 
 class Input(Module):
-    def __init__(self, pad):
+    def __init__(self, pad, pad_n=None):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(2, 2),
             rtlink.IInterface(1))
         self.overrides = []
         self.probes = []
+
+        #: Registered copy of the input state, in the rio_phy clock domain.
+        self.input_state = Signal()
 
         # # #
 
@@ -49,8 +58,13 @@ class Input(Module):
         ]
 
         i = Signal()
-        i_d = Signal()
-        self.specials += MultiReg(pad, i, "rio_phy")
+        i_d = Signal(reset_less=True)
+        pad_i = Signal()
+        if pad_n is None:
+            self.comb += pad_i.eq(pad)
+        else:
+            self.specials += DifferentialInput(pad, pad_n, pad_i)
+        self.specials += MultiReg(pad_i, i, "rio_phy")
         self.sync.rio_phy += i_d.eq(i)
         self.comb += [
             self.rtlink.i.stb.eq(
@@ -58,7 +72,8 @@ class Input(Module):
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),
-            self.rtlink.i.data.eq(i)
+            self.rtlink.i.data.eq(i),
+            self.input_state.eq(i)
         ]
 
         self.probes += [i]
@@ -75,6 +90,11 @@ class InOut(Module):
         self.overrides = [override_en, override_o, override_oe]
         self.probes = []
 
+        # Output enable, for interfacing to external buffers.
+        self.oe = Signal()
+        # Registered copy of the input state, in the rio_phy clock domain.
+        self.input_state = Signal()
+
         # # #
         
         ts = TSTriple()
@@ -83,6 +103,7 @@ class InOut(Module):
 
         o_k = Signal()
         oe_k = Signal()
+        self.oe.attr.add("no_retiming")
         self.sync.rio_phy += [
             If(self.rtlink.o.stb,
                 If(self.rtlink.o.address == 0, o_k.eq(self.rtlink.o.data[0])),
@@ -90,12 +111,13 @@ class InOut(Module):
             ),
             If(override_en,
                 ts.o.eq(override_o),
-                ts.oe.eq(override_oe)
+                self.oe.eq(override_oe)
             ).Else(
                 ts.o.eq(o_k),
-                ts.oe.eq(oe_k)
+                self.oe.eq(oe_k)
             )
         ]
+        self.comb += ts.oe.eq(self.oe)
         sample = Signal()
         self.sync.rio += [
             sample.eq(0),
@@ -115,7 +137,8 @@ class InOut(Module):
                 (sensitivity[0] & ( i & ~i_d)) |
                 (sensitivity[1] & (~i &  i_d))
             ),
-            self.rtlink.i.data.eq(i)
+            self.rtlink.i.data.eq(i),
+            self.input_state.eq(i)
         ]
 
         self.probes += [i, ts.oe]

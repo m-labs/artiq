@@ -6,15 +6,15 @@ import sys
 import versioneer
 
 
-if not (3, 5, 3) <= sys.version_info[:3] < (3, 6, 0):
-    raise Exception("You need Python 3.5.3+ (but not 3.6+)")
+if sys.version_info[:3] < (3, 5, 3):
+    raise Exception("You need Python 3.5.3+")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
 requirements = [
-    "asyncserial", "numpy", "scipy",
+    "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
-    "quamash", "pyqtgraph", "pygit2", "aiohttp",
+    "qasync", "pyqtgraph", "pygit2",
     "llvmlite_artiq", "pythonparser", "python-Levenshtein",
 ]
 
@@ -22,25 +22,17 @@ console_scripts = [
     "artiq_client = artiq.frontend.artiq_client:main",
     "artiq_compile = artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
-    "artiq_coreconfig = artiq.frontend.artiq_coreconfig:main",
-    "artiq_corelog = artiq.frontend.artiq_corelog:main",
-    "artiq_coreboot = artiq.frontend.artiq_coreboot:main",
-    "artiq_ctlmgr = artiq.frontend.artiq_ctlmgr:main",
-    "artiq_devtool = artiq.frontend.artiq_devtool:main",
-    "artiq_pcap = artiq.frontend.artiq_pcap:main",
-    "artiq_influxdb = artiq.frontend.artiq_influxdb:main",
+    "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
+    "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
+    "artiq_rtiomon = artiq.frontend.artiq_rtiomon:main",
+    "artiq_sinara_tester = artiq.frontend.artiq_sinara_tester:main",
     "artiq_session = artiq.frontend.artiq_session:main",
-    "artiq_rpctool = artiq.frontend.artiq_rpctool:main",
+    "artiq_route = artiq.frontend.artiq_route:main",
     "artiq_run = artiq.frontend.artiq_run:main",
     "artiq_flash = artiq.frontend.artiq_flash:main",
-
     "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
-    "aqctl_korad_ka3005p = artiq.frontend.aqctl_korad_ka3005p:main",
-    "aqctl_lda = artiq.frontend.aqctl_lda:main",
-    "aqctl_novatech409b = artiq.frontend.aqctl_novatech409b:main",
-    "aqctl_thorlabs_tcube = artiq.frontend.aqctl_thorlabs_tcube:main",
 ]
 
 gui_scripts = [

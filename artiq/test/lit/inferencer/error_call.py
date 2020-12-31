@@ -18,3 +18,6 @@ f(1, x=1)
 
 # CHECK-L: ${LINE:+1}: error: mandatory argument 'x' is not passed
 f()
+
+# CHECK: ${LINE:+1}: error: this function of type .* does not accept argument 'q'
+f(1, q=1)

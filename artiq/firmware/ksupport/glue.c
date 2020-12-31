@@ -12,12 +12,20 @@ struct slice {
 };
 
 void send_to_core_log(struct slice str);
-void send_to_rtio_log(long long int timestamp, struct slice data);
+void send_to_rtio_log(struct slice data);
 
 #define KERNELCPU_EXEC_ADDRESS    0x40800000
-#define KERNELCPU_PAYLOAD_ADDRESS 0x40840000
+#define KERNELCPU_PAYLOAD_ADDRESS 0x40860000
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
+
+FILE *stderr;
+
+/* called by libunwind */
+char *getenv(const char *var)
+{
+    return NULL;
+}
 
 /* called by libunwind */
 int fprintf(FILE *stream, const char *fmt, ...)
@@ -131,8 +139,8 @@ int core_log(const char *fmt, ...)
 }
 
 /* called by kernel */
-void rtio_log(long long int timestamp, const char *fmt, ...);
-void rtio_log(long long int timestamp, const char *fmt, ...)
+void rtio_log(const char *fmt, ...);
+void rtio_log(const char *fmt, ...)
 {
     va_list args;
 
@@ -146,5 +154,5 @@ void rtio_log(long long int timestamp, const char *fmt, ...)
     va_end(args);
 
     struct slice str = { buf, size };
-    send_to_rtio_log(timestamp, str);
+    send_to_rtio_log(str);
 }

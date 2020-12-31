@@ -1,6 +1,6 @@
-use std::rc::Rc;
-use std::ops::Deref;
-use std::fmt;
+use core::ops::Deref;
+use core::fmt;
+use alloc::rc::Rc;
 
 pub struct Urc<T: ?Sized>(Rc<T>);
 

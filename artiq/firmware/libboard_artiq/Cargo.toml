@@ -1,0 +1,26 @@
+[package]
+authors = ["M-Labs"]
+name = "board_artiq"
+version = "0.0.0"
+build = "build.rs"
+
+[lib]
+name = "board_artiq"
+path = "lib.rs"
+
+[build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
+
+[dependencies]
+failure = { version = "0.1", default-features = false }
+failure_derive = { version = "0.1", default-features = false }
+bitflags = "1.0"
+byteorder = { version = "1.0", default-features = false }
+crc = { version = "1.7", default-features = false }
+log = { version = "0.4", default-features = false }
+io = { path = "../libio", features = ["byteorder"] }
+board_misoc = { path = "../libboard_misoc" }
+proto_artiq = { path = "../libproto_artiq" }
+
+[features]
+uart_console = []

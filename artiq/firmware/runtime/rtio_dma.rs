@@ -1,8 +1,5 @@
-use std::mem;
-use std::vec::Vec;
-use std::string::String;
-use std::btree_map::BTreeMap;
-use std::io::Write;
+use core::mem;
+use alloc::{Vec, String, BTreeMap};
 
 const ALIGNMENT: usize = 64;
 
@@ -38,7 +35,7 @@ impl Manager {
     }
 
     pub fn record_append(&mut self, data: &[u8]) {
-        self.recording_trace.write_all(data).unwrap();
+        self.recording_trace.extend_from_slice(data)
     }
 
     pub fn record_stop(&mut self, duration: u64) {

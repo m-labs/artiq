@@ -43,7 +43,7 @@ assert layout_len(stopped_layout) == message_len
 
 
 class MessageEncoder(Module, AutoCSR):
-    def __init__(self, cri, enable):
+    def __init__(self, tsc, cri, enable):
         self.source = stream.Endpoint([("data", message_len)])
 
         self.overflow = CSRStatus()
@@ -67,10 +67,10 @@ class MessageEncoder(Module, AutoCSR):
         self.comb += [
             input_output.channel.eq(cri.chan_sel),
             input_output.address_padding.eq(cri.o_address),
-            input_output.rtio_counter.eq(cri.counter),
+            input_output.rtio_counter.eq(tsc.full_ts_cri),
             If(cri.cmd == cri_commands["write"],
                 input_output.message_type.eq(MessageType.output.value),
-                input_output.timestamp.eq(cri.timestamp),
+                input_output.timestamp.eq(cri.o_timestamp),
                 input_output.data.eq(cri.o_data)
             ).Else(
                 input_output.message_type.eq(MessageType.input.value),
@@ -85,7 +85,7 @@ class MessageEncoder(Module, AutoCSR):
         self.comb += [
             exception.message_type.eq(MessageType.exception.value),
             exception.channel.eq(cri.chan_sel),
-            exception.rtio_counter.eq(cri.counter),
+            exception.rtio_counter.eq(tsc.full_ts_cri),
         ]
         just_written = Signal()
         self.sync += just_written.eq(cri.cmd == cri_commands["write"])
@@ -93,10 +93,6 @@ class MessageEncoder(Module, AutoCSR):
             If(just_written & cri.o_status[1],
                 exception_stb.eq(1),
                 exception.exception_type.eq(ExceptionType.o_underflow.value)
-            ),
-            If(just_written & cri.o_status[2],
-                exception_stb.eq(1),
-                exception.exception_type.eq(ExceptionType.o_sequence_error.value)
             ),
             If(read_overflow,
                 exception_stb.eq(1),
@@ -107,7 +103,7 @@ class MessageEncoder(Module, AutoCSR):
         stopped = Record(stopped_layout)
         self.comb += [
             stopped.message_type.eq(MessageType.stopped.value),
-            stopped.rtio_counter.eq(cri.counter),
+            stopped.rtio_counter.eq(tsc.full_ts_cri),
         ]
 
         enable_r = Signal()
@@ -197,13 +193,13 @@ class DMAWriter(Module, AutoCSR):
 
 
 class Analyzer(Module, AutoCSR):
-    def __init__(self, cri, membus, fifo_depth=128):
+    def __init__(self, tsc, cri, membus, fifo_depth=128):
         # shutdown procedure: set enable to 0, wait until busy=0
         self.enable = CSRStorage()
         self.busy = CSRStatus()
 
         self.submodules.message_encoder = MessageEncoder(
-            cri, self.enable.storage)
+            tsc, cri, self.enable.storage)
         self.submodules.fifo = stream.SyncFIFO(
             [("data", message_len)], fifo_depth, True)
         self.submodules.converter = stream.Converter(

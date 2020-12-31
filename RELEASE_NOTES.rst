@@ -3,25 +3,250 @@
 Release notes
 =============
 
-4.0 (unreleased)
-----------------
+ARTIQ-6
+-------
 
+Highlights:
+
+* New hardware support:
+   - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with a floating-point
+     unit for faster computations. This currently requires an external
+     repository (https://git.m-labs.hk/m-labs/artiq-zynq) and only supports the ZC706.
+   - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
+   - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
+   - Kasli 2.0
+* ARTIQ Python (core device kernels):
+   - Multidimensional arrays are now available on the core device, using NumPy syntax.
+     Elementwise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and
+     multidimensional indexing are supported; slices and views are not yet.
+   - Trigonometric and other common math functions from NumPy are now available on the
+     core device (e.g. ``numpy.sin``), both for scalar arguments and implicitly
+     broadcast across multidimensional arrays.
+   - Failed assertions now raise ``AssertionError``\ s instead of aborting kernel
+     execution.
+* Performance improvements:
+   - SERDES TTL inputs can now detect edges on pulses that are shorter
+     than the RTIO period (https://github.com/m-labs/artiq/issues/1432)
+   - Improved performance for kernel RPC involving list and array.
+* Coredevice SI to mu conversions now always return valid codes, or raise a ``ValueError``.
+* Zotino now exposes  ``voltage_to_mu()``
+* ``ad9910``: The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe``
+  before).
+* Dashboard:
+   - Applets now restart if they are running and a ccb call changes their spec
+   - A "Quick Open" dialog to open experiments by typing part of their name can
+     be brought up Ctrl-P (Ctrl+Return to immediately submit the selected entry
+     with the default arguments).
+* Experiment results are now always saved to HDF5, even if run() fails.
+* Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
+  communication CPU panic occurs.
+* NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
+* A parameter ``--identifier-str`` has been added to many targets to aid
+  with reproducible builds.
+* Python 3.7 support in Conda packages.
+
+Breaking changes:
+
+* ``artiq_netboot`` has been moved to its own repository at
+  https://git.m-labs.hk/m-labs/artiq-netboot
+* Core device watchdogs have been removed.
+* The ARTIQ compiler now implements arrays following NumPy semantics, rather than as a
+  thin veneer around lists. Most prior use cases of NumPy arrays in kernels should work
+  unchanged with the new implementation, but the behavior might differ slightly in some
+  cases (for instance, non-rectangular arrays are not currently supported).
+* ``quamash`` has been replaced with ``qasync``.
+
+
+ARTIQ-5
+-------
+
+Highlights:
+
+* Performance improvements:
+   - Faster RTIO event submission (1.5x improvement in pulse rate test)
+     See: https://github.com/m-labs/artiq/issues/636
+   - Faster compilation times (3 seconds saved on kernel compilation time on a typical
+     medium-size experiment)
+     See: https://github.com/m-labs/artiq/commit/611bcc4db4ed604a32d9678623617cd50e968cbf
+* Improved packaging and build system:
+   - new continuous integration/delivery infrastructure based on Nix and Hydra,
+     providing reproducibility, speed and independence.
+   - rolling release process (https://github.com/m-labs/artiq/issues/1326).
+   - firmware, gateware and device database templates are automatically built for all
+     supported Kasli variants.
+   - new JSON description format for generic Kasli systems.
+   - Nix packages are now supported.
+   - many Conda problems worked around.
+   - controllers are now out-of-tree.
+   - split packages that enable lightweight applications that communicate with ARTIQ,
+     e.g. controllers running on non-x86 single-board computers.
+* Improved Urukul support:
+   - AD9910 RAM mode.
+   - Configurable refclk divider and PLL bypass.
+   - More reliable phase synchronization at high sample rates.
+   - Synchronization calibration data can be read from EEPROM.
+* A gateware-level input edge counter has been added, which offers higher
+  throughput and increased flexibility over the usual TTL input PHYs where
+  edge timestamps are not required. See ``artiq.coredevice.edge_counter`` for
+  the core device driver and ``artiq.gateware.rtio.phy.edge_counter``/
+  ``artiq.gateware.eem.DIO.add_std`` for the gateware components.
+* With DRTIO, Siphaser uses a better calibration mechanism.
+  See: https://github.com/m-labs/artiq/commit/cc58318500ecfa537abf24127f2c22e8fe66e0f8
+* Schedule updates can be sent to influxdb (artiq_influxdb_schedule).
+* Experiments can now programatically set their default pipeline, priority, and flush flag.
+* List datasets can now be efficiently appended to from experiments using
+  ``artiq.language.environment.HasEnvironment.append_to_dataset``.
+* The core device now supports IPv6.
+* To make development easier, the bootloader can receive firmware and secondary FPGA
+  gateware from the network.
+* Python 3.7 compatibility (Nix and source builds only, no Conda).
+* Various other bugs from 4.0 fixed.
+* Preliminary Sayma v2 and Metlino hardware support.
+
+Breaking changes:
+
+* The ``artiq.coredevice.ad9910.AD9910`` and
+  ``artiq.coredevice.ad9914.AD9914`` phase reference timestamp parameters
+  have been renamed to ``ref_time_mu`` for consistency, as they are in machine
+  units.
+* The controller manager now ignores device database entries without the
+  ``command`` key set to facilitate sharing of devices between multiple
+  masters.
+* The meaning of the ``-d/--dir`` and ``--srcbuild`` options of ``artiq_flash``
+  has changed.
+* Controllers for third-party devices are now out-of-tree.
+* ``aqctl_corelog`` now filters log messages below the ``WARNING`` level by default.
+  This behavior can be changed using the ``-v`` and ``-q`` options like the other
+  programs.
+* On Kasli the firmware now starts with a unique default MAC address
+  from EEPROM if `mac` is absent from the flash config.
+* The ``-e/--experiment`` switch of ``artiq_run`` and ``artiq_compile``
+  has been renamed ``-c/--class-name``.
+* ``artiq_devtool`` has been removed.
+* Much of ``artiq.protocols`` has been moved to a separate package ``sipyco``.
+  ``artiq_rpctool`` has been renamed to ``sipyco_rpctool``.
+
+
+ARTIQ-4
+-------
+
+4.0
+***
+
+* The ``artiq.coredevice.ttl`` drivers no longer track the timestamps of
+  submitted events in software, requiring the user to explicitly specify the
+  timeout for ``count()``/``timestamp_mu()``. Support for ``sync()`` has been dropped.
+
+  Now that RTIO has gained DMA support, there is no longer a reliable way for
+  the kernel CPU to track the individual events submitted on any one channel.
+  Requiring the timeouts to be specified explicitly ensures consistent API
+  behavior. To make this more convenient, the ``TTLInOut.gate_*()`` functions
+  now return the cursor position at the end of the gate, e.g.::
+
+    ttl_input.count(ttl_input.gate_rising(100 * us))
+
+  In most situations – that is, unless the timeline cursor is rewound after the
+  respective ``gate_*()`` call – simply passing ``now_mu()`` is also a valid
+  upgrade path::
+
+    ttl_input.count(now_mu())
+
+  The latter might use up more timeline slack than necessary, though.
+
+  In place of ``TTL(In)Out.sync``, the new ``Core.wait_until_mu()`` method can
+  be used, which blocks execution until the hardware RTIO cursor reaches the
+  given timestamp::
+
+    ttl_output.pulse(10 * us)
+    self.core.wait_until_mu(now_mu())
+* RTIO outputs use a new architecture called Scalable Event Dispatcher (SED),
+  which allows building systems with large number of RTIO channels more
+  efficiently.
+  From the user perspective, collision errors become asynchronous, and non-
+  monotonic timestamps on any combination of channels are generally allowed
+  (instead of producing sequence errors).
+  RTIO inputs are not affected.
 * The DDS channel number for the NIST CLOCK target has changed.
 * The dashboard configuration files are now stored one-per-master, keyed by the
   server address argument and the notify port.
 * The master now has a ``--name`` argument. If given, the dashboard is labelled
   with this name rather than the server address.
-* ``artiq_flash --adapter`` has been changed to ``artiq_flash --variant``.
+* ``artiq_flash`` targets Kasli by default. Use ``-t kc705`` to flash a KC705
+  instead.
+* ``artiq_flash -m/--adapter`` has been changed to ``artiq_flash -V/--variant``.
+* The ``proxy`` action of ``artiq_flash`` is determined automatically and should
+  not be specified manually anymore.
+* ``kc705_dds`` has been renamed ``kc705``.
+* The ``-H/--hw-adapter`` option of ``kc705`` has been renamed ``-V/--variant``.
+* SPI masters have been switched from misoc-spi to misoc-spi2. This affects
+  all out-of-tree RTIO core device drivers using those buses. See the various
+  commits on e.g. the ``ad53xx`` driver for an example how to port from the old
+  to the new bus.
+* The ``ad5360`` coredevice driver has been renamed to ``ad53xx`` and the API
+  has changed to better support Zotino.
+* ``artiq.coredevice.dds`` has been renamed to ``artiq.coredevice.ad9914`` and
+  simplified. DDS batch mode is no longer supported. The ``core_dds`` device
+  is no longer necessary.
+* The configuration entry ``startup_clock`` is renamed ``rtio_clock``. Switching
+  clocks dynamically (i.e. without device restart) is no longer supported.
+* ``set_dataset(..., save=True)`` has been renamed
+  ``set_dataset(..., archive=True)``.
+* On the AD9914 DDS, when switching to ``PHASE_MODE_CONTINUOUS`` from another mode,
+  use the returned value of the last ``set_mu`` call as the phase offset for
+  ``PHASE_MODE_CONTINUOUS`` to avoid a phase discontinuity. This is no longer done
+  automatically. If one phase glitch when entering ``PHASE_MODE_CONTINUOUS`` is not
+  an issue, this recommendation can be ignored.
+
+
+ARTIQ-3
+-------
+
+3.7
+***
+
+No further notes.
+
+
+3.6
+***
+
+No further notes.
+
+
+3.5
+***
+
+No further notes.
+
+
+3.4
+***
+
+No further notes.
+
+
+3.3
+***
+
+No further notes.
+
+
+3.2
+***
+
+* To accommodate larger runtimes, the flash layout as changed. As a result, the
+  contents of the flash storage will be lost when upgrading. Set the values back
+  (IP, MAC address, startup kernel, etc.) after the upgrade.
 
 
 3.1
----
+***
 
 No further notes.
 
 
 3.0
----
+***
 
 * The ``--embed`` option of applets is replaced with the environment variable
   ``ARTIQ_APPLET_EMBED``. The GUI sets this enviroment variable itself and the
@@ -74,50 +299,53 @@ No further notes.
 * Packages are no longer available for 32-bit Windows.
 
 
+ARTIQ-2
+-------
+
 2.5
----
+***
 
 No further notes.
 
 
 2.4
----
+***
 
 No further notes.
 
 
 2.3
----
+***
 
 * When using conda, add the conda-forge channel before installing ARTIQ.
 
 
 2.2
----
+***
 
 No further notes.
 
 
 2.1
----
+***
 
 No further notes.
 
 
 2.0
----
+***
 
 No further notes.
 
 
 2.0rc2
-------
+******
 
 No further notes.
 
 
 2.0rc1
-------
+******
 
 * The format of the influxdb pattern file is simplified. The procedure to
   edit patterns is also changed to modifying the pattern file and calling:
@@ -166,39 +394,42 @@ No further notes.
   receives a numpy type.
 
 
+ARTIQ-1
+-------
+
 1.3
----
+***
 
 No further notes.
 
 
 1.2
----
+***
 
 No further notes.
 
 
 1.1
----
+***
 
 * TCA6424A.set converts the "outputs" value to little-endian before programming
   it into the registers.
 
 
 1.0
----
+***
 
 No further notes.
 
 
 1.0rc4
-------
+******
 
 * setattr_argument and setattr_device add their key to kernel_invariants.
 
 
 1.0rc3
-------
+******
 
 * The HDF5 format has changed.
 
@@ -212,7 +443,7 @@ No further notes.
 
 
 1.0rc2
-------
+******
 
 * The CPU speed in the pipistrello gateware has been reduced from 83 1/3 MHz to
   75 MHz. This will reduce the achievable sustained pulse rate and latency
@@ -222,7 +453,7 @@ No further notes.
 
 
 1.0rc1
-------
+******
 
 * Experiments (your code) should use ``from artiq.experiment import *``
   (and not ``from artiq import *`` as previously)

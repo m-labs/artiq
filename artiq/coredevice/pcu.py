@@ -41,7 +41,7 @@ class CorePCU:
         """
         Configure and clear the kernel CPU performance counters.
 
-        The eight counters are configures to count the folloging events:
+        The eight counters are configured to count the following events:
             * Load or store
             * Instruction fetch
             * Data cache miss

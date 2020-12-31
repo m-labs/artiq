@@ -5,25 +5,17 @@ LDFLAGS += -L../libbase
 
 RUSTFLAGS += -Cpanic=abort
 
-all: satman.bin satman.fbi
+all:: satman.bin satman.fbi
 
 .PHONY: $(RUSTOUT)/libsatman.a
 $(RUSTOUT)/libsatman.a:
 	$(cargo) --manifest-path $(SATMAN_DIRECTORY)/Cargo.toml
 
 satman.elf: $(RUSTOUT)/libsatman.a
-	$(LD) $(LDFLAGS) -T $(SATMAN_DIRECTORY)/satman.ld -o $@ $^
-	@chmod -x $@
+	$(link) -T $(SATMAN_DIRECTORY)/satman.ld
 
 %.bin: %.elf
-	$(OBJCOPY) -O binary $< $@
-	@chmod -x $@
+	$(objcopy) -O binary
 
 %.fbi: %.bin
-	@echo " MSCIMG  " $@ && $(PYTHON) -m misoc.tools.mkmscimg -f -o $@ $<
-
-clean:
-	$(RM) satman.elf satman.bin satman.fbi
-	$(RM) -rf cargo
-
-.PHONY: all clean
+	$(mscimg) -f

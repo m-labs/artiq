@@ -64,7 +64,7 @@ kb = bytearray(b"x")
 # CHECK-L: kb:bytearray
 
 l = array([1])
-# CHECK-L: l:numpy.array(elt=numpy.int?)
+# CHECK-L: l:numpy.array(elt=numpy.int?, num_dims=1)
 
 IndexError()
 # CHECK-L: IndexError:<constructor IndexError {}>():IndexError

@@ -1,3 +1,11 @@
+"""Worker process implementation.
+
+This module contains the worker process main() function and the glue code
+necessary to connect the global artefacts used from experiment code (scheduler,
+device database, etc.) to their actual implementation in the parent master
+process via IPC.
+"""
+
 import sys
 import time
 import os
@@ -7,10 +15,12 @@ from collections import OrderedDict
 
 import h5py
 
+from sipyco import pipe_ipc, pyon
+from sipyco.packed_exceptions import raise_packed_exc
+from sipyco.logging_tools import multiline_log_config
+
 import artiq
-from artiq.protocols import pipe_ipc, pyon
-from artiq.protocols.packed_exceptions import raise_packed_exc
-from artiq.tools import multiline_log_config, file_import
+from artiq.tools import file_import
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (is_experiment, TraceArgumentManager,
                                         ProcessArgumentManager)
@@ -152,23 +162,30 @@ class ExamineDatasetMgr:
 
 
 def examine(device_mgr, dataset_mgr, file):
-    module = file_import(file)
-    for class_name, exp_class in module.__dict__.items():
-        if class_name[0] == "_":
-            continue
-        if is_experiment(exp_class):
-            if exp_class.__doc__ is None:
-                name = class_name
-            else:
-                name = exp_class.__doc__.splitlines()[0].strip()
-                if name[-1] == ".":
-                    name = name[:-1]
-            argument_mgr = TraceArgumentManager()
-            exp_class((device_mgr, dataset_mgr, argument_mgr))
-            arginfo = OrderedDict(
-                (k, (proc.describe(), group, tooltip))
-                for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
-            register_experiment(class_name, name, arginfo)
+    previous_keys = set(sys.modules.keys())
+    try:
+        module = file_import(file)
+        for class_name, exp_class in module.__dict__.items():
+            if class_name[0] == "_":
+                continue
+            if is_experiment(exp_class):
+                if exp_class.__doc__ is None:
+                    name = class_name
+                else:
+                    name = exp_class.__doc__.strip().splitlines()[0].strip()
+                    if name[-1] == ".":
+                        name = name[:-1]
+                argument_mgr = TraceArgumentManager()
+                scheduler_defaults = {}
+                cls = exp_class((device_mgr, dataset_mgr, argument_mgr, scheduler_defaults))
+                arginfo = OrderedDict(
+                    (k, (proc.describe(), group, tooltip))
+                    for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
+                register_experiment(class_name, name, arginfo, scheduler_defaults)
+    finally:
+        new_keys = set(sys.modules.keys())
+        for key in new_keys - previous_keys:
+            del sys.modules[key]
 
 
 def setup_diagnostics(experiment_file, repository_path):
@@ -195,6 +212,11 @@ def setup_diagnostics(experiment_file, repository_path):
     # wrapping it in layers of indirection.
     artiq.coredevice.core._DiagnosticEngine.render_diagnostic = \
         render_diagnostic
+
+
+def put_completed():
+    put_object({"action": "completed"})
+
 
 def put_exception_report():
     _, exc, _ = sys.exc_info()
@@ -230,6 +252,16 @@ def main():
     exp_inst = None
     repository_path = None
 
+    def write_results():
+        filename = "{:09}-{}.h5".format(rid, exp.__name__)
+        with h5py.File(filename, "w") as f:
+            dataset_mgr.write_hdf5(f)
+            f["artiq_version"] = artiq_version
+            f["rid"] = rid
+            f["start_time"] = start_time
+            f["run_time"] = run_time
+            f["expid"] = pyon.encode(expid)
+
     device_mgr = DeviceManager(ParentDeviceDB,
                                virtual_devices={"scheduler": Scheduler(),
                                                 "ccb": CCB()})
@@ -263,37 +295,30 @@ def main():
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
-                exp_inst = exp((device_mgr, dataset_mgr, argument_mgr))
-                put_object({"action": "completed"})
+                exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
+                put_completed()
             elif action == "prepare":
                 exp_inst.prepare()
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "run":
                 run_time = time.time()
-                exp_inst.run()
-                put_object({"action": "completed"})
+                try:
+                    exp_inst.run()
+                except:
+                    # Only write results in run() on failure; on success wait
+                    # for end of analyze stage.
+                    write_results()
+                    raise
+                put_completed()
             elif action == "analyze":
                 try:
                     exp_inst.analyze()
-                except:
-                    # make analyze failure non-fatal, as we may still want to
-                    # write results afterwards
-                    put_exception_report()
-                else:
-                    put_object({"action": "completed"})
-            elif action == "write_results":
-                filename = "{:09}-{}.h5".format(rid, exp.__name__)
-                with h5py.File(filename, "w") as f:
-                    dataset_mgr.write_hdf5(f)
-                    f["artiq_version"] = artiq_version
-                    f["rid"] = rid
-                    f["start_time"] = start_time
-                    f["run_time"] = run_time
-                    f["expid"] = pyon.encode(expid)
-                put_object({"action": "completed"})
+                    put_completed()
+                finally:
+                    write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
-                put_object({"action": "completed"})
+                put_completed()
             elif action == "terminate":
                 break
     except:

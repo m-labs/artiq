@@ -3,10 +3,11 @@ import asyncio
 
 from PyQt5 import QtCore, QtWidgets
 
+from sipyco.pc_rpc import AsyncioClient as RPCClient
+
 from artiq.tools import short_format
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
-from artiq.protocols.pc_rpc import AsyncioClient as RPCClient
 
 # reduced read-only version of artiq.dashboard.datasets
 

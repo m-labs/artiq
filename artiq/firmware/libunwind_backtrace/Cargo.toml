@@ -1,0 +1,8 @@
+[package]
+authors = ["M-Labs"]
+name = "unwind_backtrace"
+version = "0.0.0"
+
+[lib]
+name = "unwind_backtrace"
+path = "lib.rs"

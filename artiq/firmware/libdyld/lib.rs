@@ -1,5 +1,4 @@
 #![no_std]
-#![feature(untagged_unions)]
 
 use core::{mem, ptr, fmt, slice, str, convert};
 use elf::*;
@@ -198,6 +197,8 @@ impl<'a> Library<'a> {
 
     pub fn load(data: &[u8], image: &'a mut [u8], resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<Library<'a>, Error<'a>> {
+        #![allow(unused_assignments)]
+
         let ehdr = read_unaligned::<Elf32_Ehdr>(data, 0)
                                   .map_err(|()| "cannot read ELF header")?;
 
@@ -288,7 +289,7 @@ impl<'a> Library<'a> {
         if sym_ent != mem::size_of::<Elf32_Sym>() {
             return Err("incorrect symbol entry size")?
         }
-        if rela_ent != mem::size_of::<Elf32_Rela>() {
+        if rela_ent != 0 && rela_ent != mem::size_of::<Elf32_Rela>() {
             return Err("incorrect relocation entry size")?
         }
 

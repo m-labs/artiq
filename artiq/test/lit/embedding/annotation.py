@@ -12,6 +12,11 @@ def foo(x: TInt64, y: TInt64 = 1) -> TInt64:
     return x+y
 
 @kernel
+def bar(x: TInt64) -> None:
+    print(x)
+
+@kernel
 def entrypoint():
     print(foo(0, 2))
     print(foo(1, 3))
+    bar(3)

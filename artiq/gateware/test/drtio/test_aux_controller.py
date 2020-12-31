@@ -36,7 +36,7 @@ class TB(Module):
     def __init__(self, nwords):
         self.submodules.link_layer = Loopback(nwords)
         self.submodules.aux_controller = ClockDomainsRenamer(
-            {"rtio": "sys", "rtio_rx": "sys"})(AuxController(self.link_layer))
+            {"rtio": "sys", "rtio_rx": "sys"})(DRTIOAuxController(self.link_layer))
 
 
 class TestAuxController(unittest.TestCase):

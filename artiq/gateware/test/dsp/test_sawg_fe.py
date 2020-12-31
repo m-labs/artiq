@@ -14,8 +14,10 @@ class RTIOManager:
     def __init__(self):
         self.outputs = []
 
-    def rtio_output(self, now, channel, addr, data):
-        self.outputs.append((now, channel, addr, data))
+    def rtio_output(self, target, data):
+        channel = target >> 8
+        addr = target & 0xff
+        self.outputs.append((now_mu(), channel, addr, data))
 
     def rtio_output_wide(self, *args, **kwargs):
         self.rtio_output(*args, **kwargs)
@@ -42,7 +44,7 @@ class SAWGTest(unittest.TestCase):
         self.rtio_manager.patch(spline)
         self.rtio_manager.patch(sawg)
         self.core = sim_devices.Core({})
-        self.core.coarse_ref_period = 6.66666
+        self.core.coarse_ref_period = 20/3
         self.core.ref_multiplier = 1
         self.t = self.core.coarse_ref_period
         self.channel = mg.ClockDomainsRenamer({"rio_phy": "sys"})(

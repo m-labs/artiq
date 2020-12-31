@@ -82,13 +82,27 @@ class TList(types.TMono):
         super().__init__("list", {"elt": elt})
 
 class TArray(types.TMono):
-    def __init__(self, elt=None):
+    def __init__(self, elt=None, num_dims=1):
         if elt is None:
             elt = types.TVar()
-        super().__init__("array", {"elt": elt})
+        if isinstance(num_dims, int):
+            # Make TArray more convenient to instantiate from (ARTIQ) user code.
+            num_dims = types.TValue(num_dims)
+        # For now, enforce number of dimensions to be known, as we'd otherwise
+        # need to implement custom unification logic for the type of `shape`.
+        # Default to 1 to keep compatibility with old user code from before
+        # multidimensional array support.
+        assert isinstance(num_dims.value, int), "Number of dimensions must be resolved"
+
+        super().__init__("array", {"elt": elt, "num_dims": num_dims})
+        self.attributes = OrderedDict([
+            ("buffer", types._TPointer(elt)),
+            ("shape", types.TTuple([TInt32()] * num_dims.value)),
+        ])
 
 def _array_printer(typ, printer, depth, max_depth):
-    return "numpy.array(elt={})".format(printer.name(typ["elt"], depth, max_depth))
+    return "numpy.array(elt={}, num_dims={})".format(
+        printer.name(typ["elt"], depth, max_depth), typ["num_dims"].value)
 types.TypePrinter.custom_printers["array"] = _array_printer
 
 class TRange(types.TMono):
@@ -169,6 +183,9 @@ def fn_ValueError():
 def fn_ZeroDivisionError():
     return types.TExceptionConstructor(TException("ZeroDivisionError"))
 
+def fn_RuntimeError():
+    return types.TExceptionConstructor(TException("RuntimeError"))
+
 def fn_range():
     return types.TBuiltinFunction("range")
 
@@ -177,6 +194,9 @@ def fn_len():
 
 def fn_round():
     return types.TBuiltinFunction("round")
+
+def fn_abs():
+    return types.TBuiltinFunction("abs")
 
 def fn_min():
     return types.TBuiltinFunction("min")
@@ -201,9 +221,6 @@ def obj_interleave():
 
 def obj_sequential():
     return types.TBuiltin("sequential")
-
-def fn_watchdog():
-    return types.TBuiltinFunction("watchdog")
 
 def fn_delay():
     return types.TBuiltinFunction("delay")
@@ -300,7 +317,7 @@ def is_iterable(typ):
 def get_iterable_elt(typ):
     if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
         return TInt(types.TValue(8))
-    elif is_iterable(typ):
+    elif types._is_pointer(typ) or is_iterable(typ):
         return typ.find()["elt"].find()
     else:
         assert False
@@ -314,6 +331,6 @@ def is_allocated(typ):
     return not (is_none(typ) or is_bool(typ) or is_int(typ) or
                   is_float(typ) or is_range(typ) or
                   types._is_pointer(typ) or types.is_function(typ) or
-                  types.is_c_function(typ) or types.is_rpc(typ) or
+                  types.is_external_function(typ) or types.is_rpc(typ) or
                   types.is_method(typ) or types.is_tuple(typ) or
                   types.is_value(typ))

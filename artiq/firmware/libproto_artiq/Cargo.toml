@@ -1,0 +1,20 @@
+[package]
+authors = ["M-Labs"]
+name = "proto_artiq"
+version = "0.0.0"
+
+[lib]
+name = "proto_artiq"
+path = "lib.rs"
+
+[dependencies]
+failure = { version = "0.1", default-features = false }
+failure_derive = { version = "0.1", default-features = false }
+byteorder = { version = "1.0", default-features = false }
+cslice = { version = "0.3" }
+log = { version = "0.4", default-features = false, optional = true }
+io = { path = "../libio", features = ["byteorder"] }
+dyld = { path = "../libdyld" }
+
+[features]
+alloc = ["io/alloc"]

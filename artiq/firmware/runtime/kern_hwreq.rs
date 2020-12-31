@@ -1,190 +1,143 @@
-use std::io;
+use core::cell::RefCell;
 use kernel_proto as kern;
-use sched::Io;
-use session::{kern_acknowledge, kern_send};
-#[cfg(has_rtio_core)]
+use sched::{Io, Mutex, Error as SchedError};
+use session::{kern_acknowledge, kern_send, Error};
 use rtio_mgt;
+use urc::Urc;
+use board_misoc::i2c as local_i2c;
+use board_artiq::drtio_routing;
+use board_artiq::spi as local_spi;
 
 #[cfg(has_drtio)]
-mod drtio_i2c {
+mod remote_i2c {
     use drtioaux;
+    use rtio_mgt::drtio;
+    use sched::{Io, Mutex};
 
-    fn basic_reply(nodeno: u8) -> Result<(), ()> {
-        match drtioaux::hw::recv_timeout(nodeno, None) {
+    pub fn start(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cStartRequest {
+            destination: destination,
+            busno: busno
+        });
+        match reply {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
             }
-            Ok(_) => {
-                error!("received unexpected aux packet");
-                Err(())
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn start(nodeno: u8, busno: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cStartRequest { busno: busno };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
+    pub fn restart(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cRestartRequest {
+            destination: destination,
+            busno: busno
+        });
+        match reply {
+            Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
+            }
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Err("received unexpected aux packet")
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(e)
+            }
         }
-        basic_reply(nodeno)
     }
 
-    pub fn restart(nodeno: u8, busno: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cRestartRequest { busno: busno };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
+    pub fn stop(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cStopRequest  {
+            destination: destination,
+            busno: busno
+        });
+        match reply {
+            Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
+            }
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Err("received unexpected aux packet")
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(e)
+            }
         }
-        basic_reply(nodeno)
     }
 
-    pub fn stop(nodeno: u8, busno: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::I2cStopRequest { busno: busno };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        basic_reply(nodeno)
-    }
-
-    pub fn write(nodeno: u8, busno: u8, data: u8) -> Result<bool, ()> {
-        let request = drtioaux::Packet::I2cWriteRequest {
+    pub fn write(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u8) -> Result<bool, &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cWriteRequest {
+            destination: destination,
             busno: busno,
             data: data
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        match drtioaux::hw::recv_timeout(nodeno, None) {
+        });
+        match reply {
             Ok(drtioaux::Packet::I2cWriteReply { succeeded, ack }) => {
-                if succeeded { Ok(ack) } else { Err(()) }
+                if succeeded { Ok(ack) } else { Err("i2c write reply error") }
             }
             Ok(_) => {
                 error!("received unexpected aux packet");
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn read(nodeno: u8, busno: u8, ack: bool) -> Result<u8, ()> {
-        let request = drtioaux::Packet::I2cReadRequest {
+    pub fn read(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, ack: bool) -> Result<u8, &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cReadRequest {
+            destination: destination,
             busno: busno,
             ack: ack
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        match drtioaux::hw::recv_timeout(nodeno, None) {
+        });
+        match reply {
             Ok(drtioaux::Packet::I2cReadReply { succeeded, data }) => {
-                if succeeded { Ok(data) } else { Err(()) }
+                if succeeded { Ok(data) } else { Err("i2c read reply error") }
             }
             Ok(_) => {
                 error!("received unexpected aux packet");
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
-        }
-    }
-}
-
-#[cfg(not(has_drtio))]
-mod drtio_i2c {
-    pub fn start(_nodeno: u8, _busno: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn restart(_nodeno: u8, _busno: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn stop(_nodeno: u8, _busno: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn write(_nodeno: u8, _busno: u8, _data: u8) -> Result<bool, ()> {
-        Err(())
-    }
-
-    pub fn read(_nodeno: u8, _busno: u8, _ack: bool) -> Result<u8, ()> {
-        Err(())
-    }
-}
-
-mod i2c {
-    use board;
-    use super::drtio_i2c;
-
-    pub fn start(busno: u32) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::i2c::start(node_busno)
-        } else {
-            drtio_i2c::start(nodeno, node_busno)
-        }
-    }
-
-    pub fn restart(busno: u32) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::i2c::restart(node_busno)
-        } else {
-            drtio_i2c::restart(nodeno, node_busno)
-        }
-    }
-
-    pub fn stop(busno: u32) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::i2c::stop(node_busno)
-        } else {
-            drtio_i2c::stop(nodeno, node_busno)
-        }
-    }
-
-    pub fn write(busno: u32, data: u8) -> Result<bool, ()> {
-        let nodeno = (busno >> 16 )as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::i2c::write(node_busno, data)
-        } else {
-            drtio_i2c::write(nodeno, node_busno, data)
-        }
-    }
-
-    pub fn read(busno: u32, ack: bool) -> Result<u8, ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::i2c::read(node_busno, ack)
-        } else {
-            drtio_i2c::read(nodeno, node_busno, ack)
         }
     }
 }
 
 #[cfg(has_drtio)]
-mod drtio_spi {
+mod remote_spi {
     use drtioaux;
+    use rtio_mgt::drtio;
+    use sched::{Io, Mutex};
 
-    fn basic_reply(nodeno: u8) -> Result<(), ()> {
-        match drtioaux::hw::recv_timeout(nodeno, None) {
+    pub fn set_config(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::SpiSetConfigRequest {
+            destination: destination,
+            busno: busno,
+            flags: flags,
+            length: length,
+            div: div,
+            cs: cs
+        });
+        match reply {
             Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
                 if succeeded { Ok(()) } else { Err(()) }
             }
-            Ok(_) => {
-                error!("received unexpected aux packet");
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
                 Err(())
             }
             Err(e) => {
@@ -194,54 +147,38 @@ mod drtio_spi {
         }
     }
 
-    pub fn set_config(nodeno: u8, busno: u8, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::SpiSetConfigRequest {
-            busno: busno,
-            flags: flags,
-            write_div: write_div,
-            read_div: read_div
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        basic_reply(nodeno)
-    }
-
-    pub fn set_xfer(nodeno: u8, busno: u8, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
-        let request = drtioaux::Packet::SpiSetXferRequest {
-            busno: busno,
-            chip_select: chip_select,
-            write_length: write_length,
-            read_length: read_length
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        basic_reply(nodeno)
-    }
-
-    pub fn write(nodeno: u8, busno: u8, data: u32) -> Result<(), ()> {
-        let request = drtioaux::Packet::SpiWriteRequest {
+    pub fn write(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u32) -> Result<(), ()> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::SpiWriteRequest {
+            destination: destination,
             busno: busno,
             data: data
-        };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
+        });
+        match reply {
+            Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err(()) }
+            }
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Err(())
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(())
+            }
         }
-        basic_reply(nodeno)
     }
 
-    pub fn read(nodeno: u8, busno: u8) -> Result<u32, ()> {
-        let request = drtioaux::Packet::SpiReadRequest { busno: busno };
-        if drtioaux::hw::send(nodeno, &request).is_err() {
-            return Err(())
-        }
-        match drtioaux::hw::recv_timeout(nodeno, None) {
+    pub fn read(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<u32, ()> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::SpiReadRequest {
+            destination: destination,
+            busno: busno
+        });
+        match reply {
             Ok(drtioaux::Packet::SpiReadReply { succeeded, data }) => {
                 if succeeded { Ok(data) } else { Err(()) }
             }
-            Ok(_) => {
-                error!("received unexpected aux packet");
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
                 Err(())
             }
             Err(e) => {
@@ -252,145 +189,89 @@ mod drtio_spi {
     }
 }
 
+
+#[cfg(has_drtio)]
+macro_rules! dispatch {
+    ($io:ident, $aux_mutex:ident, $mod_local:ident, $mod_remote:ident, $routing_table:ident, $busno:expr, $func:ident $(, $param:expr)*) => {{
+        let destination = ($busno >> 16) as u8;
+        let busno = $busno as u8;
+        let hop = $routing_table.0[destination as usize][0];
+        if hop == 0 {
+            $mod_local::$func(busno, $($param, )*)
+        } else {
+            let linkno = hop - 1;
+            $mod_remote::$func($io, $aux_mutex, linkno, destination, busno, $($param, )*)
+        }
+    }}
+}
+
 #[cfg(not(has_drtio))]
-mod drtio_spi {
-    pub fn set_config(_nodeno: u8, _busno: u8, _flags: u8, _write_div: u8, _read_div: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn set_xfer(_nodeno: u8, _busno: u8, _chip_select: u16, _write_length: u8, _read_length: u8) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn write(_nodeno: u8, _busno: u8, _data: u32) -> Result<(), ()> {
-        Err(())
-    }
-
-    pub fn read(_nodeno: u8, _busno: u8) -> Result<u32, ()> {
-        Err(())
-    }
+macro_rules! dispatch {
+    ($io:ident, $aux_mutex:ident,$mod_local:ident, $mod_remote:ident, $routing_table:ident, $busno:expr, $func:ident $(, $param:expr)*) => {{
+        let busno = $busno as u8;
+        $mod_local::$func(busno, $($param, )*)
+    }}
 }
 
-mod spi {
-    use board;
-    use super::drtio_spi;
-
-    pub fn set_config(busno: u32, flags: u8, write_div: u8, read_div: u8) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::spi::set_config(node_busno, flags, write_div, read_div)
-        } else {
-            drtio_spi::set_config(nodeno, node_busno, flags, write_div, read_div)
-        }
-    }
-
-    pub fn set_xfer(busno: u32, chip_select: u16, write_length: u8, read_length: u8) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::spi::set_xfer(node_busno, chip_select, write_length, read_length)
-        } else {
-            drtio_spi::set_xfer(nodeno, node_busno, chip_select, write_length, read_length)
-        }
-    }
-
-    pub fn write(busno: u32, data: u32) -> Result<(), ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::spi::write(node_busno, data)
-        } else {
-            drtio_spi::write(nodeno, node_busno, data)
-        }
-    }
-
-    pub fn read(busno: u32) -> Result<u32, ()> {
-        let nodeno = (busno >> 16) as u8;
-        let node_busno = busno as u8;
-        if nodeno == 0 {
-            board::spi::read(node_busno)
-        } else {
-            drtio_spi::read(nodeno, node_busno)
-        }
-    }
-}
-
-pub fn process_kern_hwreq(io: &Io, request: &kern::Message) -> io::Result<bool> {
+pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
+        _routing_table: &drtio_routing::RoutingTable,
+        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+        request: &kern::Message) -> Result<bool, Error<SchedError>> {
     match request {
-        #[cfg(has_rtio_core)]
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
-            rtio_mgt::init_core();
+            rtio_mgt::reset(io, aux_mutex);
             kern_acknowledge()
         }
 
-        #[cfg(has_rtio_core)]
-        &kern::DrtioChannelStateRequest { channel } => {
-            let (fifo_space, last_timestamp) = rtio_mgt::drtio_dbg::get_channel_state(channel);
-            kern_send(io, &kern::DrtioChannelStateReply { fifo_space: fifo_space,
-                                                          last_timestamp: last_timestamp })
-        }
-        #[cfg(has_rtio_core)]
-        &kern::DrtioResetChannelStateRequest { channel } => {
-            rtio_mgt::drtio_dbg::reset_channel_state(channel);
-            kern_acknowledge()
-        }
-        #[cfg(has_rtio_core)]
-        &kern::DrtioGetFifoSpaceRequest { channel } => {
-            rtio_mgt::drtio_dbg::get_fifo_space(channel);
-            kern_acknowledge()
-        }
-        #[cfg(has_rtio_core)]
-        &kern::DrtioPacketCountRequest { linkno } => {
-            let (tx_cnt, rx_cnt) = rtio_mgt::drtio_dbg::get_packet_counts(linkno);
-            kern_send(io, &kern::DrtioPacketCountReply { tx_cnt: tx_cnt, rx_cnt: rx_cnt })
-        }
-        #[cfg(has_rtio_core)]
-        &kern::DrtioFifoSpaceReqCountRequest { linkno } => {
-            let cnt = rtio_mgt::drtio_dbg::get_fifo_space_req_count(linkno);
-            kern_send(io, &kern::DrtioFifoSpaceReqCountReply { cnt: cnt })
+        &kern::RtioDestinationStatusRequest { destination: _destination } => {
+            #[cfg(has_drtio)]
+            let up = {
+                let up_destinations = _up_destinations.borrow();
+                up_destinations[_destination as usize]
+            };
+            #[cfg(not(has_drtio))]
+            let up = true;
+            kern_send(io, &kern::RtioDestinationStatusReply { up: up })
         }
 
         &kern::I2cStartRequest { busno } => {
-            let succeeded = i2c::start(busno).is_ok();
+            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, start).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cRestartRequest { busno } => {
-            let succeeded = i2c::restart(busno).is_ok();
+            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, restart).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cStopRequest { busno } => {
-            let succeeded = i2c::stop(busno).is_ok();
+            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, stop).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cWriteRequest { busno, data } => {
-            match i2c::write(busno, data) {
+            match dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, write, data) {
                 Ok(ack) => kern_send(io, &kern::I2cWriteReply { succeeded: true, ack: ack }),
                 Err(_) => kern_send(io, &kern::I2cWriteReply { succeeded: false, ack: false })
             }
         }
         &kern::I2cReadRequest { busno, ack } => {
-            match i2c::read(busno, ack) {
+            match dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, read, ack) {
                 Ok(data) => kern_send(io, &kern::I2cReadReply { succeeded: true, data: data }),
                 Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
             }
         }
 
-        &kern::SpiSetConfigRequest { busno, flags, write_div, read_div } => {
-            let succeeded = spi::set_config(busno, flags, write_div, read_div).is_ok();
+        &kern::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+            let succeeded = dispatch!(io, aux_mutex, local_spi, remote_spi, _routing_table, busno,
+                set_config, flags, length, div, cs).is_ok();
             kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         },
-        &kern::SpiSetXferRequest { busno, chip_select, write_length, read_length } => {
-            let succeeded = spi::set_xfer(busno, chip_select, write_length, read_length).is_ok();
-            kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
-        }
         &kern::SpiWriteRequest { busno, data } => {
-            let succeeded = spi::write(busno, data).is_ok();
+            let succeeded = dispatch!(io, aux_mutex, local_spi, remote_spi, _routing_table, busno,
+                write, data).is_ok();
             kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         }
         &kern::SpiReadRequest { busno } => {
-            match spi::read(busno) {
+            match dispatch!(io, aux_mutex, local_spi, remote_spi, _routing_table, busno, read) {
                 Ok(data) => kern_send(io, &kern::SpiReadReply { succeeded: true, data: data }),
                 Err(_) => kern_send(io, &kern::SpiReadReply { succeeded: false, data: 0 })
             }

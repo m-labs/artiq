@@ -1,42 +1,63 @@
-use std::prelude::v1::*;
-use std::{mem, str};
-use std::cell::{Cell, RefCell};
-use std::io::{self, Read, Write};
-use std::error::Error;
+use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
+use alloc::{Vec, String};
 use byteorder::{ByteOrder, NetworkEndian};
 
+use io::{Read, Write, Error as IoError};
+use board_misoc::{ident, cache, config};
+use {mailbox, rpc_queue, kernel};
 use urc::Urc;
-use sched::{ThreadHandle, Io};
-use sched::{TcpListener, TcpStream};
-use board;
-use {config, mailbox, rpc_queue, kernel};
-#[cfg(has_rtio_core)]
-use rtio_mgt;
+use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
+use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
+use board_artiq::drtio_routing;
 
 use rpc_proto as rpc;
 use session_proto as host;
 use kernel_proto as kern;
 
-macro_rules! unexpected {
-    ($($arg:tt)*) => {
-        {
-            error!($($arg)*);
-            return Err(io::Error::new(io::ErrorKind::InvalidData, "protocol error"))
-        }
-    };
+#[derive(Fail, Debug)]
+pub enum Error<T> {
+    #[fail(display = "cannot load kernel: {}", _0)]
+    Load(String),
+    #[fail(display = "kernel not found")]
+    KernelNotFound,
+    #[fail(display = "invalid kernel CPU pointer: {:#08x}", _0)]
+    InvalidPointer(usize),
+    #[fail(display = "RTIO clock failure")]
+    ClockFailure,
+    #[fail(display = "protocol error: {}", _0)]
+    Protocol(#[cause] host::Error<T>),
+    #[fail(display = "{}", _0)]
+    Unexpected(String),
 }
 
-fn io_error(msg: &str) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, msg)
+impl<T> From<host::Error<T>> for Error<T> {
+    fn from(value: host::Error<T>) -> Error<T> {
+        Error::Protocol(value)
+    }
+}
+
+impl From<SchedError> for Error<SchedError> {
+    fn from(value: SchedError) -> Error<SchedError> {
+        Error::Protocol(host::Error::Io(IoError::Other(value)))
+    }
+}
+
+impl From<IoError<SchedError>> for Error<SchedError> {
+    fn from(value: IoError<SchedError>) -> Error<SchedError> {
+        Error::Protocol(host::Error::Io(value))
+    }
+}
+
+macro_rules! unexpected {
+     ($($arg:tt)*) => (return Err(Error::Unexpected(format!($($arg)*))));
 }
 
 // Persistent state
 #[derive(Debug)]
 struct Congress {
-    now: u64,
     cache: Cache,
     dma_manager: DmaManager,
     finished_cleanly: Cell<bool>
@@ -45,7 +66,6 @@ struct Congress {
 impl Congress {
     fn new() -> Congress {
         Congress {
-            now: 0,
             cache: Cache::new(),
             dma_manager: DmaManager::new(),
             finished_cleanly: Cell::new(true)
@@ -66,7 +86,6 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: board::clock::WatchdogSet,
     log_buffer: String
 }
 
@@ -75,7 +94,6 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: board::clock::WatchdogSet::new(),
             log_buffer: String::new()
         }
     }
@@ -103,20 +121,10 @@ impl<'a> Drop for Session<'a> {
     }
 }
 
-fn check_magic(stream: &mut TcpStream) -> io::Result<()> {
-    const MAGIC: &'static [u8] = b"ARTIQ coredev\n";
-
-    let mut magic: [u8; 14] = [0; 14];
-    stream.read_exact(&mut magic)?;
-    if magic != MAGIC {
-        Err(io::Error::new(io::ErrorKind::InvalidData, "unrecognized magic"))
-    } else {
-        Ok(())
-    }
-}
-
-fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
-    let request = host::Request::read_from(stream)?;
+fn host_read<R>(reader: &mut R) -> Result<host::Request, Error<R::ReadError>>
+    where R: Read + ?Sized
+{
+    let request = host::Request::read_from(reader)?;
     match &request {
         &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
         _ => debug!("comm<-host {:?}", request)
@@ -124,12 +132,14 @@ fn host_read(stream: &mut TcpStream) -> io::Result<host::Request> {
     Ok(request)
 }
 
-fn host_write(stream: &mut Write, reply: host::Reply) -> io::Result<()> {
+fn host_write<W>(writer: &mut W, reply: host::Reply) -> Result<(), IoError<W::WriteError>>
+    where W: Write + ?Sized
+{
     debug!("comm->host {:?}", reply);
-    reply.write_to(stream)
+    reply.write_to(writer)
 }
 
-pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
+pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<SchedError>> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
         &kern::DmaRetrieveReply { trace, duration } => {
@@ -142,15 +152,14 @@ pub fn kern_send(io: &Io, request: &kern::Message) -> io::Result<()> {
         _ => debug!("comm->kern {:?}", request)
     }
     unsafe { mailbox::send(request as *const _ as usize) }
-    io.until(mailbox::acknowledged)
+    Ok(io.until(mailbox::acknowledged)?)
 }
 
-fn kern_recv_notrace<R, F>(io: &Io, f: F) -> io::Result<R>
-        where F: FnOnce(&kern::Message) -> io::Result<R> {
+fn kern_recv_notrace<R, F>(io: &Io, f: F) -> Result<R, Error<SchedError>>
+        where F: FnOnce(&kern::Message) -> Result<R, Error<SchedError>> {
     io.until(|| mailbox::receive() != 0)?;
     if !kernel::validate(mailbox::receive()) {
-        let message = format!("invalid kernel CPU pointer 0x{:x}", mailbox::receive());
-        return Err(io::Error::new(io::ErrorKind::InvalidData, message))
+        return Err(Error::InvalidPointer(mailbox::receive()))
     }
 
     f(unsafe { &*(mailbox::receive() as *const kern::Message) })
@@ -172,20 +181,21 @@ fn kern_recv_dotrace(reply: &kern::Message) {
 }
 
 #[inline(always)]
-fn kern_recv<R, F>(io: &Io, f: F) -> io::Result<R>
-        where F: FnOnce(&kern::Message) -> io::Result<R> {
+fn kern_recv<R, F>(io: &Io, f: F) -> Result<R, Error<SchedError>>
+        where F: FnOnce(&kern::Message) -> Result<R, Error<SchedError>> {
     kern_recv_notrace(io, |reply| {
         kern_recv_dotrace(reply);
         f(reply)
     })
 }
 
-pub fn kern_acknowledge() -> io::Result<()> {
+pub fn kern_acknowledge() -> Result<(), Error<SchedError>> {
     mailbox::acknowledge();
     Ok(())
 }
 
-unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Result<()> {
+unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8])
+                   -> Result<(), Error<SchedError>> {
     if session.running() {
         unexpected!("attempted to load a new kernel while a kernel was running")
     }
@@ -195,22 +205,21 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8]) -> io::Resul
     kern_send(io, &kern::LoadRequest(&library))?;
     kern_recv(io, |reply| {
         match reply {
-            &kern::LoadReply(Ok(())) => {
+            kern::LoadReply(Ok(())) => {
                 session.kernel_state = KernelState::Loaded;
                 Ok(())
             }
-            &kern::LoadReply(Err(ref error)) => {
+            kern::LoadReply(Err(error)) => {
                 kernel::stop();
-                Err(io::Error::new(io::ErrorKind::Other,
-                                   format!("cannot load kernel: {}", error)))
+                Err(Error::Load(format!("{}", error)))
             }
             other =>
-                unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                unexpected!("unexpected kernel CPU reply to load request: {:?}", other)
         }
     })
 }
 
-fn kern_run(session: &mut Session) -> io::Result<()> {
+fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     if session.kernel_state != KernelState::Loaded {
         unexpected!("attempted to run a kernel while not in Loaded state")
     }
@@ -222,81 +231,30 @@ fn kern_run(session: &mut Session) -> io::Result<()> {
 
 fn process_host_message(io: &Io,
                         stream: &mut TcpStream,
-                        session: &mut Session) -> io::Result<()> {
+                        session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
         host::Request::SystemInfo => {
             host_write(stream, host::Reply::SystemInfo {
-                ident: board::ident(&mut [0; 64]),
+                ident: ident::read(&mut [0; 64]),
                 finished_cleanly: session.congress.finished_cleanly.get()
             })?;
-            session.congress.finished_cleanly.set(true);
-            Ok(())
-        }
-
-        // artiq_coreconfig
-        host::Request::FlashRead { ref key } => {
-            config::read(key, |result| {
-                match result {
-                    Ok(value) => host_write(stream, host::Reply::FlashRead(&value)),
-                    Err(())   => host_write(stream, host::Reply::FlashError)
-                }
-            })
-        }
-
-        host::Request::FlashWrite { ref key, ref value } => {
-            match config::write(key, value) {
-                Ok(_)  => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError)
-            }
-        }
-
-        host::Request::FlashRemove { ref key } => {
-            match config::remove(key) {
-                Ok(()) => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError),
-            }
-
-        }
-
-        host::Request::FlashErase => {
-            match config::erase() {
-                Ok(()) => host_write(stream, host::Reply::FlashOk),
-                Err(_) => host_write(stream, host::Reply::FlashError),
-            }
-        }
-
-        // artiq_run/artiq_master
-        host::Request::SwitchClock(clk) => {
-            if session.running() {
-                unexpected!("attempted to switch RTIO clock while a kernel was running")
-            }
-
-            #[cfg(has_rtio_core)]
-            {
-                if rtio_mgt::crg::switch_clock(clk) {
-                    host_write(stream, host::Reply::ClockSwitchCompleted)
-                } else {
-                    host_write(stream, host::Reply::ClockSwitchFailed)
-                }
-            }
-
-            #[cfg(not(has_rtio_core))]
-            host_write(stream, host::Reply::ClockSwitchFailed)
+            session.congress.finished_cleanly.set(true)
         }
 
         host::Request::LoadKernel(kernel) =>
             match unsafe { kern_load(io, session, &kernel) } {
-                Ok(()) => host_write(stream, host::Reply::LoadCompleted),
+                Ok(()) => host_write(stream, host::Reply::LoadCompleted)?,
                 Err(error) => {
-                    host_write(stream, host::Reply::LoadFailed(error.description()))?;
-                    kern_acknowledge()
+                    let mut description = String::new();
+                    write!(&mut description, "{}", error).unwrap();
+                    host_write(stream, host::Reply::LoadFailed(&description))?;
+                    kern_acknowledge()?;
                 }
             },
-
         host::Request::RunKernel =>
             match kern_run(session) {
-                Ok(()) => Ok(()),
-                Err(_) => host_write(stream, host::Reply::KernelStartupFailed)
+                Ok(()) => (),
+                Err(_) => host_write(stream, host::Reply::KernelStartupFailed)?
             },
 
         host::Request::RpcReply { tag } => {
@@ -307,22 +265,28 @@ fn process_host_message(io: &Io,
             let slot = kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(slot) => Ok(slot),
-                    other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
-            rpc::recv_return(stream, &tag, slot, &|size| {
+            rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                if size == 0 {
+                    // Don't try to allocate zero-length values, as RpcRecvReply(0) is
+                    // used to terminate the kernel-side receive loop.
+                    return Ok(0 as *mut ())
+                }
                 kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
-                kern_recv(io, |reply| {
+                Ok(kern_recv(io, |reply| {
                     match reply {
                         &kern::RpcRecvRequest(slot) => Ok(slot),
-                        other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                        other => unexpected!(
+                            "expected nested value slot from kernel CPU, not {:?}", other)
                     }
-                })
+                })?)
             })?;
             kern_send(io, &kern::RpcRecvReply(Ok(0)))?;
 
-            session.kernel_state = KernelState::Running;
-            Ok(())
+            session.kernel_state = KernelState::Running
         }
 
         host::Request::RpcException {
@@ -335,8 +299,8 @@ fn process_host_message(io: &Io,
             kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(_) => Ok(()),
-                    other =>
-                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected (ignored) root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
 
@@ -351,14 +315,18 @@ fn process_host_message(io: &Io,
             };
             kern_send(io, &kern::RpcRecvReply(Err(exn)))?;
 
-            session.kernel_state = KernelState::Running;
-            Ok(())
+            session.kernel_state = KernelState::Running
         }
     }
+
+    Ok(())
 }
 
-fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
-                        session: &mut Session) -> io::Result<bool> {
+fn process_kern_message(io: &Io, aux_mutex: &Mutex,
+                        routing_table: &drtio_routing::RoutingTable,
+                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+                        mut stream: Option<&mut TcpStream>,
+                        session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) |
@@ -375,15 +343,16 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, request)? {
+        if kern_hwreq::process_kern_hwreq(io, aux_mutex, routing_table, up_destinations, request)? {
             return Ok(false)
         }
 
         match request {
             &kern::Log(args) => {
-                use std::fmt::Write;
-                session.log_buffer.write_fmt(args)
-                       .map_err(|_| io_error("cannot append to session log buffer"))?;
+                use core::fmt::Write;
+                session.log_buffer
+                       .write_fmt(args)
+                       .unwrap_or_else(|_| warn!("cannot append to session log buffer"));
                 session.flush_log_buffer();
                 kern_acknowledge()
             }
@@ -391,14 +360,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             &kern::LogSlice(arg) => {
                 session.log_buffer += arg;
                 session.flush_log_buffer();
-                kern_acknowledge()
-            }
-
-            &kern::NowInitRequest =>
-                kern_send(io, &kern::NowInitReply(session.congress.now)),
-
-            &kern::NowSave(now) => {
-                session.congress.now = now;
                 kern_acknowledge()
             }
 
@@ -412,7 +373,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
             }
             &kern::DmaRecordStop { duration } => {
                 session.congress.dma_manager.record_stop(duration);
-                board::cache::flush_l2_cache();
+                cache::flush_l2_cache();
                 kern_acknowledge()
             }
             &kern::DmaEraseRequest { name } => {
@@ -428,17 +389,6 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 })
             }
 
-            &kern::WatchdogSetRequest { ms } => {
-                let id = session.watchdog_set.set_ms(ms)
-                                .map_err(|()| io_error("out of watchdogs"))?;
-                kern_send(io, &kern::WatchdogSetReply { id: id })
-            }
-
-            &kern::WatchdogClear { id } => {
-                session.watchdog_set.clear(id);
-                kern_acknowledge()
-            }
-
             &kern::RpcSend { async, service, tag, data } => {
                 match stream {
                     None => unexpected!("unexpected RPC in flash kernel"),
@@ -451,7 +401,13 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                         kern_acknowledge()
                     }
                 }
-            }
+            },
+            &kern::RpcFlush => {
+                // See ksupport/lib.rs for the reason this request exists.
+                // We do not need to do anything here because of how the main loop is
+                // structured.
+                kern_acknowledge()
+            },
 
             &kern::CacheGetRequest { key } => {
                 let value = session.congress.cache.get(key);
@@ -475,10 +431,9 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                 match stream {
                     None => return Ok(true),
                     Some(ref mut stream) =>
-                        host_write(stream, host::Reply::KernelFinished)
+                        host_write(stream, host::Reply::KernelFinished).map_err(|e| e.into())
                 }
             }
-
             &kern::RunException {
                 exception: kern::Exception { name, message, param, file, line, column, function },
                 backtrace
@@ -504,7 +459,7 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
                             column:    column,
                             function:  function,
                             backtrace: backtrace
-                        })
+                        }).map_err(|e| e.into())
                     }
                 }
             }
@@ -515,49 +470,45 @@ fn process_kern_message(io: &Io, mut stream: Option<&mut TcpStream>,
 }
 
 fn process_kern_queued_rpc(stream: &mut TcpStream,
-                           _session: &mut Session) -> io::Result<()> {
+                           _session: &mut Session) -> Result<(), Error<SchedError>> {
     rpc_queue::dequeue(|slice| {
         debug!("comm<-kern (async RPC)");
         let length = NetworkEndian::read_u32(slice) as usize;
         host_write(stream, host::Reply::RpcRequest { async: true })?;
         debug!("{:?}", &slice[4..][..length]);
-        stream.write(&slice[4..][..length])?;
+        stream.write_all(&slice[4..][..length])?;
         Ok(())
     })
 }
 
-fn host_kernel_worker(io: &Io,
+fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
+                      routing_table: &drtio_routing::RoutingTable,
+                      up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                       stream: &mut TcpStream,
-                      congress: &mut Congress) -> io::Result<()> {
+                      congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     loop {
-        while !rpc_queue::empty() {
-            process_kern_queued_rpc(stream, &mut session)?
-        }
-
         if stream.can_recv() {
             process_host_message(io, stream, &mut session)?
         } else if !stream.may_recv() {
             return Ok(())
         }
 
+        while !rpc_queue::empty() {
+            process_kern_queued_rpc(stream, &mut session)?
+        }
+
         if mailbox::receive() != 0 {
-            process_kern_message(io, Some(stream), &mut session)?;
+            process_kern_message(io, aux_mutex,
+                routing_table, up_destinations,
+                Some(stream), &mut session)?;
         }
 
         if session.kernel_state == KernelState::Running {
-            if session.watchdog_set.expired() {
-                host_write(stream, host::Reply::WatchdogExpired)?;
-                return Err(io_error("watchdog expired"))
-            }
-
-            #[cfg(has_rtio_core)]
-            {
-                if !rtio_mgt::crg::check() {
-                    host_write(stream, host::Reply::ClockFailure)?;
-                    return Err(io_error("RTIO clock failure"))
-                }
+            if !rtio_clocking::crg::check() {
+                host_write(stream, host::Reply::ClockFailure)?;
+                return Err(Error::ClockFailure)
             }
         }
 
@@ -565,9 +516,11 @@ fn host_kernel_worker(io: &Io,
     }
 }
 
-fn flash_kernel_worker(io: &Io,
+fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
+                       routing_table: &drtio_routing::RoutingTable,
+                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
                        congress: &mut Congress,
-                       config_key: &str) -> io::Result<()> {
+                       config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     config::read(config_key, |result| {
@@ -577,31 +530,24 @@ fn flash_kernel_worker(io: &Io,
                 // so make a copy.
                 kern_load(io, &mut session, Vec::from(kernel).as_ref())
             },
-            _ => Err(io::Error::new(io::ErrorKind::NotFound, "kernel not found")),
+            _ => Err(Error::KernelNotFound)
         }
     })?;
     kern_run(&mut session)?;
 
     loop {
         if !rpc_queue::empty() {
-            return Err(io_error("unexpected background RPC in flash kernel"))
+            unexpected!("unexpected background RPC in flash kernel")
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, None, &mut session)? {
+            if process_kern_message(io, aux_mutex, routing_table, up_destinations, None, &mut session)? {
                 return Ok(())
             }
         }
 
-        if session.watchdog_set.expired() {
-            return Err(io_error("watchdog expired"))
-        }
-
-        #[cfg(has_rtio_core)]
-        {
-            if !rtio_mgt::crg::check() {
-                return Err(io_error("RTIO clock failure"))
-            }
+        if !rtio_clocking::crg::check() {
+            return Err(Error::ClockFailure)
         }
 
         io.relinquish()?
@@ -623,7 +569,9 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
     *handle = Some(io.spawn(16384, f))
 }
 
-pub fn thread(io: Io) {
+pub fn thread(io: Io, aux_mutex: &Mutex,
+        routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
@@ -632,19 +580,22 @@ pub fn thread(io: Io) {
 
     let mut kernel_thread = None;
     {
+        let aux_mutex = aux_mutex.clone();
+        let routing_table = routing_table.clone();
+        let up_destinations = up_destinations.clone();
         let congress = congress.clone();
         respawn(&io, &mut kernel_thread, move |io| {
-            let mut congress = borrow_mut!(congress);
+            let routing_table = routing_table.borrow();
+            let mut congress = congress.borrow_mut();
             info!("running startup kernel");
-            match flash_kernel_worker(&io, &mut congress, "startup_kernel") {
-                Ok(()) => info!("startup kernel finished"),
+            match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut congress, "startup_kernel") {
+                Ok(()) =>
+                    info!("startup kernel finished"),
+                Err(Error::KernelNotFound) =>
+                    info!("no startup kernel found"),
                 Err(err) => {
-                    if err.kind() == io::ErrorKind::NotFound {
-                        info!("no startup kernel found")
-                    } else {
-                        congress.finished_cleanly.set(false);
-                        error!("startup kernel aborted: {}", err);
-                    }
+                    congress.finished_cleanly.set(false);
+                    error!("startup kernel aborted: {}", err);
                 }
             }
         })
@@ -653,10 +604,10 @@ pub fn thread(io: Io) {
     loop {
         if listener.can_accept() {
             let mut stream = listener.accept().expect("session: cannot accept");
-            stream.set_timeout(Some(1000));
+            stream.set_timeout(Some(2250));
             stream.set_keep_alive(Some(500));
 
-            match check_magic(&mut stream) {
+            match host::read_magic(&mut stream) {
                 Ok(()) => (),
                 Err(_) => {
                     warn!("wrong magic from {}", stream.remote_endpoint());
@@ -666,22 +617,25 @@ pub fn thread(io: Io) {
             }
             info!("new connection from {}", stream.remote_endpoint());
 
+            let aux_mutex = aux_mutex.clone();
+            let routing_table = routing_table.clone();
+            let up_destinations = up_destinations.clone();
             let congress = congress.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
-                let mut congress = borrow_mut!(congress);
+                let routing_table = routing_table.borrow();
+                let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &mut stream, &mut *congress) {
+                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut stream, &mut *congress) {
                     Ok(()) => (),
+                    Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
+                        info!("connection closed"),
+                    Err(Error::Protocol(host::Error::Io(
+                            IoError::Other(SchedError::Interrupted)))) =>
+                        info!("kernel interrupted"),
                     Err(err) => {
-                        if err.kind() == io::ErrorKind::UnexpectedEof {
-                            info!("connection closed");
-                        } else if err.kind() == io::ErrorKind::Interrupted {
-                            info!("kernel interrupted");
-                        } else {
-                            congress.finished_cleanly.set(false);
-                            error!("session aborted: {}", err);
-                        }
+                        congress.finished_cleanly.set(false);
+                        error!("session aborted: {}", err);
                     }
                 }
             });
@@ -690,22 +644,25 @@ pub fn thread(io: Io) {
         if kernel_thread.as_ref().map_or(true, |h| h.terminated()) {
             info!("no connection, starting idle kernel");
 
+            let aux_mutex = aux_mutex.clone();
+            let routing_table = routing_table.clone();
+            let up_destinations = up_destinations.clone();
             let congress = congress.clone();
             respawn(&io, &mut kernel_thread, move |io| {
-                let mut congress = borrow_mut!(congress);
-                match flash_kernel_worker(&io, &mut *congress, "idle_kernel") {
+                let routing_table = routing_table.borrow();
+                let mut congress = congress.borrow_mut();
+                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
-                    Err(err) => {
-                        if err.kind() == io::ErrorKind::Interrupted {
-                            info!("idle kernel interrupted");
-                        } else if err.kind() == io::ErrorKind::NotFound {
-                            info!("no idle kernel found");
-                            while io.relinquish().is_ok() {}
-                        } else {
-                            error!("idle kernel aborted: {}", err);
-                        }
+                    Err(Error::Protocol(host::Error::Io(
+                            IoError::Other(SchedError::Interrupted)))) =>
+                        info!("idle kernel interrupted"),
+                    Err(Error::KernelNotFound) => {
+                        info!("no idle kernel found");
+                        while io.relinquish().is_ok() {}
                     }
+                    Err(err) =>
+                        error!("idle kernel aborted: {}", err)
                 }
             })
         }

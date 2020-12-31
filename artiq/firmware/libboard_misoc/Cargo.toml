@@ -1,0 +1,21 @@
+[package]
+authors = ["M-Labs"]
+name = "board_misoc"
+version = "0.0.0"
+build = "build.rs"
+
+[lib]
+name = "board_misoc"
+path = "lib.rs"
+
+[build-dependencies]
+cc = "1.0"
+build_misoc = { path = "../libbuild_misoc" }
+
+[dependencies]
+byteorder = { version = "1.0", default-features = false }
+log = { version = "0.4", default-features = false, optional = true }
+smoltcp = { version = "0.6.0", default-features = false, optional = true }
+
+[features]
+uart_console = []

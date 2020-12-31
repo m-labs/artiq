@@ -69,7 +69,7 @@ class ParallelFIR(Module):
         n = len(coefficients)
         # input and output: old to new, decreasing delay
         self.i = [Signal((width, True)) for i in range(p)]
-        self.o = [Signal((width, True)) for i in range(p)]
+        self.o = [Signal((width, True), reset_less=True) for i in range(p)]
         self.latency = (n + 1)//2//p + 2
         w = _widths[arch]
 

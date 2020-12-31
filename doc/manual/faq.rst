@@ -88,7 +88,13 @@ The preferred way to specify a serial device is to make use of the ``hwgrep://``
 URL: it allows to select the serial device by its USB vendor ID, product
 ID and/or serial number. Those never change, unlike the device file name.
 
-See the :ref:`TDC001 documentation <tdc001-controller-usage-example>` for an example of ``hwgrep://`` usage.
+For instance, if you want to specify the Vendor/Product ID and the USB Serial Number, you can do:
+
+``-d "hwgrep://<VID>:<PID> SNR=<serial_number>"``.
+for example:
+
+``-d "hwgrep://0403:faf0 SNR=83852734"``
+
 
 run unit tests?
 ---------------
@@ -107,3 +113,9 @@ The core device tests require the following TTL devices and connections:
 * ``loop_clock_in``: any input-capable TTL. Must be physically connected to ``loop_clock_out``.
 
 If TTL devices are missing, the corresponding tests are skipped.
+
+find the dashboard and browser configuration files are stored?
+--------------------------------------------------------------
+
+::
+  python -c "from artiq.tools import get_user_config_dir; print(get_user_config_dir())"

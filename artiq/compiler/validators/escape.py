@@ -51,10 +51,6 @@ class Region:
                (other.range.begin_pos <= self.range.begin_pos <= other.range.end_pos and \
                     self.range.end_pos > other.range.end_pos)
 
-    def contract(self, other):
-        if not self.range:
-            self.range = other.range
-
     def outlives(lhs, rhs):
         if not isinstance(lhs, Region): # lhs lives nonlexically
             return True
@@ -69,8 +65,11 @@ class Region:
 
 class RegionOf(algorithm.Visitor):
     """
-    Visit an expression and return the list of regions that must
-    be alive for the expression to execute.
+    Visit an expression and return the region that must be alive for the
+    expression to execute.
+
+    For expressions involving multiple regions, the shortest-lived one is
+    returned.
     """
 
     def __init__(self, env_stack, youngest_region):
@@ -100,7 +99,7 @@ class RegionOf(algorithm.Visitor):
     visit_BinOpT = visit_sometimes_allocating
 
     def visit_CallT(self, node):
-        if types.is_c_function(node.func.type, "cache_get"):
+        if types.is_external_function(node.func.type, "cache_get"):
             # The cache is borrow checked dynamically
             return Global()
         else:
@@ -157,7 +156,7 @@ class RegionOf(algorithm.Visitor):
     visit_NameConstantT = visit_immutable
     visit_NumT = visit_immutable
     visit_EllipsisT = visit_immutable
-    visit_UnaryOpT = visit_immutable
+    visit_UnaryOpT = visit_sometimes_allocating   # possibly array op
     visit_CompareT = visit_immutable
 
     # Value lives forever
@@ -301,16 +300,19 @@ class EscapeValidator(algorithm.Visitor):
     def visit_assignment(self, target, value):
         value_region  = self._region_of(value)
 
-        # If this is a variable, we might need to contract the live range.
-        if isinstance(value_region, Region):
-            for name in self._names_of(target):
-                region = self._region_of(name)
-                if isinstance(region, Region):
-                    region.contract(value_region)
-
         # If we assign to an attribute of a quoted value, there will be no names
         # in the assignment lhs.
         target_names   = self._names_of(target) or []
+
+        # Adopt the value region for any variables declared on the lhs.
+        for name in target_names:
+            region = self._region_of(name)
+            if isinstance(region, Region) and not region.present():
+                # Find the name's environment to overwrite the region.
+                for env in self.env_stack[::-1]:
+                    if name.id in env:
+                        env[name.id] = value_region
+                        break
 
         # The assigned value should outlive the assignee
         target_regions = [self._region_of(name) for name in target_names]

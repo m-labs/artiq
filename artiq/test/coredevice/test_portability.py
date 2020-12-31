@@ -10,7 +10,7 @@ def _run_on_host(k_class, *args, **kwargs):
     device_mgr = dict()
     device_mgr["core"] = sim_devices.Core(device_mgr)
 
-    k_inst = k_class((device_mgr, None, None),
+    k_inst = k_class((device_mgr, None, None, {}),
                      *args, **kwargs)
     k_inst.run()
     return k_inst
@@ -202,6 +202,20 @@ class _RPCExceptions(EnvExperiment):
             self.success = True
 
 
+class _Keywords(EnvExperiment):
+    def build(self, value, output):
+        self.setattr_device("core")
+        self.value  = value
+        self.output = output
+
+    def rpc(self, kw):
+        self.output.append(kw)
+
+    @kernel
+    def run(self):
+        self.rpc(kw=self.value)
+
+
 class HostVsDeviceCase(ExperimentCase):
     def test_primes(self):
         l_device, l_host = [], []
@@ -245,3 +259,18 @@ class HostVsDeviceCase(ExperimentCase):
                 f(_RPCExceptions, catch=False)
             uut = self.execute(_RPCExceptions, catch=True)
             self.assertTrue(uut.success)
+
+    def test_keywords(self):
+        for f in self.execute, _run_on_host:
+            output = []
+            f(_Keywords, value=0, output=output)
+            self.assertEqual(output, [0])
+            output = []
+            f(_Keywords, value=1, output=output)
+            self.assertEqual(output, [1])
+            output = []
+            f(_Keywords, value=False, output=output)
+            self.assertEqual(output, [False])
+            output = []
+            f(_Keywords, value=True, output=output)
+            self.assertEqual(output, [True])

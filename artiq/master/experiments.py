@@ -5,7 +5,8 @@ import shutil
 import time
 import logging
 
-from artiq.protocols.sync_struct import Notifier
+from sipyco.sync_struct import Notifier, update_from_dict
+
 from artiq.master.worker import (Worker, WorkerInternalException,
                                  log_worker_exception)
 from artiq.tools import get_windows_drives, exc_to_warning
@@ -46,7 +47,8 @@ class _RepoScanner:
             entry = {
                 "file": filename,
                 "class_name": class_name,
-                "arginfo": arginfo
+                "arginfo": arginfo,
+                "scheduler_defaults": class_desc["scheduler_defaults"]
             }
             entry_dict[name] = entry
 
@@ -79,15 +81,6 @@ class _RepoScanner:
         finally:
             await self.worker.close()
         return r
-
-
-def _sync_explist(target, source):
-    for k in list(target.read.keys()):
-        if k not in source:
-            del target[k]
-    for k in source.keys():
-        if k not in target.read or target.read[k] != source[k]:
-            target[k] = source[k]
 
 
 class ExperimentDB:
@@ -124,8 +117,7 @@ class ExperimentDB:
             t1 = time.monotonic()
             new_explist = await _RepoScanner(self.worker_handlers).scan(wd)
             logger.info("repository scan took %d seconds", time.monotonic()-t1)
-
-            _sync_explist(self.explist, new_explist)
+            update_from_dict(self.explist, new_explist)
         finally:
             self._scanning = False
             self.status["scanning"] = False

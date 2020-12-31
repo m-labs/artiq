@@ -1,22 +1,17 @@
-use std::io::{self, Write};
-use board::{csr, cache};
-use sched::{Io, TcpListener, TcpStream};
+use io::{Write, Error as IoError};
+use board_misoc::{csr, cache};
+use sched::{Io, TcpListener, TcpStream, Error as SchedError};
 use analyzer_proto::*;
 
 const BUFFER_SIZE: usize = 512 * 1024;
 
-// hack until https://github.com/rust-lang/rust/issues/33626 is fixed
-#[repr(simd)]
-struct Align64(u64, u64, u64, u64, u64, u64, u64, u64);
-
+#[repr(align(64))]
 struct Buffer {
     data: [u8; BUFFER_SIZE],
-    __alignment: [Align64; 0]
 }
 
 static mut BUFFER: Buffer = Buffer {
-    data: [0; BUFFER_SIZE],
-    __alignment: []
+    data: [0; BUFFER_SIZE]
 };
 
 fn arm() {
@@ -40,7 +35,7 @@ fn disarm() {
     }
 }
 
-fn worker(stream: &mut TcpStream) -> io::Result<()> {
+fn worker(stream: &mut TcpStream) -> Result<(), IoError<SchedError>> {
     let data = unsafe { &BUFFER.data[..] };
     let overflow_occurred = unsafe { csr::rtio_analyzer::message_encoder_overflow_read() != 0 };
     let total_byte_count = unsafe { csr::rtio_analyzer::dma_byte_count_read() };
@@ -68,9 +63,6 @@ fn worker(stream: &mut TcpStream) -> io::Result<()> {
 }
 
 pub fn thread(io: Io) {
-    // verify that the hack above works
-    assert!(::core::mem::align_of::<Buffer>() == 64);
-
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1382).expect("analyzer: cannot listen");
 

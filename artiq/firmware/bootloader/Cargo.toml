@@ -1,0 +1,19 @@
+[package]
+authors = ["M-Labs"]
+name = "bootloader"
+version = "0.0.0"
+build = "build.rs"
+
+[lib]
+name = "bootloader"
+crate-type = ["staticlib"]
+path = "main.rs"
+
+[build-dependencies]
+build_misoc = { path = "../libbuild_misoc" }
+
+[dependencies]
+byteorder = { version = "1.0", default-features = false }
+crc = { version = "1.7", default-features = false }
+board_misoc = { path = "../libboard_misoc", features = ["uart_console", "smoltcp"] }
+smoltcp = { version = "0.6.0", default-features = false, features = ["ethernet", "proto-ipv4", "proto-ipv6", "socket-tcp"] }

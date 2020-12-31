@@ -224,7 +224,7 @@ class LinkLayerRX(Module):
 
 class LinkLayer(Module, AutoCSR):
     def __init__(self, encoder, decoders):
-        self.link_status = CSRStatus()
+        self.rx_up = CSRStatus()
         self.rx_disable = CSRStorage()
         self.tx_force_aux_zero = CSRStorage()
         self.tx_force_rt_zero = CSRStorage()
@@ -254,14 +254,14 @@ class LinkLayer(Module, AutoCSR):
 
         # # #
 
-        ready = Signal()
-        ready_r = Signal()
-        self.sync.rtio += ready_r.eq(ready)
-        ready_rx = Signal()
-        ready_r.attr.add("no_retiming")
+        rx_up = Signal()
+        rx_up_r = Signal()
+        self.sync.rtio += rx_up_r.eq(rx_up)
+        rx_up_rx = Signal()
+        rx_up_r.attr.add("no_retiming")
         self.specials += [
-            MultiReg(ready_r, ready_rx, "rtio_rx"),
-            MultiReg(ready_r, self.link_status.status)]
+            MultiReg(rx_up_r, rx_up_rx, "rtio_rx"),
+            MultiReg(rx_up_r, self.rx_up.status)]
 
         tx_force_aux_zero_rtio = Signal()
         tx_force_rt_zero_rtio = Signal()
@@ -286,11 +286,11 @@ class LinkLayer(Module, AutoCSR):
         # to be recaptured by RXSynchronizer.
         self.sync.rtio_rx += [
             self.rx_aux_stb.eq(rx.aux_stb),
-            self.rx_aux_frame.eq(rx.aux_frame & ready_rx & ~rx_disable_rx),
-            self.rx_aux_frame_perm.eq(rx.aux_frame & ready_rx),
+            self.rx_aux_frame.eq(rx.aux_frame & rx_up_rx & ~rx_disable_rx),
+            self.rx_aux_frame_perm.eq(rx.aux_frame & rx_up_rx),
             self.rx_aux_data.eq(rx.aux_data),
-            self.rx_rt_frame.eq(rx.rt_frame & ready_rx & ~rx_disable_rx),
-            self.rx_rt_frame_perm.eq(rx.rt_frame & ready_rx),
+            self.rx_rt_frame.eq(rx.rt_frame & rx_up_rx & ~rx_disable_rx),
+            self.rx_rt_frame_perm.eq(rx.rt_frame & rx_up_rx),
             self.rx_rt_data.eq(rx.rt_data)
         ]
 
@@ -308,7 +308,7 @@ class LinkLayer(Module, AutoCSR):
             If(wait_scrambler.done, NextState("READY"))
         )
         fsm.act("READY",
-            ready.eq(1),
+            rx_up.eq(1),
             If(~self.rx_ready, NextState("WAIT_RX_READY"))
         )
 

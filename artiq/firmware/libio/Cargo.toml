@@ -1,0 +1,16 @@
+[package]
+authors = ["M-Labs"]
+name = "io"
+version = "0.0.0"
+
+[lib]
+name = "io"
+path = "lib.rs"
+
+[dependencies]
+failure = { version = "0.1", default-features = false }
+failure_derive = { version = "0.1", default-features = false }
+byteorder = { version = "1.0", default-features = false, optional = true }
+
+[features]
+alloc = []

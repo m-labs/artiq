@@ -34,14 +34,33 @@ mod cslice {
             }
         }
     }
+
+    pub trait AsCSlice<'a, T> {
+        fn as_c_slice(&'a self) -> CSlice<'a, T>;
+    }
+
+    impl<'a> AsCSlice<'a, u8> for str {
+        fn as_c_slice(&'a self) -> CSlice<'a, u8> {
+            CSlice {
+                base: self.as_ptr(),
+                len: self.len() as u32,
+                phantom: PhantomData
+            }
+        }
+    }
 }
 
-#[path = "../../firmware/ksupport/eh.rs"]
-pub mod eh;
+#[path = "."]
+pub mod eh {
+    #[path = "../../firmware/libeh/dwarf.rs"]
+    pub mod dwarf;
+}
+#[path = "../../firmware/ksupport/eh_artiq.rs"]
+pub mod eh_artiq;
 
 use std::{str, process};
 
-fn terminate(exception: &eh::Exception, mut _backtrace: &mut [usize]) -> ! {
+fn terminate(exception: &eh_artiq::Exception, mut _backtrace: &mut [usize]) -> ! {
     println!("Uncaught {}: {} ({}, {}, {})",
              str::from_utf8(exception.name.as_ref()).unwrap(),
              str::from_utf8(exception.message.as_ref()).unwrap(),
@@ -57,14 +76,3 @@ fn terminate(exception: &eh::Exception, mut _backtrace: &mut [usize]) -> ! {
 
 #[export_name = "now"]
 pub static mut NOW: i64 = 0;
-
-#[export_name = "watchdog_set"]
-pub extern fn watchdog_set(ms: i64) -> i32 {
-    println!("watchdog_set {}", ms);
-    ms as i32
-}
-
-#[export_name = "watchdog_clear"]
-pub extern fn watchdog_clear(id: i32) {
-    println!("watchdog_clear {}", id);
-}
