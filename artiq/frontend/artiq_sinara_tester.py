@@ -53,6 +53,8 @@ class SinaraTester(EnvExperiment):
         self.fastinos = dict()
         self.phasers = dict()
         self.grabbers = dict()
+        self.mirny_cplds = dict()
+        self.mirnies = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -82,8 +84,12 @@ class SinaraTester(EnvExperiment):
                     self.phasers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.mirny", "Mirny"):
+                    self.mirny_cplds[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.adf5356", "ADF5356"):
+                    self.mirnies[name] = self.get_device(name)
 
-        # Remove Urukul, Sampler and Zotino control signals
+        # Remove Urukul, Sampler, Zotino and Mirny control signals
         # from TTL outs (tested separately)
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -105,6 +111,9 @@ class SinaraTester(EnvExperiment):
                     clr_device = desc["arguments"]["clr_device"]
                     del self.ttl_outs[ldac_device]
                     del self.ttl_outs[clr_device]
+                elif (module, cls) == ("artiq.coredevice.adf5356", "ADF5356"):
+                    sw_device = desc["arguments"]["sw_device"]
+                    del self.ttl_outs[sw_device]
 
         # Sort everything by RTIO channel number
         self.leds = sorted(self.leds.items(), key=lambda x: x[1].channel)
@@ -116,6 +125,7 @@ class SinaraTester(EnvExperiment):
         self.fastinos = sorted(self.fastinos.items(), key=lambda x: x[1].channel)
         self.phasers = sorted(self.phasers.items(), key=lambda x: x[1].channel_base)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
+        self.mirnies = sorted(self.mirnies.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].channel))
 
     @kernel
     def test_led(self, led):
@@ -277,6 +287,79 @@ class SinaraTester(EnvExperiment):
             for swi in sw:
                 self.cfg_sw_off_urukul(swi)
             self.rf_switch_wave([swi.sw for swi in sw])
+
+    @kernel
+    def init_mirny(self, cpld):
+        self.core.break_realtime()
+        # Taken from Mirny.init(), to accomodate Mirny v1.1 without blinding
+        reg0 = cpld.read_reg(0)
+        if reg0 & 0b11 != 0b10:         # Modified part
+            raise ValueError("Mirny HW_REV mismatch")
+        if (reg0 >> 2) & 0b11 != 0b00:
+            raise ValueError("Mirny PROTO_REV mismatch")
+        delay(100 * us)  # slack
+
+        # select clock source
+        cpld.write_reg(1, (cpld.clk_sel << 4))
+        delay(1000 * us)
+        # End of modified Mirny.init()
+
+    @kernel
+    def setup_mirny(self, channel, frequency):
+        self.core.break_realtime()
+        channel.init()
+
+        channel.set_att_mu(160)
+        channel.sw.on()
+        self.core.break_realtime()
+
+        channel.set_frequency(frequency*MHz)
+        delay(5*ms)
+
+    @kernel
+    def sw_off_mirny(self, channel):
+        self.core.break_realtime()
+        channel.sw.off()
+
+    @kernel
+    def mirny_rf_switch_wave(self, channels):
+        while not is_enter_pressed():
+            self.core.break_realtime()
+            # do not fill the FIFOs too much to avoid long response times
+            t = now_mu() - self.core.seconds_to_mu(0.2)
+            while self.core.get_rtio_counter_mu() < t:
+                pass
+            for channel in channels:
+                channel.pulse(100*ms)
+                delay(100*ms)
+
+    def test_mirnies(self):
+        print("*** Testing Mirny PLLs.")
+
+        print("Initializing CPLDs...")
+        for name, cpld in sorted(self.mirny_cplds.items(), key=lambda x: x[0]):
+            print(name + "...")
+            self.init_mirny(cpld)
+        print("...done")
+
+        print("All mirny channels active.")
+        print("Frequencies:")
+        for card_n, channels in enumerate(chunker(self.mirnies, 4)):
+            for channel_n, (channel_name, channel_dev) in enumerate(channels):
+                frequency = 1000*(card_n + 1) + channel_n * 100 + 8     # Extra 8 Hz for easier observation
+                print("{}\t{}MHz".format(channel_name, frequency))
+                self.setup_mirny(channel_dev, frequency)
+                print("{} info: {}".format(channel_name, channel_dev.info()))
+        print("Press ENTER when done.")
+        input()
+
+        sw = [channel_dev for channel_name, channel_dev in self.mirnies if hasattr(channel_dev, "sw")]
+        if sw:
+            print("Testing RF switch control. Check LEDs at mirny RF ports.")
+            print("Press ENTER when done.")
+            for swi in sw:
+                self.sw_off_mirny(swi)
+            self.mirny_rf_switch_wave([swi.sw for swi in sw])
 
     @kernel
     def get_sampler_voltages(self, sampler, cb):
@@ -495,6 +578,8 @@ class SinaraTester(EnvExperiment):
             self.test_ttl_ins()
         if self.urukuls:
             self.test_urukuls()
+        if self.mirnies:
+            self.test_mirnies()
         if self.samplers:
             self.test_samplers()
         if self.zotinos:
