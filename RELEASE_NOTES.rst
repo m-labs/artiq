@@ -28,7 +28,6 @@ Highlights:
    - SERDES TTL inputs can now detect edges on pulses that are shorter
      than the RTIO period (https://github.com/m-labs/artiq/issues/1432)
    - Improved performance for kernel RPC involving list and array.
-   - Improved performance for computation involving loops.
 * Coredevice SI to mu conversions now always return valid codes, or raise a ``ValueError``.
 * Zotino now exposes  ``voltage_to_mu()``
 * ``ad9910``: The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe``
