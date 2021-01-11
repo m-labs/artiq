@@ -105,7 +105,11 @@ class Target:
         return llmachine
 
     def optimize(self, llmodule):
+        pmb = llvm.create_pass_manager_builder()
+        pmb.slp_vectorize = True
+        pmb.loop_vectorize = True
         llpassmgr = llvm.create_module_pass_manager()
+        pmb.populate(llpassmgr)
 
         # Register our alias analysis passes.
         llpassmgr.add_basic_alias_analysis_pass()
