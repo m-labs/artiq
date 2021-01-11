@@ -1603,7 +1603,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 num_rows, num_summands, _, num_cols = self._get_matmult_shapes(lhs, rhs)
 
                 elt = result.type["elt"].find()
-                env_type = ir.TEnvironment("loop", {"$total": elt})
+                env_type = ir.TEnvironment(name + ".loop", {"$total": elt})
                 env = self.append(ir.Alloc([], env_type))
 
                 def row_loop(row_idx):
