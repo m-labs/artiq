@@ -390,6 +390,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
         rhs = self.visit(node.value)
+
+        if builtins.is_array(lhs.type):
+            name = type(node.op).__name__
+            def make_op(l, r):
+                return self.append(ir.Arith(node.op, l, r))
+            self._broadcast_binop(name, make_op, lhs.type, lhs, rhs, assign_to_lhs=True)
+            return
+
         value = self.append(ir.Arith(node.op, lhs, rhs))
         try:
             self.current_assign = value
@@ -1715,7 +1723,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return self.append(ir.Alloc([result_buffer, shape], node.type))
         return self.append(ir.GetElem(result_buffer, ir.Constant(0, self._size_type)))
 
-    def _broadcast_binop(self, name, make_op, result_type, lhs, rhs):
+    def _broadcast_binop(self, name, make_op, result_type, lhs, rhs, assign_to_lhs):
         # Broadcast scalars (broadcasting higher dimensions is not yet allowed in the
         # language).
         broadcast = False
@@ -1736,9 +1744,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     builtins.TException("ValueError"),
                     ir.Constant("operands could not be broadcast together",
                                 builtins.TStr())))
-
-        elt = result_type.find()["elt"]
-        result, _ = self._allocate_new_array(elt, shape)
+        if assign_to_lhs:
+            result = lhs
+        else:
+            elt = result_type.find()["elt"]
+            result, _ = self._allocate_new_array(elt, shape)
         func = self._get_array_elementwise_binop(name, make_op, result_type, lhs.type,
             rhs.type)
         self._invoke_arrayop(func, [result, lhs, rhs])
@@ -1753,7 +1763,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             name = type(node.op).__name__
             def make_op(l, r):
                 return self.append(ir.Arith(node.op, l, r))
-            return self._broadcast_binop(name, make_op, node.type, lhs, rhs)
+            return self._broadcast_binop(name, make_op, node.type, lhs, rhs,
+                                         assign_to_lhs=False)
         elif builtins.is_numeric(node.type):
             lhs = self.visit(node.left)
             rhs = self.visit(node.right)
@@ -2446,7 +2457,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self._invoke_arrayop(func, [result, args[0]])
                 insn = result
             elif len(args) == 2:
-                insn = self._broadcast_binop(name, make_call, node.type, *args)
+                insn = self._broadcast_binop(name, make_call, node.type, *args,
+                                             assign_to_lhs=False)
             else:
                 assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
