@@ -80,7 +80,6 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           #ps.bokeh
           #ps.cirq
           #ps.qiskit
-          #ps.qutip
         ]))
 
         # List desired non-Python packages here
