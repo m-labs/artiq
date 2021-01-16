@@ -5,7 +5,8 @@ import argparse
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
 
-from artiq.gateware import rtio, eem, jsondesc
+from artiq.coredevice import jsondesc
+from artiq.gateware import rtio, eem
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware.targets.kasli import StandaloneBase, MasterBase, SatelliteBase
 from artiq.build_soc import *

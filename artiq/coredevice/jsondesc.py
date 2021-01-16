@@ -19,7 +19,7 @@ def extend_with_default(validator_class):
         validator_class, {"properties" : set_defaults},
     )
 
-schema_path = path.join(path.dirname(__file__), "targets/kasli_generic.schema.json")
+schema_path = path.join(path.dirname(__file__), "coredevice_generic.schema.json")
 with open(schema_path, "r") as f:
     schema = json.load(f)
 

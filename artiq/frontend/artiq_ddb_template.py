@@ -7,7 +7,7 @@ from collections import defaultdict
 from itertools import count
 
 from artiq import __version__ as artiq_version
-from artiq.gateware import jsondesc
+from artiq.coredevice import jsondesc
 
 
 def process_header(output, description):
