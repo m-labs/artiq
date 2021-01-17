@@ -37,6 +37,8 @@ Highlights:
    - A "Quick Open" dialog to open experiments by typing part of their name can
      be brought up Ctrl-P (Ctrl+Return to immediately submit the selected entry
      with the default arguments).
+   - The Applets dock now has a context menu command to quickly close all open
+     applets (shortcut: Ctrl-Alt-W).
 * Experiment results are now always saved to HDF5, even if run() fails.
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
