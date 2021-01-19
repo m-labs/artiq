@@ -928,7 +928,7 @@ class PhaserOscillator:
         :param clr: Clear the phase accumulator (persistent)
         """
         data = (asf & 0x7fff) | ((clr & 1) << 15) | (pow << 16)
-        rtio_output(self.base_addr | (1 << 8), data)
+        rtio_output(self.base_addr + (1 << 8), data)
 
     @kernel
     def set_amplitude_phase(self, amplitude, phase=0., clr=0):
