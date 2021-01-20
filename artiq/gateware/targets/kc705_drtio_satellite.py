@@ -31,15 +31,13 @@ class Satellite(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, drtio_sat="sfp", **kwargs):
+    def __init__(self, gateware_identifier_str=None, sma_as_sat=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  integrated_sram_size=8192,
                  **kwargs)
-        assert drtio_sat in ["sfp", "sma"]
-
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
@@ -58,7 +56,7 @@ class Satellite(BaseSoC):
         rx_pads = [
             platform.request("sfp_rx"), platform.request("user_sma_mgt_rx")
         ]
-        if drtio_sat == "sma":
+        if sma_as_sat:
             tx_pads = tx_pads[::-1]
             rx_pads = rx_pads[::-1]
 
@@ -184,13 +182,13 @@ def main():
     builder_args(parser)
     soc_kc705_args(parser)
     parser.set_defaults(output_dir="artiq_kc705/satellite")
-    parser.add_argument("--drtio-sat", default="sfp",
-        help="use the SFP or the SMA connectors (RX: J17, J18, TX: J19, J20) "
-             "as DRTIO satellite channel (choices: sfp, sma; default: sfp)")
+    parser.add_argument("--sma", default=False, action="store_true",
+        help="use the SMA connectors (RX: J17, J18, TX: J19, J20) "
+             "as DRTIO satellite channel instead of the SFP")
     args = parser.parse_args()
 
     argdict = dict()
-    argdict["drtio_sat"] = args.drtio_sat
+    argdict["sma_as_sat"] = args.sma
 
     soc = Satellite(**soc_kc705_argdict(args), **argdict)
     build_artiq_soc(soc, builder_argdict(args))
