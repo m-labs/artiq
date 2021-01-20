@@ -50,11 +50,11 @@ class Satellite(BaseSoC):
         platform = self.platform
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        tx_pads = platform.request("sfp_tx")
-        rx_pads = platform.request("sfp_rx")
+        tx_pads = [platform.request("sfp_tx")]
+        rx_pads = [platform.request("sfp_rx")]
 
         # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
-        self.submodules.drtio_transceiver = gtx_7series.GTX_1000BASE_BX10(
+        self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
             tx_pads=tx_pads,
             rx_pads=rx_pads,
@@ -105,11 +105,20 @@ class Satellite(BaseSoC):
         ]
 
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq
-        platform.add_period_constraint(self.drtio_transceiver.txoutclk, rtio_clk_period)
-        platform.add_period_constraint(self.drtio_transceiver.rxoutclk, rtio_clk_period)
+        # Constrain TX & RX timing for the first transceiver channel
+        # (First channel acts as master for phase alignment for all channels' TX)
+        gtx0 = self.drtio_transceiver.gtxs[0]
+        platform.add_period_constraint(gtx0.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gtx0.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.drtio_transceiver.txoutclk, self.drtio_transceiver.rxoutclk)
+            gtx0.txoutclk, gtx0.rxoutclk)
+        # Constrain RX timing for the each transceiver channel
+        # (Each channel performs single-lane phase alignment for RX)
+        for gtx in self.drtio_transceiver.gtxs[1:]:
+            platform.add_period_constraint(gtx.rxoutclk, rtio_clk_period)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, gtx.rxoutclk)
 
         rtio_channels = []
         for i in range(8):
