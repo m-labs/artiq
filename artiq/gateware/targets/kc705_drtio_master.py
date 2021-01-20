@@ -30,7 +30,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, drtio_sma=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -52,11 +52,14 @@ class Master(MiniSoC, AMPSoC):
         platform = self.platform
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        tx_pads = platform.request("sfp_tx")
-        rx_pads = platform.request("sfp_rx")
+        tx_pads = [platform.request("sfp_tx")]
+        rx_pads = [platform.request("sfp_rx")]
+        if drtio_sma:
+            tx_pads.append(platform.request("user_sma_mgt_tx"))
+            rx_pads.append(platform.request("user_sma_mgt_rx"))
 
         # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
-        self.submodules.drtio_transceiver = gtx_7series.GTX_1000BASE_BX10(
+        self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
             tx_pads=tx_pads,
             rx_pads=rx_pads,
@@ -64,24 +67,40 @@ class Master(MiniSoC, AMPSoC):
         self.csr_devices.append("drtio_transceiver")
 
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
-        cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
 
-        self.submodules.drtio0 = cdr(DRTIOMaster(
-            self.rtio_tsc, self.drtio_transceiver.channels[0]))
-        self.csr_devices.append("drtio0")
+        drtio_csr_group = []
+        drtioaux_csr_group = []
+        drtioaux_memory_group = []
+        drtio_cri = []
+        for i in range(len(self.drtio_transceiver.channels)):
+            core_name = "drtio" + str(i)
+            coreaux_name = "drtioaux" + str(i)
+            memory_name = "drtioaux" + str(i) + "_mem"
+            drtio_csr_group.append(core_name)
+            drtioaux_csr_group.append(coreaux_name)
+            drtioaux_memory_group.append(memory_name)
 
-        self.submodules.drtioaux0 = cdr(DRTIOAuxController(
-            self.drtio0.link_layer))
-        self.csr_devices.append("drtioaux0")
-        self.add_wb_slave(self.mem_map["drtioaux"], 0x800,
-                          self.drtioaux0.bus)
-        self.add_memory_region("drtioaux0_mem", self.mem_map["drtioaux"] | self.shadow_base, 0x800)
+            cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
+            core = cdr(DRTIOMaster(
+                self.rtio_tsc, self.drtio_transceiver.channels[i]))
+            setattr(self.submodules, core_name, core)
+            drtio_cri.append(core.cri)
+            self.csr_devices.append(core_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*i
+            self.add_wb_slave(memory_address, 0x800,
+                              coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
-        self.add_csr_group("drtio", ["drtio0"])
-        self.add_csr_group("drtioaux", ["drtioaux0"])
-        self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
+        self.add_csr_group("drtio", drtio_csr_group)
+        self.add_csr_group("drtioaux", drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
 
         self.config["RTIO_FREQUENCY"] = str(self.drtio_transceiver.rtio_clk_freq/1e6)
         self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
@@ -99,11 +118,20 @@ class Master(MiniSoC, AMPSoC):
         ]
 
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq
-        platform.add_period_constraint(self.drtio_transceiver.txoutclk, rtio_clk_period)
-        platform.add_period_constraint(self.drtio_transceiver.rxoutclk, rtio_clk_period)
+        # Constrain TX & RX timing for the first transceiver channel
+        # (First channel acts as master for phase alignment for all channels' TX)
+        gtx0 = self.drtio_transceiver.gtxs[0]
+        platform.add_period_constraint(gtx0.txoutclk, rtio_clk_period)
+        platform.add_period_constraint(gtx0.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.drtio_transceiver.txoutclk, self.drtio_transceiver.rxoutclk)
+            gtx0.txoutclk, gtx0.rxoutclk)
+        # Constrain RX timing for the each transceiver channel
+        # (Each channel performs single-lane phase alignment for RX)
+        for gtx in self.drtio_transceiver.gtxs[1:]:
+            platform.add_period_constraint(gtx.rxoutclk, rtio_clk_period)
+            platform.add_false_path_constraints(
+                self.crg.cd_sys.clk, gtx0.txoutclk, gtx.rxoutclk)
 
         rtio_channels = []
         for i in range(8):
@@ -128,7 +156,7 @@ class Master(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.rtio.cri, self.rtio_dma.cri],
-            [self.rtio_core.cri, self.drtio0.cri],
+            [self.rtio_core.cri] + drtio_cri,
             enable_routing=True)
         self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
@@ -141,9 +169,14 @@ def main():
     builder_args(parser)
     soc_kc705_args(parser)
     parser.set_defaults(output_dir="artiq_kc705/master")
+    parser.add_argument("--drtio-sma", default=False, action="store_true",
+        help="use the SMA connectors (RX: J17, J18, TX: J19, J20) as 2nd DRTIO channel")
     args = parser.parse_args()
 
-    soc = Master(**soc_kc705_argdict(args))
+    argdict = dict()
+    argdict["drtio_sma"] = args.drtio_sma
+
+    soc = Master(**soc_kc705_argdict(args), **argdict)
     build_artiq_soc(soc, builder_argdict(args))
 
 
