@@ -1310,7 +1310,7 @@ class LLVMIRGenerator:
                 diag = diagnostic.Diagnostic("error",
                     "type {type} is not supported in remote procedure calls",
                     {"type": printer.name(arg.type)},
-                    arg.loc)
+                    arg.loc, notes=[note])
                 self.engine.process(diag)
             tag += ir.rpc_tag(arg.type, arg_error_handler)
         tag += b":"
@@ -1324,7 +1324,7 @@ class LLVMIRGenerator:
             diag = diagnostic.Diagnostic("error",
                 "return type {type} is not supported in remote procedure calls",
                 {"type": printer.name(fun_type.ret)},
-                fun_loc)
+                fun_loc, notes=[note])
             self.engine.process(diag)
         tag += ir.rpc_tag(fun_type.ret, ret_error_handler)
 
