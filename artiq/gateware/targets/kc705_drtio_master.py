@@ -30,7 +30,7 @@ class Master(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, drtio_sma=False, **kwargs):
+    def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="or1k",
                          sdram_controller_type="minicon",
@@ -52,11 +52,12 @@ class Master(MiniSoC, AMPSoC):
         platform = self.platform
 
         self.comb += platform.request("sfp_tx_disable_n").eq(1)
-        tx_pads = [platform.request("sfp_tx")]
-        rx_pads = [platform.request("sfp_rx")]
-        if drtio_sma:
-            tx_pads.append(platform.request("user_sma_mgt_tx"))
-            rx_pads.append(platform.request("user_sma_mgt_rx"))
+        tx_pads = [
+            platform.request("sfp_tx"), platform.request("user_sma_mgt_tx")
+        ]
+        rx_pads = [
+            platform.request("sfp_rx"), platform.request("user_sma_mgt_rx")
+        ]
 
         # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
         self.submodules.drtio_transceiver = gtx_7series.GTX(
@@ -169,14 +170,9 @@ def main():
     builder_args(parser)
     soc_kc705_args(parser)
     parser.set_defaults(output_dir="artiq_kc705/master")
-    parser.add_argument("--drtio-sma", default=False, action="store_true",
-        help="use the SMA connectors (RX: J17, J18, TX: J19, J20) as 2nd DRTIO channel")
     args = parser.parse_args()
 
-    argdict = dict()
-    argdict["drtio_sma"] = args.drtio_sma
-
-    soc = Master(**soc_kc705_argdict(args), **argdict)
+    soc = Master(**soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 
