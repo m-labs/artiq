@@ -76,15 +76,17 @@ class Core:
         self.ref_multiplier = ref_multiplier
         if target == "or1k":
             self.target_cls = OR1KTarget
+            endian = ">"
         elif target == "cortexa9":
             self.target_cls = CortexA9Target
+            endian = "<"
         else:
             raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
         else:
-            self.comm = CommKernel(host)
+            self.comm = CommKernel(host, endian)
 
         self.first_run = True
         self.dmgr = dmgr
