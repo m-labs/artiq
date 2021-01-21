@@ -1,9 +1,7 @@
 from math import ceil
-from functools import reduce
-from operator import add
 
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg
 from migen.genlib.misc import WaitTimer
 from migen.genlib.fsm import FSM
 
@@ -137,7 +135,7 @@ class GTXInit(Module):
                 If(Xxresetdone, NextState("DELAY_ALIGN"))
             )
 
-        # State(s) exclusive to Auto Mode:
+        # States exclusive to Auto Mode:
         if mode == "single":
             # Start delay alignment (pulse)
             startup_fsm.act("DELAY_ALIGN",
@@ -161,7 +159,7 @@ class GTXInit(Module):
                 If(Xxphaligndone_rising, NextState("READY"))
             )
 
-        # State(s) exclusive to Manual Mode:
+        # States exclusive to Manual Mode:
         else:
             # Start delay alignment (hold)
             startup_fsm.act("DELAY_ALIGN",

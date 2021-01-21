@@ -228,13 +228,6 @@ class GTX_20X(Module):
                 p_RXCDR_PH_RESET_ON_EIDLE=0b0,
                 p_RXCDR_LOCK_CFG=0b010101,
 
-                # # RX Initialization and Reset Attributes
-                # p_RXCDRFREQRESET_TIME=0b00001,
-                # p_RXCDRPHRESET_TIME=0b00001,
-                # p_RXISCANRESET_TIME=0b00001,
-                # p_RXPCSRESET_TIME=0b00001,
-                # p_RXPMARESET_TIME=0b00011,
-
                 # Pads
                 i_GTXRXP=rx_pads.p,
                 i_GTXRXN=rx_pads.n,
