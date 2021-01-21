@@ -68,13 +68,13 @@ def _receive_list(kernel, embedding_map):
         return list(buffer)
     elif tag == "i":
         buffer = kernel._read(4 * length)
-        return list(struct.unpack(">%sl" % length, buffer))
+        return list(struct.unpack(kernel.endian + "%sl" % length, buffer))
     elif tag == "I":
         buffer = kernel._read(8 * length)
-        return list(struct.unpack(">%sq" % length, buffer))
+        return list(struct.unpack(kernel.endian + "%sq" % length, buffer))
     elif tag == "f":
         buffer = kernel._read(8 * length)
-        return list(struct.unpack(">%sd" % length, buffer))
+        return list(struct.unpack(kernel.endian + "%sd" % length, buffer))
     else:
         fn = receivers[tag]
         elems = []
@@ -98,13 +98,13 @@ def _receive_array(kernel, embedding_map):
         elems = numpy.ndarray((length, ), 'B', buffer)
     elif tag == "i":
         buffer = kernel._read(4 * length)
-        elems = numpy.ndarray((length, ), '>i4', buffer)
+        elems = numpy.ndarray((length, ), kernel.endian + 'i4', buffer)
     elif tag == "I":
         buffer = kernel._read(8 * length)
-        elems = numpy.ndarray((length, ), '>i8', buffer)
+        elems = numpy.ndarray((length, ), kernel.endian + 'i8', buffer)
     elif tag == "f":
         buffer = kernel._read(8 * length)
-        elems = numpy.ndarray((length, ), '>d', buffer)
+        elems = numpy.ndarray((length, ), kernel.endian + 'd', buffer)
     else:
         fn = receivers[tag]
         elems = []
@@ -173,21 +173,22 @@ class CommKernelDummy:
 class CommKernel:
     warned_of_mismatch = False
 
-    def __init__(self, host, port=1381):
+    def __init__(self, host, endian='>', port=1381):
+        self.endian = endian
         self._read_type = None
         self.host = host
         self.port = port
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
 
-        self.unpack_int32 = struct.Struct(">l").unpack
-        self.unpack_int64 = struct.Struct(">q").unpack
-        self.unpack_float64 = struct.Struct(">d").unpack
+        self.unpack_int32 = struct.Struct(endian + "l").unpack
+        self.unpack_int64 = struct.Struct(endian + "q").unpack
+        self.unpack_float64 = struct.Struct(endian + "d").unpack
 
-        self.pack_header = struct.Struct(">lB").pack
-        self.pack_int32 = struct.Struct(">l").pack
-        self.pack_int64 = struct.Struct(">q").pack
-        self.pack_float64 = struct.Struct(">d").pack
+        self.pack_header = struct.Struct(endian + "lB").pack
+        self.pack_int32 = struct.Struct(endian + "l").pack
+        self.pack_int64 = struct.Struct(endian + "q").pack
+        self.pack_float64 = struct.Struct(endian + "d").pack
 
     def open(self):
         if hasattr(self, "socket"):
@@ -466,11 +467,14 @@ class CommKernel:
             if tag_element == "b":
                 self._write(bytes(value))
             elif tag_element == "i":
-                self._write(struct.pack(">%sl" % len(value), *value))
+                self._write(struct.pack(self.endian + "%sl" %
+                                        len(value), *value))
             elif tag_element == "I":
-                self._write(struct.pack(">%sq" % len(value), *value))
+                self._write(struct.pack(self.endian + "%sq" %
+                                        len(value), *value))
             elif tag_element == "f":
-                self._write(struct.pack(">%sd" % len(value), *value))
+                self._write(struct.pack(self.endian + "%sd" %
+                                        len(value), *value))
             else:
                 for elt in value:
                     tags_copy = bytearray(tags)
@@ -488,13 +492,16 @@ class CommKernel:
             if tag_element == "b":
                 self._write(value.reshape((-1,), order="C").tobytes())
             elif tag_element == "i":
-                array = value.reshape((-1,), order="C").astype('>i4')
+                array = value.reshape(
+                    (-1,), order="C").astype(self.endian + 'i4')
                 self._write(array.tobytes())
             elif tag_element == "I":
-                array = value.reshape((-1,), order="C").astype('>i8')
+                array = value.reshape(
+                    (-1,), order="C").astype(self.endian + 'i8')
                 self._write(array.tobytes())
             elif tag_element == "f":
-                array = value.reshape((-1,), order="C").astype('>d')
+                array = value.reshape(
+                    (-1,), order="C").astype(self.endian + 'd')
                 self._write(array.tobytes())
             else:
                 for elt in value.reshape((-1,), order="C"):
