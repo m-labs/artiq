@@ -9,8 +9,8 @@ from migen.build.xilinx.ise import XilinxISEToolchain
 
 from misoc.cores import spi as spi_csr
 from misoc.cores import gpio
+from misoc.integration.builder import *
 from misoc.targets.kc705 import MiniSoC, soc_kc705_args, soc_kc705_argdict
-from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio

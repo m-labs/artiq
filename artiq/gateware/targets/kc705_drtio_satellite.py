@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import os
 
 from migen import *
 from migen.build.generic_platform import *
@@ -20,9 +19,6 @@ from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
-
-# DEBUG
-from microscope import *
 
 
 class Satellite(BaseSoC):
