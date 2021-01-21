@@ -204,21 +204,19 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = (*ptr).elements;
                 writer.write_u8(tag.as_u8())?;
                 match tag {
+                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in network endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
                     },
                     Tag::Int32 => {
-                        let slice = slice::from_raw_parts(data as *const u32, length);
-                        for v in slice.iter() {
-                            writer.write_u32(*v)?;
-                        }
+                        let slice = slice::from_raw_parts(data as *const u8, length * 4);
+                        writer.write_all(slice)?;
                     },
                     Tag::Int64 | Tag::Float64 => {
-                        let slice = slice::from_raw_parts(data as *const u64, length);
-                        for v in slice.iter() {
-                            writer.write_u64(*v)?;
-                        }
+                        let slice = slice::from_raw_parts(data as *const u8, length * 8);
+                        writer.write_all(slice)?;
                     },
                     _ => {
                         for _ in 0..length {
@@ -245,21 +243,19 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = *buffer;
                 writer.write_u8(elt_tag.as_u8())?;
                 match elt_tag {
+                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in network endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
                     },
                     Tag::Int32 => {
-                        let slice = slice::from_raw_parts(data as *const u32, length);
-                        for v in slice.iter() {
-                            writer.write_u32(*v)?;
-                        }
+                        let slice = slice::from_raw_parts(data as *const u8, length * 4);
+                        writer.write_all(slice)?;
                     },
                     Tag::Int64 | Tag::Float64 => {
-                        let slice = slice::from_raw_parts(data as *const u64, length);
-                        for v in slice.iter() {
-                            writer.write_u64(*v)?;
-                        }
+                        let slice = slice::from_raw_parts(data as *const u8, length * 8);
+                        writer.write_all(slice)?;
                     },
                     _ => {
                         for _ in 0..length {
