@@ -223,7 +223,10 @@ class CommKernel:
             flag = 0
             if diff > 8192:
                 flag |= socket.MSG_WAITALL
-            self.read_buffer += self.socket.recv(8192, flag)
+            new_buffer = self.socket.recv(8192, flag)
+            if not new_buffer:
+                raise ConnectionResetError("Core device connection closed unexpectedly")
+            self.read_buffer += new_buffer
         result = self.read_buffer[:length]
         self.read_buffer = self.read_buffer[length:]
         return result
