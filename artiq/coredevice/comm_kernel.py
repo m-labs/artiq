@@ -173,22 +173,13 @@ class CommKernelDummy:
 class CommKernel:
     warned_of_mismatch = False
 
-    def __init__(self, host, endian='>', port=1381):
-        self.endian = endian
+    def __init__(self, host, port=1381):
         self._read_type = None
         self.host = host
         self.port = port
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
 
-        self.unpack_int32 = struct.Struct(endian + "l").unpack
-        self.unpack_int64 = struct.Struct(endian + "q").unpack
-        self.unpack_float64 = struct.Struct(endian + "d").unpack
-
-        self.pack_header = struct.Struct(endian + "lB").pack
-        self.pack_int32 = struct.Struct(endian + "l").pack
-        self.pack_int64 = struct.Struct(endian + "q").pack
-        self.pack_float64 = struct.Struct(endian + "d").pack
 
     def open(self):
         if hasattr(self, "socket"):
@@ -196,6 +187,21 @@ class CommKernel:
         self.socket = socket.create_connection((self.host, self.port))
         logger.debug("connected to %s:%d", self.host, self.port)
         self.socket.sendall(b"ARTIQ coredev\n")
+        endian = self._read(1)
+        if endian == b"e":
+            self.endian = "<"
+        elif endian == b"E":
+            self.endian = ">"
+        else:
+            raise IOError("Incorrect reply from device: expected e/E.")
+        self.unpack_int32 = struct.Struct(self.endian + "l").unpack
+        self.unpack_int64 = struct.Struct(self.endian + "q").unpack
+        self.unpack_float64 = struct.Struct(self.endian + "d").unpack
+
+        self.pack_header = struct.Struct(self.endian + "lB").pack
+        self.pack_int32 = struct.Struct(self.endian + "l").pack
+        self.pack_int64 = struct.Struct(self.endian + "q").pack
+        self.pack_float64 = struct.Struct(self.endian + "d").pack
 
     def close(self):
         if not hasattr(self, "socket"):
