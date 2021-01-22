@@ -615,6 +615,14 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     continue
                 }
             }
+            match stream.write_all("E".as_bytes()) {
+                Ok(()) => (),
+                Err(_) => {
+                    warn!("cannot send endian byte");
+                    stream.close().expect("session: cannot close");
+                    continue
+                }
+            }
             info!("new connection from {}", stream.remote_endpoint());
 
             let aux_mutex = aux_mutex.clone();

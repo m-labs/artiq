@@ -31,6 +31,14 @@ class CommMonInj:
         self._reader, self._writer = await asyncio.open_connection(host, port)
         try:
             self._writer.write(b"ARTIQ moninj\n")
+            # get device endian
+            endian = await self._reader.read(1)
+            if endian == b"e":
+                self.endian = "<"
+            elif endian == b"E":
+                self.endian = ">"
+            else:
+                raise IOError("Incorrect reply from device: expected e/E.")
             self._receive_task = asyncio.ensure_future(self._receive_cr())
         except:
             self._writer.close()
@@ -52,19 +60,19 @@ class CommMonInj:
             del self._writer
 
     def monitor_probe(self, enable, channel, probe):
-        packet = struct.pack(">bblb", 0, enable, channel, probe)
+        packet = struct.pack(self.endian + "bblb", 0, enable, channel, probe)
         self._writer.write(packet)
 
     def monitor_injection(self, enable, channel, overrd):
-        packet = struct.pack(">bblb", 3, enable, channel, overrd)
+        packet = struct.pack(self.endian + "bblb", 3, enable, channel, overrd)
         self._writer.write(packet)
 
     def inject(self, channel, override, value):
-        packet = struct.pack(">blbb", 1, channel, override, value)
+        packet = struct.pack(self.endian + "blbb", 1, channel, override, value)
         self._writer.write(packet)
 
     def get_injection_status(self, channel, override):
-        packet = struct.pack(">blb", 2, channel, override)
+        packet = struct.pack(self.endian + "blb", 2, channel, override)
         self._writer.write(packet)
 
     async def _receive_cr(self):
@@ -75,11 +83,13 @@ class CommMonInj:
                     return
                 if ty == b"\x00":
                     payload = await self._reader.read(9)
-                    channel, probe, value = struct.unpack(">lbl", payload)
+                    channel, probe, value = struct.unpack(
+                        self.endian + "lbl", payload)
                     self.monitor_cb(channel, probe, value)
                 elif ty == b"\x01":
                     payload = await self._reader.read(6)
-                    channel, override, value = struct.unpack(">lbb", payload)
+                    channel, override, value = struct.unpack(
+                        self.endian + "lbb", payload)
                     self.injection_status_cb(channel, override, value)
                 else:
                     raise ValueError("Unknown packet type", ty)

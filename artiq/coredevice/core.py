@@ -84,8 +84,7 @@ class Core:
         if host is None:
             self.comm = CommKernelDummy()
         else:
-            endian = "<" if self.target_cls.little_endian else ">"
-            self.comm = CommKernel(host, endian)
+            self.comm = CommKernel(host)
 
         self.first_run = True
         self.dmgr = dmgr

@@ -2,6 +2,7 @@ use alloc::btree_map::BTreeMap;
 use core::cell::RefCell;
 
 use io::Error as IoError;
+use io::Write;
 use moninj_proto::*;
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use urc::Urc;
@@ -122,6 +123,7 @@ fn connection_worker(io: &Io, _aux_mutex: &Mutex, _routing_table: &drtio_routing
     let mut next_check = 0;
 
     read_magic(&mut stream)?;
+    stream.write_all("E".as_bytes())?;
     info!("new connection from {}", stream.remote_endpoint());
 
     loop {

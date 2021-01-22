@@ -90,7 +90,17 @@ DecodedDump = namedtuple(
 
 
 def decode_dump(data):
-    parts = struct.unpack(">IQbbb", data[:15])
+    # extract endian byte
+    if data[0] == ord('E'):
+        endian = '>'
+    elif data[0] == ord('e'):
+        endian = '<'
+    else:
+        raise ValueError
+    data = data[1:]
+    # only header is device endian
+    # messages are big endian
+    parts = struct.unpack(endian + "IQbbb", data[:15])
     (sent_bytes, total_byte_count,
      error_occured, log_channel, dds_onehot_sel) = parts
 
