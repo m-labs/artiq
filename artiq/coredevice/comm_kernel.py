@@ -8,6 +8,7 @@ from fractions import Fraction
 from collections import namedtuple
 
 from artiq.coredevice import exceptions
+from artiq.coredevice.comm import initialize_connection
 from artiq import __version__ as software_version
 
 
@@ -184,8 +185,7 @@ class CommKernel:
     def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = socket.create_connection((self.host, self.port))
-        logger.debug("connected to %s:%d", self.host, self.port)
+        self.socket = initialize_connection(self.host, self.port)
         self.socket.sendall(b"ARTIQ coredev\n")
         endian = self._read(1)
         if endian == b"e":
