@@ -7,7 +7,7 @@ import logging
 import re
 
 from sipyco.pc_rpc import Server
-from sipyco import common_args
+from sipyco import common_args, keepalive
 from sipyco.logging_tools import log_with_name
 
 from artiq.coredevice.comm_mgmt import Request, Reply
@@ -37,7 +37,7 @@ async def get_logs_sim(host):
 
 
 async def get_logs(host):
-    reader, writer = await asyncio.open_connection(host, 1380)
+    reader, writer = await keepalive.open_connection(host, 1380)
     writer.write(b"ARTIQ management\n")
     writer.write(struct.pack("B", Request.PullLog.value))
     await writer.drain()

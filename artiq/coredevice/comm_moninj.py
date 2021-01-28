@@ -2,6 +2,7 @@ import asyncio
 import logging
 import struct
 from enum import Enum
+from sipyco import keepalive
 
 
 __all__ = ["TTLProbe", "TTLOverride", "CommMonInj"]
@@ -28,7 +29,8 @@ class CommMonInj:
         self.disconnect_cb = disconnect_cb
 
     async def connect(self, host, port=1383):
-        self._reader, self._writer = await asyncio.open_connection(host, port)
+        self._reader, self._writer = \
+            await keepalive.open_connection(host, port)
         try:
             self._writer.write(b"ARTIQ moninj\n")
             # get device endian
