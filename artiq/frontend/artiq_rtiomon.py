@@ -31,6 +31,8 @@ def main():
             loop.run_forever()
         finally:
             loop.run_until_complete(comm.close())
+    except KeyboardInterrupt:
+        pass
     finally:
         loop.close()
 

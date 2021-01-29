@@ -85,6 +85,8 @@ def main():
                 loop.run_until_complete(get_logs_task)
             except asyncio.CancelledError:
                 pass
+    except KeyboardInterrupt:
+        pass
     finally:
         loop.close()
 

@@ -155,7 +155,10 @@ def main():
     atexit_register_coroutine(server_logging.stop)
 
     print("ARTIQ master is now ready.")
-    loop.run_forever()
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
 
 if __name__ == "__main__":
     main()
