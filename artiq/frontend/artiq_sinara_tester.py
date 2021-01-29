@@ -291,18 +291,7 @@ class SinaraTester(EnvExperiment):
     @kernel
     def init_mirny(self, cpld):
         self.core.break_realtime()
-        # Taken from Mirny.init(), to accomodate Mirny v1.1 without blinding
-        reg0 = cpld.read_reg(0)
-        if reg0 & 0b11 != 0b10:         # Modified part
-            raise ValueError("Mirny HW_REV mismatch")
-        if (reg0 >> 2) & 0b11 != 0b00:
-            raise ValueError("Mirny PROTO_REV mismatch")
-        delay(100 * us)  # slack
-
-        # select clock source
-        cpld.write_reg(1, (cpld.clk_sel << 4))
-        delay(1000 * us)
-        # End of modified Mirny.init()
+        cpld.init()
 
     @kernel
     def setup_mirny(self, channel, frequency):
