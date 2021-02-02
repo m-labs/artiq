@@ -82,18 +82,25 @@ class ADF5356:
         """
         if not blind:
             # MUXOUT = VDD
-            self.write(ADF5356_REG4_MUXOUT(1) | 4)
-            delay(5000 * us)
+            self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 1)
+            self.sync()
+            delay(1000 * us)
             if not self.read_muxout():
                 raise ValueError("MUXOUT not high")
-            delay(1000 * us)
+            delay(800 * us)
 
             # MUXOUT = DGND
-            self.write(ADF5356_REG4_MUXOUT(2) | 4)
-            delay(5000 * us)
+            self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 2)
+            self.sync()
+            delay(1000 * us)
             if self.read_muxout():
                 raise ValueError("MUXOUT not low")
-            delay(1000 * us)
+            delay(800 * us)
+
+            # MUXOUT = digital lock-detect
+            self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 6)
+        else:
+            self.sync()
 
     @kernel
     def set_att_mu(self, att):
@@ -430,9 +437,9 @@ class ADF5356:
         self.regs[6] |= ADF5356_REG6_NEGATIVE_BLEED(1)
 
         # charge pump bleed current
-        # self.regs[6] |= ADF5356_REG6_CP_BLEED_CURRENT(
-        #     int32(floor(24 * self.f_pfd / (61.44 * MHz)))
-        # )
+        self.regs[6] |= ADF5356_REG6_CP_BLEED_CURRENT(
+            int32(floor(24 * self.f_pfd() / (61.44 * MHz)))
+        )
 
         # direct feedback from VCO to N counter
         self.regs[6] |= ADF5356_REG6_FB_SELECT(1)
@@ -472,6 +479,10 @@ class ADF5356:
             ADF5356_REG9_SYNTH_LOCK_TIMEOUT(13)
             | ADF5356_REG9_AUTOCAL_TIMEOUT(31)
             | ADF5356_REG9_TIMEOUT(0x67)
+        )
+
+        self.regs[9] |= ADF5356_REG9_VCO_BAND_DIVISION(
+            int32(ceil(self.f_pfd() / 160e3))
         )
 
         # REG10
