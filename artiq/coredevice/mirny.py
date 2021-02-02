@@ -28,6 +28,9 @@ SPI_CS = 1
 
 WE = 1 << 24
 
+# supported CPLD code version
+PROTO_REV_MATCH = 0x0
+
 
 class Mirny:
     """
@@ -37,22 +40,44 @@ class Mirny:
     :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
         frequency in Hz
     :param clk_sel: Reference clock selection.
-        valid options are: 0 - internal 100MHz XO; 1 - front-panel SMA; 2 -
-        internal MMCX
+        valid options are: "XO" - onboard crystal oscillator
+                           "SMA" - front-panel SMA connector
+                           "MMCX" - internal MMCX connector
+        Passing an integer writes it as ``clk_sel`` in the CPLD's register 1.
+        The effect depends on the hardware revision.
     :param core_device: Core device name (default: "core")
     """
 
-    kernel_invariants = {"bus", "core"}
+    kernel_invariants = {"bus", "core", "refclk", "clk_sel_hw_rev"}
 
-    def __init__(self, dmgr, spi_device, refclk=100e6, clk_sel=0, core_device="core"):
+    def __init__(self, dmgr, spi_device, refclk=100e6, clk_sel="XO", core_device="core"):
         self.core = dmgr.get(core_device)
         self.bus = dmgr.get(spi_device)
 
+        # reference clock frequency
         self.refclk = refclk
-        assert 10 <= self.refclk / 1e6 <= 600, "Invalid refclk"
+        if not (10 <= self.refclk / 1e6 <= 600):
+            raise ValueError("Invalid refclk")
 
-        self.clk_sel = clk_sel & 0b11
-        assert 0 <= self.clk_sel <= 3, "Invalid clk_sel"
+        # reference clock selection
+        try:
+            self.clk_sel_hw_rev = {
+            # clk source: [reserved, reserved, v1.1, v1.0]
+                "xo": [-1, -1, 0, 0],
+                "mmcx": [-1, -1, 3, 2],
+                "sma": [-1, -1, 2, 3],
+            }[clk_sel.lower()]
+        except AttributeError:  # not a string, fallback to int
+            if clk_sel & 0x3 != clk_sel:
+                raise ValueError("Invalid clk_sel") from None
+            self.clk_sel_hw_rev = [clk_sel] * 4
+        except KeyError:
+            raise ValueError("Invalid clk_sel") from None
+
+        self.clk_sel = -1
+
+        # board hardware revision
+        self.hw_rev = 0  # v1.0: 3, v1.1: 2
 
         # TODO: support clk_div on v1.0 boards
 
@@ -76,17 +101,25 @@ class Mirny:
         """
         Initialize and detect Mirny.
 
-        :param blind: Do not attempt to verify presence and compatibility.
+        Select the clock source based the board's hardware revision.
+        Raise ValueError if the board's hardware revision is not supported.
+
+        :param blind: Verify presence and protocol compatibility. Raise ValueError on failure.
         """
+        reg0 = self.read_reg(0)
+        self.hw_rev = reg0 & 0x3
+
         if not blind:
-            reg0 = self.read_reg(0)
-            if reg0 & 0b11 != 0b11:
-                raise ValueError("Mirny HW_REV mismatch")
-            if (reg0 >> 2) & 0b11 != 0b00:
+            if (reg0 >> 2) & 0x3 != PROTO_REV_MATCH:
                 raise ValueError("Mirny PROTO_REV mismatch")
             delay(100 * us)  # slack
 
         # select clock source
+        self.clk_sel = self.clk_sel_hw_rev[self.hw_rev]
+
+        if self.clk_sel < 0:
+            raise ValueError("Hardware revision not supported")
+
         self.write_reg(1, (self.clk_sel << 4))
         delay(1000 * us)
 

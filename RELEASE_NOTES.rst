@@ -32,6 +32,8 @@ Highlights:
 * Zotino now exposes  ``voltage_to_mu()``
 * ``ad9910``: The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe``
   before).
+* Mirny now supports HW revision independent, human readable ``clk_sel`` parameters:
+  "XO", "SMA", and "MMCX". Passing an integer is backwards compatible.
 * Dashboard:
    - Applets now restart if they are running and a ccb call changes their spec
    - A "Quick Open" dialog to open experiments by typing part of their name can
