@@ -388,18 +388,18 @@ class Grabber(_EEM):
                 IOStandard(iostandard), Misc("DIFF_TERM=TRUE")
             ),
             ("grabber{}_cc0".format(eem), 0,
-                Subsignal("p", Pins(_eem_pin(eem_aux, 5, "p"))),
-                Subsignal("n", Pins(_eem_pin(eem_aux, 5, "n"))),
+                Subsignal("p", Pins(_eem_pin(eem, 5, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem, 5, "n"))),
                 IOStandard(iostandard)
             ),
             ("grabber{}_cc1".format(eem), 0,
-                Subsignal("p", Pins(_eem_pin(eem_aux, 6, "p"))),
-                Subsignal("n", Pins(_eem_pin(eem_aux, 6, "n"))),
+                Subsignal("p", Pins(_eem_pin(eem, 6, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem, 6, "n"))),
                 IOStandard(iostandard)
             ),
             ("grabber{}_cc2".format(eem), 0,
-                Subsignal("p", Pins(_eem_pin(eem_aux, 7, "p"))),
-                Subsignal("n", Pins(_eem_pin(eem_aux, 7, "n"))),
+                Subsignal("p", Pins(_eem_pin(eem, 7, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem, 7, "n"))),
                 IOStandard(iostandard)
             ),
         ]
