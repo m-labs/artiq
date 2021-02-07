@@ -72,7 +72,7 @@ class _IOSERDESE2_8X(Module):
 
 
 class Output_8X(ttl_serdes_generic.Output):
-    def __init__(self, pad, pad_n=None, invert=False):
+    def __init__(self, pad, pad_n=None, invert=False, dci=False):
         serdes = _OSERDESE2_8X(invert)
         self.submodules += serdes
         ttl_serdes_generic.Output.__init__(self, serdes)
@@ -87,7 +87,7 @@ class Output_8X(ttl_serdes_generic.Output):
 
 
 class InOut_8X(ttl_serdes_generic.InOut):
-    def __init__(self, pad, pad_n=None):
+    def __init__(self, pad, pad_n=None, dci=False):
         serdes = _IOSERDESE2_8X()
         self.submodules += serdes
         ttl_serdes_generic.InOut.__init__(self, serdes)
@@ -97,11 +97,21 @@ class InOut_8X(ttl_serdes_generic.InOut):
                 i_I=serdes.ser_out, o_O=serdes.ser_in, i_T=serdes.t_out,
                 io_IO=pad)
         else:
-            self.specials += Instance("IOBUFDS_INTERMDISABLE",
-                p_DIFF_TERM="TRUE",
-                p_IBUF_LOW_PWR="TRUE",
-                p_USE_IBUFDISABLE="TRUE",
-                i_IBUFDISABLE=~serdes.t_out,
-                i_INTERMDISABLE=~serdes.t_out,
-                i_I=serdes.ser_out, o_O=serdes.ser_in, i_T=serdes.t_out,
-                io_IO=pad, io_IOB=pad_n)
+            if dci:
+                self.specials += Instance("IOBUFDS_DCIEN",
+                    p_DIFF_TERM="TRUE",
+                    p_IBUF_LOW_PWR="TRUE",
+                    p_USE_IBUFDISABLE="TRUE",
+                    i_IBUFDISABLE=~serdes.t_out,
+                    i_DCITERMDISABLE=~serdes.t_out,
+                    i_I=serdes.ser_out, o_O=serdes.ser_in, i_T=serdes.t_out,
+                    io_IO=pad, io_IOB=pad_n)
+            else:
+                self.specials += Instance("IOBUFDS_INTERMDISABLE",
+                    p_DIFF_TERM="TRUE",
+                    p_IBUF_LOW_PWR="TRUE",
+                    p_USE_IBUFDISABLE="TRUE",
+                    i_IBUFDISABLE=~serdes.t_out,
+                    i_INTERMDISABLE=~serdes.t_out,
+                    i_I=serdes.ser_out, o_O=serdes.ser_in, i_T=serdes.t_out,
+                    io_IO=pad, io_IOB=pad_n)
