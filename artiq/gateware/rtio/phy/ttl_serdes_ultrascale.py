@@ -48,7 +48,7 @@ class _ISERDESE3(Module):
 
 
 class _IOSERDESE3(Module):
-    def __init__(self, dw, pad, pad_n=None):
+    def __init__(self, dw):
         self.o = Signal(dw)
         self.i = Signal(dw)
         self.oe = Signal()
@@ -69,8 +69,8 @@ class _IOSERDESE3(Module):
 
 
 class Output(ttl_serdes_generic.Output):
-    def __init__(self, dw, pad, pad_n=None):
-        serdes = _OSERDESE3(dw, pad, pad_n)
+    def __init__(self, dw, pad, pad_n=None, dci=False):
+        serdes = _OSERDESE3(dw)
         self.submodules += serdes
         ttl_serdes_generic.Output.__init__(self, serdes)
 
@@ -84,8 +84,8 @@ class Output(ttl_serdes_generic.Output):
 
 
 class InOut(ttl_serdes_generic.InOut):
-    def __init__(self, dw, pad, pad_n=None):
-        serdes = _IOSERDESE3(dw, pad, pad_n)
+    def __init__(self, dw, pad, pad_n=None, dci=False):
+        serdes = _IOSERDESE3(dw)
         self.submodules += serdes
         ttl_serdes_generic.InOut.__init__(self, serdes)
 
