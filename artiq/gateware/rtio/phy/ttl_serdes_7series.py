@@ -28,12 +28,7 @@ class _OSERDESE2_8X(Module):
         if pad_n is None:
             self.comb += pad.eq(pad_o)
         else:
-            self.specials += Instance("IOBUFDS_INTERMDISABLE",
-                p_DIFF_TERM="FALSE",
-                p_IBUF_LOW_PWR="TRUE",
-                p_USE_IBUFDISABLE="TRUE",
-                i_IBUFDISABLE=1,
-                i_INTERMDISABLE=1,
+            self.specials += Instance("IOBUFDS",
                 i_I=pad_o,
                 i_T=self.t_out,
                 io_IO=pad, io_IOB=pad_n)
@@ -63,12 +58,7 @@ class _ISERDESE2_8X(Module):
         if pad_n is None:
             self.comb += pad_i.eq(pad)
         else:
-            self.specials += Instance("IBUFDS_INTERMDISABLE",
-                p_DIFF_TERM="TRUE",
-                p_IBUF_LOW_PWR="TRUE",
-                p_USE_IBUFDISABLE="TRUE",
-                i_IBUFDISABLE=0,
-                i_INTERMDISABLE=0,
+            self.specials += Instance("IBUFDS",
                 o_O=pad_i,
                 io_I=pad, io_IB=pad_n)
 
