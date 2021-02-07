@@ -78,7 +78,7 @@ class Output_8X(ttl_serdes_generic.Output):
         ttl_serdes_generic.Output.__init__(self, serdes)
 
         if pad_n is None:
-            self.comb += pad.eq(pad_o)
+            self.comb += pad.eq(serdes.ser_out)
         else:
             self.specials += Instance("IOBUFDS",
                 i_I=serdes.ser_out,
