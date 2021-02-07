@@ -11,7 +11,7 @@
         },
         "target": {
             "type": "string",
-            "const": "kasli",
+            "enum": ["kasli", "kasli_soc"],
             "description": "Target board"
         },
         "variant": {
