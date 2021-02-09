@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
+from distutils.version import LooseVersion
 
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
 
+from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
 from artiq.gateware import rtio, eem_7series
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.targets.kasli import StandaloneBase, MasterBase, SatelliteBase
 from artiq.build_soc import *
 
+logger = logging.getLogger(__name__)
 
 class GenericStandalone(StandaloneBase):
     def __init__(self, description, hw_rev=None,**kwargs):
@@ -138,6 +142,11 @@ def main():
                         help="Override ROM identifier")
     args = parser.parse_args()
     description = jsondesc.load(args.description)
+
+    min_artiq_version = description.get("min_artiq_version", "0")
+    if LooseVersion(artiq_version) < LooseVersion(min_artiq_version):
+        logger.warning("ARTIQ version mismatch: current %s < %s minimum",
+                       artiq_version, min_artiq_version)
 
     if description["target"] != "kasli":
         raise ValueError("Description is for a different target")

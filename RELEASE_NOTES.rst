@@ -49,7 +49,8 @@ Highlights:
   with reproducible builds.
 * Python 3.7 support in Conda packages.
 * `kasli_generic` JSON descriptions are now validated against a
-  schema. Description defaults have moved from Python to the schema.
+  schema. Description defaults have moved from Python to the
+  schema. Warns if ARTIQ version is too old.
 
 Breaking changes:
 
