@@ -1,7 +1,8 @@
 import asyncio
-import importlib.machinery
+import importlib.util
 import logging
 import os
+import pathlib
 import string
 import sys
 
@@ -69,20 +70,16 @@ def short_format(v):
 
 
 def file_import(filename, prefix="file_import_"):
-    modname = filename
-    i = modname.rfind("/")
-    if i > 0:
-        modname = modname[i+1:]
-    i = modname.find(".")
-    if i > 0:
-        modname = modname[:i]
-    modname = prefix + modname
+    filename = pathlib.Path(filename)
+    modname = prefix + filename.stem
 
-    path = os.path.dirname(os.path.realpath(filename))
+    path = str(filename.resolve().parent)
     sys.path.insert(0, path)
+
     try:
-        loader = importlib.machinery.SourceFileLoader(modname, filename)
-        module = loader.load_module()
+        spec = importlib.util.spec_from_file_location(modname, filename)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
     finally:
         sys.path.remove(path)
 
