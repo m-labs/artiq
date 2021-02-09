@@ -18,6 +18,10 @@
             "type": "string",
             "description": "Target board variant name"
         },
+        "min_artiq_version": {
+            "type": "string",
+            "description": "Minimum required ARTIQ version"
+        },
         "hw_rev": {
             "type": "string",
             "enum": ["v1.0", "v1.1", "v2.0"],
