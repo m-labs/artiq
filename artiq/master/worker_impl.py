@@ -196,7 +196,7 @@ def setup_diagnostics(experiment_file, repository_path):
             message = message.replace(repository_path, "<repository>")
 
         if diagnostic.level == "warning":
-            logging.warn(message)
+            logging.warning(message)
         else:
             logging.error(message)
 
