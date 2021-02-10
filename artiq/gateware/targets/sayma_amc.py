@@ -3,8 +3,10 @@
 import argparse
 import os
 import warnings
+from functools import partial
 
 from migen import *
+from migen.build.generic_platform import IOStandard
 
 from misoc.cores import gpio
 from misoc.integration.builder import builder_args, builder_argdict
@@ -349,10 +351,13 @@ class Satellite(SatelliteBase):
 
         # FMC-VHDCI-EEM DIOs x 2 (all OUTPUTs)
         platform.add_connectors(fmcdio_vhdci_eem.connectors)
+        output_4x = partial(ttl_serdes_ultrascale.Output, 4)
         eem.DIO.add_std(self, 0,
-            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+            output_4x, output_4x,
+            iostandard=lambda eem: IOStandard("LVDS"))
         eem.DIO.add_std(self, 1,
-            ttl_simple.Output, ttl_simple.Output, iostandard="LVDS")
+            output_4x, output_4x,
+            iostandard=lambda eem: IOStandard("LVDS"))
         # FMC-DIO-32ch-LVDS-a Direction Control Pins (via shift register) as TTLs x 3
         platform.add_extension(fmcdio_vhdci_eem.io)
         print("fmcdio_vhdci_eem.[CLK, SER, LATCH] starting at RTIO channel 0x{:06x}"
