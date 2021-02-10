@@ -47,15 +47,16 @@ class DIO(_EEM):
         cls.add_extension(target, eem, iostandard=iostandard)
 
         phys = []
+        dci = iostandard(eem).name == "LVDS"
         for i in range(4):
             pads = target.platform.request("dio{}".format(eem), i)
-            phy = ttl03_cls(pads.p, pads.n)
+            phy = ttl03_cls(pads.p, pads.n, dci=dci)
             phys.append(phy)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
         for i in range(4):
             pads = target.platform.request("dio{}".format(eem), 4+i)
-            phy = ttl47_cls(pads.p, pads.n)
+            phy = ttl47_cls(pads.p, pads.n, dci=dci)
             phys.append(phy)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
