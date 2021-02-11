@@ -11,7 +11,6 @@
         },
         "target": {
             "type": "string",
-            "enum": ["kasli", "kasli_soc"],
             "description": "Target board"
         },
         "variant": {
@@ -24,7 +23,6 @@
         },
         "hw_rev": {
             "type": "string",
-            "enum": ["v1.0", "v1.1", "v2.0"],
             "description": "Hardware revision"
         },
         "base": {
@@ -75,6 +73,33 @@
     },
     "required": ["target", "variant", "hw_rev", "base", "peripherals"],
     "additionalProperties": false,
+
+    "oneOf": [
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0", "v1.1", "v2.0"]
+                }
+            }
+        },
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli_soc"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0"]
+                }
+            }
+        }
+    ],
 
     "definitions": {
         "peripheral": {
