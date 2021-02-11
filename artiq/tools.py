@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import inspect
 import logging
 import os
 import pathlib
@@ -12,7 +13,7 @@ from sipyco import pyon
 
 from artiq import __version__ as artiq_version
 from artiq.appdirs import user_config_dir
-from artiq.language.environment import is_experiment
+from artiq.language.environment import is_public_experiment
 
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
@@ -90,12 +91,13 @@ def get_experiment(module, class_name=None):
     if class_name:
         return getattr(module, class_name)
 
-    exps = [(k, v) for k, v in module.__dict__.items()
-            if k[0] != "_" and is_experiment(v)]
+    exps = inspect.getmembers(module, is_public_experiment)
+
     if not exps:
         raise ValueError("No experiments in module")
     if len(exps) > 1:
         raise ValueError("More than one experiment found in module")
+
     return exps[0][1]
 
 
