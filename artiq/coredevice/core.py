@@ -1,5 +1,6 @@
 import os, sys
 import numpy
+import logging
 
 from pythonparser import diagnostic
 
@@ -18,16 +19,69 @@ from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 from artiq.coredevice import exceptions
 
 
+logger = logging.getLogger(__name__)
+"""The logger for this file."""
+
+_unit_to_bytes = {
+    'b': 1000 ** 0,
+    'kb': 1000 ** 1,
+    'mb': 1000 ** 2,
+    'gb': 1000 ** 3,
+    'kib': 1024 ** 1,
+    'mib': 1024 ** 2,
+    'gib': 1024 ** 3,
+}
+"""Dict to map a string data size unit to bytes."""
+
+
+def _str_to_bytes(string):
+    """Convert a string to bytes."""
+    assert isinstance(string, str) or string is None, 'Input must be of type str or None'
+
+    if string:
+        # Format string
+        string = string.strip().lower()
+
+        try:
+            # Extract the unit from the string
+            unit_str = ''
+            for prefix in (string[-i:] for i in [3, 2, 1] if len(string) > i):
+                if prefix in _unit_to_bytes:
+                    unit_str = prefix
+                    break
+            # Convert the value and the unit
+            unit = _unit_to_bytes[unit_str]  # Do the unit first to fail early
+            value = int(string[:-len(unit_str)])
+            # Return the product
+            return value * unit
+        except KeyError:
+            raise ValueError('No valid data size unit was found')
+        except ValueError:
+            raise ValueError('No valid integer was found')
+    else:
+        # Return None in case the string is None or empty
+        return None
+
+
 def _render_diagnostic(diagnostic, colored):
     def shorten_path(path):
         return path.replace(artiq_dir, "<artiq>")
     lines = [shorten_path(path) for path in diagnostic.render(colored=colored)]
     return "\n".join(lines)
 
+
 colors_supported = os.name == "posix"
+
+
 class _DiagnosticEngine(diagnostic.Engine):
     def render_diagnostic(self, diagnostic):
         sys.stderr.write(_render_diagnostic(diagnostic, colored=colors_supported) + "\n")
+
+
+class KernelSizeException(Exception):
+    """Raised if the maximum kernel size is exceeded."""
+    pass
+
 
 class CompileError(Exception):
     def __init__(self, diagnostic):
@@ -65,13 +119,15 @@ class Core:
     :param ref_multiplier: ratio between the RTIO fine timestamp frequency
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
+    :param max_kernel_size: Maximum kernel size (e.g. ``"256 MiB"``, ``"512 kB"``).
     """
 
     kernel_invariants = {
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="or1k"):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="or1k",
+                 max_kernel_size=None):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
         if target == "or1k":
@@ -85,6 +141,9 @@ class Core:
             self.comm = CommKernelDummy()
         else:
             self.comm = CommKernel(host)
+
+        self._max_kernel_size = _str_to_bytes(max_kernel_size)
+        assert self._max_kernel_size is None or self._max_kernel_size >= 0
 
         self.first_run = True
         self.dmgr = dmgr
@@ -111,6 +170,20 @@ class Core:
 
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
+
+            # Obtain kernel size in bytes
+            kernel_size = len(stripped_library)
+
+            if self._max_kernel_size is None:
+                # Report kernel size
+                logger.debug('Kernel size: %d bytes', kernel_size)
+            else:
+                # Check kernel size
+                logger.debug('Kernel size: %d/%d bytes (%.2f%%)',
+                              kernel_size, self._max_kernel_size,
+                              kernel_size / self._max_kernel_size)
+                if kernel_size > self._max_kernel_size:
+                    raise KernelSizeException('Kernel too large')
 
             return stitcher.embedding_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
