@@ -135,7 +135,7 @@ class Urukul(_EEM):
                 (5, eem1, "sw1"),
                 (6, eem1, "sw2"),
                 (7, eem1, "sw3")]
-        for i, j, iostandard, sig in ttls:
+        for i, j, sig in ttls:
             ios.append(
                 ("urukul{}_{}".format(eem0, sig), 0,
                     Subsignal("p", Pins(_eem_pin(j, i, "p"))),
