@@ -21,7 +21,6 @@ from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series
 from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
-from artiq.gateware.drtio.wrpll import WRPLL, DDMTDSamplerGTP
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import add_identifier
@@ -34,7 +33,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq, *, with_wrpll, gateware_identifier_str, **kwargs):
+    def __init__(self, rtio_clk_freq, *, gateware_identifier_str, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
                  cpu_bus_width=64,
@@ -96,41 +95,23 @@ class _SatelliteBase(BaseSoC):
         gtp = self.drtio_transceiver.gtps[0]
         rtio_clk_period = 1e9/rtio_clk_freq
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        if with_wrpll:
-            self.comb += [
-                platform.request("filtered_clk_sel").eq(0),
-                platform.request("ddmtd_main_dcxo_oe").eq(1),
-                platform.request("ddmtd_helper_dcxo_oe").eq(1)
-            ]
-            self.submodules.wrpll_sampler = DDMTDSamplerGTP(
-                self.drtio_transceiver,
-                platform.request("cdr_clk_clean_fabric"))
-            self.submodules.wrpll = WRPLL(
-                helper_clk_pads=platform.request("ddmtd_helper_clk"),
-                main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
-                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
-                ddmtd_inputs=self.wrpll_sampler)
-            self.csr_devices.append("wrpll")
-            platform.add_period_constraint(self.wrpll.cd_helper.clk, rtio_clk_period*0.99)
-            platform.add_false_path_constraints(self.crg.cd_sys.clk, self.wrpll.cd_helper.clk)
-            platform.add_false_path_constraints(self.wrpll.cd_helper.clk, gtp.rxoutclk)
-        else:
-            self.comb += platform.request("filtered_clk_sel").eq(1)
-            self.submodules.siphaser = SiPhaser7Series(
-                si5324_clkin=platform.request("si5324_clkin"),
-                rx_synchronizer=self.rx_synchronizer,
-                ref_clk=self.crg.cd_sys.clk, ref_div2=True,
-                rtio_clk_freq=rtio_clk_freq)
-            platform.add_false_path_constraints(
-                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-            self.csr_devices.append("siphaser")
-            self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
-            self.csr_devices.append("si5324_rst_n")
-            i2c = self.platform.request("i2c")
-            self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
-            self.csr_devices.append("i2c")
-            self.config["I2C_BUS_COUNT"] = 1
-            self.config["HAS_SI5324"] = None
+
+        self.comb += platform.request("filtered_clk_sel").eq(1)
+        self.submodules.siphaser = SiPhaser7Series(
+            si5324_clkin=platform.request("si5324_clkin"),
+            rx_synchronizer=self.rx_synchronizer,
+            ref_clk=self.crg.cd_sys.clk, ref_div2=True,
+            rtio_clk_freq=rtio_clk_freq)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+        self.csr_devices.append("siphaser")
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.csr_devices.append("si5324_rst_n")
+        i2c = self.platform.request("i2c")
+        self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
+        self.csr_devices.append("i2c")
+        self.config["I2C_BUS_COUNT"] = 1
+        self.config["HAS_SI5324"] = None
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
@@ -258,7 +239,6 @@ def main():
     soc_sayma_rtm_args(parser)
     parser.add_argument("--rtio-clk-freq",
         default=150, type=int, help="RTIO clock frequency in MHz")
-    parser.add_argument("--with-wrpll", default=False, action="store_true")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))
@@ -266,7 +246,6 @@ def main():
 
     soc = Satellite(
         rtio_clk_freq=1e6*args.rtio_clk_freq,
-        with_wrpll=args.with_wrpll,
         gateware_identifier_str=args.gateware_identifier_str,
         **soc_sayma_rtm_argdict(args))
     builder = SatmanSoCBuilder(soc, **builder_argdict(args))
