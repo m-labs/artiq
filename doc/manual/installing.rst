@@ -21,7 +21,7 @@ First, install the Nix package manager. Some distributions provide a package for
 
 Once Nix is installed, add the M-Labs package channel with: ::
 
-  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full/artiq-full
+  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full-legacy/artiq-full
 
 Those channels track `nixpkgs 20.03 <https://github.com/NixOS/nixpkgs/tree/release-20.03>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
 
@@ -116,7 +116,7 @@ Executing just ``conda`` should print the help of the ``conda`` command. If your
 
 Set up the Conda channel and install ARTIQ into a new Conda environment: ::
 
-  $ conda config --prepend channels https://conda.m-labs.hk/artiq
+  $ conda config --prepend channels https://conda.m-labs.hk/artiq-legacy
   $ conda config --append channels conda-forge
   $ conda create -n artiq artiq
 
