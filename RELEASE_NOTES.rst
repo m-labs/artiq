@@ -9,12 +9,15 @@ ARTIQ-6
 Highlights:
 
 * New hardware support:
+   - Phaser, a quad channel 1GS/s RF generator card with dual IQ upconverter and dual 5MS/s
+     ADC and FPGA.
    - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with a floating-point
      unit for faster computations. This currently requires an external
-     repository (https://git.m-labs.hk/m-labs/artiq-zynq) and only supports the ZC706.
+     repository (https://git.m-labs.hk/m-labs/artiq-zynq).
    - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
    - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
-   - Kasli 2.0
+   - Kasli 2.0, an improved core device with 12 built-in EEM slots, faster FPGA, 4 SFPs, and
+     high-precision clock recovery circuitry for DRTIO (to be supported in ARTIQ-7).
 * ARTIQ Python (core device kernels):
    - Multidimensional arrays are now available on the core device, using NumPy syntax.
      Elementwise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and
@@ -41,7 +44,7 @@ Highlights:
      with the default arguments).
    - The Applets dock now has a context menu command to quickly close all open
      applets (shortcut: Ctrl-Alt-W).
-* Experiment results are now always saved to HDF5, even if run() fails.
+* Experiment results are now always saved to HDF5, even if ``run()`` fails.
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
 * NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
