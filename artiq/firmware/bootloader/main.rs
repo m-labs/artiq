@@ -491,7 +491,7 @@ pub extern fn main() -> i32 {
     println!(r"|_|  |_|_|____/ \___/ \____|");
     println!("");
     println!("MiSoC Bootloader");
-    println!("Copyright (c) 2017-2020 M-Labs Limited");
+    println!("Copyright (c) 2017-2021 M-Labs Limited");
     println!("");
 
     #[cfg(has_ethmac)]
