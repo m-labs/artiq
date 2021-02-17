@@ -3,6 +3,15 @@
 Release notes
 =============
 
+ARTIQ-7
+-------
+
+Highlights:
+* WRPLL
+
+Breaking changes:
+
+
 ARTIQ-6
 -------
 
