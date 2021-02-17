@@ -53,7 +53,7 @@ class SatelliteBase(MiniSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", gateware_identifier_str=None, with_sfp=False, *, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", gateware_identifier_str=None, with_sfp=False, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="or1k",
                  sdram_controller_type="minicon",
