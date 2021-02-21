@@ -7,7 +7,7 @@ from misoc.integration.wb_slaves import WishboneSlaveManager
 
 class KernelCPU(Module):
     def __init__(self, platform,
-                 exec_address=0x40800000,
+                 exec_address=0x45000000,
                  main_mem_origin=0x40000000,
                  l2_size=8192):
         self._reset = CSRStorage(reset=1)

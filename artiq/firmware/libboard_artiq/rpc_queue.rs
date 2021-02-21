@@ -5,8 +5,8 @@ use board_misoc::{mem, cache};
 const SEND_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 4) as *mut usize;
 const RECV_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 8) as *mut usize;
 
-const QUEUE_BEGIN: usize = 0x40400000;
-const QUEUE_END:   usize = 0x407fff80;
+const QUEUE_BEGIN: usize = 0x44000000;
+const QUEUE_END:   usize = 0x44ffff80;
 const QUEUE_CHUNK: usize = 0x1000;
 
 pub unsafe fn init() {

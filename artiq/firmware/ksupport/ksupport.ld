@@ -2,16 +2,16 @@ INCLUDE generated/output_format.ld
 INCLUDE generated/regions.ld
 ENTRY(_reset_handler)
 
-/* First 4M of main memory are reserved for runtime
+/* First 64M of main memory are reserved for runtime
  * code/data/heap, then comes kernel memory.
- * Next 4M of main memory are reserved for
+ * Next 16M of main memory are reserved for
  * the background RPC queue.
  * First 384K of kernel memory are for support code.
  * Support code is loaded at ORIGIN-0x80 so that ELF headers
  * are also loaded.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x40800000, LENGTH = 0x60000
+    ksupport (RWX) : ORIGIN = 0x45000000, LENGTH = 0x60000
 }
 
 /* Kernel stack is at the end of main RAM. */

@@ -14,8 +14,8 @@ struct slice {
 void send_to_core_log(struct slice str);
 void send_to_rtio_log(struct slice data);
 
-#define KERNELCPU_EXEC_ADDRESS    0x40800000
-#define KERNELCPU_PAYLOAD_ADDRESS 0x40860000
+#define KERNELCPU_EXEC_ADDRESS    0x45000000
+#define KERNELCPU_PAYLOAD_ADDRESS 0x45060000
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
 #define KSUPPORT_HEADER_SIZE      0x80
 
