@@ -169,7 +169,7 @@ The program below exemplifies how to use logging: ::
         main()
 
 
-Integration with artiq experiments
+Integration with ARTIQ experiments
 ----------------------------------
 
 To integrate the controller into an experiment, simply add an entry into the ``device_db.py`` following the example shown below for the ``aqctl_hello.py`` from above: ::
@@ -179,7 +179,7 @@ To integrate the controller into an experiment, simply add an entry into the ``d
         	"type": "controller",
         	"host": "::1",
         	"port": 3249,
-        	"command": "python aqctl_hello.py -p {port}" 
+        	"command": "python /abs/path/to/aqctl_hello.py -p {port}" 
     	},
 	})
 	
@@ -187,7 +187,7 @@ From the experiment this can now be added using ``self.setattr_device("hello")``
 	
 	self.hello.message("Hello world!")
 
-For controllers hosted locally the ``artiq_ctlmgr`` utility from ``artiq-comtools`` can be used to automatically start the controllers listed in ``device_db.py``.
+To automatically initiate controllers the ``artiq_ctlmgr`` utility from ``artiq-comtools`` can be used. By default, this initiates all controllers hosted on the local address of master connection.
 
 Remote execution support
 ------------------------
