@@ -116,3 +116,26 @@ class Exp1(EnvExperiment):
 
             # by elimination
             self.assertIs(mod.Exp1, tools.get_experiment(mod))
+
+    def test_nested_experiment(self):
+        with create_modules(MODNAME) as mods:
+            with mods[MODNAME].open("a") as fp:
+                print(
+                    """
+from artiq.experiment import *
+
+class Foo:
+    class Exp1(EnvExperiment):
+        pass
+                """,
+                    file=fp,
+                )
+
+            mod = tools.file_import(str(mods[MODNAME]))
+
+            # by class name
+            self.assertIs(mod.Foo.Exp1, tools.get_experiment(mod, "Foo.Exp1"))
+
+            # by elimination should fail
+            with self.assertRaises(ValueError):
+                tools.get_experiment(mod)
