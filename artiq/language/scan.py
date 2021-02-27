@@ -32,7 +32,8 @@ __all__ = ["ScanObject",
 
 
 class ScanObject:
-    pass
+    def describe(self):
+        raise NotImplementedError
 
 
 class NoScan(ScanObject):
