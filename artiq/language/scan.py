@@ -220,7 +220,7 @@ class Scannable:
     def process(self, x):
         cls = _ty_to_scan[x["ty"]]
         args = dict()
-        for arg in inspect.getargspec(cls).args[1:]:
+        for arg in inspect.getfullargspec(cls).args[1:]:
             if arg in x:
                 args[arg] = x[arg]
         return cls(**args)
