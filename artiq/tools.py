@@ -89,7 +89,10 @@ def file_import(filename, prefix="file_import_"):
 
 def get_experiment(module, class_name=None):
     if class_name:
-        return getattr(module, class_name)
+        obj = module
+        for name in class_name.split('.'):
+            obj = getattr(obj, name)
+        return obj
 
     exps = inspect.getmembers(module, is_public_experiment)
 
