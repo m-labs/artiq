@@ -35,25 +35,22 @@ def main():
     dashboard_cmd += args.d
     ctlmgr_cmd    += args.c
 
-    try:
-        with subprocess.Popen(master_cmd,
-                              stdout=subprocess.PIPE, universal_newlines=True,
-                              bufsize=1) as master:
-            master_ready = False
-            for line in iter(master.stdout.readline, ""):
-                sys.stdout.write(line)
-                if line.rstrip() == "ARTIQ master is now ready.":
-                    master_ready = True
-                    break
-            if master_ready:
-                with subprocess.Popen(dashboard_cmd):
-                    with subprocess.Popen(ctlmgr_cmd):
-                        for line in iter(master.stdout.readline, ""):
-                            sys.stdout.write(line)
-            else:
-                print("session: master failed to start, exiting.")
-    except KeyboardInterrupt:
-        pass
+    with subprocess.Popen(master_cmd,
+                          stdout=subprocess.PIPE, universal_newlines=True,
+                          bufsize=1) as master:
+        master_ready = False
+        for line in iter(master.stdout.readline, ""):
+            sys.stdout.write(line)
+            if line.rstrip() == "ARTIQ master is now ready.":
+                master_ready = True
+                break
+        if master_ready:
+            with subprocess.Popen(dashboard_cmd):
+                with subprocess.Popen(ctlmgr_cmd):
+                    for line in iter(master.stdout.readline, ""):
+                        sys.stdout.write(line)
+        else:
+            print("session: master failed to start, exiting.")
 
 
 if __name__ == "__main__":
