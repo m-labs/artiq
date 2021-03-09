@@ -1,6 +1,7 @@
 """RTIO driver for the Fastino 32channel, 16 bit, 2.5 MS/s per channel,
 streaming DAC.
 """
+from numpy import int32
 
 from artiq.language.core import kernel, portable, delay
 from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
@@ -112,7 +113,7 @@ class Fastino:
         :param voltage: Voltage in SI Volts.
         :return: DAC data word in machine units, 16 bit integer.
         """
-        data = int(round((0x8000/10.)*voltage)) + 0x8000
+        data = int32(round((0x8000/10.)*voltage)) + int32(0x8000)
         if data < 0 or data > 0xffff:
             raise ValueError("DAC voltage out of bounds")
         return data
@@ -129,7 +130,7 @@ class Fastino:
             v = self.voltage_to_mu(voltage[i])
             if i & 1:
                 v = data[i // 2] | (v << 16)
-            data[i // 2] = v
+            data[i // 2] = int32(v)
 
     @kernel
     def set_dac(self, dac, voltage):
