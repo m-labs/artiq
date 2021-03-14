@@ -269,6 +269,14 @@ class Inferencer(algorithm.Visitor):
             else:
                 self._unify_iterable(element=node, collection=node.value)
         elif isinstance(node.slice, ast.Slice):
+            if builtins.is_array(node.value.type):
+                if node.slice.step is not None:
+                    diag = diagnostic.Diagnostic(
+                        "error",
+                        "strided slicing not yet supported for NumPy arrays", {},
+                        node.slice.step.loc, [])
+                    self.engine.process(diag)
+                    return
             self._unify(node.type, node.value.type, node.loc, node.value.loc)
         else:  # ExtSlice
             pass  # error emitted above
