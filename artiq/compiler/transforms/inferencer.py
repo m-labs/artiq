@@ -8,6 +8,28 @@ from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
 
 
+def is_nested_empty_list(node):
+    """If the passed AST node is an empty list, or a regularly nested list thereof,
+    returns the number of nesting layers, or ``None`` otherwise.
+
+    For instance, ``is_nested_empty_list([]) == 1`` and
+    ``is_nested_empty_list([[], []]) == 2``, but
+    ``is_nested_empty_list([[[]], []]) == None`` as the number of nesting layers doesn't
+    match.
+    """
+    if not isinstance(node, ast.List):
+        return None
+    if not node.elts:
+        return 1
+    result = is_nested_empty_list(node.elts[0])
+    if result is None:
+        return None
+    for elt in node.elts[:1]:
+        if result != is_nested_empty_list(elt):
+            return None
+    return result + 1
+
+
 class Inferencer(algorithm.Visitor):
     """
     :class:`Inferencer` infers types by recursively applying the unification
@@ -891,28 +913,45 @@ class Inferencer(algorithm.Visitor):
             if len(node.args) == 1 and keywords_acceptable:
                 arg, = node.args
 
-                # In the absence of any other information (there currently isn't a way
-                # to specify any), assume that all iterables are expandable into a
-                # (runtime-checked) rectangular array of the innermost element type.
-                elt = arg.type
-                num_dims = 0
-                result_dims = (node.type.find()["num_dims"].value
-                               if builtins.is_array(node.type) else -1)
-                while True:
-                    if num_dims == result_dims:
-                        # If we already know the number of dimensions of the result,
-                        # stop so we can disambiguate the (innermost) element type of
-                        # the argument if it is still unknown (e.g. empty array).
-                        break
-                    if types.is_var(elt):
-                        return  # undetermined yet
-                    if not builtins.is_iterable(elt) or builtins.is_str(elt):
-                        break
-                    if builtins.is_array(elt):
-                        num_dims += elt.find()["num_dims"].value
-                    else:
-                        num_dims += 1
-                    elt = builtins.get_iterable_elt(elt)
+                num_empty_dims = is_nested_empty_list(arg)
+                if num_empty_dims is not None:
+                    # As a special case, following the behaviour of numpy.array (and
+                    # repr() on ndarrays), consider empty lists to be exactly of the
+                    # number of dimensions given, instead of potentially containing an
+                    # unknown number of extra dimensions.
+                    num_dims = num_empty_dims
+
+                    # The ultimate element type will be TVar initially, but we might be
+                    # able to resolve it from context.
+                    elt = arg.type
+                    for _ in range(num_dims):
+                        assert builtins.is_list(elt)
+                        elt = elt.find()["elt"]
+                else:
+                    # In the absence of any other information (there currently isn't a way
+                    # to specify any), assume that all iterables are expandable into a
+                    # (runtime-checked) rectangular array of the innermost element type.
+                    elt = arg.type
+                    num_dims = 0
+                    expected_dims = (node.type.find()["num_dims"].value
+                                    if builtins.is_array(node.type) else -1)
+                    while True:
+                        if num_dims == expected_dims:
+                            # If we already know the number of dimensions of the result,
+                            # stop so we can disambiguate the (innermost) element type of
+                            # the argument if it is still unknown.
+                            break
+                        if types.is_var(elt):
+                            # Can't make progress here because we don't know how many more
+                            # dimensions might be "hidden" inside.
+                            return
+                        if not builtins.is_iterable(elt) or builtins.is_str(elt):
+                            break
+                        if builtins.is_array(elt):
+                            num_dims += elt.find()["num_dims"].value
+                        else:
+                            num_dims += 1
+                        elt = builtins.get_iterable_elt(elt)
 
                 if explicit_dtype is not None:
                     # TODO: Factor out type detection; support quoted type constructors
