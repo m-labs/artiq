@@ -522,7 +522,7 @@ class StitchingInferencer(Inferencer):
             self.engine.process(diag)
             return
 
-        # Figure out what ARTIQ type does the value of the attribute have.
+        # Figure out the ARTIQ type of the value of the attribute.
         # We do this by quoting it, as if to serialize. This has some
         # overhead (i.e. synthesizing a source buffer), but has the advantage
         # of having the host-to-ARTIQ mapping code in only one place and
