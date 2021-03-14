@@ -216,6 +216,7 @@ class Inferencer(algorithm.Visitor):
                         value.loc, None)
 
     def visit_SliceT(self, node):
+        self.generic_visit(node)
         if (node.lower, node.upper, node.step) == (None, None, None):
             self._unify(node.type, builtins.TInt32(),
                         node.loc, None)
