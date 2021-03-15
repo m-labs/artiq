@@ -284,6 +284,27 @@ class CPLD:
         """
         self.cfg_write((self.cfg_reg & ~0xf) | state)
 
+    @portable(flags={"fast-math"})
+    def mu_to_att(self, att_mu: TInt32) -> TFloat:
+        """Convert a digital attenuation setting to dB.
+
+        :param att_mu: Digital attenuation setting.
+        :return: Attenuation setting in dB.
+        """
+        return (255 - (att_mu & 0xff)) / 8
+
+    @portable(flags={"fast-math"})
+    def att_to_mu(self, att: TFloat) -> TInt32:
+        """Convert an attenuation setting in dB to machine units.
+
+        :param att: Attenuation setting in dB.
+        :return: Digital attenuation setting.
+        """
+        code = int32(255) - int32(round(att * 8))
+        if code < 0 or code > 255:
+            raise ValueError("Invalid urukul.CPLD attenuation!")
+        return code
+
     @kernel
     def set_att_mu(self, channel: TInt32, att: TInt32):
         """Set digital step attenuator in machine units.
@@ -348,6 +369,34 @@ class CPLD:
         self.att_reg = self.bus.read()
         self.bus.write(self.att_reg)  # shift in current value again and latch
         return self.att_reg
+
+    @kernel
+    def get_channel_att_mu(self, channel: TInt32) -> TInt32:
+        """Get digital step attenuator value for a channel in machine units.
+
+        The result is stored and will be used in future calls of
+        :meth:`set_att_mu` and :meth:`set_att`.
+
+        .. seealso:: :meth:`get_att_mu`
+
+        :param channel: Attenuator channel (0-3).
+        :return: 8-bit digital attenuation setting:
+            255 minimum attenuation, 0 maximum attenuation (31.5 dB)
+        """
+        return int32((self.get_att_mu() >> (channel * 8)) & 0xff)
+
+    @kernel
+    def get_channel_att(self, channel: TInt32) -> TFloat:
+        """Get digital step attenuator value for a channel in SI units.
+
+        .. seealso:: :meth:`get_channel_att_mu`
+
+        :param channel: Attenuator channel (0-3).
+        :return: Attenuation setting in dB. Higher value is more
+            attenuation. Minimum attenuation is 0*dB, maximum attenuation is
+            31.5*dB.
+        """
+        return self.mu_to_att(self.get_channel_att_mu(channel))
 
     @kernel
     def set_sync_div(self, div: TInt32):

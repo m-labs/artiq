@@ -8,6 +8,7 @@ ARTIQ-7
 
 Highlights:
 * WRPLL
+* ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
 
 Breaking changes:
 

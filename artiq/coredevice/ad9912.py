@@ -135,6 +135,26 @@ class AD9912:
         self.cpld.set_att(self.chip_select - 4, att)
 
     @kernel
+    def get_att_mu(self) -> TInt32:
+        """Get digital step attenuator value in machine units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att_mu`
+
+        :return: Attenuation setting, 8 bit digital.
+        """
+        return self.cpld.get_channel_att_mu(self.chip_select - 4)
+
+    @kernel
+    def get_att(self) -> TFloat:
+        """Get digital step attenuator value in SI units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att`
+
+        :return: Attenuation in dB.
+        """
+        return self.cpld.get_channel_att(self.chip_select - 4)
+
+    @kernel
     def set_mu(self, ftw: TInt64, pow_: TInt32):
         """Set profile 0 data in machine units.
 
@@ -155,6 +175,24 @@ class AD9912:
                                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
         self.cpld.io_update.pulse(10 * ns)
+
+    @kernel
+    def get_mu(self) -> TTuple([TInt64, TInt32]):
+        """Get the frequency tuning word and phase offset word.
+
+        .. seealso:: :meth:`get`
+
+        :return: A tuple ``(ftw, pow)``.
+        """
+
+        # Read data
+        high = self.read(AD9912_POW1, 4)
+        self.core.break_realtime()  # Regain slack to perform second read
+        low = self.read(AD9912_FTW3, 4)
+        # Extract and return fields
+        ftw = (int64(high & 0xffff) << 32) | (int64(low) & int64(0xffffffff))
+        pow_ = (high >> 16) & 0x3fff
+        return ftw, pow_
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency: TFloat) -> TInt64:
@@ -199,6 +237,20 @@ class AD9912:
         """
         self.set_mu(self.frequency_to_ftw(frequency),
                     self.turns_to_pow(phase))
+
+    @kernel
+    def get(self) -> TTuple([TFloat, TFloat]):
+        """Get the frequency and phase.
+
+        .. seealso:: :meth:`get_mu`
+
+        :return: A tuple ``(frequency, phase)``.
+        """
+
+        # Get values
+        ftw, pow_ = self.get_mu()
+        # Convert and return
+        return self.ftw_to_frequency(ftw), self.pow_to_turns(pow_)
 
     @kernel
     def cfg_sw(self, state: TInt32):

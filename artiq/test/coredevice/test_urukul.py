@@ -53,7 +53,7 @@ class UrukulExp(EnvExperiment):
         for i in range(n):
             self.dev.cfg_sw(3, i & 1)
         self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0)/n)
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def switches_readback(self):
@@ -102,15 +102,37 @@ class UrukulExp(EnvExperiment):
         self.set_dataset("att_reg", att_reg)
 
     @kernel
+    def att_channel_get(self):
+        self.core.break_realtime()
+        self.dev.init()
+        # clear backing state
+        self.dev.att_reg = 0
+        att_set = [int32(0x21), int32(0x43),
+                   int32(0x65), int32(0x87)]
+        # set individual attenuators
+        for i in range(len(att_set)):
+            self.dev.set_att_mu(i, att_set[i])
+        # confirm that we can set all attenuators and read back
+        att_get = [0 for _ in range(len(att_set))]
+        for i in range(len(att_set)):
+            self.core.break_realtime()
+            att_get[i] = self.dev.get_channel_att_mu(i)
+        # confirm backing state
+        att_reg = self.dev.att_reg
+        self.set_dataset("att_set", att_set)
+        self.set_dataset("att_get", att_get)
+        self.set_dataset("att_reg", att_reg)
+
+    @kernel
     def att_speed(self):
         self.core.break_realtime()
         self.dev.init()
         n = 10
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            self.dev.set_att(3, 30*dB)
+            self.dev.set_att(3, 30 * dB)
         self.set_dataset("dt", self.core.mu_to_seconds(
-            self.core.get_rtio_counter_mu() - t0)/n)
+            self.core.get_rtio_counter_mu() - t0) / n)
 
     @kernel
     def io_update(self):
@@ -155,7 +177,7 @@ class UrukulTest(ExperimentCase):
         self.execute(UrukulExp, "switch_speed")
         dt = self.dataset_mgr.get("dt")
         print(dt)
-        self.assertLess(dt, 5*us)
+        self.assertLess(dt, 5 * us)
 
     def test_switches_readback(self):
         self.execute(UrukulExp, "switches_readback")
@@ -175,11 +197,20 @@ class UrukulTest(ExperimentCase):
         self.assertEqual(att_set, self.dataset_mgr.get("att_get"))
         self.assertEqual(att_set, self.dataset_mgr.get("att_reg"))
 
+    def test_att_channel_get(self):
+        self.execute(UrukulExp, "att_channel_get")
+        att_set = self.dataset_mgr.get("att_set")
+        self.assertListEqual(att_set, self.dataset_mgr.get("att_get"))
+        att_reg = self.dataset_mgr.get("att_reg")
+        for att in att_set:
+            self.assertEqual(att, att_reg & 0xff)
+            att_reg >>= 8
+
     def test_att_speed(self):
         self.execute(UrukulExp, "att_speed")
         dt = self.dataset_mgr.get("dt")
         print(dt)
-        self.assertLess(dt, 5*us)
+        self.assertLess(dt, 5 * us)
 
     def test_io_update(self):
         self.execute(UrukulExp, "io_update")
