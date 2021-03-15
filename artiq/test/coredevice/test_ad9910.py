@@ -42,11 +42,52 @@ class AD9910Exp(EnvExperiment):
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
-        self.dev.set_att(20*dB)
         f = 81.2345*MHz
-        self.dev.set(frequency=f, phase=.33, amplitude=.89)
+        p = .33
+        a = .89
+        att = 20*dB
+        self.dev.set_att(att)
+        self.dev.set(frequency=f, phase=p, amplitude=a)
+
+        self.core.break_realtime()
+        ftw, pow_, asf = self.dev.get_mu()
+        self.core.break_realtime()
+        att_mu = self.dev.get_att_mu()
+
         self.set_dataset("ftw_set", self.dev.frequency_to_ftw(f))
-        self.set_dataset("ftw_get", self.dev.read32(_AD9910_REG_FTW))
+        self.set_dataset("ftw_get", ftw)
+        self.set_dataset("pow_set", self.dev.turns_to_pow(p))
+        self.set_dataset("pow_get", pow_)
+        self.set_dataset("asf_set", self.dev.amplitude_to_asf(a))
+        self.set_dataset("asf_get", asf)
+        self.set_dataset("att_set", self.dev.cpld.att_to_mu(att))
+        self.set_dataset("att_get", att_mu)
+
+    @kernel
+    def set_get_io_update_regs(self):
+        self.core.break_realtime()
+        self.dev.cpld.init()
+        self.dev.init()
+        f = 81.2345*MHz
+        p = .33
+        a = .89
+        self.dev.set_frequency(f)
+        self.dev.set_phase(p)
+        self.dev.set_amplitude(a)
+
+        self.core.break_realtime()
+        ftw = self.dev.get_ftw()
+        self.core.break_realtime()
+        pow_ = self.dev.get_pow()
+        self.core.break_realtime()
+        asf = self.dev.get_asf()
+
+        self.set_dataset("ftw_set", self.dev.frequency_to_ftw(f))
+        self.set_dataset("ftw_get", ftw)
+        self.set_dataset("pow_set", self.dev.turns_to_pow(p))
+        self.set_dataset("pow_get", pow_)
+        self.set_dataset("asf_set", self.dev.amplitude_to_asf(a))
+        self.set_dataset("asf_get", asf)
 
     @kernel
     def read_write64(self):
@@ -316,9 +357,19 @@ class AD9910Test(ExperimentCase):
 
     def test_set_get(self):
         self.execute(AD9910Exp, "set_get")
-        ftw_get = self.dataset_mgr.get("ftw_get")
-        ftw_set = self.dataset_mgr.get("ftw_set")
-        self.assertEqual(ftw_get, ftw_set)
+        for attr in ['ftw', 'pow', 'asf', 'att']:
+            with self.subTest(attribute=attr):
+                get = self.dataset_mgr.get("{}_get".format(attr))
+                set_ = self.dataset_mgr.get("{}_set".format(attr))
+                self.assertEqual(get, set_)
+
+    def test_set_get_io_update_regs(self):
+        self.execute(AD9910Exp, "set_get_io_update_regs")
+        for attr in ['ftw', 'pow', 'asf']:
+            with self.subTest(attribute=attr):
+                get = self.dataset_mgr.get("{}_get".format(attr))
+                set_ = self.dataset_mgr.get("{}_set".format(attr))
+                self.assertEqual(get, set_)
 
     def test_read_write64(self):
         self.execute(AD9910Exp, "read_write64")

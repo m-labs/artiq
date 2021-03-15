@@ -533,6 +533,25 @@ class AD9910:
         return pow_
 
     @kernel
+    def get_mu(self, profile: TInt32 = 0) -> TTuple([TInt32, TInt32, TInt32]):
+        """Get the frequency tuning word, phase offset word,
+        and amplitude scale factor.
+
+        .. seealso:: :meth:`get`
+
+        :param profile: Profile number to get (0-7, default: 0)
+        :return: A tuple ``(ftw, pow, asf)``
+        """
+
+        # Read data
+        data = int64(self.read64(_AD9910_REG_PROFILE0 + profile))
+        # Extract and return fields
+        ftw = int32(data)
+        pow_ = int32((data >> 32) & 0xffff)
+        asf = int32((data >> 48) & 0x3fff)
+        return ftw, pow_, asf
+
+    @kernel
     def set_profile_ram(self, start: TInt32, end: TInt32, step: TInt32 = 1,
                         profile: TInt32 = 0, nodwell_high: TInt32 = 0,
                         zero_crossing: TInt32 = 0, mode: TInt32 = 1):
@@ -584,6 +603,33 @@ class AD9910:
         :param pow_: Phase offset word to be stored, range: 0 to 0xffff.
         """
         self.write16(_AD9910_REG_POW, pow_)
+
+    @kernel
+    def get_ftw(self) -> TInt32:
+        """Get the value stored to the AD9910's frequency tuning word (FTW)
+        register.
+
+        :return: Frequency tuning word
+        """
+        return self.read32(_AD9910_REG_FTW)
+
+    @kernel
+    def get_asf(self) -> TInt32:
+        """Get the value stored to the AD9910's amplitude scale factor (ASF)
+        register.
+
+        :return: Amplitude scale factor
+        """
+        return self.read32(_AD9910_REG_ASF) >> 2
+
+    @kernel
+    def get_pow(self) -> TInt32:
+        """Get the value stored to the AD9910's phase offset word (POW)
+        register.
+
+        :return: Phase offset word
+        """
+        return self.read16(_AD9910_REG_POW)
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
@@ -709,6 +755,33 @@ class AD9910:
         self.set_pow(self.turns_to_pow(turns))
 
     @kernel
+    def get_frequency(self) -> TFloat:
+        """Get the value stored to the AD9910's frequency tuning word (FTW)
+        register.
+
+        :return: frequency in Hz.
+        """
+        return self.ftw_to_frequency(self.get_ftw())
+
+    @kernel
+    def get_amplitude(self) -> TFloat:
+        """Get the value stored to the AD9910's amplitude scale factor (ASF)
+        register.
+
+        :return: amplitude in units of full scale.
+        """
+        return self.asf_to_amplitude(self.get_asf())
+
+    @kernel
+    def get_phase(self) -> TFloat:
+        """Get the value stored to the AD9910's phase offset word (POW)
+        register.
+
+        :return: phase offset in turns.
+        """
+        return self.pow_to_turns(self.get_pow())
+
+    @kernel
     def set(self, frequency: TFloat, phase: TFloat = 0.0,
             amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
             ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0):
@@ -728,6 +801,22 @@ class AD9910:
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
             self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu,
             profile))
+
+    @kernel
+    def get(self, profile: TInt32 = 0) -> TTuple([TFloat, TFloat, TFloat]):
+        """Get the frequency, phase, and amplitude.
+
+        .. seealso:: :meth:`get_mu`
+
+        :param profile: Profile number to get (0-7, default: 0)
+        :return: A tuple ``(frequency, phase, amplitude)``
+        """
+
+        # Get values
+        ftw, pow_, asf = self.get_mu(profile)
+        # Convert and return
+        return (self.ftw_to_frequency(ftw), self.pow_to_turns(pow_),
+                self.asf_to_amplitude(asf))
 
     @kernel
     def set_att_mu(self, att: TInt32):
@@ -752,6 +841,26 @@ class AD9910:
         :param att: Attenuation in dB.
         """
         self.cpld.set_att(self.chip_select - 4, att)
+
+    @kernel
+    def get_att_mu(self) -> TInt32:
+        """Get digital step attenuator value in machine units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att_mu`
+
+        :return: Attenuation setting, 8 bit digital.
+        """
+        return self.cpld.get_channel_att_mu(self.chip_select - 4)
+
+    @kernel
+    def get_att(self) -> TFloat:
+        """Get digital step attenuator value in SI units.
+
+        .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att`
+
+        :return: Attenuation in dB.
+        """
+        return self.cpld.get_channel_att(self.chip_select - 4)
 
     @kernel
     def cfg_sw(self, state: TInt32):
