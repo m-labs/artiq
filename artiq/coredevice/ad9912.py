@@ -1,6 +1,6 @@
 from numpy import int32, int64
 
-from artiq.language.types import TInt32, TInt64
+from artiq.language.types import TInt32, TInt64, TFloat, TTuple
 from artiq.language.core import kernel, delay, portable
 from artiq.language.units import ms, us, ns
 from artiq.coredevice.ad9912_reg import *
@@ -39,12 +39,12 @@ class AD9912:
             self.sw = dmgr.get(sw_device)
             self.kernel_invariants.add("sw")
         self.pll_n = pll_n
-        sysclk = self.cpld.refclk/[1, 1, 2, 4][self.cpld.clk_div]*pll_n
+        sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
         assert sysclk <= 1e9
-        self.ftw_per_hz = 1/sysclk*(int64(1) << 48)
+        self.ftw_per_hz = 1 / sysclk * (int64(1) << 48)
 
     @kernel
-    def write(self, addr, data, length):
+    def write(self, addr: TInt32, data: TInt32, length: TInt32):
         """Variable length write to a register.
         Up to 4 bytes.
 
@@ -55,14 +55,14 @@ class AD9912:
         assert length > 0
         assert length <= 4
         self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13)) << 16)
-        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, length*8,
-                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write(data << (32 - length*8))
+        self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, length * 8,
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write(data << (32 - length * 8))
 
     @kernel
-    def read(self, addr, length):
+    def read(self, addr: TInt32, length: TInt32) -> TInt32:
         """Variable length read from a register.
         Up to 4 bytes.
 
@@ -73,15 +73,15 @@ class AD9912:
         assert length > 0
         assert length <= 4
         self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13) | 0x8000) << 16)
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END
-                | spi.SPI_INPUT, length*8,
-                urukul.SPIT_DDS_RD, self.chip_select)
+                               | spi.SPI_INPUT, length * 8,
+                               urukul.SPIT_DDS_RD, self.chip_select)
         self.bus.write(0)
         data = self.bus.read()
         if length < 4:
-            data &= (1 << (length*8)) - 1
+            data &= (1 << (length * 8)) - 1
         return data
 
     @kernel
@@ -94,24 +94,24 @@ class AD9912:
         """
         # SPI mode
         self.write(AD9912_SER_CONF, 0x99, length=1)
-        self.cpld.io_update.pulse(2*us)
+        self.cpld.io_update.pulse(2 * us)
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, length=2)
         if (prodid != 0x1982) and (prodid != 0x1902):
             raise ValueError("Urukul AD9912 product id mismatch")
-        delay(50*us)
+        delay(50 * us)
         # HSTL power down, CMOS power down
         self.write(AD9912_PWRCNTRL1, 0x80, length=1)
-        self.cpld.io_update.pulse(2*us)
-        self.write(AD9912_N_DIV, self.pll_n//2 - 2, length=1)
-        self.cpld.io_update.pulse(2*us)
+        self.cpld.io_update.pulse(2 * us)
+        self.write(AD9912_N_DIV, self.pll_n // 2 - 2, length=1)
+        self.cpld.io_update.pulse(2 * us)
         # I_cp = 375 µA, VCO high range
         self.write(AD9912_PLLCFG, 0b00000101, length=1)
-        self.cpld.io_update.pulse(2*us)
-        delay(1*ms)
+        self.cpld.io_update.pulse(2 * us)
+        delay(1 * ms)
 
     @kernel
-    def set_att_mu(self, att):
+    def set_att_mu(self, att: TInt32):
         """Set digital step attenuator in machine units.
 
         This method will write the attenuator settings of all four channels.
@@ -123,7 +123,7 @@ class AD9912:
         self.cpld.set_att_mu(self.chip_select - 4, att)
 
     @kernel
-    def set_att(self, att):
+    def set_att(self, att: TFloat):
         """Set digital step attenuator in SI units.
 
         This method will write the attenuator settings of all four channels.
@@ -135,62 +135,73 @@ class AD9912:
         self.cpld.set_att(self.chip_select - 4, att)
 
     @kernel
-    def set_mu(self, ftw, pow):
+    def set_mu(self, ftw: TInt64, pow_: TInt32):
         """Set profile 0 data in machine units.
 
         After the SPI transfer, the shared IO update pin is pulsed to
         activate the data.
 
         :param ftw: Frequency tuning word: 48 bit unsigned.
-        :param pow: Phase tuning word: 16 bit unsigned.
+        :param pow_: Phase tuning word: 16 bit unsigned.
         """
         # streaming transfer of FTW and POW
         self.bus.set_config_mu(urukul.SPI_CONFIG, 16,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((AD9912_POW1 << 16) | (3 << 29))
         self.bus.set_config_mu(urukul.SPI_CONFIG, 32,
-                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write((pow << 16) | (int32(ftw >> 32) & 0xffff))
+                               urukul.SPIT_DDS_WR, self.chip_select)
+        self.bus.write((pow_ << 16) | (int32(ftw >> 32) & 0xffff))
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 32,
-                urukul.SPIT_DDS_WR, self.chip_select)
+                               urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write(int32(ftw))
-        self.cpld.io_update.pulse(10*ns)
+        self.cpld.io_update.pulse(10 * ns)
 
     @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency) -> TInt64:
+    def frequency_to_ftw(self, frequency: TFloat) -> TInt64:
         """Returns the 48-bit frequency tuning word corresponding to the given
         frequency.
         """
-        return int64(round(self.ftw_per_hz*frequency)) & ((int64(1) << 48) - 1)
+        return int64(round(self.ftw_per_hz * frequency)) & (
+                (int64(1) << 48) - 1)
 
     @portable(flags={"fast-math"})
-    def ftw_to_frequency(self, ftw):
+    def ftw_to_frequency(self, ftw: TInt64) -> TFloat:
         """Returns the frequency corresponding to the given
         frequency tuning word.
         """
-        return ftw/self.ftw_per_hz
+        return ftw / self.ftw_per_hz
 
     @portable(flags={"fast-math"})
-    def turns_to_pow(self, phase) -> TInt32:
+    def turns_to_pow(self, phase: TFloat) -> TInt32:
         """Returns the 16-bit phase offset word corresponding to the given
         phase.
         """
-        return int32(round((1 << 14)*phase)) & 0xffff
+        return int32(round((1 << 14) * phase)) & 0xffff
+
+    @portable(flags={"fast-math"})
+    def pow_to_turns(self, pow_: TInt32) -> TFloat:
+        """Return the phase in turns corresponding to a given phase offset
+        word.
+
+        :param pow_: Phase offset word.
+        :return: Phase in turns.
+        """
+        return pow_ / (1 << 14)
 
     @kernel
-    def set(self, frequency, phase=0.0):
+    def set(self, frequency: TFloat, phase: TFloat = 0.0):
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
 
-        :param ftw: Frequency in Hz
-        :param pow: Phase tuning word in turns
+        :param frequency: Frequency in Hz
+        :param phase: Phase tuning word in turns
         """
         self.set_mu(self.frequency_to_ftw(frequency),
-            self.turns_to_pow(phase))
+                    self.turns_to_pow(phase))
 
     @kernel
-    def cfg_sw(self, state):
+    def cfg_sw(self, state: TInt32):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
         logical or of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
