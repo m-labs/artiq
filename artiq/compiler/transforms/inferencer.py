@@ -305,6 +305,7 @@ class Inferencer(algorithm.Visitor):
 
     def visit_IfExpT(self, node):
         self.generic_visit(node)
+        self._unify(node.test.type, builtins.TBool(), node.test.loc, None)
         self._unify(node.body.type, node.orelse.type,
                     node.body.loc, node.orelse.loc)
         self._unify(node.type, node.body.type,
