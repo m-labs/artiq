@@ -55,6 +55,9 @@ class RoundtripTest(ExperimentCase):
     def test_list(self):
         self.assertRoundtrip([10])
 
+    def test_bool_list(self):
+        self.assertRoundtrip([True, False])
+
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)
@@ -69,6 +72,7 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
 
     def test_array_1d(self):
+        self.assertArrayRoundtrip(numpy.array([True, False]))
         self.assertArrayRoundtrip(numpy.array([1, 2, 3], dtype=numpy.int32))
         self.assertArrayRoundtrip(numpy.array([1.0, 2.0, 3.0]))
         self.assertArrayRoundtrip(numpy.array(["a", "b", "c"]))
