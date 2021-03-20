@@ -1558,7 +1558,8 @@ class LLVMIRGenerator:
             return ll.Constant.literal_struct([])
         elif builtins.is_bool(typ):
             assert value in (True, False), fail_msg
-            return ll.Constant(llty, value)
+            # Explicitly cast to bool to handle numpy.bool_.
+            return ll.Constant(llty, bool(value))
         elif builtins.is_int(typ):
             assert isinstance(value, (int, numpy.int32, numpy.int64)), fail_msg
             return ll.Constant(llty, int(value))

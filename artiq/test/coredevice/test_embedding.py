@@ -36,6 +36,12 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip(True)
         self.assertRoundtrip(False)
 
+    def test_numpy_bool(self):
+        # These won't return as numpy.bool_, but the bare-Python results should still
+        # compare equal.
+        self.assertRoundtrip(numpy.True_)
+        self.assertRoundtrip(numpy.False_)
+
     def test_int(self):
         self.assertRoundtrip(numpy.int32(42))
         self.assertRoundtrip(numpy.int64(42))
@@ -492,3 +498,23 @@ class AssertTest(ExperimentCase):
         check_fail(lambda: exp.check(False), "AssertionError")
         exp.check_msg(True)
         check_fail(lambda: exp.check_msg(False), "foo")
+
+
+class _NumpyBool(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.np_true = numpy.True_
+        self.np_false = numpy.False_
+
+    @kernel
+    def run(self):
+        assert self.np_true
+        assert self.np_true == True
+        assert not self.np_false
+        assert self.np_false == False
+
+
+class NumpyBoolTest(ExperimentCase):
+    def test_numpy_bool(self):
+        """Test NumPy bools decay to ARTIQ compiler builtin bools as expected"""
+        self.create(_NumpyBool).run()
