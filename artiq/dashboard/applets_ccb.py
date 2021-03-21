@@ -45,6 +45,7 @@ class AppletsCCBDock(applets.AppletsDock):
         self.ccbp_group_action.setMenu(ccbp_group_menu)
         self.table.addAction(self.ccbp_group_action)
         self.table.itemSelectionChanged.connect(self.update_group_ccbp_menu)
+        self.update_group_ccbp_menu()
 
         ccbp_global_menu = QtWidgets.QMenu()
         actiongroup = QtWidgets.QActionGroup(self.table)
