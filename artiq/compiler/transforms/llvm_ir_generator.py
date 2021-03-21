@@ -1474,19 +1474,22 @@ class LLVMIRGenerator:
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-            llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
-                                           name=insn.name)
+            llcall = self.llbuilder.invoke(llfun, [llresultslot] + llargs,
+                                           llnormalblock, llunwindblock, name=insn.name)
+
+            self.llbuilder.position_at_start(llnormalblock)
             llresult = self.llbuilder.load(llresultslot)
 
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
         else:
             llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
                                            name=insn.name)
+            llresult = llcall
 
             # The !tbaa metadata is not legal to use with the invoke instruction,
             # so unlike process_Call, we do not set it here.
 
-        return llcall
+        return llresult
 
     def _quote_listish_to_llglobal(self, value, elt_type, path, kind_name):
         llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
