@@ -178,9 +178,9 @@ OpenOCD can be used to write the binary images into the core device FPGA board's
 
 With Nix, add ``artiq-full.openocd`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
-With Conda, the ``artiq`` package installs ``openocd`` automatically but it can also be installed explicitly on both Linux and Windows::
+With Conda, install ``openocd`` as follows::
 
-    $ conda install openocd
+    $ conda install -c m-labs openocd
 
 .. _configuring-openocd:
 
