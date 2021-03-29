@@ -175,24 +175,24 @@
                             "type": "boolean",
                             "default": false
                         },
-		        "refclk": {
-		            "type": "number",
-		            "minimum": 0
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "clk_div": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "pll_n": {
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "clk_div": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
                             "type": "integer"
                         },
-		        "pll_vco": {
+                        "pll_vco": {
                             "type": "integer"
                         },
                         "dds": {
@@ -282,20 +282,20 @@
                             "minItems": 2,
                             "maxItems": 2
                         },
-		        "refclk": {
-		            "type": "number",
-		            "minimum": 0
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "pll_n": {
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
                             "type": "integer",
                             "default": 32
                         },
-		        "pll_vco": {
+                        "pll_vco": {
                             "type": "integer"
                         }
                     },
@@ -364,12 +364,12 @@
                             "minItems": 1,
                             "maxItems": 1
                         },
-        		        "refclk": {
-        		            "type": "number",
-        		            "exclusiveMinimum": 0,
+                        "refclk": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
                             "default": 100e6
-        		        },
-        		        "clk_sel": {
+                        },
+                        "clk_sel": {
                             "oneOf": [
                                 {
                                     "type": "integer",
@@ -383,7 +383,7 @@
                                     "default": "xo"
                                 }
                             ]
-    		            }
+                        }
                     },
                     "required": ["ports"]
                 }
