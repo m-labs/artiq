@@ -268,6 +268,9 @@ class PeripheralManager:
                 name=mirny_name,
                 mchn=i)
 
+        clk_sel = peripheral["clk_sel"]
+        if isinstance(peripheral["clk_sel"], str):
+            clk_sel = '"' + peripheral["clk_sel"] + '"'
         self.gen("""
             device_db["{name}_cpld"] = {{
                 "type": "local",
@@ -281,7 +284,7 @@ class PeripheralManager:
             }}""",
             name=mirny_name,
             refclk=peripheral["refclk"],
-            clk_sel=peripheral["clk_sel"])
+            clk_sel=clk_sel)
 
         return next(channel)
 
