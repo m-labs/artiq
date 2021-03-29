@@ -364,17 +364,26 @@
                             "minItems": 1,
                             "maxItems": 1
                         },
-		        "refclk": {
-		            "type": "number",
-		            "exclusiveMinimum": 0,
+        		        "refclk": {
+        		            "type": "number",
+        		            "exclusiveMinimum": 0,
                             "default": 100e6
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3,
-                            "default": 0
-		       }
+        		        },
+        		        "clk_sel": {
+                            "oneOf": [
+                                {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 3,
+                                    "default": 0
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["xo", "mmcx", "sma"],
+                                    "default": "xo"
+                                }
+                            ]
+    		            }
                     },
                     "required": ["ports"]
                 }
