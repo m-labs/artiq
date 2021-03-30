@@ -374,15 +374,14 @@
                                 {
                                     "type": "integer",
                                     "minimum": 0,
-                                    "maximum": 3,
-                                    "default": 0
+                                    "maximum": 3
                                 },
                                 {
                                     "type": "string",
-                                    "enum": ["xo", "mmcx", "sma"],
-                                    "default": "xo"
+                                    "enum": ["xo", "mmcx", "sma"]
                                 }
-                            ]
+                            ],
+                            "default": 0
                         }
                     },
                     "required": ["ports"]
