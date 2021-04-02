@@ -92,9 +92,10 @@ class TRF372017:
             (self.cal_clk_sel << 27))
         mmap.append(
             0xa |
-            (self.ndiv << 5) | (self.pll_div_sel << 21) | (self.prsc_sel << 23) |
-            (self.vco_sel << 26) | (self.vcosel_mode << 28) |
-            (self.cal_acc << 29) | (self.en_cal << 31))
+            (self.ndiv << 5) | (self.pll_div_sel << 21) |
+            (self.prsc_sel << 23) | (self.vco_sel << 26) |
+            (self.vcosel_mode << 28) | (self.cal_acc << 29) |
+            (self.en_cal << 31))
         mmap.append(0xb | (self.nfrac << 5))
         mmap.append(
             0xc |

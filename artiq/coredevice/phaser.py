@@ -1,6 +1,8 @@
+from numpy import int32, int64
+
 from artiq.language.core import kernel, delay_mu, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.language.units import us, ns, ms, MHz, dB
+from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84 import DAC34H84
 from artiq.coredevice.trf372017 import TRF372017

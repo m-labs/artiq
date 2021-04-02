@@ -178,7 +178,8 @@ class DAC34H84:
             (self.collisiongone_ena << 12) | (self.sif4_ena << 7) |
             (self.mixer_ena << 6) | (self.mixer_gain << 5) |
             (self.nco_ena << 4) | (self.revbus << 3) | (self.twos << 1))
-        mmap.append((0x03 << 16) | (self.coarse_dac << 12) | (self.sif_txenable << 0))
+        mmap.append((0x03 << 16) | (self.coarse_dac << 12) |
+                    (self.sif_txenable << 0))
         mmap.append(
             (0x07 << 16) |
             (self.mask_alarm_from_zerochk << 15) | (1 << 14) |
