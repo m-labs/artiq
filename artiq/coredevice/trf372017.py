@@ -11,7 +11,7 @@ class TRF372017:
     icp_double = 0
     cal_clk_sel = 12  # /16, 4b
 
-    ndiv = 420  # 16b
+    nint = 420  # 16b
     pll_div_sel = 0  # /1, 2b
     prsc_sel = 1  # 8/9
     vco_sel = 2  # 2b
@@ -92,7 +92,7 @@ class TRF372017:
             (self.cal_clk_sel << 27))
         mmap.append(
             0xa |
-            (self.ndiv << 5) | (self.pll_div_sel << 21) |
+            (self.nint << 5) | (self.pll_div_sel << 21) |
             (self.prsc_sel << 23) | (self.vco_sel << 26) |
             (self.vcosel_mode << 28) | (self.cal_acc << 29) |
             (self.en_cal << 31))
