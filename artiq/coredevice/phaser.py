@@ -229,6 +229,8 @@ class Phaser:
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
             delay(40*us)
+        self.dac_sync()
+        delay(40*us)
 
         # pll_ndivsync_ena disable
         config18 = self.dac_read(0x18)
@@ -557,6 +559,15 @@ class Phaser:
         return self.dac_read(0x06, div=257) >> 8
 
     @kernel
+    def dac_sync(self):
+        """Trigger DAC synchronisation for both output channels.
+        If the DAC-NCO is enabled, this applies NCO frequency changes."""
+        config1f = self.dac_read(0x1f)
+        delay(.1*ms)
+        self.dac_write(0x1f, config1f & ~int32(1 << 1))
+        self.dac_write(0x1f, config1f | (1 << 1))
+
+    @kernel
     def get_dac_alarms(self):
         """Read the DAC alarm flags.
 
@@ -768,6 +779,7 @@ class PhaserChannel:
     @kernel
     def set_nco_frequency_mu(self, ftw):
         """Set the NCO frequency.
+        The frequency is only applied after DAC synchronisation.
 
         :param ftw: NCO frequency tuning word (32 bit)
         """
@@ -777,6 +789,7 @@ class PhaserChannel:
     @kernel
     def set_nco_frequency(self, frequency):
         """Set the NCO frequency in SI units.
+        The frequency is only applied after DAC synchronisation.
 
         :param frequency: NCO frequency in Hz (passband from -400 MHz
             to 400 MHz, wrapping around at +- 500 MHz)

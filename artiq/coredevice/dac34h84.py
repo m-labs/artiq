@@ -110,7 +110,7 @@ class DAC34H84:
     syncsel_mixercd = 0b1001  # sif_sync and register write
     syncsel_nco = 0b1000  # sif_sync
     syncsel_fifo_input = 0b10  # external lvds istr
-    sif_sync = 1
+    sif_sync = 0
 
     syncsel_fifoin = 0b0010  # istr
     syncsel_fifoout = 0b0100  # ostr
