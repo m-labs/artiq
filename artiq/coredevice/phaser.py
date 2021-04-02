@@ -306,6 +306,9 @@ class Phaser:
             self.duc_stb()
             delay(.1*ms)  # settle link, pipeline and impulse response
             data = channel.get_dac_data()
+            delay(1*us)
+            channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
+                                                         clr=1)
             delay(.1*ms)
             sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
             data_i = data & 0xffff
