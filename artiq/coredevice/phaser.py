@@ -571,6 +571,27 @@ class Phaser:
         self.dac_write(0x1f, config1f | (1 << 1))
 
     @kernel
+    def set_dac_cmix(self, fs_8_step):
+        """Set the DAC coarse mixer frequency for both channels
+
+        The selected coarse mixer frequency becomes active without explicit
+        synchronisation.
+
+        Use of the coarse mixer requires the DAC mixer to be enabled. The mixer
+        can be configured via the `dac` device_db entries.
+
+        :param fs_8_step: coarse mixer frequency shift in 125 MHz steps. This
+            should be an integer between -3 and 4 (inclusive).
+        """
+        # values recommended in data-sheet
+        #         0       1       2       3       4       -3      -2      -1
+        vals = [0b0000, 0b1000, 0b0100, 0b1100, 0b0010, 0b1010, 0b0001, 0b1110]
+        cmix = vals[fs_8_step%8]
+        config0d = self.dac_read(0x0d)
+        delay(.1*ms)
+        self.dac_write(0x0d, (config0d & ~(0b1111 << 12)) | (cmix << 12))
+
+    @kernel
     def get_dac_alarms(self):
         """Read the DAC alarm flags.
 
@@ -784,6 +805,9 @@ class PhaserChannel:
         """Set the NCO frequency.
         The frequency is only applied after DAC synchronisation.
 
+        Use of the NCO requires the DAC mixer to be enabled. The mixer can be
+        configured via the `dac` device_db entries.
+
         :param ftw: NCO frequency tuning word (32 bit)
         """
         self.phaser.dac_write(0x15 + (self.index << 1), ftw >> 16)
@@ -793,6 +817,9 @@ class PhaserChannel:
     def set_nco_frequency(self, frequency):
         """Set the NCO frequency in SI units.
         The frequency is only applied after DAC synchronisation.
+
+        Use of the NCO requires the DAC mixer to be enabled. The mixer can be
+        configured via the `dac` device_db entries.
 
         :param frequency: NCO frequency in Hz (passband from -400 MHz
             to 400 MHz, wrapping around at +- 500 MHz)
