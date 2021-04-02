@@ -4,16 +4,17 @@ class TRF372017:
     For possible values, documentation, and explanation, see the datasheet.
     https://www.ti.com/lit/gpn/trf372017
     """
-    rdiv = 21  # 13b
+    rdiv = 2  # 13b - highest valid f_PFD
     ref_inv = 0
     neg_vco = 1
     icp = 0  # 1.94 mA, 5b
     icp_double = 0
-    cal_clk_sel = 12  # /16, 4b
+    cal_clk_sel = 0b1110  # div64, 4b
 
-    nint = 420  # 16b
-    pll_div_sel = 0  # /1, 2b
-    prsc_sel = 1  # 8/9
+    # default f_vco is 2.875 GHz
+    nint = 23  # 16b - lowest value suitable for fractional & integer mode
+    pll_div_sel = 0b01  # div2, 2b
+    prsc_sel = 0  # 4/5
     vco_sel = 2  # 2b
     vcosel_mode = 0
     cal_acc = 0b00  # 2b
@@ -59,8 +60,8 @@ class TRF372017:
     ioff = 0x80  # 8b
     qoff = 0x80  # 8b
     vref_sel = 4  # 0.85 V, 3b
-    tx_div_sel = 1  # div2, 2b
-    lo_div_sel = 3  # div8, 2b
+    tx_div_sel = 0  # div1, 2b
+    lo_div_sel = 0  # div1, 2b
     tx_div_bias = 1  # 37.5 µA, 2b
     lo_div_bias = 2  # 50 µA, 2b
 
