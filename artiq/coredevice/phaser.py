@@ -323,6 +323,7 @@ class Phaser:
             delay(.2*ms)
             for data in channel.trf_mmap:
                 channel.trf_write(data)
+            channel.cal_trf_vco()
 
             delay(2*ms)  # lock
             if not (self.get_sta() & (PHASER_STA_TRF0_LD << ch)):
@@ -331,6 +332,7 @@ class Phaser:
             if channel.trf_read(0) & 0x1000:
                 raise ValueError("TRF R_SAT_ERR")
             delay(.1*ms)
+            channel.en_trf_out()
 
         # enable dac tx
         self.set_cfg(clk_sel=self.clk_sel)
@@ -689,6 +691,7 @@ class PhaserChannel:
         self.phaser = phaser
         self.index = index
         self.trf_mmap = TRF372017(trf).get_mmap()
+
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
 
     @kernel
@@ -890,6 +893,32 @@ class PhaserChannel:
         delay((1 + 1)*34*4*ns)
         return self.trf_write(0x00000008 | (cnt_mux_sel << 27),
                               readback=True)
+
+    @kernel
+    def cal_trf_vco(self):
+        """Start calibration of the upconverter (hardware variant) VCO.
+
+        TRF outputs should be disabled during VCO calibration.
+        """
+        self.trf_write(self.trf_mmap[1] | (1 << 31))
+
+    @kernel
+    def en_trf_out(self, rf=1, lo=0):
+        """Enable the rf/lo outputs of the upconverter (hardware variant).
+
+        :param rf: 1 to enable RF output, 0 to disable
+        :param lo: 1 to enable LO output, 0 to disable
+        """
+        data = self.trf_read(0xc)
+        delay(0.1 * ms)
+        # set RF and LO output bits
+        data = data | (1 << 12) | (1 << 13) | (1 << 14)
+        # clear to enable output
+        if rf == 1:
+            data = data ^ (1 << 14)
+        if lo == 1:
+            data = data ^ ((1 << 12) | (1 << 13))
+        self.trf_write(data)
 
 
 class PhaserOscillator:

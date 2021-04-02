@@ -17,7 +17,7 @@ class TRF372017:
     vco_sel = 2  # 2b
     vcosel_mode = 0
     cal_acc = 0b00  # 2b
-    en_cal = 1
+    en_cal = 0  # leave at 0 - calibration is performed in `Phaser.init()`
 
     nfrac = 0  # 25b
 
@@ -27,9 +27,9 @@ class TRF372017:
     pwd_vcomux = 0
     pwd_div124 = 0
     pwd_presc = 0
-    pwd_out_buff = 1
-    pwd_lo_div = 1
-    pwd_tx_div = 0
+    pwd_out_buff = 1  # leave at 1 - only enable outputs after calibration
+    pwd_lo_div = 1  # leave at 1 - only enable outputs after calibration
+    pwd_tx_div = 1  # leave at 1 - only enable outputs after calibration
     pwd_bb_vcm = 0
     pwd_dc_off = 0
     en_extvco = 0
@@ -84,6 +84,7 @@ class TRF372017:
             setattr(self, key, value)
 
     def get_mmap(self):
+        """Memory map for TRF372017"""
         mmap = []
         mmap.append(
             0x9 |
