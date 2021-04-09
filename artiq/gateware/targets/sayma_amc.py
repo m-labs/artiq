@@ -294,7 +294,7 @@ class Satellite(SatelliteBase):
     """
     DRTIO satellite with local DAC/SAWG channels, as well as TTL channels via FMC and VHDCI carrier.
     """
-    def __init__(self, jdcg_type, **kwargs):
+    def __init__(self, jdcg_type, ttlout=False, **kwargs):
         SatelliteBase.__init__(self, identifier_suffix="." + jdcg_type, **kwargs)
 
         platform = self.platform
@@ -318,16 +318,16 @@ class Satellite(SatelliteBase):
             phy = ttl_simple.Output(platform.request("user_led", i))
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
-        mcx_io = platform.request("mcx_io", 0)
-        phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
-        self.comb += mcx_io.direction.eq(phy.oe)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
-        mcx_io = platform.request("mcx_io", 1)
-        phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
-        self.comb += mcx_io.direction.eq(phy.oe)
-        self.submodules += phy
-        rtio_channels.append(rtio.Channel.from_phy(phy))
+        for i in range(2):
+            mcx_io = platform.request("mcx_io", i)
+            if ttlout:
+                phy = ttl_serdes_ultrascale.Output(4, mcx_io.level)
+                self.comb += mcx_io.direction.eq(1)
+            else:
+                phy = ttl_serdes_ultrascale.InOut(4, mcx_io.level)
+                self.comb += mcx_io.direction.eq(phy.oe)
+            self.submodules += phy
+            rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.submodules.jesd_crg = jesd204_tools.UltrascaleCRG(platform)
         cls = {
@@ -431,6 +431,8 @@ def main():
         default="sawg",
         help="Change type of signal generator. This is used exclusively for "
              "development and debugging.")
+    parser.add_argument("--ttlout", default=False, action="store_true",
+        help="force only outputs on the MCX TTL IOs")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
@@ -440,6 +442,7 @@ def main():
         soc = Satellite(
             with_sfp=args.sfp,
             jdcg_type=args.jdcg_type,
+            ttlout=args.ttlout,
             gateware_identifier_str=args.gateware_identifier_str,
             **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
