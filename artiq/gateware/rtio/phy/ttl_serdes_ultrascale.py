@@ -1,6 +1,6 @@
 from migen import *
 
-from artiq.gateware.rtio.phy import ttl_serdes_generic
+from artiq.gateware.rtio.phy import ttl_serdes_generic, ttl_serdes_nortio
 
 
 class _OSERDESE3(Module):
@@ -99,3 +99,23 @@ class InOut(ttl_serdes_generic.InOut):
                 i_INTERMDISABLE=~serdes.t_out,
                 i_I=serdes.ser_out, o_O=serdes.ser_in, i_T=serdes.t_out,
                 io_IO=pad, io_IOB=pad_n)
+
+
+class CustomOutput(ttl_serdes_nortio.Output):
+    def __init__(self, dw, pad, pad_n=None, dci=False, **kwargs):
+        serdes = _OSERDESE3(dw)
+        self.submodules += serdes
+        ttl_serdes_nortio.Output.__init__(self, serdes, **kwargs)
+
+        if pad_n is None:
+            self.comb += pad.eq(serdes.ser_out)
+        else:
+            self.specials += Instance("IOBUFDS",
+                i_I=serdes.ser_out,
+                i_T=serdes.t_out,
+                io_IO=pad, io_IOB=pad_n)
+
+
+class CustomInOut(ttl_serdes_nortio.InOut):
+    def __init__(self, dw, pad, pad_n=None, dci=False, **kwargs):
+        raise NotImplementedError()

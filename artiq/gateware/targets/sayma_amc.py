@@ -294,7 +294,7 @@ class Satellite(SatelliteBase):
     """
     DRTIO satellite with local DAC/SAWG channels, as well as TTL channels via FMC and VHDCI carrier.
     """
-    def __init__(self, jdcg_type, ttlout=False, **kwargs):
+    def __init__(self, jdcg_type, ttlout=False, mcx_sqwave=False, **kwargs):
         SatelliteBase.__init__(self, identifier_suffix="." + jdcg_type, **kwargs)
 
         platform = self.platform
@@ -320,7 +320,13 @@ class Satellite(SatelliteBase):
             rtio_channels.append(rtio.Channel.from_phy(phy))
         for i in range(2):
             mcx_io = platform.request("mcx_io", i)
-            if ttlout:
+            if mcx_sqwave:
+                phy = ttl_serdes_ultrascale.CustomOutput(4, mcx_io.level,
+                    driver_type="square_wave",
+                    rtio_freq=self.rtio_clk_freq,
+                    wave_freq=9e6)
+                self.comb += mcx_io.direction.eq(1)
+            elif ttlout:
                 phy = ttl_serdes_ultrascale.Output(4, mcx_io.level)
                 self.comb += mcx_io.direction.eq(1)
             else:
@@ -433,6 +439,8 @@ def main():
              "development and debugging.")
     parser.add_argument("--ttlout", default=False, action="store_true",
         help="force only outputs on the MCX TTL IOs")
+    parser.add_argument("--mcx-sqwave", default=False, action="store_true",
+        help="generate a square wave on the MCX TTL IOs")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
@@ -443,6 +451,7 @@ def main():
             with_sfp=args.sfp,
             jdcg_type=args.jdcg_type,
             ttlout=args.ttlout,
+            mcx_sqwave=args.mcx_sqwave,
             gateware_identifier_str=args.gateware_identifier_str,
             **soc_sayma_amc_argdict(args))
     elif variant == "simplesatellite":
