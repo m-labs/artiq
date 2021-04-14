@@ -9,8 +9,17 @@ ARTIQ-7
 Highlights:
 * WRPLL
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
+* Phaser:
+   - Improved documentation
+   - Expose the DAC coarse mixer and sif_sync
+   - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
 
 Breaking changes:
+* Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
+  frequency of the hardware design.
+* `Phaser.init()` now disables all Kasli-oscillators. This avoids full power RF output being
+  generated for some configurations.
+* Phaser: fixed coarse mixer frequency configuration
 
 
 ARTIQ-6
