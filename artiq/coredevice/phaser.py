@@ -279,6 +279,16 @@ class Phaser:
             else:
                 raise ValueError("DAC alarm")
 
+        # avoid malformed output for: mixer_ena=1, nco_ena=0 after power up
+        self.dac_write(self.dac_mmap[2] >> 16, self.dac_mmap[2] | (1 << 4))
+        delay(40*us)
+        self.dac_sync()
+        delay(100*us)
+        self.dac_write(self.dac_mmap[2] >> 16, self.dac_mmap[2])
+        delay(40*us)
+        self.dac_sync()
+        delay(100*us)
+
         # power up trfs, release att reset
         self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
 
