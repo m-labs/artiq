@@ -56,6 +56,8 @@ class SinaraTester(EnvExperiment):
         self.mirny_cplds = dict()
         self.mirnies = dict()
 
+        suservo_arg_devices = []    # for collecting CPLDs & AD9910s used for SUServos
+
         ddb = self.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
@@ -68,10 +70,24 @@ class SinaraTester(EnvExperiment):
                         self.ttl_outs[name] = dev
                 elif (module, cls) == ("artiq.coredevice.ttl", "TTLInOut"):
                     self.ttl_ins[name] = self.get_device(name)
+                # Collect all SUServos for filtering out SUServo CPLDs and AD9910s later
+                elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
+                    arguments = desc["arguments"]
+                    lookup_keys = [
+                        "cpld0_device", "cpld1_device",
+                        "dds0_device", "dds1_device"
+                    ]
+                    for k in lookup_keys:
+                        if arguments.get(k):
+                            suservo_arg_devices.append(arguments[k])
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
-                    self.urukul_cplds[name] = self.get_device(name)
+                    # Skip tests for SUServo CPLDs
+                    if name not in suservo_arg_devices:
+                        self.urukul_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
-                    self.urukuls[name] = self.get_device(name)
+                    # Skip tests for SUServo AD9910s
+                    if name not in suservo_arg_devices:
+                        self.urukuls[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
                     self.urukuls[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
@@ -101,8 +117,10 @@ class SinaraTester(EnvExperiment):
                         sw_device = desc["arguments"]["sw_device"]
                         del self.ttl_outs[sw_device]
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
-                    io_update_device = desc["arguments"]["io_update_device"]
-                    del self.ttl_outs[io_update_device]
+                    # Only check `io_update_device` for standalone Urukuls
+                    if name in self.urukul_cplds:
+                        io_update_device = desc["arguments"]["io_update_device"]
+                        del self.ttl_outs[io_update_device]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
