@@ -72,7 +72,7 @@ def _receive_list(kernel, embedding_map):
         return list(struct.unpack(kernel.endian + "%sl" % length, buffer))
     elif tag == "I":
         buffer = kernel._read(8 * length)
-        return list(struct.unpack(kernel.endian + "%sq" % length, buffer))
+        return list(numpy.ndarray((length, ), kernel.endian + 'i8', buffer))
     elif tag == "f":
         buffer = kernel._read(8 * length)
         return list(struct.unpack(kernel.endian + "%sd" % length, buffer))
