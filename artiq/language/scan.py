@@ -32,6 +32,12 @@ __all__ = ["ScanObject",
 
 
 class ScanObject:
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
     def describe(self):
         raise NotImplementedError
 
