@@ -84,6 +84,8 @@ class EnumerationValue(_SimpleArgProcessor):
     """
     def __init__(self, choices, default=NoDefault):
         self.choices = choices
+        if default is NoDefault and len(choices) == 1:
+            default = choices[0]
         super().__init__(default)
 
     def process(self, x):

@@ -61,12 +61,17 @@ class BooleanValueCase(unittest.TestCase):
 
 
 class EnumerationValueCase(unittest.TestCase):
-    def setUp(self):
-        self.default_value = EnumerationValue(["abc"])
-
     def test_no_default(self):
         with self.assertRaises(DefaultMissing):
-            self.default_value.default()
+            EnumerationValue(["abc", "def"]).default()
+
+    def test_no_default_single_choice(self):
+        try:
+            EnumerationValue(["abc"]).default()
+        except ValueError:
+            self.fail("Unexpected ValueError")
+        except DefaultMissing:
+            self.fail("Unexpected DefaultMissing error")
 
     def test_invalid_default(self):
         with self.assertRaises(ValueError):
