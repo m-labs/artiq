@@ -8,7 +8,7 @@ from artiq.language import units
 from artiq.language.core import rpc
 
 
-__all__ = ["NoDefault",
+__all__ = ["NoDefault", "DefaultMissing",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
            "HasEnvironment", "Experiment", "EnvExperiment"]
