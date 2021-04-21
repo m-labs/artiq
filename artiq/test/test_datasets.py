@@ -54,7 +54,7 @@ class ExperimentDatasetCase(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.exp.get(KEY)
 
-        for i in range(2):    
+        for i in range(2):
             self.exp.set(KEY, i)
             self.assertEqual(self.exp.get(KEY), i)
             with self.assertRaises(KeyError):

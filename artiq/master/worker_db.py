@@ -11,7 +11,6 @@ import logging
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +55,7 @@ class DeviceError(Exception):
 class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
+
     def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
         self.virtual_devices = virtual_devices
@@ -143,7 +143,8 @@ class DatasetManager:
                 assert target is self._broadcaster.raw_view[key][1]
             return self._broadcaster[key][1]
         if target is None:
-            raise KeyError("Cannot mutate nonexistent dataset '{}'".format(key))
+            raise KeyError("Cannot mutate nonexistent dataset '{}'".
+                           format(key))
         return target
 
     def mutate(self, key, index, value):
@@ -161,7 +162,7 @@ class DatasetManager:
     def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
-        
+
         data = self.ddb.get(key)
         if archive:
             if key in self.archive:
