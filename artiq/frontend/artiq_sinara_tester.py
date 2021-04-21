@@ -225,13 +225,13 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
         channel.set(frequency*MHz)
-        channel.cfg_sw(1)
+        channel.cfg_sw(True)
         channel.set_att(6.)
 
     @kernel
     def cfg_sw_off_urukul(self, channel):
         self.core.break_realtime()
-        channel.cfg_sw(0)
+        channel.cfg_sw(False)
 
     @kernel
     def rf_switch_wave(self, channels):

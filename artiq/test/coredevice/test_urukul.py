@@ -39,9 +39,9 @@ class UrukulExp(EnvExperiment):
         self.core.break_realtime()
         self.dev.init()
         self.dev.io_rst()
-        self.dev.cfg_sw(0, 0)
-        self.dev.cfg_sw(0, 1)
-        self.dev.cfg_sw(3, 1)
+        self.dev.cfg_sw(0, False)
+        self.dev.cfg_sw(0, True)
+        self.dev.cfg_sw(3, True)
         self.dev.cfg_switches(0b1010)
 
     @kernel
@@ -51,7 +51,7 @@ class UrukulExp(EnvExperiment):
         n = 10
         t0 = self.core.get_rtio_counter_mu()
         for i in range(n):
-            self.dev.cfg_sw(3, i & 1)
+            self.dev.cfg_sw(3, bool(i & 1))
         self.set_dataset("dt", self.core.mu_to_seconds(
             self.core.get_rtio_counter_mu() - t0) / n)
 

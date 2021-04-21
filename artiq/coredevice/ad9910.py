@@ -865,7 +865,7 @@ class AD9910:
         return self.cpld.get_channel_att(self.chip_select - 4)
 
     @kernel
-    def cfg_sw(self, state: TInt32):
+    def cfg_sw(self, state: TBool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
         logical or of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
