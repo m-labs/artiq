@@ -182,7 +182,7 @@ class AD9910Exp(EnvExperiment):
         self.core.break_realtime()
         self.dev.cpld.init()
         self.dev.init()
-        self.dev.cfg_sw(0)
+        self.dev.cfg_sw(False)
         self.dev.sw.on()
         sw_on = (self.dev.cpld.sta_read() >> (self.dev.chip_select - 4)) & 1
         delay(10*us)
