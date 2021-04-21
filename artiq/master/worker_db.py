@@ -56,7 +56,9 @@ class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
 
-    def __init__(self, ddb, virtual_devices=dict()):
+    def __init__(self, ddb, virtual_devices=None):
+        if virtual_devices is None:
+            virtual_devices = {}
         self.ddb = ddb
         self.virtual_devices = virtual_devices
         self.active_devices = []
