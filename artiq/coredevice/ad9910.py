@@ -134,12 +134,12 @@ class AD9910:
         from a I2C EEPROM; in which case, `sync_delay_seed` must be set to the
         same string value.
     """
-    kernel_invariants = {"chip_select", "cpld", "core", "bus",
-                         "ftw_per_hz", "sysclk_per_mu"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=40, pll_cp=7, pll_vco=5, sync_delay_seed=-1,
                  io_update_delay=0, pll_en=1):
+        self.kernel_invariants = {"chip_select", "cpld", "core", "bus",
+                                  "ftw_per_hz", "sysclk_per_mu"}
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
