@@ -2,6 +2,7 @@
 
 import copy
 import unittest
+import unittest.mock
 
 from sipyco.sync_struct import process_mod
 
@@ -103,3 +104,24 @@ class ExperimentDatasetCase(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.exp.append(KEY, 0)
 
+    def test_attach_dataset_manager(self):
+        attached_dataset_mgr = DatasetManager(MockDatasetDB())
+
+        for key in ["archive", "datasets"]:
+            with self.assertRaises(ValueError):
+                self.dataset_mgr.attach(key, attached_dataset_mgr)
+
+        key = "foo"
+        self.dataset_mgr.attach(key, attached_dataset_mgr)
+        self.assertIn(key, self.dataset_mgr.attached_managers)
+
+    def test_attach_dataset_manager_write(self):
+        attached_dataset_mgr = unittest.mock.Mock(spec=DatasetManager)
+        key = "foo"
+        self.dataset_mgr.attach(key, attached_dataset_mgr)
+
+        file = unittest.mock.Mock()
+        self.dataset_mgr.write_hdf5(file)
+        self.assertIn(unittest.mock.call.create_group(key), file.mock_calls)
+        self.assertIn(unittest.mock.call.write_hdf5(file.create_group(key)),
+                      attached_dataset_mgr.mock_calls)

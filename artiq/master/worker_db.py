@@ -115,6 +115,8 @@ class DatasetManager:
         self.ddb = ddb
         self._broadcaster.publish = ddb.update
 
+        self.attached_managers = {}
+
     def set(self, key, value, broadcast=False, persist=False, archive=True):
         if key in self.archive:
             logger.warning("Modifying dataset '%s' which is in archive, "
@@ -176,6 +178,16 @@ class DatasetManager:
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
             _write(archive_group, k, v)
+
+        for k, dataset_mgr in self.attached_managers.items():
+            dataset_mgr.write_hdf5(f.create_group(k))
+
+    def attach(self, key, dataset_mgr):
+        """Attach a child dataset manager to this dataset manager."""
+        if key in {"datasets", "archive"}:
+            raise ValueError("Name can not be the same as the standard group "
+                             "names used by ARTIQ")
+        self.attached_managers[key] = dataset_mgr
 
 
 def _write(group, k, v):
