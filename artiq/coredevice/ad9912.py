@@ -28,8 +28,8 @@ class AD9912:
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=10):
-        self.kernel_invariants = {"chip_select", "cpld", "core", "bus",
-                                  "ftw_per_hz"}
+        self.kernel_invariants = {"cpld", "core", "bus", "chip_select",
+                                  "pll_n", "ftw_per_hz"}
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
