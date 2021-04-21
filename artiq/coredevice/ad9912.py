@@ -25,10 +25,11 @@ class AD9912:
         is the reference clock divider (both set in the parent Urukul CPLD
         instance).
     """
-    kernel_invariants = {"chip_select", "cpld", "core", "bus", "ftw_per_hz"}
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=10):
+        self.kernel_invariants = {"chip_select", "cpld", "core", "bus",
+                                  "ftw_per_hz"}
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
