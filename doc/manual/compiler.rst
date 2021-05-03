@@ -75,6 +75,8 @@ the builtin ``float`` type on the core device, this can lead to problems in func
 ``round(float(numpy.float64(1.0)))`` returns an integer on the core device as well as on the host
 interpreter.
 
+Empty lists do not have valid list element types, so they cannot be used in the kernel.
+
 Asynchronous RPCs
 -----------------
 
