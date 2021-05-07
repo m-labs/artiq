@@ -566,7 +566,7 @@ class Phaser:
     def dac_iotest(self, pattern) -> TInt32:
         """Performs a DAC IO test according to the datasheet.
 
-        :param patterm: List of four int32 containing the pattern
+        :param pattern: List of four int32 containing the pattern
         :return: Bit error mask (16 bits)
         """
         if len(pattern) != 4:
