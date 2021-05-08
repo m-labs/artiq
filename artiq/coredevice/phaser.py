@@ -86,7 +86,8 @@ class Phaser:
     LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC (Texas
     Instruments DAC34H84). On the DAC 2x interpolation, sinx/x compensation,
     quadrature modulator compensation, fine and coarse mixing as well as group
-    delay capabilities are available.
+    delay capabilities are available. If desired, these features my be
+    configured via the `dac` dictionary.
 
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
@@ -574,7 +575,18 @@ class Phaser:
     @kernel
     def dac_sync(self):
         """Trigger DAC synchronisation for both output channels.
-        If the DAC-NCO is enabled, this applies NCO frequency changes."""
+
+        The DAC sif_sync is de-asserts, then asserted. The synchronisation is
+        triggered on assertion.
+
+        By default, the fine-mixer (NCO) and QMC are synchronised. This
+        includes applying the latest register settings.
+
+        The synchronisation sources may be configured through the `syncsel_x`
+        fields in the `dac` configuration dictionary (see `__init__()`).
+
+        .. note:: Synchronising the NCO clears the phase-accumulator
+        """
         config1f = self.dac_read(0x1f)
         delay(.1*ms)
         self.dac_write(0x1f, config1f & ~int32(1 << 1))
@@ -584,11 +596,12 @@ class Phaser:
     def set_dac_cmix(self, fs_8_step):
         """Set the DAC coarse mixer frequency for both channels
 
+        Use of the coarse mixer requires the DAC mixer to be enabled. The mixer
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
         The selected coarse mixer frequency becomes active without explicit
         synchronisation.
-
-        Use of the coarse mixer requires the DAC mixer to be enabled. The mixer
-        can be configured via the `dac` device_db entries.
 
         :param fs_8_step: coarse mixer frequency shift in 125 MHz steps. This
             should be an integer between -3 and 4 (inclusive).
@@ -813,10 +826,12 @@ class PhaserChannel:
     @kernel
     def set_nco_frequency_mu(self, ftw):
         """Set the NCO frequency.
-        The frequency is only applied after DAC synchronisation.
 
-        Use of the NCO requires the DAC mixer to be enabled. The mixer can be
-        configured via the `dac` device_db entries.
+        This method stages the new NCO frequency, but does not apply it.
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
 
         :param ftw: NCO frequency tuning word (32 bit)
         """
@@ -826,10 +841,12 @@ class PhaserChannel:
     @kernel
     def set_nco_frequency(self, frequency):
         """Set the NCO frequency in SI units.
-        The frequency is only applied after DAC synchronisation.
 
-        Use of the NCO requires the DAC mixer to be enabled. The mixer can be
-        configured via the `dac` device_db entries.
+        This method stages the new NCO frequency, but does not apply it.
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
 
         :param frequency: NCO frequency in Hz (passband from -400 MHz
             to 400 MHz, wrapping around at +- 500 MHz)
@@ -841,6 +858,16 @@ class PhaserChannel:
     def set_nco_phase_mu(self, pow):
         """Set the NCO phase offset.
 
+        By default, the new NCO phase applies on completion of the SPI
+        transfer. This also causes a staged NCO frequency to be applied.
+        Different triggers for applying nco settings may be configured through
+        the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
+        `__init__()`).
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
         :param pow: NCO phase offset word (16 bit)
         """
         self.phaser.dac_write(0x12 + self.index, pow)
@@ -848,6 +875,16 @@ class PhaserChannel:
     @kernel
     def set_nco_phase(self, phase):
         """Set the NCO phase in SI units.
+
+        By default, the new NCO phase applies on completion of the SPI
+        transfer. This also causes a staged NCO frequency to be applied.
+        Different triggers for applying nco settings may be configured through
+        the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
+        `__init__()`).
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
 
         :param phase: NCO phase in turns
         """
