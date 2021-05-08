@@ -186,6 +186,9 @@ class Phaser:
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
+        if debug:
+            print(gw_rev)
+            self.core.break_realtime()
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot
