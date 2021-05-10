@@ -161,20 +161,12 @@ class Worker:
     async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
 
-        t_start = time.perf_counter()
         header, data = serialize(obj)
         header_bytes = msgpack.dumps(header)
         data_bytes = b''.join(data)
-        t_end = time.perf_counter()
 
         size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
 
-        # logging.warning("sending")
-        # logging.warning("Time spend serialising: %.3f ms", 1e3*(t_end - t_start))
-        # logging.warning(size_str)
-        # logging.warning(header_bytes)
-        # logging.debug(data)
-        
         self.ipc.write(size_str)
         self.ipc.write(header_bytes)
         self.ipc.write(data_bytes)
@@ -213,12 +205,6 @@ class Worker:
             raise WorkerError(
                 "Worker ended while attempting to receive data (RID {})".
                 format(self.rid))
-
-        logging.debug("receiving")
-        logging.debug(line)
-
-        t_start = time.perf_counter()
-
         try:
             header_size, data_size = (int(s) for s in line.decode().split(','))
         except Exception as e:
@@ -235,8 +221,6 @@ class Worker:
             all_data[bytes_loaded:(bytes_loaded + len(d))] = d
             bytes_loaded += len(d)
 
-        t_received = time.perf_counter()
-
         all_data_view = memoryview(all_data)
         
         header_bytes = all_data_view[:header_size]
@@ -250,20 +234,6 @@ class Worker:
             raise WorkerError(
                 "Worker sent invalid dask-serialized data (RID {})".format(self.rid)
             )
-
-        t_end = time.perf_counter()
-
-        if isinstance(obj, dict) and obj['action'] == "update_dataset" and obj['args'][0]['key'] == "test":
-            logging.warning(header_bytes)
-            logging.warning(header)
-            logging.warning("Data is %.1f kB", 1e-3 * len(data))
-            # logging.warning(obj)
-            receiving = t_received - t_start
-            parsing = t_end - t_received
-            logging.warning("Time spend receiving: %.3f ms", 1e3*(receiving))
-            logging.warning("Time spend deserialising: %.3f ms", 1e3*(parsing))
-
-            logging.warning("Per kB, that's %.2f ns and %.2f ns", 1e9*receiving / len(data), 1e9*parsing / len(data))
 
         return obj
 

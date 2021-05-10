@@ -44,13 +44,20 @@ def get_object():
     line = ipc.readline()
     header_size, data_size = (int(s) for s in line.decode().split(','))
     total_size = header_size + data_size
+
+    all_data = bytearray(total_size)
+    bytes_loaded = 0
+    while bytes_loaded < total_size:
+        d = ipc.read(total_size - bytes_loaded)
+        all_data[bytes_loaded:(bytes_loaded + len(d))] = d
+        bytes_loaded += len(d)
+
+    all_data_view = memoryview(all_data)
     
-    all_data = b''
-    while len(all_data) < total_size:
-        all_data += ipc.read(total_size - len(all_data))
-    
-    header = msgpack.loads(all_data[:header_size])
-    data = all_data[header_size:]
+    header_bytes = all_data_view[:header_size]
+    data = all_data_view[header_size:]
+
+    header = msgpack.loads(header_bytes)
 
     return deserialize(header, [data])
 
