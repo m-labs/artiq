@@ -6,6 +6,7 @@ device database, etc.) to their actual implementation in the parent master
 process via IPC.
 """
 
+import pickle
 import sys
 import time
 import os
@@ -32,18 +33,38 @@ from artiq.compiler import import_cache
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
+from distributed.protocol import deserialize, serialize
+import msgpack
+
 
 ipc = None
 
 
 def get_object():
-    line = ipc.readline().decode()
-    return pyon.decode(line)
+    line = ipc.readline()
+    header_size, data_size = (int(s) for s in line.decode().split(','))
+    total_size = header_size + data_size
+    
+    all_data = b''
+    while len(all_data) < total_size:
+        all_data += ipc.read(total_size - len(all_data))
+    
+    header = msgpack.loads(all_data[:header_size])
+    data = all_data[header_size:]
+
+    return deserialize(header, [data])
 
 
 def put_object(obj):
-    ds = pyon.encode(obj)
-    ipc.write((ds + "\n").encode())
+    header, data = serialize(obj)
+    header_bytes = msgpack.dumps(header)
+    data_bytes = b''.join(data)
+
+    size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
+    
+    ipc.write(size_str)
+    ipc.write(header_bytes)
+    ipc.write(data_bytes)
 
 
 def make_parent_action(action):

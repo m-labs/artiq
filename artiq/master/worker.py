@@ -2,6 +2,7 @@ import sys
 import os
 import asyncio
 import logging
+import pickle
 import subprocess
 import time
 
@@ -11,6 +12,8 @@ from sipyco.packed_exceptions import current_exc_packed
 
 from artiq.tools import asyncio_wait_or_cancel
 
+from distributed.protocol import deserialize, serialize
+import msgpack
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +160,22 @@ class Worker:
 
     async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
-        line = pyon.encode(obj)
-        self.ipc.write((line + "\n").encode())
+
+        header, data = serialize(obj)
+        header_bytes = msgpack.dumps(header)
+        data_bytes = b''.join(data)
+
+        size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
+
+        logging.debug("sending")
+        logging.debug(size_str)
+        logging.debug(header_bytes)
+        logging.debug(data)
+        
+        self.ipc.write(size_str)
+        self.ipc.write(header_bytes)
+        self.ipc.write(data_bytes)
+
         ifs = [self.ipc.drain()]
         if cancellable:
             ifs.append(self.closed.wait())
@@ -193,11 +210,38 @@ class Worker:
             raise WorkerError(
                 "Worker ended while attempting to receive data (RID {})".
                 format(self.rid))
+
+        logging.debug("receiving")
+        logging.debug(line)
+        
         try:
-            obj = pyon.decode(line.decode())
+            header_size, data_size = (int(s) for s in line.decode().split(','))
+        except Exception as e:
+            raise WorkerError(
+                "Worker sent invalid data_size (RID {}): %s".format(self.rid, line)
+            ) from e
+        
+        total_size = header_size + data_size
+        
+        all_data = b""
+        while len(all_data) < total_size:
+            all_data += await self.ipc.read(total_size - len(all_data))
+        
+        header_bytes = all_data[:header_size]
+        header = msgpack.loads(header_bytes)
+        data = all_data[header_size:]
+
+        logging.debug(header_bytes)
+        logging.debug(header)
+        logging.debug(data)
+
+        try:
+            obj = deserialize(header, [data])
         except:
-            raise WorkerError("Worker sent invalid PYON data (RID {})".format(
-                self.rid))
+            raise WorkerError(
+                "Worker sent invalid dask-serialized data (RID {})".format(self.rid)
+            )
+
         return obj
 
     async def _handle_worker_requests(self):
