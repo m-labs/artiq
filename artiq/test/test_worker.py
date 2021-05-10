@@ -143,8 +143,9 @@ class WorkerCase(unittest.TestCase):
             _run_experiment("WatchdogTimeoutInBuild")
 
     def test_data_transfer_speed(self):
-        sizes = [1e3, 1e4, 1e5, 
-        5e5, 1e6, 5e6
+        sizes = [
+            1e3, 1e4, 1e5, 
+            5e5, 1e6, 5e6, 1e7
         ]
         durations_lists = []
 

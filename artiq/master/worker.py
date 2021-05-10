@@ -161,16 +161,19 @@ class Worker:
     async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
 
+        t_start = time.perf_counter()
         header, data = serialize(obj)
         header_bytes = msgpack.dumps(header)
         data_bytes = b''.join(data)
+        t_end = time.perf_counter()
 
         size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
 
-        logging.debug("sending")
-        logging.debug(size_str)
-        logging.debug(header_bytes)
-        logging.debug(data)
+        # logging.warning("sending")
+        # logging.warning("Time spend serialising: %.3f ms", 1e3*(t_end - t_start))
+        # logging.warning(size_str)
+        # logging.warning(header_bytes)
+        # logging.debug(data)
         
         self.ipc.write(size_str)
         self.ipc.write(header_bytes)
@@ -213,7 +216,9 @@ class Worker:
 
         logging.debug("receiving")
         logging.debug(line)
-        
+
+        t_start = time.perf_counter()
+
         try:
             header_size, data_size = (int(s) for s in line.decode().split(','))
         except Exception as e:
@@ -222,18 +227,22 @@ class Worker:
             ) from e
         
         total_size = header_size + data_size
-        
-        all_data = b""
-        while len(all_data) < total_size:
-            all_data += await self.ipc.read(total_size - len(all_data))
-        
-        header_bytes = all_data[:header_size]
-        header = msgpack.loads(header_bytes)
-        data = all_data[header_size:]
 
-        logging.debug(header_bytes)
-        logging.debug(header)
-        logging.debug(data)
+        all_data = bytearray(total_size)
+        bytes_loaded = 0
+        while bytes_loaded < total_size:
+            d = await self.ipc.read(total_size - bytes_loaded)
+            all_data[bytes_loaded:(bytes_loaded + len(d))] = d
+            bytes_loaded += len(d)
+
+        t_received = time.perf_counter()
+
+        all_data_view = memoryview(all_data)
+        
+        header_bytes = all_data_view[:header_size]
+        data = all_data_view[header_size:]
+
+        header = msgpack.loads(header_bytes)
 
         try:
             obj = deserialize(header, [data])
@@ -241,6 +250,20 @@ class Worker:
             raise WorkerError(
                 "Worker sent invalid dask-serialized data (RID {})".format(self.rid)
             )
+
+        t_end = time.perf_counter()
+
+        if isinstance(obj, dict) and obj['action'] == "update_dataset" and obj['args'][0]['key'] == "test":
+            logging.warning(header_bytes)
+            logging.warning(header)
+            logging.warning("Data is %.1f kB", 1e-3 * len(data))
+            # logging.warning(obj)
+            receiving = t_received - t_start
+            parsing = t_end - t_received
+            logging.warning("Time spend receiving: %.3f ms", 1e3*(receiving))
+            logging.warning("Time spend deserialising: %.3f ms", 1e3*(parsing))
+
+            logging.warning("Per kB, that's %.2f ns and %.2f ns", 1e9*receiving / len(data), 1e9*parsing / len(data))
 
         return obj
 
