@@ -164,8 +164,10 @@ class Worker:
         header, data = serialize(obj)
         header_bytes = msgpack.dumps(header)
         
-        len_data = sum((len(d) for d in data))
-        size_str = (str(len(header_bytes)) + "," + str(len_data) + '\n').encode()
+        len_data = [
+            d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
+        ]
+        size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
         
         self.ipc.write(size_str)
         self.ipc.write(header_bytes)
@@ -207,30 +209,33 @@ class Worker:
                 "Worker ended while attempting to receive data (RID {})".
                 format(self.rid))
         try:
-            header_size, data_size = (int(s) for s in line.decode().split(','))
+            header_size, *data_sizes = (int(s) for s in line.decode().split(','))
         except Exception as e:
             raise WorkerError(
                 "Worker sent invalid data_size (RID {}): %s".format(self.rid, line)
             ) from e
         
-        total_size = header_size + data_size
+        # Continue loads which stop halfway - this happens once you exceed the
+        # max frame size for asyncio streams
+        async def load_n(n):
+            out = bytearray(n)
+            bytes_loaded = 0
+            while bytes_loaded < n:
+                d = await self.ipc.read(n - bytes_loaded)
+                out[bytes_loaded:(bytes_loaded + len(d))] = d
+                bytes_loaded += len(d)
+            return out
 
-        all_data = bytearray(total_size)
-        bytes_loaded = 0
-        while bytes_loaded < total_size:
-            d = await self.ipc.read(total_size - bytes_loaded)
-            all_data[bytes_loaded:(bytes_loaded + len(d))] = d
-            bytes_loaded += len(d)
-
-        all_data_view = memoryview(all_data)
+        header_bytes = await load_n(header_size)
+        data_bytes = [
+            await load_n(sz) for sz in data_sizes
+        ]
         
-        header_bytes = all_data_view[:header_size]
-        data = all_data_view[header_size:]
-
         header = msgpack.loads(header_bytes)
 
+        data_bytes = list(map(memoryview, data_bytes))
         try:
-            obj = deserialize(header, [data])
+            obj = deserialize(header, data_bytes)
         except:
             raise WorkerError(
                 "Worker sent invalid dask-serialized data (RID {})".format(self.rid)

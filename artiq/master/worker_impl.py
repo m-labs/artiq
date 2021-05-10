@@ -42,33 +42,38 @@ ipc = None
 
 def get_object():
     line = ipc.readline()
-    header_size, data_size = (int(s) for s in line.decode().split(','))
-    total_size = header_size + data_size
-
-    all_data = bytearray(total_size)
-    bytes_loaded = 0
-    while bytes_loaded < total_size:
-        d = ipc.read(total_size - bytes_loaded)
-        all_data[bytes_loaded:(bytes_loaded + len(d))] = d
-        bytes_loaded += len(d)
-
-    all_data_view = memoryview(all_data)
     
-    header_bytes = all_data_view[:header_size]
-    data = all_data_view[header_size:]
+    header_size, *data_sizes = (int(s) for s in line.decode().split(','))
+    
+    # Continue loads which stop halfway - this happens once you exceed the
+    # max frame size for asyncio streams
+    def load_n(n):
+        out = bytearray(n)
+        bytes_loaded = 0
+        while bytes_loaded < n:
+            d = ipc.read(n - bytes_loaded)
+            out[bytes_loaded:(bytes_loaded + len(d))] = d
+            bytes_loaded += len(d)
+        return out
 
+    header_bytes = load_n(header_size)
+    data_bytes = [
+        load_n(sz) for sz in data_sizes
+    ]
     header = msgpack.loads(header_bytes)
-
-    return deserialize(header, [data])
+    data_bytes = list(map(memoryview, data_bytes))
+    return deserialize(header, data_bytes)
 
 
 def put_object(obj):
     header, data = serialize(obj)
     header_bytes = msgpack.dumps(header)
 
-    len_data = sum((len(d) for d in data))
-    size_str = (str(len(header_bytes)) + "," + str(len_data) + '\n').encode()
-    
+    len_data = [
+        d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
+    ]
+    size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
+
     ipc.write(size_str)
     ipc.write(header_bytes)
     for d in data:
