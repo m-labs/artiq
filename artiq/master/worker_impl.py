@@ -65,13 +65,14 @@ def get_object():
 def put_object(obj):
     header, data = serialize(obj)
     header_bytes = msgpack.dumps(header)
-    data_bytes = b''.join(data)
 
-    size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
+    len_data = sum((len(d) for d in data))
+    size_str = (str(len(header_bytes)) + "," + str(len_data) + '\n').encode()
     
     ipc.write(size_str)
     ipc.write(header_bytes)
-    ipc.write(data_bytes)
+    for d in data:
+        ipc.write(d)
 
 
 def make_parent_action(action):

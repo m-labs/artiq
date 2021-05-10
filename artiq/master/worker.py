@@ -163,13 +163,14 @@ class Worker:
 
         header, data = serialize(obj)
         header_bytes = msgpack.dumps(header)
-        data_bytes = b''.join(data)
-
-        size_str = (str(len(header_bytes)) + "," + str(len(data_bytes)) + '\n').encode()
-
+        
+        len_data = sum((len(d) for d in data))
+        size_str = (str(len(header_bytes)) + "," + str(len_data) + '\n').encode()
+        
         self.ipc.write(size_str)
         self.ipc.write(header_bytes)
-        self.ipc.write(data_bytes)
+        for d in data:
+            self.ipc.write(d)
 
         ifs = [self.ipc.drain()]
         if cancellable:
