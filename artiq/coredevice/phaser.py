@@ -889,7 +889,7 @@ class PhaserChannel:
         :param phase: NCO phase in turns
         """
         pow = int32(round(phase*(1 << 16)))
-        self.set_duc_phase_mu(pow)
+        self.set_nco_phase_mu(pow)
 
     @kernel
     def set_att_mu(self, data):
