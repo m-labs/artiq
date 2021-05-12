@@ -4,20 +4,21 @@ class TRF372017:
     For possible values, documentation, and explanation, see the datasheet.
     https://www.ti.com/lit/gpn/trf372017
     """
-    rdiv = 21  # 13b
+    rdiv = 2  # 13b - highest valid f_PFD
     ref_inv = 0
     neg_vco = 1
     icp = 0  # 1.94 mA, 5b
     icp_double = 0
-    cal_clk_sel = 12  # /16, 4b
+    cal_clk_sel = 0b1110  # div64, 4b
 
-    ndiv = 420  # 16b
-    pll_div_sel = 0  # /1, 2b
-    prsc_sel = 1  # 8/9
+    # default f_vco is 2.875 GHz
+    nint = 23  # 16b - lowest value suitable for fractional & integer mode
+    pll_div_sel = 0b01  # div2, 2b
+    prsc_sel = 0  # 4/5
     vco_sel = 2  # 2b
     vcosel_mode = 0
     cal_acc = 0b00  # 2b
-    en_cal = 1
+    en_cal = 0  # leave at 0 - calibration is performed in `Phaser.init()`
 
     nfrac = 0  # 25b
 
@@ -27,9 +28,9 @@ class TRF372017:
     pwd_vcomux = 0
     pwd_div124 = 0
     pwd_presc = 0
-    pwd_out_buff = 1
-    pwd_lo_div = 1
-    pwd_tx_div = 0
+    pwd_out_buff = 1  # leave at 1 - only enable outputs after calibration
+    pwd_lo_div = 1  # leave at 1 - only enable outputs after calibration
+    pwd_tx_div = 1  # leave at 1 - only enable outputs after calibration
     pwd_bb_vcm = 0
     pwd_dc_off = 0
     en_extvco = 0
@@ -59,8 +60,8 @@ class TRF372017:
     ioff = 0x80  # 8b
     qoff = 0x80  # 8b
     vref_sel = 4  # 0.85 V, 3b
-    tx_div_sel = 1  # div2, 2b
-    lo_div_sel = 3  # div8, 2b
+    tx_div_sel = 0  # div1, 2b
+    lo_div_sel = 0  # div1, 2b
     tx_div_bias = 1  # 37.5 µA, 2b
     lo_div_bias = 2  # 50 µA, 2b
 
@@ -84,6 +85,7 @@ class TRF372017:
             setattr(self, key, value)
 
     def get_mmap(self):
+        """Memory map for TRF372017"""
         mmap = []
         mmap.append(
             0x9 |
@@ -92,9 +94,10 @@ class TRF372017:
             (self.cal_clk_sel << 27))
         mmap.append(
             0xa |
-            (self.ndiv << 5) | (self.pll_div_sel << 21) | (self.prsc_sel << 23) |
-            (self.vco_sel << 26) | (self.vcosel_mode << 28) |
-            (self.cal_acc << 29) | (self.en_cal << 31))
+            (self.nint << 5) | (self.pll_div_sel << 21) |
+            (self.prsc_sel << 23) | (self.vco_sel << 26) |
+            (self.vcosel_mode << 28) | (self.cal_acc << 29) |
+            (self.en_cal << 31))
         mmap.append(0xb | (self.nfrac << 5))
         mmap.append(
             0xc |
