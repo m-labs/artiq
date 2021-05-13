@@ -75,13 +75,18 @@ Prerequisites:
                         help="actions to perform, default: %(default)s")
     return parser
 
+def which_openocd():
+    openocd = shutil.which("openocd")
+    if not openocd:
+        raise FileNotFoundError("OpenOCD is required but was not found in PATH. Is it installed?")
+    return openocd
 
 def scripts_path():
     p = ["share", "openocd", "scripts"]
     if os.name == "nt":
         p.insert(0, "Library")
     p = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.realpath(shutil.which("openocd"))),
+        os.path.dirname(os.path.realpath(which_openocd())),
         "..", *p))
     return p
 
@@ -89,7 +94,7 @@ def scripts_path():
 def proxy_path():
     p = ["share", "bscan-spi-bitstreams"]
     p = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.realpath(shutil.which("openocd"))),
+        os.path.dirname(os.path.realpath(which_openocd())),
         "..", *p))
     return p
 
