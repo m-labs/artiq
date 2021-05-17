@@ -71,6 +71,26 @@
             }
         }
     },
+    "if": {
+        "properties": {
+            "target": { "const": "kasli" },
+            "hw_rev": {
+                "not": {
+                    "oneOf": [
+                        { "const": "v1.0" },
+                        { "const": "v1.1" }
+                    ]
+                }
+            }
+        }
+    },
+    "then": {
+        "properties": {
+            "enable_sata_drtio": {
+                "const": false
+            }
+        }
+    },
     "required": ["target", "variant", "hw_rev", "base", "peripherals"],
     "additionalProperties": false,
 
