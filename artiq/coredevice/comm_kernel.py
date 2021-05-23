@@ -181,11 +181,11 @@ class CommKernel:
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
 
-
     def open(self):
         if hasattr(self, "socket"):
             return
         self.socket = initialize_connection(self.host, self.port)
+        self.socket.setblocking(False)
         self.socket.sendall(b"ARTIQ coredev\n")
         endian = self._read(1)
         if endian == b"e":
@@ -217,16 +217,14 @@ class CommKernel:
     def _read(self, length):
         # cache the reads to avoid frequent call to recv
         while len(self.read_buffer) < length:
-            # the number is just the maximum amount
-            # when there is not much data, it would return earlier
-            diff = length - len(self.read_buffer)
-            flag = 0
-            if diff > 8192:
-                flag |= socket.MSG_WAITALL
-            new_buffer = self.socket.recv(8192, flag)
-            if not new_buffer:
-                raise ConnectionResetError("Core device connection closed unexpectedly")
-            self.read_buffer += new_buffer
+            try:
+                new_buffer = self.socket.recv(8192)
+                if not new_buffer:
+                    raise ConnectionResetError(
+                        "Core device connection closed unexpectedly")
+                self.read_buffer += new_buffer
+            except BlockingIOError:
+                pass
         result = self.read_buffer[:length]
         self.read_buffer = self.read_buffer[length:]
         return result
@@ -295,7 +293,15 @@ class CommKernel:
             self._flush()
 
     def _flush(self):
-        self.socket.sendall(self.write_buffer)
+        length = len(self.write_buffer)
+        index = 0
+        buf = memoryview(self.write_buffer)
+        while index < length:
+            try:
+                index += self.socket.send(buf[index:])
+            except BlockingIOError:
+                pass
+        del buf
         self.write_buffer.clear()
 
     def _write_header(self, ty):
