@@ -66,7 +66,7 @@ def _receive_list(kernel, embedding_map):
     tag = chr(kernel._read_int8())
     if tag == "b":
         buffer = kernel._read(length)
-        return [bool(a) for a in buffer]
+        return list(struct.unpack(kernel.endian + "%s?" % length, buffer))
     elif tag == "i":
         buffer = kernel._read(4 * length)
         return list(struct.unpack(kernel.endian + "%sl" % length, buffer))
@@ -217,13 +217,13 @@ class CommKernel:
     def _read(self, length):
         # cache the reads to avoid frequent call to recv
         while len(self.read_buffer) < length:
-            # the number is just the maximum amount
-            # when there is not much data, it would return earlier
-            diff = length - len(self.read_buffer)
-            flag = 0
-            if diff > 8192:
-                flag |= socket.MSG_WAITALL
-            new_buffer = self.socket.recv(8192, flag)
+            while True:
+                try:
+                    flag = socket.MSG_DONTWAIT
+                    new_buffer = self.socket.recv(8192, flag)
+                    break
+                except BlockingIOError:
+                    pass
             if not new_buffer:
                 raise ConnectionResetError("Core device connection closed unexpectedly")
             self.read_buffer += new_buffer
