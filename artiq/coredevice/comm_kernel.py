@@ -66,7 +66,7 @@ def _receive_list(kernel, embedding_map):
     tag = chr(kernel._read_int8())
     if tag == "b":
         buffer = kernel._read(length)
-        return [bool(a) for a in buffer]
+        return list(struct.unpack(kernel.endian + "%s?" % length, buffer))
     elif tag == "i":
         buffer = kernel._read(4 * length)
         return list(struct.unpack(kernel.endian + "%sl" % length, buffer))
