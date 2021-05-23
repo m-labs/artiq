@@ -214,9 +214,12 @@ class CommKernel:
     # Reader interface
     #
 
-    def _read(self, length):
+    def _read(self, length, blocking=False):
         # cache the reads to avoid frequent call to recv
+        count = 0
         while len(self.read_buffer) < length:
+            if blocking and count > 300:
+                self.socket.setblocking(True)
             try:
                 new_buffer = self.socket.recv(8192)
                 if not new_buffer:
@@ -224,7 +227,10 @@ class CommKernel:
                         "Core device connection closed unexpectedly")
                 self.read_buffer += new_buffer
             except BlockingIOError:
+                count += 1
                 pass
+        if blocking:
+            self.socket.setblocking(False)
         result = self.read_buffer[:length]
         self.read_buffer = self.read_buffer[length:]
         return result
@@ -235,7 +241,7 @@ class CommKernel:
         # Wait for a synchronization sequence, 5a 5a 5a 5a.
         sync_count = 0
         while sync_count < 4:
-            sync_byte = self._read(1)[0]
+            sync_byte = self._read(1, blocking=True)[0]
             if sync_byte == 0x5a:
                 sync_count += 1
             else:
