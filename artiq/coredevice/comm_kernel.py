@@ -217,13 +217,13 @@ class CommKernel:
     def _read(self, length):
         # cache the reads to avoid frequent call to recv
         while len(self.read_buffer) < length:
-            while True:
-                try:
-                    flag = socket.MSG_DONTWAIT
-                    new_buffer = self.socket.recv(8192, flag)
-                    break
-                except BlockingIOError:
-                    pass
+            # the number is just the maximum amount
+            # when there is not much data, it would return earlier
+            diff = length - len(self.read_buffer)
+            flag = 0
+            if diff > 8192:
+                flag |= socket.MSG_WAITALL
+            new_buffer = self.socket.recv(8192, flag)
             if not new_buffer:
                 raise ConnectionResetError("Core device connection closed unexpectedly")
             self.read_buffer += new_buffer
