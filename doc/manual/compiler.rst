@@ -45,6 +45,8 @@ The Python types correspond to ARTIQ type annotations as follows:
 +---------------+-------------------------+
 | list of T     | TList(T)                |
 +---------------+-------------------------+
+| NumPy array   | TArray(T, num_dims)     |
++---------------+-------------------------+
 | range         | TRange32, TRange64      |
 +---------------+-------------------------+
 | numpy.int32   | TInt32                  |
