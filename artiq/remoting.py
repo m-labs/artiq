@@ -152,7 +152,12 @@ class SSHClient(Client):
         if get_pty:
             chan.get_pty()
         cmd = " ".join([shlex.quote(arg.format(tmp=self._tmpr, **kws)) for arg in cmd])
-        logger.debug("Executing {}".format(cmd))
+
+        # Wrap command in a bash login shell
+        cmd = "exec {}".format(cmd)
+        cmd = "bash --login -c {}".format(shlex.quote(cmd))
+
+        logger.debug("Executing: {}".format(cmd))
         chan.exec_command(cmd)
         return chan
 
