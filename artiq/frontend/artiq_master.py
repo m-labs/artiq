@@ -18,6 +18,7 @@ from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
 from artiq.master.rid_counter import RIDCounter
+from artiq.master.results_locator import ResultsLocator
 from artiq.master.experiments import (FilesystemBackend, GitBackend,
                                       ExperimentDB)
 
@@ -56,6 +57,10 @@ def get_argparser():
     parser.add_argument("--name",
         help="friendly name, displayed in dashboards "
              "to identify master instead of server address")
+
+    parser.add_argument(
+        "--results", default="results",
+        help="path to the results folder (default: '%(default)s')")
 
     return parser
 
@@ -106,6 +111,8 @@ def main():
         repo_backend = FilesystemBackend(args.repository)
     experiment_db = ExperimentDB(repo_backend, worker_handlers)
     atexit.register(experiment_db.close)
+
+    ResultsLocator().set(args.results)
 
     scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db)
     scheduler.start()

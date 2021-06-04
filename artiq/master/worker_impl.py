@@ -23,6 +23,7 @@ from sipyco.logging_tools import multiline_log_config
 import artiq
 from artiq import tools
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
+from artiq.master.results_locator import ResultsLocator
 from artiq.language.environment import (
     is_public_experiment, TraceArgumentManager, ProcessArgumentManager
 )
@@ -235,6 +236,7 @@ def put_exception_report():
 def main():
     global ipc
 
+    results_path = ResultsLocator().get()
     multiline_log_config(level=int(sys.argv[2]))
     ipc = pipe_ipc.ChildComm(sys.argv[1])
 
@@ -283,9 +285,9 @@ def main():
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)
-                dirname = os.path.join("results",
-                                   time.strftime("%Y-%m-%d", start_local_time),
-                                   time.strftime("%H", start_local_time))
+                dirname = os.path.join(results_path,
+                                       time.strftime("%Y-%m-%d", start_local_time),
+                                       time.strftime("%H", start_local_time))
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])

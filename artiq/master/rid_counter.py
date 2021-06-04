@@ -3,6 +3,8 @@ import os
 import tempfile
 import re
 
+from artiq.master.results_locator import ResultsLocator
+
 logger = logging.getLogger(__name__)
 
 
@@ -13,9 +15,9 @@ class RIDCounter:
     from the given results directory.
     """
 
-    def __init__(self, cache_filename="last_rid.pyon", results_dir="results"):
+    def __init__(self, cache_filename="last_rid.pyon"):
         self.cache_filename = cache_filename
-        self.results_dir = results_dir
+        self.results_dir = ResultsLocator().get()
         self._next_rid = self._last_rid() + 1
         logger.debug("Next RID is %d", self._next_rid)
 
