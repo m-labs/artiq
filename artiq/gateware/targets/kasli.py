@@ -8,7 +8,7 @@ from migen.genlib.cdc import MultiReg
 from migen.genlib.io import DifferentialOutput
 
 from misoc.interconnect.csr import *
-from misoc.cores import gpio
+from misoc.cores import gpio, icap
 from misoc.cores.a7_gtp import *
 from misoc.targets.kasli import (
     BaseSoC, MiniSoC, soc_kasli_args, soc_kasli_argdict)
@@ -131,6 +131,10 @@ class StandaloneBase(MiniSoC, AMPSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(self.platform)
+        
+        if self.platform.hw_rev == "v2.0":
+            self.submodules.icap = icap.ICAP()
+            self.csr_devices.append("icap")
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])

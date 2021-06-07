@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(asm, try_from)]
+#![feature(extern_prelude)]
 
 extern crate byteorder;
 #[cfg(feature = "log")]
@@ -26,7 +27,7 @@ pub mod uart;
 #[cfg(has_spiflash)]
 pub mod spiflash;
 pub mod config;
-#[cfg(feature = "uart_console")]
+// #[cfg(feature = "uart_console")]
 #[macro_use]
 pub mod uart_console;
 #[cfg(all(feature = "uart_console", feature = "log"))]
@@ -43,3 +44,4 @@ pub mod io_expander;
 pub mod net_settings;
 #[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;
+pub mod flash;

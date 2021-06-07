@@ -16,6 +16,7 @@ build_misoc = { path = "../libbuild_misoc" }
 byteorder = { version = "1.0", default-features = false }
 log = { version = "0.4", default-features = false, optional = true }
 smoltcp = { version = "0.6.0", default-features = false, optional = true }
+crc = { version = "1.7", default-features = false }
 
 [features]
 uart_console = []

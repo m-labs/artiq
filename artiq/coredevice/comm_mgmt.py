@@ -24,11 +24,11 @@ class Request(Enum):
     StopProfiler = 10
     GetProfile = 11
 
-    Hotswap = 4
-    Reboot = 5
-
     DebugAllocator = 8
 
+    FlashWrite = 16
+    Relaod = 17
+    Awake = 18
 
 class Reply(Enum):
     Success = 1
@@ -43,6 +43,7 @@ class Reply(Enum):
 
     RebootImminent = 3
 
+    CorruptedFirmware = 8
 
 class LogLevel(Enum):
     OFF = 0
@@ -118,9 +119,11 @@ class CommMgmt:
         return ty
 
     def _read_expect(self, ty):
-        if self._read_header() != ty:
+        self._read_type = self._read_header()
+        if self._read_type != ty:
             raise IOError("Incorrect reply from device: {} (expected {})".
                           format(self._read_type, ty))
+        return True
 
     def _read_int32(self):
         (value, ) = struct.unpack(self.endian + "l", self._read(4))
@@ -224,14 +227,27 @@ class CommMgmt:
 
         return hits, edges
 
-    def hotswap(self, firmware):
-        self._write_header(Request.Hotswap)
-        self._write_bytes(firmware)
-        self._read_expect(Reply.RebootImminent)
-
-    def reboot(self):
-        self._write_header(Request.Reboot)
-        self._read_expect(Reply.RebootImminent)
-
     def debug_allocator(self):
         self._write_header(Request.DebugAllocator)
+    
+    def flash_write(self, partition, firmware):
+        self._write_header(Request.FlashWrite)
+        self._write_string(partition)
+        self._write_bytes(firmware)
+        if self._read_expect(Reply.RebootImminent):
+            print(partition, "write success")
+        
+    def reload(self):
+        self._write_header(Request.Relaod)
+        try:
+            if self._read_expect(Reply.RebootImminent):
+                print("Reload failed")
+                return False
+        except IOError:
+            return True
+
+    def awake(self):
+        self._write_header(Request.Awake)
+        if self._read_expect(Reply.Success):
+            return True
+        return False
