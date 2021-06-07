@@ -550,9 +550,7 @@ def process(output, master_description, satellites):
     for peripheral in master_description["peripherals"]:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
-    kasli_with_leds = (master_description["target"] == "kasli")
-    kasli_soc = master_description["target"] == "kasli_soc"
-    if base == "standalone" and kasli_with_leds or kasli_soc:
+    if base == "standalone":
         n_channels = pm.add_board_leds(rtio_offset)
         rtio_offset += n_channels
 
