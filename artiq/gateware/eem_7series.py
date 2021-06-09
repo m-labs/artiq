@@ -16,7 +16,8 @@ def peripheral_dio(module, peripheral, **kwargs):
     eem.DIO.add_std(module, peripheral["ports"][0],
         ttl_classes[peripheral["bank_direction_low"]],
         ttl_classes[peripheral["bank_direction_high"]],
-        edge_counter_cls=edge_counter_cls, **kwargs)
+        edge_counter_cls=edge_counter_cls,
+        custom_ififo_lengths=peripheral["custom_ififo_lengths"], **kwargs)
 
 
 def peripheral_urukul(module, peripheral, **kwargs):

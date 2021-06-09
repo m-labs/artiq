@@ -168,6 +168,10 @@
                         "bank_direction_high": {
                             "type": "string",
                             "enum": ["input", "output"]
+                        },
+                        "custom_ififo_lengths": {
+                            "type": "object",
+                            "default": {}
                         }
                     },
                     "required": ["ports", "bank_direction_low", "bank_direction_high"]

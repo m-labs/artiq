@@ -43,7 +43,16 @@ class DIO(_EEM):
 
     @classmethod
     def add_std(cls, target, eem, ttl03_cls, ttl47_cls, iostandard=default_iostandard,
-            edge_counter_cls=None):
+            edge_counter_cls=None, custom_ififo_lengths={}):
+
+        def append_to_rtio_channels(phy, ch_index):
+            ch_index_str = str(ch_index)
+            if ch_index_str in custom_ififo_lengths:
+                ififo_depth = custom_ififo_lengths[ch_index_str]
+                target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=ififo_depth))
+            else:
+                target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
         cls.add_extension(target, eem, iostandard=iostandard)
 
         phys = []
@@ -53,13 +62,14 @@ class DIO(_EEM):
             phy = ttl03_cls(pads.p, pads.n, dci=dci)
             phys.append(phy)
             target.submodules += phy
-            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+            append_to_rtio_channels(phy, i)
         for i in range(4):
-            pads = target.platform.request("dio{}".format(eem), 4+i)
+            ch_index = 4 + i
+            pads = target.platform.request("dio{}".format(eem), ch_index)
             phy = ttl47_cls(pads.p, pads.n, dci=dci)
             phys.append(phy)
             target.submodules += phy
-            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+            append_to_rtio_channels(phy, ch_index)
 
         if edge_counter_cls is not None:
             for phy in phys:
