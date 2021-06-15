@@ -153,6 +153,8 @@ fn setup_si5324_as_synthesizer() {
     let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "metlino")]
     let si5324_ref_input = si5324::Input::Ckin2;
+    #[cfg(soc_platform = "kc705")]
+    let si5324_ref_input = si5324::Input::Ckin2;
     si5324::setup(&SI5324_SETTINGS, si5324_ref_input).expect("cannot initialize Si5324");
 }
 
@@ -164,6 +166,8 @@ pub fn init() {
         #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
         let si5324_ext_input = si5324::Input::Ckin2;
         #[cfg(soc_platform = "metlino")]
+        let si5324_ext_input = si5324::Input::Ckin2;
+        #[cfg(soc_platform = "kc705")]
         let si5324_ext_input = si5324::Input::Ckin2;
         match get_rtio_clock_cfg() {
             RtioClock::Internal => setup_si5324_as_synthesizer(),
