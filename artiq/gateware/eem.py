@@ -660,3 +660,24 @@ class Phaser(_EEM):
             rtio.Channel.from_phy(phy.ch1.frequency),
             rtio.Channel.from_phy(phy.ch1.phase_amplitude),
         ])
+
+
+class HVAmp(_EEM):
+    @staticmethod
+    def io(eem, iostandard):
+        return [
+            ("hvamp{}_out_en".format(eem), i,
+                    Subsignal("p", Pins(_eem_pin(eem, i, "p"))),
+                    Subsignal("n", Pins(_eem_pin(eem, i, "n"))),
+                    iostandard(eem)
+            ) for i in range(8)]
+
+    @classmethod
+    def add_std(cls, target, eem, ttl_out_cls, iostandard=default_iostandard):
+        cls.add_extension(target, eem, iostandard=iostandard)
+
+        for i in range(8):
+            pads = target.platform.request("hvamp{}_out_en".format(eem), i)
+            phy = ttl_out_cls(pads.p, pads.n)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))

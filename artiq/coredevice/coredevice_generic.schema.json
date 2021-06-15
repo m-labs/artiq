@@ -127,7 +127,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser"]
+                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
                 },
                 "board": {
                     "type": "string"
@@ -439,6 +439,28 @@
                     "properties": {
                         "type": {
                             "const": "phaser"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "HVAmp",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "hvamp"
                         }
                     }
                 },
