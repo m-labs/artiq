@@ -1,5 +1,6 @@
 import asyncio
-import tokenize
+
+from artiq.tools import file_import
 
 from sipyco.sync_struct import Notifier, process_mod, update_from_dict
 from sipyco import pyon
@@ -7,10 +8,12 @@ from sipyco.asyncio_tools import TaskObject
 
 
 def device_db_from_file(filename):
-    glbs = dict()
-    with tokenize.open(filename) as f:
-        exec(f.read(), glbs)
-    return glbs["device_db"]
+    mod = file_import(filename)
+
+    # use __dict__ instead of direct attribute access
+    # for backwards compatibility of the exception interface
+    # (raise KeyError and not AttributeError if device_db is missing)
+    return mod.__dict__["device_db"]
 
 
 class DeviceDB:
@@ -19,8 +22,7 @@ class DeviceDB:
         self.data = Notifier(device_db_from_file(self.backing_file))
 
     def scan(self):
-        update_from_dict(self.data,
-            device_db_from_file(self.backing_file))
+        update_from_dict(self.data, device_db_from_file(self.backing_file))
 
     def get_device_db(self):
         return self.data.raw_view

@@ -2,6 +2,7 @@
 
 import unittest
 import tempfile
+from pathlib import Path
 
 from artiq.master.databases import DeviceDB
 from artiq.tools import file_import
@@ -16,19 +17,43 @@ device_db = {
         "arguments": {"host": "::1", "ref_period": 1e-09},
     },
 
-    "core-alias": "core",
-    "unresolved-alias": "dummy",
+    "core_alias": "core",
+    "unresolved_alias": "dummy",
 }
 """
 
 
-class TestInvalidDeviceDB(unittest.TestCase):
+class TestDeviceDBImport(unittest.TestCase):
     def test_no_device_db_in_file(self):
         with tempfile.NamedTemporaryFile(mode="w+", suffix=".py") as f:
             print("", file=f, flush=True)
 
             with self.assertRaisesRegex(KeyError, "device_db"):
                 DeviceDB(f.name)
+
+    def test_import_same_level(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # make sure both files land in the same directory
+            args = dict(mode="w+", suffix=".py", dir=tmpdir)
+            with tempfile.NamedTemporaryFile(
+                **args
+            ) as fileA, tempfile.NamedTemporaryFile(**args) as fileB:
+                print(DUMMY_DDB_FILE, file=fileA, flush=True)
+                print(
+                    f"""
+from {Path(fileA.name).stem} import device_db
+
+device_db["new_core_alias"] = "core"
+""",
+                    file=fileB,
+                    flush=True,
+                )
+
+                ddb = DeviceDB(fileB.name)
+                self.assertEqual(
+                    ddb.get("new_core_alias", resolve_alias=True),
+                    DeviceDB(fileA.name).get("core"),
+                )
 
 
 class TestDeviceDB(unittest.TestCase):
@@ -44,15 +69,15 @@ class TestDeviceDB(unittest.TestCase):
 
     def test_get_alias(self):
         with self.assertRaises(TypeError):  # str indexing on str
-            self.ddb.get("core-alias")["class"]
+            self.ddb.get("core_alias")["class"]
 
         self.assertEqual(
-            self.ddb.get("core-alias", resolve_alias=True), self.ddb.get("core")
+            self.ddb.get("core_alias", resolve_alias=True), self.ddb.get("core")
         )
 
     def test_get_unresolved_alias(self):
         with self.assertRaisesRegex(KeyError, "dummy"):
-            self.ddb.get("unresolved-alias", resolve_alias=True)
+            self.ddb.get("unresolved_alias", resolve_alias=True)
 
     def test_update(self):
         with self.assertRaises(KeyError):
