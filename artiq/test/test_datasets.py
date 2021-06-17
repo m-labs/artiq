@@ -108,9 +108,16 @@ class ExperimentDatasetCase(unittest.TestCase):
 
     def test_write_hdf5_options(self):
         data = np.random.randint(0, 1024, 1024)
-        self.exp.set(KEY, data,
-                     compression="gzip", compression_opts=6,
-                     shuffle=True, fletcher32=True)
+        self.exp.set(
+            KEY,
+            data,
+            hdf5_options=dict(
+                compression="gzip",
+                compression_opts=6,
+                shuffle=True,
+                fletcher32=True
+            ),
+        )
 
         with h5py.File("test.h5", "a", "core", backing_store=False) as f:
             self.dataset_mgr.write_hdf5(f)

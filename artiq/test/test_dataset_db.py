@@ -21,8 +21,8 @@ class TestDatasetDB(unittest.TestCase):
         self.ddb = DatasetDB(self.persist_file.name)
 
         self.ddb.set(KEY1, DATA, persist=True)
-        self.ddb.set(KEY2, DATA, persist=True, compression=COMP)
-        self.ddb.set(KEY3, DATA, shuffle=True)
+        self.ddb.set(KEY2, DATA, persist=True, hdf5_options=dict(compression=COMP))
+        self.ddb.set(KEY3, DATA, hdf5_options=dict(shuffle=True))
 
         self.save_ddb_to_disk()
 
