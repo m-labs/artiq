@@ -90,7 +90,7 @@ class DatasetDB(TaskObject):
     def set(self, key, value, persist=None, **hdf5_options):
         if persist is None:
             if key in self.data.raw_view:
-                persist = self.data.raw_view[key].persist
+                persist = self.data.raw_view[key]["persist"]
             else:
                 persist = False
         self.data[key] = make_dataset(

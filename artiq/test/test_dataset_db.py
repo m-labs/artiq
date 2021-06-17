@@ -97,3 +97,15 @@ class TestDatasetDB(unittest.TestCase):
 
         self.ddb.update(mod)
         self.assertFalse(self.ddb.get(KEY1)["hdf5_options"]["shuffle"])
+
+    def test_reset_copies_persist(self):
+        self.assertTrue(self.ddb.get(KEY1)["persist"])
+        self.ddb.set(KEY1, DATA)
+        self.assertTrue(self.ddb.get(KEY1)["persist"])
+
+        self.assertFalse(self.ddb.get(KEY3)["persist"])
+        self.ddb.set(KEY3, DATA)
+        self.assertFalse(self.ddb.get(KEY3)["persist"])
+
+        self.ddb.set(KEY3, DATA, persist=True)
+        self.assertTrue(self.ddb.get(KEY3)["persist"])
