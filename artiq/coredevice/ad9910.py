@@ -518,7 +518,7 @@ class AD9910:
     @kernel
     def set_mu(self, ftw: TInt32, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
                phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0):
+               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0) -> TInt32:
         """Set profile 0 data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -823,7 +823,7 @@ class AD9910:
     @kernel
     def set(self, frequency: TFloat, phase: TFloat = 0.0,
             amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0):
+            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0) -> TFloat:
         """Set profile 0 data in SI units.
 
         .. seealso:: :meth:`set_mu`
