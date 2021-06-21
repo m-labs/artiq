@@ -1,5 +1,6 @@
 """Test device DB interface"""
 
+import os
 import unittest
 import tempfile
 from pathlib import Path
@@ -22,19 +23,27 @@ device_db = {
 }
 """
 
+# tempfile.NamedTemporaryFile:
+# use delete=False and manual cleanup
+# for Windows compatibility
+
 
 class TestDeviceDBImport(unittest.TestCase):
     def test_no_device_db_in_file(self):
-        with tempfile.NamedTemporaryFile(mode="w+", suffix=".py") as f:
+        with tempfile.NamedTemporaryFile(mode="w+", suffix=".py", delete=False) as f:
+            print(f.name)
             print("", file=f, flush=True)
 
             with self.assertRaisesRegex(KeyError, "device_db"):
                 DeviceDB(f.name)
 
+        os.unlink(f.name)
+
     def test_import_same_level(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             # make sure both files land in the same directory
-            args = dict(mode="w+", suffix=".py", dir=tmpdir)
+            # tempfiles are cleanup together with tmpdir
+            args = dict(mode="w+", suffix=".py", dir=tmpdir, delete=False)
             with tempfile.NamedTemporaryFile(
                 **args
             ) as fileA, tempfile.NamedTemporaryFile(**args) as fileB:
@@ -58,10 +67,16 @@ device_db["new_core_alias"] = "core"
 
 class TestDeviceDB(unittest.TestCase):
     def setUp(self):
-        self.ddb_file = tempfile.NamedTemporaryFile(mode="w+", suffix=".py")
+        self.ddb_file = tempfile.NamedTemporaryFile(
+            mode="w+", suffix=".py", delete=False
+        )
         print(DUMMY_DDB_FILE, file=self.ddb_file, flush=True)
 
         self.ddb = DeviceDB(self.ddb_file.name)
+
+    def tearDown(self):
+        self.ddb_file.close()
+        os.unlink(self.ddb_file.name)
 
     def test_get(self):
         core = self.ddb.get("core")
