@@ -40,9 +40,8 @@ class Mirny:
     :param refclk: Reference clock (SMA, MMCX or on-board 100 MHz oscillator)
         frequency in Hz
     :param clk_sel: Reference clock selection.
-        valid options are: "XO" - onboard crystal oscillator
-                           "SMA" - front-panel SMA connector
-                           "MMCX" - internal MMCX connector
+        Valid options are: "XO" - onboard crystal oscillator;
+        "SMA" - front-panel SMA connector; "MMCX" - internal MMCX connector.
         Passing an integer writes it as ``clk_sel`` in the CPLD's register 1.
         The effect depends on the hardware revision.
     :param core_device: Core device name (default: "core")
