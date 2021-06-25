@@ -952,21 +952,25 @@ class Stitcher:
         else:
             host_function = function
 
-        embedded_function = host_function.artiq_embedded.function
+        if hasattr(host_function, 'artiq_embedded'):
+            embedded_function = host_function.artiq_embedded.function
+        else:
+            embedded_function = host_function
 
         if isinstance(embedded_function, str):
             embedded_function = host_function
 
         if isinstance(annot, str):
-            if annot not in embedded_function.__globals__:
+            try:
+                annot = eval(annot, embedded_function.__globals__)
+            except Exception:
                 diag = diagnostic.Diagnostic(
-                        "error",
-                        "type annotation for {kind}, {annot}, is not defined",
-                        {"kind": kind, "annot": repr(annot)},
-                        self._function_loc(function),
-                        notes=self._call_site_note(call_loc, fn_kind))
+                    "error",
+                    "type annotation for {kind}, {annot}, cannot be evaluated",
+                    {"kind": kind, "annot": repr(annot)},
+                    self._function_loc(function),
+                    notes=self._call_site_note(call_loc, fn_kind))
                 self.engine.process(diag)
-            annot = embedded_function.__globals__[annot]
 
         if not isinstance(annot, types.Type):
             diag = diagnostic.Diagnostic("error",
