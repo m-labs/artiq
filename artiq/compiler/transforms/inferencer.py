@@ -6,6 +6,7 @@ from collections import OrderedDict
 from pythonparser import algorithm, diagnostic, ast
 from .. import asttyped, types, builtins
 from .typedtree_printer import TypedtreePrinter
+from artiq.experiment import kernel
 
 
 def is_nested_empty_list(node):
@@ -1662,7 +1663,14 @@ class Inferencer(algorithm.Visitor):
 
     def visit_FunctionDefT(self, node):
         for index, decorator in enumerate(node.decorator_list):
-            if types.is_builtin(decorator.type, "kernel") or \
+            def eval_attr(attr):
+                if isinstance(attr.value, asttyped.QuoteT):
+                    return getattr(attr.value.value, attr.attr)
+                return getattr(eval_attr(attr.value), attr.attr)
+            if isinstance(decorator, asttyped.AttributeT):
+                decorator = eval_attr(decorator)
+            if id(decorator) == id(kernel) or \
+                    types.is_builtin(decorator.type, "kernel") or \
                     isinstance(decorator, asttyped.CallT) and \
                     types.is_builtin(decorator.func.type, "kernel"):
                 continue
