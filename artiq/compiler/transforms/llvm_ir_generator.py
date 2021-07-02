@@ -180,6 +180,7 @@ class LLVMIRGenerator:
             self.tbaa_tree,
             ll.Constant(lli64, 1)
         ])
+        self.quote_fail_msg = None
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -1492,8 +1493,24 @@ class LLVMIRGenerator:
         return llresult
 
     def _quote_listish_to_llglobal(self, value, elt_type, path, kind_name):
-        llelts    = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
-                     for i in range(len(value))]
+        fail_msg = "at " + ".".join(path())
+        if len(value) > 0:
+            if builtins.is_int(elt_type):
+                int_typ = (int, numpy.int32, numpy.int64)
+                for v in value:
+                    assert isinstance(v, int_typ), fail_msg
+                llty = self.llty_of_type(elt_type)
+                llelts = [ll.Constant(llty, int(v)) for v in value]
+            elif builtins.is_float(elt_type):
+                for v in value:
+                    assert isinstance(v, float), fail_msg
+                llty = self.llty_of_type(elt_type)
+                llelts = [ll.Constant(llty, v) for v in value]
+            else:
+                llelts = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
+                          for i in range(len(value))]
+        else:
+            assert False, fail_msg
         lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
                                 list(llelts))
         name = self.llmodule.scope.deduplicate("quoted.{}".format(kind_name))
@@ -1502,60 +1519,63 @@ class LLVMIRGenerator:
         llglobal.linkage = "private"
         return llglobal.bitcast(lleltsary.type.element.as_pointer())
 
+    def _quote_attributes(self, value, typ, path, value_id, llty):
+        llglobal = None
+        llfields = []
+        emit_as_constant = True
+        for attr in typ.attributes:
+            if attr == "__objectid__":
+                objectid = self.embedding_map.store_object(value)
+                llfields.append(ll.Constant(lli32, objectid))
+
+                assert llglobal is None
+                if types.is_constructor(typ):
+                    llglobal = self.get_class(typ)
+                else:
+                    llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
+                                                 name="O.{}".format(objectid))
+
+                self.llobject_map[value_id] = llglobal
+            else:
+                attrvalue = getattr(value, attr)
+                is_class_function = (types.is_constructor(typ) and
+                                     types.is_function(typ.attributes[attr]) and
+                                     not types.is_external_function(typ.attributes[attr]))
+                if is_class_function:
+                    attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
+                if not (types.is_instance(typ) and attr in typ.constant_attributes):
+                    emit_as_constant = False
+                llattrvalue = self._quote(attrvalue, typ.attributes[attr],
+                                          lambda: path() + [attr])
+                llfields.append(llattrvalue)
+                if is_class_function:
+                    llclosureptr = self.get_global_closure_ptr(typ, attr)
+                    llclosureptr.initializer = llattrvalue
+
+        llglobal.global_constant = emit_as_constant
+        llglobal.initializer = ll.Constant(llty.pointee, llfields)
+        llglobal.linkage = "private"
+        return llglobal
+
     def _quote(self, value, typ, path):
         value_id = id(value)
         if value_id in self.llobject_map:
             return self.llobject_map[value_id]
         llty = self.llty_of_type(typ)
 
-        def _quote_attributes():
-            llglobal = None
-            llfields = []
-            emit_as_constant = True
-            for attr in typ.attributes:
-                if attr == "__objectid__":
-                    objectid = self.embedding_map.store_object(value)
-                    llfields.append(ll.Constant(lli32, objectid))
+        fail_msg = self.quote_fail_msg
+        if fail_msg == None:
+            self.quote_fail_msg = fail_msg = "at " + ".".join(path())
 
-                    assert llglobal is None
-                    if types.is_constructor(typ):
-                        llglobal = self.get_class(typ)
-                    else:
-                        llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
-                                                     name="O.{}".format(objectid))
-
-                    self.llobject_map[value_id] = llglobal
-                else:
-                    attrvalue = getattr(value, attr)
-                    is_class_function = (types.is_constructor(typ) and
-                                         types.is_function(typ.attributes[attr]) and
-                                         not types.is_external_function(typ.attributes[attr]))
-                    if is_class_function:
-                        attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
-                    if not (types.is_instance(typ) and attr in typ.constant_attributes):
-                        emit_as_constant = False
-                    llattrvalue = self._quote(attrvalue, typ.attributes[attr],
-                                              lambda: path() + [attr])
-                    llfields.append(llattrvalue)
-                    if is_class_function:
-                        llclosureptr = self.get_global_closure_ptr(typ, attr)
-                        llclosureptr.initializer = llattrvalue
-
-            llglobal.global_constant = emit_as_constant
-            llglobal.initializer = ll.Constant(llty.pointee, llfields)
-            llglobal.linkage = "private"
-            return llglobal
-
-        fail_msg = "at " + ".".join(path())
         if types.is_constructor(typ) or types.is_instance(typ):
             if types.is_instance(typ):
                 # Make sure the class functions are quoted, as this has the side effect of
                 # initializing the global closures.
                 self._quote(type(value), typ.constructor,
                             lambda: path() + ['__class__'])
-            return _quote_attributes()
+            return self._quote_attributes(value, typ, path, value_id, llty)
         elif types.is_module(typ):
-            return _quote_attributes()
+            return self._quote_attributes(value, typ, path, value_id, llty)
         elif builtins.is_none(typ):
             assert value is None, fail_msg
             return ll.Constant.literal_struct([])

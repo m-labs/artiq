@@ -156,6 +156,67 @@ class ASTSynthesizer:
         return source.Range(self.source_buffer, range_from, range_to,
                             expanded_from=self.expanded_from)
 
+    def fast_quote_list(self, value):
+        elts = [None] * len(value)
+        is_T = False
+        if len(value) > 0:
+            v = value[0]
+            is_T = True
+            if isinstance(v, int):
+                T = int
+            elif isinstance(v, float):
+                T = float
+            elif isinstance(v, numpy.int32):
+                T = numpy.int32
+            elif isinstance(v, numpy.int64):
+                T = numpy.int64
+            else:
+                is_T = False
+            if is_T:
+                for v in value:
+                    if not isinstance(v, T):
+                        is_T = False
+                        break
+        if is_T:
+            is_int = T != float
+            if T == int:
+                typ = builtins.TInt()
+            elif T == float:
+                typ = builtins.TFloat()
+            elif T == numpy.int32:
+                typ = builtins.TInt32()
+            elif T == numpy.int64:
+                typ = builtins.TInt64()
+            else:
+                assert False
+            text = [repr(elt) for elt in value]
+            start = len(self.source)
+            self.source += ", ".join(text)
+            if is_int:
+                for i, (v, t) in enumerate(zip(value, text)):
+                    l = len(t)
+                    elts[i] = asttyped.NumT(
+                        n=int(v), ctx=None, type=typ,
+                        loc=source.Range(
+                            self.source_buffer, start, start + l,
+                            expanded_from=self.expanded_from))
+                    start += l + 2
+            else:
+                for i, (v, t) in enumerate(zip(value, text)):
+                    l = len(t)
+                    elts[i] = asttyped.NumT(
+                        n=v, ctx=None, type=typ,
+                        loc=source.Range(
+                            self.source_buffer, start, start + l,
+                            expanded_from=self.expanded_from))
+                    start += l + 2
+        else:
+            for index, elt in enumerate(value):
+                elts[index] = self.quote(elt)
+                if index < len(value) - 1:
+                    self._add(", ")
+        return elts
+
     def quote(self, value):
         """Construct an AST fragment equal to `value`."""
         if value is None:
@@ -217,21 +278,14 @@ class ASTSynthesizer:
             return asttyped.QuoteT(value=value, type=builtins.TByteArray(), loc=loc)
         elif isinstance(value, list):
             begin_loc = self._add("[")
-            elts = []
-            for index, elt in enumerate(value):
-                elts.append(self.quote(elt))
-                if index < len(value) - 1:
-                    self._add(", ")
+            elts = self.fast_quote_list(value)
             end_loc   = self._add("]")
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         elif isinstance(value, tuple):
             begin_loc = self._add("(")
-            elts = []
-            for index, elt in enumerate(value):
-                elts.append(self.quote(elt))
-                self._add(", ")
+            elts = self.fast_quote_list(value)
             end_loc   = self._add(")")
             return asttyped.TupleT(elts=elts, ctx=None,
                                    type=types.TTuple([e.type for e in elts]),
