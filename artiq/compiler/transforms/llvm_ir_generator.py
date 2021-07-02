@@ -1510,7 +1510,7 @@ class LLVMIRGenerator:
                 llelts = [self._quote(value[i], elt_type, lambda: path() + [str(i)])
                           for i in range(len(value))]
         else:
-            assert False, fail_msg
+            llelts = []
         lleltsary = ll.Constant(ll.ArrayType(self.llty_of_type(elt_type), len(llelts)),
                                 list(llelts))
         name = self.llmodule.scope.deduplicate("quoted.{}".format(kind_name))
