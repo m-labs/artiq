@@ -13,6 +13,9 @@ Highlights:
    - Improved documentation
    - Expose the DAC coarse mixer and sif_sync
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
+* Compiler:
+   - Supports kernel decorator with paths.
+   - Faster compilation for large arrays/lists.
 
 Breaking changes:
 * Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
