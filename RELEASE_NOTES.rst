@@ -7,20 +7,24 @@ ARTIQ-7
 -------
 
 Highlights:
+
+* Support for Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
+* Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * WRPLL
-* ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
-* Phaser:
-   - Improved documentation
-   - Expose the DAC coarse mixer and sif_sync
-   - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
 * Compiler:
    - Supports kernel decorator with paths.
    - Faster compilation for large arrays/lists.
+* Phaser:
+   - Improved documentation
+   - Expose the DAC coarse mixer and ``sif_sync``
+   - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
+* ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
 
 Breaking changes:
+
 * Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
   frequency of the hardware design.
-* `Phaser.init()` now disables all Kasli-oscillators. This avoids full power RF output being
+* ``Phaser.init()`` now disables all Kasli-oscillators. This avoids full power RF output being
   generated for some configurations.
 * Phaser: fixed coarse mixer frequency configuration
 
@@ -33,7 +37,7 @@ Highlights:
 * New hardware support:
    - Phaser, a quad channel 1GS/s RF generator card with dual IQ upconverter and dual 5MS/s
      ADC and FPGA.
-   - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with a floating-point
+   - Zynq SoC core device (ZC706), enabling kernels to run on 1 GHz CPU core with a floating-point
      unit for faster computations. This currently requires an external
      repository (https://git.m-labs.hk/m-labs/artiq-zynq).
    - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
