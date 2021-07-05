@@ -113,3 +113,79 @@ pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
         data  = &data[size..];
     }
 }
+
+use core::{str, fmt};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    AlreadyLocked,
+    SpaceExhausted,
+    Truncated { offset: usize },
+    InvalidSize { offset: usize, size: usize },
+    MissingSeparator { offset: usize },
+    Utf8Error(str::Utf8Error),
+    NoFlash,
+    WrongPartition,
+    WriteFail { sector: usize },
+    CorruptedFirmware,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Error::AlreadyLocked =>
+                write!(f, "attempt at reentrant access"),
+            &Error::SpaceExhausted =>
+                write!(f, "space exhausted"),
+            &Error::Truncated { offset }=>
+                write!(f, "truncated record at offset {}", offset),
+            &Error::InvalidSize { offset, size } =>
+                write!(f, "invalid record size {} at offset {}", size, offset),
+            &Error::MissingSeparator { offset } =>
+                write!(f, "missing separator at offset {}", offset),
+            &Error::Utf8Error(err) =>
+                write!(f, "{}", err),
+            &Error::NoFlash =>
+                write!(f, "flash memory is not present"),
+            &Error::WrongPartition =>
+                write!(f, "unknown partition"),
+            &Error::WriteFail { sector } =>
+                write!(f, "flash writing failed in sector {}", sector),
+            &Error::CorruptedFirmware =>
+                write!(f, "corrupted file"),
+        }
+    }
+}
+
+// One flash sector immediately before the firmware.
+pub const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - SECTOR_SIZE;
+
+pub mod lock {
+    use core::slice;
+    use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+    use super::Error;
+
+    static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
+
+    pub struct Lock;
+
+    impl Lock {
+        pub fn take() -> Result<Lock, Error> {
+            if LOCKED.swap(1, Ordering::SeqCst) != 0 {
+                Err(Error::AlreadyLocked)
+            } else {
+                Ok(Lock)
+            }
+        }
+
+        pub fn data(&self, addr: usize) -> &'static [u8] {
+            unsafe { slice::from_raw_parts(addr as *const u8, super::SECTOR_SIZE) }
+        }
+    }
+
+    impl Drop for Lock {
+        fn drop(&mut self) {
+            LOCKED.store(0, Ordering::SeqCst)
+        }
+    }
+}

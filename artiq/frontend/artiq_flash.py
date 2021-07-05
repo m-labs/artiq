@@ -6,16 +6,14 @@ import subprocess
 import tempfile
 import shutil
 import re
-import atexit
 from functools import partial
 from collections import defaultdict
 
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
-from artiq import __artiq_dir__ as artiq_dir
-from artiq.remoting import SSHClient, LocalClient
-from artiq.frontend.bit2bin import bit2bin
+from artiq.core_flash import build_dir, artifact_path, convert_gateware
+from artiq.core_flash import *
 
 
 def get_argparser():
@@ -307,7 +305,6 @@ class ProgrammerAMC(Programmer):
     def start(self):
         add_commands(self._script, "xcu_program xcu.tap")
 
-
 def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
@@ -344,47 +341,7 @@ def main():
         },
     }[args.target]
 
-    bin_dir = args.dir
-    if bin_dir is None:
-        bin_dir = os.path.join(artiq_dir, "board-support")
-
-    needs_artifacts = not args.action or any(
-        action in args.action
-        for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
-    variant = args.variant
-    if needs_artifacts and variant is None:
-        variants = []
-        if args.srcbuild:
-            for entry in os.scandir(bin_dir):
-                if entry.is_dir():
-                    variants.append(entry.name)
-        else:
-            prefix = args.target + "-"
-            for entry in os.scandir(bin_dir):
-                if entry.is_dir() and entry.name.startswith(prefix):
-                    variants.append(entry.name[len(prefix):])
-        if args.target == "sayma":
-            try:
-                variants.remove("rtm")
-            except ValueError:
-                pass
-        if len(variants) == 0:
-            raise FileNotFoundError("no variants found, did you install a board binary package?")
-        elif len(variants) == 1:
-            variant = variants[0]
-        else:
-            raise ValueError("more than one variant found for selected board, specify -V. "
-                "Found variants: {}".format(" ".join(sorted(variants))))
-    if needs_artifacts:
-        if args.srcbuild:
-            variant_dir = variant
-        else:
-            variant_dir = args.target + "-" + variant
-        if args.target == "sayma":
-            if args.srcbuild:
-                rtm_variant_dir = "rtm"
-            else:
-                rtm_variant_dir = "sayma-rtm"
+    (variant, bin_dir, variant_dir, rtm_variant_dir) = build_dir(args)
 
     if not args.action:
         if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
@@ -403,44 +360,19 @@ def main():
         programmer_cls = config["programmer"]
     programmer = programmer_cls(client, preinit_script=args.preinit_command)
 
-    def artifact_path(this_variant_dir, *path_filename):
-        if args.srcbuild:
-            # source tree - use path elements to locate file
-            return os.path.join(bin_dir, this_variant_dir, *path_filename)
-        else:
-            # flat tree - all files in the same directory, discard path elements
-            *_, filename = path_filename
-            return os.path.join(bin_dir, this_variant_dir, filename)
-
-    def convert_gateware(bit_filename, header=False):
-        bin_handle, bin_filename = tempfile.mkstemp(
-            prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
-        with open(bit_filename, "rb") as bit_file, \
-                open(bin_handle, "wb") as bin_file:
-            if header:
-                bin_file.write(b"\x00"*8)
-            bit2bin(bit_file, bin_file)
-            if header:
-                magic = 0x5352544d  # "SRTM", see sayma_rtm target
-                length = bin_file.tell() - 8
-                bin_file.seek(0)
-                bin_file.write(magic.to_bytes(4, byteorder="big"))
-                bin_file.write(length.to_bytes(4, byteorder="big"))
-        atexit.register(lambda: os.unlink(bin_filename))
-        return bin_filename
 
     for action in args.action:
         if action == "gateware":
             gateware_bin = convert_gateware(
-                artifact_path(variant_dir, "gateware", "top.bit"))
+                artifact_path(args, bin_dir, variant_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
         elif action == "rtm_gateware":
             rtm_gateware_bin = convert_gateware(
-                artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
+                artifact_path(args, bin_dir, rtm_variant_dir, "gateware", "top.bit"), header=True)
             programmer.write_binary(*config["rtm_gateware"],
                                     rtm_gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
+            bootloader_bin = artifact_path(args, bin_dir, variant_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
@@ -451,17 +383,17 @@ def main():
             else:
                 firmware = "runtime"
 
-            firmware_fbi = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
+            firmware_fbi = artifact_path(args, bin_dir, variant_dir, "software", firmware, firmware + ".fbi")
             programmer.write_binary(*config["firmware"], firmware_fbi)
         elif action == "load":
             if args.target == "sayma":
-                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
+                gateware_bit = artifact_path(args, bin_dir, variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
             else:
-                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
+                gateware_bit = artifact_path(args, bin_dir, variant_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
         elif action == "rtm_load":
-            rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
+            rtm_gateware_bit = artifact_path(args, bin_dir, rtm_variant_dir, "gateware", "top.bit")
             programmer.load(rtm_gateware_bit, 0)
         elif action == "start":
             programmer.start()

@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
-import struct
-import os
-import zlib
-import tempfile
-import atexit
 
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
-from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.profiler import CallgrindWriter
-from artiq import __artiq_dir__ as artiq_dir
-from artiq.frontend.bit2bin import bit2bin
+from artiq.core_flash import build_dir, artifact_path, convert_gateware
 
 
 def get_argparser():
@@ -132,16 +125,19 @@ def get_argparser():
 
     # flash
     t_flash = tools.add_parser("flash",
-                                help="ARTIQ flashing/deployment tool though internet")
+                        help="ARTIQ flashing/deployment tool though internet")
 
-    t_flash.add_argument("partition", metavar="PARTITION", nargs="*",
+    t_flash.add_argument("action", metavar="ACTION", nargs="*",
                         default=[],
-                        help="partitions to be flashed, default: gateware/bootloader/firmware")
+                        help="actions to perform, default: gateware/bootloader/firmware/start")
     t_flash.add_argument("-d", "--dir", help="look for board binaries in this directory")
     t_flash.add_argument("-V", "--variant", default=None,
                         help="board variant. Autodetected if only one is installed.")
     t_flash.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
+    t_flash.add_argument("-t", "--target", default="kasli",
+                        help="target board, default: %(default)s, one of: "
+                             "kasli sayma metlino kc705 phaser")
 
     return parser
 
@@ -204,92 +200,34 @@ def main():
     if args.tool == "debug":
         if args.action == "allocator":
             mgmt.debug_allocator()
-    
+
     if args.tool == "flash":
-
-        bin_dir = args.dir
-        if bin_dir is None:
-            bin_dir = os.path.join(artiq_dir, "board-support")
-        needs_artifacts = not args.partition or any(
-            partition in args.partition
-            for partition in ["gateware", "bootloader", "firmware"])
-        variant = args.variant
-        if needs_artifacts and variant is None:
-            variants = []
-            if args.srcbuild:
-                for entry in os.scandir(bin_dir):
-                    if entry.is_dir():
-                        variants.append(entry.name)
-            if len(variants) == 0:
-                raise FileNotFoundError("no variants found, did you install a board binary package?")
-            elif len(variants) == 1:
-                variant = variants[0]
-            else:
-                raise ValueError("more than one variant found for selected board, specify -V. "
-                    "Found variants: {}".format(" ".join(sorted(variants))))
-        variant_dir = ''
-        if needs_artifacts:
-            if args.srcbuild:
-                variant_dir = variant
-            else:
-                variant_dir = 'kasli-' + variant
-
-        if not args.partition:
-            args.partition = "gateware bootloader firmware start".split()
-            
-        def artifact_path(this_variant_dir, *path_filename):
-            if args.srcbuild:
-                # source tree - use path elements to locate file
-                return os.path.join(bin_dir, this_variant_dir, *path_filename)
-            else:
-                # flat tree - all files in the same directory, discard path elements
-                *_, filename = path_filename
-                return os.path.join(bin_dir, this_variant_dir, filename)
-        
-        def convert_gateware(bit_filename, header=False):
-            bin_handle, bin_filename = tempfile.mkstemp(
-                prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
-            with open(bit_filename, "rb") as bit_file, \
-                    open(bin_handle, "wb") as bin_file:
-                if header:
-                    bin_file.write(b"\x00"*8)
-                bit2bin(bit_file, bin_file)
-                if header:
-                    magic = 0x5352544d  # "SRTM", see sayma_rtm target
-                    length = bin_file.tell() - 8
-                    bin_file.seek(0)
-                    bin_file.write(magic.to_bytes(4, byteorder="big"))
-                    bin_file.write(length.to_bytes(4, byteorder="big"))
-            atexit.register(lambda: os.unlink(bin_filename))
-            return bin_filename
-            
-        for partition in args.partition:
-            if partition == "gateware":
+        (variant, bin_dir, variant_dir, rtm_variant_dir) = build_dir(args)
+        if not args.action:
+            args.action = "gateware bootloader firmware start".split()
+        for action in args.action:
+            if action == "gateware":
                 gateware_bin = convert_gateware(
-                    artifact_path(variant_dir, "gateware", "top.bit"))
+                    artifact_path(args, bin_dir, variant_dir, "gateware", "top.bit"))
                 with open(gateware_bin, "rb") as fi:
                     file = fi.read()
-                    mgmt.flash_write(partition, file)
-            elif partition == "bootloader":
-                bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
+                    mgmt.flash_write(action, file)
+            elif action == "bootloader":
+                bootloader_bin = artifact_path(args, bin_dir, variant_dir, "software", "bootloader", "bootloader.bin")
                 with open(bootloader_bin, "rb") as fi:
                     file = fi.read()
-                    mgmt.flash_write(partition, file)
-            elif partition == "firmware":
+                    mgmt.flash_write(action, file)
+            elif action == "firmware":
                 firmware = "runtime"
-                firmware_fbi = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
+                firmware_fbi = artifact_path(args, bin_dir,
+                    variant_dir, "software", firmware, firmware + ".fbi")
                 with open(firmware_fbi, "rb") as fi:
                     file = fi.read()
-                    mgmt.flash_write(partition, file)
-            elif partition == "start":
+                    mgmt.flash_write(action, file)
+            elif action == "start":
                 print('Reloading')
                 if mgmt.reload():
                     mgmt.close()
-                    if(mgmt.awake()):
-                        print('Reload success')
-                    else:
-                        print('Device not awake')
-            
 
 if __name__ == "__main__":
     main()

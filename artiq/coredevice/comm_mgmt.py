@@ -27,8 +27,7 @@ class Request(Enum):
     DebugAllocator = 8
 
     FlashWrite = 16
-    Relaod = 17
-    Awake = 18
+    Reload = 17
 
 class Reply(Enum):
     Success = 1
@@ -119,11 +118,9 @@ class CommMgmt:
         return ty
 
     def _read_expect(self, ty):
-        self._read_type = self._read_header()
-        if self._read_type != ty:
+        if self._read_header() != ty:
             raise IOError("Incorrect reply from device: {} (expected {})".
                           format(self._read_type, ty))
-        return True
 
     def _read_int32(self):
         (value, ) = struct.unpack(self.endian + "l", self._read(4))
@@ -234,11 +231,10 @@ class CommMgmt:
         self._write_header(Request.FlashWrite)
         self._write_string(partition)
         self._write_bytes(firmware)
-        if self._read_expect(Reply.RebootImminent):
-            print(partition, "write success")
+        self._read_expect(Reply.RebootImminent)
         
     def reload(self):
-        self._write_header(Request.Relaod)
+        self._write_header(Request.Reload)
         try:
             if self._read_expect(Reply.RebootImminent):
                 print("Reload failed")
@@ -246,8 +242,3 @@ class CommMgmt:
         except IOError:
             return True
 
-    def awake(self):
-        self._write_header(Request.Awake)
-        if self._read_expect(Reply.Success):
-            return True
-        return False

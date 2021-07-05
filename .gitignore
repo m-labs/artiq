@@ -6,12 +6,6 @@ __pycache__/
 *.bin
 *.elf
 *.fbi
-*.pcap
-*.prof
-.vscode
-.direnv
-.envrc
-.ipynb_checkpoints
 /doc/manual/_build
 /build
 /dist

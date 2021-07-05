@@ -30,7 +30,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, boot, config, net_settings};
+use board_misoc::{csr, irq, ident, clock, config, net_settings, flash};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -336,7 +336,7 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
         println!("restarting...");
         unsafe {
             kernel::stop();
-            boot::reset();
+            flash::reload();
         }
     } else {
         println!("halting.");

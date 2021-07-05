@@ -8,7 +8,7 @@ from functools import partial
 from migen import *
 from migen.build.generic_platform import IOStandard
 
-from misoc.cores import gpio
+from misoc.cores import gpio, icap
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.interconnect.csr import *
 from misoc.targets.sayma_amc import *
@@ -173,6 +173,8 @@ class SatelliteBase(MiniSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gth.txoutclk, gth.rxoutclk)
+        self.submodules.icap = icap.ICAP(platform='sayma_amc')
+        self.csr_devices.append("icap")
 
     def add_rtio(self, rtio_channels):
         # Only add MonInj core if there is anything to monitor

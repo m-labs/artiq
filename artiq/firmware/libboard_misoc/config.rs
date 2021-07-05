@@ -1,44 +1,10 @@
-use core::{str, fmt};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Error {
-    AlreadyLocked,
-    SpaceExhausted,
-    Truncated { offset: usize },
-    InvalidSize { offset: usize, size: usize },
-    MissingSeparator { offset: usize },
-    Utf8Error(str::Utf8Error),
-    NoFlash,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            &Error::AlreadyLocked =>
-                write!(f, "attempt at reentrant access"),
-            &Error::SpaceExhausted =>
-                write!(f, "space exhausted"),
-            &Error::Truncated { offset }=>
-                write!(f, "truncated record at offset {}", offset),
-            &Error::InvalidSize { offset, size } =>
-                write!(f, "invalid record size {} at offset {}", size, offset),
-            &Error::MissingSeparator { offset } =>
-                write!(f, "missing separator at offset {}", offset),
-            &Error::Utf8Error(err) =>
-                write!(f, "{}", err),
-            &Error::NoFlash =>
-                write!(f, "flash memory is not present"),
-        }
-    }
-}
-
 #[cfg(has_spiflash)]
 mod imp {
     use core::str;
     use byteorder::{ByteOrder, BigEndian};
     use cache;
     use spiflash;
-    use super::Error;
+    use spiflash::Error;
     use core::fmt;
     use core::fmt::Write;
 
@@ -72,40 +38,41 @@ mod imp {
     }
 
     // One flash sector immediately before the firmware.
-    const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::SECTOR_SIZE;
-    const SIZE: usize = spiflash::SECTOR_SIZE;
+    // const ADDR: usize = ::mem::FLASH_BOOT_ADDRESS - spiflash::SECTOR_SIZE;
+    // const SIZE: usize = spiflash::SECTOR_SIZE;
 
-    mod lock {
-        use core::slice;
-        use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-        use super::Error;
+    // pub mod lock {
+    //     use core::slice;
+    //     use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+    //     use super::Error;
 
-        static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
+    //     static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
 
-        pub struct Lock;
+    //     pub struct Lock;
 
-        impl Lock {
-            pub fn take() -> Result<Lock, Error> {
-                if LOCKED.swap(1, Ordering::SeqCst) != 0 {
-                    Err(Error::AlreadyLocked)
-                } else {
-                    Ok(Lock)
-                }
-            }
+    //     impl Lock {
+    //         pub fn take() -> Result<Lock, Error> {
+    //             if LOCKED.swap(1, Ordering::SeqCst) != 0 {
+    //                 Err(Error::AlreadyLocked)
+    //             } else {
+    //                 Ok(Lock)
+    //             }
+    //         }
 
-            pub fn data(&self) -> &'static [u8] {
-                unsafe { slice::from_raw_parts(super::ADDR as *const u8, super::SIZE) }
-            }
-        }
+    //         pub fn data(&self, addr: usize) -> &'static [u8] {
+    //             unsafe { slice::from_raw_parts(addr as *const u8, super::SIZE) }
+    //         }
+    //     }
 
-        impl Drop for Lock {
-            fn drop(&mut self) {
-                LOCKED.store(0, Ordering::SeqCst)
-            }
-        }
-    }
+    //     impl Drop for Lock {
+    //         fn drop(&mut self) {
+    //             LOCKED.store(0, Ordering::SeqCst)
+    //         }
+    //     }
+    // }
 
-    use self::lock::Lock;
+    // use self::lock::Lock;
+    use spiflash::lock::Lock;
 
     #[derive(Clone)]
     struct Iter<'a> {
@@ -154,7 +121,7 @@ mod imp {
 
     pub fn read<F: FnOnce(Result<&[u8], Error>) -> R, R>(key: &str, f: F) -> R {
         f(Lock::take().and_then(|lock| {
-            let mut iter = Iter::new(lock.data());
+            let mut iter = Iter::new(lock.data(spiflash::ADDR));
             let mut value = &[][..];
             while let Some(result) = iter.next() {
                 let (record_key, record_value) = result?;
@@ -201,9 +168,9 @@ mod imp {
 
     fn compact() -> Result<(), Error> {
         let lock = Lock::take()?;
-        let data = lock.data();
+        let data = lock.data(spiflash::ADDR);
 
-        static mut OLD_DATA: [u8; SIZE] = [0; SIZE];
+        static mut OLD_DATA: [u8; spiflash::SECTOR_SIZE] = [0; spiflash::SECTOR_SIZE];
         let old_data = unsafe {
             OLD_DATA.copy_from_slice(data);
             &OLD_DATA[..]
@@ -238,7 +205,7 @@ mod imp {
 
     fn append(key: &str, value: &[u8]) -> Result<(), Error> {
         let lock = Lock::take()?;
-        let data = lock.data();
+        let data = lock.data(spiflash::ADDR);
 
         let free_offset = {
             let mut iter = Iter::new(data);
@@ -276,12 +243,28 @@ mod imp {
 
     pub fn erase() -> Result<(), Error> {
         let lock = Lock::take()?;
-        let data = lock.data();
+        let data = lock.data(spiflash::ADDR);
 
         unsafe { spiflash::erase_sector(data.as_ptr() as usize) };
         cache::flush_l2_cache();
 
         Ok(())
+    }
+}
+
+use core::fmt;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Error {
+    NoFlash,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Error::NoFlash =>
+                write!(f, "flash memory is not present"),
+        }
     }
 }
 

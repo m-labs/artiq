@@ -132,9 +132,8 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(self.platform)
         
-        if self.platform.hw_rev == "v2.0":
-            self.submodules.icap = icap.ICAP()
-            self.csr_devices.append("icap")
+        self.submodules.icap = icap.ICAP(platform='kasli')
+        self.csr_devices.append("icap")
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])

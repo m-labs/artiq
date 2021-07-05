@@ -73,10 +73,8 @@ pub enum Request {
 
     DebugAllocator,
 
-    // FlashErase { key: String },
     FlashWrite { key: String, value: Vec<u8> },
     Reload,
-    Awake,
 }
 
 pub enum Reply<'a> {
@@ -149,7 +147,6 @@ impl Request {
                 value: reader.read_bytes()?
             },
             17 => Request::Reload,
-            18 => Request::Awake,
 
             ty => return Err(Error::UnknownPacket(ty))
         })
