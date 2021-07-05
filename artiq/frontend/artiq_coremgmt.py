@@ -10,6 +10,7 @@ from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.profiler import CallgrindWriter
+from artiq.frontend.artiq_flash import *
 
 
 def get_argparser():
@@ -82,16 +83,6 @@ def get_argparser():
 
     subparsers.add_parser("erase", help="fully erase core device config")
 
-    # booting
-    t_boot = tools.add_parser("reboot",
-                              help="reboot the currently running firmware")
-
-    t_hotswap = tools.add_parser("hotswap",
-                                  help="load the specified firmware in RAM")
-
-    t_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
-                           help="runtime image to be executed")
-
     # profiling
     t_profile = tools.add_parser("profile",
                                  help="account for communications CPU time")
@@ -133,6 +124,22 @@ def get_argparser():
 
     p_allocator = subparsers.add_parser("allocator",
                                         help="show heap layout")
+
+    # flash
+    t_flash = tools.add_parser("flash",
+                                help="ARTIQ flashing/deployment tool though internet")
+
+    t_flash.add_argument("action", metavar="ACTION", nargs="*",
+                        default=[],
+                        help="actions to perform, default: gateware/bootloader/firmware/start")
+    t_flash.add_argument("-d", "--dir", help="look for board binaries in this directory")
+    t_flash.add_argument("-V", "--variant", default=None,
+                        help="board variant. Autodetected if only one is installed.")
+    t_flash.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
+                        default=False, action="store_true")
+    t_flash.add_argument("-t", "--target", default="kasli",
+                        help="target board, default: %(default)s, one of: "
+                             "kasli sayma metlino kc705 phaser")
 
     return parser
 
@@ -177,12 +184,6 @@ def main():
         if args.action == "erase":
             mgmt.config_erase()
 
-    if args.tool == "reboot":
-        mgmt.reboot()
-
-    if args.tool == "hotswap":
-        mgmt.hotswap(args.image.read())
-
     if args.tool == "profile":
         if args.action == "start":
             mgmt.start_profiler(args.interval, args.hits_size, args.edges_size)
@@ -201,7 +202,41 @@ def main():
     if args.tool == "debug":
         if args.action == "allocator":
             mgmt.debug_allocator()
+    
+    if args.tool == "flash":
 
+        (variant, bin_dir, variant_dir, rtm_variant_dir) = build_dir(args)
+
+        if not args.action:
+            args.action = "gateware bootloader firmware start".split()
+            
+        for action in args.action:
+            if action == "gateware":
+                gateware_bin = convert_gateware(
+                    artifact_path(args, bin_dir, variant_dir, "gateware", "top.bit"))
+                with open(gateware_bin, "rb") as fi:
+                    file = fi.read()
+                    mgmt.flash_write(action, file)
+            elif action == "bootloader":
+                bootloader_bin = artifact_path(args, bin_dir, variant_dir, "software", "bootloader", "bootloader.bin")
+                with open(bootloader_bin, "rb") as fi:
+                    file = fi.read()
+                    mgmt.flash_write(action, file)
+            elif action == "firmware":
+                firmware = "runtime"
+                firmware_fbi = artifact_path(args, bin_dir, variant_dir, "software", firmware, firmware + ".fbi")
+                with open(firmware_fbi, "rb") as fi:
+                    file = fi.read()
+                    mgmt.flash_write(action, file)
+            elif action == "start":
+                print('Reloading')
+                if mgmt.reload():
+                    mgmt.close()
+                    # if(mgmt.awake()):
+                    #     print('Reload success')
+                    # else:
+                    #     print('Device not awake')
+            
 
 if __name__ == "__main__":
     main()
