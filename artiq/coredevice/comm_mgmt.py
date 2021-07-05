@@ -24,11 +24,10 @@ class Request(Enum):
     StopProfiler = 10
     GetProfile = 11
 
-    Hotswap = 4
-    Reboot = 5
-
     DebugAllocator = 8
 
+    FlashWrite = 16
+    Reload = 17
 
 class Reply(Enum):
     Success = 1
@@ -43,6 +42,7 @@ class Reply(Enum):
 
     RebootImminent = 3
 
+    CorruptedFirmware = 8
 
 class LogLevel(Enum):
     OFF = 0
@@ -224,14 +224,21 @@ class CommMgmt:
 
         return hits, edges
 
-    def hotswap(self, firmware):
-        self._write_header(Request.Hotswap)
-        self._write_bytes(firmware)
-        self._read_expect(Reply.RebootImminent)
-
-    def reboot(self):
-        self._write_header(Request.Reboot)
-        self._read_expect(Reply.RebootImminent)
-
     def debug_allocator(self):
         self._write_header(Request.DebugAllocator)
+    
+    def flash_write(self, partition, firmware):
+        self._write_header(Request.FlashWrite)
+        self._write_string(partition)
+        self._write_bytes(firmware)
+        self._read_expect(Reply.RebootImminent)
+        
+    def reload(self):
+        self._write_header(Request.Reload)
+        try:
+            if self._read_expect(Reply.RebootImminent):
+                print("Reload failed")
+                return False
+        except IOError:
+            return True
+

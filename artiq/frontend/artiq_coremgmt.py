@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
 import argparse
-import struct
 
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
-from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.profiler import CallgrindWriter
-from artiq.frontend.artiq_flash import *
+from artiq.core_flash import build_dir, artifact_path, convert_gateware
 
 
 def get_argparser():
@@ -127,7 +125,7 @@ def get_argparser():
 
     # flash
     t_flash = tools.add_parser("flash",
-                                help="ARTIQ flashing/deployment tool though internet")
+                        help="ARTIQ flashing/deployment tool though internet")
 
     t_flash.add_argument("action", metavar="ACTION", nargs="*",
                         default=[],
@@ -202,14 +200,11 @@ def main():
     if args.tool == "debug":
         if args.action == "allocator":
             mgmt.debug_allocator()
-    
+
     if args.tool == "flash":
-
         (variant, bin_dir, variant_dir, rtm_variant_dir) = build_dir(args)
-
         if not args.action:
             args.action = "gateware bootloader firmware start".split()
-            
         for action in args.action:
             if action == "gateware":
                 gateware_bin = convert_gateware(
@@ -224,7 +219,8 @@ def main():
                     mgmt.flash_write(action, file)
             elif action == "firmware":
                 firmware = "runtime"
-                firmware_fbi = artifact_path(args, bin_dir, variant_dir, "software", firmware, firmware + ".fbi")
+                firmware_fbi = artifact_path(args, bin_dir,
+                    variant_dir, "software", firmware, firmware + ".fbi")
                 with open(firmware_fbi, "rb") as fi:
                     file = fi.read()
                     mgmt.flash_write(action, file)
@@ -232,11 +228,6 @@ def main():
                 print('Reloading')
                 if mgmt.reload():
                     mgmt.close()
-                    # if(mgmt.awake()):
-                    #     print('Reload success')
-                    # else:
-                    #     print('Device not awake')
-            
 
 if __name__ == "__main__":
     main()
