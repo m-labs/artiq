@@ -737,6 +737,7 @@ class Stitcher:
 
         self.embedding_map = EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
+        self.definitely_changed = False
 
     def stitch_call(self, function, args, kwargs, callback=None):
         # We synthesize source code for the initial call so that
@@ -757,13 +758,19 @@ class Stitcher:
         old_attr_count = None
         while True:
             inferencer.visit(self.typedtree)
-            typedtree_hash = typedtree_hasher.visit(self.typedtree)
-            attr_count = self.embedding_map.attribute_count()
+            if self.definitely_changed:
+                changed = True
+                self.definitely_changed = False
+            else:
+                typedtree_hash = typedtree_hasher.visit(self.typedtree)
+                attr_count = self.embedding_map.attribute_count()
+                changed = old_attr_count != attr_count or \
+                          old_typedtree_hash != typedtree_hash
+                old_typedtree_hash = typedtree_hash
+                old_attr_count = attr_count
 
-            if old_typedtree_hash == typedtree_hash and old_attr_count == attr_count:
+            if not changed:
                 break
-            old_typedtree_hash = typedtree_hash
-            old_attr_count = attr_count
 
         # After we've discovered every referenced attribute, check if any kernel_invariant
         # specifications refers to ones we didn't encounter.
@@ -891,6 +898,9 @@ class Stitcher:
             return types.TVar()
 
     def _quote_embedded_function(self, function, flags):
+        # we are now parsing new functions... definitely changed the type
+        self.definitely_changed = True
+
         if isinstance(function, SpecializedFunction):
             host_function = function.host_function
         else:
