@@ -296,6 +296,7 @@ class SinaraTester(EnvExperiment):
     @kernel
     def setup_mirny(self, channel, frequency):
         self.core.break_realtime()
+        delay(1*ms)
         channel.init()
 
         channel.set_att_mu(160)
