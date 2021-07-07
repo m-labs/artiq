@@ -3,6 +3,7 @@ import logging
 
 import numpy as np
 from PyQt5 import QtCore, QtWidgets
+from sipyco import pyon
 
 from artiq.tools import short_format
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
@@ -81,6 +82,63 @@ class StringEditor(Editor):
     def get_edit_widget_value(self):
         return self.edit_widget.text()
 
+class Creator(QtWidgets.QDialog):
+    def __init__(self, parent, dataset_ctl):
+        QtWidgets.QDialog.__init__(self, parent=parent)
+        self.dataset_ctl = dataset_ctl
+
+        self.setWindowTitle("Create dataset")
+        grid = QtWidgets.QGridLayout()
+        self.setLayout(grid)
+
+        grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
+        grid.addWidget(self.get_key_widget(), 0, 1)
+
+        grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
+        grid.addWidget(self.get_edit_widget(), 1, 1)
+        self.data_type = QtWidgets.QLabel("data type")
+        grid.addWidget(self.data_type, 1, 2)
+        self.edit_widget.textChanged.connect(self.dtype)
+
+        buttons = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        grid.setRowStretch(2, 1)
+        grid.addWidget(buttons, 3, 0, 1, 2)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+
+    def accept(self):
+        try:
+            key = self.get_create_widget_text()
+            value = self.get_create_widget_value()
+            asyncio.ensure_future(self.dataset_ctl.set(key, pyon.decode(value)))
+            QtWidgets.QDialog.accept(self)
+        except:
+            logger.error("Cannot create dataset: "
+                                 "type is not supported",)
+            return
+
+    def get_key_widget(self):
+        self.key_widget = QtWidgets.QLineEdit()
+        return self.key_widget
+
+    def get_edit_widget(self):
+        self.edit_widget = QtWidgets.QLineEdit()
+        return self.edit_widget
+    
+    def get_create_widget_text(self):
+        return self.key_widget.text()
+
+    def get_create_widget_value(self):
+        return self.edit_widget.text()
+    
+    def dtype(self):
+        txt = self.get_create_widget_value()
+        try:
+            self.data_type.setText(type(pyon.decode(txt)).__name__)
+        except:
+            self.data_type.setText('N/A')
+        return
 
 class Model(DictSyncTreeSepModel):
     def __init__(self,  init):
@@ -120,6 +178,11 @@ class DatasetsDock(QtWidgets.QDockWidget):
         grid.addWidget(self.table, 1, 0)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        create_action = QtWidgets.QAction("New dataset", self.table)
+        create_action.triggered.connect(self.create_clicked)
+        create_action.setShortcut("CTRL+N")
+        create_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self.table.addAction(create_action)
         edit_action = QtWidgets.QAction("Edit dataset", self.table)
         edit_action.triggered.connect(self.edit_clicked)
         edit_action.setShortcut("RETURN")
@@ -145,6 +208,10 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table_model_filter = QRecursiveFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
+
+    def create_clicked(self):
+        dialog_cls = Creator
+        dialog_cls(self, self.dataset_ctl).open()
 
     def edit_clicked(self):
         idx = self.table.selectedIndexes()
