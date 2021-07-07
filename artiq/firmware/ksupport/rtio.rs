@@ -91,7 +91,7 @@ mod imp {
         unsafe {
             csr::rtio::target_write(target as u32);
             // writing target clears o_data
-            for i in 0..data.len() {
+            for i in (0..data.len()).rev() {
                 rtio_o_data_write(i, data[i] as _)
             }
             let status = csr::rtio::o_status_read();
@@ -112,7 +112,6 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                csr::rtio::i_overflow_reset_write(1);
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
@@ -141,7 +140,6 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                csr::rtio::i_overflow_reset_write(1);
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);
@@ -167,7 +165,6 @@ mod imp {
             }
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
-                csr::rtio::i_overflow_reset_write(1);
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
                     channel as i64, 0, 0);

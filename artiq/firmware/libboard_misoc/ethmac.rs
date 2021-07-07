@@ -30,7 +30,7 @@ fn next_tx_slot() -> Option<usize> {
     }
 }
 
-fn rx_buffer(slot: usize) -> *const u8 {
+fn rx_buffer(slot: usize) -> *mut u8 {
     debug_assert!(slot < RX_SLOTS);
     (ETHMAC_BASE + SLOT_SIZE * slot) as _
 }
@@ -97,11 +97,11 @@ pub struct EthernetRxSlot(usize);
 
 impl phy::RxToken for EthernetRxSlot {
     fn consume<R, F>(self, _timestamp: Instant, f: F) -> Result<R>
-        where F: FnOnce(&[u8]) -> Result<R>
+        where F: FnOnce(&mut [u8]) -> Result<R>
     {
         unsafe {
             let length = csr::ethmac::sram_writer_length_read() as usize;
-            let result = f(slice::from_raw_parts(rx_buffer(self.0), length));
+            let result = f(slice::from_raw_parts_mut(rx_buffer(self.0), length));
             csr::ethmac::sram_writer_ev_pending_write(1);
             result
         }

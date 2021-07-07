@@ -3,7 +3,9 @@
 import argparse
 import struct
 
-from artiq.tools import add_common_args, init_logger
+from sipyco import common_args
+
+from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
@@ -13,8 +15,11 @@ from artiq.coredevice.profiler import CallgrindWriter
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "management tool")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
     parser.add_argument("-D", "--device", default=None,
@@ -134,10 +139,11 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     if args.device is None:
-        core_addr = DeviceDB(args.device_db).get("core")["arguments"]["host"]
+        ddb = DeviceDB(args.device_db)
+        core_addr = ddb.get("core", resolve_alias=True)["arguments"]["host"]
     else:
         core_addr = args.device
     mgmt = CommMgmt(core_addr)

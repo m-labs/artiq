@@ -15,6 +15,8 @@ class CreateTTLPulse(EnvExperiment):
     def initialize_io(self):
         self.core.reset()
         self.loop_in.input()
+        self.loop_out.output()
+        delay(1*us)
         self.loop_out.off()
 
     @kernel

@@ -4,11 +4,11 @@ import asyncio
 import os
 import string
 
-from quamash import QEventLoop, QtWidgets, QtCore
+from qasync import QEventLoop, QtWidgets, QtCore
 
-from artiq.protocols.sync_struct import Subscriber, process_mod
-from artiq.protocols import pyon
-from artiq.protocols.pipe_ipc import AsyncioChildComm
+from sipyco.sync_struct import Subscriber, process_mod
+from sipyco import pyon
+from sipyco.pipe_ipc import AsyncioChildComm
 
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class SimpleApplet:
         self.datasets = {getattr(self.args, arg.replace("-", "_"))
                          for arg in self.dataset_args}
 
-    def quamash_init(self):
+    def qasync_init(self):
         app = QtWidgets.QApplication([])
         self.loop = QEventLoop(app)
         asyncio.set_event_loop(self.loop)
@@ -212,7 +212,7 @@ class SimpleApplet:
 
     def run(self):
         self.args_init()
-        self.quamash_init()
+        self.qasync_init()
         try:
             self.ipc_init()
             try:

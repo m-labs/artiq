@@ -6,12 +6,14 @@ import atexit
 import os
 import logging
 
-from artiq.tools import (simple_network_args, atexit_register_coroutine,
-                         bind_address_from_args)
-from artiq.protocols.pc_rpc import Server as RPCServer
-from artiq.protocols.sync_struct import Publisher
-from artiq.protocols.logging import Server as LoggingServer
-from artiq.protocols.broadcast import Broadcaster
+from sipyco.pc_rpc import Server as RPCServer
+from sipyco.sync_struct import Publisher
+from sipyco.logging_tools import Server as LoggingServer
+from sipyco.broadcast import Broadcaster
+from sipyco import common_args
+from sipyco.asyncio_tools import atexit_register_coroutine
+
+from artiq import __version__ as artiq_version
 from artiq.master.log import log_args, init_log
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.scheduler import Scheduler
@@ -24,8 +26,11 @@ logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ master")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
-    simple_network_args(parser, [
+    common_args.simple_network_args(parser, [
         ("notify", "notifications", 3250),
         ("control", "control", 3251),
         ("logging", "remote logging", 1066),
@@ -72,7 +77,7 @@ def main():
     else:
         loop = asyncio.get_event_loop()
     atexit.register(loop.close)
-    bind = bind_address_from_args(args)
+    bind = common_args.bind_address_from_args(args)
 
     server_broadcast = Broadcaster()
     loop.run_until_complete(server_broadcast.start(

@@ -11,6 +11,7 @@ ZeroDivisionError = builtins.ZeroDivisionError
 ValueError = builtins.ValueError
 IndexError = builtins.IndexError
 RuntimeError = builtins.RuntimeError
+AssertionError = builtins.AssertionError
 
 
 class CoreException:
@@ -101,10 +102,6 @@ class RTIODestinationUnreachable(Exception):
 class DMAError(Exception):
     """Raised when performing an invalid DMA operation."""
     artiq_builtin = True
-
-
-class WatchdogExpired(Exception):
-    """Raised when a watchdog expires."""
 
 
 class ClockFailure(Exception):

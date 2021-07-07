@@ -9,6 +9,7 @@ enum State {
     Watch
 }
 
+#[derive(Clone, Copy)]
 struct Info {
     state: State,
     frame_size: (u16, u16),

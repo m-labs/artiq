@@ -38,6 +38,7 @@ class MonInjTest(ExperimentCase):
                 moninj_comm.monitor_injection(True, loop_out_channel, TTLOverride.level.en.value)
                 loop.run_until_complete(asyncio.sleep(0.5))
                 moninj_comm.inject(loop_out_channel, TTLOverride.level.value, 0)
+                moninj_comm.inject(loop_out_channel, TTLOverride.level.oe.value, 1)
                 moninj_comm.inject(loop_out_channel, TTLOverride.level.en.value, 1)
                 loop.run_until_complete(asyncio.sleep(0.5))
                 moninj_comm.get_injection_status(loop_out_channel, TTLOverride.en.value)

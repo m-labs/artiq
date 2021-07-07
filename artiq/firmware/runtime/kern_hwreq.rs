@@ -4,8 +4,8 @@ use sched::{Io, Mutex, Error as SchedError};
 use session::{kern_acknowledge, kern_send, Error};
 use rtio_mgt;
 use urc::Urc;
+use board_misoc::i2c as local_i2c;
 use board_artiq::drtio_routing;
-use board_artiq::i2c as local_i2c;
 use board_artiq::spi as local_spi;
 
 #[cfg(has_drtio)]
@@ -14,67 +14,67 @@ mod remote_i2c {
     use rtio_mgt::drtio;
     use sched::{Io, Mutex};
 
-    pub fn start(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), ()> {
+    pub fn start(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cStartRequest {
             destination: destination,
             busno: busno
         });
         match reply {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn restart(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), ()> {
+    pub fn restart(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cRestartRequest {
             destination: destination,
             busno: busno
         });
         match reply {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn stop(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), ()> {
+    pub fn stop(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<(), &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cStopRequest  {
             destination: destination,
             busno: busno
         });
         match reply {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn write(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u8) -> Result<bool, ()> {
+    pub fn write(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u8) -> Result<bool, &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cWriteRequest {
             destination: destination,
             busno: busno,
@@ -82,20 +82,20 @@ mod remote_i2c {
         });
         match reply {
             Ok(drtioaux::Packet::I2cWriteReply { succeeded, ack }) => {
-                if succeeded { Ok(ack) } else { Err(()) }
+                if succeeded { Ok(ack) } else { Err("i2c write reply error") }
             }
             Ok(_) => {
                 error!("received unexpected aux packet");
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn read(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, ack: bool) -> Result<u8, ()> {
+    pub fn read(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, ack: bool) -> Result<u8, &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cReadRequest {
             destination: destination,
             busno: busno,
@@ -103,15 +103,15 @@ mod remote_i2c {
         });
         match reply {
             Ok(drtioaux::Packet::I2cReadReply { succeeded, data }) => {
-                if succeeded { Ok(data) } else { Err(()) }
+                if succeeded { Ok(data) } else { Err("i2c read reply error") }
             }
             Ok(_) => {
                 error!("received unexpected aux packet");
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }

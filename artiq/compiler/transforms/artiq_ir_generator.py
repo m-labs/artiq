@@ -7,6 +7,7 @@ semantics explicitly.
 """
 
 from collections import OrderedDict, defaultdict
+from functools import reduce
 from pythonparser import algorithm, diagnostic, ast
 from .. import types, builtins, asttyped, ir, iodelay
 
@@ -52,12 +53,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         a component of a composite right-hand side when visiting
         a composite left-hand side, such as, in ``x, y = z``,
         the 2nd tuple element when visting ``y``
-    :ivar current_assert_env: (:class:`ir.Alloc` of type :class:`ir.TEnvironment`)
-        the environment where the individual components of current assert
-        statement are stored until display
-    :ivar current_assert_subexprs: (list of (:class:`ast.AST`, string))
-        the mapping from components of current assert statement to the names
-        their values have in :ivar:`current_assert_env`
     :ivar break_target: (:class:`ir.BasicBlock` or None)
         the basic block to which ``break`` will transfer control
     :ivar continue_target: (:class:`ir.BasicBlock` or None)
@@ -82,6 +77,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
     :ivar method_map: (map of :class:`ast.AttributeT` to :class:`ir.GetAttribute`)
         the map from method resolution nodes to instructions retrieving
         the called function inside a translated :class:`ast.CallT` node
+
+    Finally, functions that implement array operations are instantiated on the fly as
+    necessary. They are kept track of in global dictionaries, with a mangled name
+    containing types and operations as key:
+
+    :ivar array_op_funcs: the map from mangled name to implementation of
+        operations on/between arrays
     """
 
     _size_type = builtins.TInt32()
@@ -100,8 +102,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_private_env = None
         self.current_args = None
         self.current_assign = None
-        self.current_assert_env = None
-        self.current_assert_subexprs = None
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -110,6 +110,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.function_map = dict()
         self.variable_map = dict()
         self.method_map = defaultdict(lambda: [])
+        self.array_op_funcs = dict()
+        self.raise_assert_func = None
 
     def annotate_calls(self, devirtualization):
         for var_node in devirtualization.variable_map:
@@ -388,6 +390,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_AugAssign(self, node):
         lhs = self.visit(node.target)
         rhs = self.visit(node.value)
+
+        if builtins.is_array(lhs.type):
+            name = type(node.op).__name__
+            def make_op(l, r):
+                return self.append(ir.Arith(node.op, l, r))
+            self._broadcast_binop(name, make_op, lhs.type, lhs, rhs, assign_to_lhs=True)
+            return
+
         value = self.append(ir.Arith(node.op, lhs, rhs))
         try:
             self.current_assign = value
@@ -408,6 +418,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             length = self.iterable_len(insn)
             return self.append(ir.Compare(ast.NotEq(loc=None), length, ir.Constant(0, length.type)),
                                block=block)
+        elif builtins.is_none(insn.type):
+            return ir.Constant(False, builtins.TBool())
         else:
             note = diagnostic.Diagnostic("note",
                 "this expression has type {type}",
@@ -509,7 +521,28 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def iterable_get(self, value, index):
         # Assuming the value is within bounds.
-        if builtins.is_listish(value.type):
+        if builtins.is_array(value.type):
+            # Scalar indexing into ndarray.
+            num_dims = value.type.find()["num_dims"].value
+            if num_dims > 1:
+                old_shape = self.append(ir.GetAttr(value, "shape"))
+                lengths = [self.append(ir.GetAttr(old_shape, i)) for i in range(1, num_dims)]
+                new_shape = self._make_array_shape(lengths)
+
+                stride = reduce(
+                    lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
+                    lengths[1:], lengths[0])
+                offset = self.append(ir.Arith(ast.Mult(loc=None), stride, index))
+                old_buffer = self.append(ir.GetAttr(value, "buffer"))
+                new_buffer = self.append(ir.Offset(old_buffer, offset))
+
+                result_type = builtins.TArray(value.type.find()["elt"],
+                    types.TValue(num_dims - 1))
+                return self.append(ir.Alloc([new_buffer, new_shape], result_type))
+            else:
+                buffer = self.append(ir.GetAttr(value, "buffer"))
+                return self.append(ir.GetElem(buffer, index))
+        elif builtins.is_listish(value.type):
             return self.append(ir.GetElem(value, index))
         elif builtins.is_range(value.type):
             start  = self.append(ir.GetAttr(value, "start"))
@@ -826,35 +859,23 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         cleanup = []
         for item_node in node.items:
+            # user-defined context manager
             context_expr_node  = item_node.context_expr
             optional_vars_node = item_node.optional_vars
+            context_mgr = self.visit(context_expr_node)
+            enter_fn    = self.append(ir.GetAttr(context_mgr, '__enter__'))
+            exit_fn     = self.append(ir.GetAttr(context_mgr, '__exit__'))
 
-            if isinstance(context_expr_node, asttyped.CallT) and \
-                    types.is_builtin(context_expr_node.func.type, "watchdog"):
-                timeout        = self.visit(context_expr_node.args[0])
-                timeout_ms     = self.append(ir.Arith(ast.Mult(loc=None), timeout,
-                                                      ir.Constant(1000, builtins.TFloat())))
-                timeout_ms_int = self.append(ir.Coerce(timeout_ms, builtins.TInt64()))
+            try:
+                self.current_assign = self._user_call(enter_fn, [], {})
+                if optional_vars_node is not None:
+                    self.visit(optional_vars_node)
+            finally:
+                self.current_assign = None
 
-                watchdog_id = self.append(ir.Builtin("watchdog_set", [timeout_ms_int],
-                                                     builtins.TInt32()))
-                cleanup.append(lambda:
-                    self.append(ir.Builtin("watchdog_clear", [watchdog_id], builtins.TNone())))
-            else: # user-defined context manager
-                context_mgr = self.visit(context_expr_node)
-                enter_fn    = self.append(ir.GetAttr(context_mgr, '__enter__'))
-                exit_fn     = self.append(ir.GetAttr(context_mgr, '__exit__'))
-
-                try:
-                    self.current_assign = self._user_call(enter_fn, [], {})
-                    if optional_vars_node is not None:
-                        self.visit(optional_vars_node)
-                finally:
-                    self.current_assign = None
-
-                none = self.append(ir.Alloc([], builtins.TNone()))
-                cleanup.append(lambda:
-                    self._user_call(exit_fn, [none, none, none], {}))
+            none = self.append(ir.Alloc([], builtins.TNone()))
+            cleanup.append(lambda:
+                self._user_call(exit_fn, [none, none, none], {}))
 
         self._try_finally(
             body_gen=lambda: self.visit(node.body),
@@ -986,18 +1007,29 @@ class ARTIQIRGenerator(algorithm.Visitor):
         cond_block = self.current_block
 
         self.current_block = body_block = self.add_block("check.body")
-        closure = self.append(ir.Closure(func, ir.Constant(None, ir.TEnvironment("check", {}))))
+        self._invoke_raising_func(func, params, "check")
+
+        self.current_block = tail_block = self.add_block("check.tail")
+        cond_block.append(ir.BranchIf(cond, tail_block, body_block))
+
+    def _invoke_raising_func(self, func, params, block_name):
+        """Emit a call/invoke instruction as appropriate to terminte the current
+        basic block with a call to a helper function that always raises an
+        exception.
+
+        (This is done for compiler-inserted checks and assertions to keep the
+        generated code tight for the normal case.)
+        """
+        closure = self.append(ir.Closure(func,
+            ir.Constant(None, ir.TEnvironment("raise", {}))))
         if self.unwind_target is None:
             insn = self.append(ir.Call(closure, params, {}))
         else:
-            after_invoke = self.add_block("check.invoke")
+            after_invoke = self.add_block(block_name + ".invoke")
             insn = self.append(ir.Invoke(closure, params, {}, after_invoke, self.unwind_target))
             self.current_block = after_invoke
         insn.is_cold = True
         self.append(ir.Unreachable())
-
-        self.current_block = tail_block = self.add_block("check.tail")
-        cond_block.append(ir.BranchIf(cond, tail_block, body_block))
 
     def _map_index(self, length, index, one_past_the_end=False, loc=None):
         lt_0          = self.append(ir.Compare(ast.Lt(loc=None),
@@ -1059,17 +1091,36 @@ class ARTIQIRGenerator(algorithm.Visitor):
             finally:
                 self.current_assign = old_assign
 
-            length = self.iterable_len(value, index.type)
-            mapped_index = self._map_index(length, index,
-                                           loc=node.begin_loc)
-            if self.current_assign is None:
-                result = self.iterable_get(value, mapped_index)
-                result.set_name("{}.at.{}".format(value.name, _readable_name(index)))
-                return result
+            # For multi-dimensional indexes, just apply them sequentially. This
+            # works, as they are only supported for types where we do not
+            # immediately need to distinguish between the Get and Set cases
+            # (i.e. arrays, which are reference types).
+            if types.is_tuple(index.type):
+                num_idxs = len(index.type.find().elts)
+                indices = [
+                    self.append(ir.GetAttr(index, i)) for i in range(num_idxs)
+                ]
             else:
-                self.append(ir.SetElem(value, mapped_index, self.current_assign,
-                                       name="{}.at.{}".format(value.name, _readable_name(index))))
-        else: # Slice
+                indices = [index]
+            indexed = value
+            for i, idx in enumerate(indices):
+                length = self.iterable_len(indexed, idx.type)
+                mapped_index = self._map_index(length, idx, loc=node.begin_loc)
+                if self.current_assign is None or i < len(indices) - 1:
+                    indexed = self.iterable_get(indexed, mapped_index)
+                    indexed.set_name("{}.at.{}".format(indexed.name,
+                                                       _readable_name(idx)))
+                else:
+                    self.append(ir.SetElem(indexed, mapped_index, self.current_assign,
+                                           name="{}.at.{}".format(value.name,
+                                                                  _readable_name(index))))
+            if self.current_assign is None:
+                return indexed
+        else:
+            # This is a slice. The endpoint checking logic is the same for both lists
+            # and NumPy arrays, but the actual implementations differ – while slices of
+            # built-in lists are always copies in Python, they are views sharing the
+            # same backing storage in NumPy.
             length = self.iterable_len(value, node.slice.type)
 
             if node.slice.lower is not None:
@@ -1094,91 +1145,127 @@ class ARTIQIRGenerator(algorithm.Visitor):
             mapped_stop_index = self._map_index(length, stop_index, one_past_the_end=True,
                                                 loc=node.begin_loc)
 
-            if node.slice.step is not None:
-                try:
-                    old_assign, self.current_assign = self.current_assign, None
-                    step = self.visit(node.slice.step)
-                finally:
-                    self.current_assign = old_assign
+            if builtins.is_array(node.type):
+                # To implement strided slicing with the proper NumPy reference
+                # semantics, the pointer/length array representation will need to be
+                # extended by another field to hold a variable stride.
+                assert node.slice.step is None, (
+                    "array slices with non-trivial step "
+                    "should have been disallowed during type inference")
 
+                # One-dimensionally slicing an array only affects the outermost
+                # dimension.
+                shape = self.append(ir.GetAttr(value, "shape"))
+                lengths = [
+                    self.append(ir.GetAttr(shape, i))
+                    for i in range(len(shape.type.elts))
+                ]
+
+                # Compute outermost length – zero for "backwards" indices.
+                raw_len = self.append(
+                    ir.Arith(ast.Sub(loc=None), mapped_stop_index, mapped_start_index))
+                is_neg_len = self.append(
+                    ir.Compare(ast.Lt(loc=None), raw_len, ir.Constant(0, raw_len.type)))
+                outer_len = self.append(
+                    ir.Select(is_neg_len, ir.Constant(0, raw_len.type), raw_len))
+                new_shape = self._make_array_shape([outer_len] + lengths[1:])
+
+                # Offset buffer pointer by start index (times stride for inner dims).
+                stride = reduce(
+                    lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
+                    lengths[1:], ir.Constant(1, lengths[0].type))
+                offset = self.append(
+                    ir.Arith(ast.Mult(loc=None), stride, mapped_start_index))
+                buffer = self.append(ir.GetAttr(value, "buffer"))
+                new_buffer = self.append(ir.Offset(buffer, offset))
+
+                return self.append(ir.Alloc([new_buffer, new_shape], node.type))
+            else:
+                if node.slice.step is not None:
+                    try:
+                        old_assign, self.current_assign = self.current_assign, None
+                        step = self.visit(node.slice.step)
+                    finally:
+                        self.current_assign = old_assign
+
+                    self._make_check(
+                        self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
+                        lambda: self.alloc_exn(builtins.TException("ValueError"),
+                            ir.Constant("step cannot be zero", builtins.TStr())),
+                        loc=node.slice.step.loc)
+                else:
+                    step = ir.Constant(1, node.slice.type)
+                counting_up = self.append(ir.Compare(ast.Gt(loc=None), step,
+                                                    ir.Constant(0, step.type)))
+
+                unstepped_size = self.append(ir.Arith(ast.Sub(loc=None),
+                                                    mapped_stop_index, mapped_start_index))
+                slice_size_a = self.append(ir.Arith(ast.FloorDiv(loc=None), unstepped_size, step))
+                slice_size_b = self.append(ir.Arith(ast.Mod(loc=None), unstepped_size, step))
+                rem_not_empty = self.append(ir.Compare(ast.NotEq(loc=None), slice_size_b,
+                                                    ir.Constant(0, slice_size_b.type)))
+                slice_size_c = self.append(ir.Arith(ast.Add(loc=None), slice_size_a,
+                                                    ir.Constant(1, slice_size_a.type)))
+                slice_size = self.append(ir.Select(rem_not_empty,
+                                                slice_size_c, slice_size_a,
+                                                name="slice.size"))
                 self._make_check(
-                    self.append(ir.Compare(ast.NotEq(loc=None), step, ir.Constant(0, step.type))),
-                    lambda: self.alloc_exn(builtins.TException("ValueError"),
-                        ir.Constant("step cannot be zero", builtins.TStr())),
-                    loc=node.slice.step.loc)
-            else:
-                step = ir.Constant(1, node.slice.type)
-            counting_up = self.append(ir.Compare(ast.Gt(loc=None), step,
-                                                 ir.Constant(0, step.type)))
+                    self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
+                    lambda slice_size, length: self.alloc_exn(builtins.TException("ValueError"),
+                        ir.Constant("slice size {0} is larger than iterable length {1}",
+                                    builtins.TStr()),
+                        slice_size, length),
+                    params=[slice_size, length],
+                    loc=node.slice.loc)
 
-            unstepped_size = self.append(ir.Arith(ast.Sub(loc=None),
-                                                  mapped_stop_index, mapped_start_index))
-            slice_size_a = self.append(ir.Arith(ast.FloorDiv(loc=None), unstepped_size, step))
-            slice_size_b = self.append(ir.Arith(ast.Mod(loc=None), unstepped_size, step))
-            rem_not_empty = self.append(ir.Compare(ast.NotEq(loc=None), slice_size_b,
-                                                   ir.Constant(0, slice_size_b.type)))
-            slice_size_c = self.append(ir.Arith(ast.Add(loc=None), slice_size_a,
-                                                ir.Constant(1, slice_size_a.type)))
-            slice_size = self.append(ir.Select(rem_not_empty,
-                                               slice_size_c, slice_size_a,
-                                               name="slice.size"))
-            self._make_check(
-                self.append(ir.Compare(ast.LtE(loc=None), slice_size, length)),
-                lambda slice_size, length: self.alloc_exn(builtins.TException("ValueError"),
-                    ir.Constant("slice size {0} is larger than iterable length {1}",
-                                builtins.TStr()),
-                    slice_size, length),
-                params=[slice_size, length],
-                loc=node.slice.loc)
+                if self.current_assign is None:
+                    is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),
+                                                        slice_size, ir.Constant(0, slice_size.type)))
+                    abs_slice_size = self.append(ir.Select(is_neg_size,
+                                                        ir.Constant(0, slice_size.type), slice_size))
+                    other_value = self.append(ir.Alloc([abs_slice_size], value.type,
+                                                    name="slice.result"))
+                else:
+                    other_value = self.current_assign
 
-            if self.current_assign is None:
-                is_neg_size = self.append(ir.Compare(ast.Lt(loc=None),
-                                                     slice_size, ir.Constant(0, slice_size.type)))
-                abs_slice_size = self.append(ir.Select(is_neg_size,
-                                                       ir.Constant(0, slice_size.type), slice_size))
-                other_value = self.append(ir.Alloc([abs_slice_size], value.type,
-                                                   name="slice.result"))
-            else:
-                other_value = self.current_assign
+                prehead = self.current_block
 
-            prehead = self.current_block
+                head = self.current_block = self.add_block("slice.head")
+                prehead.append(ir.Branch(head))
 
-            head = self.current_block = self.add_block("slice.head")
-            prehead.append(ir.Branch(head))
+                index = self.append(ir.Phi(node.slice.type,
+                                        name="slice.index"))
+                index.add_incoming(mapped_start_index, prehead)
+                other_index = self.append(ir.Phi(node.slice.type,
+                                                name="slice.resindex"))
+                other_index.add_incoming(ir.Constant(0, node.slice.type), prehead)
 
-            index = self.append(ir.Phi(node.slice.type,
-                                       name="slice.index"))
-            index.add_incoming(mapped_start_index, prehead)
-            other_index = self.append(ir.Phi(node.slice.type,
-                                             name="slice.resindex"))
-            other_index.add_incoming(ir.Constant(0, node.slice.type), prehead)
+                # Still within bounds?
+                bounded_up = self.append(ir.Compare(ast.Lt(loc=None), index, mapped_stop_index))
+                bounded_down = self.append(ir.Compare(ast.Gt(loc=None), index, mapped_stop_index))
+                within_bounds = self.append(ir.Select(counting_up, bounded_up, bounded_down))
 
-            # Still within bounds?
-            bounded_up = self.append(ir.Compare(ast.Lt(loc=None), index, mapped_stop_index))
-            bounded_down = self.append(ir.Compare(ast.Gt(loc=None), index, mapped_stop_index))
-            within_bounds = self.append(ir.Select(counting_up, bounded_up, bounded_down))
+                body = self.current_block = self.add_block("slice.body")
 
-            body = self.current_block = self.add_block("slice.body")
+                if self.current_assign is None:
+                    elem = self.iterable_get(value, index)
+                    self.append(ir.SetElem(other_value, other_index, elem))
+                else:
+                    elem = self.append(ir.GetElem(self.current_assign, other_index))
+                    self.append(ir.SetElem(value, index, elem))
 
-            if self.current_assign is None:
-                elem = self.iterable_get(value, index)
-                self.append(ir.SetElem(other_value, other_index, elem))
-            else:
-                elem = self.append(ir.GetElem(self.current_assign, other_index))
-                self.append(ir.SetElem(value, index, elem))
+                next_index = self.append(ir.Arith(ast.Add(loc=None), index, step))
+                index.add_incoming(next_index, body)
+                next_other_index = self.append(ir.Arith(ast.Add(loc=None), other_index,
+                                                        ir.Constant(1, node.slice.type)))
+                other_index.add_incoming(next_other_index, body)
+                self.append(ir.Branch(head))
 
-            next_index = self.append(ir.Arith(ast.Add(loc=None), index, step))
-            index.add_incoming(next_index, body)
-            next_other_index = self.append(ir.Arith(ast.Add(loc=None), other_index,
-                                                    ir.Constant(1, node.slice.type)))
-            other_index.add_incoming(next_other_index, body)
-            self.append(ir.Branch(head))
+                tail = self.current_block = self.add_block("slice.tail")
+                head.append(ir.BranchIf(within_bounds, body, tail))
 
-            tail = self.current_block = self.add_block("slice.tail")
-            head.append(ir.BranchIf(within_bounds, body, tail))
-
-            if self.current_assign is None:
-                return other_value
+                if self.current_assign is None:
+                    return other_value
 
     def visit_TupleT(self, node):
         if self.current_assign is None:
@@ -1265,7 +1352,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         for value_node in node.values:
             value_head = self.current_block
             value = self.visit(value_node)
-            self.instrument_assert(value_node, value)
             value_tail = self.current_block
 
             blocks.append((value, value_head, value_tail))
@@ -1286,6 +1372,69 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 value_tail.append(ir.Branch(tail))
         return phi
 
+    def _make_array_unaryop(self, name, make_op, result_type, arg_type):
+        try:
+            result = ir.Argument(result_type, "result")
+            arg = ir.Argument(arg_type, "arg")
+
+            # TODO: We'd like to use a "C function" here to be able to supply
+            # specialised implementations in a library in the future (and e.g. avoid
+            # passing around the context argument), but the code generator currently
+            # doesn't allow emitting them.
+            args = [result, arg]
+            typ = types.TFunction(args=OrderedDict([(arg.name, arg.type)
+                                                    for arg in args]),
+                                  optargs=OrderedDict(),
+                                  ret=builtins.TNone())
+            env_args = [ir.EnvironmentArgument(self.current_env.type, "ARG.ENV")]
+
+            old_loc, self.current_loc = self.current_loc, None
+            func = ir.Function(typ, name, env_args + args)
+            func.is_internal = True
+            func.is_generated = True
+            self.functions.append(func)
+            old_func, self.current_function = self.current_function, func
+
+            entry = self.add_block("entry")
+            old_block, self.current_block = self.current_block, entry
+
+            old_final_branch, self.final_branch = self.final_branch, None
+            old_unwind, self.unwind_target = self.unwind_target, None
+
+            shape = self.append(ir.GetAttr(arg, "shape"))
+
+            result_buffer = self.append(ir.GetAttr(result, "buffer"))
+            arg_buffer = self.append(ir.GetAttr(arg, "buffer"))
+            num_total_elts = self._get_total_array_len(shape)
+
+            def body_gen(index):
+                a = self.append(ir.GetElem(arg_buffer, index))
+                self.append(
+                    ir.SetElem(result_buffer, index, make_op(a)))
+                return self.append(
+                    ir.Arith(ast.Add(loc=None), index, ir.Constant(1, self._size_type)))
+
+            self._make_loop(
+                ir.Constant(0, self._size_type), lambda index: self.append(
+                    ir.Compare(ast.Lt(loc=None), index, num_total_elts)), body_gen)
+
+            self.append(ir.Return(ir.Constant(None, builtins.TNone())))
+            return func
+        finally:
+            self.current_loc = old_loc
+            self.current_function = old_func
+            self.current_block = old_block
+            self.final_branch = old_final_branch
+            self.unwind_target = old_unwind
+
+    def _get_array_unaryop(self, name, make_op, result_type, arg_type):
+        name = "_array_{}_{}".format(
+            name, self._mangle_arrayop_types([result_type, arg_type]))
+        if name not in self.array_op_funcs:
+            self.array_op_funcs[name] = self._make_array_unaryop(
+                name, make_op, result_type, arg_type)
+        return self.array_op_funcs[name]
+
     def visit_UnaryOpT(self, node):
         if isinstance(node.op, ast.Not):
             cond = self.coerce_to_bool(self.visit(node.operand))
@@ -1297,9 +1446,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return self.append(ir.Arith(ast.BitXor(loc=None),
                                         ir.Constant(-1, operand.type), operand))
         elif isinstance(node.op, ast.USub):
+            def make_sub(val):
+                return self.append(ir.Arith(ast.Sub(loc=None),
+                                        ir.Constant(0, val.type), val))
             operand = self.visit(node.operand)
-            return self.append(ir.Arith(ast.Sub(loc=None),
-                                        ir.Constant(0, operand.type), operand))
+            if builtins.is_array(operand.type):
+                shape = self.append(ir.GetAttr(operand, "shape"))
+                result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
+                func = self._get_array_unaryop("USub", make_sub, node.type, operand.type)
+                self._invoke_arrayop(func, [result, operand])
+                return result
+            else:
+                return make_sub(operand)
         elif isinstance(node.op, ast.UAdd):
             # No-op.
             return self.visit(node.operand)
@@ -1311,12 +1469,343 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if node.type.find() == value.type:
             return value
         else:
-            return self.append(ir.Coerce(value, node.type,
-                                         name="{}.{}".format(_readable_name(value),
-                                                             node.type.name)))
+            if builtins.is_array(node.type):
+                result_elt = node.type.find()["elt"]
+                shape = self.append(ir.GetAttr(value, "shape"))
+                result, _ = self._allocate_new_array(result_elt, shape)
+                func = self._get_array_unaryop(
+                    "Coerce", lambda v: self.append(ir.Coerce(v, result_elt)),
+                    node.type, value.type)
+                self._invoke_arrayop(func, [result, value])
+                return result
+            else:
+                return self.append(
+                    ir.Coerce(value,
+                              node.type,
+                              name="{}.{}".format(_readable_name(value),
+                                                  node.type.name)))
+
+    def _get_total_array_len(self, shape):
+        lengths = [
+            self.append(ir.GetAttr(shape, i)) for i in range(len(shape.type.elts))
+        ]
+        return reduce(lambda l, r: self.append(ir.Arith(ast.Mult(loc=None), l, r)),
+                      lengths[1:], lengths[0])
+
+    def _allocate_new_array(self, elt, shape):
+        total_length = self._get_total_array_len(shape)
+        buffer = self.append(ir.Alloc([total_length], types._TPointer(elt=elt)))
+        result_type = builtins.TArray(elt, types.TValue(len(shape.type.elts)))
+        return self.append(ir.Alloc([buffer, shape], result_type)), total_length
+
+    def _make_array_binop(self, name, result_type, lhs_type, rhs_type, body_gen):
+        try:
+            result = ir.Argument(result_type, "result")
+            lhs = ir.Argument(lhs_type, "lhs")
+            rhs = ir.Argument(rhs_type, "rhs")
+
+            # TODO: We'd like to use a "C function" here to be able to supply
+            # specialised implementations in a library in the future (and e.g. avoid
+            # passing around the context argument), but the code generator currently
+            # doesn't allow emitting them.
+            args = [result, lhs, rhs]
+            typ = types.TFunction(args=OrderedDict([(arg.name, arg.type)
+                                                    for arg in args]),
+                                  optargs=OrderedDict(),
+                                  ret=builtins.TNone())
+            env_args = [ir.EnvironmentArgument(self.current_env.type, "ARG.ENV")]
+
+            old_loc, self.current_loc = self.current_loc, None
+            func = ir.Function(typ, name, env_args + args)
+            func.is_internal = True
+            func.is_generated = True
+            self.functions.append(func)
+            old_func, self.current_function = self.current_function, func
+
+            entry = self.add_block("entry")
+            old_block, self.current_block = self.current_block, entry
+
+            old_final_branch, self.final_branch = self.final_branch, None
+            old_unwind, self.unwind_target = self.unwind_target, None
+
+            body_gen(result, lhs, rhs)
+
+            self.append(ir.Return(ir.Constant(None, builtins.TNone())))
+            return func
+        finally:
+            self.current_loc = old_loc
+            self.current_function = old_func
+            self.current_block = old_block
+            self.final_branch = old_final_branch
+            self.unwind_target = old_unwind
+
+    def _make_array_elementwise_binop(self, name, result_type, lhs_type,
+                                      rhs_type, make_op):
+        def body_gen(result, lhs, rhs):
+            # At this point, shapes are assumed to match; could just pass buffer
+            # pointer for two of the three arrays as well.
+            result_buffer = self.append(ir.GetAttr(result, "buffer"))
+            shape = self.append(ir.GetAttr(result, "shape"))
+            num_total_elts = self._get_total_array_len(shape)
+
+            if builtins.is_array(lhs.type):
+                lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
+                def get_left(index):
+                    return self.append(ir.GetElem(lhs_buffer, index))
+            else:
+                def get_left(index):
+                    return lhs
+
+            if builtins.is_array(rhs.type):
+                rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
+                def get_right(index):
+                    return self.append(ir.GetElem(rhs_buffer, index))
+            else:
+                def get_right(index):
+                    return rhs
+
+            def loop_gen(index):
+                l = get_left(index)
+                r = get_right(index)
+                result = make_op(l, r)
+                self.append(ir.SetElem(result_buffer, index, result))
+                return self.append(
+                    ir.Arith(ast.Add(loc=None), index,
+                             ir.Constant(1, self._size_type)))
+
+            self._make_loop(
+                ir.Constant(0, self._size_type), lambda index: self.append(
+                    ir.Compare(ast.Lt(loc=None), index, num_total_elts)),
+                loop_gen)
+
+        return self._make_array_binop(name, result_type, lhs_type, rhs_type,
+                                      body_gen)
+
+    def _mangle_arrayop_types(self, types):
+        def name_error(typ):
+            assert False, "Internal compiler error: No RPC tag for {}".format(typ)
+
+        def mangle_name(typ):
+            typ = typ.find()
+            # rpc_tag is used to turn element types into mangled names for no
+            # particularly good reason apart from not having to invent yet another
+            # string representation.
+            if builtins.is_array(typ):
+                return mangle_name(typ["elt"]) + str(typ["num_dims"].find().value)
+            return ir.rpc_tag(typ, name_error).decode()
+
+        return "_".join(mangle_name(t) for t in types)
+
+    def _get_array_elementwise_binop(self, name, make_op, result_type, lhs_type, rhs_type):
+        # Currently, we always have any type coercions resolved explicitly in the AST.
+        # In the future, this might no longer be true and the three types might all
+        # differ.
+        name = "_array_{}_{}".format(
+            name,
+            self._mangle_arrayop_types([result_type, lhs_type, rhs_type]))
+        if name not in self.array_op_funcs:
+            self.array_op_funcs[name] = self._make_array_elementwise_binop(
+                name, result_type, lhs_type, rhs_type, make_op)
+        return self.array_op_funcs[name]
+
+    def _invoke_arrayop(self, func, params):
+        closure = self.append(
+            ir.Closure(func, ir.Constant(None, ir.TEnvironment("arrayop", {}))))
+        if self.unwind_target is None:
+            self.append(ir.Call(closure, params, {}))
+        else:
+            after_invoke = self.add_block("arrayop.invoke")
+            self.append(ir.Invoke(func, params, {}, after_invoke, self.unwind_target))
+            self.current_block = after_invoke
+
+    def _get_array_offset(self, shape, indices):
+        result = indices[0]
+        for dim, index in zip(shape[1:], indices[1:]):
+            result = self.append(ir.Arith(ast.Mult(loc=None), result, dim))
+            result = self.append(ir.Arith(ast.Add(loc=None), result, index))
+        return result
+
+    def _get_matmult(self, result_type, lhs_type, rhs_type):
+        name = "_array_MatMult_" + self._mangle_arrayop_types(
+            [result_type, lhs_type, rhs_type])
+        if name not in self.array_op_funcs:
+
+            def body_gen(result, lhs, rhs):
+                assert builtins.is_array(result.type), \
+                    "vec @ vec should have been normalised into array result"
+
+                # We assume result has correct shape; could just pass buffer pointer
+                # as well.
+                result_buffer = self.append(ir.GetAttr(result, "buffer"))
+                lhs_buffer = self.append(ir.GetAttr(lhs, "buffer"))
+                rhs_buffer = self.append(ir.GetAttr(rhs, "buffer"))
+
+                num_rows, num_summands, _, num_cols = self._get_matmult_shapes(lhs, rhs)
+
+                elt = result.type["elt"].find()
+                env_type = ir.TEnvironment(name + ".loop", {"$total": elt})
+                env = self.append(ir.Alloc([], env_type))
+
+                def row_loop(row_idx):
+                    lhs_base_offset = self.append(
+                        ir.Arith(ast.Mult(loc=None), row_idx, num_summands))
+                    lhs_base = self.append(ir.Offset(lhs_buffer, lhs_base_offset))
+                    result_base_offset = self.append(
+                        ir.Arith(ast.Mult(loc=None), row_idx, num_cols))
+                    result_base = self.append(
+                        ir.Offset(result_buffer, result_base_offset))
+
+                    def col_loop(col_idx):
+                        rhs_base = self.append(ir.Offset(rhs_buffer, col_idx))
+
+                        self.append(
+                            ir.SetLocal(env, "$total", ir.Constant(elt.zero(), elt)))
+
+                        def sum_loop(sum_idx):
+                            lhs_elem = self.append(ir.GetElem(lhs_base, sum_idx))
+                            rhs_offset = self.append(
+                                ir.Arith(ast.Mult(loc=None), sum_idx, num_cols))
+                            rhs_elem = self.append(ir.GetElem(rhs_base, rhs_offset))
+                            product = self.append(
+                                ir.Arith(ast.Mult(loc=None), lhs_elem, rhs_elem))
+                            prev_total = self.append(ir.GetLocal(env, "$total"))
+                            total = self.append(
+                                ir.Arith(ast.Add(loc=None), prev_total, product))
+                            self.append(ir.SetLocal(env, "$total", total))
+                            return self.append(
+                                ir.Arith(ast.Add(loc=None), sum_idx,
+                                         ir.Constant(1, self._size_type)))
+
+                        self._make_loop(
+                            ir.Constant(0, self._size_type), lambda index: self.append(
+                                ir.Compare(ast.Lt(loc=None), index, num_summands)),
+                            sum_loop)
+
+                        total = self.append(ir.GetLocal(env, "$total"))
+                        self.append(ir.SetElem(result_base, col_idx, total))
+
+                        return self.append(
+                            ir.Arith(ast.Add(loc=None), col_idx,
+                                     ir.Constant(1, self._size_type)))
+
+                    self._make_loop(
+                        ir.Constant(0, self._size_type), lambda index: self.append(
+                            ir.Compare(ast.Lt(loc=None), index, num_cols)), col_loop)
+                    return self.append(
+                        ir.Arith(ast.Add(loc=None), row_idx,
+                                 ir.Constant(1, self._size_type)))
+
+                self._make_loop(
+                    ir.Constant(0, self._size_type), lambda index: self.append(
+                        ir.Compare(ast.Lt(loc=None), index, num_rows)), row_loop)
+
+            self.array_op_funcs[name] = self._make_array_binop(
+                name, result_type, lhs_type, rhs_type, body_gen)
+        return self.array_op_funcs[name]
+
+    def _get_matmult_shapes(self, lhs, rhs):
+        lhs_shape = self.append(ir.GetAttr(lhs, "shape"))
+        if lhs.type["num_dims"].value == 1:
+            lhs_shape_outer = ir.Constant(1, self._size_type)
+            lhs_shape_inner = self.append(ir.GetAttr(lhs_shape, 0))
+        else:
+            lhs_shape_outer = self.append(ir.GetAttr(lhs_shape, 0))
+            lhs_shape_inner = self.append(ir.GetAttr(lhs_shape, 1))
+
+        rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
+        if rhs.type["num_dims"].value == 1:
+            rhs_shape_inner = self.append(ir.GetAttr(rhs_shape, 0))
+            rhs_shape_outer = ir.Constant(1, self._size_type)
+        else:
+            rhs_shape_inner = self.append(ir.GetAttr(rhs_shape, 0))
+            rhs_shape_outer = self.append(ir.GetAttr(rhs_shape, 1))
+
+        return lhs_shape_outer, lhs_shape_inner, rhs_shape_inner, rhs_shape_outer
+
+    def _make_array_shape(self, dims):
+        return self.append(ir.Alloc(dims, types.TTuple([self._size_type] * len(dims))))
+
+    def _emit_matmult(self, node, left, right):
+        # TODO: Also expose as numpy.dot.
+        lhs = self.visit(left)
+        rhs = self.visit(right)
+
+        num_rows, lhs_inner, rhs_inner, num_cols = self._get_matmult_shapes(lhs, rhs)
+        self._make_check(
+            self.append(ir.Compare(ast.Eq(loc=None), lhs_inner, rhs_inner)),
+            lambda lhs_inner, rhs_inner: self.alloc_exn(
+                builtins.TException("ValueError"),
+                ir.Constant(
+                    "inner dimensions for matrix multiplication do not match ({0} vs. {1})",
+                    builtins.TStr()), lhs_inner, rhs_inner),
+            params=[lhs_inner, rhs_inner],
+            loc=node.loc)
+        result_shape = self._make_array_shape([num_rows, num_cols])
+
+        final_type = node.type.find()
+        if not builtins.is_array(final_type):
+            elt = node.type
+            result_dims = 0
+        else:
+            elt = final_type["elt"]
+            result_dims = final_type["num_dims"].value
+
+        result, _ = self._allocate_new_array(elt, result_shape)
+        func = self._get_matmult(result.type, left.type, right.type)
+        self._invoke_arrayop(func, [result, lhs, rhs])
+
+        if result_dims == 2:
+            return result
+        result_buffer = self.append(ir.GetAttr(result, "buffer"))
+        if result_dims == 1:
+            shape = self._make_array_shape(
+                [num_cols if lhs.type["num_dims"].value == 1 else num_rows])
+            return self.append(ir.Alloc([result_buffer, shape], node.type))
+        return self.append(ir.GetElem(result_buffer, ir.Constant(0, self._size_type)))
+
+    def _broadcast_binop(self, name, make_op, result_type, lhs, rhs, assign_to_lhs):
+        # Broadcast scalars (broadcasting higher dimensions is not yet allowed in the
+        # language).
+        broadcast = False
+        array_arg = lhs
+        if not builtins.is_array(lhs.type):
+            broadcast = True
+            array_arg = rhs
+        elif not builtins.is_array(rhs.type):
+            broadcast = True
+
+        shape = self.append(ir.GetAttr(array_arg, "shape"))
+
+        if not broadcast:
+            rhs_shape = self.append(ir.GetAttr(rhs, "shape"))
+            self._make_check(
+                self.append(ir.Compare(ast.Eq(loc=None), shape, rhs_shape)),
+                lambda: self.alloc_exn(
+                    builtins.TException("ValueError"),
+                    ir.Constant("operands could not be broadcast together",
+                                builtins.TStr())))
+        if assign_to_lhs:
+            result = lhs
+        else:
+            elt = result_type.find()["elt"]
+            result, _ = self._allocate_new_array(elt, shape)
+        func = self._get_array_elementwise_binop(name, make_op, result_type, lhs.type,
+            rhs.type)
+        self._invoke_arrayop(func, [result, lhs, rhs])
+        return result
 
     def visit_BinOpT(self, node):
-        if builtins.is_numeric(node.type):
+        if isinstance(node.op, ast.MatMult):
+            return self._emit_matmult(node, node.left, node.right)
+        elif builtins.is_array(node.type):
+            lhs = self.visit(node.left)
+            rhs = self.visit(node.right)
+            name = type(node.op).__name__
+            def make_op(l, r):
+                return self.append(ir.Arith(node.op, l, r))
+            return self._broadcast_binop(name, make_op, node.type, lhs, rhs,
+                                         assign_to_lhs=False)
+        elif builtins.is_numeric(node.type):
             lhs = self.visit(node.left)
             rhs = self.visit(node.right)
             if isinstance(node.op, (ast.LShift, ast.RShift)):
@@ -1426,7 +1915,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for index in range(len(lhs.type.elts)):
                 lhs_elt = self.append(ir.GetAttr(lhs, index))
                 rhs_elt = self.append(ir.GetAttr(rhs, index))
-                elt_result = self.append(ir.Compare(op, lhs_elt, rhs_elt))
+                elt_result = self.polymorphic_compare_pair(op, lhs_elt, rhs_elt)
                 if result is None:
                     result = elt_result
                 else:
@@ -1453,6 +1942,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             lhs_elt = self.append(ir.GetElem(lhs, index_phi))
             rhs_elt = self.append(ir.GetElem(rhs, index_phi))
             body_result = self.polymorphic_compare_pair(op, lhs_elt, rhs_elt)
+            body_end = self.current_block
 
             loop_body2 = self.add_block("compare.body2")
             self.current_block = loop_body2
@@ -1468,8 +1958,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             phi.add_incoming(compare_length, head)
             loop_head.append(ir.BranchIf(loop_cond, loop_body, tail))
             phi.add_incoming(ir.Constant(True, builtins.TBool()), loop_head)
-            loop_body.append(ir.BranchIf(body_result, loop_body2, tail))
-            phi.add_incoming(body_result, loop_body)
+            body_end.append(ir.BranchIf(body_result, loop_body2, tail))
+            phi.add_incoming(body_result, body_end)
 
             if isinstance(op, ast.NotEq):
                 result = self.append(ir.Select(phi,
@@ -1479,7 +1969,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             return result
         else:
-            assert False
+            loc = lhs.loc
+            loc.end = rhs.loc.end
+            diag = diagnostic.Diagnostic("error",
+                "Custom object comparison is not supported",
+                {},
+                loc)
+            self.engine.process(diag)
 
     def polymorphic_compare_pair_inclusion(self, needle, haystack):
         if builtins.is_range(haystack.type):
@@ -1523,7 +2019,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             result = phi
         else:
-            assert False
+            loc = needle.loc
+            loc.end = haystack.loc.end
+            diag = diagnostic.Diagnostic("error",
+                "Custom object inclusion test is not supported",
+                {},
+                loc)
+            self.engine.process(diag)
 
         return result
 
@@ -1554,11 +2056,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         # of comparisons.
         blocks = []
         lhs = self.visit(node.left)
-        self.instrument_assert(node.left, lhs)
         for op, rhs_node in zip(node.ops, node.comparators):
             result_head = self.current_block
             rhs = self.visit(rhs_node)
-            self.instrument_assert(rhs_node, rhs)
             result = self.polymorphic_compare_pair(op, lhs, rhs)
             result_tail = self.current_block
 
@@ -1636,7 +2136,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Coerce(arg, node.type))
             else:
                 assert False
-        elif (types.is_builtin(typ, "list") or types.is_builtin(typ, "array") or
+        elif (types.is_builtin(typ, "list") or
               types.is_builtin(typ, "bytearray") or types.is_builtin(typ, "bytes")):
             if len(node.args) == 0 and len(node.keywords) == 0:
                 length = ir.Constant(0, builtins.TInt32())
@@ -1657,6 +2157,68 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     body_gen)
 
                 return result
+            else:
+                assert False
+        elif types.is_builtin(typ, "array"):
+            if len(node.args) == 1 and len(node.keywords) in (0, 1):
+                result_type = node.type.find()
+                arg = self.visit(node.args[0])
+
+                result_elt = result_type["elt"].find()
+                num_dims = result_type["num_dims"].value
+
+                # Derive shape from first element on each level (and fail later if the
+                # array is in fact jagged).
+                first_elt = None
+                lengths = []
+                for dim_idx in range(num_dims):
+                    if first_elt is None:
+                        first_elt = arg
+                    else:
+                        first_elt = self.iterable_get(first_elt,
+                                                      ir.Constant(0, self._size_type))
+                    lengths.append(self.iterable_len(first_elt))
+
+                shape = self.append(ir.Alloc(lengths, result_type.attributes["shape"]))
+                num_total_elts = self._get_total_array_len(shape)
+
+                # Assign buffer from nested iterables.
+                buffer = self.append(
+                    ir.Alloc([num_total_elts], result_type.attributes["buffer"]))
+
+                def assign_elems(outer_indices, indexed_arg):
+                    if len(outer_indices) == num_dims:
+                        dest_idx = self._get_array_offset(lengths, outer_indices)
+                        coerced = self.append(ir.Coerce(indexed_arg, result_elt))
+                        self.append(ir.SetElem(buffer, dest_idx, coerced))
+                    else:
+                        this_level_len = self.iterable_len(indexed_arg)
+                        dim_idx = len(outer_indices)
+                        if dim_idx > 0:
+                            # Check for rectangularity (outermost index is never jagged,
+                            # by definition).
+                            result_len = self.append(ir.GetAttr(shape, dim_idx))
+                            self._make_check(
+                                self.append(ir.Compare(ast.Eq(loc=None), this_level_len, result_len)),
+                                lambda a, b: self.alloc_exn(
+                                    builtins.TException("ValueError"),
+                                    ir.Constant(
+                                        "arrays must be rectangular (lengths were {0} vs. {1})",
+                                        builtins.TStr()), a, b),
+                                params=[this_level_len, result_len],
+                                loc=node.loc)
+
+                        def body_gen(index):
+                            elem = self.iterable_get(indexed_arg, index)
+                            assign_elems(outer_indices + [index], elem)
+                            return self.append(
+                                ir.Arith(ast.Add(loc=None), index,
+                                        ir.Constant(1, self._size_type)))
+                        self._make_loop(
+                            ir.Constant(0, self._size_type), lambda index: self.append(
+                                ir.Compare(ast.Lt(loc=None), index, this_level_len)), body_gen)
+                assign_elems([], arg)
+                return self.append(ir.Alloc([buffer, shape], node.type))
             else:
                 assert False
         elif types.is_builtin(typ, "range"):
@@ -1699,6 +2261,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 return self.append(ir.Builtin("round", [arg], node.type))
             else:
                 assert False
+        elif types.is_builtin(typ, "abs"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg = self.visit(node.args[0])
+                neg = self.append(
+                    ir.Arith(ast.Sub(loc=None), ir.Constant(0, arg.type), arg))
+                cond = self.append(
+                    ir.Compare(ast.Lt(loc=None), arg, ir.Constant(0, arg.type)))
+                return self.append(ir.Select(cond, neg, arg))
+            else:
+                assert False
         elif types.is_builtin(typ, "min"):
             if len(node.args) == 2 and len(node.keywords) == 0:
                 arg0, arg1 = map(self.visit, node.args)
@@ -1717,14 +2289,71 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if len(node.args) == 2 and len(node.keywords) == 0:
                 arg0, arg1 = map(self.visit, node.args)
 
-                result = self.append(ir.Alloc([arg0], node.type))
+                num_dims = node.type.find()["num_dims"].value
+                if types.is_tuple(arg0.type):
+                    lens = [self.append(ir.GetAttr(arg0, i)) for i in range(num_dims)]
+                else:
+                    assert num_dims == 1
+                    lens = [arg0]
+
+                shape = self._make_array_shape(lens)
+                result, total_len = self._allocate_new_array(node.type.find()["elt"],
+                                                             shape)
+
                 def body_gen(index):
                     self.append(ir.SetElem(result, index, arg1))
-                    return self.append(ir.Arith(ast.Add(loc=None), index,
-                                                ir.Constant(1, arg0.type)))
-                self._make_loop(ir.Constant(0, self._size_type),
-                                lambda index: self.append(ir.Compare(ast.Lt(loc=None), index, arg0)),
-                                body_gen)
+                    return self.append(
+                        ir.Arith(ast.Add(loc=None), index,
+                                 ir.Constant(1, self._size_type)))
+
+                self._make_loop(
+                    ir.Constant(0, self._size_type), lambda index: self.append(
+                        ir.Compare(ast.Lt(loc=None), index, total_len)), body_gen)
+                return result
+            else:
+                assert False
+        elif types.is_builtin(typ, "numpy.transpose"):
+            if len(node.args) == 1 and len(node.keywords) == 0:
+                arg, = map(self.visit, node.args)
+
+                num_dims = arg.type.find()["num_dims"].value
+                if num_dims == 1:
+                    # No-op as per NumPy semantics.
+                    return arg
+                assert num_dims == 2
+                arg_shape = self.append(ir.GetAttr(arg, "shape"))
+                dim0 = self.append(ir.GetAttr(arg_shape, 0))
+                dim1 = self.append(ir.GetAttr(arg_shape, 1))
+                shape = self._make_array_shape([dim1, dim0])
+                result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
+                arg_buffer = self.append(ir.GetAttr(arg, "buffer"))
+                result_buffer = self.append(ir.GetAttr(result, "buffer"))
+
+                def outer_gen(idx1):
+                    arg_base = self.append(ir.Offset(arg_buffer, idx1))
+                    result_offset = self.append(ir.Arith(ast.Mult(loc=None), idx1,
+                                                         dim0))
+                    result_base = self.append(ir.Offset(result_buffer, result_offset))
+
+                    def inner_gen(idx0):
+                        arg_offset = self.append(
+                            ir.Arith(ast.Mult(loc=None), idx0, dim1))
+                        val = self.append(ir.GetElem(arg_base, arg_offset))
+                        self.append(ir.SetElem(result_base, idx0, val))
+                        return self.append(
+                            ir.Arith(ast.Add(loc=None), idx0, ir.Constant(1,
+                                                                          idx0.type)))
+
+                    self._make_loop(
+                        ir.Constant(0, self._size_type), lambda idx0: self.append(
+                            ir.Compare(ast.Lt(loc=None), idx0, dim0)), inner_gen)
+                    return self.append(
+                        ir.Arith(ast.Add(loc=None), idx1, ir.Constant(1, idx1.type)))
+
+                self._make_loop(
+                    ir.Constant(0, self._size_type),
+                    lambda idx1: self.append(ir.Compare(ast.Lt(loc=None), idx1, dim1)),
+                    outer_gen)
                 return result
             else:
                 assert False
@@ -1825,7 +2454,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert None not in args
 
         if self.unwind_target is None or \
-                types.is_c_function(callee.type) and "nounwind" in callee.type.flags:
+                types.is_external_function(callee.type) and "nounwind" in callee.type.flags:
             insn = self.append(ir.Call(func, args, arg_exprs))
         else:
             after_invoke = self.add_block("invoke")
@@ -1849,12 +2478,35 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if types.is_builtin(node.func.type):
             insn = self.visit_builtin_call(node)
+        elif (types.is_broadcast_across_arrays(node.func.type) and len(args) >= 1
+              and any(builtins.is_array(arg.type) for arg in args)):
+            # The iodelay machinery set up in the surrounding code was
+            # deprecated/a relic from the past when array broadcasting support
+            # was added, so no attempt to keep the delay tracking intact is
+            # made.
+            def make_call(*args):
+                return self._user_call(ir.Constant(None, callee.type), args, {},
+                                       node.arg_exprs)
+            # TODO: Generate more generically if non-externals are allowed.
+            name = node.func.type.find().name
+
+            if len(args) == 1:
+                shape = self.append(ir.GetAttr(args[0], "shape"))
+                result, _ = self._allocate_new_array(node.type.find()["elt"], shape)
+                func = self._get_array_unaryop(name, make_call, node.type, args[0].type)
+                self._invoke_arrayop(func, [result, args[0]])
+                insn = result
+            elif len(args) == 2:
+                insn = self._broadcast_binop(name, make_call, node.type, *args,
+                                             assign_to_lhs=False)
+            else:
+                assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
             insn = self._user_call(callee, args, keywords, node.arg_exprs)
-
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
-                self.method_map[(attr_node.value.type.find(), attr_node.attr)].append(insn)
+                self.method_map[(attr_node.value.type.find(),
+                                 attr_node.attr)].append(insn)
 
         if node.iodelay is not None and not iodelay.is_const(node.iodelay, 0):
             after_delay = self.add_block("delay.tail")
@@ -1866,78 +2518,70 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def visit_QuoteT(self, node):
         return self.append(ir.Quote(node.value, node.type))
 
-    def instrument_assert(self, node, value):
-        if self.current_assert_env is not None:
-            if isinstance(value, ir.Constant):
-                return # don't display the values of constants
+    def _get_raise_assert_func(self):
+        """Emit the helper function that constructs AssertionErrors and raises
+        them, if it does not already exist in the current module.
 
-            if any([algorithm.compare(node, subexpr)
-                    for (subexpr, name) in self.current_assert_subexprs]):
-                return # don't display the same subexpression twice
+        A separate function is used for code size reasons. (This could also be
+        compiled into a stand-alone support library instead.)
+        """
+        if self.raise_assert_func:
+            return self.raise_assert_func
+        try:
+            msg = ir.Argument(builtins.TStr(), "msg")
+            file = ir.Argument(builtins.TStr(), "file")
+            line = ir.Argument(builtins.TInt32(), "line")
+            col = ir.Argument(builtins.TInt32(), "col")
+            function = ir.Argument(builtins.TStr(), "function")
 
-            name = self.current_assert_env.type.add("$subexpr", ir.TOption(node.type))
-            value_opt = self.append(ir.Alloc([value], ir.TOption(node.type)),
-                                    loc=node.loc)
-            self.append(ir.SetLocal(self.current_assert_env, name, value_opt),
-                        loc=node.loc)
-            self.current_assert_subexprs.append((node, name))
+            args = [msg, file, line, col, function]
+            typ = types.TFunction(args=OrderedDict([(arg.name, arg.type)
+                                                    for arg in args]),
+                                  optargs=OrderedDict(),
+                                  ret=builtins.TNone())
+            env = ir.TEnvironment(name="raise", vars={})
+            env_arg = ir.EnvironmentArgument(env, "ARG.ENV")
+            func = ir.Function(typ, "_artiq_raise_assert", [env_arg] + args)
+            func.is_internal = True
+            func.is_cold = True
+            func.is_generated = True
+            self.functions.append(func)
+            old_func, self.current_function = self.current_function, func
+
+            entry = self.add_block("entry")
+            old_block, self.current_block = self.current_block, entry
+            old_final_branch, self.final_branch = self.final_branch, None
+            old_unwind, self.unwind_target = self.unwind_target, None
+
+            exn = self.alloc_exn(builtins.TException("AssertionError"), message=msg)
+            self.append(ir.SetAttr(exn, "__file__", file))
+            self.append(ir.SetAttr(exn, "__line__", line))
+            self.append(ir.SetAttr(exn, "__col__", col))
+            self.append(ir.SetAttr(exn, "__func__", function))
+            self.append(ir.Raise(exn))
+        finally:
+            self.current_function = old_func
+            self.current_block = old_block
+            self.final_branch = old_final_branch
+            self.unwind_target = old_unwind
+
+        self.raise_assert_func = func
+        return self.raise_assert_func
 
     def visit_Assert(self, node):
-        try:
-            assert_suffix   = ".assert@{}:{}".format(node.loc.line(), node.loc.column())
-            assert_env_type = ir.TEnvironment(name=self.current_function.name + assert_suffix,
-                                              vars={})
-            assert_env = self.current_assert_env = \
-                self.append(ir.Alloc([], assert_env_type, name="assertenv"))
-            assert_subexprs = self.current_assert_subexprs = []
-            init = self.current_block
-
-            prehead = self.current_block = self.add_block("assert.prehead")
-            cond = self.visit(node.test)
-            head = self.current_block
-        finally:
-            self.current_assert_env = None
-            self.current_assert_subexprs = None
-
-        for subexpr_node, subexpr_name in assert_subexprs:
-            empty = init.append(ir.Alloc([], ir.TOption(subexpr_node.type)))
-            init.append(ir.SetLocal(assert_env, subexpr_name, empty))
-        init.append(ir.Branch(prehead))
+        cond = self.visit(node.test)
+        head = self.current_block
 
         if_failed = self.current_block = self.add_block("assert.fail")
-
-        if node.msg:
-            explanation = node.msg.s
-        else:
-            explanation = node.loc.source()
-        self.append(ir.Builtin("printf", [
-                ir.Constant("assertion failed at %.*s: %.*s\n\x00", builtins.TStr()),
-                ir.Constant(str(node.loc.begin()), builtins.TStr()),
-                ir.Constant(str(explanation), builtins.TStr()),
-            ], builtins.TNone()))
-
-        for subexpr_node, subexpr_name in assert_subexprs:
-            subexpr_head = self.current_block
-            subexpr_value_opt = self.append(ir.GetLocal(assert_env, subexpr_name))
-            subexpr_cond = self.append(ir.Builtin("is_some", [subexpr_value_opt],
-                                                  builtins.TBool()))
-
-            subexpr_body = self.current_block = self.add_block("assert.subexpr.body")
-            self.append(ir.Builtin("printf", [
-                    ir.Constant("  (%.*s) = \x00", builtins.TStr()),
-                    ir.Constant(subexpr_node.loc.source(), builtins.TStr())
-                ], builtins.TNone()))
-            subexpr_value = self.append(ir.Builtin("unwrap", [subexpr_value_opt],
-                                                   subexpr_node.type))
-            self.polymorphic_print([subexpr_value], separator="", suffix="\n")
-            subexpr_postbody = self.current_block
-
-            subexpr_tail = self.current_block = self.add_block("assert.subexpr.tail")
-            self.append(ir.Branch(subexpr_tail), block=subexpr_postbody)
-            self.append(ir.BranchIf(subexpr_cond, subexpr_body, subexpr_tail), block=subexpr_head)
-
-        self.append(ir.Builtin("abort", [], builtins.TNone()))
-        self.append(ir.Unreachable())
+        text = str(node.msg.s) if node.msg else "AssertionError"
+        msg = ir.Constant(text, builtins.TStr())
+        loc_file = ir.Constant(node.loc.source_buffer.name, builtins.TStr())
+        loc_line = ir.Constant(node.loc.line(), builtins.TInt32())
+        loc_column = ir.Constant(node.loc.column(), builtins.TInt32())
+        loc_function = ir.Constant(".".join(self.name), builtins.TStr())
+        self._invoke_raising_func(self._get_raise_assert_func(), [
+            msg, loc_file, loc_line, loc_column, loc_function
+        ], "assert.fail")
 
         tail = self.current_block = self.add_block("assert.tail")
         self.append(ir.BranchIf(cond, tail, if_failed), block=head)

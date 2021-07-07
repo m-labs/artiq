@@ -1,4 +1,4 @@
-core_addr = "sayma-1.lab.m-labs.hk"
+core_addr = "192.168.1.60"
 
 device_db = {
     "core": {
@@ -23,44 +23,54 @@ device_db = {
         "module": "artiq.coredevice.dma",
         "class": "CoreDMA"
     },
+}
 
-    "fmcdio_dirctl_clk": {
+for i in range(4):
+    device_db["led" + str(i)] = {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLOut",
+        "arguments": {"channel": i},
+    }
+
+
+for i in range(2):
+    device_db["ttl" + str(i)] = {
+        "type": "local",
+        "module": "artiq.coredevice.ttl",
+        "class": "TTLInOut",
+        "arguments": {"channel": 4 + i},
+    }
+
+
+device_db.update(
+    fmcdio_dirctl_clk={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 6}
     },
-    "fmcdio_dirctl_ser": {
+    fmcdio_dirctl_ser={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 7}
     },
-    "fmcdio_dirctl_latch": {
+    fmcdio_dirctl_latch={
         "type": "local",
         "module": "artiq.coredevice.ttl",
         "class": "TTLOut",
         "arguments": {"channel": 8}
     },
-    "fmcdio_dirctl": {
+    fmcdio_dirctl={
         "type": "local",
         "module": "artiq.coredevice.shiftreg",
         "class": "ShiftReg",
         "arguments": {"clk": "fmcdio_dirctl_clk",
                       "ser": "fmcdio_dirctl_ser",
                       "latch": "fmcdio_dirctl_latch"}
-    },
-}
-
-
-for i in range(8):
-    device_db["ttl" + str(i)] = {
-        "type": "local",
-        "module": "artiq.coredevice.ttl",
-        "class": "TTLOut",
-        "arguments": {"channel": 9+i},
     }
-
+)
 
 device_db.update(
     spi_urukul0={

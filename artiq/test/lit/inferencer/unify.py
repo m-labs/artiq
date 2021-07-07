@@ -33,8 +33,8 @@ j = []
 j += [1.0]
 # CHECK-L: j:list(elt=float)
 
-1 if a else 2
-# CHECK-L: 1:numpy.int? if a:numpy.int? else 2:numpy.int?:numpy.int?
+1 if c else 2
+# CHECK-L: 1:numpy.int? if c:bool else 2:numpy.int?:numpy.int?
 
 True and False
 # CHECK-L: True:bool and False:bool:bool
@@ -64,7 +64,7 @@ kb = bytearray(b"x")
 # CHECK-L: kb:bytearray
 
 l = array([1])
-# CHECK-L: l:numpy.array(elt=numpy.int?)
+# CHECK-L: l:numpy.array(elt=numpy.int?, num_dims=1)
 
 IndexError()
 # CHECK-L: IndexError:<constructor IndexError {}>():IndexError

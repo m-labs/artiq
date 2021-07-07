@@ -10,9 +10,10 @@ from itertools import count
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 
-from artiq.protocols.pipe_ipc import AsyncioParentComm
-from artiq.protocols.logging import LogParser
-from artiq.protocols import pyon
+from sipyco.pipe_ipc import AsyncioParentComm
+from sipyco.logging_tools import LogParser
+from sipyco import pyon
+
 from artiq.gui.tools import QDockWidgetCloseDetect, LayoutWidget
 
 
@@ -321,7 +322,6 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.main_window = main_window
         self.datasets_sub = datasets_sub
-        self.dock_to_item = dict()
         self.applet_uids = set()
 
         self.table = QtWidgets.QTreeWidget()
@@ -370,6 +370,11 @@ class AppletsDock(QtWidgets.QDockWidget):
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
+        close_all_action = QtWidgets.QAction("Close all applets", self.table)
+        close_all_action.setShortcut("CTRL+ALT+W")
+        close_all_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        close_all_action.triggered.connect(self.close_all)
+        self.table.addAction(close_all_action)
         new_group_action = QtWidgets.QAction("New group", self.table)
         new_group_action.triggered.connect(partial(self.new_with_parent, self.new_group))
         self.table.addAction(new_group_action)
@@ -414,12 +419,12 @@ class AppletsDock(QtWidgets.QDockWidget):
         finally:
             self.table.itemChanged.connect(self.item_changed)
 
-    def create(self, uid, name, spec):
-        dock = _AppletDock(self.datasets_sub, uid, name, spec)
+    def create(self, item, name, spec):
+        dock = _AppletDock(self.datasets_sub, item.applet_uid, name, spec)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start())
-        dock.sigClosed.connect(partial(self.on_dock_closed, dock))
+        dock.sigClosed.connect(partial(self.on_dock_closed, item, dock))
         return dock
 
     def item_changed(self, item, column):
@@ -437,15 +442,15 @@ class AppletsDock(QtWidgets.QDockWidget):
                     if item.applet_dock is None:
                         name = item.text(0)
                         spec = self.get_spec(item)
-                        dock = self.create(item.applet_uid, name, spec)
+                        dock = self.create(item, name, spec)
                         item.applet_dock = dock
                         if item.applet_geometry is not None:
                             dock.restoreGeometry(item.applet_geometry)
                             # geometry is now handled by main window state
                             item.applet_geometry = None
-                        self.dock_to_item[dock] = item
                 else:
                     dock = item.applet_dock
+                    item.applet_dock = None
                     if dock is not None:
                         # This calls self.on_dock_closed
                         dock.close()
@@ -455,12 +460,9 @@ class AppletsDock(QtWidgets.QDockWidget):
         else:
             raise ValueError
 
-    def on_dock_closed(self, dock):
-        item = self.dock_to_item[dock]
-        item.applet_dock = None
+    def on_dock_closed(self, item, dock):
         item.applet_geometry = dock.saveGeometry()
         asyncio.ensure_future(dock.terminate())
-        del self.dock_to_item[dock]
         item.setCheckState(0, QtCore.Qt.Unchecked)
 
     def get_untitled(self):
@@ -644,3 +646,14 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def restore_state(self, state):
         self.restore_state_item(state, None)
+
+    def close_all(self):
+        def walk(wi):
+            for i in range(wi.childCount()):
+                cwi = wi.child(i)
+                if cwi.ty == "applet":
+                    if cwi.checkState(0) == QtCore.Qt.Checked:
+                        cwi.setCheckState(0, QtCore.Qt.Unchecked)
+                elif cwi.ty == "group":
+                    walk(cwi)
+        walk(self.table.invisibleRootItem())

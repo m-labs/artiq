@@ -9,7 +9,7 @@ from misoc.interconnect.csr import *
 
 class SiPhaser7Series(Module, AutoCSR):
     def __init__(self, si5324_clkin, rx_synchronizer,
-                 ref_clk=None, ref_div2=False, rtio_clk_freq=150e6):
+                 ref_clk=None, ref_div2=False, ultrascale=False, rtio_clk_freq=150e6):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus(reset=1)
@@ -22,7 +22,7 @@ class SiPhaser7Series(Module, AutoCSR):
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
         mmcm_freerun_fb = Signal()
-        mmcm_freerun_output = Signal()
+        mmcm_freerun_output_raw = Signal()
         self.specials += \
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=16.0 if ref_div2 else 8.0,
@@ -35,8 +35,13 @@ class SiPhaser7Series(Module, AutoCSR):
                 o_CLKFBOUT=mmcm_freerun_fb, i_CLKFBIN=mmcm_freerun_fb,
 
                 p_CLKOUT0_DIVIDE_F=750e6/rtio_clk_freq,
-                o_CLKOUT0=mmcm_freerun_output,
+                o_CLKOUT0=mmcm_freerun_output_raw,
             )
+        if ultrascale:
+            mmcm_freerun_output = Signal()
+            self.specials += Instance("BUFG", i_I=mmcm_freerun_output_raw, o_O=mmcm_freerun_output)
+        else:
+            mmcm_freerun_output = mmcm_freerun_output_raw
 
         # 125MHz/150MHz to 125MHz/150MHz with controllable phase shift,
         # VCO @ 1000MHz/1200MHz.

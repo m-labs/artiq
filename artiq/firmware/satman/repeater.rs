@@ -43,6 +43,11 @@ impl Repeater {
         }
     }
 
+    #[allow(dead_code)]
+    pub fn is_up(&self) -> bool {
+        self.state == RepeaterState::Up
+    }
+
     pub fn service(&mut self, routing_table: &drtio_routing::RoutingTable, rank: u8) {
         self.process_local_errors();
 

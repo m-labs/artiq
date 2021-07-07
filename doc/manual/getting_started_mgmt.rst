@@ -157,7 +157,7 @@ Plotting in the ARTIQ dashboard is achieved by programs called "applets". Applet
 
 Applets are configured through their command line to select parameters such as the names of the datasets to plot. The list of command-line options can be retrieved using the ``-h`` option; for example you can run ``python3 -m artiq.applets.plot_xy -h`` in a terminal.
 
-In our case, create a new applet from the XY template by right-clicking on the applet list, and edit the applet command line so that it retrieves the ``parabola`` dataset. Run the experiment again, and observe how the points are added one by one to the plot.
+In our case, create a new applet from the XY template by right-clicking on the applet list, and edit the applet command line so that it retrieves the ``parabola`` dataset (the command line should now be ``${artiq_applet}plot_xy parabola``). Run the experiment again, and observe how the points are added one by one to the plot.
 
 After the experiment has finished executing, the results are written to a HDF5 file that resides in ``~/artiq-master/results/<date>/<hour>``. Open that file with HDFView or h5dump, and observe the data we just generated as well as the Git commit ID of the experiment (a hexadecimal hash such as ``947acb1f90ae1b8862efb489a9cc29f7d4e0c645`` that represents the data at a particular time in the Git repository). The list of Git commit IDs can be found using the ``git log`` command in ``~/artiq-work``.
 

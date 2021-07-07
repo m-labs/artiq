@@ -58,7 +58,7 @@ pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
         send(&Log(format_args!("panic at unknown location")));
     }
     if let Some(message) = info.message() {
-        send(&Log(format_args!("{}\n", message)));
+        send(&Log(format_args!(": {}\n", message)));
     } else {
         send(&Log(format_args!("\n")));
     }
@@ -198,21 +198,6 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
         backtrace: backtrace
     });
     loop {}
-}
-
-#[unwind(allowed)]
-extern fn watchdog_set(ms: i64) -> i32 {
-    if ms < 0 {
-        raise!("ValueError", "cannot set a watchdog with a negative timeout")
-    }
-
-    send(&WatchdogSetRequest { ms: ms as u64 });
-    recv!(&WatchdogSetReply { id } => id) as i32
-}
-
-#[unwind(aborts)]
-extern fn watchdog_clear(id: i32) {
-    send(&WatchdogClear { id: id as usize })
 }
 
 #[unwind(aborts)]

@@ -106,7 +106,7 @@ In its :meth:`~artiq.language.environment.Experiment.build` method, the experime
 In ARTIQ, TTL is used roughly synonymous with "a single generic digital signal" and does not refer to a specific signaling standard or voltage/current levels.
 
 When :meth:`~artiq.language.environment.Experiment.run`, the experiment first ensures that ``ttl0`` is in output mode and actively driving the device it is connected to.
-Bidirectional TTL channels (i.e. :class:`~artiq.devices.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.devices.ttl.TTLOut`) are always in output mode.
+Bidirectional TTL channels (i.e. :class:`~artiq.coredevice.ttl.TTLInOut`) are in input (high impedance) mode by default, output-only TTL channels (:class:`~artiq.coredevice.ttl.TTLOut`) are always in output mode.
 There are no input-only TTL channels.
 
 The experiment then drives one million 2 µs long pulses separated by 2 µs each.
@@ -174,6 +174,12 @@ Within a parallel block, some statements can be made sequential again using a ``
             self.ttl1.pulse(4*us)
         delay(4*us)
 
+Particular care needs to be taken when working with ``parallel`` blocks in cases where a large number of RTIO events are generated as it possible to create sequencing errors (`RTIO sequence error`). Sequence errors do not halt execution of the kernel for performance reasons and instead are reported in the core log. If the ``aqctl_corelog`` process has been started with ``artiq_ctlmgr``, then these errors will be posted to the master log. However, if an experiment is executed through ``artiq_run``, these errors will not be visible outside of the core log.
+
+A sequence error is caused when the scalable event dispatcher (SED) cannot queue an RTIO event due to its timestamp being the same as or earlier than another event in its queue. By default, the SED has 8 lanes which allows ``parallel`` events to work without sequence errors in most cases, however if many (>8) events are queued with conflicting timestamps this error can surface.
+
+These errors can usually be overcome by reordering the generation of the events. Alternatively, the number of SED lanes can be increased in the gateware.
+
 .. _rtio-analyzer-example:
 
 RTIO analyzer
@@ -221,7 +227,7 @@ Try this: ::
             with self.core_dma.record("pulses"):
                 # all RTIO operations now go to the "pulses"
                 # DMA buffer, instead of being executed immediately.
-                for i in range(100):
+                for i in range(50):
                     self.ttl0.pulse(100*ns)
                     delay(100*ns)
 

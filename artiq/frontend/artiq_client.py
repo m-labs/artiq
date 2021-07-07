@@ -17,11 +17,13 @@ from dateutil.parser import parse as parse_date
 
 from prettytable import PrettyTable
 
-from artiq.protocols.pc_rpc import Client
-from artiq.protocols.sync_struct import Subscriber
-from artiq.protocols.broadcast import Receiver
-from artiq.protocols import pyon
-from artiq.tools import short_format, add_common_args, parse_arguments
+from sipyco.pc_rpc import Client
+from sipyco.sync_struct import Subscriber
+from sipyco.broadcast import Receiver
+from sipyco import common_args, pyon
+
+from artiq.tools import short_format, parse_arguments
+from artiq import __version__ as artiq_version
 
 
 def clear_screen():
@@ -39,6 +41,9 @@ def get_argparser():
     parser.add_argument(
         "--port", default=None, type=int,
         help="TCP port to use to connect to the master")
+    parser.add_argument("--version", action="version",
+                        version="ARTIQ v{}".format(artiq_version),
+                        help="print the ARTIQ version number")
 
     subparsers = parser.add_subparsers(dest="action")
     subparsers.required = True
@@ -64,7 +69,6 @@ def get_argparser():
                                  "(defaults to head, ignored without -R)")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
-    add_common_args(parser)
     parser_add.add_argument("file", metavar="FILE",
                             help="file containing the experiment to run")
     parser_add.add_argument("arguments", metavar="ARGUMENTS", nargs="*",
@@ -118,6 +122,7 @@ def get_argparser():
         "ls", help="list a directory on the master")
     parser_ls.add_argument("directory", default="", nargs="?")
 
+    common_args.verbosity_args(parser)
     return parser
 
 
@@ -169,7 +174,7 @@ def _action_scan_devices(remote, args):
 
 
 def _action_scan_repository(remote, args):
-    if args.async:
+    if getattr(args, "async"):
         remote.scan_repository_async(args.revision)
     else:
         remote.scan_repository(args.revision)

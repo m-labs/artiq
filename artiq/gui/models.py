@@ -1,6 +1,6 @@
 from PyQt5 import QtCore
 
-from artiq.protocols.sync_struct import Subscriber, process_mod
+from sipyco.sync_struct import Subscriber, process_mod
 
 
 class ModelManager:

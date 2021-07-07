@@ -6,19 +6,20 @@ from artiq.coredevice import urukul, sampler
 
 
 COEFF_WIDTH = 18
+Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 COEFF_DEPTH = 10 + 1
 WE = 1 << COEFF_DEPTH + 1
 STATE_SEL = 1 << COEFF_DEPTH
 CONFIG_SEL = 1 << COEFF_DEPTH - 1
 CONFIG_ADDR = CONFIG_SEL | STATE_SEL
-T_CYCLE = (2*(8 + 64) + 2 + 1)*8*ns
+T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11
 
 
 @portable
 def y_mu_to_full_scale(y):
     """Convert servo Y data from machine units to units of full scale."""
-    return y*(1./(1 << COEFF_WIDTH - 1))
+    return y / Y_FULL_SCALE_MU
 
 
 @portable
@@ -130,6 +131,7 @@ class SUServo:
         :param value: Data to be written.
         """
         addr |= WE
+        value &= (1 << COEFF_WIDTH) - 1
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
         rtio_output((self.channel << 8) | addr, value)
@@ -189,9 +191,13 @@ class SUServo:
 
     @kernel
     def get_adc_mu(self, adc):
-        """Get an ADC reading (IIR filter input X0) in machine units.
+        """Get the latest ADC reading (IIR filter input X0) in machine units.
 
         This method does not advance the timeline but consumes all slack.
+
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
 
         :param adc: ADC channel number (0-7)
         :return: 17 bit signed X0
@@ -219,9 +225,13 @@ class SUServo:
 
     @kernel
     def get_adc(self, channel):
-        """Get an ADC reading (IIR filter input X0).
+        """Get the latest ADC reading (IIR filter input X0).
 
         This method does not advance the timeline but consumes all slack.
+
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
 
         The PGIA gain setting must be known prior to using this method, either
         by setting the gain (:meth:`set_pgia_mu`) or by supplying it
@@ -258,10 +268,10 @@ class Channel:
         This method does not advance the timeline. Output RF switch setting
         takes effect immediately and is independent of any other activity
         (profile settings, other channels). The RF switch behaves like
-        :class:`artiq.coredevice.ttl.TTLOut`. RTIO event replacement is supported. IIR updates take place
-        once the RF switch has been enabled for the configured delay and the
-        profile setting has been stable. Profile changes take between one and
-        two servo cycles to reach the DDS.
+        :class:`artiq.coredevice.ttl.TTLOut`. RTIO event replacement is
+        supported. IIR updates take place once the RF switch has been enabled
+        for the configured delay and the profile setting has been stable.
+        Profile changes take between one and two servo cycles to reach the DDS.
 
         :param en_out: RF switch enable
         :param en_iir: IIR updates enable
@@ -283,8 +293,8 @@ class Channel:
         """
         base = (self.servo_channel << 8) | (profile << 3)
         self.servo.write(base + 0, ftw >> 16)
-        self.servo.write(base + 6, ftw)
-        self.servo.write(base + 4, offs)
+        self.servo.write(base + 6, (ftw & 0xffff))
+        self.set_dds_offset_mu(profile, offs)
         self.servo.write(base + 2, pow_)
 
     @kernel
@@ -297,10 +307,8 @@ class Channel:
 
         :param profile: Profile number (0-31)
         :param frequency: DDS frequency in Hz
-        :param offset: IIR offset (negative setpoint) in units of full scale.
-            For positive ADC voltages as setpoints, this should be negative.
-            Due to rounding and representation as two's complement,
-            ``offset=1`` can not be represented while ``offset=-1`` can.
+        :param offset: IIR offset (negative setpoint) in units of full scale,
+            see :meth:`dds_offset_to_mu`
         :param phase: DDS phase in turns
         """
         if self.servo_channel < 4:
@@ -309,8 +317,42 @@ class Channel:
             dds = self.servo.dds1
         ftw = dds.frequency_to_ftw(frequency)
         pow_ = dds.turns_to_pow(phase)
-        offs = int(round(offset*(1 << COEFF_WIDTH - 1)))
+        offs = self.dds_offset_to_mu(offset)
         self.set_dds_mu(profile, ftw, offs, pow_)
+
+    @kernel
+    def set_dds_offset_mu(self, profile, offs):
+        """Set only IIR offset in DDS coefficient profile.
+
+        See :meth:`set_dds_mu` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param offs: IIR offset (17 bit signed)
+        """
+        base = (self.servo_channel << 8) | (profile << 3)
+        self.servo.write(base + 4, offs)
+
+    @kernel
+    def set_dds_offset(self, profile, offset):
+        """Set only IIR offset in DDS coefficient profile.
+
+        See :meth:`set_dds` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param offset: IIR offset (negative setpoint) in units of full scale
+        """
+        self.set_dds_offset_mu(profile, self.dds_offset_to_mu(offset))
+
+    @portable
+    def dds_offset_to_mu(self, offset):
+        """Convert IIR offset (negative setpoint) from units of full scale to
+        machine units (see :meth:`set_dds_mu`, :meth:`set_dds_offset_mu`).
+
+        For positive ADC voltages as setpoints, this should be negative. Due to
+        rounding and representation as two's complement, ``offset=1`` can not
+        be represented while ``offset=-1`` can.
+        """
+        return int(round(offset * (1 << COEFF_WIDTH - 1)))
 
     @kernel
     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
@@ -448,12 +490,16 @@ class Channel:
         """Get a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
 
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
+
         :param profile: Profile number (0-31)
-        :return: 18 bit unsigned Y0
+        :return: 17 bit unsigned Y0
         """
         return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
 
@@ -462,9 +508,13 @@ class Channel:
         """Get a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method does not advance the timeline but consumes all slack.
+
+        If reading servo state through this method collides with the servo
+        writing that same data, the data can become invalid. To ensure
+        consistent and valid data, stop the servo before using this method.
 
         :param profile: Profile number (0-31)
         :return: IIR filter output in Y0 units of full scale
@@ -476,7 +526,7 @@ class Channel:
         """Set a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the
         same location. Either deactivate the profile, or deactivate IIR
@@ -496,7 +546,7 @@ class Channel:
         """Set a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
-        scale factor. It is 18 bits wide and unsigned.
+        scale factor. It is 17 bits wide and unsigned.
 
         This method must not be used when the servo could be writing to the
         same location. Either deactivate the profile, or deactivate IIR
@@ -507,4 +557,8 @@ class Channel:
         :param profile: Profile number (0-31)
         :param y: IIR state in units of full scale
         """
-        self.set_y_mu(profile, int(round((1 << COEFF_WIDTH - 1)*y)))
+        y_mu = int(round(y * Y_FULL_SCALE_MU))
+        if y_mu < 0 or y_mu > (1 << 17) - 1:
+            raise ValueError("Invalid SUServo y-value!")
+        self.set_y_mu(profile, y_mu)
+        return y_mu

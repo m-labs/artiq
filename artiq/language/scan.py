@@ -32,7 +32,14 @@ __all__ = ["ScanObject",
 
 
 class ScanObject:
-    pass
+    def __iter__(self):
+        raise NotImplementedError
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def describe(self):
+        raise NotImplementedError
 
 
 class NoScan(ScanObject):
@@ -219,7 +226,7 @@ class Scannable:
     def process(self, x):
         cls = _ty_to_scan[x["ty"]]
         args = dict()
-        for arg in inspect.getargspec(cls).args[1:]:
+        for arg in inspect.getfullargspec(cls).args[1:]:
             if arg in x:
                 args[arg] = x[arg]
         return cls(**args)

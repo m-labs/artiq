@@ -3,7 +3,8 @@
 import argparse
 import sys
 
-from artiq.tools import add_common_args, init_logger
+from sipyco import common_args
+
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 from artiq.coredevice.comm_analyzer import (get_analyzer_dump,
@@ -14,7 +15,7 @@ def get_argparser():
     parser = argparse.ArgumentParser(description="ARTIQ core device "
                                                  "RTIO analysis tool")
 
-    add_common_args(parser)
+    common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
 
@@ -37,7 +38,7 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    init_logger(args)
+    common_args.init_logger_from_args(args)
 
     if (not args.print_decoded
             and args.write_vcd is None and args.write_dump is None):

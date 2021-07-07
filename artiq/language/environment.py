@@ -2,12 +2,13 @@ import warnings
 from collections import OrderedDict
 from inspect import isclass
 
-from artiq.protocols import pyon
+from sipyco import pyon
+
 from artiq.language import units
 from artiq.language.core import rpc
 
 
-__all__ = ["NoDefault",
+__all__ = ["NoDefault", "DefaultMissing",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
            "HasEnvironment", "Experiment", "EnvExperiment"]
@@ -31,7 +32,7 @@ class _SimpleArgProcessor:
         if isinstance(default, list):
             raise NotImplementedError
         if default is not NoDefault:
-            self.default_value = default
+            self.default_value = self.process(default)
 
     def default(self):
         if not hasattr(self, "default_value"):
@@ -68,7 +69,10 @@ class PYONValue(_SimpleArgProcessor):
 
 class BooleanValue(_SimpleArgProcessor):
     """A boolean argument."""
-    pass
+    def process(self, x):
+        if type(x) != bool:
+            raise ValueError("Invalid BooleanValue value")
+        return x
 
 
 class EnumerationValue(_SimpleArgProcessor):
@@ -79,22 +83,26 @@ class EnumerationValue(_SimpleArgProcessor):
         argument.
     """
     def __init__(self, choices, default=NoDefault):
-        _SimpleArgProcessor.__init__(self, default)
-        assert default is NoDefault or default in choices
         self.choices = choices
+        super().__init__(default)
+
+    def process(self, x):
+        if x not in self.choices:
+            raise ValueError("Invalid EnumerationValue value")
+        return x
 
     def describe(self):
         d = _SimpleArgProcessor.describe(self)
         d["choices"] = self.choices
         return d
 
+
 class NumberValue(_SimpleArgProcessor):
     """An argument that can take a numerical value.
 
-    If ndecimals = 0, scale = 1 and step is integer, then it returns
-    an integer value. Otherwise, it returns a floating point value.
-    The simplest way to represent an integer argument is
-    ``NumberValue(step=1, ndecimals=0)``.
+    If ``type=="auto"``, the result will be a ``float`` unless
+    ndecimals = 0, scale = 1 and step is an integer. Setting ``type`` to
+    ``int`` will also result in an error unless these conditions are met.
 
     When ``scale`` is not specified, and the unit is a common one (i.e.
     defined in ``artiq.language.units``), then the scale is obtained from
@@ -117,9 +125,13 @@ class NumberValue(_SimpleArgProcessor):
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
     :param ndecimals: The number of decimals a UI should use.
+    :param type: Type of this number. Accepts ``"float"``, ``"int"`` or
+                 ``"auto"``. Defaults to ``"auto"``.
     """
+    valid_types = ["auto", "float", "int"]
+
     def __init__(self, default=NoDefault, unit="", scale=None,
-                 step=None, min=None, max=None, ndecimals=2):
+                 step=None, min=None, max=None, ndecimals=2, type="auto"):
         if scale is None:
             if unit == "":
                 scale = 1.0
@@ -131,27 +143,39 @@ class NumberValue(_SimpleArgProcessor):
                                    "the scale manually".format(unit))
         if step is None:
             step = scale/10.0
-        if default is not NoDefault:
-            self.default_value = default
         self.unit = unit
         self.scale = scale
         self.step = step
         self.min = min
         self.max = max
         self.ndecimals = ndecimals
+        self.type = type
 
-    def _is_int(self):
+        if self.type not in NumberValue.valid_types:
+            raise TypeError("type must be 'float', 'int' or 'auto'")
+
+        if self.type == "int" and not self._is_int_compatible():
+            raise ValueError(("Value marked as integer but settings are "
+                              "not compatible. Please set ndecimals = 0, "
+                              "scale = 1 and step to an integer"))
+
+        super().__init__(default)
+
+    def _is_int_compatible(self):
+        '''
+        Are the settings other than `type` compatible with this being
+        an integer?
+        '''
         return (self.ndecimals == 0
                 and int(self.step) == self.step
                 and self.scale == 1)
 
-    def default(self):
-        if not hasattr(self, "default_value"):
-            raise DefaultMissing
-        if self._is_int():
-            return int(self.default_value)
-        else:
-            return float(self.default_value)
+    def _is_int(self):
+        '''
+        Will this argument return an integer?
+        '''
+        return (self.type == "int"
+                or (self.type == "auto" and self._is_int_compatible()))
 
     def process(self, x):
         if self._is_int():
@@ -169,6 +193,7 @@ class NumberValue(_SimpleArgProcessor):
         d["min"] = self.min
         d["max"] = self.max
         d["ndecimals"] = self.ndecimals
+        d["type"] = self.type
         return d
 
 
@@ -207,10 +232,12 @@ class HasEnvironment:
             self.__device_mgr = managers_or_parent[0]
             self.__dataset_mgr = managers_or_parent[1]
             self.__argument_mgr = managers_or_parent[2]
+            self.__scheduler_defaults = managers_or_parent[3]
         else:
             self.__device_mgr = managers_or_parent.__device_mgr
             self.__dataset_mgr = managers_or_parent.__dataset_mgr
             self.__argument_mgr = managers_or_parent.__argument_mgr
+            self.__scheduler_defaults = {}
             managers_or_parent.register_child(self)
 
         self.__in_build = True
@@ -219,6 +246,23 @@ class HasEnvironment:
 
     def register_child(self, child):
         self.children.append(child)
+
+    def call_child_method(self, method, *args, **kwargs):
+        """Calls the named method for each child, if it exists for that child,
+        in the order of registration.
+
+        :param method: Name of the method to call
+        :type method: str
+        :param args: Tuple of positional arguments to pass to all children
+        :param kwargs: Dict of keyword arguments to pass to all children
+        """
+        for child in self.children:
+            try:
+                child_method = getattr(child, method)
+            except AttributeError:
+                pass
+            else:
+                child_method(*args, **kwargs)
 
     def build(self):
         """Should be implemented by the user to request arguments.
@@ -321,6 +365,18 @@ class HasEnvironment:
         as ``slice(*sub_tuple)`` (multi-dimensional slicing)."""
         self.__dataset_mgr.mutate(key, index, value)
 
+    @rpc(flags={"async"})
+    def append_to_dataset(self, key, value):
+        """Append a value to a dataset.
+
+        The target dataset must be a list (i.e. support ``append()``), and must
+        have previously been set from this experiment.
+
+        The broadcast/persist/archive mode of the given key remains unchanged
+        from when the dataset was last set. Appended values are transmitted
+        efficiently as incremental modifications in broadcast mode."""
+        self.__dataset_mgr.append_to(key, value)
+
     def get_dataset(self, key, default=NoDefault, archive=True):
         """Returns the contents of a dataset.
 
@@ -351,6 +407,21 @@ class HasEnvironment:
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""
         setattr(self, key, self.get_dataset(key, default, archive))
+
+    def set_default_scheduling(self, priority=None, pipeline_name=None, flush=None):
+        """Sets the default scheduling options.
+
+        This function should only be called from ``build``."""
+        if not self.__in_build:
+            raise TypeError("set_default_scheduling() should only "
+                            "be called from build()")
+
+        if priority is not None:
+            self.__scheduler_defaults["priority"] = int(priority)
+        if pipeline_name is not None:
+            self.__scheduler_defaults["pipeline_name"] = pipeline_name
+        if flush is not None:
+            self.__scheduler_defaults["flush"] = flush
 
 
 class Experiment:
@@ -406,11 +477,9 @@ class EnvExperiment(Experiment, HasEnvironment):
     Most experiments should derive from this class."""
     def prepare(self):
         """This default prepare method calls :meth:`~artiq.language.environment.Experiment.prepare`
-        for all children, in the order of instantiation, if the child has a
+        for all children, in the order of registration, if the child has a
         :meth:`~artiq.language.environment.Experiment.prepare` method."""
-        for child in self.children:
-            if hasattr(child, "prepare"):
-                child.prepare()
+        self.call_child_method("prepare")
 
 
 def is_experiment(o):
@@ -419,3 +488,10 @@ def is_experiment(o):
         and issubclass(o, Experiment)
         and o is not Experiment
         and o is not EnvExperiment)
+
+
+def is_public_experiment(o):
+    """Checks if a Pyhton object is a top-level,
+    non underscore-prefixed, experiment class.
+    """
+    return is_experiment(o) and not o.__name__.startswith("_")

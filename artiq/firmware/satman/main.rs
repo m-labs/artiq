@@ -8,15 +8,21 @@ extern crate board_misoc;
 extern crate board_artiq;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, irq, ident, clock, uart_logger};
-use board_artiq::{i2c, spi, si5324, drtioaux};
-#[cfg(has_serwb_phy_amc)]
-use board_artiq::serwb;
+use board_misoc::{csr, irq, ident, clock, uart_logger, i2c};
+#[cfg(has_si5324)]
+use board_artiq::si5324;
+#[cfg(has_wrpll)]
+use board_artiq::wrpll;
+use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
 
 mod repeater;
+#[cfg(has_jdcg)]
+mod jdcg;
+#[cfg(any(has_ad9154, has_jdcg))]
+pub mod jdac_common;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -290,6 +296,43 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
+        drtioaux::Packet::JdacBasicRequest { destination: _destination, dacno: _dacno,
+                                             reqno: _reqno, param: _param } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            #[cfg(has_ad9154)]
+            let (succeeded, retval) = {
+                #[cfg(rtio_frequency = "125.0")]
+                const LINERATE: u64 = 5_000_000_000;
+                #[cfg(rtio_frequency = "150.0")]
+                const LINERATE: u64 = 6_000_000_000;
+                match _reqno {
+                    jdac_common::INIT => (board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(), 0),
+                    jdac_common::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); (true, 0) },
+                    jdac_common::PRBS => (board_artiq::ad9154::prbs(_dacno).is_ok(), 0),
+                    jdac_common::STPL => (board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(), 0),
+                    jdac_common::SYSREF_DELAY_DAC => { board_artiq::hmc830_7043::hmc7043::sysref_delay_dac(_dacno, _param); (true, 0) },
+                    jdac_common::SYSREF_SLIP => { board_artiq::hmc830_7043::hmc7043::sysref_slip(); (true, 0) },
+                    jdac_common::SYNC => {
+                        match board_artiq::ad9154::sync(_dacno) {
+                            Ok(false) => (true, 0),
+                            Ok(true) => (true, 1),
+                            Err(e) => {
+                                error!("DAC sync failed: {}", e);
+                                (false, 0)
+                            }
+                        }
+                    },
+                    jdac_common::DDMTD_SYSREF_RAW => (true, jdac_common::measure_ddmdt_phase_raw() as u8),
+                    jdac_common::DDMTD_SYSREF => (true, jdac_common::measure_ddmdt_phase() as u8),
+                    _ => (false, 0)
+                }
+            };
+            #[cfg(not(has_ad9154))]
+            let (succeeded, retval) = (false, 0);
+            drtioaux::send(0,
+                &drtioaux::Packet::JdacBasicReply { succeeded: succeeded, retval: retval })
+        }
+
         _ => {
             warn!("received unexpected aux packet");
             Ok(())
@@ -367,8 +410,16 @@ fn init_rtio_crg() {
 #[cfg(not(has_rtio_crg))]
 fn init_rtio_crg() { }
 
+fn hardware_tick(ts: &mut u64) {
+    let now = clock::get_ms();
+    if now > *ts {
+        #[cfg(has_grabber)]
+        board_artiq::grabber::tick();
+        *ts = now + 200;
+    }
+}
 
-#[cfg(rtio_frequency = "150.0")]
+#[cfg(all(has_si5324, rtio_frequency = "150.0"))]
 const SI5324_SETTINGS: si5324::FrequencySettings
     = si5324::FrequencySettings {
     n1_hs  : 6,
@@ -381,7 +432,7 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
-#[cfg(rtio_frequency = "125.0")]
+#[cfg(all(has_si5324, rtio_frequency = "125.0"))]
 const SI5324_SETTINGS: si5324::FrequencySettings
     = si5324::FrequencySettings {
     n1_hs  : 5,
@@ -403,24 +454,68 @@ pub extern fn main() -> i32 {
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
     info!("gateware ident {}", ident::read(&mut [0; 64]));
 
-    #[cfg(has_slave_fpga_cfg)]
-    board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
-    #[cfg(has_serwb_phy_amc)]
-    serwb::wait_init();
+    #[cfg(has_i2c)]
+    i2c::init().expect("I2C initialization failed");
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    let (mut io_expander0, mut io_expander1);
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    {
+        io_expander0 = board_misoc::io_expander::IoExpander::new(0);
+        io_expander1 = board_misoc::io_expander::IoExpander::new(1);
+        io_expander0.init().expect("I2C I/O expander #0 initialization failed");
+        io_expander1.init().expect("I2C I/O expander #1 initialization failed");
+        #[cfg(has_wrpll)]
+        {
+            io_expander0.set_oe(1, 1 << 7).unwrap();
+            io_expander0.set(1, 7, true);
+            io_expander0.service().unwrap();
+            io_expander1.set_oe(0, 1 << 7).unwrap();
+            io_expander1.set_oe(1, 1 << 7).unwrap();
+            io_expander1.set(0, 7, true);
+            io_expander1.set(1, 7, true);
+            io_expander1.service().unwrap();
+        }
 
-    i2c::init();
+        // Actively drive TX_DISABLE to false on SFP0..3
+        io_expander0.set_oe(0, 1 << 1).unwrap();
+        io_expander0.set_oe(1, 1 << 1).unwrap();
+        io_expander1.set_oe(0, 1 << 1).unwrap();
+        io_expander1.set_oe(1, 1 << 1).unwrap();
+        io_expander0.set(0, 1, false);
+        io_expander0.set(1, 1, false);
+        io_expander1.set(0, 1, false);
+        io_expander1.set(1, 1, false);
+        io_expander0.service().unwrap();
+        io_expander1.service().unwrap();
+    }
+
+    #[cfg(has_si5324)]
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-    #[cfg(has_hmc830_7043)]
-    /* must be the first SPI init because of HMC830 SPI mode selection */
-    hmc830_7043::init().expect("cannot initialize HMC830/7043");
+    #[cfg(has_wrpll)]
+    wrpll::init();
+
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }
     clock::spin_us(1500); // wait for CPLL/QPLL lock
+    #[cfg(not(has_jdcg))]
+    unsafe {
+        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+    }
+    #[cfg(has_wrpll)]
+    wrpll::diagnostics();
     init_rtio_crg();
 
-    #[cfg(has_allaki_atts)]
-    board_artiq::hmc542::program_all(8/*=4dB*/);
+    #[cfg(has_hmc830_7043)]
+    /* must be the first SPI init because of HMC830 SPI mode selection */
+    hmc830_7043::init().expect("cannot initialize HMC830/7043");
+    #[cfg(has_ad9154)]
+    {
+        jdac_common::init_ddmtd().expect("failed to initialize SYSREF DDMTD core");
+        for dacno in 0..csr::CONFIG_AD9154_COUNT {
+            board_artiq::ad9154::reset_and_detect(dacno as u8).expect("AD9154 DAC not detected");
+        }
+    }
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];
@@ -432,56 +527,66 @@ pub extern fn main() -> i32 {
     let mut routing_table = drtio_routing::RoutingTable::default_empty();
     let mut rank = 1;
 
+    let mut hardware_tick_ts = 0;
+
     loop {
+        #[cfg(has_jdcg)]
+        unsafe {
+            // Hide from uplink until RTM is ready
+            csr::drtio_transceiver::txenable_write(0xfffffffeu32 as _);
+        }
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
+            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            {
+                io_expander0.service().expect("I2C I/O expander #0 service failed");
+                io_expander1.service().expect("I2C I/O expander #1 service failed");
+            }
+            hardware_tick(&mut hardware_tick_ts);
         }
 
         info!("uplink is up, switching to recovered clock");
-        si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
-        si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
-
-        #[cfg(has_ad9154)]
+        #[cfg(has_si5324)]
         {
-            /*
-             * One side of the JESD204 elastic buffer is clocked by the Si5324, the other
-             * by the RTM.
-             * The elastic buffer can operate only when those two clocks are derived from
-             * the same oscillator.
-             * This is the case when either of those conditions is true:
-             * (1) The DRTIO master and the RTM are clocked directly from a common external
-             *     source, *and* the Si5324 has locked to the recovered clock.
-             *     This clocking scheme provides less noise and phase drift at the DACs.
-             * (2) The RTM clock is connected to the Si5324 output.
-             * To handle those cases, we simply keep the JESD204 core in reset unless the
-             * Si5324 is locked to the recovered clock.
-             */
-            board_artiq::ad9154::jesd_reset(false);
-            board_artiq::ad9154::init();
+            si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
+            si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
+        #[cfg(has_wrpll)]
+        wrpll::select_recovered_clock(true);
 
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
+        #[cfg(has_jdcg)]
+        let mut was_up = false;
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
             for mut rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
+            #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+            {
+                io_expander0.service().expect("I2C I/O expander #0 service failed");
+                io_expander1.service().expect("I2C I/O expander #1 service failed");
+            }
+            hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
-                #[cfg(has_ad9154)]
+                #[cfg(has_jdcg)]
                 {
-                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
-                        error!("failed to align SYSREF at FPGA: {}", e);
+                    // We assume that the RTM on repeater0 is up.
+                    // Uplink should not send a TSC load command unless the link is
+                    // up, and we are hiding when the RTM is down.
+                    if let Err(e) = jdcg::jesd204sync::sysref_rtio_align() {
+                        error!("failed to align SYSREF with TSC ({})", e);
                     }
-                    if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
-                        error!("failed to align SYSREF at DAC: {}", e);
+                    if let Err(e) = jdcg::jesd204sync::resync_dacs() {
+                        error!("DAC resync failed after SYSREF/TSC realignment ({})", e);
                     }
                 }
                 for rep in repeaters.iter() {
@@ -493,16 +598,46 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
+            #[cfg(has_jdcg)]
+            {
+                let is_up = repeaters[0].is_up();
+                if is_up && !was_up {
+                    /*
+                     * One side of the JESD204 elastic buffer is clocked by the jitter filter
+                     * (Si5324 or WRPLL), the other by the RTM.
+                     * The elastic buffer can operate only when those two clocks are derived from
+                     * the same oscillator.
+                     * This is the case when either of those conditions is true:
+                     * (1) The DRTIO master and the RTM are clocked directly from a common external
+                     *     source, *and* the jitter filter has locked to the recovered clock.
+                     *     This clocking scheme may provide less noise and phase drift at the DACs.
+                     * (2) The RTM clock is connected to the jitter filter output.
+                     * To handle those cases, we simply keep the JESD204 core in reset unless the
+                     * jitter filter is locked to the recovered clock.
+                     */
+                    jdcg::jesd::reset(false);
+                    let _ = jdcg::jdac::init();
+                    jdcg::jesd204sync::sysref_auto_align();
+                    jdcg::jdac::stpl();
+                    unsafe {
+                        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);  // unhide
+                    }
+                }
+                was_up = is_up;
+            }
         }
 
-        #[cfg(has_ad9154)]
-        board_artiq::ad9154::jesd_reset(true);
+        #[cfg(has_jdcg)]
+        jdcg::jesd::reset(true);
 
         drtiosat_reset_phy(true);
         drtiosat_reset(true);
         drtiosat_tsc_loaded();
-        info!("uplink is down, switching to local crystal clock");
+        info!("uplink is down, switching to local oscillator clock");
+        #[cfg(has_si5324)]
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
+        #[cfg(has_wrpll)]
+        wrpll::select_recovered_clock(false);
     }
 }
 
@@ -537,6 +672,11 @@ pub extern fn abort() {
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
 #[panic_implementation]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
+    #[cfg(has_error_led)]
+    unsafe {
+        csr::error_led::out_write(1);
+    }
+
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
     } else {

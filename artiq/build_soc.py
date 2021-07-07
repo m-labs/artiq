@@ -1,7 +1,8 @@
 import os
 import subprocess
 
-from misoc.cores import identifier
+from migen import *
+from misoc.interconnect.csr import *
 from misoc.integration.builder import *
 
 from artiq.gateware.amp import AMPSoC
@@ -17,18 +18,38 @@ def get_identifier_string(soc, suffix="", add_class_name=True):
     if suffix or add_class_name:
         r += ";"
     if add_class_name:
-        r += soc.__class__.__name__.lower()
+        r += getattr(soc, "class_name_override", soc.__class__.__name__.lower())
     r += suffix
     return r
 
 
-def add_identifier(soc, *args, **kwargs):
+class ReprogrammableIdentifier(Module, AutoCSR):
+    def __init__(self, ident):
+        self.address = CSRStorage(8)
+        self.data = CSRStatus(8)
+
+        contents = list(ident.encode())
+        l = len(contents)
+        if l > 255:
+            raise ValueError("Identifier string must be 255 characters or less")
+        contents.insert(0, l)
+
+        for i in range(8):
+            self.specials += Instance("ROM256X1", name="identifier_str"+str(i),
+                i_A0=self.address.storage[0], i_A1=self.address.storage[1],
+                i_A2=self.address.storage[2], i_A3=self.address.storage[3],
+                i_A4=self.address.storage[4], i_A5=self.address.storage[5],
+                i_A6=self.address.storage[6], i_A7=self.address.storage[7],
+                o_O=self.data.status[i],
+                p_INIT=sum(1 << j if c & (1 << i) else 0 for j, c in enumerate(contents)))
+
+
+def add_identifier(soc, *args, gateware_identifier_str=None, **kwargs):
     if hasattr(soc, "identifier"):
         raise ValueError
     identifier_str = get_identifier_string(soc, *args, **kwargs)
-    soc.submodules.identifier = identifier.Identifier(identifier_str)
+    soc.submodules.identifier = ReprogrammableIdentifier(gateware_identifier_str or identifier_str)
     soc.config["IDENTIFIER_STR"] = identifier_str
-
 
 
 def build_artiq_soc(soc, argdict):

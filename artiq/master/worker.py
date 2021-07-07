@@ -5,9 +5,10 @@ import logging
 import subprocess
 import time
 
-from artiq.protocols import pipe_ipc, pyon
-from artiq.protocols.logging import LogParser
-from artiq.protocols.packed_exceptions import current_exc_packed
+from sipyco import pipe_ipc, pyon
+from sipyco.logging_tools import LogParser
+from sipyco.packed_exceptions import current_exc_packed
+
 from artiq.tools import asyncio_wait_or_cancel
 
 
@@ -165,12 +166,15 @@ class Worker:
             ifs, timeout=self.send_timeout,
             return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
-            raise WorkerTimeout("Timeout sending data to worker")
+            raise WorkerTimeout(
+                "Timeout sending data to worker (RID {})".format(self.rid))
         for f in fs:
             if not f.cancelled() and f.done():
                 f.result()  # raise any exceptions
         if cancellable and self.closed.is_set():
-            raise WorkerError("Data transmission to worker cancelled")
+            raise WorkerError(
+                "Data transmission to worker cancelled (RID {})".format(
+                    self.rid))
 
     async def _recv(self, timeout):
         assert self.io_lock.locked()
@@ -178,16 +182,22 @@ class Worker:
             [self.ipc.readline(), self.closed.wait()],
             timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
         if all(f.cancelled() for f in fs):
-            raise WorkerTimeout("Timeout receiving data from worker")
+            raise WorkerTimeout(
+                "Timeout receiving data from worker (RID {})".format(self.rid))
         if self.closed.is_set():
-            raise WorkerError("Data transmission to worker cancelled")
+            raise WorkerError(
+                "Receiving data from worker cancelled (RID {})".format(
+                    self.rid))
         line = fs[0].result()
         if not line:
-            raise WorkerError("Worker ended while attempting to receive data")
+            raise WorkerError(
+                "Worker ended while attempting to receive data (RID {})".
+                format(self.rid))
         try:
             obj = pyon.decode(line.decode())
         except:
-            raise WorkerError("Worker sent invalid PYON data")
+            raise WorkerError("Worker sent invalid PYON data (RID {})".format(
+                self.rid))
         return obj
 
     async def _handle_worker_requests(self):
@@ -283,10 +293,6 @@ class Worker:
     async def analyze(self):
         await self._worker_action({"action": "analyze"})
 
-    async def write_results(self, timeout=15.0):
-        await self._worker_action({"action": "write_results"},
-                                  timeout)
-
     async def examine(self, rid, file, timeout=20.0):
         self.rid = rid
         self.filename = os.path.basename(file)
@@ -294,8 +300,8 @@ class Worker:
         await self._create_process(logging.WARNING)
         r = dict()
 
-        def register(class_name, name, arginfo):
-            r[class_name] = {"name": name, "arginfo": arginfo}
+        def register(class_name, name, arginfo, scheduler_defaults):
+            r[class_name] = {"name": name, "arginfo": arginfo, "scheduler_defaults": scheduler_defaults}
         self.register_experiment = register
         await self._worker_action({"action": "examine", "file": file},
                                   timeout)

@@ -1,9 +1,9 @@
 """Protocol error reporting for satellites."""
 
 from migen import *
-from misoc.interconnect.csr import *
+from migen.genlib.cdc import BlindTransfer
 
-from artiq.gateware.rtio.cdc import BlindTransfer
+from misoc.interconnect.csr import *
 
 
 class RTErrorsSatellite(Module, AutoCSR):
@@ -27,7 +27,7 @@ class RTErrorsSatellite(Module, AutoCSR):
                     data_width = len(din)
                 else:
                     data_width = 0
-                xfer = BlindTransfer(odomain="sys", data_width=data_width)
+                xfer = BlindTransfer("rio", "sys", data_width=data_width)
                 self.submodules += xfer
 
                 if detect_edges:

@@ -3,9 +3,11 @@ import logging
 from enum import Enum
 from time import time
 
+from sipyco.sync_struct import Notifier
+from sipyco.asyncio_tools import TaskObject, Condition
+
 from artiq.master.worker import Worker, log_worker_exception
-from artiq.tools import asyncio_wait_or_cancel, TaskObject, Condition
-from artiq.protocols.sync_struct import Notifier
+from artiq.tools import asyncio_wait_or_cancel
 
 
 logger = logging.getLogger(__name__)
@@ -85,17 +87,12 @@ class Run:
             self._notifier[self.rid]["status"] = self._status.name
         self._state_changed.notify()
 
-    # The run with the largest priority_key is to be scheduled first
-    def priority_key(self, now=None):
-        if self.due_date is None:
-            due_date_k = 0
-        else:
-            due_date_k = -self.due_date
-        if now is not None and self.due_date is not None:
-            runnable = int(now > self.due_date)
-        else:
-            runnable = 1
-        return (runnable, self.priority, due_date_k, -self.rid)
+    def priority_key(self):
+        """Return a comparable value that defines a run priority order.
+
+        Applies only to runs the due date of which has already elapsed.
+        """
+        return (self.priority, -(self.due_date or 0), -self.rid)
 
     async def close(self):
         # called through pool
@@ -113,7 +110,6 @@ class Run:
     run = _mk_worker_method("run")
     resume = _mk_worker_method("resume")
     analyze = _mk_worker_method("analyze")
-    write_results = _mk_worker_method("write_results")
 
 
 class RunPool:
@@ -160,36 +156,37 @@ class PrepareStage(TaskObject):
         self.delete_cb = delete_cb
 
     def _get_run(self):
-        """If a run should get prepared now, return it.
-        Otherwise, return a float representing the time before the next timed
-        run becomes due, or None if there is no such run."""
+        """If a run should get prepared now, return it. Otherwise, return a
+        float giving the time until the next check, or None if no time-based
+        check is required.
+
+        The latter can be the case if there are no due-date runs, or none
+        of them are going to become next-in-line before further pool state
+        changes (which will also cause a re-evaluation).
+        """
+        pending_runs = list(
+            filter(lambda r: r.status == RunStatus.pending,
+                   self.pool.runs.values()))
+
         now = time()
-        pending_runs = filter(lambda r: r.status == RunStatus.pending,
-                              self.pool.runs.values())
-        try:
-            candidate = max(pending_runs, key=lambda r: r.priority_key(now))
-        except ValueError:
-            # pending_runs is an empty sequence
-            return None
+        def is_runnable(r):
+            return (r.due_date or 0) < now
 
-        prepared_runs = filter(lambda r: r.status == RunStatus.prepare_done,
-                               self.pool.runs.values())
-        try:
-            top_prepared_run = max(prepared_runs,
-                                   key=lambda r: r.priority_key())
-        except ValueError:
-            # there are no existing prepared runs - go ahead with <candidate>
-            pass
-        else:
-            # prepare <candidate> (as well) only if it has higher priority than
-            # the highest priority prepared run
-            if top_prepared_run.priority_key() >= candidate.priority_key():
-                return None
+        prepared_max = max((r.priority_key() for r in self.pool.runs.values()
+                            if r.status == RunStatus.prepare_done),
+                           default=None)
+        def takes_precedence(r):
+            return prepared_max is None or r.priority_key() > prepared_max
 
-        if candidate.due_date is None or candidate.due_date < now:
+        candidate = max(filter(is_runnable, pending_runs),
+                        key=lambda r: r.priority_key(),
+                        default=None)
+        if candidate is not None and takes_precedence(candidate):
             return candidate
-        else:
-            return candidate.due_date - now
+
+        return min((r.due_date - now for r in pending_runs
+                    if (not is_runnable(r) and takes_precedence(r))),
+                   default=None)
 
     async def _do(self):
         while True:
@@ -214,7 +211,7 @@ class PrepareStage(TaskObject):
                         if run.worker.closed.is_set():
                             break
                     if run.worker.closed.is_set():
-                            continue
+                        continue
                 run.status = RunStatus.preparing
                 try:
                     await run.build()
@@ -307,13 +304,8 @@ class AnalyzeStage(TaskObject):
             try:
                 await run.analyze()
             except:
-                logger.error("got worker exception in analyze stage of RID %d."
-                             " Results will still be saved.", run.rid)
-                log_worker_exception()
-            try:
-                await run.write_results()
-            except:
-                logger.error("failed to write results of RID %d.", run.rid)
+                logger.error("got worker exception in analyze stage of RID %d.",
+                             run.rid)
                 log_worker_exception()
             self.delete_cb(run.rid)
 
@@ -338,11 +330,20 @@ class Pipeline:
 
 
 class Deleter(TaskObject):
+    """Provides a synchronous interface for instigating deletion of runs.
+
+    :meth:`RunPool.delete` is an async function (it needs to close the worker
+    connection, etc.), so we maintain a queue of RIDs to delete on a background task.
+    """
     def __init__(self, pipelines):
         self._pipelines = pipelines
         self._queue = asyncio.Queue()
 
     def delete(self, rid):
+        """Delete the run with the given RID.
+
+        Multiple calls for the same RID are silently ignored.
+        """
         logger.debug("delete request for RID %d", rid)
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
@@ -354,6 +355,8 @@ class Deleter(TaskObject):
         await self._queue.join()
 
     async def _delete(self, rid):
+        # By looking up the run by RID, we implicitly make sure to delete each run only
+        # once.
         for pipeline in self._pipelines.values():
             if rid in pipeline.pool.runs:
                 logger.debug("deleting RID %d...", rid)
@@ -442,8 +445,10 @@ class Scheduler:
 
     def get_status(self):
         """Returns a dictionary containing information about the runs currently
-        tracked by the scheduler."""
-        return self.notifier.read
+        tracked by the scheduler.
+
+        Must not be modified."""
+        return self.notifier.raw_view
 
     def check_pause(self, rid):
         """Returns ``True`` if there is a condition that could make ``pause``

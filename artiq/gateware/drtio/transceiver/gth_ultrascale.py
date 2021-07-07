@@ -29,6 +29,7 @@ class GTHSingle(Module):
 
         # # #
 
+        self.txenable = Signal()
         nwords = dw//10
         self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
             Encoder(nwords, True))
@@ -37,6 +38,8 @@ class GTHSingle(Module):
         self.rx_ready = Signal()
 
         # transceiver direct clock outputs
+        # for OBUFDS_GTE3
+        self.rxrecclkout = Signal()
         # useful to specify clock constraints in a way palatable to Vivado
         self.txoutclk = Signal()
         self.rxoutclk = Signal()
@@ -465,7 +468,6 @@ class GTHSingle(Module):
             i_GTREFCLK0=refclk,
 
             # TX clock
-           
             o_TXOUTCLK=self.txoutclk,
             i_TXSYSCLKSEL=0b00,
             i_TXPLLCLKSEL=0b00,
@@ -485,7 +487,7 @@ class GTHSingle(Module):
             o_TXSYNCOUT=self.txsyncout,
 
             # TX data
-
+            i_TXINHIBIT=~self.txenable,
             i_TXCTRL0=Cat(*[txdata[10*i+8] for i in range(nwords)]),
             i_TXCTRL1=Cat(*[txdata[10*i+9] for i in range(nwords)]),
             i_TXDATA=Cat(*[txdata[10*i:10*i+8] for i in range(nwords)]),
@@ -521,6 +523,7 @@ class GTHSingle(Module):
             i_RXSYSCLKSEL=0b00,
             i_RXOUTCLKSEL=0b010,
             i_RXPLLCLKSEL=0b00,
+            o_RXRECCLKOUT=self.rxrecclkout,
             o_RXOUTCLK=self.rxoutclk,
             i_RXUSRCLK=ClockSignal("rtio_rx"),
             i_RXUSRCLK2=ClockSignal("rtio_rx"),
@@ -633,7 +636,7 @@ class GTHTXPhaseAlignement(Module):
 
 
 class GTH(Module, TransceiverInterface):
-    def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, rtiox_mul=2, dw=20, master=0):
+    def __init__(self, clock_pads, data_pads, sys_clk_freq, rtio_clk_freq, rtiox_mul=2, dw=20, master=0, clock_recout_pads=None):
         self.nchannels = nchannels = len(data_pads)
         self.gths = []
 
@@ -672,6 +675,8 @@ class GTH(Module, TransceiverInterface):
         self.submodules.tx_phase_alignment = GTHTXPhaseAlignement(self.gths)
 
         TransceiverInterface.__init__(self, channel_interfaces)
+        for n, gth in enumerate(self.gths):
+            self.comb += gth.txenable.eq(self.txenable.storage[n])
         self.clock_domains.cd_rtiox = ClockDomain(reset_less=True)
         if create_buf:
             # GTH PLLs recover on their own from an interrupted clock input,
@@ -689,3 +694,11 @@ class GTH(Module, TransceiverInterface):
                 getattr(self, "cd_rtio_rx" + str(i)).clk.eq(self.gths[i].cd_rtio_rx.clk),
                 getattr(self, "cd_rtio_rx" + str(i)).rst.eq(self.gths[i].cd_rtio_rx.rst)
             ]
+
+        if clock_recout_pads is not None:
+            self.specials += Instance("OBUFDS_GTE3",
+                p_REFCLK_EN_TX_PATH=0b1,
+                p_REFCLK_ICNTL_TX=0b00111,
+                i_I=self.gths[0].rxrecclkout,
+                i_CEB=0,
+                o_O=clock_recout_pads.p, o_OB=clock_recout_pads.n)

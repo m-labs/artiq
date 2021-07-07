@@ -6,13 +6,15 @@ class ShiftReg:
     """Driver for shift registers/latch combos connected to TTLs"""
     kernel_invariants = {"dt", "n"}
     
-    def __init__(self, dmgr, clk, ser, latch, n=32, dt=10*us):
+    def __init__(self, dmgr, clk, ser, latch, n=32, dt=10*us, ser_in=None):
         self.core = dmgr.get("core")
         self.clk = dmgr.get(clk)
         self.ser = dmgr.get(ser)
         self.latch = dmgr.get(latch)
         self.n = n
         self.dt = dt
+        if ser_in is not None:
+            self.ser_in = dmgr.get(ser_in)
 
     @kernel
     def set(self, data):
@@ -34,3 +36,19 @@ class ShiftReg:
         delay(self.dt)
         self.latch.off()
         delay(self.dt)
+
+    @kernel
+    def get(self):
+        delay(-2*(self.n + 1)*self.dt)
+        data = 0
+        for i in range(self.n):
+            data <<= 1
+            self.ser_in.sample_input()
+            if self.ser_in.sample_get():
+                data |= 1
+            delay(self.dt)
+            self.clk.on()
+            delay(self.dt)
+            self.clk.off()
+        delay(self.dt)
+        return data

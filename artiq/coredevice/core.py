@@ -11,7 +11,7 @@ from artiq.language.units import *
 
 from artiq.compiler.module import Module
 from artiq.compiler.embedding import Stitcher
-from artiq.compiler.targets import OR1KTarget
+from artiq.compiler.targets import OR1KTarget, CortexA9Target
 
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 # Import for side effects (creating the exception classes).
@@ -71,9 +71,15 @@ class Core:
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="or1k"):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
+        if target == "or1k":
+            self.target_cls = OR1KTarget
+        elif target == "cortexa9":
+            self.target_cls = CortexA9Target
+        else:
+            raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
@@ -101,7 +107,7 @@ class Core:
             module = Module(stitcher,
                 ref_period=self.ref_period,
                 attribute_writeback=attribute_writeback)
-            target = OR1KTarget()
+            target = self.target_cls()
 
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)

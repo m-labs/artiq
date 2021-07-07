@@ -90,6 +90,8 @@ class InOut(Module):
         self.overrides = [override_en, override_o, override_oe]
         self.probes = []
 
+        # Output enable, for interfacing to external buffers.
+        self.oe = Signal()
         # Registered copy of the input state, in the rio_phy clock domain.
         self.input_state = Signal()
 
@@ -101,6 +103,7 @@ class InOut(Module):
 
         o_k = Signal()
         oe_k = Signal()
+        self.oe.attr.add("no_retiming")
         self.sync.rio_phy += [
             If(self.rtlink.o.stb,
                 If(self.rtlink.o.address == 0, o_k.eq(self.rtlink.o.data[0])),
@@ -108,12 +111,13 @@ class InOut(Module):
             ),
             If(override_en,
                 ts.o.eq(override_o),
-                ts.oe.eq(override_oe)
+                self.oe.eq(override_oe)
             ).Else(
                 ts.o.eq(o_k),
-                ts.oe.eq(oe_k)
+                self.oe.eq(oe_k)
             )
         ]
+        self.comb += ts.oe.eq(self.oe)
         sample = Signal()
         self.sync.rio += [
             sample.eq(0),

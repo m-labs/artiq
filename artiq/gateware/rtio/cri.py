@@ -60,11 +60,14 @@ class Interface(Record):
 
 
 class KernelInitiator(Module, AutoCSR):
-    def __init__(self, tsc, cri=None):
+    def __init__(self, tsc, cri=None, now64=False):
         self.target = CSRStorage(32)
-        # not using CSRStorage atomic_write feature here to make storage reset_less
-        self.now_hi = CSR(32)
-        self.now_lo = CSR(32)
+        if now64:
+            self.now = CSRStorage(64)
+        else:
+            # not using CSRStorage atomic_write feature here to make storage reset_less
+            self.now_hi = CSR(32)
+            self.now_lo = CSR(32)
 
         # Writing target clears o_data. This implements automatic
         # zero-extension of output event data by the gateware. When staging an
@@ -76,7 +79,6 @@ class KernelInitiator(Module, AutoCSR):
         self.i_data = CSRStatus(32)
         self.i_timestamp = CSRStatus(64)
         self.i_status = CSRStatus(4)
-        self.i_overflow_reset = CSR()
 
         self.counter = CSRStatus(64)
         self.counter_update = CSR()
@@ -87,16 +89,19 @@ class KernelInitiator(Module, AutoCSR):
 
         # # #
 
-        now_hi_backing = Signal(32)
-        now = Signal(64, reset_less=True)
-        self.sync += [
-            If(self.now_hi.re, now_hi_backing.eq(self.now_hi.r)),
-            If(self.now_lo.re, now.eq(Cat(self.now_lo.r, now_hi_backing)))
-        ]
-        self.comb += [
-            self.now_hi.w.eq(now[32:]),
-            self.now_lo.w.eq(now[:32])
-        ]
+        if now64:
+            now = self.now.storage
+        else:
+            now = Signal(64, reset_less=True)
+            now_hi_backing = Signal(32)
+            self.sync += [
+                If(self.now_hi.re, now_hi_backing.eq(self.now_hi.r)),
+                If(self.now_lo.re, now.eq(Cat(self.now_lo.r, now_hi_backing)))
+            ]
+            self.comb += [
+                self.now_hi.w.eq(now[32:]),
+                self.now_lo.w.eq(now[:32])
+            ]
 
         self.comb += [
             self.cri.cmd.eq(commands["nop"]),

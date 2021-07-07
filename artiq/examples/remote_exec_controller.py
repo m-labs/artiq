@@ -4,7 +4,7 @@ import numpy as np
 from numba import jit
 import logging
 
-from artiq.protocols.remote_exec import simple_rexec_server_loop
+from sipyco.remote_exec import simple_rexec_server_loop
 
 
 @jit(nopython=True)

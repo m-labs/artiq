@@ -12,9 +12,7 @@ def _reverse_bytes(s, g):
 
 
 class WishboneReader(Module):
-    def __init__(self, bus=None):
-        if bus is None:
-            bus = wishbone.Interface
+    def __init__(self, bus):
         self.bus = bus
 
         aw = len(bus.adr)

@@ -3,8 +3,9 @@
 from migen import *
 from migen.genlib.fsm import *
 from migen.genlib.fifo import AsyncFIFO
+from migen.genlib.cdc import BlindTransfer
 
-from artiq.gateware.rtio.cdc import GrayCodeTransfer, BlindTransfer
+from artiq.gateware.rtio.cdc import GrayCodeTransfer
 from artiq.gateware.drtio.cdc import CrossDomainRequest, CrossDomainNotification
 from artiq.gateware.drtio.rt_serializer import *
 

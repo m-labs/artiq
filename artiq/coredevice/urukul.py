@@ -1,15 +1,15 @@
+from numpy import int32, int64
+
 from artiq.language.core import kernel, delay, portable, at_mu, now_mu
 from artiq.language.units import us, ms
-
-from numpy import int32, int64
+from artiq.language.types import TInt32, TFloat, TBool
 
 from artiq.coredevice import spi2 as spi
 
-
-SPI_CONFIG = (0*spi.SPI_OFFLINE | 0*spi.SPI_END |
-              0*spi.SPI_INPUT | 1*spi.SPI_CS_POLARITY |
-              0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
-              0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+SPI_CONFIG = (0 * spi.SPI_OFFLINE | 0 * spi.SPI_END |
+              0 * spi.SPI_INPUT | 1 * spi.SPI_CS_POLARITY |
+              0 * spi.SPI_CLK_POLARITY | 0 * spi.SPI_CLK_PHASE |
+              0 * spi.SPI_LSB_FIRST | 0 * spi.SPI_HALF_DUPLEX)
 
 # SPI clock write and read dividers
 SPIT_CFG_WR = 2
@@ -31,6 +31,7 @@ CFG_CLK_SEL1 = 21
 CFG_SYNC_SEL = 18
 CFG_RST = 19
 CFG_IO_RST = 20
+CFG_CLK_DIV = 22
 
 # STA status register bit offsets
 STA_RF_SW = 0
@@ -54,7 +55,7 @@ CS_DDS_CH3 = 7
 
 @portable
 def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
-               clk_sel, sync_sel, rst, io_rst):
+               clk_sel, sync_sel, rst, io_rst, clk_div):
     """Build Urukul CPLD configuration register"""
     return ((rf_sw << CFG_RF_SW) |
             (led << CFG_LED) |
@@ -65,7 +66,8 @@ def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
             ((clk_sel & 0x02) << (CFG_CLK_SEL1 - 1)) |
             (sync_sel << CFG_SYNC_SEL) |
             (rst << CFG_RST) |
-            (io_rst << CFG_IO_RST))
+            (io_rst << CFG_IO_RST) |
+            (clk_div << CFG_CLK_DIV))
 
 
 @portable
@@ -103,7 +105,7 @@ class _RegIOUpdate:
         self.cpld = cpld
 
     @kernel
-    def pulse(self, t):
+    def pulse(self, t: TFloat):
         cfg = self.cpld.cfg_reg
         self.cpld.cfg_write(cfg | (1 << CFG_IO_UPDATE))
         delay(t)
@@ -115,7 +117,7 @@ class _DummySync:
         self.cpld = cpld
 
     @kernel
-    def set_mu(self, ftw):
+    def set_mu(self, ftw: TInt32):
         pass
 
 
@@ -133,6 +135,11 @@ class CPLD:
         internal MMCX. For hardware revision <= v1.2 valid options are: 0 -
         either XO or MMCX dependent on component population; 1 SMA. Unsupported
         clocking options are silently ignored.
+    :param clk_div: Reference clock divider. Valid options are 0: variant
+        dependent default (divide-by-4 for AD9910 and divide-by-1 for AD9912);
+        1: divide-by-1; 2: divide-by-2; 3: divide-by-4.
+        On Urukul boards with CPLD gateware before v1.3.1 only the default
+        (0, i.e. variant dependent divider) is valid.
     :param sync_sel: SYNC (multi-chip synchronisation) signal source selection.
         0 corresponds to SYNC_IN being supplied by the FPGA via the EEM
         connector. 1 corresponds to SYNC_OUT from DDS0 being distributed to the
@@ -147,17 +154,23 @@ class CPLD:
         RTIO frequency and the SYNC_IN generator frequency (default: 2 if
         `sync_device` was specified).
     :param core_device: Core device name
+
+    If the clocking is incorrect (for example, setting ``clk_sel`` to the
+    front panel SMA with no clock connected), then the ``init()`` method of
+    the DDS channels can fail with the error message ``PLL lock timeout``.
     """
-    kernel_invariants = {"refclk", "bus", "core", "io_update"}
+    kernel_invariants = {"refclk", "bus", "core", "io_update", "clk_div"}
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,
-                 sync_sel=0, clk_sel=0, rf_sw=0,
+                 sync_sel=0, clk_sel=0, clk_div=0, rf_sw=0,
                  refclk=125e6, att=0x00000000, sync_div=None,
                  core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.refclk = refclk
+        assert 0 <= clk_div <= 3
+        self.clk_div = clk_div
 
         self.bus = dmgr.get(spi_device)
         if io_update_device is not None:
@@ -177,17 +190,18 @@ class CPLD:
 
         self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
-                                  sync_sel=sync_sel, rst=0, io_rst=0)
+                                  sync_sel=sync_sel,
+                                  rst=0, io_rst=0, clk_div=clk_div)
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
 
     @kernel
-    def cfg_write(self, cfg):
+    def cfg_write(self, cfg: TInt32):
         """Write to the configuration register.
 
         See :func:`urukul_cfg` for possible flags.
 
-        :param data: 24 bit data to be written. Will be stored at
+        :param cfg: 24 bit data to be written. Will be stored at
             :attr:`cfg_reg`.
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 24,
@@ -196,7 +210,7 @@ class CPLD:
         self.cfg_reg = cfg
 
     @kernel
-    def sta_read(self):
+    def sta_read(self) -> TInt32:
         """Read the status register.
 
         Use any of the following functions to extract values:
@@ -215,7 +229,7 @@ class CPLD:
         return self.bus.read()
 
     @kernel
-    def init(self, blind=False):
+    def init(self, blind: TBool = False):
         """Initialize and detect Urukul.
 
         Resets the DDS I/O interface and verifies correct CPLD gateware
@@ -233,12 +247,12 @@ class CPLD:
             proto_rev = urukul_sta_proto_rev(self.sta_read())
             if proto_rev != STA_PROTO_REV_MATCH:
                 raise ValueError("Urukul proto_rev mismatch")
-        delay(100*us)  # reset, slack
+        delay(100 * us)  # reset, slack
         self.cfg_write(cfg)
         if self.sync_div:
             at_mu(now_mu() & ~0xf)  # align to RTIO/2
             self.set_sync_div(self.sync_div)  # 125 MHz/2 = 1 GHz/16
-        delay(1*ms)  # DDS wake up
+        delay(1 * ms)  # DDS wake up
 
     @kernel
     def io_rst(self):
@@ -247,7 +261,7 @@ class CPLD:
         self.cfg_write(self.cfg_reg & ~(1 << CFG_IO_RST))
 
     @kernel
-    def cfg_sw(self, channel, on):
+    def cfg_sw(self, channel: TInt32, on: TBool):
         """Configure the RF switches through the configuration register.
 
         These values are logically OR-ed with the LVDS lines on EEM1.
@@ -263,21 +277,44 @@ class CPLD:
         self.cfg_write(c)
 
     @kernel
-    def cfg_switches(self, state):
+    def cfg_switches(self, state: TInt32):
         """Configure all four RF switches through the configuration register.
 
         :param state: RF switch state as a 4 bit integer.
         """
         self.cfg_write((self.cfg_reg & ~0xf) | state)
 
+    @portable(flags={"fast-math"})
+    def mu_to_att(self, att_mu: TInt32) -> TFloat:
+        """Convert a digital attenuation setting to dB.
+
+        :param att_mu: Digital attenuation setting.
+        :return: Attenuation setting in dB.
+        """
+        return (255 - (att_mu & 0xff)) / 8
+
+    @portable(flags={"fast-math"})
+    def att_to_mu(self, att: TFloat) -> TInt32:
+        """Convert an attenuation setting in dB to machine units.
+
+        :param att: Attenuation setting in dB.
+        :return: Digital attenuation setting.
+        """
+        code = int32(255) - int32(round(att * 8))
+        if code < 0 or code > 255:
+            raise ValueError("Invalid urukul.CPLD attenuation!")
+        return code
+
     @kernel
-    def set_att_mu(self, channel, att):
+    def set_att_mu(self, channel: TInt32, att: TInt32):
         """Set digital step attenuator in machine units.
 
-        This method will write the attenuator settings of all four channels.
+        This method will also write the attenuator settings of the three
+        other channels. Use :meth:`get_att_mu` to retrieve the hardware
+        state set in previous experiments.
 
         :param channel: Attenuator channel (0-3).
-        :param att: Digital attenuation setting:
+        :param att: 8-bit digital attenuation setting:
             255 minimum attenuation, 0 maximum attenuation (31.5 dB)
         """
         a = self.att_reg & ~(0xff << (channel * 8))
@@ -285,7 +322,7 @@ class CPLD:
         self.set_all_att_mu(a)
 
     @kernel
-    def set_all_att_mu(self, att_reg):
+    def set_all_att_mu(self, att_reg: TInt32):
         """Set all four digital step attenuators (in machine units).
 
         .. seealso:: :meth:`set_att_mu`
@@ -298,19 +335,28 @@ class CPLD:
         self.att_reg = att_reg
 
     @kernel
-    def set_att(self, channel, att):
+    def set_att(self, channel: TInt32, att: TFloat):
         """Set digital step attenuator in SI units.
+
+        This method will write the attenuator settings of all four channels.
+
+        .. seealso:: :meth:`set_att_mu`
 
         :param channel: Attenuator channel (0-3).
         :param att: Attenuation setting in dB. Higher value is more
             attenuation. Minimum attenuation is 0*dB, maximum attenuation is
             31.5*dB.
         """
-        self.set_att_mu(channel, 255 - int32(round(att*8)))
+        self.set_att_mu(channel, self.att_to_mu(att))
 
     @kernel
-    def get_att_mu(self):
+    def get_att_mu(self) -> TInt32:
         """Return the digital step attenuator settings in machine units.
+
+        The result is stored and will be used in future calls of
+        :meth:`set_att_mu` and :meth:`set_att`.
+
+        .. seealso:: :meth:`get_channel_att_mu`
 
         :return: 32 bit attenuator settings
         """
@@ -319,30 +365,58 @@ class CPLD:
         self.bus.write(0)  # shift in zeros, shift out current value
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 32,
                                SPIT_ATT_WR, CS_ATT)
-        delay(10*us)
+        delay(10 * us)
         self.att_reg = self.bus.read()
         self.bus.write(self.att_reg)  # shift in current value again and latch
         return self.att_reg
 
     @kernel
-    def set_sync_div(self, div):
+    def get_channel_att_mu(self, channel: TInt32) -> TInt32:
+        """Get digital step attenuator value for a channel in machine units.
+
+        The result is stored and will be used in future calls of
+        :meth:`set_att_mu` and :meth:`set_att`.
+
+        .. seealso:: :meth:`get_att_mu`
+
+        :param channel: Attenuator channel (0-3).
+        :return: 8-bit digital attenuation setting:
+            255 minimum attenuation, 0 maximum attenuation (31.5 dB)
+        """
+        return int32((self.get_att_mu() >> (channel * 8)) & 0xff)
+
+    @kernel
+    def get_channel_att(self, channel: TInt32) -> TFloat:
+        """Get digital step attenuator value for a channel in SI units.
+
+        .. seealso:: :meth:`get_channel_att_mu`
+
+        :param channel: Attenuator channel (0-3).
+        :return: Attenuation setting in dB. Higher value is more
+            attenuation. Minimum attenuation is 0*dB, maximum attenuation is
+            31.5*dB.
+        """
+        return self.mu_to_att(self.get_channel_att_mu(channel))
+
+    @kernel
+    def set_sync_div(self, div: TInt32):
         """Set the SYNC_IN AD9910 pulse generator frequency
         and align it to the current RTIO timestamp.
 
         The SYNC_IN signal is derived from the coarse RTIO clock
-        and the divider must be a power of two two.
+        and the divider must be a power of two.
         Configure ``sync_sel == 0``.
 
         :param div: SYNC_IN frequency divider. Must be a power of two.
             Minimum division ratio is 2. Maximum division ratio is 16.
         """
         ftw_max = 1 << 4
-        ftw = ftw_max//div
-        assert ftw*div == ftw_max
+        ftw = ftw_max // div
+        assert ftw * div == ftw_max
         self.sync.set_mu(ftw)
 
     @kernel
-    def set_profile(self, profile):
+    def set_profile(self, profile: TInt32):
         """Set the PROFILE pins.
 
         The PROFILE pins are common to all four DDS channels.

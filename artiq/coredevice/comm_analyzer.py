@@ -90,18 +90,28 @@ DecodedDump = namedtuple(
 
 
 def decode_dump(data):
-    parts = struct.unpack(">IQbbb", data[:15])
+    # extract endian byte
+    if data[0] == ord('E'):
+        endian = '>'
+    elif data[0] == ord('e'):
+        endian = '<'
+    else:
+        raise ValueError
+    data = data[1:]
+    # only header is device endian
+    # messages are big endian
+    parts = struct.unpack(endian + "IQbbb", data[:15])
     (sent_bytes, total_byte_count,
-     overflow_occured, log_channel, dds_onehot_sel) = parts
+     error_occured, log_channel, dds_onehot_sel) = parts
 
     expected_len = sent_bytes + 15
     if expected_len != len(data):
         raise ValueError("analyzer dump has incorrect length "
                          "(got {}, expected {})".format(
                             len(data), expected_len))
-    if overflow_occured:
-        logger.warning("analyzer FIFO overflow occured, "
-                       "some messages have been lost")
+    if error_occured:
+        logger.warning("error occured within the analyzer, "
+                       "data may be corrupted")
     if total_byte_count > sent_bytes:
         logger.info("analyzer ring buffer has wrapped %d times",
                     total_byte_count//sent_bytes)
@@ -360,8 +370,8 @@ class SPIMaster2Handler(WishboneHandler):
     def process_message(self, message):
         self.stb.set_value("1")
         self.stb.set_value("0")
-        data = message.data
         if isinstance(message, OutputMessage):
+            data = message.data
             address = message.address
             if address == 1:
                 logger.debug("SPI config @%d data=0x%08x",
@@ -462,7 +472,7 @@ def get_ref_period(devices):
 
 def get_dds_sysclk(devices):
     return get_single_device_argument(devices, "artiq.coredevice.ad9914",
-                                      ("ad9914",), "sysclk")
+                                      ("AD9914",), "sysclk")
 
 
 def create_channel_handlers(vcd_manager, devices, ref_period,
@@ -485,8 +495,7 @@ def create_channel_handlers(vcd_manager, devices, ref_period,
                 if dds_bus_channel in channel_handlers:
                     dds_handler = channel_handlers[dds_bus_channel]
                 else:
-                    dds_handler = DDSHandler(vcd_manager, desc["class"],
-                        dds_onehot_sel, dds_sysclk)
+                    dds_handler = DDSHandler(vcd_manager, dds_onehot_sel, dds_sysclk)
                     channel_handlers[dds_bus_channel] = dds_handler
                 dds_handler.add_dds_channel(name, dds_channel)
             if (desc["module"] == "artiq.coredevice.spi2" and

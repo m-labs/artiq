@@ -1,29 +1,12 @@
 use core::result;
-use board_misoc::clock;
+use board_misoc::{clock, i2c};
 #[cfg(not(si5324_soft_reset))]
 use board_misoc::csr;
-use i2c;
 
 type Result<T> = result::Result<T, &'static str>;
 
 const BUSNO: u8 = 0;
 const ADDRESS: u8 = 0x68;
-
-#[cfg(any(soc_platform = "kasli",
-          soc_platform = "sayma_amc",
-          soc_platform = "sayma_rtm",
-          soc_platform = "kc705"))]
-fn pca9548_select(address: u8, channels: u8) -> Result<()> {
-    i2c::start(BUSNO).unwrap();
-    if !i2c::write(BUSNO, address << 1).unwrap() {
-        return Err("PCA9548 failed to ack write address")
-    }
-    if !i2c::write(BUSNO, channels).unwrap() {
-        return Err("PCA9548 failed to ack control word")
-    }
-    i2c::stop(BUSNO).unwrap();
-    Ok(())
-}
 
 #[cfg(not(si5324_soft_reset))]
 fn hard_reset() {
@@ -190,23 +173,23 @@ fn monitor_lock() -> Result<()> {
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
-    let s = map_frequency_settings(settings)?;
-
+fn init() -> Result<()> {
     #[cfg(not(si5324_soft_reset))]
     hard_reset();
 
     #[cfg(soc_platform = "kasli")]
     {
-        pca9548_select(0x70, 0)?;
-        pca9548_select(0x71, 1 << 3)?;
+        i2c::pca9548_select(BUSNO, 0x70, 0)?;
+        i2c::pca9548_select(BUSNO, 0x71, 1 << 3)?;
     }
     #[cfg(soc_platform = "sayma_amc")]
-    pca9548_select(0x70, 1 << 4)?;
+    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "sayma_rtm")]
-    pca9548_select(0x77, 1 << 5)?;
+    i2c::pca9548_select(BUSNO, 0x77, 1 << 5)?;
+    #[cfg(soc_platform = "metlino")]
+    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "kc705")]
-    pca9548_select(0x74, 1 << 7)?;
+    i2c::pca9548_select(BUSNO, 0x74, 1 << 7)?;
 
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");
@@ -214,17 +197,37 @@ pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
 
     #[cfg(si5324_soft_reset)]
     soft_reset()?;
+    Ok(())
+}
 
+pub fn bypass(input: Input) -> Result<()> {
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
+    init()?;
+    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
+    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;    // CKSEL_REG
+    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
+    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
+    write(0,   (read(0)? & 0xfd) | 0x02)?;                // BYPASS_REG=1
+    Ok(())
+}
+
+pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
+    let s = map_frequency_settings(settings)?;
+    let cksel_reg = match input {
+        Input::Ckin1 => 0b00,
+        Input::Ckin2 => 0b01,
+    };
+
+    init()?;
     if settings.crystal_ref {
         write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
     }
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
-    write(3,   (read(3)? & 0x3f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
+    write(3,   (read(3)? & 0x2f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
     write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
     write(25,  (s.n1_hs  << 5 ) as u8)?;
@@ -304,7 +307,7 @@ pub mod siphaser {
         }
     }
 
-    fn find_edge(target: bool) -> Result<u16> {
+    fn find_edge(target: bool) -> Result<u32> {
         let mut nshifts = 0;
 
         let mut previous = has_error();
@@ -323,8 +326,13 @@ pub mod siphaser {
     }
 
     pub fn calibrate_skew() -> Result<()> {
+        let jitter_margin = 32;
         let lead = find_edge(false)?;
-        let width = find_edge(true)?;
+        for _ in 0..jitter_margin {
+            phase_shift(1);
+        }
+        let width = find_edge(true)? + jitter_margin;
+        // width is 360 degrees (one full rotation of the phase between s/h limits) minus jitter
         info!("calibration successful, lead: {}, width: {} ({}deg)", lead, width, width*360/(56*8));
 
         // Apply reverse phase shift for half the width to get into the

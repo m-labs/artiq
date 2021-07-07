@@ -28,9 +28,9 @@ extern crate proto_artiq;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr};
+use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, boot, config};
+use board_misoc::{csr, irq, ident, clock, boot, config, net_settings};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -41,6 +41,7 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
+mod rtio_clocking;
 mod rtio_mgt;
 
 mod urc;
@@ -52,21 +53,21 @@ mod mgmt;
 mod profiler;
 mod kernel;
 mod kern_hwreq;
-mod watchdog;
 mod session;
 #[cfg(any(has_rtio_moninj, has_drtio))]
 mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
 
-fn startup() {
-    irq::set_mask(0);
-    irq::set_ie(true);
-    clock::init();
-    info!("ARTIQ runtime starting...");
-    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
-    info!("gateware ident {}", ident::read(&mut [0; 64]));
+#[cfg(has_grabber)]
+fn grabber_thread(io: sched::Io) {
+    loop {
+        board_artiq::grabber::tick();
+        io.sleep(200).unwrap();
+    }
+}
 
+fn setup_log_levels() {
     match config::read_str("log_level", |r| r.map(|s| s.parse())) {
         Ok(Ok(log_level_filter)) => {
             info!("log level set to {} by `log_level` config key",
@@ -84,170 +85,41 @@ fn startup() {
         }
         _ => info!("UART log level set to INFO by default")
     }
+}
 
-    #[cfg(has_slave_fpga_cfg)]
-    board_artiq::slave_fpga::load().expect("cannot load RTM FPGA gateware");
-    #[cfg(has_serwb_phy_amc)]
-    board_artiq::serwb::wait_init();
+fn startup() {
+    irq::set_mask(0);
+    irq::set_ie(true);
+    clock::init();
+    info!("ARTIQ runtime starting...");
+    info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
+    info!("gateware ident {}", ident::read(&mut [0; 64]));
 
-    #[cfg(has_uart)] {
-        let t = clock::get_ms();
-        info!("press 'e' to erase startup and idle kernels...");
-        while clock::get_ms() < t + 1000 {
-            if unsafe { csr::uart::rxtx_read() == b'e' } {
-                config::remove("startup_kernel").unwrap();
-                config::remove("idle_kernel").unwrap();
-                info!("startup and idle kernels erased");
-                break
-            }
-        }
-        info!("continuing boot");
-    }
-
+    setup_log_levels();
     #[cfg(has_i2c)]
-    board_artiq::i2c::init();
-    #[cfg(si5324_as_synthesizer)]
-    setup_si5324_as_synthesizer();
-    #[cfg(has_hmc830_7043)]
-    /* must be the first SPI init because of HMC830 SPI mode selection */
-    board_artiq::hmc830_7043::init().expect("cannot initialize HMC830/7043");
-    #[cfg(has_ad9154)]
+    board_misoc::i2c::init().expect("I2C initialization failed");
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    let (mut io_expander0, mut io_expander1);
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     {
-        board_artiq::ad9154::jesd_reset(false);
-        board_artiq::ad9154::init();
-        if let Err(e) = board_artiq::jesd204sync::sysref_auto_rtio_align() {
-            error!("failed to align SYSREF at FPGA: {}", e);
-        }
-        if let Err(e) = board_artiq::jesd204sync::sysref_auto_dac_align() {
-            error!("failed to align SYSREF at DAC: {}", e);
-        }
-    }
-    #[cfg(has_allaki_atts)]
-    board_artiq::hmc542::program_all(8/*=4dB*/);
+        io_expander0 = board_misoc::io_expander::IoExpander::new(0);
+        io_expander1 = board_misoc::io_expander::IoExpander::new(1);
+        io_expander0.init().expect("I2C I/O expander #0 initialization failed");
+        io_expander1.init().expect("I2C I/O expander #1 initialization failed");
 
-    #[cfg(has_ethmac)]
-    startup_ethernet();
-    #[cfg(not(has_ethmac))]
-    {
-        info!("done");
-        loop {}
+        // Actively drive TX_DISABLE to false on SFP0..3
+        io_expander0.set_oe(0, 1 << 1).unwrap();
+        io_expander0.set_oe(1, 1 << 1).unwrap();
+        io_expander1.set_oe(0, 1 << 1).unwrap();
+        io_expander1.set_oe(1, 1 << 1).unwrap();
+        io_expander0.set(0, 1, false);
+        io_expander0.set(1, 1, false);
+        io_expander1.set(0, 1, false);
+        io_expander1.set(1, 1, false);
+        io_expander0.service().unwrap();
+        io_expander1.service().unwrap();
     }
-}
-
-#[cfg(si5324_as_synthesizer)]
-fn setup_si5324_as_synthesizer()
-{
-    // 125MHz output, from 100MHz CLKIN2 reference, 586 Hz
-    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", si5324_ext_ref))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 10,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 260,
-        n31    : 65,
-        n32    : 52,
-        bwsel  : 4,
-        crystal_ref: false
-    };
-    // 125MHz output, from crystal, 7 Hz
-    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "125.0", not(si5324_ext_ref)))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 10,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 19972,
-        n31    : 4993,
-        n32    : 4565,
-        bwsel  : 4,
-        crystal_ref: true
-    };
-    // 150MHz output, from crystal
-    #[cfg(all(not(si5324_sayma_ref), rtio_frequency = "150.0", not(si5324_ext_ref)))]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 9,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 33732,
-        n31    : 9370,
-        n32    : 7139,
-        bwsel  : 3,
-        crystal_ref: true
-    };
-    // 100MHz output, from crystal (reference for HMC830)
-    #[cfg(si5324_sayma_ref)]
-    const SI5324_SETTINGS: board_artiq::si5324::FrequencySettings
-        = board_artiq::si5324::FrequencySettings {
-        n1_hs  : 9,
-        nc1_ls : 6,
-        n2_hs  : 10,
-        n2_ls  : 33732,
-        n31    : 9370,
-        n32    : 7139,
-        bwsel  : 3,
-        crystal_ref: true
-    };
-    board_artiq::si5324::setup(&SI5324_SETTINGS,
-        board_artiq::si5324::Input::Ckin2).expect("cannot initialize Si5324");
-}
-
-#[cfg(has_grabber)]
-fn grabber_thread(io: sched::Io) {
-    loop {
-        board_artiq::grabber::tick();
-        io.sleep(200).unwrap();
-    }
-}
-
-#[cfg(has_ethmac)]
-fn startup_ethernet() {
-    let hardware_addr;
-    match config::read_str("mac", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => {
-            hardware_addr = addr;
-            info!("using MAC address {}", hardware_addr);
-        }
-        _ => {
-            #[cfg(soc_platform = "kasli")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]);
-            }
-            #[cfg(soc_platform = "sayma_amc")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]);
-            }
-            #[cfg(soc_platform = "kc705")]
-            {
-                hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]);
-            }
-            warn!("using default MAC address {}; consider changing it", hardware_addr);
-        }
-    }
-
-    let protocol_addr;
-    match config::read_str("ip", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => {
-            protocol_addr = addr;
-            info!("using IP address {}", protocol_addr);
-        }
-        _ => {
-            #[cfg(soc_platform = "kasli")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 70);
-            }
-            #[cfg(soc_platform = "sayma_amc")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 60);
-            }
-            #[cfg(soc_platform = "kc705")]
-            {
-                protocol_addr = IpAddress::v4(192, 168, 1, 50);
-            }
-            info!("using default IP address {}", protocol_addr);
-        }
-    }
+    rtio_clocking::init();
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
@@ -274,12 +146,33 @@ fn startup_ethernet() {
 
     let neighbor_cache =
         smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
-    let mut interface  =
-        smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+    let net_addresses = net_settings::get_adresses();
+    info!("network addresses: {}", net_addresses);
+    let mut interface = match net_addresses.ipv6_addr {
+        Some(addr) => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0),
+                IpCidr::new(addr, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+                       .ethernet_addr(net_addresses.hardware_addr)
+                       .ip_addrs(ip_addrs)
                        .neighbor_cache(neighbor_cache)
-                       .ethernet_addr(hardware_addr)
-                       .ip_addrs([IpCidr::new(protocol_addr, 0)])
-                       .finalize();
+                       .finalize()
+        }
+        None => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0)
+            ];
+            smoltcp::iface::EthernetInterfaceBuilder::new(net_device)
+                       .ethernet_addr(net_addresses.hardware_addr)
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
+    };
 
     #[cfg(has_drtio)]
     let drtio_routing_table = urc::Urc::new(RefCell::new(
@@ -336,6 +229,12 @@ fn startup_ethernet() {
 
         if let Some(_net_stats_diff) = net_stats.update() {
             debug!("ethernet mac:{}", ethmac::EthernetStatistics::new());
+        }
+
+        #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+        {
+            io_expander0.service().expect("I2C I/O expander #0 service failed");
+            io_expander1.service().expect("I2C I/O expander #1 service failed");
         }
     }
 }
@@ -410,13 +309,18 @@ pub fn oom(layout: core::alloc::Layout) -> ! {
 pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
     irq::set_ie(false);
 
+    #[cfg(has_error_led)]
+    unsafe {
+        csr::error_led::out_write(1);
+    }
+
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
     } else {
         print!("panic at unknown location");
     }
     if let Some(message) = info.message() {
-        println!("{}", message);
+        println!(": {}", message);
     } else {
         println!("");
     }
@@ -430,10 +334,13 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
 
     if config::read_str("panic_reset", |r| r == Ok("1")) {
         println!("restarting...");
-        unsafe { boot::reset() }
+        unsafe {
+            kernel::stop();
+            boot::reset();
+        }
     } else {
         println!("halting.");
-        println!("use `artiq_coreconfig write -s panic_reset 1` to restart instead");
+        println!("use `artiq_coremgmt config write -s panic_reset 1` to restart instead");
         loop {}
     }
 }

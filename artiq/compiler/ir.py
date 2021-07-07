@@ -36,6 +36,48 @@ class TKeyword(types.TMono):
 def is_keyword(typ):
     return isinstance(typ, TKeyword)
 
+
+# See rpc_proto.rs and comm_kernel.py:_{send,receive}_rpc_value.
+def rpc_tag(typ, error_handler):
+    typ = typ.find()
+    if types.is_tuple(typ):
+        assert len(typ.elts) < 256
+        return b"t" + bytes([len(typ.elts)]) + \
+                b"".join([rpc_tag(elt_type, error_handler)
+                            for elt_type in typ.elts])
+    elif builtins.is_none(typ):
+        return b"n"
+    elif builtins.is_bool(typ):
+        return b"b"
+    elif builtins.is_int(typ, types.TValue(32)):
+        return b"i"
+    elif builtins.is_int(typ, types.TValue(64)):
+        return b"I"
+    elif builtins.is_float(typ):
+        return b"f"
+    elif builtins.is_str(typ):
+        return b"s"
+    elif builtins.is_bytes(typ):
+        return b"B"
+    elif builtins.is_bytearray(typ):
+        return b"A"
+    elif builtins.is_list(typ):
+        return b"l" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+    elif builtins.is_array(typ):
+        num_dims = typ["num_dims"].value
+        return b"a" + bytes([num_dims]) + rpc_tag(typ["elt"], error_handler)
+    elif builtins.is_range(typ):
+        return b"r" + rpc_tag(builtins.get_iterable_elt(typ), error_handler)
+    elif is_keyword(typ):
+        return b"k" + rpc_tag(typ.params["value"], error_handler)
+    elif types.is_function(typ) or types.is_method(typ) or types.is_rpc(typ):
+        raise ValueError("RPC tag for functional value")
+    elif '__objectid__' in typ.attributes:
+        return b"O"
+    else:
+        error_handler(typ)
+
+
 class Value:
     """
     An SSA value that keeps track of its uses.
@@ -738,6 +780,33 @@ class SetAttr(Instruction):
     def value(self):
         return self.operands[1]
 
+class Offset(Instruction):
+    """
+    An intruction that adds an offset to a pointer (indexes into a list).
+
+    This is used to represent internally generated pointer arithmetic, and must
+    remain inside the same object (see :class:`GetElem` and LLVM's GetElementPtr).
+    """
+
+    """
+    :param lst: (:class:`Value`) list
+    :param index: (:class:`Value`) index
+    """
+    def __init__(self, base, offset, name=""):
+        assert isinstance(base, Value)
+        assert isinstance(offset, Value)
+        typ = types._TPointer(builtins.get_iterable_elt(base.type))
+        super().__init__([base, offset], typ, name)
+
+    def opcode(self):
+        return "offset"
+
+    def base(self):
+        return self.operands[0]
+
+    def index(self):
+        return self.operands[1]
+
 class GetElem(Instruction):
     """
     An intruction that loads an element from a list.
@@ -755,7 +824,7 @@ class GetElem(Instruction):
     def opcode(self):
         return "getelem"
 
-    def list(self):
+    def base(self):
         return self.operands[0]
 
     def index(self):
@@ -781,7 +850,7 @@ class SetElem(Instruction):
     def opcode(self):
         return "setelem"
 
-    def list(self):
+    def base(self):
         return self.operands[0]
 
     def index(self):
@@ -839,6 +908,7 @@ class Arith(Instruction):
 
     def rhs(self):
         return self.operands[1]
+
 
 class Compare(Instruction):
     """

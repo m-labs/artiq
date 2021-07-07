@@ -1,7 +1,7 @@
 import logging
 import logging.handlers
 
-from artiq.protocols.logging import SourceFilter
+from sipyco.logging_tools import SourceFilter
 
 
 class LogForwarder(logging.Handler):

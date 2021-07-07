@@ -22,9 +22,9 @@ Local device entries are dictionaries that contain a ``type`` field set to ``loc
 Controllers
 +++++++++++
 
-Controller entries are dictionaries whose ``type`` field is set to ``controller``. When an experiment requests such a device, a RPC client (see :class:`artiq.protocols.pc_rpc`) is created and connected to the appropriate controller. Controller entries are also used by controller managers to determine what controllers to run.
+Controller entries are dictionaries whose ``type`` field is set to ``controller``. When an experiment requests such a device, a RPC client (see ``sipyco.pc_rpc``) is created and connected to the appropriate controller. Controller entries are also used by controller managers to determine what controllers to run.
 
-The ``best_effort`` field is a boolean that determines whether to use :class:`artiq.protocols.pc_rpc.Client` or :class:`artiq.protocols.pc_rpc.BestEffortClient`. The ``host`` and ``port`` fields configure the TCP connection. The ``target`` field contains the name of the RPC target to use (you may use ``artiq_rpctool`` on a controller to list its targets). Controller managers run the ``command`` field in a shell to launch the controller, after replacing ``{port}`` and ``{bind}`` by respectively the TCP port the controller should listen to (matches the ``port`` field) and an appropriate bind address for the controller's listening socket.
+The ``best_effort`` field is a boolean that determines whether to use ``sipyco.pc_rpc.Client`` or ``sipyco.pc_rpc.BestEffortClient``. The ``host`` and ``port`` fields configure the TCP connection. The ``target`` field contains the name of the RPC target to use (you may use ``sipyco_rpctool`` on a controller to list its targets). Controller managers run the ``command`` field in a shell to launch the controller, after replacing ``{port}`` and ``{bind}`` by respectively the TCP port the controller should listen to (matches the ``port`` field) and an appropriate bind address for the controller's listening socket.
 
 Aliases
 +++++++

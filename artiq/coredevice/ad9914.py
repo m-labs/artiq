@@ -236,10 +236,10 @@ class AD9914:
 
     @portable(flags={"fast-math"})
     def frequency_to_ftw(self, frequency):
-        """Returns the frequency tuning word corresponding to the given
+        """Returns the 32-bit frequency tuning word corresponding to the given
         frequency.
         """
-        return round(float(int64(2)**32*frequency/self.sysclk))
+        return int32(round(float(int64(2)**32*frequency/self.sysclk)))
 
     @portable(flags={"fast-math"})
     def ftw_to_frequency(self, ftw):
@@ -250,9 +250,9 @@ class AD9914:
 
     @portable(flags={"fast-math"})
     def turns_to_pow(self, turns):
-        """Returns the phase offset word corresponding to the given phase
-        in turns."""
-        return round(float(turns*2**16))
+        """Returns the 16-bit phase offset word corresponding to the given
+        phase in turns."""
+        return round(float(turns*2**16)) & 0xffff
 
     @portable(flags={"fast-math"})
     def pow_to_turns(self, pow):
@@ -262,8 +262,12 @@ class AD9914:
 
     @portable(flags={"fast-math"})
     def amplitude_to_asf(self, amplitude):
-        """Returns amplitude scale factor corresponding to given amplitude."""
-        return round(float(amplitude*0x0fff))
+        """Returns 12-bit amplitude scale factor corresponding to given
+        amplitude."""
+        code = round(float(amplitude * 0x0fff))
+        if code < 0 or code > 0xfff:
+            raise ValueError("Invalid AD9914 amplitude!")
+        return code
 
     @portable(flags={"fast-math"})
     def asf_to_amplitude(self, asf):
@@ -314,10 +318,11 @@ class AD9914:
 
     @portable(flags={"fast-math"})
     def frequency_to_xftw(self, frequency):
-        """Returns the frequency tuning word corresponding to the given
+        """Returns the 63-bit frequency tuning word corresponding to the given
         frequency (extended resolution mode).
         """
-        return int64(round(2.0*float(int64(2)**62)*frequency/self.sysclk))
+        return int64(round(2.0*float(int64(2)**62)*frequency/self.sysclk)) & (
+                (int64(1) << 63) - 1)
 
     @portable(flags={"fast-math"})
     def xftw_to_frequency(self, xftw):

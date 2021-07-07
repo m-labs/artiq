@@ -1,0 +1,461 @@
+{
+    "$id": "https://m-labs.hk/kasli_generic.schema.json",
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Kasli variant description",
+    
+    "type": "object",
+    "properties": {
+        "_description": {
+            "type": "string",
+            "description": "Free-form description text"
+        },
+        "target": {
+            "type": "string",
+            "description": "Target board"
+        },
+        "variant": {
+            "type": "string",
+            "description": "Target board variant name"
+        },
+        "min_artiq_version": {
+            "type": "string",
+            "description": "Minimum required ARTIQ version"
+        },
+        "hw_rev": {
+            "type": "string",
+            "description": "Hardware revision"
+        },
+        "base": {
+            "type": "string",
+            "enum": ["standalone", "master", "satellite"],
+            "description": "SoC base; value depends on intended system topology"
+        },
+        "ext_ref_frequency": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "External reference frequency"
+        },
+        "rtio_frequency": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "default": 125e6,
+            "description": "RTIO frequency"
+        },
+        "core_addr": {
+            "type": "string",
+            "format": "ipv4",
+            "description": "IPv4 address",
+            "default": "192.168.1.70"
+        },
+        "vendor": {
+            "type": "string",
+            "description": "Board vendor"
+        },
+        "eui48": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "pattern": "^([0-9a-f]{2}-){5}[0-9a-f]{2}$",
+                "examples": ["80-1f-12-4c-22-7f"]
+            },
+            "description": "Ethernet MAC addresses"
+        },
+        "enable_sata_drtio": {
+            "type": "boolean",
+            "default": false
+        },
+        "peripherals": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/peripheral"
+            }
+        }
+    },
+    "if": {
+        "properties": {
+            "target": { "const": "kasli" },
+            "hw_rev": {
+                "not": {
+                    "oneOf": [
+                        { "const": "v1.0" },
+                        { "const": "v1.1" }
+                    ]
+                }
+            }
+        }
+    },
+    "then": {
+        "properties": {
+            "enable_sata_drtio": {
+                "const": false
+            }
+        }
+    },
+    "required": ["target", "variant", "hw_rev", "base", "peripherals"],
+    "additionalProperties": false,
+
+    "oneOf": [
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0", "v1.1", "v2.0"]
+                }
+            }
+        },
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli_soc"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0"]
+                }
+            }
+        }
+    ],
+
+    "definitions": {
+        "peripheral": {
+            "type": "object",
+            "properties": {
+                "type": {
+                    "type": "string",
+                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser"]
+                },
+                "board": {
+                    "type": "string"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "pattern": "^v[0-9]+\\.[0-9]+"
+                }
+            },
+            "required": ["type"],
+            "allOf": [{
+                "title": "DIO",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "dio"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        },
+                        "edge_counter": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "bank_direction_low": {
+                            "type": "string",
+                            "enum": ["input", "output"]
+                        },
+                        "bank_direction_high": {
+                            "type": "string",
+                            "enum": ["input", "output"]
+                        }
+                    },
+                    "required": ["ports", "bank_direction_low", "bank_direction_high"]
+                }
+            }, {
+                "title": "Urukul",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "urukul"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 2
+                        },
+                        "synchronization": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "clk_div": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
+                            "type": "integer"
+                        },
+                        "pll_vco": {
+                            "type": "integer"
+                        },
+                        "dds": {
+                            "type": "string",
+                            "enum": ["ad9910", "ad9912"],
+                            "default": "ad9910"
+                        }
+                    },                    
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Novogorny",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "novogorny"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Sampler",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "sampler"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 2
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "SUServo",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "suservo"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "sampler_ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                        },
+                        "urukul0_ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                        },
+                        "urukul1_ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                        },
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
+                            "type": "integer",
+                            "default": 32
+                        },
+                        "pll_vco": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": ["sampler_ports", "urukul0_ports"]
+                }
+            }, {
+                "title": "Zotino",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "zotino"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Grabber",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "grabber"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 3
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Mirny",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "mirny"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        },
+                        "refclk": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "default": 100e6
+                        },
+                        "clk_sel": {
+                            "oneOf": [
+                                {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 3
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["xo", "mmcx", "sma"]
+                                }
+                            ],
+                            "default": 0
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Fastino",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "fastino"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        },
+                        "log2_width": {
+                            "type": "integer",
+                            "default": 0,
+                            "description": "Width of DAC channel group (logarithm base 2)"
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "Phaser",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "phaser"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }]
+        }
+    }
+}

@@ -51,6 +51,7 @@ fn worker(stream: &mut TcpStream) -> Result<(), IoError<SchedError>> {
     };
     debug!("{:?}", header);
 
+    stream.write_all("E".as_bytes())?;
     header.write_to(stream)?;
     if wraparound {
         stream.write_all(&data[pointer..])?;

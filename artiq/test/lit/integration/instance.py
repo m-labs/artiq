@@ -6,9 +6,9 @@ class c:
 
 i = c()
 
-assert i.a == 1
-
 def f():
     c = None
     assert i.a == 1
+
+assert i.a == 1
 f()

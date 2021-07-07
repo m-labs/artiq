@@ -55,38 +55,39 @@ class TVar(Type):
 
     def __init__(self):
         self.parent = self
+        self.rank = 0
 
     def find(self):
-        if self.parent is self:
+        parent = self.parent
+        if parent is self:
             return self
         else:
             # The recursive find() invocation is turned into a loop
             # because paths resulting from unification of large arrays
             # can easily cause a stack overflow.
             root = self
-            while root.__class__ == TVar:
-                if root is root.parent:
-                    break
-                else:
-                    root = root.parent
-
-            # path compression
-            iter = self
-            while iter.__class__ == TVar:
-                if iter is iter.parent:
-                    break
-                else:
-                    iter, iter.parent = iter.parent, root
-
-            return root
+            while parent.__class__ == TVar and root is not parent:
+                _, parent = root, root.parent = parent, parent.parent
+            return root.parent
 
     def unify(self, other):
-        other = other.find()
-
-        if self.parent is self:
-            self.parent = other
+        if other is self:
+            return
+        x = other.find()
+        y = self.find()
+        if x is y:
+            return
+        if y.__class__ == TVar:
+            if x.__class__ == TVar:
+                if x.rank < y.rank:
+                    x, y = y, x
+                y.parent = x
+                if x.rank == y.rank:
+                    x.rank += 1
+            else:
+                y.parent = x
         else:
-            self.find().unify(other)
+            y.unify(x)
 
     def fold(self, accum, fn):
         if self.parent is self:
@@ -124,6 +125,8 @@ class TMono(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if isinstance(other, TMono) and self.name == other.name:
             assert self.params.keys() == other.params.keys()
             for param in self.params:
@@ -171,6 +174,8 @@ class TTuple(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if isinstance(other, TTuple) and len(self.elts) == len(other.elts):
             for selfelt, otherelt in zip(self.elts, other.elts):
                 selfelt.unify(otherelt)
@@ -198,8 +203,10 @@ class TTuple(Type):
         return hash(tuple(self.elts))
 
 class _TPointer(TMono):
-    def __init__(self):
-        super().__init__("pointer")
+    def __init__(self, elt=None):
+        if elt is None:
+            elt = TMono("int", {"width": 8})  # i8*
+        super().__init__("pointer", params={"elt": elt})
 
 class TFunction(Type):
     """
@@ -237,6 +244,8 @@ class TFunction(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if isinstance(other, TFunction) and \
                 self.args.keys() == other.args.keys() and \
                 self.optargs.keys() == other.optargs.keys():
@@ -273,20 +282,29 @@ class TFunction(Type):
     def __hash__(self):
         return hash((_freeze(self.args), _freeze(self.optargs), self.ret))
 
-class TCFunction(TFunction):
+class TExternalFunction(TFunction):
     """
-    A function type of a runtime-provided C function.
+    A type of an externally-provided function.
 
-    :ivar name: (str) C function name
-    :ivar flags: (set of str) C function flags.
+    This can be any function following the C ABI, such as provided by the
+    C/Rust runtime, or a compiler backend intrinsic. The mangled name to link
+    against is encoded as part of the type.
+
+    :ivar name: (str) external symbol name.
+        This will be the symbol linked against (following any extra C name
+        mangling rules).
+    :ivar flags: (set of str) function flags.
         Flag ``nounwind`` means the function never raises an exception.
         Flag ``nowrite`` means the function never writes any memory
         that the ARTIQ Python code can observe.
+    :ivar broadcast_across_arrays: (bool)
+        If True, the function is transparently applied element-wise when called
+        with TArray arguments.
     """
 
     attributes = OrderedDict()
 
-    def __init__(self, args, ret, name, flags={}):
+    def __init__(self, args, ret, name, flags=set(), broadcast_across_arrays=False):
         assert isinstance(flags, set)
         for flag in flags:
             assert flag in {'nounwind', 'nowrite'}
@@ -294,9 +312,12 @@ class TCFunction(TFunction):
         self.name  = name
         self.delay = TFixedDelay(iodelay.Const(0))
         self.flags = flags
+        self.broadcast_across_arrays = broadcast_across_arrays
 
     def unify(self, other):
-        if isinstance(other, TCFunction) and \
+        if other is self:
+            return
+        if isinstance(other, TExternalFunction) and \
                 self.name == other.name:
             super().unify(other)
         elif isinstance(other, TVar):
@@ -324,6 +345,8 @@ class TRPC(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if isinstance(other, TRPC) and \
                 self.service == other.service and \
                 self.is_async == other.is_async:
@@ -366,6 +389,8 @@ class TBuiltin(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if self != other:
             raise UnificationError(self, other)
 
@@ -388,6 +413,11 @@ class TBuiltin(Type):
 class TBuiltinFunction(TBuiltin):
     """
     A type of a builtin function.
+
+    Builtin functions are treated specially throughout all stages of the
+    compilation process according to their name (e.g. calls may not actually
+    lower to a function call). See :class:`TExternalFunction` for externally
+    defined functions that are otherwise regular.
     """
 
 class TConstructor(TBuiltin):
@@ -471,6 +501,8 @@ class TValue(Type):
         return self
 
     def unify(self, other):
+        if other is self:
+            return
         if isinstance(other, TVar):
             other.unify(self)
         elif self != other:
@@ -561,13 +593,15 @@ def is_mono(typ, name=None, **params):
     if not isinstance(typ, TMono):
         return False
 
-    params_match = True
+    if name is not None and typ.name != name:
+        return False
+
     for param in params:
         if param not in typ.params:
             return False
-        params_match = params_match and \
-            typ.params[param].find() == params[param].find()
-    return name is None or (typ.name == name and params_match)
+        if typ.params[param].find() != params[param].find():
+            return False
+    return True
 
 def is_polymorphic(typ):
     return typ.fold(False, lambda accum, typ: accum or is_var(typ))
@@ -589,12 +623,12 @@ def is_function(typ):
 def is_rpc(typ):
     return isinstance(typ.find(), TRPC)
 
-def is_c_function(typ, name=None):
+def is_external_function(typ, name=None):
     typ = typ.find()
     if name is None:
-        return isinstance(typ, TCFunction)
+        return isinstance(typ, TExternalFunction)
     else:
-        return isinstance(typ, TCFunction) and \
+        return isinstance(typ, TExternalFunction) and \
             typ.name == name
 
 def is_builtin(typ, name=None):
@@ -612,6 +646,15 @@ def is_builtin_function(typ, name=None):
     else:
         return isinstance(typ, TBuiltinFunction) and \
             typ.name == name
+
+def is_broadcast_across_arrays(typ):
+    # For now, broadcasting is only exposed to predefined external functions, and
+    # statically selected. Might be extended to user-defined functions if the design
+    # pans out.
+    typ = typ.find()
+    if not isinstance(typ, TExternalFunction):
+        return False
+    return typ.broadcast_across_arrays
 
 def is_constructor(typ, name=None):
     typ = typ.find()
@@ -717,12 +760,14 @@ class TypePrinter(object):
             else:
                 return "%s(%s)" % (typ.name, ", ".join(
                     ["%s=%s" % (k, self.name(typ.params[k], depth + 1)) for k in typ.params]))
+        elif isinstance(typ, _TPointer):
+            return "{}*".format(self.name(typ["elt"], depth + 1))
         elif isinstance(typ, TTuple):
             if len(typ.elts) == 1:
                 return "(%s,)" % self.name(typ.elts[0], depth + 1)
             else:
                 return "(%s)" % ", ".join([self.name(typ, depth + 1) for typ in typ.elts])
-        elif isinstance(typ, (TFunction, TCFunction)):
+        elif isinstance(typ, (TFunction, TExternalFunction)):
             args = []
             args += [ "%s:%s" % (arg, self.name(typ.args[arg], depth + 1))
                      for arg in typ.args]
@@ -736,7 +781,7 @@ class TypePrinter(object):
             elif not (delay.is_fixed() and iodelay.is_zero(delay.duration)):
                 signature += " " + self.name(delay, depth + 1)
 
-            if isinstance(typ, TCFunction):
+            if isinstance(typ, TExternalFunction):
                 return "[ffi {}]{}".format(repr(typ.name), signature)
             elif isinstance(typ, TFunction):
                 return signature

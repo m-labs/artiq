@@ -1,5 +1,6 @@
 from artiq.experiment import *
 from artiq.coredevice.exceptions import CacheError
+from artiq.compiler.targets import CortexA9Target
 from artiq.test.hardware_testbench import ExperimentCase
 
 
@@ -40,6 +41,8 @@ class CacheTest(ExperimentCase):
 
     def test_borrow(self):
         exp = self.create(_Cache)
+        if exp.core.target_cls == CortexA9Target:
+            self.skipTest("Zynq port memory management does not need CacheError")
         exp.put("x4", [1, 2, 3])
         with self.assertRaises(CacheError):
             exp.get_put("x4", [])

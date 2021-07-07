@@ -80,21 +80,30 @@ def ad53xx_cmd_read_ch(channel, op):
     return AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_READ | (op + (channel << 7))
 
 
+# maintain function definition for backward compatibility
 @portable
 def voltage_to_mu(voltage, offset_dacs=0x2000, vref=5.):
-    """Returns the DAC register value required to produce a given output
+    """Returns the 16-bit DAC register value required to produce a given output
     voltage, assuming offset and gain errors have been trimmed out.
+
+    The 16-bit register value may also be used with 14-bit DACs. The additional
+    bits are disregarded by 14-bit DACs.
 
     Also used to return offset register value required to produce a given
     voltage when the DAC register is set to mid-scale.
     An offset of V can be used to trim out a DAC offset error of -V.
 
-    :param voltage: Voltage
+    :param voltage: Voltage in SI units.
+        Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset.
     :param offset_dacs: Register value for the two offset DACs
       (default: 0x2000)
     :param vref: DAC reference voltage (default: 5.)
+    :return: The 16-bit DAC register value
     """
-    return int(round(0x10000*(voltage/(4.*vref)) + offset_dacs*0x4))
+    code = int(round((1 << 16) * (voltage / (4. * vref)) + offset_dacs * 0x4))
+    if code < 0x0 or code > 0xffff:
+        raise ValueError("Invalid DAC voltage!")
+    return code
 
 
 class _DummyTTL:
@@ -169,6 +178,8 @@ class AD53xx:
         self.write_offset_dacs_mu(self.offset_dacs)
         if not blind:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
+            if ctrl == 0xffff:
+                raise ValueError("DAC not found")
             if ctrl & 0b10000:
                 raise ValueError("DAC over temperature")
             delay(25*us)
@@ -176,7 +187,7 @@ class AD53xx:
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
         if not blind:
             ctrl = self.read_reg(channel=0, op=AD53XX_READ_CONTROL)
-            if ctrl != 0b0010:
+            if (ctrl & 0b10111) != 0b00010:
                 raise ValueError("DAC CONTROL readback mismatch")
             delay(15*us)
 
@@ -366,3 +377,17 @@ class AD53xx:
         self.core.break_realtime()
         self.write_offset_mu(channel, 0x8000-offset_err)
         self.write_gain_mu(channel, 0xffff-gain_err)
+
+    @portable
+    def voltage_to_mu(self, voltage):
+        """Returns the 16-bit DAC register value required to produce a given
+        output voltage, assuming offset and gain errors have been trimmed out.
+
+        The 16-bit register value may also be used with 14-bit DACs. The
+        additional bits are disregarded by 14-bit DACs.
+
+        :param voltage: Voltage in SI units.
+            Valid voltages are: [-2*vref, + 2*vref - 1 LSB] + voltage offset.
+        :return: The 16-bit DAC register value
+        """
+        return voltage_to_mu(voltage, self.offset_dacs, self.vref)

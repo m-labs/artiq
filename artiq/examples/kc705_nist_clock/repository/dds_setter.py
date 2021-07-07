@@ -25,6 +25,7 @@ class DDSSetter(EnvExperiment):
 
     @kernel
     def set_dds(self, dds, frequency):
+        self.core.break_realtime()
         dds.set(frequency)
         delay(200*ms)
 

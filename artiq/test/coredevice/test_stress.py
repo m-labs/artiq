@@ -6,9 +6,6 @@ from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 
 
-artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
-
-
 class _Stress(EnvExperiment):
     def build(self):
         self.setattr_device("core")

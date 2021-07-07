@@ -9,22 +9,14 @@ class TestFrontends(unittest.TestCase):
         """Test --help as a simple smoke test against catastrophic breakage."""
         commands = {
             "aqctl": [
-                "corelog", "korad_ka3005p", "lda", "novatech409b",
-                "thorlabs_tcube"
+                "corelog"
             ],
             "artiq": [
-                "client", "compile", "coreanalyzer", "coremgmt", "ctlmgr",
-                "devtool", "flash", "influxdb", "master", "mkfs", "route",
-                "rpctool", "rtiomon", "run", "session"
+                "client", "compile", "coreanalyzer", "coremgmt",
+                "flash", "master", "mkfs", "route",
+                "rtiomon", "run", "session", "browser", "dashboard"
             ]
         }
-
-        # Skip tests for GUI programs on headless CI environments.
-        try:
-            from PyQt5 import QtGui, QtWidgets
-            commands["artiq"] += ["browser", "dashboard"]
-        except ImportError:
-            pass
 
         for module in (prefix + "_" + name
                        for prefix, names in commands.items()

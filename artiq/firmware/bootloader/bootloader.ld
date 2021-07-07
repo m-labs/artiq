@@ -46,7 +46,7 @@ SECTIONS
   .stack :
   {
     /* Ensure we have a certain amount of space available for stack. */
-    . = ORIGIN(sram) + LENGTH(sram) - 0x800;
+    /*. = ORIGIN(sram) + LENGTH(sram) - 0x1a00; */
     . = ORIGIN(sram) + LENGTH(sram) - 4;
     _fstack = .;
   } > sram

@@ -7,11 +7,10 @@ use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
-use rtio_mgt;
+use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 use cache::Cache;
 use kern_hwreq;
-use watchdog::WatchdogSet;
 use board_artiq::drtio_routing;
 
 use rpc_proto as rpc;
@@ -28,10 +27,6 @@ pub enum Error<T> {
     InvalidPointer(usize),
     #[fail(display = "RTIO clock failure")]
     ClockFailure,
-    #[fail(display = "watchdog {} expired", _0)]
-    WatchdogExpired(usize),
-    #[fail(display = "out of watchdogs")]
-    OutOfWatchdogs,
     #[fail(display = "protocol error: {}", _0)]
     Protocol(#[cause] host::Error<T>),
     #[fail(display = "{}", _0)]
@@ -91,7 +86,6 @@ enum KernelState {
 struct Session<'a> {
     congress: &'a mut Congress,
     kernel_state: KernelState,
-    watchdog_set: WatchdogSet,
     log_buffer: String
 }
 
@@ -100,7 +94,6 @@ impl<'a> Session<'a> {
         Session {
             congress: congress,
             kernel_state: KernelState::Absent,
-            watchdog_set: WatchdogSet::new(),
             log_buffer: String::new()
         }
     }
@@ -221,7 +214,7 @@ unsafe fn kern_load(io: &Io, session: &mut Session, library: &[u8])
                 Err(Error::Load(format!("{}", error)))
             }
             other =>
-                unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                unexpected!("unexpected kernel CPU reply to load request: {:?}", other)
         }
     })
 }
@@ -272,15 +265,22 @@ fn process_host_message(io: &Io,
             let slot = kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(slot) => Ok(slot),
-                    other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
             rpc::recv_return(stream, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                if size == 0 {
+                    // Don't try to allocate zero-length values, as RpcRecvReply(0) is
+                    // used to terminate the kernel-side receive loop.
+                    return Ok(0 as *mut ())
+                }
                 kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
                 Ok(kern_recv(io, |reply| {
                     match reply {
                         &kern::RpcRecvRequest(slot) => Ok(slot),
-                        other => unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                        other => unexpected!(
+                            "expected nested value slot from kernel CPU, not {:?}", other)
                     }
                 })?)
             })?;
@@ -299,8 +299,8 @@ fn process_host_message(io: &Io,
             kern_recv(io, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(_) => Ok(()),
-                    other =>
-                        unexpected!("unexpected reply from kernel CPU: {:?}", other)
+                    other => unexpected!(
+                        "expected (ignored) root value slot from kernel CPU, not {:?}", other)
                 }
             })?;
 
@@ -387,15 +387,6 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         duration: duration
                     })
                 })
-            }
-
-            &kern::WatchdogSetRequest { ms } => {
-                let id = session.watchdog_set.set_ms(ms).map_err(|()| Error::OutOfWatchdogs)?;
-                kern_send(io, &kern::WatchdogSetReply { id: id })
-            }
-            &kern::WatchdogClear { id } => {
-                session.watchdog_set.clear(id);
-                kern_acknowledge()
             }
 
             &kern::RpcSend { async, service, tag, data } => {
@@ -515,12 +506,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if session.kernel_state == KernelState::Running {
-            if let Some(idx) = session.watchdog_set.expired() {
-                host_write(stream, host::Reply::WatchdogExpired)?;
-                return Err(Error::WatchdogExpired(idx))
-            }
-
-            if !rtio_mgt::crg::check() {
+            if !rtio_clocking::crg::check() {
                 host_write(stream, host::Reply::ClockFailure)?;
                 return Err(Error::ClockFailure)
             }
@@ -560,11 +546,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
             }
         }
 
-        if let Some(idx) = session.watchdog_set.expired() {
-            return Err(Error::WatchdogExpired(idx))
-        }
-
-        if !rtio_mgt::crg::check() {
+        if !rtio_clocking::crg::check() {
             return Err(Error::ClockFailure)
         }
 
@@ -622,13 +604,21 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
     loop {
         if listener.can_accept() {
             let mut stream = listener.accept().expect("session: cannot accept");
-            stream.set_timeout(Some(1000));
+            stream.set_timeout(Some(2250));
             stream.set_keep_alive(Some(500));
 
             match host::read_magic(&mut stream) {
                 Ok(()) => (),
                 Err(_) => {
                     warn!("wrong magic from {}", stream.remote_endpoint());
+                    stream.close().expect("session: cannot close");
+                    continue
+                }
+            }
+            match stream.write_all("E".as_bytes()) {
+                Ok(()) => (),
+                Err(_) => {
+                    warn!("cannot send endian byte");
                     stream.close().expect("session: cannot close");
                     continue
                 }

@@ -1,6 +1,5 @@
 from enum import Enum
 import logging
-import socket
 import struct
 
 from artiq.coredevice.comm import initialize_connection
@@ -59,11 +58,18 @@ class CommMgmt:
         self.host = host
         self.port = port
 
-    def open(self, **kwargs):
+    def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = initialize_connection(self.host, self.port, **kwargs)
+        self.socket = initialize_connection(self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
+        endian = self._read(1)
+        if endian == b"e":
+            self.endian = "<"
+        elif endian == b"E":
+            self.endian = ">"
+        else:
+            raise IOError("Incorrect reply from device: expected e/E.")
 
     def close(self):
         if not hasattr(self, "socket"):
@@ -87,7 +93,7 @@ class CommMgmt:
         self._write(struct.pack("B", value))
 
     def _write_int32(self, value):
-        self._write(struct.pack(">l", value))
+        self._write(struct.pack(self.endian + "l", value))
 
     def _write_bytes(self, value):
         self._write_int32(len(value))
@@ -117,7 +123,7 @@ class CommMgmt:
                           format(self._read_type, ty))
 
     def _read_int32(self):
-        (value, ) = struct.unpack(">l", self._read(4))
+        (value, ) = struct.unpack(self.endian + "l", self._read(4))
         return value
 
     def _read_bytes(self):

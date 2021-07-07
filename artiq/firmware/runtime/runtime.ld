@@ -6,7 +6,7 @@ ENTRY(_reset_handler)
  * ld does not allow this expression here.
  */
 MEMORY {
-    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
+    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x4000000 /* 64M */
 }
 
 SECTIONS
@@ -65,7 +65,7 @@ SECTIONS
         _ebss = .;
     } > runtime
 
-    .stack ALIGN(0x1000) :
+    .stack :
     {
         . += 0x4000;
         _fstack = . - 4;

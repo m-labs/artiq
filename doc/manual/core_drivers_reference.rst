@@ -99,6 +99,18 @@ RF generation drivers
 .. automodule:: artiq.coredevice.ad9914
     :members:
 
+:mod:`artiq.coredevice.mirny` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.mirny
+    :members:
+
+:mod:`artiq.coredevice.adf5356` module
++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.adf5356
+    :members:
+
 :mod:`artiq.coredevice.spline` module
 +++++++++++++++++++++++++++++++++++++
 
@@ -111,6 +123,18 @@ RF generation drivers
 .. automodule:: artiq.coredevice.sawg
     :members:
 
+
+:mod:`artiq.coredevice.basemod_att` module
+++++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.basemod_att
+    :members:
+
+:mod:`artiq.coredevice.phaser` module
++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.phaser
+    :members:
 
 DAC/ADC drivers
 ---------------
@@ -137,6 +161,12 @@ DAC/ADC drivers
 ++++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.novogorny
+    :members:
+
+:mod:`artiq.coredevice.fastino` module
+++++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.fastino
     :members:
 
 

@@ -15,35 +15,44 @@
 
 import sys
 import os
+from unittest.mock import Mock
 
 import sphinx_rtd_theme
-from unittest.mock import MagicMock
 
 
 # Hack-patch Sphinx so that ARTIQ-Python types are correctly printed
 # See: https://github.com/m-labs/artiq/issues/741
 from sphinx.ext import autodoc
-autodoc.repr = str
+from sphinx.util import inspect
+autodoc.repr = inspect.repr = str
 
 
-class Mock(MagicMock):
-    @classmethod
-    def __getattr__(cls, name):
-        if name == "_mock_methods":
-            return None
-        return Mock()
-
-
-mock_modules = ["artiq.gui.moninj",
-                "artiq.gui.waitingspinnerwidget",
+# we cannot use autodoc_mock_imports (does not help with argparse)
+mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "artiq.gui.flowlayout",
-                "quamash", "pyqtgraph", "matplotlib",
+                "artiq.gui.state",
+                "artiq.gui.log",
+                "artiq.gui.models",
+                "artiq.compiler.module",
+                "artiq.compiler.embedding",
+                "qasync", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
-                "h5py", "serial", "scipy", "scipy.interpolate", "asyncserial",
-                "llvmlite_artiq", "Levenshtein", "aiohttp"]
+                "h5py", "serial", "scipy", "scipy.interpolate",
+                "llvmlite_artiq", "Levenshtein", "pythonparser",
+                "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
+                "sipyco.asyncio_tools", "sipyco.logging_tools",
+                "sipyco.broadcast", "sipyco.packed_exceptions"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
+
+
+# https://stackoverflow.com/questions/29992444/sphinx-autodoc-skips-classes-inherited-from-mock
+class MockApplets:
+    class AppletsDock:
+        pass
+
+sys.modules["artiq.gui.applets"] = MockApplets
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -70,6 +79,8 @@ extensions = [
     'sphinxcontrib.wavedrom',  # see also below for config
 ]
 
+mathjax_path = "https://m-labs.hk/MathJax/MathJax.js?config=TeX-AMS-MML_HTMLorMML.js"
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
@@ -84,7 +95,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014-2019, M-Labs Limited'
+copyright = '2014-2021, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -238,7 +249,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'ARTIQ.tex', 'ARTIQ Documentation',
-   'M-Labs / NIST Ion Storage Group', 'manual'),
+   'M-Labs and contributors', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -268,7 +279,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'artiq', 'ARTIQ Documentation',
-     ['M-Labs / NIST Ion Storage Group'], 1)
+     ['M-Labs and contributors'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -282,7 +293,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
   ('index', 'ARTIQ', 'ARTIQ Documentation',
-   'M-Labs / NIST Ion Storage Group', 'ARTIQ', 'One line description of project.',
+   'M-Labs and contributors', 'ARTIQ', 'A leading-edge control system for quantum information experiments.',
    'Miscellaneous'),
 ]
 
