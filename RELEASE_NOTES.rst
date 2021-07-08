@@ -27,6 +27,8 @@ Breaking changes:
 * ``Phaser.init()`` now disables all Kasli-oscillators. This avoids full power RF output being
   generated for some configurations.
 * Phaser: fixed coarse mixer frequency configuration
+* Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
+  calling `ADF5356.init()`.
 
 
 ARTIQ-6

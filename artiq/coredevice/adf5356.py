@@ -236,6 +236,7 @@ class ADF5356:
         Write all registers to the device. Attempts to lock the PLL.
         """
         f_pfd = self.f_pfd()
+        delay(200 * us)         # Slack
 
         if f_pfd <= 75.0 * MHz:
             for i in range(13, 0, -1):
@@ -249,6 +250,7 @@ class ADF5356:
             n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
                 self.f_vco(), f_pfd >> 1
             )
+            delay(200 * us)     # Slack
 
             self.write(
                 13
