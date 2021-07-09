@@ -89,55 +89,81 @@ class Creator(QtWidgets.QDialog):
 
         self.setWindowTitle("Create dataset")
         grid = QtWidgets.QGridLayout()
+        grid.setRowMinimumHeight(1, 35)
+        grid.setColumnMinimumWidth(2, 60)
         self.setLayout(grid)
 
         grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
-        grid.addWidget(self.get_key_widget(), 0, 1)
+        grid.addWidget(self.key_widget(), 0, 1)
 
         grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
-        grid.addWidget(self.get_edit_widget(), 1, 1)
+        grid.addWidget(self.edit_widget(), 1, 1)
         self.data_type = QtWidgets.QLabel("data type")
         grid.addWidget(self.data_type, 1, 2)
-        self.edit_widget.textChanged.connect(self.dtype)
+        self.value_widget.textChanged.connect(self.dtype)
 
-        buttons = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        grid.setRowStretch(2, 1)
-        grid.addWidget(buttons, 3, 0, 1, 2)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
+        grid.addWidget(QtWidgets.QLabel("Persist:"), 2, 0)
+        grid.addWidget(self.persist_widget(), 2, 1)
+
+        self.ok = QtWidgets.QPushButton('&Ok')
+        self.ok.setEnabled(False)
+        self.cancel = QtWidgets.QPushButton('&Cancel')
+        self.buttons = QtWidgets.QDialogButtonBox(self)
+        self.buttons.addButton(self.ok, QtWidgets.QDialogButtonBox.AcceptRole)
+        self.buttons.addButton(self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
+        grid.setRowStretch(3, 1)
+        grid.addWidget(self.buttons, 4, 0, 1, 3)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
 
     def accept(self):
         try:
             key = self.get_create_widget_text()
             value = self.get_create_widget_value()
-            asyncio.ensure_future(self.dataset_ctl.set(key, pyon.decode(value)))
+            persist = self.get_persist_widget_value()
+            asyncio.ensure_future(self.dataset_ctl.set(key, pyon.decode(value), persist))
             QtWidgets.QDialog.accept(self)
         except:
             logger.error("Cannot create dataset: "
-                                 "type is not supported",)
+                         "input is not valid",)
             return
 
-    def get_key_widget(self):
-        self.key_widget = QtWidgets.QLineEdit()
-        return self.key_widget
+    def key_widget(self):
+        self.name_widget = QtWidgets.QLineEdit()
+        return self.name_widget
 
-    def get_edit_widget(self):
-        self.edit_widget = QtWidgets.QLineEdit()
-        return self.edit_widget
+    def edit_widget(self):
+        self.value_widget = QtWidgets.QLineEdit()
+        self.value_widget.setPlaceholderText('PYON (Python)')
+        return self.value_widget
     
+    def persist_widget(self):
+        self.box_widget = QtWidgets.QCheckBox()
+        self.box_widget.setChecked(bool(False))
+        return self.box_widget
+
     def get_create_widget_text(self):
-        return self.key_widget.text()
+        return self.name_widget.text()
 
     def get_create_widget_value(self):
-        return self.edit_widget.text()
+        return self.value_widget.text()
+    
+    def get_persist_widget_value(self):
+        return self.box_widget.isChecked()
     
     def dtype(self):
         txt = self.get_create_widget_value()
         try:
             self.data_type.setText(type(pyon.decode(txt)).__name__)
         except:
+            self.value_widget.setStyleSheet("border: 1px solid red;"
+                                            "height: 28px;"
+                                            "border-radius: 2px;")
             self.data_type.setText('N/A')
+            self.ok.setEnabled(False)
+        else:
+            self.value_widget.setStyleSheet("")
+            self.ok.setEnabled(True)
         return
 
 class Model(DictSyncTreeSepModel):
