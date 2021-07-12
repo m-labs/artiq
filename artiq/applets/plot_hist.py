@@ -12,6 +12,9 @@ class HistogramPlot(pyqtgraph.PlotWidget):
         self.args = args
 
     def data_changed(self, data, mods, title):
+        if not hasattr(self, 'flag'):
+            self.flag = True
+
         try:
             y = data[self.args.y][1]
             if self.args.x is None:
@@ -24,10 +27,19 @@ class HistogramPlot(pyqtgraph.PlotWidget):
             x = list(range(len(y)+1))
 
         if len(y) and len(x) == len(y) + 1:
+            self.flag = True
             self.clear()
             self.plot(x, y, stepMode=True, fillLevel=0,
                       brush=(0, 0, 255, 150))
             self.setTitle(title)
+        else:
+            if self.flag:
+                self.flag_time = pyqtgraph.ptime.time()
+            self.flag = False
+            if pyqtgraph.ptime.time() - self.flag_time > 0.5:
+                self.clear()
+                text = '⚠️ The length of dataset X is not Y+1'
+                self.addItem(pyqtgraph.TextItem(text))
 
 
 def main():
