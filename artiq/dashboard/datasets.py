@@ -90,7 +90,7 @@ class Creator(QtWidgets.QDialog):
 
         self.setWindowTitle("Create dataset")
         grid = QtWidgets.QGridLayout()
-        grid.setRowMinimumHeight(1, 35)
+        grid.setRowMinimumHeight(1, 40)
         grid.setColumnMinimumWidth(2, 60)
         self.setLayout(grid)
 
@@ -136,9 +136,7 @@ class Creator(QtWidgets.QDialog):
         try:
             self.data_type.setText(type(pyon.decode(txt)).__name__)
         except:
-            self.value_widget.setStyleSheet("border: 1px solid red;"
-                                            "height: 28px;"
-                                            "border-radius: 2px;")
+            self.value_widget.setStyleSheet("background-color: rgb(200, 0, 0)")
             self.data_type.setText('N/A')
             self.ok.setEnabled(False)
         else:
