@@ -135,13 +135,13 @@ class Creator(QtWidgets.QDialog):
         txt = self.value_widget.text()
         try:
             self.data_type.setText(type(pyon.decode(txt)).__name__)
-        except:
-            self.value_widget.setStyleSheet("background-color: rgb(200, 0, 0)")
-            self.data_type.setText('N/A')
-            self.ok.setEnabled(False)
-        else:
             self.value_widget.setStyleSheet("")
             self.ok.setEnabled(True)
+        except:
+            pixmap = self.style().standardPixmap(
+                QtWidgets.QStyle.SP_MessageBoxWarning)
+            self.data_type.setPixmap(pixmap)
+            self.ok.setEnabled(False)
 
 
 class Model(DictSyncTreeSepModel):
