@@ -134,14 +134,14 @@ class Creator(QtWidgets.QDialog):
     def dtype(self):
         txt = self.value_widget.text()
         try:
-            pyon.decode(txt)
+            result = pyon.decode(txt)
         except:
             pixmap = self.style().standardPixmap(
                 QtWidgets.QStyle.SP_MessageBoxWarning)
             self.data_type.setPixmap(pixmap)
             self.ok.setEnabled(False)
         else:
-            self.data_type.setText(type(pyon.decode(txt)).__name__)
+            self.data_type.setText(type(result).__name__)
             self.ok.setEnabled(True)
 
 
