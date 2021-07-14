@@ -11,7 +11,6 @@ class HistogramPlot(pyqtgraph.PlotWidget):
     def __init__(self, args):
         pyqtgraph.PlotWidget.__init__(self)
         self.args = args
-        self.flag = True
         self.timer = QTimer()
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.length_warning)
@@ -29,21 +28,18 @@ class HistogramPlot(pyqtgraph.PlotWidget):
             x = list(range(len(y)+1))
 
         if len(y) and len(x) == len(y) + 1:
-            self.flag = True
             self.timer.stop()
             self.clear()
             self.plot(x, y, stepMode=True, fillLevel=0,
                       brush=(0, 0, 255, 150))
             self.setTitle(title)
         else:
-            if self.flag:
-                self.flag = False
-                self.clear()
-                self.timer.start(1000)
+            self.timer.start(1000)
 
     def length_warning(self):
-        text = '''⚠️ dataset lengths mismatch:\n
-                    BIN_BOUNDARIES should be one more than COUNTS'''
+        self.clear()
+        text = "⚠️ dataset lengths mismatch:\n"\
+               "Bin boundaries should be one more than Y values"
         self.addItem(pyqtgraph.TextItem(text))
 
 
