@@ -39,7 +39,7 @@ class HistogramPlot(pyqtgraph.PlotWidget):
     def length_warning(self):
         self.clear()
         text = "⚠️ dataset lengths mismatch:\n"\
-               "Bin boundaries should be one more than Y values"
+            "There should be one more bin boundaries than there are Y values"
         self.addItem(pyqtgraph.TextItem(text))
 
 
