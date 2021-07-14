@@ -19,5 +19,10 @@ ARTIQ itself does not depend on Nix, and it is also possible to compile everythi
 * Check that the board boots and examine the UART messages by running a serial terminal program, e.g. ``$ flterm /dev/ttyUSB1`` (``flterm`` is part of MiSoC and installed by ``shell-dev.nix``). Leave the terminal running while you are flashing the board, so that you see the startup messages when the board boots immediately after flashing. You can also restart the board (without reflashing it) with ``$ artiq_flash start``.
 * The communication parameters are 115200 8-N-1. Ensure that your user has access to the serial device (e.g. by adding the user account to the ``dialout`` group).
 
+
+.. note::
+    If you do not plan to modify ``nix-scripts``, with the ARTIQ channel configured you can simply enter the development Nix shell with ``nix-shell "<artiq-full/fast/shell-dev.nix>"``. No repositories need to be cloned. This is especially useful if you simply want to build firmware using an unmodified version of ARTIQ.
+
+
 .. warning::
     Nix will make a read-only copy of the ARTIQ source to use in the shell environment. Therefore, any modifications that you make to the source after the shell is started will not be taken into account. A solution applicable to ARTIQ (and several other Python packages such as Migen and MiSoC) is to prepend the ARTIQ source directory to the ``PYTHONPATH`` environment variable after entering the shell. If you want this to be done by default, edit ``profile`` in ``shell-dev.nix``.
