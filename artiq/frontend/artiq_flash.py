@@ -446,13 +446,17 @@ def main():
             storage_img = args.storage
             programmer.write_binary(*config["storage"], storage_img)
         elif action == "firmware":
-            if variant.endswith("satellite"):
-                firmware = "satman"
-            else:
-                firmware = "runtime"
-
-            firmware_fbi = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
-            programmer.write_binary(*config["firmware"], firmware_fbi)
+            firmware_fbis = []
+            for firmware in "satman", "runtime":
+                filename = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
+                if os.path.exists(filename):
+                    firmware_fbis.append(filename)
+            if not firmware_fbis:
+                raise FileNotFoundError("no firmware found")
+            if len(firmware_fbis) > 1:
+                raise ValueError("more than one firmware file, please clean up your build directory. "
+                   "Found firmware files: {}".format(" ".join(firmware_fbis)))
+            programmer.write_binary(*config["firmware"], firmware_fbis[0])
         elif action == "load":
             if args.target == "sayma":
                 gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
