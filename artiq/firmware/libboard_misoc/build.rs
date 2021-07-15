@@ -13,6 +13,7 @@ fn main() {
 
     println!("cargo:rerun-if-changed={}", vectors_path.to_str().unwrap());
     cc::Build::new()
+        .flag("--target=riscv64-unknown-elf")
         .file(vectors_path)
         .compile("vectors");
 }
