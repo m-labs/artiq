@@ -10,7 +10,7 @@ extern crate riscv;
 
 use core::{ptr, slice, convert::TryFrom};
 use crc::crc32;
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{ByteOrder, LittleEndian};
 use board_misoc::{ident, cache, sdram, config, boot, mem as board_mem};
 #[cfg(has_slave_fpga_cfg)]
 use board_misoc::slave_fpga;
@@ -157,8 +157,8 @@ fn flash_boot() {
     println!("Booting from flash...");
 
     let header = unsafe { slice::from_raw_parts(FIRMWARE, 8) };
-    let length = BigEndian::read_u32(&header[0..]) as usize;
-    let expected_crc = BigEndian::read_u32(&header[4..]);
+    let length = LittleEndian::read_u32(&header[0..]) as usize;
+    let expected_crc = LittleEndian::read_u32(&header[4..]);
 
     if length == 0 || length == 0xffffffff {
         println!("No firmware present");

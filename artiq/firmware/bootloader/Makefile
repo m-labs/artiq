@@ -14,4 +14,5 @@ bootloader.elf: $(RUSTOUT)/libbootloader.a
 
 %.bin: %.elf
 	$(objcopy) -O binary
-	$(MSCIMG) $@
+	$(MSCIMG) $@ --little
+	objcopy -I binary -O binary --reverse-bytes=4 $@
