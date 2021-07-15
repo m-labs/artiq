@@ -6,8 +6,9 @@ extern crate byteorder;
 extern crate smoltcp;
 #[macro_use]
 extern crate board_misoc;
+extern crate riscv;
 
-use core::{ptr, slice};
+use core::{ptr, slice, convert::TryFrom};
 use crc::crc32;
 use byteorder::{ByteOrder, BigEndian};
 use board_misoc::{ident, cache, sdram, config, boot, mem as board_mem};
@@ -16,6 +17,7 @@ use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
+use riscv::register::{mcause, mepc};
 
 fn check_integrity() -> bool {
     extern {
@@ -517,8 +519,10 @@ pub extern fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    panic!("exception {} at PC {:#08x}, EA {:#08x}", vect, pc, ea)
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    panic!("{:?} at PC {:#08x}", cause, u32::try_from(pc).unwrap())
 }
 
 #[no_mangle]
