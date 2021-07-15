@@ -38,7 +38,7 @@ SECTIONS
   .bss :
   {
     _fbss = .;
-    *(.bss .bss.*)
+    *(.sbss .sbss.* .bss .bss.*);
     . = ALIGN(4);
     _ebss = .;
   } > sram
