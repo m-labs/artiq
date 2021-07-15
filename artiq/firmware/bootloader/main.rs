@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(panic_implementation, panic_info_message)]
+#![feature(panic_info_message)]
 
 extern crate crc;
 extern crate byteorder;
@@ -532,7 +532,7 @@ pub extern fn abort() {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     #[cfg(has_error_led)]
     unsafe {
