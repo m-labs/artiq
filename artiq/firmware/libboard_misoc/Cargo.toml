@@ -17,7 +17,6 @@ byteorder = { version = "1.0", default-features = false }
 log = { version = "0.4", default-features = false, optional = true }
 smoltcp = { version = "0.6.0", default-features = false, optional = true }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
-vexriscv = { git = "https://github.com/occheung/vexriscv-rust.git", features = ["inline-asm"] }
 
 [features]
 uart_console = []
