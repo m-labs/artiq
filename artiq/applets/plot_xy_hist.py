@@ -2,6 +2,7 @@
 
 import numpy as np
 from PyQt5 import QtWidgets
+from PyQt5.QtCore import QTimer
 import pyqtgraph
 
 from artiq.applets.simple import SimpleApplet
@@ -37,6 +38,10 @@ class XYHistPlot(QtWidgets.QSplitter):
         self.hist_plot_data = None
 
         self.args = args
+        self.timer = QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.timeout.connect(self.length_warning)
+        self.mismatch = {'bins': False, 'xs': False}
 
     def _set_full_data(self, xs, histogram_bins, histograms_counts):
         self.xy_plot.clear()
@@ -47,8 +52,24 @@ class XYHistPlot(QtWidgets.QSplitter):
         self.selected_index = None
 
         self.histogram_bins = histogram_bins
+        if len(xs) != histograms_counts.shape[0]:
+            self.mismatch['xs'] = True
+            self.timer.start(1000)
+        else:
+            self.mismatch['xs'] = False
+            if not sum(self.mismatch.values()):
+                self.timer.stop()
+        if histograms_counts.shape[1] != len(self.histogram_bins) - 1:
+            self.mismatch['bins'] = True
+            self.timer.start(1000)
+        else:
+            self.mismatch['bins'] = False
+            if not sum(self.mismatch.values()):
+                self.timer.stop()
+            ys = _compute_ys(self.histogram_bins, histograms_counts)
 
-        ys = _compute_ys(self.histogram_bins, histograms_counts)
+        if sum(self.mismatch.values()):
+            return
         self.xy_plot_data = self.xy_plot.plot(x=xs, y=ys,
                                               pen=None,
                                               symbol="x", symbolSize=20)
@@ -59,9 +80,8 @@ class XYHistPlot(QtWidgets.QSplitter):
             point.histogram_index = index
             point.histogram_counts = counts
 
-        self.hist_plot_data = self.hist_plot.plot(
-            stepMode=True, fillLevel=0,
-            brush=(0, 0, 255, 150))
+        text = "click on the data point at left to see histogram"
+        self.hist_plot.addItem(pyqtgraph.TextItem(text))
 
     def _set_partial_data(self, xs, histograms_counts):
         ys = _compute_ys(self.histogram_bins, histograms_counts)
@@ -87,8 +107,17 @@ class XYHistPlot(QtWidgets.QSplitter):
         else:
             self.arrow.setPos(position)
         self.selected_index = spot_item.histogram_index
-        self.hist_plot_data.setData(x=self.histogram_bins,
-                                    y=spot_item.histogram_counts)
+
+        if self.hist_plot_data is None:
+            self.hist_plot.clear()
+            self.hist_plot_data = self.hist_plot.plot(
+                x=self.histogram_bins,
+                y=spot_item.histogram_counts,
+                stepMode=True, fillLevel=0,
+                brush=(0, 0, 255, 150))
+        else:
+            self.hist_plot_data.setData(x=self.histogram_bins,
+                                        y=spot_item.histogram_counts)
 
     def _can_use_partial(self, mods):
         if self.hist_plot_data is None:
@@ -121,6 +150,18 @@ class XYHistPlot(QtWidgets.QSplitter):
             self._set_partial_data(xs, histograms_counts)
         else:
             self._set_full_data(xs, histogram_bins, histograms_counts)
+
+    def length_warning(self):
+        text = "⚠️ dataset lengths mismatch:\n\n"
+        if self.mismatch['bins']:
+            text += "bin boundaries should have the same length\n"\
+                    "as the first dimension of histogram counts."
+        if self.mismatch['bins'] and self.mismatch['xs']:
+            text += '\n\n'
+        if self.mismatch['xs']:
+            text += "point abscissas should have the same length\n"\
+                    "as the second dimension of histogram counts."
+        self.xy_plot.addItem(pyqtgraph.TextItem(text))
 
 
 def main():
