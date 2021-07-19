@@ -34,7 +34,8 @@ class HistogramPlot(pyqtgraph.PlotWidget):
                       brush=(0, 0, 255, 150))
             self.setTitle(title)
         else:
-            self.timer.start(1000)
+            if not self.timer.isActive():
+                self.timer.start(1000)
 
     def length_warning(self):
         self.clear()
