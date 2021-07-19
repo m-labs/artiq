@@ -64,7 +64,8 @@ class XYHistPlot(QtWidgets.QSplitter):
             point.histogram_index = index
             point.histogram_counts = counts
 
-        text = "click on the data point at left to see histogram"
+        text = "click on a data point at the left\n"\
+               "to see the corresponding histogram"
         self.hist_plot.addItem(pyqtgraph.TextItem(text))
 
     def _set_partial_data(self, xs, histograms_counts):
