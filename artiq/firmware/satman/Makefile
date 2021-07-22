@@ -18,4 +18,5 @@ satman.elf: $(RUSTOUT)/libsatman.a
 	$(objcopy) -O binary
 
 %.fbi: %.bin
-	$(mscimg) -f
+	$(mscimg) -f --little
+	objcopy -I binary -O binary --reverse-bytes=4 $@
