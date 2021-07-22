@@ -8,8 +8,8 @@ name = "io"
 path = "lib.rs"
 
 [dependencies]
-failure = { version = "0.1", default-features = false }
-failure_derive = { version = "0.1", default-features = false }
+failure = { version = "=0.1.1", default-features = false }
+failure_derive = { version = "=0.1.1", default-features = false }
 byteorder = { version = "1.0", default-features = false, optional = true }
 
 [features]
