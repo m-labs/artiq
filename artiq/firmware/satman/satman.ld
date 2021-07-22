@@ -41,7 +41,7 @@ SECTIONS
     .bss ALIGN(4) :
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
         _ebss = .;
     } > main_ram
