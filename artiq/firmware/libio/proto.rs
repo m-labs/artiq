@@ -1,5 +1,5 @@
 #[cfg(feature = "alloc")]
-use {core::str::Utf8Error, alloc::String};
+use {core::str::Utf8Error, alloc::string::String};
 use byteorder::{ByteOrder, NetworkEndian};
 
 use ::{Read, Write, Error as IoError};
@@ -53,7 +53,7 @@ pub trait ProtoRead {
 
     #[cfg(feature = "alloc")]
     #[inline]
-    fn read_bytes(&mut self) -> Result<::alloc::Vec<u8>, Self::ReadError> {
+    fn read_bytes(&mut self) -> Result<::alloc::vec::Vec<u8>, Self::ReadError> {
         let length = self.read_u32()?;
         let mut value = vec![0; length as usize];
         self.read_exact(&mut value)?;
@@ -62,7 +62,7 @@ pub trait ProtoRead {
 
     #[cfg(feature = "alloc")]
     #[inline]
-    fn read_string(&mut self) -> Result<::alloc::String, ReadStringError<Self::ReadError>> {
+    fn read_string(&mut self) -> Result<::alloc::string::String, ReadStringError<Self::ReadError>> {
         let bytes = self.read_bytes().map_err(ReadStringError::Other)?;
         String::from_utf8(bytes).map_err(|err| ReadStringError::Utf8(err.utf8_error()))
     }

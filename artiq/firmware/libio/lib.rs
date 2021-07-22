@@ -131,7 +131,7 @@ impl<'a> Write for &'a mut [u8] {
 }
 
 #[cfg(feature = "alloc")]
-impl<'a> Write for alloc::Vec<u8> {
+impl<'a> Write for alloc::vec::Vec<u8> {
     type WriteError = !;
     type FlushError = !;
 
