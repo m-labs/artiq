@@ -16,3 +16,4 @@ build_misoc = { path = "../libbuild_misoc" }
 log = { version = "0.4", default-features = false }
 board_misoc = { path = "../libboard_misoc", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }
+riscv = { version = "0.6.0", features = ["inline-asm"] }

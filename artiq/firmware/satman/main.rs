@@ -6,6 +6,7 @@ extern crate log;
 #[macro_use]
 extern crate board_misoc;
 extern crate board_artiq;
+extern crate riscv;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, irq, ident, clock, uart_logger, i2c};
