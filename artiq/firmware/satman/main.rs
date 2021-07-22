@@ -9,7 +9,7 @@ extern crate board_artiq;
 extern crate riscv;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, irq, ident, clock, uart_logger, i2c};
+use board_misoc::{csr, ident, clock, uart_logger, i2c};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_wrpll)]
@@ -18,6 +18,7 @@ use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
+use riscv::register::{mcause, mepc};
 
 mod repeater;
 #[cfg(has_jdcg)]
@@ -643,8 +644,9 @@ pub extern fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    let vect = irq::Exception::try_from(vect).expect("unknown exception");
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
 
     fn hexdump(addr: u32) {
         let addr = (addr - addr % 4) as *const u32;
@@ -659,9 +661,8 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
         }
     }
 
-    hexdump(pc);
-    hexdump(ea);
-    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+    hexdump(u32::try_from(pc).unwrap());
+    panic!("exception {:?} at PC 0x{:x}", cause, u32::try_from(pc).unwrap())
 }
 
 #[no_mangle]
