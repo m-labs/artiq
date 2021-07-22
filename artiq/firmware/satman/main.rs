@@ -1,4 +1,4 @@
-#![feature(never_type, panic_implementation, panic_info_message, const_slice_len, try_from)]
+#![feature(never_type, panic_info_message, llvm_asm)]
 #![no_std]
 
 #[macro_use]
@@ -647,7 +647,7 @@ pub extern fn main() -> i32 {
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
-
+    
     fn hexdump(addr: u32) {
         let addr = (addr - addr % 4) as *const u32;
         let mut ptr  = addr;
@@ -672,7 +672,7 @@ pub extern fn abort() {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     #[cfg(has_error_led)]
     unsafe {
