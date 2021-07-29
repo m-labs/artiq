@@ -16,7 +16,7 @@ __pycache__/
 /.coverage
 /artiq/test/lit/*/Output/
 /artiq/binaries
-/artiq/firmware/target/
+/artiq/firmware/**/target/
 /misoc_*/
 /artiq_*/
 

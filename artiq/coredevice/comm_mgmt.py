@@ -25,7 +25,7 @@ class Request(Enum):
     GetProfile = 11
 
     Hotswap = 4
-    Reboot = 5
+    Reload = 5
 
     DebugAllocator = 8
 
@@ -228,9 +228,9 @@ class CommMgmt:
         self._write_header(Request.Hotswap)
         self._write_bytes(firmware)
         self._read_expect(Reply.RebootImminent)
-
-    def reboot(self):
-        self._write_header(Request.Reboot)
+    
+    def reload(self):
+        self._write_header(Request.Reload)
         self._read_expect(Reply.RebootImminent)
 
     def debug_allocator(self):

@@ -43,3 +43,5 @@ pub mod io_expander;
 pub mod net_settings;
 #[cfg(has_slave_fpga_cfg)]
 pub mod slave_fpga;
+#[cfg(any(soc_platform = "kasli", soc_platform = "metlino"))]
+pub mod flash;

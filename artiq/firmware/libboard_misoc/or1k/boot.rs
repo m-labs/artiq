@@ -1,14 +1,5 @@
 use super::{irq, cache};
 
-pub unsafe fn reset() -> ! {
-    irq::set_ie(false);
-    asm!(r#"
-        l.j     _reset_handler
-         l.nop
-    "# : : : : "volatile");
-    loop {}
-}
-
 pub unsafe fn jump(addr: usize) -> ! {
     irq::set_ie(false);
     cache::flush_cpu_icache();

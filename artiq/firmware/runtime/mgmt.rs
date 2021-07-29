@@ -1,7 +1,7 @@
 use log::{self, LevelFilter};
 
 use io::{Write, ProtoWrite, Error as IoError};
-use board_misoc::{config, boot};
+use board_misoc::{config, boot, flash};
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
@@ -153,14 +153,14 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                 warn!("hotswapping firmware");
                 unsafe { boot::hotswap(&firmware) }
             }
-            Request::Reboot => {
+            Request::Reload => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 stream.flush()?;
 
                 profiler::stop();
                 warn!("restarting");
-                unsafe { boot::reset() }
+                flash::reload();
             }
 
             Request::DebugAllocator =>
