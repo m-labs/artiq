@@ -164,6 +164,6 @@ See :mod:`artiq.coredevice.i2c` for more details.
 Clocking
 ++++++++
 
-The KC705 supports an internal 125MHz RTIO clock (based on its crystal oscillator) and an external clock, that can be selected using the ``rtio_clock`` configuration entry. Valid values are ``i`` and ``e``, and the default is ``i``. The selected option can be observed in the core device boot logs.
+The KC705 supports an internal 125 MHz RTIO clock (based on its crystal oscillator) and an external clock, that can be selected using the ``rtio_clock`` configuration entry. Valid values are ``i`` and ``e``, and the default is ``i``. The selected option can be observed in the core device boot logs.
 
-On Kasli, when set to ``e``, the ``rtio_clock`` setting overrides the built-in (and variant-dependent) Si5324 synthesizer configuration and disables the Si5324. The user must apply a clock at the RTIO frequency on the Kasli front panel SMA. As the Si5324 is bypassed in this mode, its skew is deterministic, which is useful to distribute clocks externally to Kasli and Urukul when Urukul phase synchronization is desired.
+On Kasli, ``rtio_clock=i`` is the default and generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference (variant-dependent). ``rtio_clock=e`` bypasses that PLL and the user must supply the RTIO clock (typically 125 MHz) at the Kasli front panel SMA input. Bypassing the PLL ensures the skews between input clock, Kasli downstream clock outputs, and RTIO clock are deterministic accross reboots of the system. This is useful when phase determinism is required in situtations where the reference clock fans out to other devices before reaching Kasli.
