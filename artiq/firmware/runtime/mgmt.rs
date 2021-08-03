@@ -160,7 +160,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
 
                 profiler::stop();
                 warn!("restarting");
-                flash::reload();
+                unsafe { flash::reload() }
             }
 
             Request::DebugAllocator =>

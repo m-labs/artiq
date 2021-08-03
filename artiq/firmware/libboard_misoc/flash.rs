@@ -1,10 +1,8 @@
 mod imp {
     use csr;
 
-    pub fn reload () -> ! {
-        unsafe {
-            csr::icap::iprog_write(1);
-        }
+    pub unsafe fn reload () -> ! {
+        csr::icap::iprog_write(1);
         loop {}
     }
 }

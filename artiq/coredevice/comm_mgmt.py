@@ -228,7 +228,7 @@ class CommMgmt:
         self._write_header(Request.Hotswap)
         self._write_bytes(firmware)
         self._read_expect(Reply.RebootImminent)
-    
+
     def reload(self):
         self._write_header(Request.Reload)
         self._read_expect(Reply.RebootImminent)
