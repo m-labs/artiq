@@ -3,6 +3,7 @@ The :mod:`types` module contains the classes describing the types
 in :mod:`asttyped`.
 """
 
+import builtins
 import string
 from collections import OrderedDict
 from . import iodelay
@@ -97,6 +98,8 @@ class TVar(Type):
             return self.find().fold(accum, fn)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         if self.parent is self:
             return "<artiq.compiler.types.TVar %d>" % id(self)
         else:
@@ -143,6 +146,8 @@ class TMono(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+                return str(self)
         return "artiq.compiler.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
 
     def __getitem__(self, param):
@@ -191,6 +196,8 @@ class TTuple(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
 
     def __eq__(self, other):
@@ -269,6 +276,8 @@ class TFunction(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TFunction({}, {}, {})".format(
             repr(self.args), repr(self.optargs), repr(self.ret))
 
@@ -362,6 +371,8 @@ class TRPC(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TRPC({})".format(repr(self.ret))
 
     def __eq__(self, other):
@@ -399,6 +410,8 @@ class TBuiltin(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.{}({})".format(type(self).__name__, repr(self.name))
 
     def __eq__(self, other):
@@ -459,6 +472,8 @@ class TInstance(TMono):
         self.constant_attributes = set()
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TInstance({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
@@ -474,6 +489,8 @@ class TModule(TMono):
         self.constant_attributes = set()
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TModule({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
@@ -513,6 +530,8 @@ class TValue(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TValue(%s)" % repr(self.value)
 
     def __eq__(self, other):
@@ -571,6 +590,8 @@ class TDelay(Type):
         return not (self == other)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         if self.duration is None:
             return "<{}.TIndeterminateDelay>".format(__name__)
         elif self.cause is None:
