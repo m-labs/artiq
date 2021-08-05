@@ -20,6 +20,8 @@ Highlights:
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
    - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
+* On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
+  the JSON hardware description file.
 * New hardware support:
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
