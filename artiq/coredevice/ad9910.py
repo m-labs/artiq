@@ -324,7 +324,7 @@ class AD9910:
         self.bus.write(data_low)
 
     @kernel
-    def write_ram(self, data: TList(int32)):
+    def write_ram(self, data: TList(TInt32)):
         """Write data to RAM.
 
         The profile to write to and the step, start, and end address
@@ -345,7 +345,7 @@ class AD9910:
         self.bus.write(data[len(data) - 1])
 
     @kernel
-    def read_ram(self, data: TList(int32)):
+    def read_ram(self, data: TList(TInt32)):
         """Read data from RAM.
 
         The profile to read from and the step, start, and end address
