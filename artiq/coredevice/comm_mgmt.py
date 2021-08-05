@@ -24,7 +24,6 @@ class Request(Enum):
     StopProfiler = 10
     GetProfile = 11
 
-    Hotswap = 4
     Reload = 5
 
     DebugAllocator = 8
@@ -223,11 +222,6 @@ class CommMgmt:
             edges[(caller, callee)] = count
 
         return hits, edges
-
-    def hotswap(self, firmware):
-        self._write_header(Request.Hotswap)
-        self._write_bytes(firmware)
-        self._read_expect(Reply.RebootImminent)
 
     def reload(self):
         self._write_header(Request.Reload)

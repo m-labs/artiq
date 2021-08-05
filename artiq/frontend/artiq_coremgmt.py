@@ -82,20 +82,9 @@ def get_argparser():
 
     subparsers.add_parser("erase", help="fully erase core device config")
 
-    # flash
-    t_flash = tools.add_parser("flash",
-                        help="ARTIQ reboot tool though internet")
-
-    t_flash.add_argument("action", metavar="ACTION", nargs="*",
-                        default=[],
-                        help="actions to perform, choose from: start")
-    
     # booting
-    t_hotswap = tools.add_parser("hotswap",
-                                  help="load the specified firmware in RAM")
-
-    t_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
-                           help="runtime image to be executed")
+    t_boot = tools.add_parser("reboot",
+                              help="reboot the running system")
 
     # profiling
     t_profile = tools.add_parser("profile",
@@ -181,9 +170,9 @@ def main():
                 mgmt.config_remove(key)
         if args.action == "erase":
             mgmt.config_erase()
-
-    if args.tool == "hotswap":
-        mgmt.hotswap(args.image.read())
+        
+        if args.tool == "reboot":
+            mgmt.reboot()
 
     if args.tool == "profile":
         if args.action == "start":
@@ -203,13 +192,6 @@ def main():
     if args.tool == "debug":
         if args.action == "allocator":
             mgmt.debug_allocator()
-    
-    if args.tool == "flash":
-        if not args.action:
-            args.action = "start"
-        for action in args.action:
-            if action == "start":
-                mgmt.reload()
 
 
 if __name__ == "__main__":
