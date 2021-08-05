@@ -30,7 +30,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, flash_tools, config, net_settings};
+use board_misoc::{csr, irq, ident, clock, spiflash, config, net_settings};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -332,12 +332,11 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
         println!("{:#08x}", ip - 2 * 4);
     });
 
-    if config::read_str("panic_reset", |r| r == Ok("1")) && 
-        cfg!(any(soc_platform = "sayma_amc", soc_platform = "metlino", soc_platform = "kc705")) {
+    if config::read_str("panic_reset", |r| r == Ok("1")) && cfg!(has_spiflash) {
         println!("restarting...");
         unsafe {
             kernel::stop();
-            flash_tools::reload();
+            spiflash::reload();
         }
     } else {
         println!("halting.");

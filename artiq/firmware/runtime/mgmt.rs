@@ -1,7 +1,7 @@
 use log::{self, LevelFilter};
 
 use io::{Write, ProtoWrite, Error as IoError};
-use board_misoc::{config, flash_tools};
+use board_misoc::{config, spiflash};
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
@@ -151,7 +151,7 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
 
                 profiler::stop();
                 warn!("restarting");
-                unsafe { flash_tools::reload(); }
+                unsafe { spiflash::reload(); }
             }
 
             Request::DebugAllocator =>

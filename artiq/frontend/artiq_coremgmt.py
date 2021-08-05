@@ -170,9 +170,9 @@ def main():
                 mgmt.config_remove(key)
         if args.action == "erase":
             mgmt.config_erase()
-        
-        if args.tool == "reboot":
-            mgmt.reboot()
+
+    if args.tool == "reboot":
+        mgmt.reboot()
 
     if args.tool == "profile":
         if args.action == "start":
