@@ -24,7 +24,7 @@ class Request(Enum):
     StopProfiler = 10
     GetProfile = 11
 
-    Reload = 5
+    Reboot = 5
 
     DebugAllocator = 8
 
@@ -223,8 +223,8 @@ class CommMgmt:
 
         return hits, edges
 
-    def reload(self):
-        self._write_header(Request.Reload)
+    def reboot(self):
+        self._write_header(Request.Reboot)
         self._read_expect(Reply.RebootImminent)
 
     def debug_allocator(self):
