@@ -113,3 +113,8 @@ pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
         data  = &data[size..];
     }
 }
+
+pub unsafe fn reload () -> ! {
+    csr::icap::iprog_write(1);
+    loop {}
+}

@@ -84,13 +84,7 @@ def get_argparser():
 
     # booting
     t_boot = tools.add_parser("reboot",
-                              help="reboot the currently running firmware")
-
-    t_hotswap = tools.add_parser("hotswap",
-                                  help="load the specified firmware in RAM")
-
-    t_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
-                           help="runtime image to be executed")
+                              help="reboot the running system")
 
     # profiling
     t_profile = tools.add_parser("profile",
@@ -179,9 +173,6 @@ def main():
 
     if args.tool == "reboot":
         mgmt.reboot()
-
-    if args.tool == "hotswap":
-        mgmt.hotswap(args.image.read())
 
     if args.tool == "profile":
         if args.action == "start":

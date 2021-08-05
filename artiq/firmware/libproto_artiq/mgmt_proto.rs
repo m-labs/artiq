@@ -71,7 +71,6 @@ pub enum Request {
     StopProfiler,
     GetProfile,
 
-    Hotswap(Vec<u8>),
     Reboot,
 
     DebugAllocator,
@@ -138,7 +137,6 @@ impl Request {
             10 => Request::StopProfiler,
             11 => Request::GetProfile,
 
-            4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
 
             8 => Request::DebugAllocator,
