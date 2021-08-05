@@ -127,9 +127,9 @@ class AD53xx:
       transactions (default: 1)
     :param div_write: SPI clock divider for write operations (default: 4,
       50MHz max SPI clock with {t_high, t_low} >=8ns)
-    :param div_read: SPI clock divider for read operations (default: 8, not
-      optimized for speed, but cf data sheet t22: 25ns min SCLK edge to SDO
-      valid)
+    :param div_read: SPI clock divider for read operations (default: 16, not
+      optimized for speed; datasheet says t22: 25ns min SCLK edge to SDO
+      valid, and suggests the SPI speed for reads should be <=20 MHz)
     :param vref: DAC reference voltage (default: 5.)
     :param offset_dacs: Initial register value for the two offset DACs, device
       dependent and must be set correctly for correct voltage to mu
