@@ -129,6 +129,60 @@ class Sampler:
             data[i] = val >> 16
             val &= 0xffff
             data[i - 1] = -(val & mask) + (val & ~mask)
+            
+    
+    @kernel
+    def sample_mu_write(self, data):
+        """prepare ADC.
+
+        Perform a conversion and transfer the samples.
+
+        This assumes that the input FIFO of the ADC SPI RTIO channel is deep
+        enough to buffer the samples (half the length of `data` deep).
+        If it is not, there will be RTIO input overflows.
+
+        :param data: List of data samples to fill. Must have even length.
+            Samples are always read from the last channel (channel 7) down.
+            The `data` list will always be filled with the last item
+            holding to the sample from channel 7.
+        """
+        self.cnv.pulse(30*ns)  # t_CNVH
+        delay(450*ns)  # t_CONV
+        mask = 1 << 15
+        for i in range(len(data)//2):
+            self.bus_adc.write(0)
+        # for i in range(len(data) - 1, -1, -2):
+        #     val = self.bus_adc.read()
+        #     data[i] = val >> 16
+        #     val &= 0xffff
+        #     data[i - 1] = -(val & mask) + (val & ~mask)
+            
+        
+    @kernel
+    def sample_mu_read(self, data):
+        """read in the values.
+
+        Perform a conversion and transfer the samples.
+
+        This assumes that the input FIFO of the ADC SPI RTIO channel is deep
+        enough to buffer the samples (half the length of `data` deep).
+        If it is not, there will be RTIO input overflows.
+
+        :param data: List of data samples to fill. Must have even length.
+            Samples are always read from the last channel (channel 7) down.
+            The `data` list will always be filled with the last item
+            holding to the sample from channel 7.
+        """
+        # self.cnv.pulse(30*ns)  # t_CNVH
+        delay(450*ns)  # t_CONV
+        mask = 1 << 15
+        # for i in range(len(data)//2):
+        #     self.bus_adc.write(0)
+        for i in range(len(data) - 1, -1, -2):
+            val = self.bus_adc.read()
+            data[i] = val >> 16
+            val &= 0xffff
+            data[i - 1] = -(val & mask) + (val & ~mask)
 
     @kernel
     def sample(self, data):
