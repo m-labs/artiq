@@ -15,7 +15,7 @@ use cslice::CSlice;
 use unwind as uw;
 use libc::{c_int, c_void};
 
-use eh::dwarf::{self, EHAction};
+use eh::dwarf::{self, EHAction, EHContext};
 
 type _Unwind_Stop_Fn = extern "C" fn(version: c_int,
                                      actions: uw::_Unwind_Action,
@@ -61,6 +61,9 @@ const UNWIND_DATA_REG: (i32, i32) = (0, 1); // RAX, RDX
 #[cfg(any(target_arch = "or1k"))]
 const UNWIND_DATA_REG: (i32, i32) = (3, 4); // R3, R4
 
+#[cfg(any(target_arch = "riscv32"))]
+const UNWIND_DATA_REG: (i32, i32) = (10, 11); // X10, X11
+
 #[export_name="__artiq_personality"]
 pub extern fn personality(version: c_int,
                           actions: uw::_Unwind_Action,
@@ -74,13 +77,25 @@ pub extern fn personality(version: c_int,
         }
 
         let lsda = uw::_Unwind_GetLanguageSpecificData(context) as *const u8;
-        let ip = uw::_Unwind_GetIP(context) - 1;
-        let func_start = uw::_Unwind_GetRegionStart(context);
+        let mut ip_before_instr: c_int = 0;
+        let ip = uw::_Unwind_GetIPInfo(context, &mut ip_before_instr);
+        let eh_context = EHContext {
+            // The return address points 1 byte past the call instruction,
+            // which could be in the next IP range in LSDA range table.
+            ip: if ip_before_instr != 0 { ip } else { ip - 1 },
+            func_start: uw::_Unwind_GetRegionStart(context),
+            get_text_start: &|| uw::_Unwind_GetTextRelBase(context),
+            get_data_start: &|| uw::_Unwind_GetDataRelBase(context),
+        };
 
         let exception_info = &mut *(uw_exception as *mut ExceptionInfo);
         let exception = &exception_info.exception.unwrap();
 
-        let eh_action = dwarf::find_eh_action(lsda, func_start, ip, exception.name);
+        let eh_action = match dwarf::find_eh_action(lsda, &eh_context) {
+            Ok(action) => action,
+            Err(_) => return uw::_URC_FATAL_PHASE1_ERROR,
+        };
+
         if actions as u32 & uw::_UA_SEARCH_PHASE as u32 != 0 {
             match eh_action {
                 EHAction::None |

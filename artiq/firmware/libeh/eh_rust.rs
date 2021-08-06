@@ -20,7 +20,7 @@ use unwind as uw;
 use libc::{c_int, uintptr_t};
 use cslice::AsCSlice;
 
-use dwarf::{self, EHAction};
+use dwarf::{self, EHAction, EHContext};
 
 // Register ids were lifted from LLVM's TargetLowering::getExceptionPointerRegister()
 // and TargetLowering::getExceptionSelectorRegister() for each architecture,
@@ -36,6 +36,9 @@ const UNWIND_DATA_REG: (i32, i32) = (0, 1); // RAX, RDX
 
 #[cfg(any(target_arch = "or1k"))]
 const UNWIND_DATA_REG: (i32, i32) = (3, 4); // R3, R4
+
+#[cfg(any(target_arch = "riscv32"))]
+const UNWIND_DATA_REG: (i32, i32) = (10, 11); // X10, X11
 
 // The following code is based on GCC's C and C++ personality routines.  For reference, see:
 // https://github.com/gcc-mirror/gcc/blob/master/libstdc++-v3/libsupc++/eh_personality.cc
@@ -78,11 +81,17 @@ unsafe extern "C" fn rust_eh_personality(version: c_int,
     }
 }
 
-unsafe fn find_eh_action(context: *mut uw::_Unwind_Context)
-    -> Result<EHAction, ()>
-{
+unsafe fn find_eh_action(context: *mut uw::_Unwind_Context) -> Result<EHAction, ()> {
     let lsda = uw::_Unwind_GetLanguageSpecificData(context) as *const u8;
-    let func = uw::_Unwind_GetRegionStart(context);
-    let ip   = uw::_Unwind_GetIP(context);
-    Ok(dwarf::find_eh_action(lsda, func, ip, [].as_c_slice()))
+    let mut ip_before_instr: c_int = 0;
+    let ip = uw::_Unwind_GetIPInfo(context, &mut ip_before_instr);
+    let eh_context = EHContext {
+        // The return address points 1 byte past the call instruction,
+        // which could be in the next IP range in LSDA range table.
+        ip: if ip_before_instr != 0 { ip } else { ip - 1 },
+        func_start: uw::_Unwind_GetRegionStart(context),
+        get_text_start: &|| uw::_Unwind_GetTextRelBase(context),
+        get_data_start: &|| uw::_Unwind_GetDataRelBase(context),
+    };
+    dwarf::find_eh_action(lsda, &eh_context)
 }

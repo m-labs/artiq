@@ -1,51 +1,71 @@
-#![allow(non_upper_case_globals, dead_code)]
+//! Parsing of GCC-style Language-Specific Data Area (LSDA)
+//! For details see:
+//!  * <https://refspecs.linuxfoundation.org/LSB_3.0.0/LSB-PDA/LSB-PDA/ehframechpt.html>
+//!  * <https://itanium-cxx-abi.github.io/cxx-abi/exceptions.pdf>
+//!  * <https://www.airs.com/blog/archives/460>
+//!  * <https://www.airs.com/blog/archives/464>
+//!
+//! A reference implementation may be found in the GCC source tree
+//! (`<root>/libgcc/unwind-c.c` as of this writing).
 
-use core::{ptr, mem};
-use cslice::CSlice;
+#![allow(non_upper_case_globals)]
+#![allow(unused)]
 
-const DW_EH_PE_omit: u8 = 0xFF;
-const DW_EH_PE_absptr: u8 = 0x00;
+use core::mem;
 
-const DW_EH_PE_uleb128: u8 = 0x01;
-const DW_EH_PE_udata2: u8 = 0x02;
-const DW_EH_PE_udata4: u8 = 0x03;
-const DW_EH_PE_udata8: u8 = 0x04;
-const DW_EH_PE_sleb128: u8 = 0x09;
-const DW_EH_PE_sdata2: u8 = 0x0A;
-const DW_EH_PE_sdata4: u8 = 0x0B;
-const DW_EH_PE_sdata8: u8 = 0x0C;
+pub const DW_EH_PE_omit: u8 = 0xFF;
+pub const DW_EH_PE_absptr: u8 = 0x00;
 
-const DW_EH_PE_pcrel: u8 = 0x10;
-const DW_EH_PE_textrel: u8 = 0x20;
-const DW_EH_PE_datarel: u8 = 0x30;
-const DW_EH_PE_funcrel: u8 = 0x40;
-const DW_EH_PE_aligned: u8 = 0x50;
+pub const DW_EH_PE_uleb128: u8 = 0x01;
+pub const DW_EH_PE_udata2: u8 = 0x02;
+pub const DW_EH_PE_udata4: u8 = 0x03;
+pub const DW_EH_PE_udata8: u8 = 0x04;
+pub const DW_EH_PE_sleb128: u8 = 0x09;
+pub const DW_EH_PE_sdata2: u8 = 0x0A;
+pub const DW_EH_PE_sdata4: u8 = 0x0B;
+pub const DW_EH_PE_sdata8: u8 = 0x0C;
 
-const DW_EH_PE_indirect: u8 = 0x80;
+pub const DW_EH_PE_pcrel: u8 = 0x10;
+pub const DW_EH_PE_textrel: u8 = 0x20;
+pub const DW_EH_PE_datarel: u8 = 0x30;
+pub const DW_EH_PE_funcrel: u8 = 0x40;
+pub const DW_EH_PE_aligned: u8 = 0x50;
 
-#[derive(Clone)]
-struct DwarfReader {
+pub const DW_EH_PE_indirect: u8 = 0x80;
+
+#[derive(Copy, Clone)]
+pub struct EHContext<'a> {
+    pub ip: usize,                             // Current instruction pointer
+    pub func_start: usize,                     // Address of the current function
+    pub get_text_start: &'a dyn Fn() -> usize, // Get address of the code section
+    pub get_data_start: &'a dyn Fn() -> usize, // Get address of the data section
+}
+
+pub struct DwarfReader {
     pub ptr: *const u8,
 }
 
+#[repr(C, packed)]
+struct Unaligned<T>(T);
+
 impl DwarfReader {
-    fn new(ptr: *const u8) -> DwarfReader {
-        DwarfReader { ptr: ptr }
+    pub fn new(ptr: *const u8) -> DwarfReader {
+        DwarfReader { ptr }
     }
 
-    // DWARF streams are packed, so e.g. a u32 would not necessarily be aligned
+    // DWARF streams are packed, so e.g., a u32 would not necessarily be aligned
     // on a 4-byte boundary. This may cause problems on platforms with strict
     // alignment requirements. By wrapping data in a "packed" struct, we are
     // telling the backend to generate "misalignment-safe" code.
-    unsafe fn read<T: Copy>(&mut self) -> T {
-        let result = ptr::read_unaligned(self.ptr as *const T);
-        self.ptr = self.ptr.offset(mem::size_of::<T>() as isize);
+    pub unsafe fn read<T: Copy>(&mut self) -> T {
+        let Unaligned(result) = *(self.ptr as *const Unaligned<T>);
+        self.ptr = self.ptr.add(mem::size_of::<T>());
         result
     }
 
     // ULEB128 and SLEB128 encodings are defined in Section 7.6 - "Variable
     // Length Data".
-    unsafe fn read_uleb128(&mut self) -> u64 {
+    pub unsafe fn read_uleb128(&mut self) -> u64 {
         let mut shift: usize = 0;
         let mut result: u64 = 0;
         let mut byte: u8;
@@ -60,8 +80,8 @@ impl DwarfReader {
         result
     }
 
-    unsafe fn read_sleb128(&mut self) -> i64 {
-        let mut shift: usize = 0;
+    pub unsafe fn read_sleb128(&mut self) -> i64 {
+        let mut shift: u32 = 0;
         let mut result: u64 = 0;
         let mut byte: u8;
         loop {
@@ -73,70 +93,61 @@ impl DwarfReader {
             }
         }
         // sign-extend
-        if shift < 8 * mem::size_of::<u64>() && (byte & 0x40) != 0 {
+        if shift < u64::BITS && (byte & 0x40) != 0 {
             result |= (!0 as u64) << shift;
         }
         result as i64
     }
-
-    unsafe fn read_encoded_pointer(&mut self, encoding: u8) -> usize {
-        fn round_up(unrounded: usize, align: usize) -> usize {
-            debug_assert!(align.is_power_of_two());
-            (unrounded + align - 1) & !(align - 1)
-        }
-
-        debug_assert!(encoding != DW_EH_PE_omit);
-
-        // DW_EH_PE_aligned implies it's an absolute pointer value
-        if encoding == DW_EH_PE_aligned {
-            self.ptr = round_up(self.ptr as usize, mem::size_of::<usize>()) as *const u8;
-            return self.read::<usize>()
-        }
-
-        let value_ptr = self.ptr;
-        let mut result = match encoding & 0x0F {
-            DW_EH_PE_absptr => self.read::<usize>(),
-            DW_EH_PE_uleb128 => self.read_uleb128() as usize,
-            DW_EH_PE_udata2 => self.read::<u16>() as usize,
-            DW_EH_PE_udata4 => self.read::<u32>() as usize,
-            DW_EH_PE_udata8 => self.read::<u64>() as usize,
-            DW_EH_PE_sleb128 => self.read_sleb128() as usize,
-            DW_EH_PE_sdata2 => self.read::<i16>() as usize,
-            DW_EH_PE_sdata4 => self.read::<i32>() as usize,
-            DW_EH_PE_sdata8 => self.read::<i64>() as usize,
-            _ => panic!(),
-        };
-
-        result += match encoding & 0x70 {
-            DW_EH_PE_absptr => 0,
-            // relative to address of the encoded value, despite the name
-            DW_EH_PE_pcrel => value_ptr as usize,
-            _ => panic!(),
-        };
-
-        if encoding & DW_EH_PE_indirect != 0 {
-            result = *(result as *const usize);
-        }
-
-        result
-    }
 }
 
-fn encoding_size(encoding: u8) -> usize {
+unsafe fn read_encoded_pointer(
+    reader: &mut DwarfReader,
+    context: &EHContext<'_>,
+    encoding: u8,
+) -> Result<usize, ()> {
     if encoding == DW_EH_PE_omit {
-        return 0
+        return Err(());
     }
 
-    match encoding & 0x0F {
-        DW_EH_PE_absptr => mem::size_of::<usize>(),
-        DW_EH_PE_udata2 => 2,
-        DW_EH_PE_udata4 => 4,
-        DW_EH_PE_udata8 => 8,
-        DW_EH_PE_sdata2 => 2,
-        DW_EH_PE_sdata4 => 4,
-        DW_EH_PE_sdata8 => 8,
-        _ => panic!()
+    // DW_EH_PE_aligned implies it's an absolute pointer value
+    if encoding == DW_EH_PE_aligned {
+        reader.ptr = round_up(reader.ptr as usize, mem::size_of::<usize>())? as *const u8;
+        return Ok(reader.read::<usize>());
     }
+
+    let mut result = match encoding & 0x0F {
+        DW_EH_PE_absptr => reader.read::<usize>(),
+        DW_EH_PE_uleb128 => reader.read_uleb128() as usize,
+        DW_EH_PE_udata2 => reader.read::<u16>() as usize,
+        DW_EH_PE_udata4 => reader.read::<u32>() as usize,
+        DW_EH_PE_udata8 => reader.read::<u64>() as usize,
+        DW_EH_PE_sleb128 => reader.read_sleb128() as usize,
+        DW_EH_PE_sdata2 => reader.read::<i16>() as usize,
+        DW_EH_PE_sdata4 => reader.read::<i32>() as usize,
+        DW_EH_PE_sdata8 => reader.read::<i64>() as usize,
+        _ => return Err(()),
+    };
+
+    result += match encoding & 0x70 {
+        DW_EH_PE_absptr => 0,
+        // relative to address of the encoded value, despite the name
+        DW_EH_PE_pcrel => reader.ptr as usize,
+        DW_EH_PE_funcrel => {
+            if context.func_start == 0 {
+                return Err(());
+            }
+            context.func_start
+        }
+        DW_EH_PE_textrel => (*context.get_text_start)(),
+        DW_EH_PE_datarel => (*context.get_data_start)(),
+        _ => return Err(()),
+    };
+
+    if encoding & DW_EH_PE_indirect != 0 {
+        result = *(result as *const usize);
+    }
+
+    Ok(result)
 }
 
 pub enum EHAction {
@@ -146,98 +157,94 @@ pub enum EHAction {
     Terminate,
 }
 
-pub unsafe fn find_eh_action(lsda: *const u8, func_start: usize, ip: usize,
-                             exn_name: CSlice<u8>) -> EHAction {
+pub const USING_SJLJ_EXCEPTIONS: bool = cfg!(all(target_os = "ios", target_arch = "arm"));
+
+pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result<EHAction, ()> {
     if lsda.is_null() {
-        return EHAction::None
+        return Ok(EHAction::None);
     }
 
+    let func_start = context.func_start;
     let mut reader = DwarfReader::new(lsda);
 
     let start_encoding = reader.read::<u8>();
     // base address for landing pad offsets
     let lpad_base = if start_encoding != DW_EH_PE_omit {
-        reader.read_encoded_pointer(start_encoding)
+        read_encoded_pointer(&mut reader, context, start_encoding)?
     } else {
         func_start
     };
 
     let ttype_encoding = reader.read::<u8>();
-    let ttype_encoding_size = encoding_size(ttype_encoding) as isize;
-
-    let class_info;
     if ttype_encoding != DW_EH_PE_omit {
-        let class_info_offset = reader.read_uleb128();
-        class_info = reader.ptr.offset(class_info_offset as isize);
-    } else {
-        class_info = ptr::null();
+        // Rust doesn't analyze exception types, so we don't care about the type table
+        reader.read_uleb128();
     }
-    assert!(!class_info.is_null());
 
     let call_site_encoding = reader.read::<u8>();
     let call_site_table_length = reader.read_uleb128();
     let action_table = reader.ptr.offset(call_site_table_length as isize);
+    let ip = context.ip;
 
-    while reader.ptr < action_table {
-        let cs_start = reader.read_encoded_pointer(call_site_encoding);
-        let cs_len = reader.read_encoded_pointer(call_site_encoding);
-        let cs_lpad = reader.read_encoded_pointer(call_site_encoding);
-        let cs_action = reader.read_uleb128();
-
-        if ip < func_start + cs_start {
+    if !USING_SJLJ_EXCEPTIONS {
+        while reader.ptr < action_table {
+            let cs_start = read_encoded_pointer(&mut reader, context, call_site_encoding)?;
+            let cs_len = read_encoded_pointer(&mut reader, context, call_site_encoding)?;
+            let cs_lpad = read_encoded_pointer(&mut reader, context, call_site_encoding)?;
+            let cs_action = reader.read_uleb128();
             // Callsite table is sorted by cs_start, so if we've passed the ip, we
             // may stop searching.
-            break
+            if ip < func_start + cs_start {
+                break;
+            }
+            if ip < func_start + cs_start + cs_len {
+                if cs_lpad == 0 {
+                    return Ok(EHAction::None);
+                } else {
+                    let lpad = lpad_base + cs_lpad;
+                    return Ok(interpret_cs_action(cs_action, lpad));
+                }
+            }
         }
-        if ip > func_start + cs_start + cs_len {
-            continue
+        // Ip is not present in the table.  This should not happen... but it does: issue #35011.
+        // So rather than returning EHAction::Terminate, we do this.
+        Ok(EHAction::None)
+    } else {
+        // SjLj version:
+        // The "IP" is an index into the call-site table, with two exceptions:
+        // -1 means 'no-action', and 0 means 'terminate'.
+        match ip as isize {
+            -1 => return Ok(EHAction::None),
+            0 => return Ok(EHAction::Terminate),
+            _ => (),
         }
-
-        if cs_lpad == 0 {
-            return EHAction::None
-        }
-
-        let lpad = lpad_base + cs_lpad;
-        if cs_action == 0 {
-            return EHAction::Cleanup(lpad)
-        }
-
-        let action_entry = action_table.offset((cs_action - 1) as isize);
-        let mut action_reader = DwarfReader::new(action_entry);
+        let mut idx = ip;
         loop {
-            let type_info_offset = action_reader.read_sleb128() as isize;
-            let action_offset = action_reader.clone().read_sleb128() as isize;
-            assert!(type_info_offset >= 0);
-
-            if type_info_offset > 0 {
-                let type_info_ptr_ptr = class_info.offset(-type_info_offset * ttype_encoding_size);
-                let type_info_ptr = DwarfReader::new(type_info_ptr_ptr)
-                                                .read_encoded_pointer(ttype_encoding);
-                let type_info = *(type_info_ptr as *const CSlice<u8>);
-
-                if type_info.as_ref() == exn_name.as_ref() {
-                    return EHAction::Catch(lpad)
-                }
-
-                if type_info.len() == 0 {
-                    // This is a catch-all clause. We don't compare type_info_ptr with null here
-                    // because, in PIC mode, the OR1K LLVM backend emits a literal zero
-                    // encoded with DW_EH_PE_pcrel, which of course doesn't result in
-                    // a proper null pointer.
-                    return EHAction::Catch(lpad)
-                }
-            }
-
-            if action_offset == 0 {
-                break
-            } else {
-                action_reader.ptr = action_reader.ptr.offset(action_offset)
+            let cs_lpad = reader.read_uleb128();
+            let cs_action = reader.read_uleb128();
+            idx -= 1;
+            if idx == 0 {
+                // Can never have null landing pad for sjlj -- that would have
+                // been indicated by a -1 call site index.
+                let lpad = (cs_lpad + 1) as usize;
+                return Ok(interpret_cs_action(cs_action, lpad));
             }
         }
-
-        return EHAction::None
     }
+}
 
-    // the function has a personality but no landing pads; this is fine
-    EHAction::None
+fn interpret_cs_action(cs_action: u64, lpad: usize) -> EHAction {
+    if cs_action == 0 {
+        // If cs_action is 0 then this is a cleanup (Drop::drop). We run these
+        // for both Rust panics and foreign exceptions.
+        EHAction::Cleanup(lpad)
+    } else {
+        // Stop unwinding Rust panics at catch_unwind.
+        EHAction::Catch(lpad)
+    }
+}
+
+#[inline]
+fn round_up(unrounded: usize, align: usize) -> Result<usize, ()> {
+    if align.is_power_of_two() { Ok((unrounded + align - 1) & !(align - 1)) } else { Err(()) }
 }
