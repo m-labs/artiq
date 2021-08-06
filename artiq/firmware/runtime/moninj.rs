@@ -1,4 +1,4 @@
-use alloc::btree_map::BTreeMap;
+use alloc::collections::btree_map::BTreeMap;
 use core::cell::RefCell;
 
 use io::Error as IoError;

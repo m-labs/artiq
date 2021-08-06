@@ -3,7 +3,7 @@
 use core::mem;
 use core::result;
 use core::cell::{Cell, RefCell};
-use alloc::Vec;
+use alloc::vec::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::time::Duration;

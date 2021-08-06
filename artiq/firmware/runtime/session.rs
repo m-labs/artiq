@@ -1,5 +1,5 @@
 use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
-use alloc::{Vec, String};
+use alloc::{vec::Vec, string::String};
 use byteorder::{ByteOrder, NetworkEndian};
 
 use io::{Read, Write, Error as IoError};

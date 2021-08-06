@@ -147,7 +147,7 @@ fn startup() {
     };
 
     let neighbor_cache =
-        smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
+        smoltcp::iface::NeighborCache::new(alloc::collections::btree_map::BTreeMap::new());
     let net_addresses = net_settings::get_adresses();
     info!("network addresses: {}", net_addresses);
     let mut interface = match net_addresses.ipv6_addr {

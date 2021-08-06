@@ -18,7 +18,7 @@ failure_derive = { version = "0.1", default-features = false }
 byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false }
-managed = { version = "= 0.7.0", default-features = false, features = ["alloc", "map"] }
+managed = { version = "^0.7.1", default-features = false, features = ["alloc", "map"] }
 eh = { path = "../libeh" }
 unwind_backtrace = { path = "../libunwind_backtrace" }
 io = { path = "../libio", features = ["byteorder"] }

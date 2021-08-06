@@ -1,4 +1,4 @@
-use alloc::{Vec, String, BTreeMap};
+use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
 
 #[derive(Debug)]
 struct Entry {
