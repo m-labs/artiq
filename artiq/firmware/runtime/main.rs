@@ -257,29 +257,67 @@ pub extern fn main() -> i32 {
     }
 }
 
-#[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    let vect = irq::Exception::try_from(vect).expect("unknown exception");
-    match vect {
-        irq::Exception::Interrupt =>
-            panic!("spurious irq {}", irq::pending_mask().trailing_zeros()),
-        _ => {
-            fn hexdump(addr: u32) {
-                let addr = (addr - addr % 4) as *const u32;
-                let mut ptr  = addr;
-                println!("@ {:08p}", ptr);
-                for _ in 0..4 {
-                    print!("+{:04x}: ", ptr as usize - addr as usize);
-                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                    print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                }
-            }
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct TrapFrame {
+    pub ra: usize,
+    pub t0: usize,
+    pub t1: usize,
+    pub t2: usize,
+    pub t3: usize,
+    pub t4: usize,
+    pub t5: usize,
+    pub t6: usize,
+    pub a0: usize,
+    pub a1: usize,
+    pub a2: usize,
+    pub a3: usize,
+    pub a4: usize,
+    pub a5: usize,
+    pub a6: usize,
+    pub a7: usize,
+}
 
-            hexdump(pc);
-            hexdump(ea);
-            panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+#[no_mangle]
+pub extern fn exception(regs: *const TrapFrame) {
+    unsafe {
+        let pc = mepc::read();
+        let cause = mcause::read().cause();
+        match cause {
+            mcause::Trap::Interrupt(source) => {
+                info!("Called interrupt with {:?}", source);
+                // while irq::pending_mask() != 0 {
+                //     match () {
+                //         #[cfg(has_timer1)]
+                //         () if irq::is_pending(csr::TIMER1_INTERRUPT) =>
+                //             profiler::sample(pc as usize),
+                //         _ => {
+                //             panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
+                //         }
+                //     }
+                // }
+                panic!("Interrupt not present");
+            },
+            mcause::Trap::Exception(e) => {
+                println!("Stack pointer: {:p}", regs);
+                println!("Trap frame: {:x?}", unsafe { *regs });
+
+                fn hexdump(addr: u32) {
+                    let addr = (addr - addr % 4) as *const u32;
+                    let mut ptr  = addr;
+                    println!("@ {:08p}", ptr);
+                    for _ in 0..4 {
+                        print!("+{:04x}: ", ptr as usize - addr as usize);
+                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                        print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    }
+                }
+
+                hexdump(u32::try_from(pc).unwrap());
+                panic!("exception {:?} at PC 0x{:x}", e, u32::try_from(pc).unwrap())
+            }
         }
     }
 }
