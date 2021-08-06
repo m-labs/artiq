@@ -332,7 +332,8 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
         println!("{:#08x}", ip - 2 * 4);
     });
 
-    if config::read_str("panic_reset", |r| r == Ok("1")) && cfg!(has_spiflash) {
+    if config::read_str("panic_reset", |r| r == Ok("1")) && 
+        cfg!(any(soc_platform = "kasli", soc_platform = "metlino", soc_platform = "kc705")) {
         println!("restarting...");
         unsafe {
             kernel::stop();
