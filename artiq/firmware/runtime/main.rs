@@ -297,9 +297,9 @@ pub fn oom(layout: core::alloc::Layout) -> ! {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
-    irq::set_ie(false);
+    // irq::set_ie(false);
 
     #[cfg(has_error_led)]
     unsafe {
@@ -319,9 +319,9 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
 
     println!("backtrace for software version {}:", csr::CONFIG_IDENTIFIER_STR);
     let _ = unwind_backtrace::backtrace(|ip| {
-        // Backtrace gives us the return address, i.e. the address after the delay slot,
+        // Backtrace gives us the return address, i.e. the address after jal(r) insn,
         // but we're interested in the call instruction.
-        println!("{:#08x}", ip - 2 * 4);
+        println!("{:#08x}", ip - 4);
     });
 
     if config::read_str("panic_reset", |r| r == Ok("1")) && 
