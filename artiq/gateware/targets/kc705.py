@@ -82,15 +82,74 @@ class _RTIOCRG(Module, AutoCSR):
         ]
 
 
-# The default user SMA voltage on KC705 is 2.5V, and the Migen platform
+class _RTIOClockMultiplier(Module, AutoCSR):
+    def __init__(self, rtio_clk_freq):
+        self.pll_reset = CSRStorage(reset=1)
+        self.pll_locked = CSRStatus()
+        self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
+
+        # See "Global Clock Network Deskew Using Two BUFGs" in ug472.
+        clkfbout = Signal()
+        clkfbin = Signal()
+        rtiox4_clk = Signal()
+        pll_locked = Signal()
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                i_CLKIN1=ClockSignal("rtio"),
+                i_RST=self.pll_reset.storage,
+                o_LOCKED=pll_locked,
+
+                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
+
+                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
+
+                p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
+            ),
+            Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
+            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
+
+            MultiReg(pll_locked, self.pll_locked.status)
+        ]
+
+
+def fix_serdes_timing_path(platform):
+    # ignore timing of path from OSERDESE2 through the pad to ISERDESE2
+    platform.add_platform_command(
+        "set_false_path -quiet "
+        "-through [get_pins -filter {{REF_PIN_NAME == OQ || REF_PIN_NAME == TQ}} "
+            "-of [get_cells -filter {{REF_NAME == OSERDESE2}}]] "
+        "-to [get_pins -filter {{REF_PIN_NAME == D}} "
+            "-of [get_cells -filter {{REF_NAME == ISERDESE2}}]]"
+    )
+
+
+# The default voltage for these signals on KC705 is 2.5V, and the Migen platform
 # follows this default. But since the SMAs are on the same bank as the DDS,
 # which is set to 3.3V by reprogramming the KC705 power ICs, we need to
 # redefine them here.
-_sma33_io = [
+_reprogrammed3v3_io = [
     ("user_sma_gpio_p_33", 0, Pins("Y23"), IOStandard("LVCMOS33")),
     ("user_sma_gpio_n_33", 0, Pins("Y24"), IOStandard("LVCMOS33")),
+    ("si5324_33", 0,
+        Subsignal("rst_n", Pins("AE20"), IOStandard("LVCMOS33")),
+        Subsignal("int", Pins("AG24"), IOStandard("LVCMOS33"))
+    ),
+    ("sfp_tx_disable_n_33", 0, Pins("Y20"), IOStandard("LVCMOS33")),
+    # HACK: this should be LVDS, but TMDS is the only supported differential
+    # output standard at 3.3V. KC705 hardware design issue?
+    ("si5324_clkin_33", 0,
+        Subsignal("p", Pins("W27"), IOStandard("TMDS_33")),
+        Subsignal("n", Pins("W28"), IOStandard("TMDS_33"))
+    ),
+    ("sdcard_spi_33", 0,
+        Subsignal("miso", Pins("AC20"), Misc("PULLUP=TRUE")),
+        Subsignal("clk", Pins("AB23")),
+        Subsignal("mosi", Pins("AB22")),
+        Subsignal("cs_n", Pins("AC21")),
+        IOStandard("LVCMOS33")
+    )
 ]
-
 
 _ams101_dac = [
     ("ams101_dac", 0,
@@ -101,17 +160,6 @@ _ams101_dac = [
         IOStandard("LVTTL")
      )
 ]
-
-_sdcard_spi_33 = [
-    ("sdcard_spi_33", 0,
-        Subsignal("miso", Pins("AC20"), Misc("PULLUP=TRUE")),
-        Subsignal("clk", Pins("AB23")),
-        Subsignal("mosi", Pins("AB22")),
-        Subsignal("cs_n", Pins("AC21")),
-        IOStandard("LVCMOS33")
-    )
-]
-
 
 class _StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
@@ -150,9 +198,8 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.platform.request("user_led", 1)))
         self.csr_devices.append("leds")
 
-        self.platform.add_extension(_sma33_io)
+        self.platform.add_extension(_reprogrammed3v3_io)
         self.platform.add_extension(_ams101_dac)
-        self.platform.add_extension(_sdcard_spi_33)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -220,11 +267,10 @@ class _MasterBase(MiniSoC, AMPSoC):
             self.platform.toolchain.bitgen_opt += " -g compress"
 
         platform = self.platform
-        platform.add_extension(_sma33_io)
+        platform.add_extension(_reprogrammed3v3_io)
         platform.add_extension(_ams101_dac)
-        platform.add_extension(_sdcard_spi_33)
 
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        self.comb += platform.request("sfp_tx_disable_n_33").eq(1)
         tx_pads = [
             platform.request("sfp_tx"), platform.request("user_sma_mgt_tx")
         ]
@@ -277,7 +323,7 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
 
         self.config["RTIO_FREQUENCY"] = str(self.drtio_transceiver.rtio_clk_freq/1e6)
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -306,6 +352,10 @@ class _MasterBase(MiniSoC, AMPSoC):
             platform.add_period_constraint(gtx.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtx0.txoutclk, gtx.rxoutclk)
+
+        self.submodules.rtio_crg = _RTIOClockMultiplier(self.drtio_transceiver.rtio_clk_freq)
+        self.csr_devices.append("rtio_crg")
+        fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
@@ -351,11 +401,10 @@ class _SatelliteBase(BaseSoC):
             self.platform.toolchain.bitgen_opt += " -g compress"
 
         platform = self.platform
-        platform.add_extension(_sma33_io)
+        platform.add_extension(_reprogrammed3v3_io)
         platform.add_extension(_ams101_dac)
-        platform.add_extension(_sdcard_spi_33)
 
-        self.comb += platform.request("sfp_tx_disable_n").eq(1)
+        self.comb += platform.request("sfp_tx_disable_n_33").eq(1)
         tx_pads = [
             platform.request("sfp_tx"), platform.request("user_sma_mgt_tx")
         ]
@@ -422,14 +471,14 @@ class _SatelliteBase(BaseSoC):
         self.config["RTIO_FREQUENCY"] = str(self.drtio_transceiver.rtio_clk_freq/1e6)
         # Si5324 Phaser
         self.submodules.siphaser = SiPhaser7Series(
-            si5324_clkin=platform.request("si5324_clkin"),
+            si5324_clkin=platform.request("si5324_clkin_33"),
             rx_synchronizer=self.rx_synchronizer,
             ultrascale=False,
             rtio_clk_freq=self.drtio_transceiver.rtio_clk_freq)
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
         self.csr_devices.append("siphaser")
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324").rst_n)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -457,6 +506,10 @@ class _SatelliteBase(BaseSoC):
             platform.add_period_constraint(gtx.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtx.rxoutclk)
+
+        self.submodules.rtio_crg = _RTIOClockMultiplier(self.drtio_transceiver.rtio_clk_freq)
+        self.csr_devices.append("rtio_crg")
+        fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
