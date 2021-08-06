@@ -25,6 +25,7 @@ extern crate board_misoc;
 extern crate board_artiq;
 extern crate logger_artiq;
 extern crate proto_artiq;
+extern crate riscv;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
@@ -40,6 +41,8 @@ use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
+
+use riscv::register::{mcause, mepc};
 
 mod rtio_clocking;
 mod rtio_mgt;
