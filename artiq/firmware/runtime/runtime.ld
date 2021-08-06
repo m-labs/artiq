@@ -61,7 +61,7 @@ SECTIONS
     .bss ALIGN(4) :
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         _ebss = .;
     } > runtime
 
