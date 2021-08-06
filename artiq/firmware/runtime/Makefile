@@ -21,10 +21,11 @@ runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 		-lunwind-bare
 
 ksupport_data.o: ../ksupport/ksupport.elf
-	$(LD) -r -b binary -o $@ $<
+	$(LD) -m elf32lriscv -b binary -o $@ $<
 
 %.bin: %.elf
 	$(objcopy) -O binary
 
 %.fbi: %.bin
-	$(mscimg) -f
+	$(mscimg) -f --little
+	objcopy -I binary -O binary --reverse-bytes=4 $@
