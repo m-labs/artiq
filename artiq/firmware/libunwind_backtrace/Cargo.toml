@@ -6,3 +6,7 @@ version = "0.0.0"
 [lib]
 name = "unwind_backtrace"
 path = "lib.rs"
+
+[dependencies]
+unwind = { path = "../libunwind" }
+libc = { path = "../libc" }

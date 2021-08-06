@@ -9,3 +9,5 @@ path = "lib.rs"
 
 [dependencies]
 cslice = { version = "0.3" }
+libc = { path = "../libc" }
+unwind = { path = "../libunwind" }
