@@ -271,18 +271,14 @@ class _MasterBase(MiniSoC, AMPSoC):
         platform.add_extension(_ams101_dac)
 
         self.comb += platform.request("sfp_tx_disable_n_33").eq(1)
-        tx_pads = [
-            platform.request("sfp_tx"), platform.request("user_sma_mgt_tx")
-        ]
-        rx_pads = [
-            platform.request("sfp_rx"), platform.request("user_sma_mgt_rx")
+        data_pads = [
+            platform.request("sfp"), platform.request("user_sma_mgt")
         ]
 
         # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
         self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
-            tx_pads=tx_pads,
-            rx_pads=rx_pads,
+            pads=data_pads,
             sys_clk_freq=self.clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
@@ -405,21 +401,16 @@ class _SatelliteBase(BaseSoC):
         platform.add_extension(_ams101_dac)
 
         self.comb += platform.request("sfp_tx_disable_n_33").eq(1)
-        tx_pads = [
-            platform.request("sfp_tx"), platform.request("user_sma_mgt_tx")
-        ]
-        rx_pads = [
-            platform.request("sfp_rx"), platform.request("user_sma_mgt_rx")
+        data_pads = [
+            platform.request("sfp"), platform.request("user_sma_mgt")
         ]
         if sma_as_sat:
-            tx_pads = tx_pads[::-1]
-            rx_pads = rx_pads[::-1]
+            data_pads = data_pads[::-1]
 
         # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
         self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
-            tx_pads=tx_pads,
-            rx_pads=rx_pads,
+            pads=data_pads,
             sys_clk_freq=self.clk_freq)
         self.csr_devices.append("drtio_transceiver")
 

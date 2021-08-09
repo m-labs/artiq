@@ -16,7 +16,7 @@ class GTX_20X(Module):
     # * GTX PLL frequency @ 2.5GHz
     # * GTX line rate (TX & RX) @ 2.5Gb/s
     # * GTX TX/RX USRCLK @ 125MHz == coarse RTIO frequency
-    def __init__(self, refclk, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq=125e6, tx_mode="single", rx_mode="single"):
+    def __init__(self, refclk, pads, sys_clk_freq, rtio_clk_freq=125e6, tx_mode="single", rx_mode="single"):
         assert tx_mode in ["single", "master", "slave"]
         assert rx_mode in ["single", "master", "slave"]
 
@@ -229,10 +229,10 @@ class GTX_20X(Module):
                 p_RXCDR_LOCK_CFG=0b010101,
 
                 # Pads
-                i_GTXRXP=rx_pads.p,
-                i_GTXRXN=rx_pads.n,
-                o_GTXTXP=tx_pads.p,
-                o_GTXTXN=tx_pads.n,
+                i_GTXRXP=pads.rxp,
+                i_GTXRXN=pads.rxn,
+                o_GTXTXP=pads.txp,
+                o_GTXTXN=pads.txn,
 
                 # Other parameters
                 p_PCS_RSVD_ATTR=(
@@ -282,9 +282,8 @@ class GTX_20X(Module):
 
 
 class GTX(Module, TransceiverInterface):
-    def __init__(self, clock_pads, tx_pads, rx_pads, sys_clk_freq, rtio_clk_freq=125e6, master=0):
-        assert len(tx_pads) == len(rx_pads)
-        self.nchannels = nchannels = len(tx_pads)
+    def __init__(self, clock_pads, pads, sys_clk_freq, rtio_clk_freq=125e6, master=0):
+        self.nchannels = nchannels = len(pads)
         self.gtxs = []
         self.rtio_clk_freq = rtio_clk_freq
 
@@ -307,7 +306,7 @@ class GTX(Module, TransceiverInterface):
             else:
                 mode = "master" if i == master else "slave"
             # Note: RX phase alignment is to be done on individual lanes, not multi-lane.
-            gtx = GTX_20X(refclk, tx_pads[i], rx_pads[i], sys_clk_freq, rtio_clk_freq=rtio_clk_freq, tx_mode=mode, rx_mode="single")
+            gtx = GTX_20X(refclk, pads[i], sys_clk_freq, rtio_clk_freq=rtio_clk_freq, tx_mode=mode, rx_mode="single")
             # Fan-out (to slave) / Fan-in (from master) of the TXUSRCLK
             if mode == "slave":
                 self.comb += gtx.cd_rtio_tx.clk.eq(rtio_tx_clk)
