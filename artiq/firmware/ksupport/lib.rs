@@ -12,8 +12,9 @@ extern crate dyld;
 extern crate board_misoc;
 extern crate board_artiq;
 extern crate proto_artiq;
+extern crate riscv;
 
-use core::{mem, ptr, slice, str};
+use core::{mem, ptr, slice, str, convert::TryFrom};
 use cslice::{CSlice, AsCSlice};
 use io::Cursor;
 use dyld::Library;
@@ -22,6 +23,7 @@ use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 #[cfg(has_rtio_dma)]
 use board_misoc::csr;
+use riscv::register::{mcause, mepc};
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -519,8 +521,10 @@ pub unsafe fn main() {
 
 #[no_mangle]
 #[unwind(allowed)]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    panic!("{:?} at PC {:#08x}", cause, u32::try_from(pc).unwrap())
 }
 
 #[no_mangle]
