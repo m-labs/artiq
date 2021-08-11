@@ -4,7 +4,7 @@ use core::{ptr, mem, fmt};
 use core::alloc::{GlobalAlloc, Layout};
 
 // The minimum alignment guaranteed by the architecture.
-const MIN_ALIGN: usize = 4;
+const MIN_ALIGN: usize = 16;
 
 const MAGIC_FREE: usize = 0xDEADDEAD;
 const MAGIC_BUSY: usize = 0xFEEDFEED;
