@@ -1,5 +1,5 @@
 #![feature(lang_items, asm, panic_unwind, libc, unwind_attributes,
-           panic_implementation, panic_info_message, nll)]
+           panic_handler, panic_info_message, nll)]
 #![no_std]
 
 extern crate libc;
@@ -51,7 +51,7 @@ macro_rules! recv {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
         send(&Log(format_args!("panic at {}:{}:{}",
