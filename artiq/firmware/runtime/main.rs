@@ -288,17 +288,6 @@ pub extern fn exception(regs: *const TrapFrame) {
         match cause {
             mcause::Trap::Interrupt(source) => {
                 info!("Called interrupt with {:?}", source);
-                // while irq::pending_mask() != 0 {
-                //     match () {
-                //         #[cfg(has_timer1)]
-                //         () if irq::is_pending(csr::TIMER1_INTERRUPT) =>
-                //             profiler::sample(pc as usize),
-                //         _ => {
-                //             panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
-                //         }
-                //     }
-                // }
-                panic!("Interrupt not present");
             },
             mcause::Trap::Exception(e) => {
                 println!("Stack pointer: {:p}", regs);
