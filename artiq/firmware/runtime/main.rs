@@ -50,7 +50,6 @@ mod cache;
 mod rtio_dma;
 
 mod mgmt;
-mod profiler;
 mod kernel;
 mod kern_hwreq;
 mod session;
@@ -263,14 +262,7 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     let vect = irq::Exception::try_from(vect).expect("unknown exception");
     match vect {
         irq::Exception::Interrupt =>
-            while irq::pending_mask() != 0 {
-                match () {
-                    #[cfg(has_timer1)]
-                    () if irq::is_pending(csr::TIMER1_INTERRUPT) =>
-                        profiler::sample(pc as usize),
-                    _ => panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
-                }
-            },
+            panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
         _ => {
             fn hexdump(addr: u32) {
                 let addr = (addr - addr % 4) as *const u32;

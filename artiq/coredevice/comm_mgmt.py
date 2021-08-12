@@ -20,10 +20,6 @@ class Request(Enum):
     ConfigRemove = 14
     ConfigErase = 15
 
-    StartProfiler = 9
-    StopProfiler = 10
-    GetProfile = 11
-
     Reboot = 5
 
     DebugAllocator = 8
@@ -37,8 +33,6 @@ class Reply(Enum):
     LogContent = 2
 
     ConfigData = 7
-
-    Profile = 5
 
     RebootImminent = 3
 
@@ -188,40 +182,6 @@ class CommMgmt:
     def config_erase(self):
         self._write_header(Request.ConfigErase)
         self._read_expect(Reply.Success)
-
-    def start_profiler(self, interval, edges_size, hits_size):
-        self._write_header(Request.StartProfiler)
-        self._write_int32(interval)
-        self._write_int32(edges_size)
-        self._write_int32(hits_size)
-        self._read_expect(Reply.Success)
-
-    def stop_profiler(self):
-        self._write_header(Request.StopProfiler)
-        self._read_expect(Reply.Success)
-
-    def stop_profiler(self):
-        self._write_header(Request.StopProfiler)
-        self._read_expect(Reply.Success)
-
-    def get_profile(self):
-        self._write_header(Request.GetProfile)
-        self._read_expect(Reply.Profile)
-
-        hits = {}
-        for _ in range(self._read_int32()):
-            addr = self._read_int32()
-            count = self._read_int32()
-            hits[addr] = count
-
-        edges = {}
-        for _ in range(self._read_int32()):
-            caller = self._read_int32()
-            callee = self._read_int32()
-            count = self._read_int32()
-            edges[(caller, callee)] = count
-
-        return hits, edges
 
     def reboot(self):
         self._write_header(Request.Reboot)
