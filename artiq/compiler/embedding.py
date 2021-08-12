@@ -5,7 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import sys, os, re, linecache, inspect, textwrap, types as pytypes, numpy
+import os, re, linecache, inspect, textwrap, types as pytypes, numpy
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
@@ -967,13 +967,11 @@ class Stitcher:
 
         # Parse.
         source_buffer = source.Buffer(source_code, filename, first_line)
-        lexer = source_lexer.Lexer(source_buffer, version=sys.version_info[0:2],
-                                   diagnostic_engine=self.engine)
+        lexer = source_lexer.Lexer(source_buffer, version=(3, 6), diagnostic_engine=self.engine)
         lexer.indent = [(initial_indent,
                          source.Range(source_buffer, 0, len(initial_whitespace)),
                          initial_whitespace)]
-        parser = source_parser.Parser(lexer, version=sys.version_info[0:2],
-                                      diagnostic_engine=self.engine)
+        parser = source_parser.Parser(lexer, version=(3, 6), diagnostic_engine=self.engine)
         function_node = parser.file_input().body[0]
 
         # Mangle the name, since we put everything into a single module.
