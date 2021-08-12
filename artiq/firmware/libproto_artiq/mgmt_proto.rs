@@ -77,8 +77,6 @@ pub enum Reply<'a> {
 
     ConfigData(&'a [u8]),
 
-    Profile,
-
     RebootImminent,
 }
 
