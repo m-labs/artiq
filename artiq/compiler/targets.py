@@ -276,7 +276,7 @@ class CortexA9Target(Target):
     little_endian = True
     now_pinning = False
 
-    tool_ld = "armv7-unknown-linux-gnueabihf-ld"
-    tool_strip = "armv7-unknown-linux-gnueabihf-strip"
-    tool_addr2line = "armv7-unknown-linux-gnueabihf-addr2line"
-    tool_cxxfilt = "armv7-unknown-linux-gnueabihf-c++filt"
+    tool_ld = "ld.lld"
+    tool_strip = "llvm-strip"
+    tool_addr2line = "llvm-addr2line"
+    tool_cxxfilt = "llvm-cxxfilt"
