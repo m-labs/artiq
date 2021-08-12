@@ -37,93 +37,6 @@ def memoize(generator):
             return result
     return memoized
 
-class DebugInfoEmitter:
-    def __init__(self, llmodule):
-        self.llmodule = llmodule
-        self.llcompileunit = None
-        self.cache = {}
-
-        llident = self.llmodule.add_named_metadata('llvm.ident')
-        llident.add(self.emit_metadata(["ARTIQ"]))
-
-        llflags = self.llmodule.add_named_metadata('llvm.module.flags')
-        llflags.add(self.emit_metadata([2, "Debug Info Version", 3]))
-        llflags.add(self.emit_metadata([2, "Dwarf Version", 4]))
-
-    def emit_metadata(self, operands):
-        def map_operand(operand):
-            if operand is None:
-                return ll.Constant(llmetadata, None)
-            elif isinstance(operand, str):
-                return ll.MetaDataString(self.llmodule, operand)
-            elif isinstance(operand, int):
-                return ll.Constant(lli32, operand)
-            elif isinstance(operand, (list, tuple)):
-                return self.emit_metadata(operand)
-            else:
-                assert isinstance(operand, ll.NamedValue)
-                return operand
-        return self.llmodule.add_metadata(list(map(map_operand, operands)))
-
-    def emit_debug_info(self, kind, operands, is_distinct=False):
-        return self.llmodule.add_debug_info(kind, operands, is_distinct)
-
-    @memoize
-    def emit_file(self, source_buffer):
-        source_dir, source_file = os.path.split(source_buffer.name)
-        return self.emit_debug_info("DIFile", {
-            "filename":        source_file,
-            "directory":       source_dir,
-        })
-
-    @memoize
-    def emit_compile_unit(self, source_buffer):
-        return self.emit_debug_info("DICompileUnit", {
-            "language":        ll.DIToken("DW_LANG_Python"),
-            "file":            self.emit_file(source_buffer),
-            "producer":        "ARTIQ",
-            "runtimeVersion":  0,
-            "emissionKind":    2, # full=1, lines only=2
-        }, is_distinct=True)
-
-    @memoize
-    def emit_subroutine_type(self, typ):
-        return self.emit_debug_info("DISubroutineType", {
-            "types":           self.emit_metadata([None])
-        })
-
-    @memoize
-    def emit_subprogram(self, func, llfunc):
-        source_buffer = func.loc.source_buffer
-
-        if self.llcompileunit is None:
-            self.llcompileunit = self.emit_compile_unit(source_buffer)
-            llcompileunits = self.llmodule.add_named_metadata('llvm.dbg.cu')
-            llcompileunits.add(self.llcompileunit)
-
-        display_name = "{}{}".format(func.name, types.TypePrinter().name(func.type))
-        return self.emit_debug_info("DISubprogram", {
-            "name":            func.name,
-            "linkageName":     llfunc.name,
-            "type":            self.emit_subroutine_type(func.type),
-            "file":            self.emit_file(source_buffer),
-            "line":            func.loc.line(),
-            "unit":            self.llcompileunit,
-            "scope":           self.emit_file(source_buffer),
-            "scopeLine":       func.loc.line(),
-            "isLocal":         func.is_internal,
-            "isDefinition":    True,
-            "variables":       self.emit_metadata([])
-        }, is_distinct=True)
-
-    @memoize
-    def emit_loc(self, loc, scope):
-        return self.emit_debug_info("DILocation", {
-            "line":            loc.line(),
-            "column":          loc.column(),
-            "scope":           scope
-        })
-
 
 class ABILayoutInfo:
     """Caches DataLayout size/alignment lookup results.
@@ -170,7 +83,6 @@ class LLVMIRGenerator:
         self.llmap = {}
         self.llobject_map = {}
         self.phis = []
-        self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
         self.empty_metadata = self.llmodule.add_metadata([])
         self.tbaa_tree = self.llmodule.add_metadata([
             ll.MetaDataString(self.llmodule, "ARTIQ TBAA")
@@ -659,10 +571,6 @@ class LLVMIRGenerator:
             self.llbuilder = ll.IRBuilder()
             llblock_map = {}
 
-            if not func.is_generated:
-                lldisubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
-                self.llfunction.set_metadata('dbg', lldisubprogram)
-
             # First, map arguments.
             if self.has_sret(func.type):
                 llactualargs = self.llfunction.args[1:]
@@ -682,10 +590,6 @@ class LLVMIRGenerator:
             for block in func.basic_blocks:
                 self.llbuilder.position_at_end(self.llmap[block])
                 for insn in block.instructions:
-                    if insn.loc is not None and not func.is_generated:
-                        self.llbuilder.debug_metadata = \
-                            self.debug_info_emitter.emit_loc(insn.loc, lldisubprogram)
-
                     llinsn = getattr(self, "process_" + type(insn).__name__)(insn)
                     assert llinsn is not None
                     self.llmap[insn] = llinsn
