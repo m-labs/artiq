@@ -104,4 +104,9 @@
 
     defaultPackage.x86_64-linux = python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
   };
+
+  nixConfig = {
+    binaryCachePublicKeys = ["nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc="];
+    binaryCaches = ["https://nixbld.m-labs.hk" "https://cache.nixos.org"];
+  };
 }
