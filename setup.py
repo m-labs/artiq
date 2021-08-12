@@ -64,10 +64,6 @@ Topic :: System :: Hardware
 """.splitlines(),
     install_requires=requirements,
     extras_require={},
-    dependency_links=[
-        "git+https://github.com/m-labs/pyqtgraph.git@develop#egg=pyqtgraph",
-        "git+https://github.com/m-labs/llvmlite.git@artiq#egg=llvmlite_artiq"
-    ],
     packages=find_packages(),
     namespace_packages=[],
     include_package_data=True,
