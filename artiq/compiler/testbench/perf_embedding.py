@@ -5,7 +5,7 @@ from ...master.databases import DeviceDB, DatasetDB
 from ...master.worker_db import DeviceManager, DatasetManager
 from ..module import Module
 from ..embedding import Stitcher
-from ..targets import OR1KTarget
+from ..targets import RISCVTarget
 from . import benchmark
 
 
@@ -45,7 +45,7 @@ def main():
 
     stitcher = embed()
     module = Module(stitcher)
-    target = OR1KTarget()
+    target = RISCVTarget()
     llvm_ir = target.compile(module)
     elf_obj = target.assemble(llvm_ir)
     elf_shlib = target.link([elf_obj])

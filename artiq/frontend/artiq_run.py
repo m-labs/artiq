@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import h5py
 
-from llvmlite_artiq import binding as llvm
+from llvmlite import binding as llvm
 
 from sipyco import common_args
 

@@ -6,7 +6,7 @@ into LLVM intermediate representation.
 import os, re, types as pytypes, numpy
 from collections import defaultdict
 from pythonparser import ast, diagnostic
-from llvmlite_artiq import ir as ll, binding as llvm
+from llvmlite import ir as ll, binding as llvm
 from ...language import core as language_core
 from .. import types, builtins, ir
 from ..embedding import SpecializedFunction

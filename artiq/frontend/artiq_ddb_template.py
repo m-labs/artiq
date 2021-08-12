@@ -15,7 +15,7 @@ def process_header(output, description):
         raise NotImplementedError
 
     cpu_target = {
-        "kasli": "or1k",
+        "kasli": "riscv",
         "kasli_soc": "cortexa9"
     }[description["target"]]
 

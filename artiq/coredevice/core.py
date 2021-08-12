@@ -11,7 +11,7 @@ from artiq.language.units import *
 
 from artiq.compiler.module import Module
 from artiq.compiler.embedding import Stitcher
-from artiq.compiler.targets import OR1KTarget, CortexA9Target
+from artiq.compiler.targets import RISCVTarget, CortexA9Target
 
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 # Import for side effects (creating the exception classes).
@@ -71,11 +71,11 @@ class Core:
         "core", "ref_period", "coarse_ref_period", "ref_multiplier",
     }
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="or1k"):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="riscv"):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
-        if target == "or1k":
-            self.target_cls = OR1KTarget
+        if target == "riscv":
+            self.target_cls = RISCVTarget
         elif target == "cortexa9":
             self.target_cls = CortexA9Target
         else:
