@@ -1,0 +1,61 @@
+{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1628696776,
+        "narHash": "sha256-K8+/IQNZDZltIu/KSf+Tz01OwNzTGgTch0ktMOWcxLg=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "927ce1afc1db40869a463a37ea2738c27d425f80",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-21.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs",
+        "src-pythonparser": "src-pythonparser",
+        "src-sipyco": "src-sipyco"
+      }
+    },
+    "src-pythonparser": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1628731931,
+        "narHash": "sha256-eaGuXyrkvpBPNJVKoihnoqvhoWvqaTvztTdKb+7BJfc=",
+        "owner": "m-labs",
+        "repo": "pythonparser",
+        "rev": "f6be5a1bfe44c05ffd36c8016858175954b9722d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "pythonparser",
+        "type": "github"
+      }
+    },
+    "src-sipyco": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1623807309,
+        "narHash": "sha256-FTRAS4RjqDOygu6+cP8mKbZHu/YZ7YKpEe2gSzJc9rk=",
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "rev": "20c946aad78872fe60b78d9b57a624d69f3eea47",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
