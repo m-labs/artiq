@@ -262,7 +262,7 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
     let vect = irq::Exception::try_from(vect).expect("unknown exception");
     match vect {
         irq::Exception::Interrupt =>
-            panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
+            panic!("spurious irq {}", irq::pending_mask().trailing_zeros()),
         _ => {
             fn hexdump(addr: u32) {
                 let addr = (addr - addr % 4) as *const u32;
