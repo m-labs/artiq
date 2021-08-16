@@ -42,7 +42,7 @@ class Master(MiniSoC, AMPSoC):
 
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
-                         cpu_type="or1k",
+                         cpu_type="vexriscv",
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,

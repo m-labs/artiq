@@ -77,7 +77,7 @@ class _SatelliteBase(BaseSoC):
 
     def __init__(self, rtio_clk_freq, *, with_wrpll, gateware_identifier_str, **kwargs):
         BaseSoC.__init__(self,
-                 cpu_type="or1k",
+                 cpu_type="vexriscv",
                  **kwargs)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
         self.rtio_clk_freq = rtio_clk_freq
