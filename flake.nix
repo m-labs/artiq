@@ -6,7 +6,10 @@
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser }:
+  inputs.src-migen = { url = github:m-labs/migen; flake = false; };
+  inputs.src-misoc = { url = github:m-labs/misoc; flake = false; };
+
+  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
       rustManifest = pkgs.fetchurl {
@@ -82,6 +85,27 @@
           '';
         };
 
+        llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
+          pname = "llvmlite";
+          version = "0.37.0rc2";
+          src = pkgs.python3Packages.fetchPypi {
+            inherit pname version;
+            sha256 = "sha256-F1quz+76JOt1jaQPVzdKe7RfN6gWG2lyE82qTvgyY/c=";
+          };
+          nativeBuildInputs = [ pkgs.llvm_11 ];
+          # Disable static linking
+          # https://github.com/numba/llvmlite/issues/93
+          postPatch = ''
+            substituteInPlace ffi/Makefile.linux --replace "-static-libstdc++" ""
+            substituteInPlace llvmlite/tests/test_binding.py --replace "test_linux" "nope"
+          '';
+          # Set directory containing llvm-config binary
+          preConfigure = ''
+            export LLVM_CONFIG=${pkgs.llvm_11.dev}/bin/llvm-config
+          '';
+          doCheck = false;  # FIXME
+        };
+
         artiq = pkgs.python3Packages.buildPythonPackage rec {
           pname = "artiq";
           version = "7.0-dev";
@@ -91,8 +115,8 @@
 
           nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
           # keep llvm_x and lld_x in sync with llvmlite
-          propagatedBuildInputs = [ pkgs.llvm_9 pkgs.lld_9 sipyco pythonparser ]
-            ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync llvmlite ]);
+          propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco pythonparser ]
+            ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync ]);
 
           dontWrapQtApps = true;
           postFixup = ''
@@ -108,8 +132,8 @@
             "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
           ];
 
-          # FIXME: automatically propagate lld_9 llvm_9 dependencies
-          checkInputs = [ pkgs.lld_9 pkgs.llvm_9 pkgs.lit outputcheck ];
+          # FIXME: automatically propagate lld_11 llvm_11 dependencies
+          checkInputs = [ pkgs.lld_11 pkgs.llvm_11 pkgs.lit outputcheck ];
           checkPhase = ''
             python -m unittest discover -v artiq.test
 
@@ -119,9 +143,47 @@
             #LIBARTIQ_SUPPORT=${libartiq-support}/libartiq_support.so lit -v $TESTDIR/lit
             '';
         };
+
+        migen = pkgs.python3Packages.buildPythonPackage rec {
+          name = "migen";
+          src = src-migen;
+          propagatedBuildInputs = [ pkgs.python3Packages.colorama ];
+        };
+
+        asyncserial = pkgs.python3Packages.buildPythonPackage rec {
+          pname = "asyncserial";
+          version = "0.1";
+          src = pkgs.fetchFromGitHub {
+            owner = "m-labs";
+            repo = "asyncserial";
+            rev = "d95bc1d6c791b0e9785935d2f62f628eb5cdf98d";
+            sha256 = "0yzkka9jk3612v8gx748x6ziwykq5lr7zmr9wzkcls0v2yilqx9k";
+          };
+          propagatedBuildInputs = [ pkgs.python3Packages.pyserial ];
+        };
+
+        misoc = pkgs.python3Packages.buildPythonPackage {
+          name = "misoc";
+          src = src-misoc;
+          doCheck = false;  # TODO: fix misoc bitrot and re-enable tests
+          propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
+        };
       };
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
+
+      devShell.x86_64-linux = pkgs.mkShell {
+        name = "artiq-dev-shell";
+        buildInputs = [
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          rustPlatform.rust.rustc
+          rustPlatform.rust.cargo
+          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvm_11
+          pkgs.lld_11
+        ];
+        TARGET_AR="llvm-ar";
+      };
     };
 
   nixConfig = {

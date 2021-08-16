@@ -36,8 +36,42 @@
       "inputs": {
         "mozilla-overlay": "mozilla-overlay",
         "nixpkgs": "nixpkgs",
+        "src-migen": "src-migen",
+        "src-misoc": "src-misoc",
         "src-pythonparser": "src-pythonparser",
         "src-sipyco": "src-sipyco"
+      }
+    },
+    "src-migen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1628592379,
+        "narHash": "sha256-TQV6p0+Ri9HVge4qUKOCXe96cmcimNZ3R4sVwNY67DA=",
+        "owner": "m-labs",
+        "repo": "migen",
+        "rev": "27dbf03edd75c32dc1706e2a1316950c3a8d452a",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "migen",
+        "type": "github"
+      }
+    },
+    "src-misoc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1628657477,
+        "narHash": "sha256-fHlyHvUJFDLZ62QfehcUqVNdQh5hfVXJ4Hq1bQE4oDE=",
+        "owner": "m-labs",
+        "repo": "misoc",
+        "rev": "e07538743427414d323225217f0737381ef27ec6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "misoc",
+        "type": "github"
       }
     },
     "src-pythonparser": {
