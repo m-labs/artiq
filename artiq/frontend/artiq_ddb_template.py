@@ -515,6 +515,21 @@ class PeripheralManager:
             channel=rtio_offset)
         return 5
 
+    def process_hvamp(self, rtio_offset, peripheral):
+        hvamp_name = self.get_name("hvamp")
+        for i in range(8):
+            self.gen("""
+                device_db["ttl_{name}_sw{ch}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{channel:06x}}}
+                }}""",
+                name=hvamp_name,
+                ch=i,
+                channel=rtio_offset+i)
+        return 8
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
