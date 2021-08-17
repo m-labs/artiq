@@ -128,7 +128,6 @@ _abs_start:
     Saves caller saved registers ra, t0..6, a0..7, calls exception,
     restores caller saved registers and then returns.
 */
-.section .trap, "ax"
 .global _start_trap
 /* Make it .weak so PAC/HAL can provide their own if needed. */
 .weak _start_trap

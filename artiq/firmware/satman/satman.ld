@@ -14,6 +14,13 @@ SECTIONS
         *(.text .text.*)
     } > main_ram
 
+    .eh_frame :
+    {
+        __eh_frame_start = .;
+        KEEP(*(.eh_frame))
+        __eh_frame_end = .;
+    } > main_ram
+
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
@@ -38,7 +45,12 @@ SECTIONS
         *(.data .data.*)
     } > main_ram
 
-    .bss ALIGN(4) :
+    .sdata :
+    {
+        *(.sdata .sdata.*)
+    } > main_ram
+
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
         *(.sbss .sbss.* .bss .bss.*);
@@ -46,10 +58,10 @@ SECTIONS
         _ebss = .;
     } > main_ram
 
-    .stack :
+    .stack (NOLOAD) : ALIGN(16)
     {
         _estack = .;
         . += 0x10000;
-        _fstack = . - 4;
+        _fstack = . - 16;
     } > main_ram
 }

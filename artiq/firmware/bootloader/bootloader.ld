@@ -15,12 +15,10 @@ SECTIONS
     *(.text .text.*)
   } > rom
 
-  /*
-   * The compiler_builtins crate includes some GOTPC relocations, which require a GOT symbol,
-   * but don't actually need a GOT. This really ought to be fixed on rustc level, but I'm afraid
-   * it will add further complications to our build system that aren't pulling their weight.
-   */
-  _GLOBAL_OFFSET_TABLE_ = .;
+  .eh_frame :
+  {
+    *(.eh_frame.*)
+  } > rom
 
   .rodata :
   {
@@ -29,13 +27,13 @@ SECTIONS
     _end = .;
   } > rom
 
-  .crc ALIGN(4) :
+  .crc (NOLOAD) : ALIGN(4)
   {
     _crc = .;
     . += 4;
-  }
+  } > rom
 
-  .bss :
+  .bss (NOLOAD) :
   {
     _fbss = .;
     *(.sbss .sbss.* .bss .bss.*);
@@ -43,11 +41,11 @@ SECTIONS
     _ebss = .;
   } > sram
 
-  .stack :
+  .stack (NOLOAD) : ALIGN(16)
   {
     /* Ensure we have a certain amount of space available for stack. */
     /*. = ORIGIN(sram) + LENGTH(sram) - 0x1a00; */
-    . = ORIGIN(sram) + LENGTH(sram) - 4;
+    . = ORIGIN(sram) + LENGTH(sram) - 16;
     _fstack = .;
   } > sram
 }

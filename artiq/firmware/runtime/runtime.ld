@@ -36,10 +36,14 @@ SECTIONS
     __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
     __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
 
+    .gcc_except_table :
+    {
+        *(.gcc_except_table)
+    } > runtime
+
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
-        _GLOBAL_OFFSET_TABLE_ = .;
         *(.got)
     } > runtime
 
@@ -58,20 +62,20 @@ SECTIONS
         *(.data .data.*)
     } > runtime
 
-    .bss ALIGN(4) :
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
         *(.sbss .sbss.* .bss .bss.*);
         _ebss = .;
     } > runtime
 
-    .stack :
+    .stack (NOLOAD) : ALIGN(16)
     {
         . += 0x4000;
-        _fstack = . - 4;
+        _fstack = . - 16;
     } > runtime
 
-    .heap :
+    .heap (NOLOAD) :
     {
         _fheap = .;
         . = ORIGIN(runtime) + LENGTH(runtime);

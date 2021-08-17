@@ -18,10 +18,10 @@ $(RUSTOUT)/libruntime.a:
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(link) -T $(RUNTIME_DIRECTORY)/runtime.ld \
-		-lunwind-bare
+		-lunwind-bare -m elf32lriscv
 
 ksupport_data.o: ../ksupport/ksupport.elf
-	$(LD) -m elf32lriscv -b binary -o $@ $<
+	$(LD) -r -m elf32lriscv -b binary -o $@ $<
 
 %.bin: %.elf
 	$(objcopy) -O binary
