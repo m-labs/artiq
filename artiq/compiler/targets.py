@@ -182,6 +182,7 @@ class Target:
     def link(self, objects):
         """Link the relocatable objects into a shared library for this target."""
         with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
+                     ["-T" + os.path.join(os.path.dirname(__file__), "kernel.ld")] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-x"] +
                      ["-o", "{output}"],
@@ -258,9 +259,9 @@ class NativeTarget(Target):
 class RISCVTarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
-    features = []
+    features = ["m", "a"]
     print_function = "core_log"
-    little_endian = False
+    little_endian = True
     now_pinning = True
 
     tool_ld = "ld.lld"
