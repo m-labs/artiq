@@ -1,7 +1,7 @@
 from migen import *
 from misoc.interconnect.csr import *
 from misoc.interconnect import wishbone
-from misoc.cores import mor1kx
+from misoc.cores import vexriscv
 from misoc.integration.wb_slaves import WishboneSlaveManager
 
 
@@ -23,9 +23,9 @@ class KernelCPU(Module):
             self.cd_sys_kernel.rst.eq(self._reset.storage)
         ]
         self.submodules.cpu = ClockDomainsRenamer("sys_kernel")(
-            mor1kx.MOR1KX(
+            vexriscv.VexRiscv(
                 platform,
-                OPTION_RESET_PC=exec_address))
+                exec_address))
 
         # DRAM access
         self.wb_sdram = wishbone.Interface()
