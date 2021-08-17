@@ -15,8 +15,6 @@ extern crate io;
 extern crate board_misoc;
 extern crate proto_artiq;
 
-pub mod pcr;
-
 pub mod spi;
 
 #[cfg(has_kernel_cpu)]
