@@ -7,6 +7,7 @@ CFLAGS += \
 	-I$(MISOC_DIRECTORY)/software/include/dyld
 
 LDFLAGS += --eh-frame-hdr \
+	--nmagic \
 	-L../libm \
 	-L../libprintf \
 	-L../libunwind
