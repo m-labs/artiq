@@ -290,7 +290,6 @@ pub extern fn exception(regs: *const TrapFrame) {
                 info!("Called interrupt with {:?}", source);
             },
             mcause::Trap::Exception(e) => {
-                println!("Stack pointer: {:p}", regs);
                 println!("Trap frame: {:x?}", unsafe { *regs });
 
                 fn hexdump(addr: u32) {
