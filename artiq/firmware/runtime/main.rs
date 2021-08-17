@@ -30,7 +30,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, spiflash, config, net_settings};
+use board_misoc::{csr, ident, clock, spiflash, config, net_settings};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
