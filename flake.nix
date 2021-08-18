@@ -184,6 +184,10 @@
         ];
         TARGET_AR="llvm-ar";
       };
+
+      hydraJobs = {
+        artiq = packages.x86_64-linux.artiq;
+      };
     };
 
   nixConfig = {
