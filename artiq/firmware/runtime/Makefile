@@ -28,4 +28,3 @@ ksupport_data.o: ../ksupport/ksupport.elf
 
 %.fbi: %.bin
 	$(mscimg) -f --little
-	objcopy -I binary -O binary --reverse-bytes=4 $@
