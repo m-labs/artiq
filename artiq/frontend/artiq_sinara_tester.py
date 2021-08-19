@@ -96,7 +96,8 @@ class SinaraTester(EnvExperiment):
                     self.suschannels[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
-        # from TTL outs (tested separately) and remove SUServo Urukuls
+        # from TTL outs (tested separately) and remove Urukuls covered by
+        # SUServo
         ddb = self.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
@@ -116,7 +117,6 @@ class SinaraTester(EnvExperiment):
                     del self.urukul_cplds[desc["arguments"]["cpld0_device"]]
                     if "dds1_device" in desc["arguments"]:
                         del self.urukuls[desc["arguments"]["dds1_device"]]
-                    if "cpld1_device" in desc["arguments"]:
                         del self.urukul_cplds[desc["arguments"]["cpld1_device"]]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
@@ -600,20 +600,19 @@ class SinaraTester(EnvExperiment):
         channel.set_iir(
             profile=loop_nr,
             adc=loop_nr,  # take data from Sampler channel
-            kp=-.1,  # -0.1 P gain
-            ki=0./s,  # low integrator gain
-            g=0.,  # no integrator gain limit
-            delay=0.  # no IIR update delay after enabling
+            kp=-1.,       # -1 P gain
+            ki=0./s,      # no integrator gain
+            g=0.,         # no integrator gain limit
+            delay=0.      # no IIR update delay after enabling
         )
         # setpoint 0.5 (5 V with above PGIA gain setting)
-        # 0 phase
         delay(100*us)
         channel.set_dds(
             profile=loop_nr,
             offset=-.3,  # 3 V with above PGIA settings
             frequency=10*MHz,
             phase=0.)
-        # enable RF, IIR updates and profile 0
+        # enable RF, IIR updates and set profile
         delay(10*us)
         channel.set(en_out=1, en_iir=1, profile=loop_nr)
 
@@ -622,27 +621,33 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.set_config(enable=1)
         delay(10*us)
-
         # check servo enabled
         assert channel.get_status() & 0x01 == 1
         delay(10*us)
 
     def test_suservos(self):
         print("*** Testing SUServos.")
-        print("Initializing...")
-        for card_n, (card_name, card_dev) in enumerate(self.suservos):
-            print(card_name + "...")
+        print("Initializing modules...")
+        for card_name, card_dev in self.suservos:
+            print(card_name)
             self.setup_suservo(card_dev)
-        print("Setup SUServo loops.")
-        print("Urukul0 channels corresponds to Sampler channels 0-3 and Urukul1 channels correspont to Sampler channels 4-7.")
-        print("Only proportional gain and offset such that 1.5V on the input gives 6dB less output power than at 0V input. (open loop)")
-        print("Frequency: 10MHz. Output power at 0V input: ~-29dBm")
-        for card_n, channels in enumerate(chunker(self.suschannels, 8)):
-            for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                self.setup_suservo_loop(channel_dev, channel_n)
+        print("...done")
+        print("Setting up SUServo channels...")
+        for channels in chunker(self.suschannels, 8):
+            for i, (channel_name, channel_dev) in enumerate(channels):
+                print(channel_name)
+                self.setup_suservo_loop(channel_dev, i)
+        print("...done")
         print("Enabling...")
-        for card_n, (card_name, card_dev) in enumerate(self.suservos):
+        for card_name, card_dev in enumerate(self.suservos):
+            print(card_name)
             self.setup_start_suservo(card_dev)
+        print("...done")
+        print("Each Sampler channel applies proportional amplitude control")
+        print("on the respective Urukul0 (ADC 0-3) and Urukul1 (ADC 4-7, if")
+        print("present) channels.")
+        print("Frequency: 10 MHz, output power: about -9 dBm at 0 V and about -15 dBm at 1.5 V")
+        print("Verify frequency and power behavior.")
         print("Press ENTER when done.")
         input()
 
