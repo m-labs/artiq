@@ -639,7 +639,7 @@ class SinaraTester(EnvExperiment):
                 self.setup_suservo_loop(channel_dev, i)
         print("...done")
         print("Enabling...")
-        for card_name, card_dev in enumerate(self.suservos):
+        for card_name, card_dev in self.suservos:
             print(card_name)
             self.setup_start_suservo(card_dev)
         print("...done")
