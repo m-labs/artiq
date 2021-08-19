@@ -55,6 +55,8 @@ class SinaraTester(EnvExperiment):
         self.grabbers = dict()
         self.mirny_cplds = dict()
         self.mirnies = dict()
+        self.suservos = dict()
+        self.suschannels = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -88,9 +90,14 @@ class SinaraTester(EnvExperiment):
                     self.mirny_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.adf5356", "ADF5356"):
                     self.mirnies[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
+                    self.suservos[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
+                    self.suschannels[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
-        # from TTL outs (tested separately)
+        # from TTL outs (tested separately) and remove Urukuls covered by
+        # SUServo
         ddb = self.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
@@ -101,8 +108,16 @@ class SinaraTester(EnvExperiment):
                         sw_device = desc["arguments"]["sw_device"]
                         del self.ttl_outs[sw_device]
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
-                    io_update_device = desc["arguments"]["io_update_device"]
-                    del self.ttl_outs[io_update_device]
+                    if "io_update_device" in desc["arguments"]:
+                        io_update_device = desc["arguments"]["io_update_device"]
+                        del self.ttl_outs[io_update_device]
+                # check for suservos and delete respective urukuls
+                elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
+                    del self.urukuls[desc["arguments"]["dds0_device"]]
+                    del self.urukul_cplds[desc["arguments"]["cpld0_device"]]
+                    if "dds1_device" in desc["arguments"]:
+                        del self.urukuls[desc["arguments"]["dds1_device"]]
+                        del self.urukul_cplds[desc["arguments"]["cpld1_device"]]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -126,6 +141,8 @@ class SinaraTester(EnvExperiment):
         self.phasers = sorted(self.phasers.items(), key=lambda x: x[1].channel_base)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
         self.mirnies = sorted(self.mirnies.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].channel))
+        self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
+        self.suschannels = sorted(self.suschannels.items(), key=lambda x: x[1].channel)
 
     @kernel
     def test_led(self, led):
@@ -555,6 +572,85 @@ class SinaraTester(EnvExperiment):
             print(card_name)
             self.grabber_capture(card_dev, rois)
 
+    @kernel
+    def setup_suservo(self, channel):
+        self.core.break_realtime()
+        channel.init()
+        delay(1*us)
+        # ADC PGIA gain 0
+        for i in range(8):
+            channel.set_pgia_mu(i, 0)
+            delay(10*us)
+        # DDS attenuator 10dB
+        for i in range(4):
+            channel.cpld0.set_att(i, 10.)
+            channel.cpld1.set_att(i, 10.)
+        delay(1*us)
+        # Servo is done and disabled
+        assert channel.get_status() & 0xff == 2
+        delay(10*us)
+
+    @kernel
+    def setup_suservo_loop(self, channel, loop_nr):
+        self.core.break_realtime()
+        channel.set_y(
+            profile=loop_nr,
+            y=0.  # clear integrator
+        )
+        channel.set_iir(
+            profile=loop_nr,
+            adc=loop_nr,  # take data from Sampler channel
+            kp=-1.,       # -1 P gain
+            ki=0./s,      # no integrator gain
+            g=0.,         # no integrator gain limit
+            delay=0.      # no IIR update delay after enabling
+        )
+        # setpoint 0.5 (5 V with above PGIA gain setting)
+        delay(100*us)
+        channel.set_dds(
+            profile=loop_nr,
+            offset=-.3,  # 3 V with above PGIA settings
+            frequency=10*MHz,
+            phase=0.)
+        # enable RF, IIR updates and set profile
+        delay(10*us)
+        channel.set(en_out=1, en_iir=1, profile=loop_nr)
+
+    @kernel
+    def setup_start_suservo(self, channel):
+        self.core.break_realtime()
+        channel.set_config(enable=1)
+        delay(10*us)
+        # check servo enabled
+        assert channel.get_status() & 0x01 == 1
+        delay(10*us)
+
+    def test_suservos(self):
+        print("*** Testing SUServos.")
+        print("Initializing modules...")
+        for card_name, card_dev in self.suservos:
+            print(card_name)
+            self.setup_suservo(card_dev)
+        print("...done")
+        print("Setting up SUServo channels...")
+        for channels in chunker(self.suschannels, 8):
+            for i, (channel_name, channel_dev) in enumerate(channels):
+                print(channel_name)
+                self.setup_suservo_loop(channel_dev, i)
+        print("...done")
+        print("Enabling...")
+        for card_name, card_dev in self.suservos:
+            print(card_name)
+            self.setup_start_suservo(card_dev)
+        print("...done")
+        print("Each Sampler channel applies proportional amplitude control")
+        print("on the respective Urukul0 (ADC 0-3) and Urukul1 (ADC 4-7, if")
+        print("present) channels.")
+        print("Frequency: 10 MHz, output power: about -9 dBm at 0 V and about -15 dBm at 1.5 V")
+        print("Verify frequency and power behavior.")
+        print("Press ENTER when done.")
+        input()
+
     def run(self):
         print("****** Sinara system tester ******")
         print("")
@@ -579,6 +675,8 @@ class SinaraTester(EnvExperiment):
             self.test_phasers()
         if self.grabbers:
             self.test_grabbers()
+        if self.suservos:
+            self.test_suservos()
 
 
 def main():
