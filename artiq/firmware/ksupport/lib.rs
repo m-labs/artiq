@@ -1,4 +1,4 @@
-#![feature(lang_items, asm, panic_unwind, libc, unwind_attributes,
+#![feature(lang_items, llvm_asm, panic_unwind, libc, unwind_attributes,
            panic_handler, panic_info_message, nll)]
 #![no_std]
 
