@@ -65,10 +65,10 @@ SECTIONS
         *(.data .data.*)
     }
 
-    .bss (NOLOAD) :
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
         _ebss = .;
     }
