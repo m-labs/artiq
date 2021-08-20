@@ -89,8 +89,6 @@ fn setup_log_levels() {
 }
 
 fn startup() {
-    irq::set_mask(0);
-    irq::set_ie(true);
     clock::init();
     info!("ARTIQ runtime starting...");
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
