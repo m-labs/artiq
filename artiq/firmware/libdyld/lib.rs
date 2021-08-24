@@ -141,9 +141,6 @@ impl<'a> Library<'a> {
     pub unsafe fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
         for rela in self.pltrel.iter() {
             match (ELF32_R_TYPE(rela.r_info), self.arch) {
-                (R_OR1K_32, Arch::OpenRisc) |
-                (R_OR1K_GLOB_DAT, Arch::OpenRisc) |
-                (R_OR1K_JMP_SLOT, Arch::OpenRisc) |
                 (R_RISCV_32, Arch::RiscV) |
                 (R_RISCV_JUMP_SLOT, Arch::RiscV) => {
                     let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
@@ -174,15 +171,12 @@ impl<'a> Library<'a> {
 
         let value;
         match (ELF32_R_TYPE(rela.r_info), self.arch) {
-            (R_OR1K_NONE, Arch::OpenRisc) | (R_RISCV_NONE, Arch::RiscV) =>
+            (R_RISCV_NONE, Arch::RiscV) =>
                 return Ok(()),
 
-            (R_OR1K_RELATIVE, Arch::OpenRisc) | (R_RISCV_RELATIVE, Arch::RiscV) =>
+            (R_RISCV_RELATIVE, Arch::RiscV) =>
                 value = self.image_off + rela.r_addend as Elf32_Word,
 
-            (R_OR1K_32, Arch::OpenRisc) |
-            (R_OR1K_GLOB_DAT, Arch::OpenRisc) |
-            (R_OR1K_JMP_SLOT, Arch::OpenRisc) |
             (R_RISCV_32, Arch::RiscV) |
             (R_RISCV_JUMP_SLOT, Arch::RiscV) => {
                 let sym = sym.ok_or("relocation requires an associated symbol")?;
@@ -342,11 +336,6 @@ impl<'a> Library<'a> {
 }
 
 fn arch(ehdr: &Elf32_Ehdr) -> Option<Arch> {
-    const IDENT_OPENRISC: [u8; EI_NIDENT] = [
-        ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
-        ELFCLASS32, ELFDATA2MSB, EV_CURRENT, ELFOSABI_NONE,
-        /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
-    ];
     const IDENT_RISCV: [u8; EI_NIDENT] = [
         ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
         ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
@@ -355,9 +344,6 @@ fn arch(ehdr: &Elf32_Ehdr) -> Option<Arch> {
     match (ehdr.e_ident, ehdr.e_machine) {
         #[cfg(target_arch = "riscv32")]
         (IDENT_RISCV, EM_RISCV) => Some(Arch::RiscV),
-
-        #[cfg(target_arch = "or1k")]
-        (IDENT_OPENRISC, EM_OPENRISC) => Some(Arch::OpenRisc),
 
         _ => None,
     }
