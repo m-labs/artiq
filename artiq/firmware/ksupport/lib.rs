@@ -122,7 +122,7 @@ pub extern fn send_to_rtio_log(text: CSlice<u8>) {
 }
 
 #[unwind(aborts)]
-extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
@@ -133,7 +133,7 @@ extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
 }
 
 #[unwind(aborts)]
-extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
@@ -203,15 +203,20 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
 }
 
 #[unwind(aborts)]
-extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
-    send(&CacheGetRequest {
-        key:   str::from_utf8(key.as_ref()).unwrap()
-    });
-    recv!(&CacheGetReply { value } => value.as_c_slice())
+extern fn cache_get<'a>(ret: &'a mut CSlice<i32>, key: &CSlice<u8>) -> &'a CSlice<'a, i32> {
+    unsafe {
+        send(&CacheGetRequest {
+            key:   str::from_utf8(key.as_ref()).unwrap()
+        });
+        recv!(&CacheGetReply { value } => {
+            *ret = value.as_c_slice();
+            ret
+        })
+    }
 }
 
 #[unwind(allowed)]
-extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
+extern fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
     send(&CachePutRequest {
         key:   str::from_utf8(key.as_ref()).unwrap(),
         value: list.as_ref()
@@ -456,7 +461,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if (*attribute).tag.len() > 0 {
-                    rpc_send_async(0, (*attribute).tag, [
+                    rpc_send_async(0, &(*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),
                         (object as usize + (*attribute).offset) as *const ()
