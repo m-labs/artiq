@@ -42,6 +42,20 @@ assert layout_len(exception_layout) == message_len
 assert layout_len(stopped_layout) == message_len
 
 
+def convert_signal(signal):
+    assert len(signal) % 8 == 0
+    nbytes = len(signal)//8
+    assert nbytes % 4 == 0
+    nwords = nbytes//4
+    signal_words = []
+    for i in range(nwords):
+        signal_bytes = []
+        for j in range(4):
+            signal_bytes.append(signal[8*(j+i*4):8*((j+i*4)+1)])
+        signal_words.extend(reversed(signal_bytes))
+    return Cat(*signal_words)
+
+
 class MessageEncoder(Module, AutoCSR):
     def __init__(self, tsc, cri, enable):
         self.source = stream.Endpoint([("data", message_len)])
@@ -161,7 +175,7 @@ class DMAWriter(Module, AutoCSR):
             membus.stb.eq(self.sink.stb),
             self.sink.ack.eq(membus.ack),
             membus.we.eq(1),
-            membus.dat_w.eq(self.sink.data)
+            membus.dat_w.eq(convert_signal(self.sink.data))
         ]
         if messages_per_dw > 1:
             for i in range(dw//8):
