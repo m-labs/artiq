@@ -5,6 +5,18 @@ use byteorder::{NativeEndian, ByteOrder};
 use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
+unsafe fn align_ptr<T>(ptr: *const ()) -> *const T {
+    let alignment = core::mem::align_of::<T>() as isize;
+    let fix = (alignment - (ptr as isize) % alignment) % alignment;
+    ((ptr as isize) + fix) as *const T
+}
+
+unsafe fn align_ptr_mut<T>(ptr: *mut ()) -> *mut T {
+    let alignment = core::mem::align_of::<T>() as isize;
+    let fix = (alignment - (ptr as isize) % alignment) % alignment;
+    ((ptr as isize) + fix) as *mut T
+}
+
 unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                            alloc: &Fn(usize) -> Result<*mut (), E>)
                           -> Result<(), E>
@@ -13,7 +25,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
 {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let $ptr = (*data) as *mut $ty;
+            let $ptr = align_ptr_mut::<$ty>(*data) as *mut $ty;
             *data = $ptr.offset(1) as *mut ();
             $map
         })
@@ -161,7 +173,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
 {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let $ptr = (*data) as *const $ty;
+            let $ptr = align_ptr::<$ty>(*data);
             *data = $ptr.offset(1) as *const ();
             $map
         })
