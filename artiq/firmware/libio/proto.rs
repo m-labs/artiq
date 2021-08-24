@@ -1,6 +1,6 @@
 #[cfg(feature = "alloc")]
 use {core::str::Utf8Error, alloc::string::String};
-use byteorder::{ByteOrder, NetworkEndian};
+use byteorder::{ByteOrder, NativeEndian};
 
 use ::{Read, Write, Error as IoError};
 
@@ -29,21 +29,21 @@ pub trait ProtoRead {
     fn read_u16(&mut self) -> Result<u16, Self::ReadError> {
         let mut bytes = [0; 2];
         self.read_exact(&mut bytes)?;
-        Ok(NetworkEndian::read_u16(&bytes))
+        Ok(NativeEndian::read_u16(&bytes))
     }
 
     #[inline]
     fn read_u32(&mut self) -> Result<u32, Self::ReadError> {
         let mut bytes = [0; 4];
         self.read_exact(&mut bytes)?;
-        Ok(NetworkEndian::read_u32(&bytes))
+        Ok(NativeEndian::read_u32(&bytes))
     }
 
     #[inline]
     fn read_u64(&mut self) -> Result<u64, Self::ReadError> {
         let mut bytes = [0; 8];
         self.read_exact(&mut bytes)?;
-        Ok(NetworkEndian::read_u64(&bytes))
+        Ok(NativeEndian::read_u64(&bytes))
     }
 
     #[inline]
@@ -88,42 +88,42 @@ pub trait ProtoWrite {
     #[inline]
     fn write_u16(&mut self, value: u16) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 2];
-        NetworkEndian::write_u16(&mut bytes, value);
+        NativeEndian::write_u16(&mut bytes, value);
         self.write_all(&bytes)
     }
 
     #[inline]
     fn write_i16(&mut self, value: i16) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 2];
-        NetworkEndian::write_i16(&mut bytes, value);
+        NativeEndian::write_i16(&mut bytes, value);
         self.write_all(&bytes)
     }
 
     #[inline]
     fn write_u32(&mut self, value: u32) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 4];
-        NetworkEndian::write_u32(&mut bytes, value);
+        NativeEndian::write_u32(&mut bytes, value);
         self.write_all(&bytes)
     }
 
     #[inline]
     fn write_i32(&mut self, value: i32) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 4];
-        NetworkEndian::write_i32(&mut bytes, value);
+        NativeEndian::write_i32(&mut bytes, value);
         self.write_all(&bytes)
     }
 
     #[inline]
     fn write_u64(&mut self, value: u64) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 8];
-        NetworkEndian::write_u64(&mut bytes, value);
+        NativeEndian::write_u64(&mut bytes, value);
         self.write_all(&bytes)
     }
 
     #[inline]
     fn write_i64(&mut self, value: i64) -> Result<(), Self::WriteError> {
         let mut bytes = [0; 8];
-        NetworkEndian::write_i64(&mut bytes, value);
+        NativeEndian::write_i64(&mut bytes, value);
         self.write_all(&bytes)
     }
 

@@ -1,6 +1,6 @@
 use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
 use alloc::{vec::Vec, string::String};
-use byteorder::{ByteOrder, NetworkEndian};
+use byteorder::{ByteOrder, NativeEndian};
 
 use io::{Read, Write, Error as IoError};
 use board_misoc::{ident, cache, config};
@@ -473,7 +473,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
                            _session: &mut Session) -> Result<(), Error<SchedError>> {
     rpc_queue::dequeue(|slice| {
         debug!("comm<-kern (async RPC)");
-        let length = NetworkEndian::read_u32(slice) as usize;
+        let length = NativeEndian::read_u32(slice) as usize;
         host_write(stream, host::Reply::RpcRequest { async: true })?;
         debug!("{:?}", &slice[4..][..length]);
         stream.write_all(&slice[4..][..length])?;
@@ -615,7 +615,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     continue
                 }
             }
-            match stream.write_all("E".as_bytes()) {
+            match stream.write_all("e".as_bytes()) {
                 Ok(()) => (),
                 Err(_) => {
                     warn!("cannot send endian byte");

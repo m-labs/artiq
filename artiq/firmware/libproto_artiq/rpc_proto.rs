@@ -1,7 +1,7 @@
 use core::str;
 use core::slice;
 use cslice::{CSlice, CMutSlice};
-use byteorder::{NetworkEndian, ByteOrder};
+use byteorder::{NativeEndian, ByteOrder};
 use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
@@ -69,13 +69,13 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NetworkEndian::from_slice_i32(dest);
+                        NativeEndian::from_slice_i32(dest);
                     },
                     Tag::Int64 | Tag::Float64 => {
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NetworkEndian::from_slice_i64(dest);
+                        NativeEndian::from_slice_i64(dest);
                     },
                     _ => {
                         for _ in 0..length {
@@ -109,13 +109,13 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NetworkEndian::from_slice_i32(dest);
+                        NativeEndian::from_slice_i32(dest);
                     },
                     Tag::Int64 | Tag::Float64 => {
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NetworkEndian::from_slice_i64(dest);
+                        NativeEndian::from_slice_i64(dest);
                     },
                     _ => {
                         for _ in 0..length {
@@ -204,8 +204,8 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = (*ptr).elements;
                 writer.write_u8(tag.as_u8())?;
                 match tag {
-                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in network endian
+                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in native endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
@@ -243,8 +243,8 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = *buffer;
                 writer.write_u8(elt_tag.as_u8())?;
                 match elt_tag {
-                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in network endian
+                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in native endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
