@@ -31,7 +31,7 @@ smoltcp = { version = "0.6.0", default-features = false, features = ["alloc", "e
 riscv = { version = "0.6.0", features = ["inline-asm"] }
 
 [dependencies.fringe]
-git = "https://github.com/m-labs/libfringe"
-rev = "b8a6d8f"
+git = "https://git.m-labs.hk/M-Labs/libfringe.git"
+rev = "9748bb"
 default-features = false
 features = ["alloc"]

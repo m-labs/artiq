@@ -50,7 +50,7 @@ enum WaitResult {
 
 #[derive(Debug)]
 struct Thread {
-    generator:   Generator<WaitResult, WaitRequest, OwnedStack>,
+    generator:   Generator<'static, WaitResult, WaitRequest, OwnedStack>,
     waiting_for: WaitRequest,
     interrupted: bool
 }
@@ -194,7 +194,7 @@ impl Scheduler {
 
 #[derive(Clone)]
 pub struct Io<'a> {
-    yielder: Option<&'a Yielder<WaitResult, WaitRequest, OwnedStack>>,
+    yielder: Option<&'a Yielder<WaitResult, WaitRequest>>,
     spawned: Urc<RefCell<Vec<ThreadHandle>>>,
     sockets: Urc<RefCell<SocketSet>>,
 }
@@ -207,7 +207,7 @@ impl<'a> Io<'a> {
         handle
     }
 
-    fn yielder(&self) -> &'a Yielder<WaitResult, WaitRequest, OwnedStack> {
+    fn yielder(&self) -> &'a Yielder<WaitResult, WaitRequest> {
         self.yielder.expect("cannot suspend the scheduler thread")
     }
 
