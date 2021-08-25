@@ -170,6 +170,26 @@
         };
       };
 
+      vivado = pkgs.buildFHSUserEnv {
+        name = "vivado";
+        targetPkgs = pkgs: (
+          with pkgs; [
+            ncurses5
+            zlib
+            libuuid
+            xorg.libSM
+            xorg.libICE
+            xorg.libXrender
+            xorg.libX11
+            xorg.libXext
+            xorg.libXtst
+            xorg.libXi
+          ]
+        );
+        profile = "source /opt/Xilinx/Vivado/2020.1/settings64.sh";
+        runScript = "vivado";
+      };
+
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
       devShell.x86_64-linux = pkgs.mkShell {
@@ -181,6 +201,7 @@
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
+          vivado
         ];
         TARGET_AR="llvm-ar";
       };
@@ -193,5 +214,6 @@
   nixConfig = {
     binaryCachePublicKeys = ["nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc="];
     binaryCaches = ["https://nixbld.m-labs.hk" "https://cache.nixos.org"];
+    sandboxPaths = ["/opt"];
   };
 }
