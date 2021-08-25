@@ -1111,7 +1111,7 @@ class LLVMIRGenerator:
                     llnow_hi = self.llbuilder.lshr(llnow_raw, ll.Constant(lli64, 32))
                     return self.llbuilder.or_(llnow_lo, llnow_hi)
                 else:
-                return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+                    return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
             else:
                 return self.llbuilder.call(self.llbuiltin("now_mu"), [])
         elif insn.op == "at_mu":
