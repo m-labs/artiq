@@ -121,8 +121,8 @@ fn load_slave_fpga() {
     const GATEWARE: *mut u8 = board_misoc::csr::CONFIG_SLAVE_FPGA_GATEWARE as *mut u8;
 
     let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
-    let magic = BigEndian::read_u32(&header[0..]);
-    let length = BigEndian::read_u32(&header[4..]) as usize;
+    let magic = LittleEndian::read_u32(&header[0..]);
+    let length = LittleEndian::read_u32(&header[4..]) as usize;
     println!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
     if magic != 0x5352544d {
         println!("  ...Error: bad magic");
