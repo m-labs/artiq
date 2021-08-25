@@ -29,6 +29,18 @@
         rustc = rust;
         cargo = rust;
       });
+      vivadoDeps = pkgs: with pkgs; [
+        ncurses5
+        zlib
+        libuuid
+        xorg.libSM
+        xorg.libICE
+        xorg.libXrender
+        xorg.libX11
+        xorg.libXext
+        xorg.libXtst
+        xorg.libXi
+      ];
     in rec {
       packages.x86_64-linux = rec {
         sipyco = pkgs.python3Packages.buildPythonPackage {
@@ -168,26 +180,18 @@
           doCheck = false;  # TODO: fix misoc bitrot and re-enable tests
           propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
         };
-      };
 
-      vivado = pkgs.buildFHSUserEnv {
-        name = "vivado";
-        targetPkgs = pkgs: (
-          with pkgs; [
-            ncurses5
-            zlib
-            libuuid
-            xorg.libSM
-            xorg.libICE
-            xorg.libXrender
-            xorg.libX11
-            xorg.libXext
-            xorg.libXtst
-            xorg.libXi
-          ]
-        );
-        profile = "source /opt/Xilinx/Vivado/2020.1/settings64.sh";
-        runScript = "vivado";
+        vivadoEnv = pkgs.buildFHSUserEnv {
+          name = "vivado-env";
+          targetPkgs = vivadoDeps;
+        };
+
+        vivado = pkgs.buildFHSUserEnv {
+          name = "vivado";
+          targetPkgs = vivadoDeps;
+          profile = "source /opt/Xilinx/Vivado/2020.1/settings64.sh";
+          runScript = "vivado";
+        };
       };
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
@@ -201,7 +205,9 @@
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
-          vivado
+          # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
+          packages.x86_64-linux.vivadoEnv
+          packages.x86_64-linux.vivado
         ];
         TARGET_AR="llvm-ar";
       };
