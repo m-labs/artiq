@@ -7,7 +7,7 @@
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
-  inputs.src-misoc = { url = github:m-labs/misoc; flake = false; };
+  inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
   outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser, src-migen, src-misoc }:
     let
