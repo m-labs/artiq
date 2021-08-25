@@ -14,11 +14,8 @@
 //
 // By design, this personality function is only ever called in the search phase, although
 // to keep things simple and close to upstream, it is not modified
-#![allow(private_no_mangle_fns)]
-
 use unwind as uw;
 use libc::{c_int, uintptr_t};
-use cslice::AsCSlice;
 
 use dwarf::{self, EHAction, EHContext};
 

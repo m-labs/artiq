@@ -47,7 +47,7 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
                 MEMORY[$index:expr] = $data:expr
             }
         ) => ({
-            $prepare;
+            $prepare
             for $i in $range {
                 unsafe { ptr::write_volatile(MEMORY.offset($index as isize), $data) };
                 *total += 1;
@@ -56,7 +56,7 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
             cache::flush_cpu_dcache();
             cache::flush_l2_cache();
 
-            $prepare;
+            $prepare
             for $i in $range {
                 if unsafe { ptr::read_volatile(MEMORY.offset($index as isize)) } != $data {
                     *wrong += 1;

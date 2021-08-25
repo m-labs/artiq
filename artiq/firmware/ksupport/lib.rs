@@ -1,5 +1,5 @@
 #![feature(lang_items, llvm_asm, panic_unwind, libc, unwind_attributes,
-           panic_handler, panic_info_message, nll)]
+           panic_info_message, nll)]
 #![no_std]
 
 extern crate libc;
@@ -204,15 +204,13 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
 
 #[unwind(aborts)]
 extern fn cache_get<'a>(ret: &'a mut CSlice<i32>, key: &CSlice<u8>) -> &'a CSlice<'a, i32> {
-    unsafe {
-        send(&CacheGetRequest {
-            key:   str::from_utf8(key.as_ref()).unwrap()
-        });
-        recv!(&CacheGetReply { value } => {
-            *ret = value.as_c_slice();
-            ret
-        })
-    }
+    send(&CacheGetRequest {
+        key:   str::from_utf8(key.as_ref()).unwrap()
+    });
+    recv!(&CacheGetReply { value } => {
+        *ret = value.as_c_slice();
+        ret
+    })
 }
 
 #[unwind(allowed)]

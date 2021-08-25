@@ -35,7 +35,7 @@ type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
 #[derive(Debug)]
 struct WaitRequest {
-    event:   Option<*mut FnMut() -> bool>,
+    event:   Option<*mut dyn FnMut() -> bool>,
     timeout: Option<u64>
 }
 
@@ -240,7 +240,7 @@ impl<'a> Io<'a> {
     }
 
     pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<(), Error> {
-        let f = unsafe { mem::transmute::<&mut FnMut() -> bool, *mut FnMut() -> bool>(&mut f) };
+        let f = unsafe { mem::transmute::<&mut dyn FnMut() -> bool, *mut dyn FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
             timeout: None,
             event:   Some(f)

@@ -1,5 +1,4 @@
-#![feature(lang_items, alloc, try_from, nonzero, asm,
-           panic_handler, panic_info_message)]
+#![feature(lang_items, panic_info_message)]
 #![no_std]
 
 extern crate eh;
@@ -280,32 +279,30 @@ pub struct TrapFrame {
 
 #[no_mangle]
 pub extern fn exception(regs: *const TrapFrame) {
-    unsafe {
-        let pc = mepc::read();
-        let cause = mcause::read().cause();
-        match cause {
-            mcause::Trap::Interrupt(source) => {
-                info!("Called interrupt with {:?}", source);
-            },
-            mcause::Trap::Exception(e) => {
-                println!("Trap frame: {:x?}", unsafe { *regs });
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    match cause {
+        mcause::Trap::Interrupt(source) => {
+            info!("Called interrupt with {:?}", source);
+        },
+        mcause::Trap::Exception(e) => {
+            println!("Trap frame: {:x?}", unsafe { *regs });
 
-                fn hexdump(addr: u32) {
-                    let addr = (addr - addr % 4) as *const u32;
-                    let mut ptr  = addr;
-                    println!("@ {:08p}", ptr);
-                    for _ in 0..4 {
-                        print!("+{:04x}: ", ptr as usize - addr as usize);
-                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                        print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                        print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
-                    }
+            fn hexdump(addr: u32) {
+                let addr = (addr - addr % 4) as *const u32;
+                let mut ptr  = addr;
+                println!("@ {:08p}", ptr);
+                for _ in 0..4 {
+                    print!("+{:04x}: ", ptr as usize - addr as usize);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x} ",   unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
+                    print!("{:08x}\n",  unsafe { *ptr }); ptr = ptr.wrapping_offset(1);
                 }
-
-                hexdump(u32::try_from(pc).unwrap());
-                panic!("exception {:?} at PC 0x{:x}", e, u32::try_from(pc).unwrap())
             }
+
+            hexdump(u32::try_from(pc).unwrap());
+            panic!("exception {:?} at PC 0x{:x}", e, u32::try_from(pc).unwrap())
         }
     }
 }

@@ -539,7 +539,7 @@ pub extern fn main() -> i32 {
         }
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            for mut rep in repeaters.iter_mut() {
+            for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
             #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
@@ -568,7 +568,7 @@ pub extern fn main() -> i32 {
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
-            for mut rep in repeaters.iter_mut() {
+            for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
             #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]

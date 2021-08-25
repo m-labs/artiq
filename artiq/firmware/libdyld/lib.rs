@@ -159,7 +159,7 @@ impl<'a> Library<'a> {
         Ok(())
     }
 
-    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
+    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<(), Error<'a>> {
         let sym;
         if ELF32_R_SYM(rela.r_info) == 0 {
@@ -204,7 +204,7 @@ impl<'a> Library<'a> {
         self.update_rela(rela, value)
     }
 
-    pub fn load(data: &[u8], image: &'a mut [u8], resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
+    pub fn load(data: &[u8], image: &'a mut [u8], resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<Library<'a>, Error<'a>> {
         #![allow(unused_assignments)]
 

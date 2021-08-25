@@ -18,7 +18,7 @@ unsafe fn align_ptr_mut<T>(ptr: *mut ()) -> *mut T {
 }
 
 unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
-                           alloc: &Fn(usize) -> Result<*mut (), E>)
+                           alloc: &dyn Fn(usize) -> Result<*mut (), E>)
                           -> Result<(), E>
     where R: Read + ?Sized,
           E: From<Error<R::ReadError>>
@@ -63,7 +63,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *mut (), length: u32 };
+            struct List { elements: *mut (), length: u32 }
             consume_value!(List, |ptr| {
                 (*ptr).length = reader.read_u32()?;
                 let length = (*ptr).length as usize;
@@ -151,7 +151,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
 }
 
 pub fn recv_return<R, E>(reader: &mut R, tag_bytes: &[u8], data: *mut (),
-                         alloc: &Fn(usize) -> Result<*mut (), E>)
+                         alloc: &dyn Fn(usize) -> Result<*mut (), E>)
                         -> Result<(), E>
     where R: Read + ?Sized,
           E: From<Error<R::ReadError>>
@@ -208,7 +208,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *const (), length: u32 };
+            struct List { elements: *const (), length: u32 }
             consume_value!(List, |ptr| {
                 let length = (*ptr).length as usize;
                 writer.write_u32((*ptr).length)?;
@@ -287,7 +287,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::Keyword(it) => {
             #[repr(C)]
-            struct Keyword<'a> { name: CSlice<'a, u8> };
+            struct Keyword<'a> { name: CSlice<'a, u8> }
             consume_value!(Keyword, |ptr| {
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
@@ -299,7 +299,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::Object => {
             #[repr(C)]
-            struct Object { id: u32 };
+            struct Object { id: u32 }
             consume_value!(*const Object, |ptr|
                 writer.write_u32((**ptr).id))
         }

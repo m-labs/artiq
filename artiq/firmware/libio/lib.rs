@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(never_type)]
-#![cfg_attr(feature = "alloc", feature(alloc))]
 
 extern crate failure;
 #[macro_use]

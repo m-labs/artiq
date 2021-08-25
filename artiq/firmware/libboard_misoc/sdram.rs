@@ -31,7 +31,7 @@ mod ddr {
     }
 
     #[cfg(ddrphy_wlevel)]
-    unsafe fn write_level_scan(logger: &mut Option<&mut fmt::Write>) {
+    unsafe fn write_level_scan(logger: &mut Option<&mut dyn fmt::Write>) {
         #[cfg(kusddrphy)]
         log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
         log!(logger, "Write leveling scan:\n");
@@ -82,7 +82,7 @@ mod ddr {
     }
 
     #[cfg(ddrphy_wlevel)]
-    unsafe fn write_level(logger: &mut Option<&mut fmt::Write>,
+    unsafe fn write_level(logger: &mut Option<&mut dyn fmt::Write>,
                           delay: &mut [u16; DQS_SIGNAL_COUNT],
                           high_skew: &mut [bool; DQS_SIGNAL_COUNT]) -> bool {
         #[cfg(kusddrphy)]
@@ -172,7 +172,7 @@ mod ddr {
     }
 
     #[cfg(ddrphy_wlevel)]
-    unsafe fn read_bitslip(logger: &mut Option<&mut fmt::Write>,
+    unsafe fn read_bitslip(logger: &mut Option<&mut dyn fmt::Write>,
                            delay: &[u16; DQS_SIGNAL_COUNT],
                            high_skew: &[bool; DQS_SIGNAL_COUNT]) {
         let threshold_opt = delay.iter().zip(high_skew.iter())
@@ -203,7 +203,7 @@ mod ddr {
         }
     }
 
-    unsafe fn read_level_scan(logger: &mut Option<&mut fmt::Write>) {
+    unsafe fn read_level_scan(logger: &mut Option<&mut dyn fmt::Write>) {
         log!(logger, "Read leveling scan:\n");
 
         // Generate pseudo-random sequence
@@ -286,7 +286,7 @@ mod ddr {
         spin_cycles(15);
     }
 
-    unsafe fn read_level(logger: &mut Option<&mut fmt::Write>) -> bool {
+    unsafe fn read_level(logger: &mut Option<&mut dyn fmt::Write>) -> bool {
         log!(logger, "Read leveling: ");
 
         // Generate pseudo-random sequence
@@ -417,7 +417,7 @@ mod ddr {
         true
     }
 
-    pub unsafe fn level(logger: &mut Option<&mut fmt::Write>) -> bool {
+    pub unsafe fn level(logger: &mut Option<&mut dyn fmt::Write>) -> bool {
         #[cfg(ddrphy_wlevel)]
         {
             let mut delay = [0; DQS_SIGNAL_COUNT];
@@ -442,7 +442,7 @@ use core::fmt;
 use csr;
 use sdram_phy;
 
-pub unsafe fn init(mut _logger: Option<&mut fmt::Write>) -> bool {
+pub unsafe fn init(mut _logger: Option<&mut dyn fmt::Write>) -> bool {
     sdram_phy::initialize();
 
     #[cfg(has_ddrphy)]
