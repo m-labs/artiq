@@ -84,7 +84,6 @@ pub enum Arch {
 pub struct Library<'a> {
     image_off:   Elf32_Addr,
     image_sz:    usize,
-    arch:        Arch,
     strtab:      &'a [u8],
     symtab:      &'a [Elf32_Sym],
     pltrel:      &'a [Elf32_Rela],
@@ -140,9 +139,8 @@ impl<'a> Library<'a> {
     // This is unsafe because it mutates global data (the PLT).
     pub unsafe fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
         for rela in self.pltrel.iter() {
-            match (ELF32_R_TYPE(rela.r_info), self.arch) {
-                (R_RISCV_32, Arch::RiscV) |
-                (R_RISCV_JUMP_SLOT, Arch::RiscV) => {
+            match ELF32_R_TYPE(rela.r_info) {
+                R_RISCV_32 | R_RISCV_JUMP_SLOT => {
                     let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
                                          .ok_or("symbol out of bounds of symbol table")?;
                     let sym_name = self.name_starting_at(sym.st_name as usize)?;
@@ -170,15 +168,14 @@ impl<'a> Library<'a> {
         }
 
         let value;
-        match (ELF32_R_TYPE(rela.r_info), self.arch) {
-            (R_RISCV_NONE, Arch::RiscV) =>
+        match ELF32_R_TYPE(rela.r_info) {
+            R_RISCV_NONE =>
                 return Ok(()),
 
-            (R_RISCV_RELATIVE, Arch::RiscV) =>
+            R_RISCV_RELATIVE =>
                 value = self.image_off + rela.r_addend as Elf32_Word,
 
-            (R_RISCV_32, Arch::RiscV) |
-            (R_RISCV_JUMP_SLOT, Arch::RiscV) => {
+            R_RISCV_32 | R_RISCV_JUMP_SLOT => {
                 let sym = sym.ok_or("relocation requires an associated symbol")?;
                 let sym_name = self.name_starting_at(sym.st_name as usize)?;
 
@@ -211,7 +208,20 @@ impl<'a> Library<'a> {
         let ehdr = read_unaligned::<Elf32_Ehdr>(data, 0)
                                   .map_err(|()| "cannot read ELF header")?;
 
-        let arch = arch(&ehdr).ok_or("not a shared library for current architecture")?;
+        const IDENT: [u8; EI_NIDENT] = [
+            ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
+            ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
+            /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
+        ];
+
+        #[cfg(target_arch = "riscv32")]
+        const ARCH: u16 = EM_RISCV;
+        #[cfg(not(target_arch = "riscv32"))]
+        const ARCH: u16 = EM_NONE;
+
+        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH {
+            return Err("not a shared library for current architecture")?
+        }
 
         let mut dyn_off = None;
         for i in 0..ehdr.e_phnum {
@@ -310,7 +320,6 @@ impl<'a> Library<'a> {
         let library = Library {
             image_off:   image.as_ptr() as Elf32_Word,
             image_sz:    image.len(),
-            arch:        arch,
             strtab:      strtab,
             symtab:      symtab,
             pltrel:      pltrel,
@@ -332,19 +341,5 @@ impl<'a> Library<'a> {
         for r in pltrel { library.resolve_rela(r, resolve)? }
 
         Ok(library)
-    }
-}
-
-fn arch(ehdr: &Elf32_Ehdr) -> Option<Arch> {
-    const IDENT_RISCV: [u8; EI_NIDENT] = [
-        ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
-        ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
-        /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
-    ];
-    match (ehdr.e_ident, ehdr.e_machine) {
-        #[cfg(target_arch = "riscv32")]
-        (IDENT_RISCV, EM_RISCV) => Some(Arch::RiscV),
-
-        _ => None,
     }
 }
