@@ -41,6 +41,43 @@
         xorg.libXtst
         xorg.libXi
       ];
+      # TODO: cargo-vendor-normalise
+      fetchcargo = { name, src, sha256 }:
+        pkgs.stdenv.mkDerivation {
+          name = "${name}-vendor";
+          strictDeps = true;
+          nativeBuildInputs = with pkgs; [ cacert git cargo ];
+          inherit src;
+
+          phases = "unpackPhase patchPhase installPhase";
+
+          installPhase = ''
+            if [[ ! -f Cargo.lock ]]; then
+                echo
+                echo "ERROR: The Cargo.lock file doesn't exist"
+                echo
+                echo "Cargo.lock is needed to make sure that cargoSha256 doesn't change"
+                echo "when the registry is updated."
+                echo
+
+                exit 1
+            fi
+
+            mkdir -p $out
+            export CARGO_HOME=$(mktemp -d cargo-home.XXX)
+
+            cargo vendor > $out/config
+
+            cp -ar vendor $out/vendor
+          '';
+
+          outputHashAlgo = "sha256";
+          outputHashMode = "recursive";
+          outputHash = sha256;
+
+          impureEnvVars = pkgs.lib.fetchers.proxyImpureEnvVars;
+          preferLocalBuild = true;
+        };
     in rec {
       packages.x86_64-linux = rec {
         sipyco = pkgs.python3Packages.buildPythonPackage {
@@ -191,6 +228,60 @@
           targetPkgs = vivadoDeps;
           profile = "source /opt/Xilinx/Vivado/2020.1/settings64.sh";
           runScript = "vivado";
+        };
+
+        artiq-board-kc705-nist-clock = let
+          cargoVendored = fetchcargo {
+            name = "artiq-firmware-cargo-deps";
+            src = "${self}/artiq/firmware";
+            sha256 = "0vbh18v72y2qirba8sfg08kzx0crykg28jyi65mjpqacavfz89d8";
+          };
+          makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
+            pkgs.stdenv.mkDerivation {
+              name = "artiq-board-${target}-${variant}";
+              phases = [ "buildPhase" "checkPhase" "installPhase" ];
+              nativeBuildInputs = [
+                (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
+                rustPlatform.rust.rustc
+                rustPlatform.rust.cargo
+                pkgs.llvmPackages_11.clang-unwrapped
+                pkgs.llvm_11
+                pkgs.lld_11
+                vivado
+              ];
+              buildPhase = 
+                ''
+                export CARGO_HOME=${cargoVendored}
+                export TARGET_AR=llvm-ar
+                ${buildCommand}
+                '';
+              checkPhase = ''
+                # Search for PCREs in the Vivado output to check for errors
+                check_log() {
+                  grep -Pe "$1" artiq_${target}/${variant}/gateware/vivado.log && exit 1 || true
+                }
+                check_log "\d+ constraint not met\."
+                check_log "Timing constraints are not met\."
+                '';
+              installPhase =
+                ''
+                TARGET_DIR=$out
+                mkdir -p $TARGET_DIR
+                cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
+                if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
+                then cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $TARGET_DIR
+                fi
+                if [ -e artiq_${target}/${variant}/software/runtime ]
+                then cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $TARGET_DIR
+                else cp artiq_${target}/${variant}/software/satman/satman.{elf,fbi} $TARGET_DIR
+                fi
+                '';
+              # don't mangle ELF files as they are not for NixOS
+              dontFixup = true;
+            };
+        in makeArtiqBoardPackage {
+          target = "kc705";
+          variant = "nist_clock";
         };
       };
 
