@@ -41,43 +41,6 @@
         xorg.libXtst
         xorg.libXi
       ];
-      # TODO: cargo-vendor-normalise
-      fetchcargo = { name, src, sha256 }:
-        pkgs.stdenv.mkDerivation {
-          name = "${name}-vendor";
-          strictDeps = true;
-          nativeBuildInputs = with pkgs; [ cacert git cargo ];
-          inherit src;
-
-          phases = "unpackPhase patchPhase installPhase";
-
-          installPhase = ''
-            if [[ ! -f Cargo.lock ]]; then
-                echo
-                echo "ERROR: The Cargo.lock file doesn't exist"
-                echo
-                echo "Cargo.lock is needed to make sure that cargoSha256 doesn't change"
-                echo "when the registry is updated."
-                echo
-
-                exit 1
-            fi
-
-            mkdir -p $out
-            export CARGO_HOME=$(mktemp -d cargo-home.XXX)
-
-            cargo vendor > $out/config
-
-            cp -ar vendor $out/vendor
-          '';
-
-          outputHashAlgo = "sha256";
-          outputHashMode = "recursive";
-          outputHash = sha256;
-
-          impureEnvVars = pkgs.lib.fetchers.proxyImpureEnvVars;
-          preferLocalBuild = true;
-        };
     in rec {
       packages.x86_64-linux = rec {
         sipyco = pkgs.python3Packages.buildPythonPackage {
@@ -230,15 +193,15 @@
         };
 
         artiq-board-kc705-nist-clock = let
-          cargoVendored = fetchcargo {
-            name = "artiq-firmware-cargo-deps";
-            src = "${self}/artiq/firmware";
-            sha256 = "0vbh18v72y2qirba8sfg08kzx0crykg28jyi65mjpqacavfz89d8";
-          };
           makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
             pkgs.stdenv.mkDerivation {
               name = "artiq-board-${target}-${variant}";
               phases = [ "buildPhase" "checkPhase" "installPhase" ];
+              cargoDeps = rustPlatform.fetchCargoTarball {
+                name = "artiq-firmware-cargo-deps";
+                src = "${self}/artiq/firmware";
+                sha256 = "sha256-ugTT1Vp/87rzAaZzFMMKadAM4UxBfXOwCEtrF6wU7Kc=";
+              };
               nativeBuildInputs = [
                 (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
                 rustPlatform.rust.rustc
@@ -247,10 +210,14 @@
                 pkgs.llvm_11
                 pkgs.lld_11
                 vivado
+                rustPlatform.cargoSetupHook
               ];
               buildPhase = 
                 ''
-                export CARGO_HOME=${cargoVendored}
+                ARTIQ_PATH=`python -c "import artiq; print(artiq.__path__[0])"`
+                ln -s $ARTIQ_PATH/firmware/Cargo.lock .
+                cargoSetupPostUnpackHook
+                cargoSetupPostPatchHook
                 export TARGET_AR=llvm-ar
                 ${buildCommand}
                 '';
