@@ -261,19 +261,7 @@ class _RPCCalls(EnvExperiment):
 
     @kernel
     def numpy_things(self):
-        return (numpy.int32(10), numpy.int64(20), numpy.array([42,]))
-
-    @kernel
-    def numpy_full(self):
-        return numpy.full(10, 20)
-
-    @kernel
-    def numpy_full_matrix(self):
-        return numpy.full((3, 2), 13)
-
-    @kernel
-    def numpy_nan(self):
-        return numpy.full(10, numpy.nan)
+        return (numpy.int32(10), numpy.int64(20))
 
     @kernel
     def builtin(self):
@@ -302,14 +290,11 @@ class RPCCallsTest(ExperimentCase):
         self.assertEqual(exp.kwargs2(), 2)
         self.assertEqual(exp.args1kwargs2(), 2)
         self.assertEqual(exp.numpy_things(),
-                         (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
+                         (numpy.int32(10), numpy.int64(20)))
         # Ensure lists of int64s don't decay to variable-length builtin integers.
         list_int64 = exp.list_int64()
         self.assertEqual(list_int64, [numpy.int64(1)])
         self.assertTrue(isinstance(list_int64[0], numpy.int64))
-        self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
-        self.assertTrue((exp.numpy_full_matrix() == numpy.full((3, 2), 13)).all())
-        self.assertTrue(numpy.isnan(exp.numpy_nan()).all())
         exp.builtin()
         exp.async_in_try()
 
