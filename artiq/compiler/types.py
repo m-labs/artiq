@@ -304,7 +304,7 @@ class TExternalFunction(TFunction):
         mangling rules).
     :ivar flags: (set of str) function flags.
         Flag ``nounwind`` means the function never raises an exception.
-        Flag ``nowrite`` means the function never writes any memory
+        Flag ``nowrite`` means the function never accesses any memory
         that the ARTIQ Python code can observe.
     :ivar broadcast_across_arrays: (bool)
         If True, the function is transparently applied element-wise when called

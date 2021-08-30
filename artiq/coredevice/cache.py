@@ -2,11 +2,11 @@ from artiq.language.core import *
 from artiq.language.types import *
 
 
-@syscall(flags={"nounwind", "nowrite"})
+@syscall(flags={"nounwind"})
 def cache_get(key: TStr) -> TList(TInt32):
     raise NotImplementedError("syscall not simulated")
 
-@syscall(flags={"nowrite"})
+@syscall
 def cache_put(key: TStr, value: TList(TInt32)) -> TNone:
     raise NotImplementedError("syscall not simulated")
 

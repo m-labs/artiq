@@ -84,14 +84,6 @@ class LLVMIRGenerator:
         self.llobject_map = {}
         self.phis = []
         self.empty_metadata = self.llmodule.add_metadata([])
-        self.tbaa_tree = self.llmodule.add_metadata([
-            ll.MetaDataString(self.llmodule, "ARTIQ TBAA")
-        ])
-        self.tbaa_nowrite_call = self.llmodule.add_metadata([
-            ll.MetaDataString(self.llmodule, "ref-only function call"),
-            self.tbaa_tree,
-            ll.Constant(lli64, 1)
-        ])
         self.quote_fail_msg = None
 
     def needs_sret(self, lltyp, may_be_large=True):
@@ -1207,6 +1199,8 @@ class LLVMIRGenerator:
                 llfun.args[i].add_attribute('byval')
             if 'nounwind' in insn.target_function().type.flags:
                 llfun.attributes.add('nounwind')
+            if 'nowrite' in insn.target_function().type.flags:
+                llfun.attributes.add('inaccessiblememonly')
 
         return llfun, list(llargs)
 
@@ -1363,11 +1357,6 @@ class LLVMIRGenerator:
                 # We have NoneType-returning functions return void, but None is
                 # {} elsewhere.
                 llresult = ll.Constant(llunit, [])
-
-            # Never add TBAA nowrite metadata to a functon with sret!
-            # This leads to miscompilations.
-            if types.is_external_function(functiontyp) and 'nowrite' in functiontyp.flags:
-                llcall.set_metadata('tbaa', self.tbaa_nowrite_call)
 
         return llresult
 
