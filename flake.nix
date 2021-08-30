@@ -189,7 +189,7 @@
             TESTDIR=`mktemp -d`
             cp --no-preserve=mode,ownership -R $src/artiq/test/lit $TESTDIR
             # FIXME: some tests fail
-            #LIBARTIQ_SUPPORT=${libartiq-support}/libartiq_support.so lit -v $TESTDIR/lit
+            LIBARTIQ_SUPPORT=${libartiq-support}/libartiq_support.so lit -v $TESTDIR/lit
             '';
         };
 
