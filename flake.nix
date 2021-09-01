@@ -285,7 +285,7 @@
       };
 
       hydraJobs = {
-        artiq = packages.x86_64-linux.artiq;
+        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist-clock;
       };
     };
 
