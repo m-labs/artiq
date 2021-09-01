@@ -208,7 +208,7 @@
 
         artiq-board-kc705-nist-clock = let
           makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
-            pkgs.stdenv.mkDerivation {
+            pkgs.python3Packages.toPythonModule (pkgs.stdenv.mkDerivation {
               name = "artiq-board-${target}-${variant}";
               phases = [ "buildPhase" "checkPhase" "installPhase" ];
               cargoDeps = rustPlatform.fetchCargoTarball {
@@ -246,7 +246,7 @@
                 '';
               installPhase =
                 ''
-                TARGET_DIR=$out
+                TARGET_DIR=$out/${pkgs.python3Packages.python.sitePackages}/artiq/board-support/${target}-${variant}
                 mkdir -p $TARGET_DIR
                 cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
                 if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
@@ -259,7 +259,7 @@
                 '';
               # don't mangle ELF files as they are not for NixOS
               dontFixup = true;
-            };
+            });
         in makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
