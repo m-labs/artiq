@@ -1,7 +1,8 @@
 from numpy import int32, int64
 
 from artiq.language.core import kernel, delay_mu, delay
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
+from artiq.coredevice.core import rtio_get_counter
 from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84 import DAC34H84
@@ -160,6 +161,7 @@ class Phaser:
         # self.core.seconds_to_mu(10*8*4*ns)  # unfortunately this returns 319
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
+        self.frame_tstamp = int64(0)
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
@@ -196,6 +198,9 @@ class Phaser:
         if self.get_crc_err() > 20:
             raise ValueError("large number of frame CRC errors")
         delay(.1*ms)  # slack
+
+        # determine the origin for frame-aligned timestamps
+        self.measure_frame_timestamp()
 
         # reset
         self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,
@@ -467,6 +472,32 @@ class Phaser:
             device. Overflows at 256.
         """
         return self.read8(PHASER_ADDR_CRC_ERR)
+
+    @kernel
+    def measure_frame_timestamp(self):
+        """Perform a register read and record the exact frame timing in `self.frame_tstamp`.
+
+        Deterministic timing requires updates to be schedule at multiples of `self.t_frame` later.
+        See `get_next_frame_timestamp()`.
+        """
+        rtio_output((self.channel_base << 8) | (PHASER_ADDR_BOARD_ID & 0x7f), 0)  # can read any register
+        delay_mu(int64(self.t_frame))
+        self.frame_tstamp = rtio_input_timestamp(rtio_get_counter() + 0xffffff, self.channel_base)
+        delay(10*ms)
+
+    @kernel
+    def get_next_frame_timestamp(self, after_timestamp_mu = int64(-1)):
+        """Return the RTIO timestamp of the next frame after `after_timestamp_mu`.
+
+        If `after_timestamp_mu < 0`, return the next frame after `now_mu()`.
+
+        Updates scheduled at this timestamp and multiples of `self.t_frame` later will
+        have deterministic latency with respect to the RTIO timeline.
+        """
+        if after_timestamp_mu < 0:
+            after_timestamp_mu = now_mu()
+        n = int64((after_timestamp_mu - self.frame_tstamp) / self.t_frame)
+        return self.frame_tstamp + (n + 1) * self.t_frame
 
     @kernel
     def set_sync_dly(self, dly):
