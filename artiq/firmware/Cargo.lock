@@ -92,9 +92,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cc"
-version = "1.0.69"
+version = "1.0.70"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e70cc2f62c6ce1868963827bd677764c62d07c3d9a3e1fb1177ee1a9ab199eb2"
+checksum = "d26a6ce4b6a484fa3edb70f7efa6fc430fd2b87285fe8b84304fd0936faa0dc0"
 
 [[package]]
 name = "cfg-if"
@@ -107,6 +107,12 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "compiler_builtins"
+version = "0.1.39"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3748f82c7d366a0b4950257d19db685d4958d2fa27c6d164a3f069fec42b748b"
 
 [[package]]
 name = "crc"
@@ -131,6 +137,7 @@ version = "0.0.0"
 name = "eh"
 version = "0.0.0"
 dependencies = [
+ "compiler_builtins",
  "cslice",
  "libc 0.1.0",
  "unwind",
@@ -158,7 +165,7 @@ name = "fringe"
 version = "1.2.1"
 source = "git+https://git.m-labs.hk/M-Labs/libfringe.git?rev=9748bb#9748bb8af86c131d45be1238ea4d5f965a974630"
 dependencies = [
- "libc 0.2.100",
+ "libc 0.2.101",
 ]
 
 [[package]]
@@ -199,9 +206,9 @@ version = "0.1.0"
 
 [[package]]
 name = "libc"
-version = "0.2.100"
+version = "0.2.101"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1fa8cddc8fbbee11227ef194b5317ed014b8acbf15139bd716a18ad3fe99ec5"
+checksum = "3cb00336871be5ed2c8ed44b60ae9959dc5b9f08539422ed43f09e34ecaeba21"
 
 [[package]]
 name = "log"
