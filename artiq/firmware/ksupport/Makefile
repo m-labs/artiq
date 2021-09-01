@@ -14,11 +14,15 @@ LDFLAGS += --eh-frame-hdr \
 
 RUSTFLAGS += -Cpanic=unwind
 
+export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
+
 all:: ksupport.elf
 
 .PHONY: $(RUSTOUT)/libksupport.a
 $(RUSTOUT)/libksupport.a:
-	$(cargo) --manifest-path $(KSUPPORT_DIRECTORY)/Cargo.toml
+	$(cargo) --target-dir ./cargo \
+	--manifest-path $(KSUPPORT_DIRECTORY)/Cargo.toml \
+	--target $(KSUPPORT_DIRECTORY)/../riscv32ima-unknown-none-elf.json
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(link) -T $(KSUPPORT_DIRECTORY)/ksupport.ld \

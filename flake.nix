@@ -180,6 +180,20 @@
           propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
         };
 
+        cargo-xbuild = rustPlatform.buildRustPackage rec {
+          pname = "cargo-xbuild";
+          version = "0.6.5";
+
+          src = pkgs.fetchFromGitHub {
+            owner = "rust-osdev";
+            repo = pname;
+            rev = "v${version}";
+            sha256 = "18djvygq9v8rmfchvi2hfj0i6fhn36m716vqndqnj56fiqviwxvf";
+          };
+
+          cargoSha256 = "13sj9j9kl6js75h9xq0yidxy63vixxm9q3f8jil6ymarml5wkhx8";
+        };
+
         vivadoEnv = pkgs.buildFHSUserEnv {
           name = "vivado-env";
           targetPkgs = vivadoDeps;
@@ -211,6 +225,7 @@
                 pkgs.lld_11
                 vivado
                 rustPlatform.cargoSetupHook
+                cargo-xbuild
               ];
               buildPhase = 
                 ''

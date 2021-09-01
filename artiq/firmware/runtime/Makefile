@@ -10,11 +10,15 @@ LDFLAGS += \
 
 RUSTFLAGS += -Cpanic=unwind
 
+export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
+
 all:: runtime.bin runtime.fbi
 
 .PHONY: $(RUSTOUT)/libruntime.a
 $(RUSTOUT)/libruntime.a:
-	$(cargo) --manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml
+	$(cargo) --target-dir ./cargo \
+	--manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml \
+	--target $(RUNTIME_DIRECTORY)/../riscv32ima-unknown-none-elf.json
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(link) -T $(RUNTIME_DIRECTORY)/runtime.ld \
