@@ -93,7 +93,8 @@ class Phaser:
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
     way to the DAC outputs is deterministic. This enables deterministic
-    absolute phase with respect to other RTIO input and output events.
+    absolute phase with respect to other RTIO input and output events
+    (see `get_next_frame_timestamp()`).
 
     The four analog DAC outputs are passed through anti-aliasing filters.
 
@@ -891,7 +892,7 @@ class PhaserChannel:
 
         By default, the new NCO phase applies on completion of the SPI
         transfer. This also causes a staged NCO frequency to be applied.
-        Different triggers for applying nco settings may be configured through
+        Different triggers for applying NCO settings may be configured through
         the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
         `__init__()`).
 
@@ -909,7 +910,7 @@ class PhaserChannel:
 
         By default, the new NCO phase applies on completion of the SPI
         transfer. This also causes a staged NCO frequency to be applied.
-        Different triggers for applying nco settings may be configured through
+        Different triggers for applying NCO settings may be configured through
         the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
         `__init__()`).
 
@@ -1046,7 +1047,7 @@ class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
 
     .. note:: Latencies between oscillators within a channel and between
-        oscillator paramters (amplitude and phase/frequency) are deterministic
+        oscillator parameters (amplitude and phase/frequency) are deterministic
         (with respect to the 25 MS/s sample clock) but not matched.
     """
     kernel_invariants = {"channel", "base_addr"}
