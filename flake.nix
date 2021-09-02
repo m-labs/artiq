@@ -206,7 +206,7 @@
           runScript = "vivado";
         };
 
-        artiq-board-kc705-nist-clock = let
+        artiq-board-kc705-nist_clock = let
           makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
             pkgs.python3Packages.toPythonModule (pkgs.stdenv.mkDerivation {
               name = "artiq-board-${target}-${variant}";
@@ -316,7 +316,56 @@
       };
 
       hydraJobs = {
-        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist-clock openocd-bscanspi;
+        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
+        kc705-hitl = pkgs.stdenv.mkDerivation {
+          name = "kc705-hitl";
+
+          # requires patched Nix
+          __networked = true;
+
+          buildInputs = [
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq artiq-board-kc705-nist_clock ps.paramiko ]))
+            pkgs.lld_11
+            pkgs.openssh
+          ];
+          phases = [ "buildPhase" ];
+          buildPhase =
+            ''
+            export HOME=`mktemp -d`
+            mkdir $HOME/.ssh
+            cp /opt/hydra_id_rsa $HOME/.ssh/id_rsa
+            cp /opt/hydra_id_rsa.pub $HOME/.ssh/id_rsa.pub
+            echo "rpi-1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPOBQVcsvk6WgRj18v4m0zkFeKrcN9gA+r6sxQxNwFpv" > $HOME/.ssh/known_hosts
+            chmod 600 $HOME/.ssh/id_rsa
+            LOCKCTL=$(mktemp -d)
+            mkfifo $LOCKCTL/lockctl
+
+            cat $LOCKCTL/lockctl | ${pkgs.openssh}/bin/ssh \
+              -i $HOME/.ssh/id_rsa \
+              -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
+              rpi-1 \
+              'mkdir -p /tmp/board_lock && flock /tmp/board_lock/kc705-1 -c "echo Ok; cat"' \
+            | (
+              # End remote flock via FIFO
+              atexit_unlock() {
+                echo > $LOCKCTL/lockctl
+              }
+              trap atexit_unlock EXIT
+
+              # Read "Ok" line when remote successfully locked
+              read LOCK_OK
+
+              artiq_flash -t kc705 -H rpi-1
+              sleep 15
+
+              export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
+              export ARTIQ_LOW_LATENCY=1
+              python -m unittest discover -v artiq.test.coredevice
+            )
+
+            touch $out
+            '';
+        };
       };
     };
 
