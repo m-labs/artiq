@@ -71,7 +71,7 @@ SECTIONS
 
     .stack (NOLOAD) : ALIGN(16)
     {
-        . += 0x4000;
+        . += 0x10000;
         _fstack = . - 16;
     } > runtime
 
