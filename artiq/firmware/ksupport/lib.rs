@@ -248,7 +248,7 @@ fn dma_record_flush() {
 }
 
 #[unwind(allowed)]
-extern fn dma_record_start(name: CSlice<u8>) {
+extern fn dma_record_start(name: &CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     unsafe {
@@ -360,7 +360,7 @@ extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
 }
 
 #[unwind(aborts)]
-extern fn dma_erase(name: CSlice<u8>) {
+extern fn dma_erase(name: &CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaEraseRequest { name: name });
@@ -373,7 +373,7 @@ struct DmaTrace {
 }
 
 #[unwind(allowed)]
-extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
+extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });
