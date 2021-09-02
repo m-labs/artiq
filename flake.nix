@@ -325,6 +325,7 @@
 
           buildInputs = [
             (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq artiq-board-kc705-nist_clock ps.paramiko ]))
+            pkgs.llvm_11
             pkgs.lld_11
             pkgs.openssh
             packages.x86_64-linux.openocd-bscanspi  # for the bscanspi bitstreams
