@@ -264,6 +264,36 @@
           target = "kc705";
           variant = "nist_clock";
         };
+
+        openocd-bscanspi = let
+          bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
+            name = "bscan_spi_bitstreams";
+            src = pkgs.fetchFromGitHub {
+              owner = "quartiq";
+              repo = "bscan_spi_bitstreams";
+              rev = "01d8f819f15baf9a8cc5d96945a51e4d267ff564";
+              sha256 = "1zqv47kzgvbn4c8cr019a6wcja7gn5h1z4kvw5bhpc72fyhagal9";
+            };
+            phases = ["installPhase"];
+            installPhase =
+            ''
+            mkdir -p $out/share/bscan-spi-bitstreams
+            cp $src/*.bit $out/share/bscan-spi-bitstreams
+            '';
+          };
+          # https://docs.lambdaconcept.com/screamer/troubleshooting.html#error-contents-differ
+          openocd-fixed = pkgs.openocd.overrideAttrs(oa: {
+            patches = oa.patches or [] ++ [
+              (pkgs.fetchurl {
+                url = "https://docs.lambdaconcept.com/screamer/_downloads/f0357c5f44c3c8c49f575cee5b6634a8/flashid.patch";
+                sha256 = "015h4fzdrpwy5ssqbpk826snnfkkqijkmjzr5ws0a2v0ci97jzm9";
+              })
+            ];
+          });
+        in pkgs.buildEnv {
+          name = "openocd-bscanspi";
+          paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
+        };
       };
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
@@ -271,7 +301,7 @@
       devShell.x86_64-linux = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           pkgs.llvmPackages_11.clang-unwrapped
@@ -280,12 +310,13 @@
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
+          packages.x86_64-linux.openocd-bscanspi
         ];
         TARGET_AR="llvm-ar";
       };
 
       hydraJobs = {
-        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist-clock;
+        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist-clock openocd-bscanspi;
       };
     };
 
