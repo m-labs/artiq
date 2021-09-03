@@ -329,7 +329,7 @@ unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
 #[unwind(aborts)]
 extern fn dma_record_output(target: i32, word: i32) {
     unsafe {
-        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
             (word >>  0) as u8,
@@ -345,7 +345,7 @@ extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
