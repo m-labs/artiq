@@ -94,7 +94,7 @@ class Phaser:
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
     way to the DAC outputs is deterministic. This enables deterministic
     absolute phase with respect to other RTIO input and output events
-    (see `get_next_frame_timestamp()`).
+    (see `get_next_frame_mu()`).
 
     The four analog DAC outputs are passed through anti-aliasing filters.
 
@@ -476,28 +476,23 @@ class Phaser:
 
     @kernel
     def measure_frame_timestamp(self):
-        """Perform a register read and record the exact frame timing in `self.frame_tstamp`.
+        """Measure the timestamp of an arbitrary frame and store it in `self.frame_tstamp`.
 
-        Deterministic timing requires updates to be schedule at multiples of `self.t_frame` later.
-        See `get_next_frame_timestamp()`.
+        To be used as reference for aligning updates to the FastLink frames.
+        See `get_next_frame_mu()`.
         """
-        rtio_output((self.channel_base << 8) | (PHASER_ADDR_BOARD_ID & 0x7f), 0)  # can read any register
-        delay_mu(int64(self.t_frame))
-        self.frame_tstamp = rtio_input_timestamp(rtio_get_counter() + 0xffffff, self.channel_base)
-        delay(10*ms)
+        rtio_output(self.channel_base << 8, 0)  # read any register
+        self.frame_tstamp = rtio_input_timestamp(rtio_get_counter() + 125_000, self.channel_base)
+        delay(100 * us)
 
     @kernel
-    def get_next_frame_timestamp(self, after_timestamp_mu = int64(-1)):
-        """Return the RTIO timestamp of the next frame after `after_timestamp_mu`.
+    def get_next_frame_mu(self):
+        """Return the timestamp of the frame strictly after `now_mu()`.
 
-        If `after_timestamp_mu < 0`, return the next frame after `now_mu()`.
-
-        Updates scheduled at this timestamp and multiples of `self.t_frame` later will
-        have deterministic latency with respect to the RTIO timeline.
+        Register updates (DUC, DAC, TRF, etc.) scheduled at this timestamp and multiples
+        of `self.t_frame` later will have deterministic latency to output.
         """
-        if after_timestamp_mu < 0:
-            after_timestamp_mu = now_mu()
-        n = int64((after_timestamp_mu - self.frame_tstamp) / self.t_frame)
+        n = int64((now_mu() - self.frame_tstamp) / self.t_frame)
         return self.frame_tstamp + (n + 1) * self.t_frame
 
     @kernel
