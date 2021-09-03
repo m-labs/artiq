@@ -18,7 +18,7 @@ Highlights:
    - Improved documentation
    - Expose the DAC coarse mixer and ``sif_sync``
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
-   - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_timestamp()``)
+   - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
 * New hardware support:
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino

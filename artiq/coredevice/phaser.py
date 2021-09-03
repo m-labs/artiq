@@ -2,7 +2,6 @@ from numpy import int32, int64
 
 from artiq.language.core import kernel, delay_mu, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
-from artiq.coredevice.core import rtio_get_counter
 from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84 import DAC34H84
@@ -202,6 +201,8 @@ class Phaser:
 
         # determine the origin for frame-aligned timestamps
         self.measure_frame_timestamp()
+        if self.frame_tstamp < 0:
+            raise ValueError("frame timestamp measurement timed out")
 
         # reset
         self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,
@@ -482,7 +483,7 @@ class Phaser:
         See `get_next_frame_mu()`.
         """
         rtio_output(self.channel_base << 8, 0)  # read any register
-        self.frame_tstamp = rtio_input_timestamp(rtio_get_counter() + 125_000, self.channel_base)
+        self.frame_tstamp = rtio_input_timestamp(now_mu() + 4 * self.t_frame, self.channel_base)
         delay(100 * us)
 
     @kernel
