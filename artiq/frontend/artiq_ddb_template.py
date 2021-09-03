@@ -82,7 +82,7 @@ class PeripheralManager:
     def gen(self, string, **kwargs):
         print(textwrap.dedent(string).format(**kwargs), file=self.output)
 
-    def process_dio(self, rtio_offset, peripheral):
+    def process_dio(self, rtio_offset, peripheral, num_channels=8):
         class_names = {
             "input": "TTLInOut",
             "output": "TTLOut"
@@ -92,7 +92,8 @@ class PeripheralManager:
             class_names[peripheral["bank_direction_high"]]
         ]
         channel = count(0)
-        for i in range(8):
+        name = [self.get_name("ttl") for _ in range(num_channels)]
+        for i in range(num_channels):
             self.gen("""
                 device_db["{name}"] = {{
                     "type": "local",
@@ -101,23 +102,23 @@ class PeripheralManager:
                     "arguments": {{"channel": 0x{channel:06x}}},
                 }}
                 """,
-                name=self.get_name("ttl"),
-                class_name=classes[i//4],
-                channel=rtio_offset+next(channel))
+                     name=name[i],
+                     class_name=classes[i // 4],
+                     channel=rtio_offset + next(channel))
         if peripheral.get("edge_counter", False):
-            for i in range(8):
-                class_name = classes[i//4]
+            for i in range(num_channels):
+                class_name = classes[i // 4]
                 if class_name == "TTLInOut":
                     self.gen("""
-                        device_db["{name}"] = {{
+                        device_db["{name}_counter"] = {{
                             "type": "local",
                             "module": "artiq.coredevice.edge_counter",
                             "class": "EdgeCounter",
                             "arguments": {{"channel": 0x{channel:06x}}},
                         }}
                         """,
-                        name=self.get_name("ttl_counter"),
-                        channel=rtio_offset+next(channel))
+                             name=name[i],
+                             channel=rtio_offset + next(channel))
         return next(channel)
 
     def process_urukul(self, rtio_offset, peripheral):
