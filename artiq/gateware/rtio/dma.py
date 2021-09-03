@@ -11,6 +11,26 @@ def _reverse_bytes(s, g):
     return Cat(reversed(list(s[i*g:(i+1)*g] for i in range(len(s)//g))))
 
 
+def reverse_bytes(s):
+    n = (len(s) + 7)//8
+    return Cat(*[s[i*8:min((i + 1)*8, len(s))]
+        for i in reversed(range(n))])
+
+
+def convert_signal(signal):
+    assert len(signal) % 8 == 0
+    nbytes = len(signal)//8
+    assert nbytes % 4 == 0
+    nwords = nbytes//4
+    signal_words = []
+    for i in range(nwords):
+        signal_bytes = []
+        for j in range(4):
+            signal_bytes.append(signal[8*(j+i*4):8*((j+i*4)+1)])
+        signal_words.extend(reversed(signal_bytes))
+    return Cat(*signal_words)
+
+
 class WishboneReader(Module):
     def __init__(self, bus):
         self.bus = bus
@@ -37,7 +57,7 @@ class WishboneReader(Module):
             If(self.source.ack, data_reg_loaded.eq(0)),
             If(bus.ack,
                 data_reg_loaded.eq(1),
-                self.source.data.eq(bus.dat_r),
+                self.source.data.eq(convert_signal(bus.dat_r)),
                 self.source.eop.eq(self.sink.eop)
             )
         ]
