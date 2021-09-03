@@ -22,6 +22,8 @@ Highlights:
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
 * New hardware support:
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
+* ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
+  TTL device (e.g. ``"ttl_0_counter"`` for the edge counter on TTL device``"ttl_0"``)
 
 Breaking changes:
 
