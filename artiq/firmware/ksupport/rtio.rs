@@ -59,7 +59,7 @@ mod imp {
 
     #[inline(never)]
     unsafe fn process_exceptional_status(channel: i32, status: u8) {
-        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         if status & RTIO_O_STATUS_WAIT != 0 {
             while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
         }
