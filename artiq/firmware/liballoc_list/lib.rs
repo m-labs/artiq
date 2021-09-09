@@ -13,6 +13,7 @@ const MAGIC_BUSY: usize = 0xFEEDFEED;
 struct Header {
     magic: usize,
     size:  usize,
+    _pad:  usize,
     next:  *mut Header
 }
 

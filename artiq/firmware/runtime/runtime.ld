@@ -75,7 +75,7 @@ SECTIONS
         _fstack = . - 16;
     } > runtime
 
-    .heap (NOLOAD) :
+    .heap (NOLOAD) : ALIGN(16)
     {
         _fheap = .;
         . = ORIGIN(runtime) + LENGTH(runtime);
