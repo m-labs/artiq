@@ -322,8 +322,6 @@ pub fn oom(layout: core::alloc::Layout) -> ! {
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
 #[panic_handler]
 pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
-    // irq::set_ie(false);
-
     #[cfg(has_error_led)]
     unsafe {
         csr::error_led::out_write(1);
