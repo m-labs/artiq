@@ -498,6 +498,9 @@ pub unsafe fn main() {
 
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
+    board_misoc::cache::flush_cpu_dcache();
+    board_misoc::cache::flush_cpu_icache();
+
     (mem::transmute::<u32, fn()>(__modinit__))();
 
     if let Some(typeinfo) = typeinfo {
