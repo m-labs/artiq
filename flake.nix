@@ -327,6 +327,7 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
+          cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
