@@ -58,9 +58,6 @@ struct ExceptionInfo {
 #[cfg(target_arch = "x86_64")]
 const UNWIND_DATA_REG: (i32, i32) = (0, 1); // RAX, RDX
 
-#[cfg(any(target_arch = "or1k"))]
-const UNWIND_DATA_REG: (i32, i32) = (3, 4); // R3, R4
-
 #[cfg(any(target_arch = "riscv32"))]
 const UNWIND_DATA_REG: (i32, i32) = (10, 11); // X10, X11
 
