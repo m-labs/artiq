@@ -324,7 +324,7 @@
       devShell.x86_64-linux = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ]))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           cargo-xbuild
