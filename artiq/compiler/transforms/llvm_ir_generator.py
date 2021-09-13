@@ -1095,15 +1095,12 @@ class LLVMIRGenerator:
             return self.map(insn.operands[0])
         elif insn.op == "now_mu":
             if self.target.now_pinning:
-                # Word swap now.old for little endian target
+                # Word swap now.old as CPU is little endian
                 # Most significant word is stored in lower address (see generated csr.rs)
-                if self.target.little_endian:
-                    llnow_raw = self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
-                    llnow_lo = self.llbuilder.shl(llnow_raw, ll.Constant(lli64, 32))
-                    llnow_hi = self.llbuilder.lshr(llnow_raw, ll.Constant(lli64, 32))
-                    return self.llbuilder.or_(llnow_lo, llnow_hi)
-                else:
-                    return self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+                llnow_raw = self.llbuilder.load(self.llbuiltin("now"), name=insn.name)
+                llnow_lo = self.llbuilder.shl(llnow_raw, ll.Constant(lli64, 32))
+                llnow_hi = self.llbuilder.lshr(llnow_raw, ll.Constant(lli64, 32))
+                return self.llbuilder.or_(llnow_lo, llnow_hi)
             else:
                 return self.llbuilder.call(self.llbuiltin("now_mu"), [])
         elif insn.op == "at_mu":
@@ -1125,12 +1122,13 @@ class LLVMIRGenerator:
             if self.target.now_pinning:
                 llnowptr = self.llbuiltin("now")
                 llnow = self.llbuilder.load(llnowptr, name="now.old")
-                # Word swap now.old for little endian target
+
+                # Word swap now.old as CPU is little endian
                 # Most significant word is stored in lower address (see generated csr.rs)
-                if self.target.little_endian:
-                    llnow_lo = self.llbuilder.shl(llnow, ll.Constant(lli64, 32))
-                    llnow_hi = self.llbuilder.lshr(llnow, ll.Constant(lli64, 32))
-                    llnow = self.llbuilder.or_(llnow_lo, llnow_hi)
+                llnow_lo = self.llbuilder.shl(llnow, ll.Constant(lli64, 32))
+                llnow_hi = self.llbuilder.lshr(llnow, ll.Constant(lli64, 32))
+                llnow = self.llbuilder.or_(llnow_lo, llnow_hi)
+
                 lladjusted = self.llbuilder.add(llnow, llinterval, name="now.new")
                 lladjusted_hi = self.llbuilder.trunc(self.llbuilder.lshr(lladjusted, ll.Constant(lli64, 32)), lli32)
                 lladjusted_lo = self.llbuilder.trunc(lladjusted, lli32)

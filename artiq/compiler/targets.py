@@ -77,9 +77,6 @@ class Target:
     :var print_function: (string)
         Name of a formatted print functions (with the signature of ``printf``)
         provided by the target, e.g. ``"printf"``.
-    :var little_endian: (boolean)
-        Whether the code will be executed on a little-endian machine. This cannot be always
-        determined from data_layout due to JIT.
     :var now_pinning: (boolean)
         Whether the target implements the now-pinning RTIO optimization.
     """
@@ -87,7 +84,6 @@ class Target:
     data_layout = ""
     features = []
     print_function = "printf"
-    little_endian = False
     now_pinning = True
 
     tool_ld = "ld.lld"
@@ -255,15 +251,12 @@ class NativeTarget(Target):
         super().__init__()
         self.triple = llvm.get_default_triple()
         host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
-        assert host_data_layout[0] in "eE"
-        self.little_endian = host_data_layout[0] == "e"
 
 class RISCVTarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a"]
     print_function = "core_log"
-    little_endian = True
     now_pinning = True
 
     tool_ld = "ld.lld"
@@ -276,7 +269,6 @@ class CortexA9Target(Target):
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
     print_function = "core_log"
-    little_endian = True
     now_pinning = False
 
     tool_ld = "ld.lld"
