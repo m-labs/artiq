@@ -152,6 +152,22 @@ class SatelliteBase(MiniSoC):
             self.crg.cd_sys.clk,
             gth.txoutclk, gth.rxoutclk)
 
+        # SSP1
+        # (Note: append() to csr_devices automatically adds "HAS_DEVICE_NAME_UPPERCASE"
+        #  to Rust cfg, by misoc.integration.cpu_interface.get_rust_cfg().)
+
+        # MMC SPI GPIO input submodule
+        class Mmcspi(Module, AutoCSR):
+            def __init__(self, ssp):
+                self.submodules.cs_n = gpio.GPIOIn(ssp.cs_n)
+                self.submodules.clk = gpio.GPIOIn(ssp.clk)
+                self.submodules.mosi = gpio.GPIOIn(ssp.mosi)
+
+        # SPI GPIO core for bitbanging
+        ssp1 = self.platform.request("ssp1")
+        self.submodules.mmcspi = Mmcspi(ssp1)
+        self.csr_devices.append("mmcspi")
+
     def add_rtio(self, rtio_channels):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
