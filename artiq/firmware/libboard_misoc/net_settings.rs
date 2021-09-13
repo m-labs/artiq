@@ -5,6 +5,8 @@ use smoltcp::wire::{EthernetAddress, IpAddress};
 use config;
 #[cfg(soc_platform = "kasli")]
 use i2c_eeprom;
+#[cfg(soc_platform = "sayma_amc")]
+use mmcspi;
 
 
 pub struct NetAddresses {
@@ -40,7 +42,12 @@ pub fn get_adresses() -> NetAddresses {
                     .unwrap_or_else(|_e| EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]));
             }
             #[cfg(soc_platform = "sayma_amc")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]); }
+            {
+                let mut eui48 = [0_u8; 6];
+                mmcspi::read_eui48(&mut eui48)
+                    .expect("Failed to detect EUI48 from MMC");
+                hardware_addr = EthernetAddress(eui48);
+            }
             #[cfg(soc_platform = "metlino")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]); }
             #[cfg(soc_platform = "kc705")]
