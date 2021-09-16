@@ -545,5 +545,10 @@ pub fn sync(dacno: u8) -> Result<bool, &'static str> {
         return Err("no sysref edge");
     }
     let realign_occured = sync_status & ad9154_reg::SYNC_ROTATE != 0;
+    let phase_error = sync_status & ad9154_reg::SYNC_WLIM != 0;
+    if !realign_occured && phase_error {
+        // see also: SYNC_ERRWINDOW
+        warn!("  phase error window exceeded but clock did not rotate");
+    }
     Ok(realign_occured)
 }
