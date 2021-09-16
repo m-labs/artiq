@@ -77,8 +77,6 @@ class GTHSingle(Module):
             p_ALIGN_PCOMMA_DET               ="FALSE",
             p_ALIGN_PCOMMA_VALUE             =0b0101111100,
             p_A_RXOSCALRESET                 =0b0,
-            p_A_RXPROGDIVRESET               =0b0,
-            p_A_TXPROGDIVRESET               =0b0,
             p_CBCC_DATA_SOURCE_SEL           ="ENCODED",
             p_CDR_SWAP_MODE_EN               =0b0,
             p_CHAN_BOND_KEEP_ALIGN           ="FALSE",
@@ -475,6 +473,7 @@ class GTHSingle(Module):
 
             # TX Startup/Reset
             i_GTTXRESET=tx_init.gtXxreset,
+            i_TXPROGDIVRESET=tx_init.gtXxprogdivreset,
             o_TXRESETDONE=tx_init.Xxresetdone,
             i_TXDLYSRESET=tx_init.Xxdlysreset if mode != "slave" else self.txdlysreset,
             o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
@@ -501,6 +500,7 @@ class GTHSingle(Module):
 
             # RX Startup/Reset
             i_GTRXRESET=rx_init.gtXxreset,
+            i_RXPROGDIVRESET=rx_init.gtXxprogdivreset,
             o_RXRESETDONE=rx_init.Xxresetdone,
             i_RXDLYSRESET=rx_init.Xxdlysreset,
             o_RXPHALIGNDONE=rxphaligndone,
