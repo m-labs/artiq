@@ -144,8 +144,6 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::DEVICE_CONFIG_REG_1, 0x01); // magic
     write(ad9154_reg::DEVICE_CONFIG_REG_2, 0x01); // magic
 
-    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
-
     write(ad9154_reg::INTERP_MODE, 0x03); // 4x
     write(ad9154_reg::MIX_MODE, 0);
     write(ad9154_reg::DATA_FORMAT, 0*ad9154_reg::BINARY_FORMAT); // s16
@@ -333,6 +331,7 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
     // datasheet seems to say ENABLE and ARM should be separate steps,
     // so enable now so it can be armed in sync().
+    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
     write(ad9154_reg::SYNC_CONTROL,
         0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
         0*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY);
@@ -529,6 +528,7 @@ pub fn stpl(dacno: u8, m: u8, s: u8) -> Result<(), &'static str> {
 pub fn sync(dacno: u8) -> Result<bool, &'static str> {
     spi_setup(dacno);
 
+    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
     write(ad9154_reg::SYNC_CONTROL,
         0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
         1*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY);
