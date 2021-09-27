@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
+import inspect
 import os
 import select
+import sys
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
@@ -651,40 +653,63 @@ class SinaraTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
-    def run(self):
+    def run(self, tests):
         print("****** Sinara system tester ******")
         print("")
         self.core.reset()
-        if self.leds:
-            self.test_leds()
-        if self.ttl_outs:
-            self.test_ttl_outs()
-        if self.ttl_ins:
-            self.test_ttl_ins()
-        if self.urukuls:
-            self.test_urukuls()
-        if self.mirnies:
-            self.test_mirnies()
-        if self.samplers:
-            self.test_samplers()
-        if self.zotinos:
-            self.test_zotinos()
-        if self.fastinos:
-            self.test_fastinos()
-        if self.phasers:
-            self.test_phasers()
-        if self.grabbers:
-            self.test_grabbers()
-        if self.suservos:
-            self.test_suservos()
+
+        for name in tests:
+            if getattr(self, name):
+                getattr(self, f"test_{name}")()
+
+    @classmethod
+    def available_tests(cls):
+        # listed in definition order
+        return [
+            name.split("_", maxsplit=1)[1]
+            for name, obj in vars(cls).items()
+            if is_hw_test(obj)
+        ]
+
+
+def is_hw_test(obj):
+    return (
+        inspect.isfunction(obj) and
+        obj.__name__.startswith("test_") and
+        len(inspect.signature(obj).parameters) == 1
+    )
+
+
+def get_argparser(available_tests):
+    parser = argparse.ArgumentParser(description="Sinara crate testing tool")
+
+    parser.add_argument("--device-db", default="device_db.py",
+                        help="device database file (default: '%(default)s')")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-x", "--exclude", nargs="*", choices=available_tests,
+                       help="do not run the listed tests")
+    group.add_argument("-o", "--only", nargs="*", choices=available_tests,
+                       help="run only the listed tests")
+    return parser
 
 
 def main():
-    device_mgr = DeviceManager(DeviceDB("device_db.py"))
+    available_tests = SinaraTester.available_tests()
+    args = get_argparser(available_tests).parse_args()
+
+    if args.exclude is not None:
+        # don't use set in order to keep the order
+        tests = [test for test in available_tests if test not in args.exclude]
+    elif args.only is not None:
+        tests = args.only
+    else:
+        tests = available_tests
+
+    device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         experiment = SinaraTester((device_mgr, None, None, None))
         experiment.prepare()
-        experiment.run()
+        experiment.run(tests)
         experiment.analyze()
     finally:
         device_mgr.close_devices()
