@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if sys.version_info[:3] < (3, 5, 3):
-    raise Exception("You need Python 3.5.3+")
+if sys.version_info[:2] < (3, 7):
+    raise Exception("You need Python 3.7+")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
@@ -58,7 +58,7 @@ Intended Audience :: Science/Research
 License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
 Operating System :: Microsoft :: Windows
 Operating System :: POSIX :: Linux
-Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.7
 Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
