@@ -279,12 +279,21 @@
         };
         # https://docs.lambdaconcept.com/screamer/troubleshooting.html#error-contents-differ
         openocd-fixed = pkgs.openocd.overrideAttrs(oa: {
+          version = "unstable-2021-09-15";
+          src = pkgs.fetchFromGitHub {
+            owner = "openocd-org";
+            repo = "openocd";
+            rev = "a0bd3c9924870c3b8f428648410181040dabc33c";
+            sha256 = "sha256-YgUsl4/FohfsOncM4uiz/3c6g2ZN4oZ0y5vV/2Skwqg=";
+            fetchSubmodules = true;
+          };
           patches = oa.patches or [] ++ [
             (pkgs.fetchurl {
-              url = "https://docs.lambdaconcept.com/screamer/_downloads/f0357c5f44c3c8c49f575cee5b6634a8/flashid.patch";
-              sha256 = "015h4fzdrpwy5ssqbpk826snnfkkqijkmjzr5ws0a2v0ci97jzm9";
+              url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/commit/575ef05cd554c239e4cc8cb97ae4611db458a80d/artiq-fast/pkgs/openocd-jtagspi.diff";
+              sha256 = "0g3crk8gby42gm661yxdcgapdi8sp050l5pb2d0yjfic7ns9cw81";
             })
           ];
+          nativeBuildInputs = oa.nativeBuildInputs or [] ++ [ pkgs.autoreconfHook269 ];
         });
       in pkgs.buildEnv {
         name = "openocd-bscanspi";
