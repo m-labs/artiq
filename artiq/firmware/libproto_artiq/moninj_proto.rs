@@ -34,14 +34,14 @@ pub fn read_magic<R>(reader: &mut R) -> Result<(), Error<R::ReadError>>
 pub enum HostMessage {
     MonitorProbe { enable: bool, channel: u32, probe: u8 },
     MonitorInjection { enable: bool, channel: u32, overrd: u8 },
-    Inject { channel: u32, overrd: u8, value: u8 },
+    Inject { channel: u32, overrd: u8, value: u32 },
     GetInjectionStatus { channel: u32, overrd: u8 }
 }
 
 #[derive(Debug)]
 pub enum DeviceMessage {
     MonitorStatus { channel: u32, probe: u8, value: u32 },
-    InjectionStatus { channel: u32, overrd: u8, value: u8 }
+    InjectionStatus { channel: u32, overrd: u8, value: u32 }
 }
 
 impl HostMessage {
@@ -57,7 +57,7 @@ impl HostMessage {
             1 => HostMessage::Inject {
                 channel: reader.read_u32()?,
                 overrd: reader.read_u8()?,
-                value: reader.read_u8()?
+                value: reader.read_u32()?
             },
             2 => HostMessage::GetInjectionStatus {
                 channel: reader.read_u32()?,
@@ -88,7 +88,7 @@ impl DeviceMessage {
                 writer.write_u8(1)?;
                 writer.write_u32(channel)?;
                 writer.write_u8(overrd)?;
-                writer.write_u8(value)?;
+                writer.write_u32(value)?;
             }
         }
         Ok(())

@@ -70,7 +70,7 @@ class CommMonInj:
         self._writer.write(packet)
 
     def inject(self, channel, override, value):
-        packet = struct.pack(self.endian + "blbb", 1, channel, override, value)
+        packet = struct.pack(self.endian + "blbl", 1, channel, override, value)
         self._writer.write(packet)
 
     def get_injection_status(self, channel, override):
@@ -85,13 +85,11 @@ class CommMonInj:
                     return
                 if ty == b"\x00":
                     payload = await self._reader.readexactly(9)
-                    channel, probe, value = struct.unpack(
-                        self.endian + "lbl", payload)
+                    channel, probe, value = struct.unpack(self.endian + "lbl", payload)
                     self.monitor_cb(channel, probe, value)
                 elif ty == b"\x01":
-                    payload = await self._reader.readexactly(6)
-                    channel, override, value = struct.unpack(
-                        self.endian + "lbb", payload)
+                    payload = await self._reader.readexactly(9)
+                    channel, override, value = struct.unpack(self.endian + "lbl", payload)
                     self.injection_status_cb(channel, override, value)
                 else:
                     raise ValueError("Unknown packet type", ty)

@@ -35,9 +35,9 @@ pub enum Packet {
 
     MonitorRequest { destination: u8, channel: u16, probe: u8 },
     MonitorReply { value: u32 },
-    InjectionRequest { destination: u8, channel: u16, overrd: u8, value: u8 },
+    InjectionRequest { destination: u8, channel: u16, overrd: u8, value: u32 },
     InjectionStatusRequest { destination: u8, channel: u16, overrd: u8 },
-    InjectionStatusReply { value: u8 },
+    InjectionStatusReply { value: u32 },
 
     I2cStartRequest { destination: u8, busno: u8 },
     I2cRestartRequest { destination: u8, busno: u8 },
@@ -110,7 +110,7 @@ impl Packet {
                 destination: reader.read_u8()?,
                 channel: reader.read_u16()?,
                 overrd: reader.read_u8()?,
-                value: reader.read_u8()?
+                value: reader.read_u32()?
             },
             0x51 => Packet::InjectionStatusRequest {
                 destination: reader.read_u8()?,
@@ -118,7 +118,7 @@ impl Packet {
                 overrd: reader.read_u8()?
             },
             0x52 => Packet::InjectionStatusReply {
-                value: reader.read_u8()?
+                value: reader.read_u32()?
             },
 
             0x80 => Packet::I2cStartRequest {
@@ -259,7 +259,7 @@ impl Packet {
                 writer.write_u8(destination)?;
                 writer.write_u16(channel)?;
                 writer.write_u8(overrd)?;
-                writer.write_u8(value)?;
+                writer.write_u32(value)?;
             },
             Packet::InjectionStatusRequest { destination, channel, overrd } => {
                 writer.write_u8(0x51)?;
@@ -269,7 +269,7 @@ impl Packet {
             },
             Packet::InjectionStatusReply { value } => {
                 writer.write_u8(0x52)?;
-                writer.write_u8(value)?;
+                writer.write_u32(value)?;
             },
 
             Packet::I2cStartRequest { destination, busno } => {

@@ -35,6 +35,7 @@ class SPIMaster(Module):
             f_clk/f_spi == div + 2
         8 cs: active high bit pattern of chip selects (reset=0)
     """
+
     def __init__(self, pads, pads_n=None):
         to_rio_phy = ClockDomainsRenamer("rio_phy")
         if pads_n is None:
@@ -46,9 +47,9 @@ class SPIMaster(Module):
         self.submodules += interface, spi
 
         self.rtlink = rtlink.Interface(
-                rtlink.OInterface(len(spi.reg.pdo), address_width=1,
-                    enable_replace=False),
-                rtlink.IInterface(len(spi.reg.pdi), timestamped=False)
+            rtlink.OInterface(len(spi.reg.pdo), address_width=1,
+                              enable_replace=False),
+            rtlink.IInterface(len(spi.reg.pdi), timestamped=False)
         )
 
         ###
@@ -73,44 +74,66 @@ class SPIMaster(Module):
         config.end.reset = 1
         read = Signal()
 
+        # [0] = chip select - CS_DDS_CH0 (i.e. which DDS channel 0-nchannels), [1:4] = override_en,
+        # [5:8] = address (spi data/config), [9:12] = data (only going to allow 32-bit override transfers)
+        # self.overrides = Array([Signal(32, reset=0xffff)])
+        # self.overrides += [Signal(32, reset_less=True) for i in range(2 * 4)]
+        # self.overrides += [Signal(32) for i in range(4)]
+        override_en = Signal(reset_less=True)
+        override_addr = Signal()
+        override_data = Signal(32)
+        self.overrides = [override_en, override_addr, override_data]
+
         self.sync.rio_phy += [
             If(self.rtlink.i.stb,
                 read.eq(0)
             ),
             If(self.rtlink.o.stb & spi.writable,
-                If(self.rtlink.o.address,
+               If(override_en,
+                    If(override_addr,
+                        config.raw_bits().eq(override_data)
+                    ).Else(
+                        read.eq(config.input)
+                    )
+                )
+                .Elif(self.rtlink.o.address,
                     config.raw_bits().eq(self.rtlink.o.data)
                 ).Else(
                     read.eq(config.input)
-                )
-            ),
+               )
+            )
         ]
 
         self.comb += [
-                spi.length.eq(config.length),
-                spi.end.eq(config.end),
-                spi.cg.div.eq(config.div),
-                spi.clk_phase.eq(config.clk_phase),
-                spi.reg.lsb_first.eq(config.lsb_first),
+            spi.length.eq(config.length),
+            spi.end.eq(config.end),
+            spi.cg.div.eq(config.div),
+            spi.clk_phase.eq(config.clk_phase),
+            spi.reg.lsb_first.eq(config.lsb_first),
 
-                interface.half_duplex.eq(config.half_duplex),
-                interface.cs.eq(config.cs),
-                interface.cs_polarity.eq(Replicate(
-                    config.cs_polarity, len(interface.cs_polarity))),
-                interface.clk_polarity.eq(config.clk_polarity),
-                interface.offline.eq(config.offline),
-                interface.cs_next.eq(spi.cs_next),
-                interface.clk_next.eq(spi.clk_next),
-                interface.ce.eq(spi.ce),
-                interface.sample.eq(spi.reg.sample),
-                spi.reg.sdi.eq(interface.sdi),
-                interface.sdo.eq(spi.reg.sdo),
-
+            interface.half_duplex.eq(config.half_duplex),
+            interface.cs.eq(config.cs),
+            interface.cs_polarity.eq(Replicate(
+                config.cs_polarity, len(interface.cs_polarity))),
+            interface.clk_polarity.eq(config.clk_polarity),
+            interface.offline.eq(config.offline),
+            interface.cs_next.eq(spi.cs_next),
+            interface.clk_next.eq(spi.clk_next),
+            interface.ce.eq(spi.ce),
+            interface.sample.eq(spi.reg.sample),
+            spi.reg.sdi.eq(interface.sdi),
+            interface.sdo.eq(spi.reg.sdo),
+            If(override_en,
+               spi.load.eq(self.rtlink.o.stb & spi.writable &
+                           ~override_addr),
+               spi.reg.pdo.eq(override_data)
+            ).Else(
                 spi.load.eq(self.rtlink.o.stb & spi.writable &
-                    ~self.rtlink.o.address),
+                            ~self.rtlink.o.address),
                 spi.reg.pdo.eq(self.rtlink.o.data),
-                self.rtlink.o.busy.eq(~spi.writable),
-                self.rtlink.i.stb.eq(spi.readable & read),
-                self.rtlink.i.data.eq(spi.reg.pdi)
+            ),
+            self.rtlink.o.busy.eq(~spi.writable),
+            self.rtlink.i.stb.eq(spi.readable & read),
+            self.rtlink.i.data.eq(spi.reg.pdi)
         ]
         self.probes = []

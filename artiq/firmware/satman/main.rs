@@ -213,7 +213,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             {
                 value = 0;
             }
-            let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
+            let reply = drtioaux::Packet::MonitorReply { value: value };
             drtioaux::send(0, &reply)
         },
         drtioaux::Packet::InjectionRequest { destination: _destination, channel, overrd, value } => {
