@@ -324,10 +324,13 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             1*ad9154_reg::EQ_POWER_MODE);
 
     write(ad9154_reg::GENERAL_JRX_CTRL_1, 1); // subclass 1
-    write(ad9154_reg::LMFC_DELAY_0, 0);
-    write(ad9154_reg::LMFC_DELAY_1, 0);
-    write(ad9154_reg::LMFC_VAR_0, 0x0a); // receive buffer delay
-    write(ad9154_reg::LMFC_VAR_1, 0x0a);
+    // LMFCDel & LMFCVar were deduced from values of DYN_LINK_LATENCY_0
+    // gathered from repeated power-cycles; see datasheet (Rev. C) p.44
+    // "Link Delay Setup Example, Without Known Delay"
+    write(ad9154_reg::LMFC_DELAY_0, 10);
+    write(ad9154_reg::LMFC_DELAY_1, 10);
+    write(ad9154_reg::LMFC_VAR_0, 4); // receive buffer delay
+    write(ad9154_reg::LMFC_VAR_1, 4);
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
     // datasheet seems to say ENABLE and ARM should be separate steps,
     // so enable now so it can be armed in sync().
