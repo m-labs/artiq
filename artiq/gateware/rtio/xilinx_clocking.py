@@ -2,6 +2,7 @@ from migen import *
 from migen.genlib.cdc import MultiReg
 from misoc.interconnect.csr import *
 
+
 class RTIOClockMultiplier(Module, AutoCSR):
     def __init__(self, rtio_clk_freq):
         self.pll_reset = CSRStorage(reset=1)
@@ -15,17 +16,17 @@ class RTIOClockMultiplier(Module, AutoCSR):
         pll_locked = Signal()
         self.specials += [
             Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                i_CLKIN1=ClockSignal("rtio"),
-                i_RST=self.pll_reset.storage,
-                o_LOCKED=pll_locked,
+                     p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
+                     i_CLKIN1=ClockSignal("rtio"),
+                     i_RST=self.pll_reset.storage,
+                     o_LOCKED=pll_locked,
 
-                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
+                     p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
 
-                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
+                     o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
 
-                p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
-            ),
+                     p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
+                     ),
             Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
 
