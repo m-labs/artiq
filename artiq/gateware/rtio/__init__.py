@@ -5,3 +5,4 @@ from artiq.gateware.rtio.core import Core
 from artiq.gateware.rtio.analyzer import Analyzer
 from artiq.gateware.rtio.moninj import MonInj
 from artiq.gateware.rtio.dma import DMA
+from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
