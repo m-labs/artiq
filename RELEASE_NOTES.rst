@@ -49,6 +49,12 @@ Breaking changes:
 * Phaser: fixed coarse mixer frequency configuration
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
+* Dashboard now uses a proxy reach core device MonInj indirectly, as opposed to directly connecting
+  to core device before:
+    - This means you need to regenerate your device database for master to publish the moninj proxy
+      connection information to the dashboard
+* Dashboard will retry when it disconnected with the master and core device, and will block the widgets
+  until connection is re-established. (you will need to close the dashboard and start again previously)
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
 * The internal dataset representation was changed to support tracking HDF5 options like e.g.
@@ -86,7 +92,7 @@ Highlights:
    - Improved performance for kernel RPC involving list and array.
 * Coredevice SI to mu conversions now always return valid codes, or raise a ``ValueError``.
 * Zotino now exposes  ``voltage_to_mu()``
-* ``ad9910``: 
+* ``ad9910``:
    - The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe`` before).
    - The default single-tone profile is now 7 (was 0).
    - Added option to ``set_mu()`` that affects the ASF, FTW and POW registers
