@@ -1,15 +1,15 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.05;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
-  inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
+  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; inputs.nixpkgs.follows = "nixpkgs"; };
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser, src-migen, src-misoc }:
+  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
       rustManifest = pkgs.fetchurl {
@@ -50,13 +50,6 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ pybase64 numpy ];
       };
 
-      pythonparser = pkgs.python3Packages.buildPythonPackage {
-        name = "pythonparser";
-        src = src-pythonparser;
-        doCheck = false;
-        propagatedBuildInputs = with pkgs.python3Packages; [ regex ];
-      };
-
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
         version = "0.10.0";
@@ -73,52 +66,6 @@
         '';
       };
 
-      outputcheck = pkgs.python3Packages.buildPythonApplication rec {
-        pname = "outputcheck";
-        version = "0.4.2";
-        src = pkgs.fetchFromGitHub {
-          owner = "stp";
-          repo = "OutputCheck";
-          rev = "e0f533d3c5af2949349856c711bf4bca50022b48";
-          sha256 = "1y27vz6jq6sywas07kz3v01sqjd0sga9yv9w2cksqac3v7wmf2a0";
-        };
-        prePatch = "echo ${version} > RELEASE-VERSION";
-      };
-
-      libartiq-support = pkgs.stdenv.mkDerivation {
-        name = "libartiq-support";
-        src = self;
-        buildInputs = [ rustPlatform.rust.rustc ];
-        buildPhase = ''
-          rustc $src/artiq/test/libartiq_support/lib.rs -Cpanic=unwind -g
-        '';
-        installPhase = ''
-          mkdir $out
-          cp libartiq_support.so $out
-        '';
-      };
-
-      llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
-        pname = "llvmlite";
-        version = "0.37.0rc2";
-        src = pkgs.python3Packages.fetchPypi {
-          inherit pname version;
-          sha256 = "sha256-F1quz+76JOt1jaQPVzdKe7RfN6gWG2lyE82qTvgyY/c=";
-        };
-        nativeBuildInputs = [ pkgs.llvm_11 ];
-        # Disable static linking
-        # https://github.com/numba/llvmlite/issues/93
-        postPatch = ''
-          substituteInPlace ffi/Makefile.linux --replace "-static-libstdc++" ""
-          substituteInPlace llvmlite/tests/test_binding.py --replace "test_linux" "nope"
-        '';
-        # Set directory containing llvm-config binary
-        preConfigure = ''
-          export LLVM_CONFIG=${pkgs.llvm_11.dev}/bin/llvm-config
-        '';
-        doCheck = false;  # FIXME
-      };
-
       artiq = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
         version = "7.0-dev";
@@ -127,9 +74,9 @@
         preBuild = "export VERSIONEER_OVERRIDE=${version}";
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
-        # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco pythonparser ]
-          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync ]);
+        # keep llvm_x and lld_x in sync with nac3
+        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 src-nac3.packages.x86_64-linux.nac3artiq sipyco ]
+          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
         postFixup = ''
@@ -146,14 +93,11 @@
         ];
 
         # FIXME: automatically propagate lld_11 llvm_11 dependencies
-        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 pkgs.lit outputcheck ];
+        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
-
-          TESTDIR=`mktemp -d`
-          cp --no-preserve=mode,ownership -R $src/artiq/test/lit $TESTDIR
-          LIBARTIQ_SUPPORT=${libartiq-support}/libartiq_support.so lit -v $TESTDIR/lit
           '';
+        doCheck = false;  # TODO
       };
 
       migen = pkgs.python3Packages.buildPythonPackage rec {
@@ -350,57 +294,6 @@
 
       hydraJobs = {
         inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
-        kc705-hitl = pkgs.stdenv.mkDerivation {
-          name = "kc705-hitl";
-
-          # requires patched Nix
-          __networked = true;
-
-          buildInputs = [
-            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq artiq-board-kc705-nist_clock ps.paramiko ]))
-            pkgs.llvm_11
-            pkgs.lld_11
-            pkgs.openssh
-            packages.x86_64-linux.openocd-bscanspi  # for the bscanspi bitstreams
-          ];
-          phases = [ "buildPhase" ];
-          buildPhase =
-            ''
-            export HOME=`mktemp -d`
-            mkdir $HOME/.ssh
-            cp /opt/hydra_id_rsa $HOME/.ssh/id_rsa
-            cp /opt/hydra_id_rsa.pub $HOME/.ssh/id_rsa.pub
-            echo "rpi-1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPOBQVcsvk6WgRj18v4m0zkFeKrcN9gA+r6sxQxNwFpv" > $HOME/.ssh/known_hosts
-            chmod 600 $HOME/.ssh/id_rsa
-            LOCKCTL=$(mktemp -d)
-            mkfifo $LOCKCTL/lockctl
-
-            cat $LOCKCTL/lockctl | ${pkgs.openssh}/bin/ssh \
-              -i $HOME/.ssh/id_rsa \
-              -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
-              rpi-1 \
-              'mkdir -p /tmp/board_lock && flock /tmp/board_lock/kc705-1 -c "echo Ok; cat"' \
-            | (
-              # End remote flock via FIFO
-              atexit_unlock() {
-                echo > $LOCKCTL/lockctl
-              }
-              trap atexit_unlock EXIT
-
-              # Read "Ok" line when remote successfully locked
-              read LOCK_OK
-
-              artiq_flash -t kc705 -H rpi-1
-              sleep 15
-
-              export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
-              export ARTIQ_LOW_LATENCY=1
-              python -m unittest discover -v artiq.test.coredevice
-            )
-
-            touch $out
-            '';
-        };
       };
     };
 

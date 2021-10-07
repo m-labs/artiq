@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if sys.version_info[:2] < (3, 7):
-    raise Exception("You need Python 3.7+")
+if sys.version_info[:2] < (3, 9):
+    raise Exception("You need Python 3.9+")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
@@ -15,7 +15,9 @@ requirements = [
     "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
     "qasync", "pyqtgraph", "pygit2",
-    "llvmlite", "pythonparser", "python-Levenshtein",
+    # FIXME: figure out how to get the setuptools crap to find nac3artiq. Python imports it just fine.
+    # See: https://github.com/PyO3/setuptools-rust
+    # Alternatively, stop using setuptools, it sucks.
 ]
 
 console_scripts = [
@@ -58,7 +60,7 @@ Intended Audience :: Science/Research
 License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
 Operating System :: Microsoft :: Windows
 Operating System :: POSIX :: Linux
-Programming Language :: Python :: 3.7
+Programming Language :: Python :: 3.9
 Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),

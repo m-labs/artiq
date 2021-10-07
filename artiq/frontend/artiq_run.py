@@ -10,8 +10,6 @@ from collections import defaultdict
 
 import h5py
 
-from llvmlite import binding as llvm
-
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
@@ -68,22 +66,6 @@ class ELFRunner(FileRunner):
     def compile(self):
         with open(self.file, "rb") as f:
             return f.read()
-
-
-class LLVMIRRunner(FileRunner):
-    def compile(self):
-        with open(self.file, "r") as f:
-            llmodule = llvm.parse_assembly(f.read())
-        llmodule.verify()
-        return self.target.link([self.target.assemble(llmodule)])
-
-
-class LLVMBitcodeRunner(FileRunner):
-    def compile(self):
-        with open(self.file, "rb") as f:
-            llmodule = llvm.parse_bitcode(f.read())
-        llmodule.verify()
-        return self.target.link([self.target.assemble(llmodule)])
 
 
 class DummyScheduler:
@@ -157,9 +139,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
     managers = (device_mgr, dataset_mgr, argument_mgr, {})
     if hasattr(args, "file"):
         is_elf = args.file.endswith(".elf")
-        is_ll  = args.file.endswith(".ll")
-        is_bc  = args.file.endswith(".bc")
-        if is_elf or is_ll or is_bc:
+        if is_elf:
             if args.arguments:
                 raise ValueError("arguments not supported for precompiled kernels")
             if args.class_name:
@@ -167,10 +147,6 @@ def _build_experiment(device_mgr, dataset_mgr, args):
                                  "for precompiled kernels")
         if is_elf:
             return ELFRunner(managers, file=args.file)
-        elif is_ll:
-            return LLVMIRRunner(managers, file=args.file)
-        elif is_bc:
-            return LLVMBitcodeRunner(managers, file=args.file)
         else:
             import_cache.install_hook()
             module = file_import(args.file, prefix="artiq_run_")

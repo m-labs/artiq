@@ -37,7 +37,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "qasync", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite", "Levenshtein", "pythonparser",
+                "nac3artiq",
                 "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
                 "sipyco.asyncio_tools", "sipyco.logging_tools",
                 "sipyco.broadcast", "sipyco.packed_exceptions"]

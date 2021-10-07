@@ -1,8 +1,6 @@
 import os, sys
 import numpy
 
-from pythonparser import diagnostic
-
 from artiq import __artiq_dir__ as artiq_dir
 
 from artiq.language.core import *
