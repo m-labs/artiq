@@ -2,7 +2,7 @@
 streaming DAC.
 """
 
-from artiq.language.core import kernel, portable, delay
+from artiq.language.core import kernel, portable, delay, delay_mu
 from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
                                    rtio_input_data)
 from artiq.language.units import us
@@ -190,3 +190,68 @@ class Fastino:
             green LED.
         """
         self.write(0x23, leds)
+
+    @kernel
+    def set_continuous(self, channel_mask):
+        """Enable continuous DAC updates on channels regardless of new data
+        being submitted.
+        """
+        self.write(0x25, channel_mask)
+
+    @kernel
+    def stage_cic_mu(self, rate_mantissa, rate_exponent, gain_exponent):
+        """Stage machine unit interpolator configuration.
+        """
+        if rate_mantissa < 0 or rate_mantissa >= 1 << 6:
+            raise ValueError("rate_mantissa out of bounds")
+        if rate_exponent < 0 or rate_exponent >= 1 << 4:
+            raise ValueError("rate_exponent out of bounds")
+        if gain_exponent < 0 or gain_exponent >= 1 << 6:
+            raise ValueError("gain_exponent out of bounds")
+        config = rate_mantissa | (rate_exponent << 6) | (gain_exponent << 10)
+        self.write(0x26, config)
+
+    @kernel
+    def stage_cic(self, rate) -> TInt32:
+        """Compute and stage interpolator configuration.
+
+        Approximates rate using 6+4 bit floating point representation,
+        approximates optimal interpolation gain compensation exponent to avoid
+        clipping. Gains for rates that are powers of two are accurately
+        compensated. Other rates lead to overall less than unity gain.
+
+        Returns the actual interpolation rate.
+        The actual overall interpolation gain including gain compensation is
+        `actual_rate**order/2**ceil(log2(actual_rate**order))`
+        where `order = 3`.
+        """
+        if rate <= 0 or rate > 1 << 16:
+            raise ValueError("rate out of bounds")
+        rate_mantissa = rate
+        rate_exponent = 0
+        while rate_mantissa > 1 << 6:
+            rate_exponent += 1
+            rate_mantissa >>= 1
+        order = 3
+        gain = 1
+        for i in range(order):
+            gain *= rate_mantissa
+        gain_exponent = 0
+        while gain > 1 << gain_exponent:
+            gain_exponent += 1
+        gain_exponent += order*rate_exponent
+        assert gain_exponent <= order*16
+        self.stage_cic_mu(rate_mantissa - 1, rate_exponent, gain_exponent)
+        return rate_mantissa << rate_exponent
+
+    @kernel
+    def apply_cic(self, channel_mask):
+        """Apply the staged interpolator configuration on the specified channels.
+
+        Channels using non-unity interpolation rate and variable data should have
+        continous DAC updates enabled (see :meth:`set_continuous`).
+
+        This resets and settles the interpolators. There will be no output
+        updates for the next `order = 3` input samples.
+        """
+        self.write(0x27, channel_mask)
