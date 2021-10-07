@@ -3,9 +3,6 @@
 use core::{ptr, mem, fmt};
 use core::alloc::{GlobalAlloc, Layout};
 
-// The minimum alignment guaranteed by the architecture.
-const MIN_ALIGN: usize = 16;
-
 const MAGIC_FREE: usize = 0xDEADDEAD;
 const MAGIC_BUSY: usize = 0xFEEDFEED;
 
@@ -13,7 +10,6 @@ const MAGIC_BUSY: usize = 0xFEEDFEED;
 struct Header {
     magic: usize,
     size:  usize,
-    _pad:  usize,
     next:  *mut Header
 }
 
@@ -42,10 +38,6 @@ impl ListAlloc {
 
 unsafe impl GlobalAlloc for ListAlloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        if layout.align() > MIN_ALIGN {
-            panic!("cannot allocate with alignment {}", layout.align())
-        }
-
         let header_size = mem::size_of::<Header>();
         let size;
         if layout.size() % header_size != 0 {
@@ -53,6 +45,7 @@ unsafe impl GlobalAlloc for ListAlloc {
         } else {
             size = layout.size()
         }
+        let align = layout.align();
 
         let mut curr = self.root;
         while !curr.is_null() {
@@ -68,20 +61,48 @@ unsafe impl GlobalAlloc for ListAlloc {
                         next = (*curr).next;
                     }
 
-                    if (*curr).size > size + header_size * 2 {
-                        // Split
-                        let offset = header_size + size;
-                        let next = (curr as *mut u8).offset(offset as isize) as *mut Header;
+                    unsafe fn split(header: *mut Header, split_size: usize) {
+                        let offset = mem::size_of::<Header>() + split_size;
+                        let next = (header as *mut u8).offset(offset as isize) as *mut Header;
                         (*next).magic = MAGIC_FREE;
-                        (*next).size  = (*curr).size - offset;
-                        (*next).next  = (*curr).next;
-                        (*curr).next  = next;
-                        (*curr).size  = size;
+                        (*next).size  = (*header).size - offset;
+                        (*next).next  = (*header).next;
+                        (*header).next  = next;
+                        (*header).size  = split_size;
                     }
 
-                    if (*curr).size >= size {
-                        (*curr).magic = MAGIC_BUSY;
-                        return curr.offset(1) as *mut u8
+                    // Case 1: Memory can be allocated straight from the current chunk
+                    if (curr.offset(1) as usize) % align == 0 {
+                        // Check available space
+                        if (*curr).size > size + header_size * 2 {
+                            split(curr, size);
+                        }
+
+                        if (*curr).size >= size {
+                            (*curr).magic = MAGIC_BUSY;
+                            return curr.offset(1) as *mut u8
+                        }
+                    }
+
+                    // Case 2: Padding is needed to satisfy the alignment
+                    else {
+                        let alloc_addr = curr.offset(2) as usize;
+                        let padding_size = align - (alloc_addr % align);
+
+                        if (*curr).size >= size + padding_size + header_size {
+                            // Create a padding region
+                            split(curr, padding_size);
+
+                            curr = (*curr).next;
+
+                            // Check if a padding is needed at the rear
+                            if (*curr).size > size + header_size * 2 {
+                                split(curr, size);
+                            }
+
+                            (*curr).magic = MAGIC_BUSY;
+                            return curr.offset(1) as *mut u8
+                        }
                     }
                 },
                 _ => panic!("heap corruption detected at {:p}", curr)
