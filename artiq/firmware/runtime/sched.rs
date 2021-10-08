@@ -61,7 +61,8 @@ impl Thread {
         let spawned = io.spawned.clone();
         let sockets = io.sockets.clone();
 
-        let stack = OwnedStack::new(stack_size);
+        // Add a 4k stack guard to the stack of any new threads
+        let stack = OwnedStack::new(stack_size + 4096);
         ThreadHandle::new(Thread {
             generator: Generator::unsafe_new(stack, |yielder, _| {
                 f(Io {
