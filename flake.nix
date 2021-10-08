@@ -193,6 +193,18 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ migen misoc ];
       };
 
+      microscope = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "microscope";
+        version = "unstable-2020-12-28";
+        src = pkgs.fetchFromGitHub {
+          owner = "m-labs";
+          repo = "microscope";
+          rev = "c21afe7a53258f05bde57e5ebf2e2761f3d495e4";
+          sha256 = "sha256-jzyiLRuEf7p8LdhmZvOQj/dyQx8eUE8p6uRlwoiT8vg=";
+        };
+        propagatedBuildInputs = with pkgs.python3Packages; [ pyserial prettytable msgpack migen ];
+      };
+
       cargo-xbuild = rustPlatform.buildRustPackage rec {
         pname = "cargo-xbuild";
         version = "0.6.5";
@@ -345,7 +357,7 @@
       devShell.x86_64-linux = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc jesd204b artiq ps.paramiko ps.jsonschema ]))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc jesd204b artiq ps.paramiko ps.jsonschema microscope ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           cargo-xbuild
