@@ -9,7 +9,7 @@ extern crate board_artiq;
 extern crate riscv;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c};
+use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_wrpll)]
@@ -449,6 +449,14 @@ const SI5324_SETTINGS: si5324::FrequencySettings
 
 #[no_mangle]
 pub extern fn main() -> i32 {
+    extern {
+        static mut _sstack_guard: u8;
+    }
+
+    unsafe {
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+    }
+
     clock::init();
     uart_logger::ConsoleLogger::register();
 
