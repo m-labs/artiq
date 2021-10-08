@@ -18,7 +18,7 @@ use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 mod repeater;
 #[cfg(has_jdcg)]
@@ -670,7 +670,8 @@ pub extern fn exception(_regs: *const u32) {
     }
 
     hexdump(u32::try_from(pc).unwrap());
-    panic!("exception {:?} at PC 0x{:x}", cause, u32::try_from(pc).unwrap())
+    let mtval = mtval::read();
+    panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", cause, u32::try_from(pc).unwrap(), mtval)
 }
 
 #[no_mangle]
