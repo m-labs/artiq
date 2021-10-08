@@ -290,6 +290,18 @@ pub extern fn exception(regs: *const TrapFrame) {
         mcause::Trap::Interrupt(source) => {
             info!("Called interrupt with {:?}", source);
         },
+
+        mcause::Trap::Exception(mcause::Exception::UserEnvCall) => {
+            unsafe {
+                if (*regs).a7 == 0 {
+                    pmp::pop_pmp_region()
+                } else {
+                    pmp::push_pmp_region((*regs).a7)
+                }
+            }
+            mepc::write(pc + 4);
+        },
+
         mcause::Trap::Exception(e) => {
             println!("Trap frame: {:x?}", unsafe { *regs });
 
