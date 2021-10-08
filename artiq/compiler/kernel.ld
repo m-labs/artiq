@@ -50,4 +50,7 @@ SECTIONS
         . = ALIGN(4);
         _end = .;
     }
+
+    . = ALIGN(0x1000);
+    _sstack_guard = .;
 }
