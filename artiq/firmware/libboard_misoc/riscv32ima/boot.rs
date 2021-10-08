@@ -1,4 +1,5 @@
-use super::cache;
+use super::{cache, pmp};
+use riscv::register::*;
 
 pub unsafe fn reset() -> ! {
     llvm_asm!(r#"
@@ -15,4 +16,15 @@ pub unsafe fn jump(addr: usize) -> ! {
          nop
     "# : : "r"(addr) : : "volatile");
     loop {}
+}
+
+pub unsafe fn start_user(addr: usize) -> ! {
+    pmp::enable_user_memory();
+    mstatus::set_mpp(mstatus::MPP::User);
+    mepc::write(addr);
+    llvm_asm!(
+        "mret"
+        : : : : "volatile"
+    );
+    unreachable!()
 }
