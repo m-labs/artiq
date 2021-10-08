@@ -29,7 +29,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, ident, clock, spiflash, config, net_settings};
+use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -247,10 +247,15 @@ pub extern fn main() -> i32 {
         extern {
             static mut _fheap: u8;
             static mut _eheap: u8;
+            static mut _sstack_guard: u8;
         }
         ALLOC.add_range(&mut _fheap, &mut _eheap);
 
-        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
+            boot::start_user(startup as usize)
+        );
 
         0
     }
