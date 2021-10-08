@@ -40,7 +40,7 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 mod rtio_clocking;
 mod rtio_mgt;
@@ -319,7 +319,8 @@ pub extern fn exception(regs: *const TrapFrame) {
             }
 
             hexdump(u32::try_from(pc).unwrap());
-            panic!("exception {:?} at PC 0x{:x}", e, u32::try_from(pc).unwrap())
+            let mtval = mtval::read();
+            panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", e, u32::try_from(pc).unwrap(), mtval)
         }
     }
 }

@@ -17,7 +17,7 @@ use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 fn check_integrity() -> bool {
     extern {
@@ -522,7 +522,8 @@ pub extern fn main() -> i32 {
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
-    panic!("{:?} at PC {:#08x}", cause, u32::try_from(pc).unwrap())
+    let mtval = mtval::read();
+    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
 #[no_mangle]

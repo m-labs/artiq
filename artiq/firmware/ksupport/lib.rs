@@ -532,7 +532,8 @@ pub unsafe fn main() {
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
-    panic!("{:?} at PC {:#08x}", cause, u32::try_from(pc).unwrap())
+    let mtval = mtval::read();
+    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
 #[no_mangle]
