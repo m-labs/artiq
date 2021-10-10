@@ -101,6 +101,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(log10),
     api!(nextafter),
     api!(pow),
+    api!(rint),
     api!(round),
     api!(sin),
     api!(sinh),
