@@ -50,6 +50,10 @@ def get_argparser():
     group.add_argument(
         "-r", "--repository", default="repository",
         help="path to the repository (default: '%(default)s')")
+    group.add_argument(
+        "--experiment-subdir", default="",
+        help=("path to the experiment folder from the repository root "
+              "(default: '%(default)s')"))
 
     log_args(parser)
 
@@ -104,7 +108,8 @@ def main():
         repo_backend = GitBackend(args.repository)
     else:
         repo_backend = FilesystemBackend(args.repository)
-    experiment_db = ExperimentDB(repo_backend, worker_handlers)
+    experiment_db = ExperimentDB(
+        repo_backend, worker_handlers, args.experiment_subdir)
     atexit.register(experiment_db.close)
 
     scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db)
