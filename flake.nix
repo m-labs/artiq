@@ -238,7 +238,7 @@
           cargoDeps = rustPlatform.fetchCargoTarball {
             name = "artiq-firmware-cargo-deps";
             src = "${self}/artiq/firmware";
-            sha256 = "0hh9x34gs81a8g15abka6a0z1wlankra13rbap5j7ba2r8cz4962";
+            sha256 = "sha256-Lf6M4M/jdRiO5MsWSoqtOSNfRIhbze+qvg4kaiiBWW4=";
           };
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
