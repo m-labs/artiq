@@ -260,7 +260,9 @@
             export TARGET_AR=llvm-ar
             ${buildCommand}
             '';
-          checkPhase = ''
+          doCheck = true;
+          checkPhase =
+            ''
             # Search for PCREs in the Vivado output to check for errors
             check_log() {
               grep -Pe "$1" artiq_${target}/${variant}/gateware/vivado.log && exit 1 || true
