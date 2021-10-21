@@ -5,6 +5,7 @@ use board_artiq::si5324;
 use board_misoc::{csr, clock};
 
 #[derive(Debug, PartialEq)]
+#[allow(non_camel_case_types)]
 pub enum RtioClock {
     Int_125,
     Int_100,
