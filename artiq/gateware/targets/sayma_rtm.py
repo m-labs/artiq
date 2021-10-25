@@ -240,7 +240,7 @@ class SatmanSoCBuilder(Builder):
                               "satman.bin")
         with open(satman, "rb") as boot_file:
             boot_data = []
-            unpack_endian = ">I"
+            unpack_endian = "<I"
             while True:
                 w = boot_file.read(4)
                 if not w:
