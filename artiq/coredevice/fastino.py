@@ -39,13 +39,15 @@ class Fastino:
     :param core_device: Core device name (default: "core")
     :param log2_width: Width of DAC channel group (logarithm base 2).
         Value must match the corresponding value in the RTIO PHY (gateware).
+    :param order: CIC filter interpolation order.
     """
-    kernel_invariants = {"core", "channel", "width"}
+    kernel_invariants = {"core", "channel", "width", "order"}
 
-    def __init__(self, dmgr, channel, core_device="core", log2_width=0):
+    def __init__(self, dmgr, channel, core_device="core", log2_width=0, order=3):
         self.channel = channel << 8
         self.core = dmgr.get(core_device)
         self.width = 1 << log2_width
+        self.order = order
 
     @kernel
     def init(self):
@@ -222,8 +224,7 @@ class Fastino:
 
         Returns the actual interpolation rate.
         The actual overall interpolation gain including gain compensation is
-        `actual_rate**order/2**ceil(log2(actual_rate**order))`
-        where `order = 3`.
+        `actual_rate**order/2**ceil(log2(actual_rate**order))`.
         """
         if rate <= 0 or rate > 1 << 16:
             raise ValueError("rate out of bounds")
@@ -232,15 +233,14 @@ class Fastino:
         while rate_mantissa > 1 << 6:
             rate_exponent += 1
             rate_mantissa >>= 1
-        order = 3
         gain = 1
-        for i in range(order):
+        for i in range(self.order):
             gain *= rate_mantissa
         gain_exponent = 0
         while gain > 1 << gain_exponent:
             gain_exponent += 1
-        gain_exponent += order*rate_exponent
-        assert gain_exponent <= order*16
+        gain_exponent += self.order*rate_exponent
+        assert gain_exponent <= self.order*16
         self.stage_cic_mu(rate_mantissa - 1, rate_exponent, gain_exponent)
         return rate_mantissa << rate_exponent
 
@@ -252,6 +252,6 @@ class Fastino:
         continous DAC updates enabled (see :meth:`set_continuous`).
 
         This resets and settles the interpolators. There will be no output
-        updates for the next `order = 3` input samples.
+        updates for the next `order` input samples.
         """
         self.write(0x27, channel_mask)
