@@ -7,6 +7,7 @@ use board_misoc::{csr, clock};
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum RtioClock {
+    Default,
     Int_125,
     Int_100,
     Int_150,
@@ -18,7 +19,7 @@ pub enum RtioClock {
 
 fn get_rtio_clock_cfg() -> RtioClock {
     config::read_str("rtio_clock", |result| { 
-        match result {
+        let mut res = match result {
             Ok("int_125") => RtioClock::Int_125,
             Ok("int_100") => RtioClock::Int_100,
             Ok("int_150") => RtioClock::Int_150,
@@ -26,9 +27,39 @@ fn get_rtio_clock_cfg() -> RtioClock {
             Ok("ext0_synth0_10to125") => RtioClock::Ext0_Synth0_10to125,
             Ok("ext0_synth0_100to125") => RtioClock::Ext0_Synth0_100to125,
             Ok("ext0_synth0_125to125") => RtioClock::Ext0_Synth0_125to125,
-            _ => RtioClock::Int_125
+            Ok("i") => {
+                warn!("Using legacy rtio_clock setting ('i'). Falling back to default. This will be deprecated.");
+                RtioClock::Default
+            },
+            Ok("e") => {
+                warn!("Using legacy rtio_clock setting ('e'). This will be deprecated.");
+                RtioClock::Ext0_Bypass
+            },
+            _ => {
+                warn!("rtio_clock setting not recognised. Falling back to default.");
+                RtioClock::Default
+            }
+        };
+        if res == RtioClock::Default {
+            #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "10.0"))]
+            return RtioClock::Ext0_Synth0_10to125;
+            #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
+            return RtioClock::Ext0_Synth0_100to125;
+            #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "125.0"))]
+            return RtioClock::Ext0_Synth0_125to125;
+            #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
+            return RtioClock::Int_125;
+            #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
+            return RtioClock::Int_150;
+            #[cfg(all(rtio_frequency = "100.0", not(si5324_ext_ref)))]
+            return RtioClock::Int_100;
+            //in case nothing is set
+            #[allow(unreachable_code)]
+            return RtioClock::Int_125;
         }
-     }) 
+        res
+     })
+
 }
 
 #[cfg(has_rtio_crg)]
