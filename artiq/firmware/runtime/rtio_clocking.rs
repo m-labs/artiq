@@ -42,7 +42,7 @@ fn get_rtio_clock_cfg() -> RtioClock {
         };
         if res == RtioClock::Default {
             #[cfg(any(si5324_ext_ref, ext_ref_frequency))]
-            warn!("si5324_ext_ref and ext_ref_frequency options will be deprecated. Please use rtio_clock settings instead.");
+            warn!("si5324_ext_ref and ext_ref_frequency compile-time options are deprecated. Please use the rtio_clock coreconfig settings instead.");
             #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "10.0"))]
             return RtioClock::Ext0_Synth0_10to125;
             #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
