@@ -200,7 +200,7 @@ class Fastino:
 
     @kernel
     def stage_cic_mu(self, rate_mantissa, rate_exponent, gain_exponent):
-        """Stage machine unit interpolator configuration.
+        """Stage machine unit CIC interpolator configuration.
         """
         if rate_mantissa < 0 or rate_mantissa >= 1 << 6:
             raise ValueError("rate_mantissa out of bounds")
@@ -215,15 +215,18 @@ class Fastino:
     def stage_cic(self, rate) -> TInt32:
         """Compute and stage interpolator configuration.
 
-        Approximates rate using 6+4 bit floating point representation,
-        approximates optimal interpolation gain compensation exponent to avoid
-        clipping. Gains for rates that are powers of two are accurately
-        compensated. Other rates lead to overall less than unity gain.
+        This method approximates the desired interpolation rate using a 10 bit
+        floating point representation (6 bit mantissa, 4 bit exponent) and
+        then determines an optimal interpolation gain compensation exponent
+        to avoid clipping. Gains for rates that are powers of two are accurately
+        compensated. Other rates lead to overall less than unity gain (but more
+        than 0.5 gain).
 
-        Returns the actual interpolation rate.
-        The actual overall interpolation gain including gain compensation is
+        The overall gain including gain compensation is
         `actual_rate**order/2**ceil(log2(actual_rate**order))`
         where `order = 3`.
+
+        Returns the actual interpolation rate.
         """
         if rate <= 0 or rate > 1 << 16:
             raise ValueError("rate out of bounds")
@@ -248,10 +251,21 @@ class Fastino:
     def apply_cic(self, channel_mask):
         """Apply the staged interpolator configuration on the specified channels.
 
-        Channels using non-unity interpolation rate and variable data should have
-        continous DAC updates enabled (see :meth:`set_continuous`).
+        Each Fastino channel includes a fourth order (cubic) CIC interpolator with
+        variable rate change and variable output gain compensation (see
+        :meth:`stage_cic`).
 
-        This resets and settles the interpolators. There will be no output
-        updates for the next `order = 3` input samples.
+        Channels using non-unity interpolation rate should have
+        continous DAC updates enabled (see :meth:`set_continuous`) unless
+        their output is supposed to be constant.
+
+        This method resets and settles the affected interpolators. There will be
+        no output updates for the next `order = 3` input samples.
+        Affected channels will only accept one input sample per input sample
+        period. This method synchronizes the input sample period to the current
+        frame on the affected channels.
+
+        If application of new interpolator settings results in a change of the
+        overall gain, there will be a corresponding output step.
         """
         self.write(0x27, channel_mask)
