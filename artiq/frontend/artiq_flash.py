@@ -418,8 +418,8 @@ def main():
                 magic = 0x5352544d  # "SRTM", see sayma_rtm target
                 length = bin_file.tell() - 8
                 bin_file.seek(0)
-                bin_file.write(magic.to_bytes(4, byteorder="big"))
-                bin_file.write(length.to_bytes(4, byteorder="big"))
+                bin_file.write(magic.to_bytes(4, byteorder="little"))
+                bin_file.write(length.to_bytes(4, byteorder="little"))
         atexit.register(lambda: os.unlink(bin_filename))
         return bin_filename
 

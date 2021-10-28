@@ -42,6 +42,8 @@
         xorg.libXext
         xorg.libXtst
         xorg.libXi
+        freetype
+        fontconfig
       ];
 
       sipyco = pkgs.python3Packages.buildPythonPackage {
