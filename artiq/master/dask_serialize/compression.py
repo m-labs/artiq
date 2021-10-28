@@ -13,14 +13,7 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 
-try:
-    import blosc
-
-    n = blosc.set_nthreads(2)
-    if hasattr("blosc", "releasegil"):
-        blosc.set_releasegil(True)
-except ImportError:
-    blosc = False
+blosc = False
 
 
 def ensure_bytes(s):
@@ -87,90 +80,6 @@ with suppress(ImportError):
     import zlib
 
     compressions["zlib"] = {"compress": zlib.compress, "decompress": zlib.decompress}
-
-with suppress(ImportError):
-    import snappy
-
-    def _fixed_snappy_decompress(data):
-        # snappy.decompress() doesn't accept memoryviews
-        if isinstance(data, (memoryview, bytearray)):
-            data = bytes(data)
-        return snappy.decompress(data)
-
-    compressions["snappy"] = {
-        "compress": snappy.compress,
-        "decompress": _fixed_snappy_decompress,
-    }
-    default_compression = "snappy"
-
-with suppress(ImportError):
-    import lz4
-
-    try:
-        # try using the new lz4 API
-        import lz4.block
-
-        lz4_compress = lz4.block.compress
-        lz4_decompress = lz4.block.decompress
-    except ImportError:
-        # fall back to old one
-        lz4_compress = lz4.LZ4_compress
-        lz4_decompress = lz4.LZ4_uncompress
-
-    # helper to bypass missing memoryview support in current lz4
-    # (fixed in later versions)
-
-    def _fixed_lz4_compress(data):
-        try:
-            return lz4_compress(data)
-        except TypeError:
-            if isinstance(data, (memoryview, bytearray)):
-                return lz4_compress(bytes(data))
-            else:
-                raise
-
-    def _fixed_lz4_decompress(data):
-        try:
-            return lz4_decompress(data)
-        except (ValueError, TypeError):
-            if isinstance(data, (memoryview, bytearray)):
-                return lz4_decompress(bytes(data))
-            else:
-                raise
-
-    compressions["lz4"] = {
-        "compress": _fixed_lz4_compress,
-        "decompress": _fixed_lz4_decompress,
-    }
-    default_compression = "lz4"
-
-
-with suppress(ImportError):
-    import zstandard
-
-    zstd_compressor = zstandard.ZstdCompressor(
-        level=3,
-        threads=0,
-    )
-
-    zstd_decompressor = zstandard.ZstdDecompressor()
-
-    def zstd_compress(data):
-        return zstd_compressor.compress(data)
-
-    def zstd_decompress(data):
-        return zstd_decompressor.decompress(data)
-
-    compressions["zstd"] = {"compress": zstd_compress, "decompress": zstd_decompress}
-
-
-with suppress(ImportError):
-    import blosc
-
-    compressions["blosc"] = {
-        "compress": partial(blosc.compress, clevel=5, cname="lz4"),
-        "decompress": blosc.decompress,
-    }
 
 
 def get_default_compression():
