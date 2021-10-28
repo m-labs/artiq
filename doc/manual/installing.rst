@@ -294,7 +294,6 @@ The KC705 may use either an external clock signal, or its internal clock with ex
   $ artiq_coremgmt config write -s rtio_clock ext0_bypass  # external clock (bypass)
 
 Other options include:
-
   - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
   - ``ext0_synth0_100to125`` - exteral 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
   - ``ext0_synth0_125to125`` - exteral 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,

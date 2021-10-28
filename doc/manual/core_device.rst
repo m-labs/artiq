@@ -169,7 +169,6 @@ The KC705 in standalone variants supports an internal 125 MHz RTIO clock (based 
     * ``ext0_bypass`` - external clock.
 
 KC705 in DRTIO variants and Kasli generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. Valid values are:
-
     * ``int_125`` - internal crystal oscillator using PLL, 125 MHz output (default),
     * ``int_100`` - internal crystal oscillator using PLL, 100 MHz output,
     * ``int_150`` - internal crystal oscillator using PLL, 150 MHz output,
