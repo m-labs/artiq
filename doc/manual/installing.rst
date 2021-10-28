@@ -299,5 +299,6 @@ Other options include:
   - ``ext0_synth0_125to125`` - exteral 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
   - ``int_100`` - internal crystal reference is used by Si5324 to synthesize a 100MHz RTIO clock,
   - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
+  - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.

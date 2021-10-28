@@ -175,7 +175,7 @@ KC705 in DRTIO variants and Kasli generates the RTIO clock using a PLL locked ei
     * ``ext0_synth0_10to125`` - external 10 MHz reference using PLL, 125 MHz output,
     * ``ext0_synth0_100to125`` - external 100 MHz reference using PLL, 125 MHz output,
     * ``ext0_synth0_125to125`` - external 125 MHz reference using PLL, 125 MHz output,
-    * ``ext0_bypass`` - external clock.
+    * ``ext0_bypass``, ``ext0_bypass_125``, ``ext0_bypass_100`` - external clock - with explicit aliases available.
 
 The selected option can be observed in the core device boot logs.
 

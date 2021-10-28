@@ -25,6 +25,8 @@ fn get_rtio_clock_cfg() -> RtioClock {
             Ok("int_100") => RtioClock::Int_100,
             Ok("int_150") => RtioClock::Int_150,
             Ok("ext0_bypass") => RtioClock::Ext0_Bypass,
+            Ok("ext0_bypass_125") => RtioClock::Ext0_Bypass,
+            Ok("ext0_bypass_100") => RtioClock::Ext0_Bypass,
             Ok("ext0_synth0_10to125") => RtioClock::Ext0_Synth0_10to125,
             Ok("ext0_synth0_100to125") => RtioClock::Ext0_Synth0_100to125,
             Ok("ext0_synth0_125to125") => RtioClock::Ext0_Synth0_125to125,
