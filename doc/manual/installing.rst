@@ -288,7 +288,17 @@ If you are using DRTIO and the default routing table (for a star topology) is no
 
 * Select the RTIO clock source (KC705 and Kasli)
 
-The KC705 may use either an external clock signal or its internal clock. The clock is selected at power-up. For Kasli, setting the RTIO clock source to "external" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
+The KC705 may use either an external clock signal, or its internal clock with either external, or internal crystal reference. The clock is selected at power-up. For Kasli, setting the RTIO clock source to "ext0_bypass" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
 
-  $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
-  $ artiq_coremgmt config write -s rtio_clock e  # external clock
+  $ artiq_coremgmt config write -s rtio_clock int_125  # internal 125MHz clock (default)
+  $ artiq_coremgmt config write -s rtio_clock ext0_bypass  # external clock (bypass)
+
+Other options include: 
+
+  - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_100to125`` - exteral 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_125to125`` - exteral 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``int_100`` - internal crystal reference is used by Si5324 to synthesize a 100MHz RTIO clock,
+  - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
+
+Availability of these options depends on the board - specific configuration may or may not be supported.

@@ -26,6 +26,8 @@ Highlights:
   TTL device (e.g. ``"ttl_0_counter"`` for the edge counter on TTL device``"ttl_0"``)
 * ``artiq_master`` now has an ``--experiment-subdir`` option to scan only a subdirectory of the
   repository when building the list of experiments.
+* The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
+  of compile-time options.
 
 Breaking changes:
 
