@@ -25,7 +25,9 @@ import artiq
 from artiq import tools
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
 from artiq.language.environment import (
-    is_public_experiment, TraceArgumentManager, ProcessArgumentManager
+    is_public_experiment,
+    TraceArgumentManager,
+    ProcessArgumentManager,
 )
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.language.types import TBool
@@ -33,7 +35,7 @@ from artiq.compiler import import_cache
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
-from distributed.protocol import deserialize, serialize
+from .dask_serialize import deserialize, serialize
 import msgpack
 
 
@@ -42,9 +44,9 @@ ipc = None
 
 def get_object():
     line = ipc.readline()
-    
-    header_size, *data_sizes = (int(s) for s in line.decode().split(','))
-    
+
+    header_size, *data_sizes = (int(s) for s in line.decode().split(","))
+
     # Continue loads which stop halfway - this happens once you exceed the
     # max frame size for asyncio streams
     def load_n(n):
@@ -52,14 +54,12 @@ def get_object():
         bytes_loaded = 0
         while bytes_loaded < n:
             d = ipc.read(n - bytes_loaded)
-            out[bytes_loaded:(bytes_loaded + len(d))] = d
+            out[bytes_loaded : (bytes_loaded + len(d))] = d
             bytes_loaded += len(d)
         return out
 
     header_bytes = load_n(header_size)
-    data_bytes = [
-        load_n(sz) for sz in data_sizes
-    ]
+    data_bytes = [load_n(sz) for sz in data_sizes]
     header = msgpack.loads(header_bytes)
     data_bytes = list(map(memoryview, data_bytes))
     return deserialize(header, data_bytes)
@@ -69,10 +69,10 @@ def put_object(obj):
     header, data = serialize(obj)
     header_bytes = msgpack.dumps(header)
 
-    len_data = [
-        d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
-    ]
-    size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
+    len_data = [d.nbytes if hasattr(d, "nbytes") else len(d) for d in data]
+    size_str = (
+        ",".join(str(i) for i in [len(header_bytes)] + len_data) + "\n"
+    ).encode()
 
     ipc.write(size_str)
     ipc.write(header_bytes)
@@ -94,6 +94,7 @@ def make_parent_action(action):
             return reply["data"]
         else:
             raise_packed_exc(reply["exception"])
+
     return parent_action
 
 
@@ -132,19 +133,24 @@ class Scheduler:
         self.priority = priority
 
     pause_noexc = staticmethod(make_parent_action("pause"))
+
     @host_only
     def pause(self):
         if self.pause_noexc():
             raise TerminationRequested
 
     _check_pause = staticmethod(make_parent_action("scheduler_check_pause"))
+
     def check_pause(self, rid=None) -> TBool:
         if rid is None:
             rid = self.rid
         return self._check_pause(rid)
 
     _submit = staticmethod(make_parent_action("scheduler_submit"))
-    def submit(self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False):
+
+    def submit(
+        self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False
+    ):
         if pipeline_name is None:
             pipeline_name = self.pipeline_name
         if expid is None:
@@ -155,7 +161,8 @@ class Scheduler:
 
     delete = staticmethod(make_parent_action("scheduler_delete"))
     request_termination = staticmethod(
-        make_parent_action("scheduler_request_termination"))
+        make_parent_action("scheduler_request_termination")
+    )
     get_status = staticmethod(make_parent_action("scheduler_get_status"))
 
 
@@ -218,8 +225,9 @@ def examine(device_mgr, dataset_mgr, file):
 
 def setup_diagnostics(experiment_file, repository_path):
     def render_diagnostic(self, diagnostic):
-        message = "While compiling {}\n".format(experiment_file) + \
-                    _render_diagnostic(diagnostic, colored=False)
+        message = "While compiling {}\n".format(experiment_file) + _render_diagnostic(
+            diagnostic, colored=False
+        )
         if repository_path is not None:
             message = message.replace(repository_path, "<repository>")
 
@@ -238,8 +246,7 @@ def setup_diagnostics(experiment_file, repository_path):
     # putting inherently local objects (the diagnostic engine) into
     # global slots, and there isn't any point in making it prettier by
     # wrapping it in layers of indirection.
-    artiq.coredevice.core._DiagnosticEngine.render_diagnostic = \
-        render_diagnostic
+    artiq.coredevice.core._DiagnosticEngine.render_diagnostic = render_diagnostic
 
 
 def put_completed():
@@ -255,14 +262,15 @@ def put_exception_report():
         exc_str = str(exc)
         if exc_str:
             short_exc_info += ": " + exc_str.splitlines()[0]
-        lines = ["Terminating with exception ("+short_exc_info+")\n"]
+        lines = ["Terminating with exception (" + short_exc_info + ")\n"]
         if hasattr(exc, "artiq_core_exception"):
             lines.append(str(exc.artiq_core_exception))
         if hasattr(exc, "parent_traceback"):
             lines += exc.parent_traceback
             lines += traceback.format_exception_only(type(exc), exc)
-        logging.error("".join(lines).rstrip(),
-                      exc_info=not hasattr(exc, "parent_traceback"))
+        logging.error(
+            "".join(lines).rstrip(), exc_info=not hasattr(exc, "parent_traceback")
+        )
     put_object({"action": "exception"})
 
 
@@ -290,9 +298,9 @@ def main():
             f["run_time"] = run_time
             f["expid"] = pyon.encode(expid)
 
-    device_mgr = DeviceManager(ParentDeviceDB,
-                               virtual_devices={"scheduler": Scheduler(),
-                                                "ccb": CCB()})
+    device_mgr = DeviceManager(
+        ParentDeviceDB, virtual_devices={"scheduler": Scheduler(), "ccb": CCB()}
+    )
     dataset_mgr = DatasetManager(ParentDatasetDB)
 
     import_cache.install_hook()
@@ -315,11 +323,14 @@ def main():
                 setup_diagnostics(experiment_file, repository_path)
                 exp = get_experiment(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
-                    rid, obj["pipeline_name"], expid, obj["priority"])
+                    rid, obj["pipeline_name"], expid, obj["priority"]
+                )
                 start_local_time = time.localtime(start_time)
-                dirname = os.path.join("results",
-                                   time.strftime("%Y-%m-%d", start_local_time),
-                                   time.strftime("%H", start_local_time))
+                dirname = os.path.join(
+                    "results",
+                    time.strftime("%Y-%m-%d", start_local_time),
+                    time.strftime("%H", start_local_time),
+                )
                 os.makedirs(dirname, exist_ok=True)
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])

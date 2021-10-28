@@ -12,7 +12,7 @@ from sipyco.packed_exceptions import current_exc_packed
 
 from artiq.tools import asyncio_wait_or_cancel
 
-from distributed.protocol import deserialize, serialize
+from .dask_serialize import deserialize, serialize
 import msgpack
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,7 @@ class WorkerError(Exception):
 class WorkerInternalException(Exception):
     """Exception raised inside the worker, information has been printed
     through logging."""
+
     pass
 
 
@@ -61,8 +62,7 @@ class Worker:
         n_user_watchdogs = len(self.watchdogs)
         if -1 in self.watchdogs:
             n_user_watchdogs -= 1
-        avail = set(range(n_user_watchdogs + 1)) \
-            - set(self.watchdogs.keys())
+        avail = set(range(n_user_watchdogs + 1)) - set(self.watchdogs.keys())
         wid = next(iter(avail))
         self.watchdogs[wid] = time.monotonic() + t
         return wid
@@ -90,16 +90,22 @@ class Worker:
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             await self.ipc.create_subprocess(
-                sys.executable, "-m", "artiq.master.worker_impl",
-                self.ipc.get_address(), str(log_level),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                env=env, start_new_session=True)
+                sys.executable,
+                "-m",
+                "artiq.master.worker_impl",
+                self.ipc.get_address(),
+                str(log_level),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env,
+                start_new_session=True,
+            )
             asyncio.ensure_future(
-                LogParser(self._get_log_source).stream_task(
-                    self.ipc.process.stdout))
+                LogParser(self._get_log_source).stream_task(self.ipc.process.stdout)
+            )
             asyncio.ensure_future(
-                LogParser(self._get_log_source).stream_task(
-                    self.ipc.process.stderr))
+                LogParser(self._get_log_source).stream_task(self.ipc.process.stderr)
+            )
         finally:
             self.io_lock.release()
 
@@ -119,9 +125,11 @@ class Worker:
             if self.ipc.process.returncode is not None:
                 logger.debug("worker already terminated (RID %s)", self.rid)
                 if self.ipc.process.returncode != 0:
-                    logger.warning("worker finished with status code %d"
-                                   " (RID %s)", self.ipc.process.returncode,
-                                   self.rid)
+                    logger.warning(
+                        "worker finished with status code %d" " (RID %s)",
+                        self.ipc.process.returncode,
+                        self.rid,
+                    )
                 return
             try:
                 await self._send({"action": "terminate"}, cancellable=False)
@@ -129,22 +137,24 @@ class Worker:
                 logger.debug("worker exited on request (RID %s)", self.rid)
                 return
             except:
-                logger.debug("worker failed to exit on request"
-                             " (RID %s), ending the process", self.rid,
-                             exc_info=True)
+                logger.debug(
+                    "worker failed to exit on request" " (RID %s), ending the process",
+                    self.rid,
+                    exc_info=True,
+                )
             if os.name != "nt":
                 try:
                     self.ipc.process.terminate()
                 except ProcessLookupError:
                     pass
                 try:
-                    await asyncio.wait_for(self.ipc.process.wait(),
-                                           term_timeout)
+                    await asyncio.wait_for(self.ipc.process.wait(), term_timeout)
                     logger.debug("worker terminated (RID %s)", self.rid)
                     return
                 except asyncio.TimeoutError:
                     logger.warning(
-                        "worker did not terminate (RID %s), killing", self.rid)
+                        "worker did not terminate (RID %s), killing", self.rid
+                    )
             try:
                 self.ipc.process.kill()
             except ProcessLookupError:
@@ -163,12 +173,12 @@ class Worker:
 
         header, data = serialize(obj)
         header_bytes = msgpack.dumps(header)
-        
-        len_data = [
-            d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
-        ]
-        size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
-        
+
+        len_data = [d.nbytes if hasattr(d, "nbytes") else len(d) for d in data]
+        size_str = (
+            ",".join(str(i) for i in [len(header_bytes)] + len_data) + "\n"
+        ).encode()
+
         self.ipc.write(size_str)
         self.ipc.write(header_bytes)
         for d in data:
@@ -178,43 +188,49 @@ class Worker:
         if cancellable:
             ifs.append(self.closed.wait())
         fs = await asyncio_wait_or_cancel(
-            ifs, timeout=self.send_timeout,
-            return_when=asyncio.FIRST_COMPLETED)
+            ifs, timeout=self.send_timeout, return_when=asyncio.FIRST_COMPLETED
+        )
         if all(f.cancelled() for f in fs):
             raise WorkerTimeout(
-                "Timeout sending data to worker (RID {})".format(self.rid))
+                "Timeout sending data to worker (RID {})".format(self.rid)
+            )
         for f in fs:
             if not f.cancelled() and f.done():
                 f.result()  # raise any exceptions
         if cancellable and self.closed.is_set():
             raise WorkerError(
-                "Data transmission to worker cancelled (RID {})".format(
-                    self.rid))
+                "Data transmission to worker cancelled (RID {})".format(self.rid)
+            )
 
     async def _recv(self, timeout):
         assert self.io_lock.locked()
         fs = await asyncio_wait_or_cancel(
             [self.ipc.readline(), self.closed.wait()],
-            timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+            timeout=timeout,
+            return_when=asyncio.FIRST_COMPLETED,
+        )
         if all(f.cancelled() for f in fs):
             raise WorkerTimeout(
-                "Timeout receiving data from worker (RID {})".format(self.rid))
+                "Timeout receiving data from worker (RID {})".format(self.rid)
+            )
         if self.closed.is_set():
             raise WorkerError(
-                "Receiving data from worker cancelled (RID {})".format(
-                    self.rid))
+                "Receiving data from worker cancelled (RID {})".format(self.rid)
+            )
         line = fs[0].result()
         if not line:
             raise WorkerError(
-                "Worker ended while attempting to receive data (RID {})".
-                format(self.rid))
+                "Worker ended while attempting to receive data (RID {})".format(
+                    self.rid
+                )
+            )
         try:
-            header_size, *data_sizes = (int(s) for s in line.decode().split(','))
+            header_size, *data_sizes = (int(s) for s in line.decode().split(","))
         except Exception as e:
             raise WorkerError(
                 "Worker sent invalid data_size (RID {}): %s".format(self.rid, line)
             ) from e
-        
+
         # Continue loads which stop halfway - this happens once you exceed the
         # max frame size for asyncio streams
         async def load_n(n):
@@ -222,15 +238,13 @@ class Worker:
             bytes_loaded = 0
             while bytes_loaded < n:
                 d = await self.ipc.read(n - bytes_loaded)
-                out[bytes_loaded:(bytes_loaded + len(d))] = d
+                out[bytes_loaded : (bytes_loaded + len(d))] = d
                 bytes_loaded += len(d)
             return out
 
         header_bytes = await load_n(header_size)
-        data_bytes = [
-            await load_n(sz) for sz in data_sizes
-        ]
-        
+        data_bytes = [await load_n(sz) for sz in data_sizes]
+
         header = msgpack.loads(header_bytes)
 
         data_bytes = list(map(memoryview, data_bytes))
@@ -272,10 +286,7 @@ class Worker:
                 data = func(*obj["args"], **obj["kwargs"])
                 reply = {"status": "ok", "data": data}
             except:
-                reply = {
-                    "status": "failed",
-                    "exception": current_exc_packed()
-                }
+                reply = {"status": "failed", "exception": current_exc_packed()}
             await self.io_lock.acquire()
             try:
                 await self._send(reply)
@@ -300,19 +311,21 @@ class Worker:
                 del self.watchdogs[-1]
         return completed
 
-    async def build(self, rid, pipeline_name, wd, expid, priority,
-                    timeout=15.0):
+    async def build(self, rid, pipeline_name, wd, expid, priority, timeout=15.0):
         self.rid = rid
         self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
         await self._worker_action(
-            {"action": "build",
-             "rid": rid,
-             "pipeline_name": pipeline_name,
-             "wd": wd,
-             "expid": expid,
-             "priority": priority},
-            timeout)
+            {
+                "action": "build",
+                "rid": rid,
+                "pipeline_name": pipeline_name,
+                "wd": wd,
+                "expid": expid,
+                "priority": priority,
+            },
+            timeout,
+        )
 
     async def prepare(self):
         await self._worker_action({"action": "prepare"})
@@ -327,8 +340,9 @@ class Worker:
         stop_duration = time.monotonic() - self.yield_time
         for wid, expiry in self.watchdogs:
             self.watchdogs[wid] += stop_duration
-        completed = await self._worker_action({"status": "ok",
-                                               "data": request_termination})
+        completed = await self._worker_action(
+            {"status": "ok", "data": request_termination}
+        )
         if not completed:
             self.yield_time = time.monotonic()
         return completed
@@ -344,9 +358,13 @@ class Worker:
         r = dict()
 
         def register(class_name, name, arginfo, scheduler_defaults):
-            r[class_name] = {"name": name, "arginfo": arginfo, "scheduler_defaults": scheduler_defaults}
+            r[class_name] = {
+                "name": name,
+                "arginfo": arginfo,
+                "scheduler_defaults": scheduler_defaults,
+            }
+
         self.register_experiment = register
-        await self._worker_action({"action": "examine", "file": file},
-                                  timeout)
+        await self._worker_action({"action": "examine", "file": file}, timeout)
         del self.register_experiment
         return r
