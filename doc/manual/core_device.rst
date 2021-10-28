@@ -164,6 +164,19 @@ See :mod:`artiq.coredevice.i2c` for more details.
 Clocking
 ++++++++
 
-The KC705 supports an internal 125 MHz RTIO clock (based on its crystal oscillator) and an external clock, that can be selected using the ``rtio_clock`` configuration entry. Valid values are ``i`` and ``e``, and the default is ``i``. The selected option can be observed in the core device boot logs.
+The KC705 in standalone variants supports an internal 125 MHz RTIO clock (based on its crystal oscillator, or external reference for PLL for DRTIO variants) and an external clock, that can be selected using the ``rtio_clock`` configuration entry. Valid values are:
+    * ``int_125`` - internal crystal oscillator, 125 MHz output (default),
+    * ``ext0_bypass`` - external clock.
 
-On Kasli, ``rtio_clock=i`` is the default and generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference (variant-dependent). ``rtio_clock=e`` bypasses that PLL and the user must supply the RTIO clock (typically 125 MHz) at the Kasli front panel SMA input. Bypassing the PLL ensures the skews between input clock, Kasli downstream clock outputs, and RTIO clock are deterministic accross reboots of the system. This is useful when phase determinism is required in situtations where the reference clock fans out to other devices before reaching Kasli.
+KC705 in DRTIO variants and Kasli generates the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference. Valid values are:
+    * ``int_125`` - internal crystal oscillator using PLL, 125 MHz output (default),
+    * ``int_100`` - internal crystal oscillator using PLL, 100 MHz output,
+    * ``int_150`` - internal crystal oscillator using PLL, 150 MHz output,
+    * ``ext0_synth0_10to125`` - external 10 MHz reference using PLL, 125 MHz output,
+    * ``ext0_synth0_100to125`` - external 100 MHz reference using PLL, 125 MHz output,
+    * ``ext0_synth0_125to125`` - external 125 MHz reference using PLL, 125 MHz output,
+    * ``ext0_bypass``, ``ext0_bypass_125``, ``ext0_bypass_100`` - external clock - with explicit aliases available.
+
+The selected option can be observed in the core device boot logs.
+
+Options ``rtio_clock=int_XXX`` and ``rtio_clock=ext0_synth0_XXXXX`` generate the RTIO clock using a PLL locked either to an internal crystal or to an external frequency reference (depending on exact option). ``rtio_clock=ext0_bypass`` bypasses that PLL and the user must supply the RTIO clock (typically 125 MHz) at the Kasli front panel SMA input. Bypassing the PLL ensures the skews between input clock, Kasli downstream clock outputs, and RTIO clock are deterministic accross reboots of the system. This is useful when phase determinism is required in situtations where the reference clock fans out to other devices before reaching Kasli.
