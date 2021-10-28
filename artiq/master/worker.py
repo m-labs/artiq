@@ -2,6 +2,7 @@ import sys
 import os
 import asyncio
 import logging
+import pickle
 import subprocess
 import time
 
@@ -11,6 +12,8 @@ from sipyco.packed_exceptions import current_exc_packed
 
 from artiq.tools import asyncio_wait_or_cancel
 
+from distributed.protocol import deserialize, serialize
+import msgpack
 
 logger = logging.getLogger(__name__)
 
@@ -157,8 +160,20 @@ class Worker:
 
     async def _send(self, obj, cancellable=True):
         assert self.io_lock.locked()
-        line = pyon.encode(obj)
-        self.ipc.write((line + "\n").encode())
+
+        header, data = serialize(obj)
+        header_bytes = msgpack.dumps(header)
+        
+        len_data = [
+            d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
+        ]
+        size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
+        
+        self.ipc.write(size_str)
+        self.ipc.write(header_bytes)
+        for d in data:
+            self.ipc.write(d)
+
         ifs = [self.ipc.drain()]
         if cancellable:
             ifs.append(self.closed.wait())
@@ -194,10 +209,38 @@ class Worker:
                 "Worker ended while attempting to receive data (RID {})".
                 format(self.rid))
         try:
-            obj = pyon.decode(line.decode())
+            header_size, *data_sizes = (int(s) for s in line.decode().split(','))
+        except Exception as e:
+            raise WorkerError(
+                "Worker sent invalid data_size (RID {}): %s".format(self.rid, line)
+            ) from e
+        
+        # Continue loads which stop halfway - this happens once you exceed the
+        # max frame size for asyncio streams
+        async def load_n(n):
+            out = bytearray(n)
+            bytes_loaded = 0
+            while bytes_loaded < n:
+                d = await self.ipc.read(n - bytes_loaded)
+                out[bytes_loaded:(bytes_loaded + len(d))] = d
+                bytes_loaded += len(d)
+            return out
+
+        header_bytes = await load_n(header_size)
+        data_bytes = [
+            await load_n(sz) for sz in data_sizes
+        ]
+        
+        header = msgpack.loads(header_bytes)
+
+        data_bytes = list(map(memoryview, data_bytes))
+        try:
+            obj = deserialize(header, data_bytes)
         except:
-            raise WorkerError("Worker sent invalid PYON data (RID {})".format(
-                self.rid))
+            raise WorkerError(
+                "Worker sent invalid dask-serialized data (RID {})".format(self.rid)
+            )
+
         return obj
 
     async def _handle_worker_requests(self):

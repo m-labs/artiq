@@ -6,6 +6,7 @@ device database, etc.) to their actual implementation in the parent master
 process via IPC.
 """
 
+import pickle
 import sys
 import time
 import os
@@ -32,18 +33,51 @@ from artiq.compiler import import_cache
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
+from distributed.protocol import deserialize, serialize
+import msgpack
+
 
 ipc = None
 
 
 def get_object():
-    line = ipc.readline().decode()
-    return pyon.decode(line)
+    line = ipc.readline()
+    
+    header_size, *data_sizes = (int(s) for s in line.decode().split(','))
+    
+    # Continue loads which stop halfway - this happens once you exceed the
+    # max frame size for asyncio streams
+    def load_n(n):
+        out = bytearray(n)
+        bytes_loaded = 0
+        while bytes_loaded < n:
+            d = ipc.read(n - bytes_loaded)
+            out[bytes_loaded:(bytes_loaded + len(d))] = d
+            bytes_loaded += len(d)
+        return out
+
+    header_bytes = load_n(header_size)
+    data_bytes = [
+        load_n(sz) for sz in data_sizes
+    ]
+    header = msgpack.loads(header_bytes)
+    data_bytes = list(map(memoryview, data_bytes))
+    return deserialize(header, data_bytes)
 
 
 def put_object(obj):
-    ds = pyon.encode(obj)
-    ipc.write((ds + "\n").encode())
+    header, data = serialize(obj)
+    header_bytes = msgpack.dumps(header)
+
+    len_data = [
+        d.nbytes if hasattr(d, 'nbytes') else len(d) for d in data
+    ]
+    size_str = (','.join(str(i) for i in [len(header_bytes)] + len_data) + "\n").encode()
+
+    ipc.write(size_str)
+    ipc.write(header_bytes)
+    for d in data:
+        ipc.write(d)
 
 
 def make_parent_action(action):
