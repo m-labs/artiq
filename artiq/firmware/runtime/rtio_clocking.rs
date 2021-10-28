@@ -83,8 +83,12 @@ pub mod crg {
                 info!("Using external clock"); 
                 1 
             },
-            _ => {
+            RtioClock::Int_125 => {
                 info!("Using internal RTIO clock");
+                0
+            },
+            _ => {
+                warn!("rtio_clock setting '{:?}' is not supported. Using default internal RTIO clock instead", clk);
                 0
             }
         };
@@ -181,8 +185,21 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                 crystal_ref: true
             }
         },
-        _ => { // 125MHz output, from crystal, 7 Hz, default (if chosen option is not supported)
-            info!("using internal 125MHz RTIO clock"); // covers also RtioClock::Int_125
+        RtioClock::Int_125 => { // 125MHz output, from crystal, 7 Hz
+            info!("using internal 125MHz RTIO clock");
+            si5324::FrequencySettings {
+                n1_hs  : 10,
+                nc1_ls : 4,
+                n2_hs  : 10,
+                n2_ls  : 19972,
+                n31    : 4565,
+                n32    : 4565,
+                bwsel  : 4,
+                crystal_ref: true
+            }
+        }
+        _ => { // 125MHz output like above, default (if chosen option is not supported)
+            warn!("rtio_clock setting '{:?}' is not supported. Falling back to default internal 125MHz RTIO clock.", cfg);
             si5324::FrequencySettings {
                 n1_hs  : 10,
                 nc1_ls : 4,
