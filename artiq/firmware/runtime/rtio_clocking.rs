@@ -77,8 +77,14 @@ pub mod crg {
     #[cfg(has_rtio_clock_switch)]
     pub fn init(clk: RtioClock) -> bool {
         let clk_sel: u8 = match clk {
-            RtioClock::Ext0_Bypass => 1,
-            _ => 0
+            RtioClock::Ext0_Bypass => { 
+                info!("Using external clock"); 
+                1 
+            },
+            _ => {
+                info!("Using internal RTIO clock");
+                0
+            }
         };
         unsafe {
             csr::rtio_crg::pll_reset_write(1);
@@ -91,6 +97,7 @@ pub mod crg {
 
     #[cfg(not(has_rtio_clock_switch))]
     pub fn init() -> bool {
+        info!("Using internal RTIO clock");
         unsafe {
             csr::rtio_crg::pll_reset_write(0);
         }
