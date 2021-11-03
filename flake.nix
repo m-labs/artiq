@@ -77,7 +77,7 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 src-nac3.packages.x86_64-linux.nac3artiq sipyco ]
+        propagatedBuildInputs = [ pkgs.llvm_12 pkgs.lld_12 src-nac3.packages.x86_64-linux.nac3artiq sipyco ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
@@ -94,8 +94,8 @@
           "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
         ];
 
-        # FIXME: automatically propagate lld_11 llvm_11 dependencies
-        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 ];
+        # FIXME: automatically propagate lld_12 llvm_12 dependencies
+        checkInputs = [ pkgs.lld_12 pkgs.llvm_12 ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
           '';
@@ -190,9 +190,9 @@
             (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
-            pkgs.llvmPackages_11.clang-unwrapped
-            pkgs.llvm_11
-            pkgs.lld_11
+            pkgs.llvmPackages_12.clang-unwrapped
+            pkgs.llvm_12
+            pkgs.lld_12
             vivado
             rustPlatform.cargoSetupHook
             cargo-xbuild
@@ -309,9 +309,9 @@
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           cargo-xbuild
-          pkgs.llvmPackages_11.clang-unwrapped
-          pkgs.llvm_11
-          pkgs.lld_11
+          pkgs.llvmPackages_12.clang-unwrapped
+          pkgs.llvm_12
+          pkgs.lld_12
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado

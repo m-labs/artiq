@@ -3,11 +3,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1629225446,
-        "narHash": "sha256-HJX4Pc5ZUAg4apxB/XHuJ+6ukzvRQqeZMjscOBst2bA=",
+        "lastModified": 1634833229,
+        "narHash": "sha256-uDbVCkW91/AY87mTwm8XrX2E133LTFqwYsYNNxBcY9M=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "0510159186dd2ef46e5464484fbdf119393afa58",
+        "rev": "6070a8ee799f629cb1d0004821f77ceed94d3992",
         "type": "github"
       },
       "original": {
@@ -18,11 +18,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1634758644,
-        "narHash": "sha256-H3UW/msC6wadg28lcgZv2Ge/P7dWxesL6i37a0GOeyM=",
+        "lastModified": 1635946136,
+        "narHash": "sha256-y1l0FK/nyRqb9CCImHNDJYYTtCnSNF2rK5RFc+qaMEg=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "70904d4a9927a4d6e05c72c4aaac4370e05107f3",
+        "rev": "8429ae8722a319ebc26e9a38105e0797a824eb87",
         "type": "github"
       },
       "original": {
@@ -60,11 +60,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1634799783,
-        "narHash": "sha256-CbeXsLTwwYBWb5cfrVVYkcQYV207gi9+CQhzfeZbXGc=",
+        "lastModified": 1635235511,
+        "narHash": "sha256-XdBMBfup7JbUPzBi0An8GnQCIp7tiaczTrOwsPpvKCM=",
         "ref": "master",
-        "rev": "855914deace34880c69589022c52a8921f431063",
-        "revCount": 2375,
+        "rev": "34e545c190e08ada3f59712bdb71208ac6c39cbc",
+        "revCount": 2397,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
@@ -82,11 +82,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1633622662,
-        "narHash": "sha256-AEWqSxdl2aIibv7vtU9vDMu8ytdOY10fwBaM77+Il64=",
+        "lastModified": 1635932388,
+        "narHash": "sha256-f8OEkvTqE3q+xgxjgO3Dnfi+neplozfJNrtBcPcMqg8=",
         "ref": "master",
-        "rev": "79d3c5caae79fe15f41d2b2248cad2344389555f",
-        "revCount": 340,
+        "rev": "36e4028f5bf4307b8deabcc3768af2708728cede",
+        "revCount": 387,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },
