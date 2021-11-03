@@ -70,7 +70,7 @@
 
       artiq = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
-        version = "7.0-dev";
+        version = "8.0-dev";
         src = self;
 
         preBuild = "export VERSIONEER_OVERRIDE=${version}";
