@@ -203,6 +203,7 @@ class Phaser:
         self.measure_frame_timestamp()
         if self.frame_tstamp < 0:
             raise ValueError("frame timestamp measurement timed out")
+        delay(.1*ms)
 
         # reset
         self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,

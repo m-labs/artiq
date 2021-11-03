@@ -29,7 +29,7 @@ use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, ident, clock, spiflash, config, net_settings};
+use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -40,7 +40,7 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 mod rtio_clocking;
 mod rtio_mgt;
@@ -247,10 +247,15 @@ pub extern fn main() -> i32 {
         extern {
             static mut _fheap: u8;
             static mut _eheap: u8;
+            static mut _sstack_guard: u8;
         }
         ALLOC.add_range(&mut _fheap, &mut _eheap);
 
-        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
+            boot::start_user(startup as usize)
+        );
 
         0
     }
@@ -285,6 +290,18 @@ pub extern fn exception(regs: *const TrapFrame) {
         mcause::Trap::Interrupt(source) => {
             info!("Called interrupt with {:?}", source);
         },
+
+        mcause::Trap::Exception(mcause::Exception::UserEnvCall) => {
+            unsafe {
+                if (*regs).a7 == 0 {
+                    pmp::pop_pmp_region()
+                } else {
+                    pmp::push_pmp_region((*regs).a7)
+                }
+            }
+            mepc::write(pc + 4);
+        },
+
         mcause::Trap::Exception(e) => {
             println!("Trap frame: {:x?}", unsafe { *regs });
 
@@ -302,7 +319,8 @@ pub extern fn exception(regs: *const TrapFrame) {
             }
 
             hexdump(u32::try_from(pc).unwrap());
-            panic!("exception {:?} at PC 0x{:x}", e, u32::try_from(pc).unwrap())
+            let mtval = mtval::read();
+            panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", e, u32::try_from(pc).unwrap(), mtval)
         }
     }
 }

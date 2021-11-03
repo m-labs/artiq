@@ -69,8 +69,11 @@ SECTIONS
         _ebss = .;
     } > runtime
 
-    .stack (NOLOAD) : ALIGN(16)
+    .stack (NOLOAD) : ALIGN(0x1000)
     {
+        _sstack_guard = .;
+        . += 0x1000;
+        _estack = .;
         . += 0x10000;
         _fstack = . - 16;
     } > runtime

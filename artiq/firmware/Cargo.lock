@@ -163,7 +163,7 @@ dependencies = [
 [[package]]
 name = "fringe"
 version = "1.2.1"
-source = "git+https://git.m-labs.hk/M-Labs/libfringe.git?rev=9748bb#9748bb8af86c131d45be1238ea4d5f965a974630"
+source = "git+https://git.m-labs.hk/M-Labs/libfringe.git?rev=3ecbe5#3ecbe53f7644b18ee46ebd5b2ca12c9cbceec43a"
 dependencies = [
  "libc 0.2.101",
 ]

@@ -9,7 +9,7 @@ extern crate board_artiq;
 extern crate riscv;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c};
+use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_wrpll)]
@@ -18,7 +18,7 @@ use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 mod repeater;
 #[cfg(has_jdcg)]
@@ -449,6 +449,14 @@ const SI5324_SETTINGS: si5324::FrequencySettings
 
 #[no_mangle]
 pub extern fn main() -> i32 {
+    extern {
+        static mut _sstack_guard: u8;
+    }
+
+    unsafe {
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+    }
+
     clock::init();
     uart_logger::ConsoleLogger::register();
 
@@ -662,7 +670,8 @@ pub extern fn exception(_regs: *const u32) {
     }
 
     hexdump(u32::try_from(pc).unwrap());
-    panic!("exception {:?} at PC 0x{:x}", cause, u32::try_from(pc).unwrap())
+    let mtval = mtval::read();
+    panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", cause, u32::try_from(pc).unwrap(), mtval)
 }
 
 #[no_mangle]

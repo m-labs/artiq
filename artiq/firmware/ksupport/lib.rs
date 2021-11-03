@@ -23,7 +23,7 @@ use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 #[cfg(has_rtio_dma)]
 use board_misoc::csr;
-use riscv::register::{mcause, mepc};
+use riscv::register::{mcause, mepc, mtval};
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -493,11 +493,13 @@ pub unsafe fn main() {
     let _end = library.lookup(b"_end").unwrap();
     let __modinit__ = library.lookup(b"__modinit__").unwrap();
     let typeinfo = library.lookup(b"typeinfo");
+    let _sstack_guard = library.lookup(b"_sstack_guard").unwrap();
 
     LIBRARY = Some(library);
 
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
+    board_misoc::pmp::init_stack_guard(_sstack_guard as usize);
     board_misoc::cache::flush_cpu_dcache();
     board_misoc::cache::flush_cpu_icache();
 
@@ -530,7 +532,8 @@ pub unsafe fn main() {
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
-    panic!("{:?} at PC {:#08x}", cause, u32::try_from(pc).unwrap())
+    let mtval = mtval::read();
+    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
 #[no_mangle]
