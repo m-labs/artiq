@@ -140,3 +140,118 @@ class Mirny:
         if length < 32:
             data <<= 32 - length
         self.bus.write(data)
+
+
+class Almazny:
+    """
+    Almazny (High frequency mezzanine board for Mirny)
+
+    :param mirny - Mirny device object to communicate to Almazny through
+    """
+
+    # Mezz_IO pin map
+    pin_map = {
+        "SER_MOSI": 0,
+        "SER_CLK": 1,
+        "REG": {
+            # REG 1
+            1: { "NOE": 6, "LATCH": 2 }
+            # REG 2
+            2: { "NOE": 7, "LATCH": 3 }
+            # REG 3
+            3: { "LATCH": 4 }
+            # REG 4
+            4: { "LATCH": 5 }
+        },
+    }
+
+    mezzio_reg = 0x3 # register addr for Mezz_IO 0~7
+
+    def __init__(self, mirny):
+        self.mirny = mirny
+        self.mezz_data = 0
+
+    @kernel
+    def reg_enable(self, reg_i):
+        """
+        Enables the output of the register.
+        :param reg_i - index of the register [1-2]
+        """
+        self._send_mezz_data([(self.pin_map["REG"][reg_i]["NOE"], 0)])
+
+    @kernel
+    def reg_disable(self, reg_i):
+        """
+        Disables the output of the register.
+        :param reg_i - index of the register [1-2]
+        """
+        self._send_mezz_data([(self.pin_map["REG"][reg_i]["NOE"], 1)])
+
+    @kernel
+    def reg_set(self, reg_i, attin1=0, attin2=0, attin3=0, attin4=0, attin5=0, attin6=0, output_off=1):
+        """
+        Sets the data on chosen shift register.
+        :param reg_i - index of the register [1-4]
+        :param attin[1-6] - attenuator input {0, 1}
+        :param output_off - RF output off {0, 1}
+        """
+        # clear the register just in case there was something in there
+        self.reg_clear(reg_i)
+
+        shift_reg = [output_off, attin6, attin5, attin4, attin3, attin2, attin1]
+        for val in shift_reg:
+            self._cycle(reg_i, [
+                (self.pin_map["MOSI"], val),
+                (self.pin_map["REG"][reg_i]["NOE"], 1]
+            ])
+
+    @kernel
+    def reg_clear(self, reg_i):
+        """
+        Clears content of a register.
+        :param reg_i - index of the register [1-4]
+        """
+        for _ in range(8):
+            self._cycle(reg_i, [
+                (self.pin_map["MOSI"], 0]),
+            )
+
+    @kernel
+    def _cycle(self, reg_i, data):
+        """
+        one cycle for inputting register data
+        """
+        # keeping reg_clear high all the time anyway
+        self._send_mezz_data([
+            (self.pin_map["SER_CLK"], 0),
+            (self.pin_map["REG_CLEAR"], 1),
+            (self.pin_map["REG"][reg_i]["LATCH"], 1),
+        ] + data) 
+        self._send_mezz_data([
+            (self.pin_map["SER_CLK"], 1),
+            (self.pin_map["REG_CLEAR"], 1),
+            (self.pin_map["REG"][reg_i]["LATCH"], 0),
+        ] + data) 
+
+    @kernel
+    def _send_mezz_data(self, pins_data)
+        """
+        Sends the raw data to the mezzanine board.
+        :param pins_data - list of tuples in format (pin_number, bit)
+        """
+        def put_data(w, d):
+            if d == 1: # data
+                w |= 1 << (pin + 8)
+            elif d == 0:
+                w &= ~(1 << (pin + 8))
+            else:
+                raise AttributeError("Data can be only 0 or 1")
+            w |= 1 << pin # oe
+            return w
+
+        data = self.mezz_data
+        for pin, data in pins_data:
+            data_low = put_data(data_low, data)
+        if data != self.mezz_data: # only send if update is needed
+            self.mirny.write_reg(self.mezzio_reg, data)
+            self.mezz_data = data
