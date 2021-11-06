@@ -1174,26 +1174,32 @@ class LLVMIRGenerator:
         else:
             llfun = self.map(insn.static_target_function)
         llenv     = self.llbuilder.extract_value(llclosure, 0, name="env.fun")
-        return llfun, [llenv] + list(llargs)
+        return llfun, [llenv] + list(llargs), {}
 
     def _prepare_ffi_call(self, insn):
         llargs = []
-        byvals = []
+        llarg_attrs = {}
         for i, arg in enumerate(insn.arguments()):
             llarg = self.map(arg)
             if isinstance(llarg.type, (ll.LiteralStructType, ll.IdentifiedStructType)):
                 llslot = self.llbuilder.alloca(llarg.type)
                 self.llbuilder.store(llarg, llslot)
                 llargs.append(llslot)
-                byvals.append(i)
+                llarg_attrs[i] = "byval"
             else:
                 llargs.append(llarg)
+
+        llretty = self.llty_of_type(insn.type, for_return=True)
+        is_sret = self.needs_sret(llretty)
+        if is_sret:
+            llarg_attrs = {i + 1: a for (i, a) in llarg_attrs.items()}
+            llarg_attrs[0] = "sret"
 
         llfunname = insn.target_function().type.name
         llfun     = self.llmodule.globals.get(llfunname)
         if llfun is None:
-            llretty = self.llty_of_type(insn.type, for_return=True)
-            if self.needs_sret(llretty):
+            # Function has not been declared in the current LLVM module, do it now.
+            if is_sret:
                 llfunty = ll.FunctionType(llvoid, [llretty.as_pointer()] +
                                           [llarg.type for llarg in llargs])
             else:
@@ -1201,17 +1207,14 @@ class LLVMIRGenerator:
 
             llfun = ll.Function(self.llmodule, llfunty,
                                 insn.target_function().type.name)
-            if self.needs_sret(llretty):
-                llfun.args[0].add_attribute('sret')
-                byvals = [i + 1 for i in byvals]
-            for i in byvals:
-                llfun.args[i].add_attribute('byval')
+            for idx, attr in llarg_attrs.items():
+                llfun.args[idx].add_attribute(attr)
             if 'nounwind' in insn.target_function().type.flags:
                 llfun.attributes.add('nounwind')
             if 'nowrite' in insn.target_function().type.flags:
                 llfun.attributes.add('inaccessiblememonly')
 
-        return llfun, list(llargs)
+        return llfun, list(llargs), llarg_attrs
 
     def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
         llservice = ll.Constant(lli32, fun_type.service)
@@ -1347,20 +1350,21 @@ class LLVMIRGenerator:
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
         elif types.is_external_function(functiontyp):
-            llfun, llargs = self._prepare_ffi_call(insn)
+            llfun, llargs, llarg_attrs = self._prepare_ffi_call(insn)
         else:
-            llfun, llargs = self._prepare_closure_call(insn)
+            llfun, llargs, llarg_attrs = self._prepare_closure_call(insn)
 
         if self.has_sret(functiontyp):
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-            self.llbuilder.call(llfun, [llresultslot] + llargs, arg_attrs={0: "sret"})
+            self.llbuilder.call(llfun, [llresultslot] + llargs, arg_attrs=llarg_attrs)
             llresult = self.llbuilder.load(llresultslot)
 
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
         else:
-            llcall = llresult = self.llbuilder.call(llfun, llargs, name=insn.name)
+            llresult = self.llbuilder.call(llfun, llargs, name=insn.name,
+                                           arg_attrs=llarg_attrs)
 
             if isinstance(llresult.type, ll.VoidType):
                 # We have NoneType-returning functions return void, but None is
@@ -1379,9 +1383,9 @@ class LLVMIRGenerator:
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
         elif types.is_external_function(functiontyp):
-            llfun, llargs = self._prepare_ffi_call(insn)
+            llfun, llargs, llarg_attrs = self._prepare_ffi_call(insn)
         else:
-            llfun, llargs = self._prepare_closure_call(insn)
+            llfun, llargs, llarg_attrs = self._prepare_closure_call(insn)
 
         if self.has_sret(functiontyp):
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
@@ -1389,7 +1393,7 @@ class LLVMIRGenerator:
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
             llcall = self.llbuilder.invoke(llfun, [llresultslot] + llargs,
                                            llnormalblock, llunwindblock, name=insn.name,
-                                           arg_attrs={0: "sret"})
+                                           arg_attrs=llarg_attrs)
 
             self.llbuilder.position_at_start(llnormalblock)
             llresult = self.llbuilder.load(llresultslot)
@@ -1397,7 +1401,7 @@ class LLVMIRGenerator:
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
         else:
             llcall = self.llbuilder.invoke(llfun, llargs, llnormalblock, llunwindblock,
-                                           name=insn.name)
+                                           name=insn.name, arg_attrs=llarg_attrs)
             llresult = llcall
 
             # The !tbaa metadata is not legal to use with the invoke instruction,
