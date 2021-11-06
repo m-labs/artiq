@@ -1355,7 +1355,7 @@ class LLVMIRGenerator:
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [])
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
-            llcall = self.llbuilder.call(llfun, [llresultslot] + llargs)
+            self.llbuilder.call(llfun, [llresultslot] + llargs, arg_attrs={0: "sret"})
             llresult = self.llbuilder.load(llresultslot)
 
             self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
@@ -1388,7 +1388,8 @@ class LLVMIRGenerator:
 
             llresultslot = self.llbuilder.alloca(llfun.type.pointee.args[0].pointee)
             llcall = self.llbuilder.invoke(llfun, [llresultslot] + llargs,
-                                           llnormalblock, llunwindblock, name=insn.name)
+                                           llnormalblock, llunwindblock, name=insn.name,
+                                           arg_attrs={0: "sret"})
 
             self.llbuilder.position_at_start(llnormalblock)
             llresult = self.llbuilder.load(llresultslot)
