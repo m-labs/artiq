@@ -1,9 +1,9 @@
 use core::ptr::{read_volatile, write_volatile};
 use core::slice;
-use board_misoc::{mem, cache};
+use board_misoc::{mem, cache, csr::CONFIG_DATA_WIDTH_BYTES};
 
-const SEND_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 4) as *mut usize;
-const RECV_MAILBOX: *mut usize = (mem::MAILBOX_BASE + 8) as *mut usize;
+const SEND_MAILBOX: *mut usize = (mem::MAILBOX_BASE + CONFIG_DATA_WIDTH_BYTES as usize) as *mut usize;
+const RECV_MAILBOX: *mut usize = (mem::MAILBOX_BASE + (CONFIG_DATA_WIDTH_BYTES * 2) as usize) as *mut usize;
 
 const QUEUE_BEGIN: usize = 0x44000000;
 const QUEUE_END:   usize = 0x44ffff80;
