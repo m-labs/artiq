@@ -219,7 +219,13 @@ impl<'a> Library<'a> {
         #[cfg(not(target_arch = "riscv32"))]
         const ARCH: u16 = EM_NONE;
 
-        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH {
+        #[cfg(all(target_feature = "f", target_feature = "d"))]
+        const FLAGS: u32 = EF_RISCV_FLOAT_ABI_DOUBLE;
+
+        #[cfg(not(all(target_feature = "f", target_feature = "d")))]
+        const FLAGS: u32 = EF_RISCV_FLOAT_ABI_SOFT;
+
+        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH || ehdr.e_flags != FLAGS {
             return Err("not a shared library for current architecture")?
         }
 
