@@ -33,63 +33,67 @@ class Loopback(Module):
 
 
 class TB(Module):
-    def __init__(self, nwords):
+    def __init__(self, nwords, dw):
         self.submodules.link_layer = Loopback(nwords)
         self.submodules.aux_controller = ClockDomainsRenamer(
-            {"rtio": "sys", "rtio_rx": "sys"})(DRTIOAuxController(self.link_layer))
+            {"rtio": "sys", "rtio_rx": "sys"})(DRTIOAuxController(self.link_layer, dw))
 
 
 class TestAuxController(unittest.TestCase):
     def test_aux_controller(self):
-        dut = TB(4)
+        dut = {
+            32: TB(4, 32),
+            64: TB(4, 64)
+        }
 
-        def link_init():
+        def link_init(dw):
             for i in range(8):
                 yield
-            yield dut.link_layer.ready.eq(1)
+            yield dut[dw].link_layer.ready.eq(1)
 
-        def send_packet(packet):
+        def send_packet(packet, dw):
             for i, d in enumerate(packet):
-                yield from dut.aux_controller.bus.write(i, d)
-            yield from dut.aux_controller.transmitter.aux_tx_length.write(len(packet)*4)
-            yield from dut.aux_controller.transmitter.aux_tx.write(1)
+                yield from dut[dw].aux_controller.bus.write(i, d)
+            yield from dut[dw].aux_controller.transmitter.aux_tx_length.write(len(packet)*dw//8)
+            yield from dut[dw].aux_controller.transmitter.aux_tx.write(1)
             yield
-            while (yield from dut.aux_controller.transmitter.aux_tx.read()):
+            while (yield from dut[dw].aux_controller.transmitter.aux_tx.read()):
                 yield
 
-        def receive_packet():
-            while not (yield from dut.aux_controller.receiver.aux_rx_present.read()):
+        def receive_packet(dw):
+            while not (yield from dut[dw].aux_controller.receiver.aux_rx_present.read()):
                 yield
-            length = yield from dut.aux_controller.receiver.aux_rx_length.read()
+            length = yield from dut[dw].aux_controller.receiver.aux_rx_length.read()
             r = []
-            for i in range(length//4):
-                r.append((yield from dut.aux_controller.bus.read(256+i)))
-            yield from dut.aux_controller.receiver.aux_rx_present.write(1)
+            for i in range(length//(dw//8)):
+                r.append((yield from dut[dw].aux_controller.bus.read(256+i)))
+            yield from dut[dw].aux_controller.receiver.aux_rx_present.write(1)
             return r
 
         prng = random.Random(0)
 
-        def send_and_check_packet():
-            data = [prng.randrange(2**32-1) for _ in range(prng.randrange(1, 16))]
-            yield from send_packet(data)
-            received = yield from receive_packet()
+        def send_and_check_packet(dw):
+            data = [prng.randrange(2**dw-1) for _ in range(prng.randrange(1, 16))]
+            yield from send_packet(data, dw)
+            received = yield from receive_packet(dw)
             self.assertEqual(data, received)
 
-        def sim():
-            yield from link_init()
+        def sim(dw):
+            yield from link_init(dw)
             for i in range(8):
-                yield from send_and_check_packet()
+                yield from send_and_check_packet(dw)
 
         @passive
-        def rt_traffic():
+        def rt_traffic(dw):
             while True:
                 while prng.randrange(4):
                     yield
-                yield dut.link_layer.tx_rt_frame.eq(1)
+                yield dut[dw].link_layer.tx_rt_frame.eq(1)
                 yield
                 while prng.randrange(4):
                     yield
-                yield dut.link_layer.tx_rt_frame.eq(0)
+                yield dut[dw].link_layer.tx_rt_frame.eq(0)
                 yield
 
-        run_simulation(dut, [sim(), rt_traffic()])
+        run_simulation(dut[32], [sim(32), rt_traffic(32)])
+        run_simulation(dut[64], [sim(64), rt_traffic(64)])
