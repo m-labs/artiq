@@ -113,6 +113,10 @@
             url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/branch/master/artiq-fast/pkgs/llvmlite-abiname.diff";
             sha256 = "1zlss9vlhjgch6gf5gc0647kkjdwjk0833ld88xwd9vmwvkdmp3v";
           })
+          (pkgs.fetchurl {
+            url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/branch/master/artiq-fast/pkgs/llvmlite-callsite.diff";
+            sha256 = "sha256-JrIXPnI7E7Y5NIFxswVBmRfQvv61lqKDDnNJrr+nDCg=";
+          })
         ];
         nativeBuildInputs = [ pkgs.llvm_11 ];
         # Disable static linking
