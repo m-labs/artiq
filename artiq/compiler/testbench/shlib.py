@@ -1,7 +1,7 @@
 import sys, os
 from pythonparser import diagnostic
 from ..module import Module, Source
-from ..targets import RISCVTarget
+from ..targets import RV32GTarget
 
 def main():
     if not len(sys.argv) > 1:
@@ -20,7 +20,7 @@ def main():
     for filename in sys.argv[1:]:
         modules.append(Module(Source.from_filename(filename, engine=engine)))
 
-    llobj = RISCVTarget().compile_and_link(modules)
+    llobj = RV32GTarget().compile_and_link(modules)
 
     basename, ext = os.path.splitext(sys.argv[-1])
     with open(basename + ".so", "wb") as f:
