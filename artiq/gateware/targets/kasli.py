@@ -104,9 +104,15 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -255,9 +261,15 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -431,9 +443,15 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
+                 hw_rev=hw_rev,
+                 cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  **kwargs)
