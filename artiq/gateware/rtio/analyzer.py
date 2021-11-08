@@ -3,6 +3,7 @@ from migen.genlib.record import Record, layout_len
 from misoc.interconnect.csr import *
 from misoc.interconnect import stream
 
+from artiq.gateware.rtio import dma
 from artiq.gateware.rtio.cri import commands as cri_commands
 from artiq.coredevice.comm_analyzer import MessageType, ExceptionType
 
@@ -40,20 +41,6 @@ message_len = 256
 assert layout_len(input_output_layout) == message_len
 assert layout_len(exception_layout) == message_len
 assert layout_len(stopped_layout) == message_len
-
-
-def convert_signal(signal):
-    assert len(signal) % 8 == 0
-    nbytes = len(signal)//8
-    assert nbytes % 4 == 0
-    nwords = nbytes//4
-    signal_words = []
-    for i in range(nwords):
-        signal_bytes = []
-        for j in range(4):
-            signal_bytes.append(signal[8*(j+i*4):8*((j+i*4)+1)])
-        signal_words.extend(reversed(signal_bytes))
-    return Cat(*signal_words)
 
 
 class MessageEncoder(Module, AutoCSR):
@@ -150,7 +137,7 @@ class MessageEncoder(Module, AutoCSR):
 
 
 class DMAWriter(Module, AutoCSR):
-    def __init__(self, membus):
+    def __init__(self, membus, cpu_dw):
         aw = len(membus.adr)
         dw = len(membus.dat_w)
         messages_per_dw = dw//message_len
@@ -175,7 +162,7 @@ class DMAWriter(Module, AutoCSR):
             membus.stb.eq(self.sink.stb),
             self.sink.ack.eq(membus.ack),
             membus.we.eq(1),
-            membus.dat_w.eq(convert_signal(self.sink.data))
+            membus.dat_w.eq(dma.convert_signal(self.sink.data, cpu_dw//8))
         ]
         if messages_per_dw > 1:
             for i in range(dw//8):
@@ -207,7 +194,7 @@ class DMAWriter(Module, AutoCSR):
 
 
 class Analyzer(Module, AutoCSR):
-    def __init__(self, tsc, cri, membus, fifo_depth=128):
+    def __init__(self, tsc, cri, membus, fifo_depth=128, cpu_dw=32):
         # shutdown procedure: set enable to 0, wait until busy=0
         self.enable = CSRStorage()
         self.busy = CSRStatus()
@@ -219,7 +206,7 @@ class Analyzer(Module, AutoCSR):
         self.submodules.converter = stream.Converter(
             message_len, len(membus.dat_w), reverse=True,
             report_valid_token_count=True)
-        self.submodules.dma = DMAWriter(membus)
+        self.submodules.dma = DMAWriter(membus, cpu_dw)
 
         enable_r = Signal()
         self.sync += [
