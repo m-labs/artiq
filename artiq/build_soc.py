@@ -2,6 +2,7 @@ import os
 import subprocess
 
 from migen import *
+from migen.build.platforms.sinara import kasli
 from misoc.interconnect.csr import *
 from misoc.integration.builder import *
 
@@ -57,11 +58,17 @@ def build_artiq_soc(soc, argdict):
     builder = Builder(soc, **argdict)
     builder.software_packages = []
     builder.add_software_package("bootloader", os.path.join(firmware_dir, "bootloader"))
+    is_kasli_v1 = isinstance(soc.platform, kasli.Platform) and soc.platform.hw_rev in ("v1.0", "v1.1")
     if isinstance(soc, AMPSoC):
-        builder.add_software_package("libm")
-        builder.add_software_package("libprintf")
-        builder.add_software_package("libunwind")
-        builder.add_software_package("ksupport", os.path.join(firmware_dir, "ksupport"))
+        kernel_cpu_type = "vexriscv" if is_kasli_v1 else "vexriscv-g"
+        builder.add_software_package("libm", cpu_type=kernel_cpu_type)
+        builder.add_software_package("libprintf", cpu_type=kernel_cpu_type)
+        builder.add_software_package("libunwind", cpu_type=kernel_cpu_type)
+        builder.add_software_package("ksupport", os.path.join(firmware_dir, "ksupport"), cpu_type=kernel_cpu_type)
+        # Generate unwinder for soft float target (ARTIQ runtime)
+        # If the kernel lacks FPU, then the runtime unwinder is already generated
+        if not is_kasli_v1:
+            builder.add_software_package("libunwind")
         builder.add_software_package("runtime", os.path.join(firmware_dir, "runtime"))
     else:
         # Assume DRTIO satellite.
