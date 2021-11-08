@@ -132,6 +132,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -209,6 +210,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -342,6 +344,7 @@ class _SatelliteBase(BaseSoC):
     def __init__(self, gateware_identifier_str=None, sma_as_sat=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
+                 cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  integrated_sram_size=8192,
