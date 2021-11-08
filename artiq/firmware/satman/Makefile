@@ -13,7 +13,7 @@ all:: satman.bin satman.fbi
 $(RUSTOUT)/libsatman.a:
 	$(cargo) --target-dir ./cargo \
 	--manifest-path $(SATMAN_DIRECTORY)/Cargo.toml \
-	--target $(SATMAN_DIRECTORY)/../riscv32ima-unknown-none-elf.json
+	--target $(SATMAN_DIRECTORY)/../$(CARGO_TRIPLE).json
 
 satman.elf: $(RUSTOUT)/libsatman.a
 	$(link) -T $(SATMAN_DIRECTORY)/satman.ld

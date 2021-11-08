@@ -11,7 +11,7 @@ all:: bootloader.bin
 $(RUSTOUT)/libbootloader.a:
 	$(cargo) --target-dir ./cargo \
 	--manifest-path $(BOOTLOADER_DIRECTORY)/Cargo.toml \
-	--target $(BOOTLOADER_DIRECTORY)/../riscv32ima-unknown-none-elf.json
+	--target $(BOOTLOADER_DIRECTORY)/../$(CARGO_TRIPLE).json
 
 bootloader.elf: $(RUSTOUT)/libbootloader.a
 	$(link) -T $(BOOTLOADER_DIRECTORY)/bootloader.ld
