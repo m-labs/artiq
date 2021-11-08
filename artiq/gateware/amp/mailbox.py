@@ -3,9 +3,9 @@ from misoc.interconnect import wishbone
 
 
 class Mailbox(Module):
-    def __init__(self, size=1):
-        self.i1 = wishbone.Interface()
-        self.i2 = wishbone.Interface()
+    def __init__(self, size=1, adr_width=30):
+        self.i1 = wishbone.Interface(data_width=32, adr_width=adr_width)
+        self.i2 = wishbone.Interface(data_width=32, adr_width=adr_width)
 
         # # #
 
