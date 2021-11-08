@@ -23,6 +23,8 @@ mod imp {
     pub const RTIO_I_STATUS_WAIT_STATUS:               u8 = 4;
     pub const RTIO_I_STATUS_DESTINATION_UNREACHABLE:   u8 = 8;
 
+    const OFFSET_MULTIPLE: isize = (csr::CONFIG_DATA_WIDTH_BYTES / 4) as isize;
+
     pub extern fn init() {
         send(&RtioInitRequest);
     }
@@ -47,14 +49,14 @@ mod imp {
     #[inline(always)]
     pub unsafe fn rtio_o_data_write(offset: usize, data: u32) {
         write_volatile(
-            csr::rtio::O_DATA_ADDR.offset((csr::rtio::O_DATA_SIZE - 1 - offset) as isize),
+            csr::rtio::O_DATA_ADDR.offset(OFFSET_MULTIPLE*(csr::rtio::O_DATA_SIZE - 1 - offset) as isize),
             data);
     }
 
     #[inline(always)]
     pub unsafe fn rtio_i_data_read(offset: usize) -> u32 {
         read_volatile(
-            csr::rtio::I_DATA_ADDR.offset((csr::rtio::I_DATA_SIZE - 1 - offset) as isize))
+            csr::rtio::I_DATA_ADDR.offset(OFFSET_MULTIPLE*(csr::rtio::I_DATA_SIZE - 1 - offset) as isize))
     }
 
     #[inline(never)]
