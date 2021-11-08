@@ -8,7 +8,7 @@ extern crate log;
 extern crate smoltcp;
 
 #[cfg(target_arch = "riscv32")]
-#[path = "riscv32ima/mod.rs"]
+#[path = "riscv32/mod.rs"]
 mod arch;
 
 #[cfg(target_arch = "riscv32")]
