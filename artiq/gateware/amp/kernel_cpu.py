@@ -22,10 +22,10 @@ class KernelCPU(Module):
             self.cd_sys_kernel.clk.eq(ClockSignal()),
             self.cd_sys_kernel.rst.eq(self._reset.storage)
         ]
+        kasli_v1 = isinstance(platform, kasli.Platform) and platform.hw_rev in ("v1.0", "v1.1")
         self.submodules.cpu = ClockDomainsRenamer("sys_kernel")(
-            vexriscv.VexRiscv(
-                platform,
-                exec_address))
+            vexriscv.VexRiscv(platform, exec_address,
+                variant="VexRiscv_IMA" if kasli_v1 else "VexRiscv_G"))
 
         # DRAM access
         self.wb_sdram = wishbone.Interface()
