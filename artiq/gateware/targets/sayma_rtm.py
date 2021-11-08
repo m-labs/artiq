@@ -80,7 +80,7 @@ class _SatelliteBase(BaseSoC):
         self.submodules.drtiosat = core
         self.csr_devices.append("drtiosat")
 
-        coreaux = cdr(DRTIOAuxController(core.link_layer))
+        coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
         self.submodules.drtioaux0 = coreaux
         self.csr_devices.append("drtioaux0")
 

@@ -144,7 +144,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -162,7 +162,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
 
@@ -345,7 +345,7 @@ class MasterBase(MiniSoC, AMPSoC):
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -386,7 +386,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -398,7 +398,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("routing_table")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
     # Never running out of stupid features, GTs on A7 make you pack
@@ -539,7 +539,7 @@ class SatelliteBase(BaseSoC):
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 

@@ -97,7 +97,7 @@ class Master(MiniSoC, AMPSoC):
             drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -150,7 +150,7 @@ class Master(MiniSoC, AMPSoC):
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
