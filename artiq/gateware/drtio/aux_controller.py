@@ -212,14 +212,15 @@ class Receiver(Module, AutoCSR):
 # TODO: FullMemoryWE should be applied by migen.build
 @FullMemoryWE()
 class DRTIOAuxController(Module):
-    def __init__(self, link_layer):
-        self.bus = wishbone.Interface()
+    def __init__(self, link_layer, dw=32):
+        wsb = log2_int(dw//8)
+
+        self.bus = wishbone.Interface(data_width=dw, adr_width=32-wsb)
         self.submodules.transmitter = Transmitter(link_layer, len(self.bus.dat_w))
         self.submodules.receiver = Receiver(link_layer, len(self.bus.dat_w))
 
-        tx_sdram_if = wishbone.SRAM(self.transmitter.mem, read_only=False)
-        rx_sdram_if = wishbone.SRAM(self.receiver.mem, read_only=True)
-        wsb = log2_int(len(self.bus.dat_w)//8)
+        tx_sdram_if = wishbone.SRAM(self.transmitter.mem, read_only=False, data_width=dw)
+        rx_sdram_if = wishbone.SRAM(self.receiver.mem, read_only=True, data_width=dw)
         decoder = wishbone.Decoder(self.bus,
             [(lambda a: a[log2_int(max_packet)-wsb] == 0, tx_sdram_if.bus),
              (lambda a: a[log2_int(max_packet)-wsb] == 1, rx_sdram_if.bus)],

@@ -57,6 +57,7 @@ class SatelliteBase(MiniSoC):
     def __init__(self, rtio_clk_freq=125e6, identifier_suffix="", gateware_identifier_str=None, with_sfp=False, *, with_wrpll, **kwargs):
         MiniSoC.__init__(self,
                  cpu_type="vexriscv",
+                 cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  integrated_sram_size=8192,
@@ -117,7 +118,7 @@ class SatelliteBase(MiniSoC):
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 

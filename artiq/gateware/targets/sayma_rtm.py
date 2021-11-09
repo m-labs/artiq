@@ -37,6 +37,7 @@ class _SatelliteBase(BaseSoC):
     def __init__(self, rtio_clk_freq, *, with_wrpll, gateware_identifier_str, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
+                 cpu_bus_width=64,
                  **kwargs)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
         self.rtio_clk_freq = rtio_clk_freq
@@ -79,7 +80,7 @@ class _SatelliteBase(BaseSoC):
         self.submodules.drtiosat = core
         self.csr_devices.append("drtiosat")
 
-        coreaux = cdr(DRTIOAuxController(core.link_layer))
+        coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
         self.submodules.drtioaux0 = coreaux
         self.csr_devices.append("drtioaux0")
 

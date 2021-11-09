@@ -98,7 +98,8 @@ class Target:
         lltarget = llvm.Target.from_triple(self.triple)
         llmachine = lltarget.create_target_machine(
                         features=",".join(["+{}".format(f) for f in self.features]),
-                        reloc="pic", codemodel="default")
+                        reloc="pic", codemodel="default",
+                        abiname="ilp32d" if isinstance(self, RV32GTarget) else "")
         llmachine.set_asm_verbosity(True)
         return llmachine
 
@@ -252,10 +253,22 @@ class NativeTarget(Target):
         self.triple = llvm.get_default_triple()
         host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
 
-class RISCVTarget(Target):
+class RV32IMATarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a"]
+    print_function = "core_log"
+    now_pinning = True
+
+    tool_ld = "ld.lld"
+    tool_strip = "llvm-strip"
+    tool_addr2line = "llvm-addr2line"
+    tool_cxxfilt = "llvm-cxxfilt"
+
+class RV32GTarget(Target):
+    triple = "riscv32-unknown-linux"
+    data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
+    features = ["m", "a", "f", "d"]
     print_function = "core_log"
     now_pinning = True
 
