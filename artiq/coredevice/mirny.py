@@ -180,24 +180,31 @@ class Almazny:
         :param attin[1-6] - attenuator input {0, 1}
         :param output_off - RF output off {0, 1}
         """
-        # clear the register just in case there was something in there
-        self.reg_clear(reg_i)
 
         shift_reg = [0, output_off, attin6, attin5, attin4, attin3, attin2, attin1]
+        self._send_mezz_data([
+            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+        ])   
         for val in shift_reg:
-            data = [ (self.SER_MOSI, val) ]
-            self._cycle(reg_i, data)        
-            
+            self._cycle([
+                (self.SER_MOSI, val) 
+            ])
+        self._latch(reg_i)
+    
     @kernel
     def reg_clear(self, reg_i):
         """
         Clears content of a register.
         :param reg_i - index of the register [1-4]
         """
-        for _ in range(8):
-            self._cycle(reg_i, [
-                (self.SER_MOSI, 0),
-            ])
+        self._send_mezz_data([
+            (self.REG_CLEAR, 0),
+            (self.REG_LATCH_BASE + (reg_i - 1), 1)
+        ])   
+        self._send_mezz_data([
+            (self.REG_CLEAR, 0),
+            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+        ])   
 
     @kernel
     def reg_clear_all(self):
@@ -205,39 +212,41 @@ class Almazny:
         Clears all registers.
         """
         self._send_mezz_data([
-            (self.SER_CLK, 0),
             (self.REG_CLEAR, 0),
+            (self.REG_LATCH_BASE, 1),
+            (self.REG_LATCH_BASE + 1, 1),
+            (self.REG_LATCH_BASE + 2, 1),
+            (self.REG_LATCH_BASE + 3, 1),
         ])
         self._send_mezz_data([
-            (self.SER_CLK, 1),
-            (self.REG_CLEAR, 0),
-        ])
-        self._send_mezz_data([
-            (self.SER_CLK, 0),
             (self.REG_CLEAR, 1),
+            (self.REG_LATCH_BASE, 0),
+            (self.REG_LATCH_BASE + 1, 0),
+            (self.REG_LATCH_BASE + 2, 0),
+            (self.REG_LATCH_BASE + 3, 0),
         ])
 
     @kernel
-    def _cycle(self, reg_i, data):
+    def _cycle(self, data):
         """
         one cycle for inputting register data
         """
         self._send_mezz_data([
             (self.SER_CLK, 0),
-            (self.REG_LATCH_BASE + (reg_i - 1), 0),
         ] + data) 
         self._send_mezz_data([
             (self.SER_CLK, 1),
-            (self.REG_LATCH_BASE + (reg_i - 1), 0),
         ] + data) 
+
+    @kernel
+    def _latch(self, reg_i):
         self._send_mezz_data([
             (self.SER_CLK, 0),
-            (self.REG_LATCH_BASE + (reg_i - 1), 1),
-        ] + data) 
+            (self.REG_LATCH_BASE + (reg_i - 1), 1)
+        ])   
         self._send_mezz_data([
-            (self.SER_CLK, 1),
-            (self.REG_LATCH_BASE + (reg_i - 1), 0),
-        ] + data) 
+            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+        ])   
 
     @kernel
     def put_data(self, pin, d):
