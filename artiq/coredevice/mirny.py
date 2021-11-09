@@ -153,8 +153,7 @@ class Almazny:
     SER_MOSI = 0
     SER_CLK = 1
     REG_LATCH_BASE = 2
-    REG1_NOE = 6
-    REG_CLEAR = 7
+    REG_CLEAR = 6
 
     mezzio_reg = 0x03 # register addr for Mezz_IO 0~7
 
@@ -163,22 +162,15 @@ class Almazny:
         self.mezz_data = 0
 
     @kernel
-    def reg1_enable(self):
-        """
-        Enables the output of the register.
-        Only available for reg 1
-        :param reg_i - index of the register [1-2]
-        """
-        self._send_mezz_data([(self.REG1_NOE, 0)])
-
-    @kernel
-    def reg1_disable(self):
-        """
-        Disables the output of the register.
-        Only available for reg 1
-        :param reg_i - index of the register [1-2]
-        """
-        self._send_mezz_data([(self.REG1_NOE, 1)])
+    def init(self):
+        self._send_mezz_data([
+            (self.REG_CLEAR, 1),
+            (self.REG_LATCH_BASE+0, 0),
+            (self.REG_LATCH_BASE+1, 0),
+            (self.REG_LATCH_BASE+2, 0),
+            (self.REG_LATCH_BASE+3, 0),
+            (self.SER_CLK, 0)
+            ])
 
     @kernel
     def reg_set(self, reg_i, attin1=0, attin2=0, attin3=0, attin4=0, attin5=0, attin6=0, output_off=1):
@@ -191,7 +183,7 @@ class Almazny:
         # clear the register just in case there was something in there
         self.reg_clear(reg_i)
 
-        shift_reg = [output_off, attin6, attin5, attin4, attin3, attin2, attin1]
+        shift_reg = [0, output_off, attin6, attin5, attin4, attin3, attin2, attin1]
         for val in shift_reg:
             data = [ (self.SER_MOSI, val) ]
             self._cycle(reg_i, data)        
@@ -230,15 +222,20 @@ class Almazny:
         """
         one cycle for inputting register data
         """
-        # keeping reg_clear high all the time anyway
         self._send_mezz_data([
             (self.SER_CLK, 0),
-            (self.REG_CLEAR, 1),
+            (self.REG_LATCH_BASE + (reg_i - 1), 0),
+        ] + data) 
+        self._send_mezz_data([
+            (self.SER_CLK, 1),
+            (self.REG_LATCH_BASE + (reg_i - 1), 0),
+        ] + data) 
+        self._send_mezz_data([
+            (self.SER_CLK, 0),
             (self.REG_LATCH_BASE + (reg_i - 1), 1),
         ] + data) 
         self._send_mezz_data([
             (self.SER_CLK, 1),
-            (self.REG_CLEAR, 1),
             (self.REG_LATCH_BASE + (reg_i - 1), 0),
         ] + data) 
 
