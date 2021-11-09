@@ -2,7 +2,7 @@ import asyncio
 import logging
 import struct
 from enum import Enum
-
+from artiq.coredevice.comm import set_keepalive
 
 __all__ = ["TTLProbe", "TTLOverride", "CommMonInj"]
 
@@ -29,6 +29,8 @@ class CommMonInj:
 
     async def connect(self, host, port=1383):
         self._reader, self._writer = await asyncio.open_connection(host, port)
+        set_keepalive(self._writer.transport.get_extra_info('socket'), 1, 1, 3)
+
         try:
             self._writer.write(b"ARTIQ moninj\n")
             # get device endian
@@ -95,4 +97,7 @@ class CommMonInj:
                     raise ValueError("Unknown packet type", ty)
         finally:
             if self.disconnect_cb is not None:
-                self.disconnect_cb()
+                if asyncio.iscoroutinefunction(self.disconnect_cb):
+                    await self.disconnect_cb()
+                else:
+                    self.disconnect_cb()
