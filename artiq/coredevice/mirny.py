@@ -213,6 +213,13 @@ class Almazny:
         """
         self._send_mezz_data([
             (self.REG_CLEAR, 0),
+            (self.REG_LATCH_BASE, 0),
+            (self.REG_LATCH_BASE + 1, 0),
+            (self.REG_LATCH_BASE + 2, 0),
+            (self.REG_LATCH_BASE + 3, 0),
+        ])
+        self._send_mezz_data([
+            (self.REG_CLEAR, 0),
             (self.REG_LATCH_BASE, 1),
             (self.REG_LATCH_BASE + 1, 1),
             (self.REG_LATCH_BASE + 2, 1),
