@@ -14,11 +14,8 @@ from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
-from artiq.language.types import TBool
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
-from artiq.coredevice.core import CompileError, host_only
-from artiq.compiler.embedding import EmbeddingMap
 from artiq.compiler import import_cache
 from artiq.tools import *
 
@@ -92,10 +89,9 @@ class DummyScheduler:
     def get_status(self):
         return dict()
 
-    def check_pause(self, rid=None) -> TBool:
+    def check_pause(self, rid=None) -> bool:
         return False
 
-    @host_only
     def pause(self):
         pass
 
@@ -178,8 +174,6 @@ def run(with_file=False):
         exp_inst.prepare()
         exp_inst.run()
         exp_inst.analyze()
-    except CompileError as error:
-        return
     except Exception as exn:
         if hasattr(exn, "artiq_core_exception"):
             print(exn.artiq_core_exception, file=sys.stderr)
