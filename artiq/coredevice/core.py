@@ -87,7 +87,7 @@ class Core:
         return result
 
     @portable
-    def seconds_to_mu(self, seconds: float):
+    def seconds_to_mu(self, seconds: float) -> int64:
         """Convert seconds to the corresponding number of machine units
         (RTIO cycles).
 
@@ -96,12 +96,12 @@ class Core:
         return int64(seconds//self.ref_period)
 
     @portable
-    def mu_to_seconds(self, mu: int64):
+    def mu_to_seconds(self, mu: int64) -> float:
         """Convert machine units (RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
         """
-        return mu*self.ref_period
+        return float(mu)*self.ref_period
 
     @kernel
     def delay(self, dt: float):
@@ -132,7 +132,7 @@ class Core:
             pass
 
     @kernel
-    def get_rtio_destination_status(self, destination: int32):
+    def get_rtio_destination_status(self, destination: int32) -> bool:
         """Returns whether the specified RTIO destination is up.
         This is particularly useful in startup kernels to delay
         startup until certain DRTIO destinations are up."""
