@@ -1,55 +1,29 @@
 import os, sys
-import numpy
+from numpy import int32, int64
 
-from artiq import __artiq_dir__ as artiq_dir
+import nac3artiq
 
 from artiq.language.core import *
-from artiq.language.types import *
+from artiq.language import core as core_language
 from artiq.language.units import *
 
-from artiq.compiler.module import Module
-from artiq.compiler.embedding import Stitcher
-from artiq.compiler.targets import RISCVTarget, CortexA9Target
-
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
-# Import for side effects (creating the exception classes).
-from artiq.coredevice import exceptions
 
 
-def _render_diagnostic(diagnostic, colored):
-    def shorten_path(path):
-        return path.replace(artiq_dir, "<artiq>")
-    lines = [shorten_path(path) for path in diagnostic.render(colored=colored)]
-    return "\n".join(lines)
-
-colors_supported = os.name == "posix"
-class _DiagnosticEngine(diagnostic.Engine):
-    def render_diagnostic(self, diagnostic):
-        sys.stderr.write(_render_diagnostic(diagnostic, colored=colors_supported) + "\n")
-
-class CompileError(Exception):
-    def __init__(self, diagnostic):
-        self.diagnostic = diagnostic
-
-    def __str__(self):
-        # Prepend a newline so that the message shows up on after
-        # exception class name printed by Python.
-        return "\n" + _render_diagnostic(self.diagnostic, colored=colors_supported)
-
-
-@syscall
-def rtio_init() -> TNone:
+@extern
+def rtio_init():
     raise NotImplementedError("syscall not simulated")
 
-@syscall(flags={"nounwind", "nowrite"})
-def rtio_get_destination_status(linkno: TInt32) -> TBool:
+@extern
+def rtio_get_destination_status(destination: int32) -> bool:
     raise NotImplementedError("syscall not simulated")
 
-@syscall(flags={"nounwind", "nowrite"})
-def rtio_get_counter() -> TInt64:
+@extern
+def rtio_get_counter() -> int64:
     raise NotImplementedError("syscall not simulated")
 
 
+@nac3
 class Core:
     """Core device driver.
 
@@ -64,89 +38,65 @@ class Core:
         and the RTIO coarse timestamp frequency (e.g. SERDES multiplication
         factor).
     """
-
-    kernel_invariants = {
-        "core", "ref_period", "coarse_ref_period", "ref_multiplier",
-    }
+    ref_period: KernelInvariant[float]
+    ref_multiplier: KernelInvariant[int32]
+    coarse_ref_period: KernelInvariant[float]
 
     def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="riscv"):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
-        if target == "riscv":
-            self.target_cls = RISCVTarget
-        elif target == "cortexa9":
-            self.target_cls = CortexA9Target
-        else:
-            raise ValueError("Unsupported target")
         self.coarse_ref_period = ref_period*ref_multiplier
         if host is None:
             self.comm = CommKernelDummy()
         else:
             self.comm = CommKernel(host)
-
         self.first_run = True
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
+        self.compiler = nac3artiq.NAC3(target)
 
     def close(self):
         self.comm.close()
 
-    def compile(self, function, args, kwargs, set_result=None,
-                attribute_writeback=True, print_as_rpc=True):
-        try:
-            engine = _DiagnosticEngine(all_errors_are_fatal=True)
+    def compile(self, method, args, kwargs, file_output=None):
+        if core_language._allow_module_registration:
+            self.compiler.analyze_modules(core_language._registered_modules)
+            core_language._allow_module_registration = False
 
-            stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
-                                print_as_rpc=print_as_rpc)
-            stitcher.stitch_call(function, args, kwargs, set_result)
-            stitcher.finalize()
+        if hasattr(method, "__self__"):
+            obj = method.__self__
+            name = method.__name__
+        else:
+            obj = method
+            name = ""
 
-            module = Module(stitcher,
-                ref_period=self.ref_period,
-                attribute_writeback=attribute_writeback)
-            target = self.target_cls()
-
-            library = target.compile_and_link([module])
-            stripped_library = target.strip(library)
-
-            return stitcher.embedding_map, stripped_library, \
-                   lambda addresses: target.symbolize(library, addresses), \
-                   lambda symbols: target.demangle(symbols)
-        except diagnostic.Error as error:
-            raise CompileError(error.diagnostic) from error
+        if file_output is None:
+            return self.compiler.compile_method_to_mem(obj, name, args)
+        else:
+            self.compiler.compile_method_to_file(obj, name, args, file_output)
 
     def run(self, function, args, kwargs):
-        result = None
-        @rpc(flags={"async"})
-        def set_result(new_result):
-            nonlocal result
-            result = new_result
-
-        embedding_map, kernel_library, symbolizer, demangler = \
-            self.compile(function, args, kwargs, set_result)
-
+        kernel_library = self.compile(function, args, kwargs)
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
-
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(embedding_map, symbolizer, demangler)
-
+        self.comm.serve(None, None, None)
         return result
 
     @portable
-    def seconds_to_mu(self, seconds):
+    def seconds_to_mu(self, seconds: float):
         """Convert seconds to the corresponding number of machine units
         (RTIO cycles).
 
         :param seconds: time (in seconds) to convert.
         """
-        return numpy.int64(seconds//self.ref_period)
+        return int64(seconds//self.ref_period)
 
     @portable
-    def mu_to_seconds(self, mu):
+    def mu_to_seconds(self, mu: int64):
         """Convert machine units (RTIO cycles) to seconds.
 
         :param mu: cycle count to convert.
@@ -154,7 +104,11 @@ class Core:
         return mu*self.ref_period
 
     @kernel
-    def get_rtio_counter_mu(self):
+    def delay(self, dt: float):
+        delay_mu(self.seconds_to_mu(dt))
+
+    @kernel
+    def get_rtio_counter_mu(self) -> int64:
         """Retrieve the current value of the hardware RTIO timeline counter.
 
         As the timing of kernel code executed on the CPU is inherently
@@ -167,7 +121,7 @@ class Core:
         return rtio_get_counter()
 
     @kernel
-    def wait_until_mu(self, cursor_mu):
+    def wait_until_mu(self, cursor_mu: int64):
         """Block execution until the hardware RTIO counter reaches the given
         value (see :meth:`get_rtio_counter_mu`).
 
@@ -178,7 +132,7 @@ class Core:
             pass
 
     @kernel
-    def get_rtio_destination_status(self, destination):
+    def get_rtio_destination_status(self, destination: int32):
         """Returns whether the specified RTIO destination is up.
         This is particularly useful in startup kernels to delay
         startup until certain DRTIO destinations are up."""
@@ -190,7 +144,7 @@ class Core:
         at the current value of the hardware RTIO counter plus a margin of
         125000 machine units."""
         rtio_init()
-        at_mu(rtio_get_counter() + 125000)
+        at_mu(rtio_get_counter() + int64(125000))
 
     @kernel
     def break_realtime(self):
@@ -199,6 +153,6 @@ class Core:
 
         If the time cursor is already after that position, this function
         does nothing."""
-        min_now = rtio_get_counter() + 125000
+        min_now = rtio_get_counter() + int64(125000)
         if now_mu() < min_now:
             at_mu(min_now)

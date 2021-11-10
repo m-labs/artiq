@@ -80,6 +80,9 @@ def file_import(filename, prefix="file_import_"):
     try:
         spec = importlib.util.spec_from_file_location(modname, filename)
         module = importlib.util.module_from_spec(spec)
+        # Add to sys.modules, otherwise inspect thinks it is a built-in module and often breaks.
+        # This must take place before module execution because NAC3 decorators call inspect.
+        sys.modules[modname] = module
         spec.loader.exec_module(module)
     finally:
         sys.path.remove(path)

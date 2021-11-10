@@ -8,7 +8,6 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.language.environment import ProcessArgumentManager
-from artiq.coredevice.core import CompileError
 from artiq.tools import *
 
 
@@ -47,6 +46,11 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))
 
+    output = args.output
+    if output is None:
+        basename, ext = os.path.splitext(args.file)
+        output = "{}.elf".format(basename)
+
     try:
         module = file_import(args.file, prefix="artiq_run_")
         exp = get_experiment(module, args.class_name)
@@ -54,29 +58,12 @@ def main():
         argument_mgr = ProcessArgumentManager(arguments)
         exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
 
-        if not hasattr(exp.run, "artiq_embedded"):
+        if not getattr(exp.run, "__artiq_kernel__", False):
             raise ValueError("Experiment entry point must be a kernel")
-        core_name = exp.run.artiq_embedded.core_name
-        core = getattr(exp_inst, core_name)
-
-        object_map, kernel_library, _, _ = \
-            core.compile(exp.run, [exp_inst], {},
-                         attribute_writeback=False, print_as_rpc=False)
-    except CompileError as error:
-        return
+        exp_inst.core.compile(exp_inst.run, [], {}, file_output=output)
     finally:
         device_mgr.close_devices()
 
-    if object_map.has_rpc():
-        raise ValueError("Experiment must not use RPC")
-
-    output = args.output
-    if output is None:
-        basename, ext = os.path.splitext(args.file)
-        output = "{}.elf".format(basename)
-
-    with open(output, "wb") as f:
-        f.write(kernel_library)
 
 if __name__ == "__main__":
     main()
