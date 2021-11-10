@@ -1,30 +1,32 @@
-from artiq.language.core import syscall
-from artiq.language.types import TInt32, TInt64, TList, TNone, TTuple
+from numpy import int32, int64
+from typing import Tuple
+
+from artiq.language.core import extern
 
 
-@syscall(flags={"nowrite"})
-def rtio_output(target: TInt32, data: TInt32) -> TNone:
+@extern
+def rtio_output(target: int32, data: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nowrite"})
-def rtio_output_wide(target: TInt32, data: TList(TInt32)) -> TNone:
+@extern
+def rtio_output_wide(target: int32, data: list[int32]):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nowrite"})
-def rtio_input_timestamp(timeout_mu: TInt64, channel: TInt32) -> TInt64:
+@extern
+def rtio_input_timestamp(timeout_mu: int64, channel: int32) -> int64:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nowrite"})
-def rtio_input_data(channel: TInt32) -> TInt32:
+@extern
+def rtio_input_data(channel: int32) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nowrite"})
-def rtio_input_timestamped_data(timeout_mu: TInt64,
-                                channel: TInt32) -> TTuple([TInt64, TInt32]):
+# NAC3TODO @extern
+def rtio_input_timestamped_data(timeout_mu: int64,
+                                channel: int32) -> Tuple[int64, int32]:
     """Wait for an input event up to timeout_mu on the given channel, and
     return a tuple of timestamp and attached data, or (-1, 0) if the timeout is
     reached."""
