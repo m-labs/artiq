@@ -1,5 +1,4 @@
 from numpy import int32, int64
-from typing import Tuple
 
 from artiq.language.core import extern
 
@@ -24,9 +23,9 @@ def rtio_input_data(channel: int32) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-# NAC3TODO @extern
+@extern
 def rtio_input_timestamped_data(timeout_mu: int64,
-                                channel: int32) -> Tuple[int64, int32]:
+                                channel: int32) -> tuple[int64, int32]:
     """Wait for an input event up to timeout_mu on the given channel, and
     return a tuple of timestamp and attached data, or (-1, 0) if the timeout is
     reached."""
