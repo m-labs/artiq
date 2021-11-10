@@ -7,8 +7,10 @@ Output event replacement is not supported and issuing commands at the same
 time is an error.
 """
 
-from artiq.language.core import syscall, kernel, portable, delay_mu
-from artiq.language.types import TInt32, TNone
+from numpy import int32, int64
+
+from artiq.language.core import nac3, KernelInvariant, kernel, portable, extern
+from artiq.coredevice.core import Core
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
@@ -33,6 +35,7 @@ SPI_LSB_FIRST = 0x40
 SPI_HALF_DUPLEX = 0x80
 
 
+@nac3
 class SPIMaster:
     """Core device Serial Peripheral Interface (SPI) bus master.
 
@@ -62,23 +65,25 @@ class SPIMaster:
         :meth:`update_xfer_duration_mu`
     :param core_device: Core device name
     """
-    kernel_invariants = {"core", "ref_period_mu", "channel"}
+    core: KernelInvariant[Core]
+    ref_period_mu: KernelInvariant[int64]
+    channel: KernelInvariant[int32]
+    xfer_duration_mu: int64
 
     def __init__(self, dmgr, channel, div=0, length=0, core_device="core"):
         self.core = dmgr.get(core_device)
-        self.ref_period_mu = self.core.seconds_to_mu(
-                self.core.coarse_ref_period)
+        self.ref_period_mu = self.core.seconds_to_mu(self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier
         self.channel = channel
         self.update_xfer_duration_mu(div, length)
 
     @portable
-    def frequency_to_div(self, f):
+    def frequency_to_div(self, f: float) -> int32:
         """Convert a SPI clock frequency to the closest SPI clock divider."""
-        return int(round(1/(f*self.core.mu_to_seconds(self.ref_period_mu))))
+        return round(1./(f*self.core.mu_to_seconds(self.ref_period_mu)))
 
     @kernel
-    def set_config(self, flags, length, freq, cs):
+    def set_config(self, flags: int32, length: int32, freq: float, cs: int32):
         """Set the configuration register.
 
         * If ``SPI_CS_POLARITY`` is cleared (``cs`` active low, the default),
@@ -145,7 +150,7 @@ class SPIMaster:
         self.set_config_mu(flags, length, self.frequency_to_div(freq), cs)
 
     @kernel
-    def set_config_mu(self, flags, length, div, cs):
+    def set_config_mu(self, flags: int32, length: int32, div: int32, cs: int32):
         """Set the ``config`` register (in SPI bus machine units).
 
         .. seealso:: :meth:`set_config`
@@ -162,17 +167,18 @@ class SPIMaster:
             Or number of the chip select to assert if ``cs`` is decoded
             downstream. (reset=0)
         """
-        if length > 32 or length < 1:
-            raise ValueError("Invalid SPI transfer length")
-        if div > 257 or div < 2:
-            raise ValueError("Invalid SPI clock divider")
+        # NAC3TODO
+        #if length > 32 or length < 1:
+        #    raise ValueError("Invalid SPI transfer length")
+        #if div > 257 or div < 2:
+        #    raise ValueError("Invalid SPI clock divider")
         rtio_output((self.channel << 8) | SPI_CONFIG_ADDR, flags |
                 ((length - 1) << 8) | ((div - 2) << 16) | (cs << 24))
         self.update_xfer_duration_mu(div, length)
         delay_mu(self.ref_period_mu)
 
     @portable
-    def update_xfer_duration_mu(self, div, length):
+    def update_xfer_duration_mu(self, div: int32, length: int32):
         """Calculate and set the transfer duration.
 
         This method updates the SPI transfer duration which is used
@@ -195,10 +201,10 @@ class SPIMaster:
         :param div: SPI clock divider (see: :meth:`set_config_mu`)
         :param length: SPI transfer length (see: :meth:`set_config_mu`)
         """
-        self.xfer_duration_mu = ((length + 1)*div + 1)*self.ref_period_mu
+        self.xfer_duration_mu = int64((length + 1)*div + 1)*self.ref_period_mu
 
     @kernel
-    def write(self, data):
+    def write(self, data: int32):
         """Write SPI data to shift register register and start transfer.
 
         * The ``data`` register and the shift register are 32 bits wide.
@@ -226,7 +232,7 @@ class SPIMaster:
         delay_mu(self.xfer_duration_mu)
 
     @kernel
-    def read(self):
+    def read(self) -> int32:
         """Read SPI data submitted by the SPI core.
 
         For bit alignment and bit ordering see :meth:`set_config`.
@@ -238,21 +244,22 @@ class SPIMaster:
         return rtio_input_data(self.channel)
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def spi_set_config(busno: TInt32, flags: TInt32, length: TInt32, div: TInt32, cs: TInt32) -> TNone:
+@extern
+def spi_set_config(busno: int32, flags: int32, length: int32, div: int32, cs: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def spi_write(busno: TInt32, data: TInt32) -> TNone:
+@extern
+def spi_write(busno: int32, data: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def spi_read(busno: TInt32) -> TInt32:
+@extern
+def spi_read(busno: int32) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
+@nac3
 class NRTSPIMaster:
     """Core device non-realtime Serial Peripheral Interface (SPI) bus master.
     Owns one non-realtime SPI bus.
@@ -265,12 +272,15 @@ class NRTSPIMaster:
 
     See :class:`SPIMaster` for a description of the methods.
     """
+    core: KernelInvariant[Core]
+    busno: KernelInvariant[int32]
+
     def __init__(self, dmgr, busno=0, core_device="core"):
         self.core = dmgr.get(core_device)
         self.busno = busno
 
     @kernel
-    def set_config_mu(self, flags=0, length=8, div=6, cs=1):
+    def set_config_mu(self, flags: int32 = 0, length: int32 = 8, div: int32 = 6, cs: int32 = 1):
         """Set the ``config`` register.
 
         Note that the non-realtime SPI cores are usually clocked by the system
@@ -280,9 +290,9 @@ class NRTSPIMaster:
         spi_set_config(self.busno, flags, length, div, cs)
 
     @kernel
-    def write(self, data=0):
+    def write(self, data: int32 = 0):
         spi_write(self.busno, data)
 
     @kernel
-    def read(self):
+    def read(self) -> int32:
         return spi_read(self.busno)
