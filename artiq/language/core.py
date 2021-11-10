@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 
 __all__ = [
-    "KernelInvariant",
+    "KernelInvariant", "round64",
     "extern", "kernel", "portable", "nac3", "rpc",
     "parallel", "sequential",
     "set_watchdog_factory", "watchdog", "TerminationRequested"
@@ -19,6 +19,10 @@ __all__ = [
 T = TypeVar('T')
 class KernelInvariant(Generic[T]):
     pass
+
+
+def round64(x):
+    return round(x)
 
 
 _allow_module_registration = True
