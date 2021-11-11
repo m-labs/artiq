@@ -24,16 +24,17 @@ linecache_getlines = None
 def add_module_to_cache(module):
     if hasattr(module, "__file__"):
         fn = module.__file__
-        try:
-            with tokenize.open(fn) as fp:
-                lines = fp.readlines()
-            if lines and not lines[-1].endswith("\n"):
-                lines[-1] += "\n"
-            cache[fn] = lines
-        except:
-            logger.warning("failed to add '%s' to cache", fn, exc_info=True)
-        else:
-            logger.debug("added '%s' to cache", fn)
+        if fn not in cache:
+            try:
+                with tokenize.open(fn) as fp:
+                    lines = fp.readlines()
+                if lines and not lines[-1].endswith("\n"):
+                    lines[-1] += "\n"
+                cache[fn] = lines
+            except:
+                logger.warning("failed to add '%s' to cache", fn, exc_info=True)
+            else:
+                logger.debug("added '%s' to cache", fn)
 
 
 def hook_getlines(filename, module_globals=None):
