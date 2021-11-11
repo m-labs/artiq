@@ -82,11 +82,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1636252154,
-        "narHash": "sha256-YPRjk9M9GdUiAZircxUl5BDU8rN5t0B0ZkIau+dMqmg=",
+        "lastModified": 1636618109,
+        "narHash": "sha256-dJu9Tw+8mVL3ZMIlcvM9g6WT3hYrKDaVceZJV+BxjTA=",
         "ref": "master",
-        "rev": "50f1aca1aa7ecb4412aa4b8a0daa1cc644d8ca89",
-        "revCount": 412,
+        "rev": "c004da85f705fef8952885c1493407610a05b61d",
+        "revCount": 415,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },

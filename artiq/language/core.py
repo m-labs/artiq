@@ -4,7 +4,7 @@ Core ARTIQ extensions to the Python language.
 
 from typing import Generic, TypeVar
 from functools import wraps
-from inspect import getfullargspec, getmodule
+from inspect import getfullargspec
 from types import SimpleNamespace
 
 
@@ -25,24 +25,29 @@ def round64(x):
     return round(x)
 
 
-_allow_module_registration = True
-_registered_modules = set()
+_allow_registration = True
+# Delay NAC3 analysis until all referenced variables are supposed to exist on the CPython side.
+_registered_functions = set()
+_registered_classes = set()
 
-def _register_module_of(obj):
-    assert _allow_module_registration
-    # Delay NAC3 analysis until all referenced variables are supposed to exist on the CPython side.
-    _registered_modules.add(getmodule(obj))
+def _register_function(fun):
+    assert _allow_registration
+    _registered_functions.add(fun)
+
+def _register_class(cls):
+    assert _allow_registration
+    _registered_classes.add(cls)
 
 
 def extern(function):
     """Decorates a function declaration defined by the core device runtime."""
-    _register_module_of(function)
+    _register_function(function)
     return function
 
 
 def kernel(function_or_method):
     """Decorates a function or method to be executed on the core device."""
-    _register_module_of(function_or_method)
+    _register_function(function_or_method)
     argspec = getfullargspec(function_or_method)
     if argspec.args and argspec.args[0] == "self":
         @wraps(function_or_method)
@@ -59,7 +64,7 @@ def kernel(function_or_method):
 
 def portable(function):
     """Decorates a function or method to be executed on the same device (host/core device) as the caller."""
-    _register_module_of(function)
+    _register_function(function)
     return function
 
 
@@ -68,7 +73,7 @@ def nac3(cls):
     Decorates a class to be analyzed by NAC3.
     All classes containing kernels or portable methods must use this decorator.
     """
-    _register_module_of(cls)
+    _register_class(cls)
     return cls
 
 

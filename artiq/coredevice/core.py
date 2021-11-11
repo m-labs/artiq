@@ -60,9 +60,9 @@ class Core:
         self.comm.close()
 
     def compile(self, method, args, kwargs, file_output=None):
-        if core_language._allow_module_registration:
-            self.compiler.analyze_modules(core_language._registered_modules)
-            core_language._allow_module_registration = False
+        if core_language._allow_registration:
+            self.compiler.analyze(core_language._registered_functions, core_language._registered_classes)
+            core_language._allow_registration = False
 
         if hasattr(method, "__self__"):
             obj = method.__self__
