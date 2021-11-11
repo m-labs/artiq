@@ -302,7 +302,7 @@ class PeripheralManager:
                 "module": "artiq.coredevice.mirny",
                 "class": "Almazny",
                 "arguments": {{
-                    "mirny": "{name}_cpld",
+                    "host_mirny": "{name}_cpld",
                 }},
             }}""",
             name=mirny_name)
