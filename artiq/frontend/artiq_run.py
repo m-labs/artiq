@@ -16,7 +16,7 @@ from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
-from artiq.compiler import import_cache
+from artiq.language import import_cache
 from artiq.tools import *
 
 

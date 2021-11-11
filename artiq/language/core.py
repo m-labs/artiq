@@ -4,8 +4,10 @@ Core ARTIQ extensions to the Python language.
 
 from typing import Generic, TypeVar
 from functools import wraps
-from inspect import getfullargspec
+from inspect import getfullargspec, getmodule
 from types import SimpleNamespace
+
+from artiq.language import import_cache
 
 
 __all__ = [
@@ -32,10 +34,12 @@ _registered_classes = set()
 
 def _register_function(fun):
     assert _allow_registration
+    import_cache.add_module_to_cache(getmodule(fun))
     _registered_functions.add(fun)
 
 def _register_class(cls):
     assert _allow_registration
+    import_cache.add_module_to_cache(getmodule(cls))
     _registered_classes.add(cls)
 
 

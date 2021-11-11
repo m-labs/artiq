@@ -28,7 +28,7 @@ from artiq.language.environment import (
 )
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.language.types import TBool
-from artiq.compiler import import_cache
+from artiq.language import import_cache
 from artiq.coredevice.core import CompileError, host_only, _render_diagnostic
 from artiq import __version__ as artiq_version
 
