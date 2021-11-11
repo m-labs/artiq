@@ -57,7 +57,7 @@ def kernel(function_or_method):
         @wraps(function_or_method)
         def run_on_core(self, *args, **kwargs):
             fake_method = SimpleNamespace(__self__=self, __name__=function_or_method.__name__)
-            self.core.run(fake_method, *args, **kwargs)
+            self.core.run(fake_method, args, kwargs)
     else:
         @wraps(function_or_method)
         def run_on_core(*args, **kwargs):
