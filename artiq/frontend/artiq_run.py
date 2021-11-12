@@ -23,40 +23,17 @@ from artiq.tools import *
 logger = logging.getLogger(__name__)
 
 
-class StubObject:
-    def __setattr__(self, name, value):
-        pass
-
-
-class StubEmbeddingMap:
-    def __init__(self):
-        stub_object = StubObject()
-        self.object_forward_map = defaultdict(lambda: stub_object)
-        self.object_forward_map[1] = lambda _: None # return RPC
-        self.object_current_id = -1
-
-    def retrieve_object(self, object_id):
-        return self.object_forward_map[object_id]
-
-    def store_object(self, value):
-        self.object_forward_map[self.object_current_id] = value
-        self.object_current_id -= 1
-
-
 class FileRunner(EnvExperiment):
     def build(self, file):
         self.setattr_device("core")
         self.file = file
-        self.target = self.core.target_cls()
 
     def run(self):
         kernel_library = self.compile()
 
         self.core.comm.load(kernel_library)
         self.core.comm.run()
-        self.core.comm.serve(StubEmbeddingMap(),
-            lambda addresses: self.target.symbolize(kernel_library, addresses), \
-            lambda symbols: self.target.demangle(symbols))
+        self.core.comm.serve(None, None, None)
 
 
 class ELFRunner(FileRunner):
