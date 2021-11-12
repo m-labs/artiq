@@ -42,7 +42,7 @@ class Core:
     ref_multiplier: KernelInvariant[int32]
     coarse_ref_period: KernelInvariant[float]
 
-    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="riscv"):
+    def __init__(self, dmgr, host, ref_period, ref_multiplier=8, target="rv32g"):
         self.ref_period = ref_period
         self.ref_multiplier = ref_multiplier
         self.coarse_ref_period = ref_period*ref_multiplier

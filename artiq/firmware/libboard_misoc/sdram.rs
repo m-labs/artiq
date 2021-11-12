@@ -2,6 +2,7 @@
 mod ddr {
     use core::{ptr, fmt};
     use csr::{dfii, ddrphy};
+    use csr::CONFIG_DATA_WIDTH_BYTES;
     use sdram_phy::{self, spin_cycles};
     use sdram_phy::{DFII_COMMAND_CS, DFII_COMMAND_WE, DFII_COMMAND_CAS, DFII_COMMAND_RAS,
                     DFII_COMMAND_WRDATA, DFII_COMMAND_RDDATA};
@@ -13,6 +14,8 @@ mod ddr {
     const DDRPHY_MAX_DELAY: u16 = 32;
 
     const DQS_SIGNAL_COUNT: usize = DFII_PIX_DATA_SIZE / 2;
+
+    const CSR_SEPARATION: isize = CONFIG_DATA_WIDTH_BYTES as isize / 4;
 
     macro_rules! log {
         ($logger:expr, $( $arg:expr ),+) => (
@@ -46,7 +49,7 @@ mod ddr {
 
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
-                               .offset((DQS_SIGNAL_COUNT - 1 - n) as isize);
+                               .offset(CSR_SEPARATION * (DQS_SIGNAL_COUNT - 1 - n) as isize);
 
             log!(logger, "Module {}:\n", DQS_SIGNAL_COUNT - 1 - n);
 
@@ -100,7 +103,7 @@ mod ddr {
         let mut failed = false;
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
-                               .offset((DQS_SIGNAL_COUNT - 1 - n) as isize);
+                               .offset(CSR_SEPARATION * (DQS_SIGNAL_COUNT - 1 - n) as isize);
 
             delay[n] = 0;
             high_skew[n] = false;
@@ -223,7 +226,7 @@ mod ddr {
         // Write test pattern
         for p in 0..DFII_NPHASES {
             for offset in 0..DFII_PIX_DATA_SIZE {
-                let addr = DFII_PIX_WRDATA_ADDR[p].offset(offset as isize);
+                let addr = DFII_PIX_WRDATA_ADDR[p].offset(CSR_SEPARATION * offset as isize);
                 let data = prs[DFII_PIX_DATA_SIZE * p + offset];
                 ptr::write_volatile(addr, data as u32);
             }
@@ -258,7 +261,7 @@ mod ddr {
 
                     for p in 0..DFII_NPHASES {
                         for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
-                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
+                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(CSR_SEPARATION * offset as isize);
                             let data = prs[DFII_PIX_DATA_SIZE * p + offset];
                             if ptr::read_volatile(addr) as u8 != data {
                                 working = false;
@@ -306,7 +309,7 @@ mod ddr {
         // Write test pattern
         for p in 0..DFII_NPHASES {
             for offset in 0..DFII_PIX_DATA_SIZE {
-                let addr = DFII_PIX_WRDATA_ADDR[p].offset(offset as isize);
+                let addr = DFII_PIX_WRDATA_ADDR[p].offset(CSR_SEPARATION * offset as isize);
                 let data = prs[DFII_PIX_DATA_SIZE * p + offset];
                 ptr::write_volatile(addr, data as u32);
             }
@@ -349,7 +352,7 @@ mod ddr {
 
                     for p in 0..DFII_NPHASES {
                         for &offset in [n, n + DQS_SIGNAL_COUNT].iter() {
-                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(offset as isize);
+                            let addr = DFII_PIX_RDDATA_ADDR[p].offset(CSR_SEPARATION * offset as isize);
                             let data = prs[DFII_PIX_DATA_SIZE * p + offset];
                             if ptr::read_volatile(addr) as u8 != data {
                                 valid = false;

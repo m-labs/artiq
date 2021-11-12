@@ -104,9 +104,15 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -138,7 +144,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -156,7 +162,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
 
@@ -255,9 +261,15 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -333,7 +345,7 @@ class MasterBase(MiniSoC, AMPSoC):
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -374,7 +386,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -386,7 +398,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("routing_table")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
     # Never running out of stupid features, GTs on A7 make you pack
@@ -431,9 +443,15 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
+                 hw_rev=hw_rev,
+                 cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  **kwargs)
@@ -521,7 +539,7 @@ class SatelliteBase(BaseSoC):
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 

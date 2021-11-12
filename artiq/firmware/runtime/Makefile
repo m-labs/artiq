@@ -18,7 +18,7 @@ all:: runtime.bin runtime.fbi
 $(RUSTOUT)/libruntime.a:
 	$(cargo) --target-dir ./cargo \
 	--manifest-path $(RUNTIME_DIRECTORY)/Cargo.toml \
-	--target $(RUNTIME_DIRECTORY)/../riscv32ima-unknown-none-elf.json
+	--target $(RUNTIME_DIRECTORY)/../$(CARGO_TRIPLE).json
 
 runtime.elf: $(RUSTOUT)/libruntime.a ksupport_data.o
 	$(link) -T $(RUNTIME_DIRECTORY)/runtime.ld \

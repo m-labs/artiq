@@ -132,6 +132,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -176,7 +177,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -192,7 +193,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
 
@@ -209,6 +210,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
+                         cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -263,7 +265,7 @@ class _MasterBase(MiniSoC, AMPSoC):
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -321,7 +323,7 @@ class _MasterBase(MiniSoC, AMPSoC):
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -342,6 +344,7 @@ class _SatelliteBase(BaseSoC):
     def __init__(self, gateware_identifier_str=None, sma_as_sat=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
+                 cpu_bus_width=64,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  integrated_sram_size=8192,
@@ -404,7 +407,7 @@ class _SatelliteBase(BaseSoC):
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
