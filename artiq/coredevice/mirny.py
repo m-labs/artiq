@@ -177,7 +177,8 @@ class Almazny:
         """
         Sets the data on chosen shift register.
         :param reg_i - index of the register [1-4]
-        :param attin[1-6] - attenuator input {0, 1}
+        :param attin[1-6] - attenuator on {0, 1} 
+        :attin1 - 16dB attenuator, att6 - 0.5dB
         :param output_on - RF output on {0, 1}
         """
 
@@ -281,5 +282,6 @@ class Almazny:
         """
         for pin, data in pins_data:
             self.put_data(pin, data)
-        for _ in range(2):
-            self.mirny.write_reg(self.mezzio_reg, self.mezz_data)
+        self.mirny.write_reg(self.mezzio_reg, self.mezz_data)
+        # delay to ensure the data has been read by the SR
+        delay(1*us)
