@@ -173,15 +173,17 @@ class Almazny:
             ])
 
     @kernel
-    def reg_set(self, reg_i, attin1=0, attin2=0, attin3=0, attin4=0, attin5=0, attin6=0, output_off=1):
+    def reg_set(self, reg_i, attin1=1, attin2=1, attin3=1, attin4=1, attin5=1, attin6=1, output_on=0):
         """
         Sets the data on chosen shift register.
         :param reg_i - index of the register [1-4]
         :param attin[1-6] - attenuator input {0, 1}
-        :param output_off - RF output off {0, 1}
+        :param output_on - RF output on {0, 1}
         """
 
-        shift_reg = [0, output_off, attin6, attin5, attin4, attin3, attin2, attin1]
+        shift_reg = [0, output_on, attin6, attin5, attin4, attin3, attin2, attin1]
+        if not 4 >= reg_i >= 1:
+            raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
         ])   
@@ -197,6 +199,8 @@ class Almazny:
         Clears content of a register.
         :param reg_i - index of the register [1-4]
         """
+        if not 4 >= reg_i >= 1:
+            raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
             (self.REG_CLEAR, 0),
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
@@ -277,4 +281,5 @@ class Almazny:
         """
         for pin, data in pins_data:
             self.put_data(pin, data)
-        self.mirny.write_reg(self.mezzio_reg, self.mezz_data)
+        for _ in range(2):
+            self.mirny.write_reg(self.mezzio_reg, self.mezz_data)
