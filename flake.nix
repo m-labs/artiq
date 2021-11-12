@@ -1,17 +1,16 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
-  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; inputs.nixpkgs.follows = "nixpkgs"; };
+  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; };
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
+  outputs = { self, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
     let
-      pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import src-nac3.nixpkgs-patched { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
         sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";

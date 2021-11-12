@@ -3,11 +3,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1634833229,
-        "narHash": "sha256-uDbVCkW91/AY87mTwm8XrX2E133LTFqwYsYNNxBcY9M=",
+        "lastModified": 1636569584,
+        "narHash": "sha256-iDFogua24bhFJZSxG/jhZbbNxDXuKP9S/pyRIYzrRPM=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "6070a8ee799f629cb1d0004821f77ceed94d3992",
+        "rev": "9f70f86d73fa97e043bebeb58e5676d157069cfb",
         "type": "github"
       },
       "original": {
@@ -18,15 +18,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1635946136,
-        "narHash": "sha256-y1l0FK/nyRqb9CCImHNDJYYTtCnSNF2rK5RFc+qaMEg=",
+        "lastModified": 1636698608,
+        "narHash": "sha256-sxLLeQmH3UrP3UANqXzMLE0bPDgY5aIt04iBoPffG2E=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "8429ae8722a319ebc26e9a38105e0797a824eb87",
+        "rev": "92c881b6a72abce5bb2f5db3f903b4871d13aaa9",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
+        "ref": "master",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -34,7 +35,6 @@
     "root": {
       "inputs": {
         "mozilla-overlay": "mozilla-overlay",
-        "nixpkgs": "nixpkgs",
         "src-migen": "src-migen",
         "src-misoc": "src-misoc",
         "src-nac3": "src-nac3",
@@ -60,11 +60,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1635235511,
-        "narHash": "sha256-XdBMBfup7JbUPzBi0An8GnQCIp7tiaczTrOwsPpvKCM=",
+        "lastModified": 1636527305,
+        "narHash": "sha256-/2XTejqj0Bo81HaTrlTSWwInnWwsuqnq+CURXbpIrkA=",
         "ref": "master",
-        "rev": "34e545c190e08ada3f59712bdb71208ac6c39cbc",
-        "revCount": 2397,
+        "rev": "f5203e406520874e15ab5d070058ef642fc57fd9",
+        "revCount": 2417,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
@@ -77,16 +77,14 @@
     },
     "src-nac3": {
       "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
+        "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1636619740,
-        "narHash": "sha256-hJP4hjn9z2Mj/2I3jWZqqvUIOGGfmAKmmN6F8HegC4Y=",
+        "lastModified": 1636703241,
+        "narHash": "sha256-5Bm5+4YctgGGrX8ncZVDJ5LONKIFyGjqQexWLCGUI9k=",
         "ref": "master",
-        "rev": "612b6768c0b0099d8b1bbd4f51014bc0cacba0b6",
-        "revCount": 416,
+        "rev": "aa84fefa5629d1367a00d5703dd2f0b7ee7c26b0",
+        "revCount": 426,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },
