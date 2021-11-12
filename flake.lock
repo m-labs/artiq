@@ -3,11 +3,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1636047415,
+        "lastModified": 1636569584,
         "narHash": "sha256-iDFogua24bhFJZSxG/jhZbbNxDXuKP9S/pyRIYzrRPM=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "cf58c4c67b15b402e77a2665b9e7bad3e9293cb2",
+        "rev": "9f70f86d73fa97e043bebeb58e5676d157069cfb",
         "type": "github"
       },
       "original": {
@@ -18,11 +18,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1636333654,
-        "narHash": "sha256-3wh9PtCzcaJQuZrgZ+ygKfhltkDNNqT6zOzGsRbjZEo=",
+        "lastModified": 1636552551,
+        "narHash": "sha256-k7Hq/bvUnRlAfFjPGuw3FsSqqspQdRHsCHpgadw6UkQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "e74894146a42ba552ebafa19ab2d1df7ccbc1738",
+        "rev": "9e86f5f7a19db6da2445f07bafa6694b556f9c6d",
         "type": "github"
       },
       "original": {
@@ -45,11 +45,11 @@
     "src-migen": {
       "flake": false,
       "locked": {
-        "lastModified": 1634182166,
-        "narHash": "sha256-Iw2d8fCgwuuIevkugSqd8Iplj6N+2nR1pn+or5E38Fk=",
+        "lastModified": 1636715924,
+        "narHash": "sha256-V3ThFSo2d7OC4SHE0lCkKGQKeFXmvxtwZRWe5NMU3nM=",
         "owner": "m-labs",
         "repo": "migen",
-        "rev": "7507a2bb16dd2cac63535175ce67fb30dfdae1c0",
+        "rev": "9a0be7a4210ff96043412539eb5388659b81831d",
         "type": "github"
       },
       "original": {
