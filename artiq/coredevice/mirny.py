@@ -155,7 +155,7 @@ class Almazny:
     REG_LATCH_BASE = 2
     REG_CLEAR = 6
 
-    mezzio_reg = 0x03 # register addr for Mezz_IO 0~7
+    mezzio_reg = 0x03  # register addr for Mezz_IO 0~7
 
     def __init__(self, dmgr, host_mirny):
         self.mirny = dmgr.get(host_mirny)
@@ -181,19 +181,18 @@ class Almazny:
         :attin1 - 16dB attenuator, att6 - 0.5dB
         :param output_on - RF output on {0, 1}
         """
-
         shift_reg = [0, output_on, attin6, attin5, attin4, attin3, attin2, attin1]
         if not 4 >= reg_i >= 1:
             raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
-        ])   
+        ])
         for val in shift_reg:
             self._cycle([
                 (self.SER_MOSI, val) 
             ])
         self._latch(reg_i)
-    
+
     @kernel
     def reg_clear(self, reg_i):
         """
@@ -205,15 +204,15 @@ class Almazny:
         self._send_mezz_data([
             (self.REG_CLEAR, 0),
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
-        ])   
+        ])
         self._send_mezz_data([
             (self.REG_CLEAR, 0),
             (self.REG_LATCH_BASE + (reg_i - 1), 1)
-        ])   
+        ])
         self._send_mezz_data([
             (self.REG_CLEAR, 1),
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
-        ])   
+        ])
 
     @kernel
     def reg_clear_all(self):
@@ -249,30 +248,27 @@ class Almazny:
         """
         self._send_mezz_data([
             (self.SER_CLK, 0),
-        ] + data) 
+        ] + data)
         self._send_mezz_data([
             (self.SER_CLK, 1),
-        ] + data) 
+        ] + data)
 
     @kernel
     def _latch(self, reg_i):
         self._send_mezz_data([
             (self.SER_CLK, 0),
             (self.REG_LATCH_BASE + (reg_i - 1), 1)
-        ])   
+        ])
         self._send_mezz_data([
             (self.REG_LATCH_BASE + (reg_i - 1), 0)
-        ])   
+        ])
 
     @kernel
     def put_data(self, pin, d):
-        if d == 1: # data
-            self.mezz_data |= 1 << pin
-        elif d == 0:
-            self.mezz_data &= ~(1 << pin)
-        else:
+        if d not in [0, 1]:
             raise ValueError("Data can be only 0 or 1")
-        self.mezz_data |= 1 << pin + 8 # oe
+        self.mezz_data = (self.mezz_data & ~(1 << pin)) | d << pin  # data
+        self.mezz_data |= 1 << pin + 8  # oe
 
     @kernel
     def _send_mezz_data(self, pins_data):
