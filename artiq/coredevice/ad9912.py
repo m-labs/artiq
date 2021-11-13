@@ -89,8 +89,7 @@ class AD9912:
         self.bus.write(0)
         data = self.bus.read()
         if length < 4:
-            # NAC3TODO data &= (1 << (length * 8)) - 1
-            data = data & (1 << (length * 8)) - 1
+            data &= (1 << (length * 8)) - 1
         return data
 
     @kernel
@@ -120,7 +119,7 @@ class AD9912:
         self.cpld.io_update.pulse(2. * us)
         self.core.delay(1. * ms)
 
-    # NAC3TODO @kernel
+    @kernel
     def set_att_mu(self, att: int32):
         """Set digital step attenuator in machine units.
 
@@ -132,7 +131,7 @@ class AD9912:
         """
         self.cpld.set_att_mu(self.chip_select - 4, att)
 
-    # NAC3TODO @kernel
+    @kernel
     def set_att(self, att: float):
         """Set digital step attenuator in SI units.
 
@@ -262,7 +261,7 @@ class AD9912:
         # Convert and return
         return self.ftw_to_frequency(ftw), self.pow_to_turns(pow_)
 
-    # NAC3TODO @kernel
+    @kernel
     def cfg_sw(self, state: bool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
         logical or of the CPLD configuration shift register

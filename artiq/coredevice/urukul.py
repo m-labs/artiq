@@ -265,7 +265,7 @@ class CPLD:
         self.cfg_write(self.cfg_reg | (1 << CFG_IO_RST))
         self.cfg_write(self.cfg_reg & ~(1 << CFG_IO_RST))
 
-    # NAC3TODO @kernel
+    @kernel
     def cfg_sw(self, channel: int32, on: bool):
         """Configure the RF switches through the configuration register.
 
@@ -311,7 +311,7 @@ class CPLD:
             pass
         return code
 
-    # NAC3TODO @kernel
+    @kernel
     def set_att_mu(self, channel: int32, att: int32):
         """Set digital step attenuator in machine units.
 
@@ -340,7 +340,7 @@ class CPLD:
         self.bus.write(att_reg)
         self.att_reg = att_reg
 
-    # NAC3TODO @kernel
+    @kernel
     def set_att(self, channel: int32, att: float):
         """Set digital step attenuator in SI units.
 
@@ -421,7 +421,7 @@ class CPLD:
         # NAC3TODO assert ftw * div == ftw_max
         self.sync.set_mu(ftw)
 
-    # NAC3TODO @kernel
+    @kernel
     def set_profile(self, profile: int32):
         """Set the PROFILE pins.
 

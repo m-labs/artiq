@@ -307,7 +307,7 @@ class TTLInOut:
         self._set_sensitivity(0)
         return now_mu()
 
-    # NAC3TODO @kernel
+    @kernel
     def count(self, up_to_timestamp_mu: int64) -> int32:
         """Consume RTIO input events until the hardware timestamp counter has
         reached the specified timestamp and return the number of observed
