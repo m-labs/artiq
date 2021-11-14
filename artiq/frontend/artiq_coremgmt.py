@@ -9,7 +9,6 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
-from artiq.coredevice.profiler import CallgrindWriter
 
 
 def get_argparser():
@@ -84,45 +83,7 @@ def get_argparser():
 
     # booting
     t_boot = tools.add_parser("reboot",
-                              help="reboot the currently running firmware")
-
-    t_hotswap = tools.add_parser("hotswap",
-                                  help="load the specified firmware in RAM")
-
-    t_hotswap.add_argument("image", metavar="IMAGE", type=argparse.FileType("rb"),
-                           help="runtime image to be executed")
-
-    # profiling
-    t_profile = tools.add_parser("profile",
-                                 help="account for communications CPU time")
-
-    subparsers = t_profile.add_subparsers(dest="action")
-    subparsers.required = True
-
-    p_start = subparsers.add_parser("start",
-                                    help="start profiling")
-    p_start.add_argument("--interval", metavar="MICROS", type=int, default=2000,
-                         help="sampling interval, in microseconds")
-    p_start.add_argument("--hits-size", metavar="ENTRIES", type=int, default=8192,
-                         help="hit buffer size")
-    p_start.add_argument("--edges-size", metavar="ENTRIES", type=int, default=8192,
-                         help="edge buffer size")
-
-    p_stop = subparsers.add_parser("stop",
-                                   help="stop profiling")
-
-    p_save = subparsers.add_parser("save",
-                                   help="save profile")
-    p_save.add_argument("output", metavar="OUTPUT", type=argparse.FileType("w"),
-                        help="file to save profile to, in Callgrind format")
-    p_save.add_argument("firmware", metavar="FIRMWARE", type=str,
-                        help="path to firmware ELF file")
-    p_save.add_argument("--no-compression",
-                        dest="compression", default=True, action="store_false",
-                        help="disable profile compression")
-    p_save.add_argument("--no-demangle",
-                        dest="demangle", default=True, action="store_false",
-                        help="disable symbol demangling")
+                              help="reboot the running system")
 
     # misc debug
     t_debug = tools.add_parser("debug",
@@ -179,24 +140,6 @@ def main():
 
     if args.tool == "reboot":
         mgmt.reboot()
-
-    if args.tool == "hotswap":
-        mgmt.hotswap(args.image.read())
-
-    if args.tool == "profile":
-        if args.action == "start":
-            mgmt.start_profiler(args.interval, args.hits_size, args.edges_size)
-        elif args.action == "stop":
-            mgmt.stop_profiler()
-        elif args.action == "save":
-            hits, edges = mgmt.get_profile()
-            writer = CallgrindWriter(args.output, args.firmware, "or1k-linux",
-                                     args.compression, args.demangle)
-            writer.header()
-            for addr, count in hits.items():
-                writer.hit(addr, count)
-            for (caller, callee), count in edges.items():
-                writer.edge(caller, callee, count)
 
     if args.tool == "debug":
         if args.action == "allocator":

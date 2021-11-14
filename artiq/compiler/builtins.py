@@ -315,6 +315,9 @@ def is_iterable(typ):
     return is_listish(typ) or is_range(typ)
 
 def get_iterable_elt(typ):
+    # TODO: Arrays count as listish, but this returns the innermost element type for
+    # n-dimensional arrays, rather than the n-1 dimensional result of iterating over
+    # the first axis, which makes the name a bit misleading.
     if is_str(typ) or is_bytes(typ) or is_bytearray(typ):
         return TInt(types.TValue(8))
     elif types._is_pointer(typ) or is_iterable(typ):

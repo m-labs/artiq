@@ -7,8 +7,7 @@ Reporting Issues/Bugs
 
 Thanks for `reporting issues to ARTIQ
 <https://github.com/m-labs/artiq/issues/new>`_! You can also discuss issues and
-ask questions on IRC (the `#m-labs channel on freenode
-<https://webchat.freenode.net/?channels=m-labs>`_), the `Mattermost chat
+ask questions on IRC (the #m-labs channel on OFTC), the `Mattermost chat
 <https://chat.m-labs.hk>`_, or on the `forum <https://forum.m-labs.hk>`_.
 
 The best bug reports are those which contain sufficient information. With

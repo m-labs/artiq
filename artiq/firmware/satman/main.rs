@@ -1,4 +1,4 @@
-#![feature(never_type, panic_implementation, panic_info_message, const_slice_len, try_from)]
+#![feature(never_type, panic_info_message, llvm_asm)]
 #![no_std]
 
 #[macro_use]
@@ -6,9 +6,10 @@ extern crate log;
 #[macro_use]
 extern crate board_misoc;
 extern crate board_artiq;
+extern crate riscv;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, irq, ident, clock, uart_logger, i2c};
+use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 #[cfg(has_wrpll)]
@@ -17,6 +18,7 @@ use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 #[cfg(has_hmc830_7043)]
 use board_artiq::hmc830_7043;
+use riscv::register::{mcause, mepc, mtval};
 
 mod repeater;
 #[cfg(has_jdcg)]
@@ -447,6 +449,14 @@ const SI5324_SETTINGS: si5324::FrequencySettings
 
 #[no_mangle]
 pub extern fn main() -> i32 {
+    extern {
+        static mut _sstack_guard: u8;
+    }
+
+    unsafe {
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+    }
+
     clock::init();
     uart_logger::ConsoleLogger::register();
 
@@ -537,7 +547,7 @@ pub extern fn main() -> i32 {
         }
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            for mut rep in repeaters.iter_mut() {
+            for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
             #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
@@ -566,7 +576,7 @@ pub extern fn main() -> i32 {
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
-            for mut rep in repeaters.iter_mut() {
+            for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
             #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
@@ -642,9 +652,10 @@ pub extern fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    let vect = irq::Exception::try_from(vect).expect("unknown exception");
-
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    
     fn hexdump(addr: u32) {
         let addr = (addr - addr % 4) as *const u32;
         let mut ptr  = addr;
@@ -658,9 +669,9 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
         }
     }
 
-    hexdump(pc);
-    hexdump(ea);
-    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+    hexdump(u32::try_from(pc).unwrap());
+    let mtval = mtval::read();
+    panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", cause, u32::try_from(pc).unwrap(), mtval)
 }
 
 #[no_mangle]
@@ -670,7 +681,7 @@ pub extern fn abort() {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     #[cfg(has_error_led)]
     unsafe {

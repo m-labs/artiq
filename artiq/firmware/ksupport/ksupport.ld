@@ -2,20 +2,20 @@ INCLUDE generated/output_format.ld
 INCLUDE generated/regions.ld
 ENTRY(_reset_handler)
 
-/* First 4M of main memory are reserved for runtime
+/* First 64M of main memory are reserved for runtime
  * code/data/heap, then comes kernel memory.
- * Next 4M of main memory are reserved for
+ * Next 16M of main memory are reserved for
  * the background RPC queue.
  * First 384K of kernel memory are for support code.
  * Support code is loaded at ORIGIN-0x80 so that ELF headers
  * are also loaded.
  */
 MEMORY {
-    ksupport (RWX) : ORIGIN = 0x40800000, LENGTH = 0x60000
+    ksupport (RWX) : ORIGIN = 0x45000000, LENGTH = 0x60000
 }
 
 /* Kernel stack is at the end of main RAM. */
-_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4;
+_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 16;
 
 /* Force ld to make the ELF header as loadable. */
 PHDRS
@@ -53,22 +53,22 @@ SECTIONS
     .eh_frame :
     {
         KEEP(*(.eh_frame))
-    } :text
+    } > ksupport :text
 
     .eh_frame_hdr :
     {
         KEEP(*(.eh_frame_hdr))
-    } :text :eh_frame
+    } > ksupport :text :eh_frame
 
     .data :
     {
         *(.data .data.*)
     }
 
-    .bss :
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
         _ebss = .;
     }

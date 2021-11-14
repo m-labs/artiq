@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
+from functools import partial
 
 from migen import *
+from migen.build.generic_platform import IOStandard
 
 from misoc.cores import gpio
 from misoc.integration.builder import builder_args, builder_argdict
@@ -40,7 +42,8 @@ class Master(MiniSoC, AMPSoC):
 
     def __init__(self, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
-                         cpu_type="or1k",
+                         cpu_type="vexriscv",
+                         cpu_bus_width=64,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -94,7 +97,7 @@ class Master(MiniSoC, AMPSoC):
             drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -126,12 +129,13 @@ class Master(MiniSoC, AMPSoC):
             self.submodules += phy
             rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        eem.DIO.add_std(self, 2, ttl_simple.Output, ttl_simple.Output,
-                        iostandard="LVDS")
-        eem.Urukul.add_std(self, 0, 1, ttl_simple.Output,
-                           iostandard="LVDS")
-        eem.Zotino.add_std(self, 3, ttl_simple.Output,
-                           iostandard="LVDS")
+        output_4x = partial(ttl_serdes_ultrascale.Output, 4)
+        eem.DIO.add_std(self, 2, output_4x, output_4x,
+                        iostandard=lambda eem: IOStandard("LVDS"))
+        eem.Urukul.add_std(self, 0, 1, output_4x,
+                           iostandard=lambda eem: IOStandard("LVDS"))
+        eem.Zotino.add_std(self, 3, output_4x,
+                           iostandard=lambda eem: IOStandard("LVDS"))
         workaround_us_lvds_tristate(platform)
 
         self.config["HAS_RTIO_LOG"] = None
@@ -146,7 +150,7 @@ class Master(MiniSoC, AMPSoC):
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(

@@ -1,7 +1,9 @@
 import asyncio
-import importlib.machinery
+import importlib.util
+import inspect
 import logging
 import os
+import pathlib
 import string
 import sys
 
@@ -11,7 +13,7 @@ from sipyco import pyon
 
 from artiq import __version__ as artiq_version
 from artiq.appdirs import user_config_dir
-from artiq.language.environment import is_experiment
+from artiq.language.environment import is_public_experiment
 
 
 __all__ = ["parse_arguments", "elide", "short_format", "file_import",
@@ -69,20 +71,16 @@ def short_format(v):
 
 
 def file_import(filename, prefix="file_import_"):
-    modname = filename
-    i = modname.rfind("/")
-    if i > 0:
-        modname = modname[i+1:]
-    i = modname.find(".")
-    if i > 0:
-        modname = modname[:i]
-    modname = prefix + modname
+    filename = pathlib.Path(filename)
+    modname = prefix + filename.stem
 
-    path = os.path.dirname(os.path.realpath(filename))
+    path = str(filename.resolve().parent)
     sys.path.insert(0, path)
+
     try:
-        loader = importlib.machinery.SourceFileLoader(modname, filename)
-        module = loader.load_module()
+        spec = importlib.util.spec_from_file_location(modname, filename)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
     finally:
         sys.path.remove(path)
 
@@ -91,14 +89,18 @@ def file_import(filename, prefix="file_import_"):
 
 def get_experiment(module, class_name=None):
     if class_name:
-        return getattr(module, class_name)
+        obj = module
+        for name in class_name.split('.'):
+            obj = getattr(obj, name)
+        return obj
 
-    exps = [(k, v) for k, v in module.__dict__.items()
-            if k[0] != "_" and is_experiment(v)]
+    exps = inspect.getmembers(module, is_public_experiment)
+
     if not exps:
         raise ValueError("No experiments in module")
     if len(exps) > 1:
         raise ValueError("More than one experiment found in module")
+
     return exps[0][1]
 
 

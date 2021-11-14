@@ -45,6 +45,8 @@ The Python types correspond to ARTIQ type annotations as follows:
 +---------------+-------------------------+
 | list of T     | TList(T)                |
 +---------------+-------------------------+
+| NumPy array   | TArray(T, num_dims)     |
++---------------+-------------------------+
 | range         | TRange32, TRange64      |
 +---------------+-------------------------+
 | numpy.int32   | TInt32                  |
@@ -74,6 +76,8 @@ the builtin ``float`` type on the core device, this can lead to problems in func
 ``@portable``; the workaround is to explicitly cast the argument of ``round`` to ``float``:
 ``round(float(numpy.float64(1.0)))`` returns an integer on the core device as well as on the host
 interpreter.
+
+Empty lists do not have valid list element types, so they cannot be used in the kernel.
 
 Asynchronous RPCs
 -----------------

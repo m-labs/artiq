@@ -1,4 +1,4 @@
-#![feature(libc, panic_unwind, unwind_attributes)]
+#![feature(libc, panic_unwind, unwind_attributes, rustc_private, int_bits_const)]
 #![crate_name = "artiq_support"]
 #![crate_type = "cdylib"]
 

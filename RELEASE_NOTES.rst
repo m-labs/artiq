@@ -3,18 +3,58 @@
 Release notes
 =============
 
+ARTIQ-7
+-------
+
+Highlights:
+
+* Support for Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
+* Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
+* WRPLL
+* Compiler:
+   - Supports kernel decorator with paths.
+   - Faster compilation for large arrays/lists.
+* Phaser:
+   - Improved documentation
+   - Expose the DAC coarse mixer and ``sif_sync``
+   - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
+   - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
+* ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
+* New hardware support:
+   - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
+* ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
+  TTL device (e.g. ``"ttl_0_counter"`` for the edge counter on TTL device``"ttl_0"``)
+* ``artiq_master`` now has an ``--experiment-subdir`` option to scan only a subdirectory of the
+  repository when building the list of experiments.
+* The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
+  of compile-time options.
+
+Breaking changes:
+
+* Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
+  frequency of the hardware design.
+* ``Phaser.init()`` now disables all Kasli-oscillators. This avoids full power RF output being
+  generated for some configurations.
+* Phaser: fixed coarse mixer frequency configuration
+* Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
+  calling `ADF5356.init()`.
+
+
 ARTIQ-6
 -------
 
 Highlights:
 
 * New hardware support:
-   - Zynq SoC core devices, enabling kernels to run on 1 GHz CPU core with a floating-point
+   - Phaser, a quad channel 1GS/s RF generator card with dual IQ upconverter and dual 5MS/s
+     ADC and FPGA.
+   - Zynq SoC core device (ZC706), enabling kernels to run on 1 GHz CPU core with a floating-point
      unit for faster computations. This currently requires an external
-     repository (https://git.m-labs.hk/m-labs/artiq-zynq) and only supports the ZC706.
+     repository (https://git.m-labs.hk/m-labs/artiq-zynq).
    - Mirny 4-channel wide-band PLL/VCO-based microwave frequency synthesiser
    - Fastino 32-channel, 3MS/s per channel, 16-bit DAC EEM
-   - Kasli 2.0
+   - Kasli 2.0, an improved core device with 12 built-in EEM slots, faster FPGA, 4 SFPs, and
+     high-precision clock recovery circuitry for DRTIO (to be supported in ARTIQ-7).
 * ARTIQ Python (core device kernels):
    - Multidimensional arrays are now available on the core device, using NumPy syntax.
      Elementwise operations (e.g. ``+``, ``/``), matrix multiplication (``@``) and
@@ -32,6 +72,8 @@ Highlights:
 * Zotino now exposes  ``voltage_to_mu()``
 * ``ad9910``: The maximum amplitude scale factor is now ``0x3fff`` (was ``0x3ffe``
   before).
+* Mirny now supports HW revision independent, human readable ``clk_sel`` parameters:
+  "XO", "SMA", and "MMCX". Passing an integer is backwards compatible.
 * Dashboard:
    - Applets now restart if they are running and a ccb call changes their spec
    - A "Quick Open" dialog to open experiments by typing part of their name can
@@ -39,7 +81,7 @@ Highlights:
      with the default arguments).
    - The Applets dock now has a context menu command to quickly close all open
      applets (shortcut: Ctrl-Alt-W).
-* Experiment results are now always saved to HDF5, even if run() fails.
+* Experiment results are now always saved to HDF5, even if ``run()`` fails.
 * Core device: ``panic_reset 1`` now correctly resets the kernel CPU as well if
   communication CPU panic occurs.
 * NumberValue accepts a ``type`` parameter specifying the output as ``int`` or ``float``
@@ -47,7 +89,8 @@ Highlights:
   with reproducible builds.
 * Python 3.7 support in Conda packages.
 * `kasli_generic` JSON descriptions are now validated against a
-  schema. Description defaults have moved from Python to the schema.
+  schema. Description defaults have moved from Python to the
+  schema. Warns if ARTIQ version is too old.
 
 Breaking changes:
 
@@ -64,6 +107,8 @@ Breaking changes:
 * To support variable numbers of Urukul cards in the future, the
   ``artiq.coredevice.suservo.SUServo`` constructor now accepts two device name lists,
   ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
+* Experiment classes with underscore-prefixed names are now ignored when ``artiq_client``
+  determines which experiment to submit (consistent with ``artiq_run``).
 
 ARTIQ-5
 -------

@@ -6,8 +6,8 @@ import sys
 import versioneer
 
 
-if sys.version_info[:3] < (3, 5, 3):
-    raise Exception("You need Python 3.5.3+")
+if sys.version_info[:2] < (3, 7):
+    raise Exception("You need Python 3.7+")
 
 
 # Depends on PyQt5, but setuptools cannot check for it.
@@ -15,7 +15,7 @@ requirements = [
     "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
     "qasync", "pyqtgraph", "pygit2",
-    "llvmlite_artiq", "pythonparser", "python-Levenshtein",
+    "llvmlite", "pythonparser", "python-Levenshtein",
 ]
 
 console_scripts = [
@@ -58,16 +58,12 @@ Intended Audience :: Science/Research
 License :: OSI Approved :: GNU Lesser General Public License v3 or later (LGPLv3+)
 Operating System :: Microsoft :: Windows
 Operating System :: POSIX :: Linux
-Programming Language :: Python :: 3.5
+Programming Language :: Python :: 3.7
 Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
     install_requires=requirements,
     extras_require={},
-    dependency_links=[
-        "git+https://github.com/m-labs/pyqtgraph.git@develop#egg=pyqtgraph",
-        "git+https://github.com/m-labs/llvmlite.git@artiq#egg=llvmlite_artiq"
-    ],
     packages=find_packages(),
     namespace_packages=[],
     include_package_data=True,

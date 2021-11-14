@@ -66,23 +66,30 @@ class FuzzySelectWidget(LayoutWidget):
         if self.menu:
             self._update_menu()
 
+    def resizeEvent(self, ev):
+        # Reposition menu once widget position and layout are known. Qt triggers a
+        # resizeEvent then. (This is relevant for the Quick Open dialog on KDE/Linux,
+        # which sometimes shows at (0, 0) instead because the layout wasn't ready yet.)
+        if self.menu:
+            self._popup_menu()
+        return super().resizeEvent(ev)
+
     def _activate(self):
         self.update_when_text_changed = True
         if not self.menu:
-            # Show menu after initial layout is complete.
-            QtCore.QTimer.singleShot(0, self._update_menu)
+            self._update_menu()
+
+    def _popup_menu(self):
+        # Display menu with search results beneath line edit.
+        menu_pos = self.line_edit.mapToGlobal(self.line_edit.pos())
+        menu_pos.setY(menu_pos.y() + self.line_edit.height())
+        self.menu.popup(menu_pos)
 
     def _ensure_menu(self):
         if self.menu:
             return
-
         self.menu = QtWidgets.QMenu(self)
-
-        # Display menu with search results beneath line edit.
-        menu_pos = self.line_edit.mapToGlobal(self.line_edit.pos())
-        menu_pos.setY(menu_pos.y() + self.line_edit.height())
-
-        self.menu.popup(menu_pos)
+        self._popup_menu()
         self.menu.aboutToHide.connect(self._menu_hidden)
 
     def _menu_hidden(self):

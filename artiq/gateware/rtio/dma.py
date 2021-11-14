@@ -11,8 +11,20 @@ def _reverse_bytes(s, g):
     return Cat(reversed(list(s[i*g:(i+1)*g] for i in range(len(s)//g))))
 
 
+def convert_signal(signal, granularity):
+    assert len(signal) % 8 == 0
+    nbytes = len(signal)//8
+    assert nbytes % granularity == 0
+    nwords = nbytes//granularity
+    signal_words = []
+    for i in range(nwords):
+        signal_words.append(_reverse_bytes(
+                signal[i*granularity*8:(i+1)*granularity*8], 8))
+    return Cat(signal_words)
+
+
 class WishboneReader(Module):
-    def __init__(self, bus):
+    def __init__(self, bus, cpu_dw):
         self.bus = bus
 
         aw = len(bus.adr)
@@ -37,18 +49,18 @@ class WishboneReader(Module):
             If(self.source.ack, data_reg_loaded.eq(0)),
             If(bus.ack,
                 data_reg_loaded.eq(1),
-                self.source.data.eq(bus.dat_r),
+                self.source.data.eq(convert_signal(bus.dat_r, cpu_dw//8)),
                 self.source.eop.eq(self.sink.eop)
             )
         ]
 
 
 class DMAReader(Module, AutoCSR):
-    def __init__(self, membus, enable):
+    def __init__(self, membus, enable, cpu_dw):
         aw = len(membus.adr)
         data_alignment = log2_int(len(membus.dat_w)//8)
 
-        self.submodules.wb_reader = WishboneReader(membus)
+        self.submodules.wb_reader = WishboneReader(membus, cpu_dw)
         self.source = self.wb_reader.source
 
         # All numbers in bytes
@@ -324,11 +336,11 @@ class CRIMaster(Module, AutoCSR):
 
 
 class DMA(Module):
-    def __init__(self, membus):
+    def __init__(self, membus, cpu_dw):
         self.enable = CSR()
 
         flow_enable = Signal()
-        self.submodules.dma = DMAReader(membus, flow_enable)
+        self.submodules.dma = DMAReader(membus, flow_enable, cpu_dw)
         self.submodules.slicer = RecordSlicer(len(membus.dat_w))
         self.submodules.time_offset = TimeOffset()
         self.submodules.cri_master = CRIMaster()

@@ -1,141 +1,20 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
+from distutils.version import LooseVersion
 
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
 
+from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
-from artiq.gateware import rtio, eem
-from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
+from artiq.gateware import rtio, eem_7series
+from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.targets.kasli import StandaloneBase, MasterBase, SatelliteBase
 from artiq.build_soc import *
 
-
-def peripheral_dio(module, peripheral):
-    ttl_classes = {
-        "input": ttl_serdes_7series.InOut_8X,
-        "output": ttl_serdes_7series.Output_8X
-    }
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    if peripheral["edge_counter"]:
-        edge_counter_cls = edge_counter.SimpleEdgeCounter
-    else:
-        edge_counter_cls = None
-    eem.DIO.add_std(module, peripheral["ports"][0],
-        ttl_classes[peripheral["bank_direction_low"]],
-        ttl_classes[peripheral["bank_direction_high"]],
-        edge_counter_cls=edge_counter_cls)
-
-
-def peripheral_urukul(module, peripheral):
-    if len(peripheral["ports"]) == 1:
-        port, port_aux = peripheral["ports"][0], None
-    elif len(peripheral["ports"]) == 2:
-        port, port_aux = peripheral["ports"]
-    else:
-        raise ValueError("wrong number of ports")
-    if peripheral["synchronization"]:
-        sync_gen_cls = ttl_simple.ClockGen
-    else:
-        sync_gen_cls = None
-    eem.Urukul.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X,
-        sync_gen_cls)
-
-
-def peripheral_novogorny(module, peripheral):
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    eem.Novogorny.add_std(module, peripheral["ports"][0], ttl_serdes_7series.Output_8X)
-
-
-def peripheral_sampler(module, peripheral):
-    if len(peripheral["ports"]) == 1:
-        port, port_aux = peripheral["ports"][0], None
-    elif len(peripheral["ports"]) == 2:
-        port, port_aux = peripheral["ports"]
-    else:
-        raise ValueError("wrong number of ports")
-    eem.Sampler.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X)
-
-
-def peripheral_suservo(module, peripheral):
-    if len(peripheral["sampler_ports"]) != 2:
-        raise ValueError("wrong number of Sampler ports")
-    urukul_ports = []
-    if len(peripheral["urukul0_ports"]) != 2:
-        raise ValueError("wrong number of Urukul #0 ports")
-    urukul_ports.append(peripheral["urukul0_ports"])
-    if "urukul1_ports" in peripheral:
-        if len(peripheral["urukul1_ports"]) != 2:
-            raise ValueError("wrong number of Urukul #1 ports")
-        urukul_ports.append(peripheral["urukul1_ports"])
-    eem.SUServo.add_std(module,
-        peripheral["sampler_ports"],
-        urukul_ports)
-
-
-def peripheral_zotino(module, peripheral):
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    eem.Zotino.add_std(module, peripheral["ports"][0],
-        ttl_serdes_7series.Output_8X)
-
-
-def peripheral_grabber(module, peripheral):
-    if len(peripheral["ports"]) == 1:
-        port = peripheral["ports"][0]
-        port_aux = None
-        port_aux2 = None
-    elif len(peripheral["ports"]) == 2:
-        port, port_aux = peripheral["ports"]
-        port_aux2 = None
-    elif len(peripheral["ports"]) == 3:
-        port, port_aux, port_aux2 = peripheral["ports"]
-    else:
-        raise ValueError("wrong number of ports")
-    eem.Grabber.add_std(module, port, port_aux, port_aux2)
-
-
-def peripheral_mirny(module, peripheral):
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    eem.Mirny.add_std(module, peripheral["ports"][0],
-        ttl_serdes_7series.Output_8X)
-
-
-def peripheral_fastino(module, peripheral):
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    eem.Fastino.add_std(module, peripheral["ports"][0],
-        peripheral["log2_width"])
-
-
-def peripheral_phaser(module, peripheral):
-    if len(peripheral["ports"]) != 1:
-        raise ValueError("wrong number of ports")
-    eem.Phaser.add_std(module, peripheral["ports"][0])
-
-
-peripheral_processors = {
-    "dio": peripheral_dio,
-    "urukul": peripheral_urukul,
-    "novogorny": peripheral_novogorny,
-    "sampler": peripheral_sampler,
-    "suservo": peripheral_suservo,
-    "zotino": peripheral_zotino,
-    "grabber": peripheral_grabber,
-    "mirny": peripheral_mirny,
-    "fastino": peripheral_fastino,
-    "phaser": peripheral_phaser,
-}
-
-
-def add_peripherals(module, peripherals):
-    for peripheral in peripherals:
-        peripheral_processors[peripheral["type"]](module, peripheral)
-
+logger = logging.getLogger(__name__)
 
 class GenericStandalone(StandaloneBase):
     def __init__(self, description, hw_rev=None,**kwargs):
@@ -159,12 +38,18 @@ class GenericStandalone(StandaloneBase):
             self.grabber_csr_group = []
 
         self.rtio_channels = []
-        add_peripherals(self, description["peripherals"])
+        eem_7series.add_peripherals(self, description["peripherals"])
         if hw_rev in ("v1.0", "v1.1"):
             for i in (1, 2):
                 print("SFP LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
                 sfp_ctl = self.platform.request("sfp_ctl", i)
                 phy = ttl_simple.Output(sfp_ctl.led)
+                self.submodules += phy
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
+        if hw_rev == "v2.0":
+            for i in (1, 2):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+                phy = ttl_simple.Output(self.platform.request("user_led", i))
                 self.submodules += phy
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
@@ -204,7 +89,7 @@ class GenericMaster(MasterBase):
             self.grabber_csr_group = []
 
         self.rtio_channels = []
-        add_peripherals(self, description["peripherals"])
+        eem_7series.add_peripherals(self, description["peripherals"])
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
@@ -237,7 +122,7 @@ class GenericSatellite(SatelliteBase):
             self.grabber_csr_group = []
 
         self.rtio_channels = []
-        add_peripherals(self, description["peripherals"])
+        eem_7series.add_peripherals(self, description["peripherals"])
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
@@ -263,6 +148,11 @@ def main():
                         help="Override ROM identifier")
     args = parser.parse_args()
     description = jsondesc.load(args.description)
+
+    min_artiq_version = description.get("min_artiq_version", "0")
+    if LooseVersion(artiq_version) < LooseVersion(min_artiq_version):
+        logger.warning("ARTIQ version mismatch: current %s < %s minimum",
+                       artiq_version, min_artiq_version)
 
     if description["target"] != "kasli":
         raise ValueError("Description is for a different target")

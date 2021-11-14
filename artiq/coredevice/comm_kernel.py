@@ -66,13 +66,13 @@ def _receive_list(kernel, embedding_map):
     tag = chr(kernel._read_int8())
     if tag == "b":
         buffer = kernel._read(length)
-        return list(buffer)
+        return list(struct.unpack(kernel.endian + "%s?" % length, buffer))
     elif tag == "i":
         buffer = kernel._read(4 * length)
         return list(struct.unpack(kernel.endian + "%sl" % length, buffer))
     elif tag == "I":
         buffer = kernel._read(8 * length)
-        return list(struct.unpack(kernel.endian + "%sq" % length, buffer))
+        return list(numpy.ndarray((length, ), kernel.endian + 'i8', buffer))
     elif tag == "f":
         buffer = kernel._read(8 * length)
         return list(struct.unpack(kernel.endian + "%sd" % length, buffer))
@@ -96,7 +96,7 @@ def _receive_array(kernel, embedding_map):
     length = numpy.prod(shape)
     if tag == "b":
         buffer = kernel._read(length)
-        elems = numpy.ndarray((length, ), 'B', buffer)
+        elems = numpy.ndarray((length, ), '?', buffer)
     elif tag == "i":
         buffer = kernel._read(4 * length)
         elems = numpy.ndarray((length, ), kernel.endian + 'i4', buffer)

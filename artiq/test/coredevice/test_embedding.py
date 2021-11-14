@@ -36,6 +36,12 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip(True)
         self.assertRoundtrip(False)
 
+    def test_numpy_bool(self):
+        # These won't return as numpy.bool_, but the bare-Python results should still
+        # compare equal.
+        self.assertRoundtrip(numpy.True_)
+        self.assertRoundtrip(numpy.False_)
+
     def test_int(self):
         self.assertRoundtrip(numpy.int32(42))
         self.assertRoundtrip(numpy.int64(42))
@@ -55,6 +61,12 @@ class RoundtripTest(ExperimentCase):
     def test_list(self):
         self.assertRoundtrip([10])
 
+    def test_bool_list(self):
+        self.assertRoundtrip([True, False])
+
+    def test_int64_list(self):
+        self.assertRoundtrip([numpy.int64(0), numpy.int64(1)])
+
     def test_object(self):
         obj = object()
         self.assertRoundtrip(obj)
@@ -69,6 +81,7 @@ class RoundtripTest(ExperimentCase):
         self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
 
     def test_array_1d(self):
+        self.assertArrayRoundtrip(numpy.array([True, False]))
         self.assertArrayRoundtrip(numpy.array([1, 2, 3], dtype=numpy.int32))
         self.assertArrayRoundtrip(numpy.array([1.0, 2.0, 3.0]))
         self.assertArrayRoundtrip(numpy.array(["a", "b", "c"]))
@@ -206,6 +219,7 @@ class RPCTypesTest(ExperimentCase):
 class _RPCCalls(EnvExperiment):
     def build(self):
         self.setattr_device("core")
+        self._list_int64 = [numpy.int64(1)]
 
     def args(self, *args) -> TInt32:
         return len(args)
@@ -242,20 +256,12 @@ class _RPCCalls(EnvExperiment):
         return self.kwargs("X", a="A", b=1)
 
     @kernel
+    def list_int64(self):
+        return self._list_int64
+
+    @kernel
     def numpy_things(self):
-        return (numpy.int32(10), numpy.int64(20), numpy.array([42,]))
-
-    @kernel
-    def numpy_full(self):
-        return numpy.full(10, 20)
-
-    @kernel
-    def numpy_full_matrix(self):
-        return numpy.full((3, 2), 13)
-
-    @kernel
-    def numpy_nan(self):
-        return numpy.full(10, numpy.nan)
+        return (numpy.int32(10), numpy.int64(20))
 
     @kernel
     def builtin(self):
@@ -284,10 +290,11 @@ class RPCCallsTest(ExperimentCase):
         self.assertEqual(exp.kwargs2(), 2)
         self.assertEqual(exp.args1kwargs2(), 2)
         self.assertEqual(exp.numpy_things(),
-                         (numpy.int32(10), numpy.int64(20), numpy.array([42,])))
-        self.assertTrue((exp.numpy_full() == numpy.full(10, 20)).all())
-        self.assertTrue((exp.numpy_full_matrix() == numpy.full((3, 2), 13)).all())
-        self.assertTrue(numpy.isnan(exp.numpy_nan()).all())
+                         (numpy.int32(10), numpy.int64(20)))
+        # Ensure lists of int64s don't decay to variable-length builtin integers.
+        list_int64 = exp.list_int64()
+        self.assertEqual(list_int64, [numpy.int64(1)])
+        self.assertTrue(isinstance(list_int64[0], numpy.int64))
         exp.builtin()
         exp.async_in_try()
 
@@ -488,3 +495,23 @@ class AssertTest(ExperimentCase):
         check_fail(lambda: exp.check(False), "AssertionError")
         exp.check_msg(True)
         check_fail(lambda: exp.check_msg(False), "foo")
+
+
+class _NumpyBool(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.np_true = numpy.True_
+        self.np_false = numpy.False_
+
+    @kernel
+    def run(self):
+        assert self.np_true
+        assert self.np_true == True
+        assert not self.np_false
+        assert self.np_false == False
+
+
+class NumpyBoolTest(ExperimentCase):
+    def test_numpy_bool(self):
+        """Test NumPy bools decay to ARTIQ compiler builtin bools as expected"""
+        self.create(_NumpyBool).run()

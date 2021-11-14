@@ -20,11 +20,10 @@ from unittest.mock import Mock
 import sphinx_rtd_theme
 
 
-# Hack-patch Sphinx so that ARTIQ-Python types are correctly printed
+# Ensure that ARTIQ-Python types are correctly printed
 # See: https://github.com/m-labs/artiq/issues/741
-from sphinx.ext import autodoc
-from sphinx.util import inspect
-autodoc.repr = inspect.repr = str
+import builtins
+builtins.__in_sphinx__ = True
 
 
 # we cannot use autodoc_mock_imports (does not help with argparse)
@@ -38,7 +37,7 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "qasync", "pyqtgraph", "matplotlib",
                 "numpy", "dateutil", "dateutil.parser", "prettytable", "PyQt5",
                 "h5py", "serial", "scipy", "scipy.interpolate",
-                "llvmlite_artiq", "Levenshtein", "pythonparser",
+                "llvmlite", "Levenshtein", "pythonparser",
                 "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
                 "sipyco.asyncio_tools", "sipyco.logging_tools",
                 "sipyco.broadcast", "sipyco.packed_exceptions"]
@@ -95,7 +94,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'ARTIQ'
-copyright = '2014-2020, M-Labs Limited'
+copyright = '2014-2021, M-Labs Limited'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

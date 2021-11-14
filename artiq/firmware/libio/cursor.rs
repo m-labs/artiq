@@ -69,7 +69,7 @@ impl<'a> Write for Cursor<&'a mut [u8]> {
 }
 
 #[cfg(feature = "alloc")]
-impl Write for Cursor<::alloc::Vec<u8>> {
+impl Write for Cursor<::alloc::vec::Vec<u8>> {
     type WriteError = !;
     type FlushError = !;
 

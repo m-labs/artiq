@@ -39,11 +39,18 @@ async def get_logs_sim(host):
 async def get_logs(host):
     reader, writer = await asyncio.open_connection(host, 1380)
     writer.write(b"ARTIQ management\n")
+    endian = await reader.readexactly(1)
+    if endian == b"e":
+        endian = "<"
+    elif endian == b"E":
+        endian = ">"
+    else:
+        raise IOError("Incorrect reply from device: expected e/E.")
     writer.write(struct.pack("B", Request.PullLog.value))
     await writer.drain()
 
     while True:
-        length, = struct.unpack(">l", await reader.readexactly(4))
+        length, = struct.unpack(endian + "l", await reader.readexactly(4))
         log = await reader.readexactly(length)
 
         for line in log.decode("utf-8").splitlines():

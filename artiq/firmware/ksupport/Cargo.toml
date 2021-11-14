@@ -20,3 +20,6 @@ dyld = { path = "../libdyld" }
 board_misoc = { path = "../libboard_misoc" }
 board_artiq = { path = "../libboard_artiq" }
 proto_artiq = { path = "../libproto_artiq" }
+riscv = { version = "0.6.0", features = ["inline-asm"] }
+libc = { path = "../libc" }
+unwind = { path = "../libunwind" }

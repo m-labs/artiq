@@ -4,3 +4,4 @@ include artiq/gui/logo*.svg
 include versioneer.py
 include artiq/_version.py
 include artiq/coredevice/coredevice_generic.schema.json
+include artiq/compiler/kernel.ld

@@ -1,5 +1,5 @@
 use core::str::Utf8Error;
-use alloc::{Vec, String};
+use alloc::{vec::Vec, string::String};
 #[cfg(feature = "log")]
 use log;
 
@@ -63,15 +63,6 @@ pub enum Request {
     ConfigRemove { key: String },
     ConfigErase,
 
-    StartProfiler {
-        interval_us: u32,
-        hits_size: u32,
-        edges_size: u32,
-    },
-    StopProfiler,
-    GetProfile,
-
-    Hotswap(Vec<u8>),
     Reboot,
 
     DebugAllocator,
@@ -85,8 +76,6 @@ pub enum Reply<'a> {
     LogContent(&'a str),
 
     ConfigData(&'a [u8]),
-
-    Profile,
 
     RebootImminent,
 }
@@ -130,15 +119,6 @@ impl Request {
             },
             15 => Request::ConfigErase,
 
-            9 => Request::StartProfiler {
-                interval_us: reader.read_u32()?,
-                hits_size: reader.read_u32()?,
-                edges_size: reader.read_u32()?,
-            },
-            10 => Request::StopProfiler,
-            11 => Request::GetProfile,
-
-            4 => Request::Hotswap(reader.read_bytes()?),
             5 => Request::Reboot,
 
             8 => Request::DebugAllocator,
@@ -173,11 +153,6 @@ impl<'a> Reply<'a> {
                 writer.write_u8(7)?;
                 writer.write_bytes(bytes)?;
             },
-
-            Reply::Profile => {
-                writer.write_u8(5)?;
-                // profile data follows
-            }
 
             Reply::RebootImminent => {
                 writer.write_u8(3)?;

@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
-import sys
+import argparse
+import inspect
 import os
 import select
+import sys
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
@@ -55,6 +57,8 @@ class SinaraTester(EnvExperiment):
         self.grabbers = dict()
         self.mirny_cplds = dict()
         self.mirnies = dict()
+        self.suservos = dict()
+        self.suschannels = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -88,9 +92,14 @@ class SinaraTester(EnvExperiment):
                     self.mirny_cplds[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.adf5356", "ADF5356"):
                     self.mirnies[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
+                    self.suservos[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
+                    self.suschannels[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
-        # from TTL outs (tested separately)
+        # from TTL outs (tested separately) and remove Urukuls covered by
+        # SUServo
         ddb = self.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
@@ -101,8 +110,16 @@ class SinaraTester(EnvExperiment):
                         sw_device = desc["arguments"]["sw_device"]
                         del self.ttl_outs[sw_device]
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
-                    io_update_device = desc["arguments"]["io_update_device"]
-                    del self.ttl_outs[io_update_device]
+                    if "io_update_device" in desc["arguments"]:
+                        io_update_device = desc["arguments"]["io_update_device"]
+                        del self.ttl_outs[io_update_device]
+                # check for suservos and delete respective urukuls
+                elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
+                    del self.urukuls[desc["arguments"]["dds0_device"]]
+                    del self.urukul_cplds[desc["arguments"]["cpld0_device"]]
+                    if "dds1_device" in desc["arguments"]:
+                        del self.urukuls[desc["arguments"]["dds1_device"]]
+                        del self.urukul_cplds[desc["arguments"]["cpld1_device"]]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -126,6 +143,8 @@ class SinaraTester(EnvExperiment):
         self.phasers = sorted(self.phasers.items(), key=lambda x: x[1].channel_base)
         self.grabbers = sorted(self.grabbers.items(), key=lambda x: x[1].channel_base)
         self.mirnies = sorted(self.mirnies.items(), key=lambda x: (x[1].cpld.bus.channel, x[1].channel))
+        self.suservos = sorted(self.suservos.items(), key=lambda x: x[1].channel)
+        self.suschannels = sorted(self.suschannels.items(), key=lambda x: x[1].channel)
 
     @kernel
     def test_led(self, led):
@@ -225,13 +244,13 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
         channel.set(frequency*MHz)
-        channel.cfg_sw(1)
+        channel.cfg_sw(True)
         channel.set_att(6.)
 
     @kernel
     def cfg_sw_off_urukul(self, channel):
         self.core.break_realtime()
-        channel.cfg_sw(0)
+        channel.cfg_sw(False)
 
     @kernel
     def rf_switch_wave(self, channels):
@@ -291,18 +310,7 @@ class SinaraTester(EnvExperiment):
     @kernel
     def init_mirny(self, cpld):
         self.core.break_realtime()
-        # Taken from Mirny.init(), to accomodate Mirny v1.1 without blinding
-        reg0 = cpld.read_reg(0)
-        if reg0 & 0b11 != 0b10:         # Modified part
-            raise ValueError("Mirny HW_REV mismatch")
-        if (reg0 >> 2) & 0b11 != 0b00:
-            raise ValueError("Mirny PROTO_REV mismatch")
-        delay(100 * us)  # slack
-
-        # select clock source
-        cpld.write_reg(1, (cpld.clk_sel << 4))
-        delay(1000 * us)
-        # End of modified Mirny.init()
+        cpld.init()
 
     @kernel
     def setup_mirny(self, channel, frequency):
@@ -566,38 +574,142 @@ class SinaraTester(EnvExperiment):
             print(card_name)
             self.grabber_capture(card_dev, rois)
 
-    def run(self):
+    @kernel
+    def setup_suservo(self, channel):
+        self.core.break_realtime()
+        channel.init()
+        delay(1*us)
+        # ADC PGIA gain 0
+        for i in range(8):
+            channel.set_pgia_mu(i, 0)
+            delay(10*us)
+        # DDS attenuator 10dB
+        for i in range(4):
+            channel.cpld0.set_att(i, 10.)
+            channel.cpld1.set_att(i, 10.)
+        delay(1*us)
+        # Servo is done and disabled
+        assert channel.get_status() & 0xff == 2
+        delay(10*us)
+
+    @kernel
+    def setup_suservo_loop(self, channel, loop_nr):
+        self.core.break_realtime()
+        channel.set_y(
+            profile=loop_nr,
+            y=0.  # clear integrator
+        )
+        channel.set_iir(
+            profile=loop_nr,
+            adc=loop_nr,  # take data from Sampler channel
+            kp=-1.,       # -1 P gain
+            ki=0./s,      # no integrator gain
+            g=0.,         # no integrator gain limit
+            delay=0.      # no IIR update delay after enabling
+        )
+        # setpoint 0.5 (5 V with above PGIA gain setting)
+        delay(100*us)
+        channel.set_dds(
+            profile=loop_nr,
+            offset=-.3,  # 3 V with above PGIA settings
+            frequency=10*MHz,
+            phase=0.)
+        # enable RF, IIR updates and set profile
+        delay(10*us)
+        channel.set(en_out=1, en_iir=1, profile=loop_nr)
+
+    @kernel
+    def setup_start_suservo(self, channel):
+        self.core.break_realtime()
+        channel.set_config(enable=1)
+        delay(10*us)
+        # check servo enabled
+        assert channel.get_status() & 0x01 == 1
+        delay(10*us)
+
+    def test_suservos(self):
+        print("*** Testing SUServos.")
+        print("Initializing modules...")
+        for card_name, card_dev in self.suservos:
+            print(card_name)
+            self.setup_suservo(card_dev)
+        print("...done")
+        print("Setting up SUServo channels...")
+        for channels in chunker(self.suschannels, 8):
+            for i, (channel_name, channel_dev) in enumerate(channels):
+                print(channel_name)
+                self.setup_suservo_loop(channel_dev, i)
+        print("...done")
+        print("Enabling...")
+        for card_name, card_dev in self.suservos:
+            print(card_name)
+            self.setup_start_suservo(card_dev)
+        print("...done")
+        print("Each Sampler channel applies proportional amplitude control")
+        print("on the respective Urukul0 (ADC 0-3) and Urukul1 (ADC 4-7, if")
+        print("present) channels.")
+        print("Frequency: 10 MHz, output power: about -9 dBm at 0 V and about -15 dBm at 1.5 V")
+        print("Verify frequency and power behavior.")
+        print("Press ENTER when done.")
+        input()
+
+    def run(self, tests):
         print("****** Sinara system tester ******")
         print("")
         self.core.reset()
-        if self.leds:
-            self.test_leds()
-        if self.ttl_outs:
-            self.test_ttl_outs()
-        if self.ttl_ins:
-            self.test_ttl_ins()
-        if self.urukuls:
-            self.test_urukuls()
-        if self.mirnies:
-            self.test_mirnies()
-        if self.samplers:
-            self.test_samplers()
-        if self.zotinos:
-            self.test_zotinos()
-        if self.fastinos:
-            self.test_fastinos()
-        if self.phasers:
-            self.test_phasers()
-        if self.grabbers:
-            self.test_grabbers()
+
+        for name in tests:
+            if getattr(self, name):
+                getattr(self, f"test_{name}")()
+
+    @classmethod
+    def available_tests(cls):
+        # listed in definition order
+        return [
+            name.split("_", maxsplit=1)[1]
+            for name, obj in vars(cls).items()
+            if is_hw_test(obj)
+        ]
+
+
+def is_hw_test(obj):
+    return (
+        inspect.isfunction(obj) and
+        obj.__name__.startswith("test_") and
+        len(inspect.signature(obj).parameters) == 1
+    )
+
+
+def get_argparser(available_tests):
+    parser = argparse.ArgumentParser(description="Sinara crate testing tool")
+
+    parser.add_argument("--device-db", default="device_db.py",
+                        help="device database file (default: '%(default)s')")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-x", "--exclude", nargs="*", choices=available_tests,
+                       help="do not run the listed tests")
+    group.add_argument("-o", "--only", nargs="*", choices=available_tests,
+                       help="run only the listed tests")
+    return parser
 
 
 def main():
-    device_mgr = DeviceManager(DeviceDB("device_db.py"))
+    available_tests = SinaraTester.available_tests()
+    args = get_argparser(available_tests).parse_args()
+
+    if args.exclude is not None:
+        # don't use set in order to keep the order
+        tests = [test for test in available_tests if test not in args.exclude]
+    elif args.only is not None:
+        tests = args.only
+    else:
+        tests = available_tests
+
+    device_mgr = DeviceManager(DeviceDB(args.device_db))
     try:
         experiment = SinaraTester((device_mgr, None, None, None))
         experiment.prepare()
-        experiment.run()
+        experiment.run(tests)
         experiment.analyze()
     finally:
         device_mgr.close_devices()

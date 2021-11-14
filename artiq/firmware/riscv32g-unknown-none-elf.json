@@ -1,0 +1,40 @@
+{
+  "arch": "riscv32",
+  "code-model": "medium",
+  "cpu": "generic-rv32",
+  "crt-static-respected": true,
+  "data-layout": "e-m:e-p:32:32-i64:64-n32-S128",
+  "dynamic-linking": true,
+  "executables": true,
+  "features": "+m,+a,+f,+d",
+  "has-elf-tls": true,
+  "has-rpath": true,
+  "llvm-abiname": "ilp32d",
+  "llvm-target": "riscv32-unknown-linux",
+  "max-atomic-width": 32,
+  "position-independent-executables": true,
+  "pre-link-args": {
+    "gcc": [
+      "-Wl,--as-needed",
+      "-Wl,-z,noexecstack"
+    ]
+  },
+  "relro-level": "full",
+  "target-family": "unix",
+  "target-pointer-width": "32",
+  "unsupported-abis": [
+    "cdecl",
+    "stdcall",
+    "fastcall",
+    "vectorcall",
+    "thiscall",
+    "aapcs",
+    "win64",
+    "sysv64",
+    "ptx-kernel",
+    "msp430-interrupt",
+    "x86-interrupt",
+    "amdgpu-kernel"
+  ]
+}
+  

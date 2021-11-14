@@ -23,10 +23,10 @@ Once Nix is installed, add the M-Labs package channel with: ::
 
   $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full-beta/artiq-full
 
-Those channels track `nixpkgs 20.09 <https://github.com/NixOS/nixpkgs/tree/release-20.09>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
+Those channels track `nixpkgs 21.05 <https://github.com/NixOS/nixpkgs/tree/release-21.05>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
 
   $ nix-channel --remove nixpkgs
-  $ nix-channel --add https://nixos.org/channels/nixos-20.09 nixpkgs
+  $ nix-channel --add https://nixos.org/channels/nixos-21.05 nixpkgs
 
 Finally, make all the channel changes effective: ::
 
@@ -180,9 +180,9 @@ OpenOCD can be used to write the binary images into the core device FPGA board's
 
 With Nix, add ``artiq-full.openocd`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
-With Conda, the ``artiq`` package installs ``openocd`` automatically but it can also be installed explicitly on both Linux and Windows::
+With Conda, install ``openocd`` as follows::
 
-    $ conda install openocd
+    $ conda install -c m-labs openocd
 
 .. _configuring-openocd:
 
@@ -288,7 +288,17 @@ If you are using DRTIO and the default routing table (for a star topology) is no
 
 * Select the RTIO clock source (KC705 and Kasli)
 
-The KC705 may use either an external clock signal or its internal clock. The clock is selected at power-up. For Kasli, setting the RTIO clock source to "external" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
+The KC705 may use either an external clock signal, or its internal clock with external frequency or internal crystal reference. The clock is selected at power-up. Setting the RTIO clock source to "ext0_bypass" would bypass the Si5324 synthesiser, requiring that an input clock be present. To select the source, use one of these commands: ::
 
-  $ artiq_coremgmt config write -s rtio_clock i  # internal clock (default)
-  $ artiq_coremgmt config write -s rtio_clock e  # external clock
+  $ artiq_coremgmt config write -s rtio_clock int_125  # internal 125MHz clock (default)
+  $ artiq_coremgmt config write -s rtio_clock ext0_bypass  # external clock (bypass)
+
+Other options include:
+  - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_100to125`` - exteral 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_125to125`` - exteral 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``int_100`` - internal crystal reference is used by Si5324 to synthesize a 100MHz RTIO clock,
+  - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
+  - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
+
+Availability of these options depends on the board and their configuration - specific setting may or may not be supported.

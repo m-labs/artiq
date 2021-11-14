@@ -1,6 +1,4 @@
-#![feature(lang_items, alloc, try_from, nonzero, asm,
-           panic_implementation, panic_info_message,
-           const_slice_len)]
+#![feature(lang_items, panic_info_message)]
 #![no_std]
 
 extern crate eh;
@@ -25,12 +23,13 @@ extern crate board_misoc;
 extern crate board_artiq;
 extern crate logger_artiq;
 extern crate proto_artiq;
+extern crate riscv;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::IpCidr;
 
-use board_misoc::{csr, irq, ident, clock, boot, config, net_settings};
+use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
 #[cfg(has_drtio)]
@@ -41,6 +40,8 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
+use riscv::register::{mcause, mepc, mtval};
+
 mod rtio_clocking;
 mod rtio_mgt;
 
@@ -50,7 +51,6 @@ mod cache;
 mod rtio_dma;
 
 mod mgmt;
-mod profiler;
 mod kernel;
 mod kern_hwreq;
 mod session;
@@ -88,8 +88,6 @@ fn setup_log_levels() {
 }
 
 fn startup() {
-    irq::set_mask(0);
-    irq::set_ie(true);
     clock::init();
     info!("ARTIQ runtime starting...");
     info!("software ident {}", csr::CONFIG_IDENTIFIER_STR);
@@ -145,7 +143,7 @@ fn startup() {
     };
 
     let neighbor_cache =
-        smoltcp::iface::NeighborCache::new(alloc::btree_map::BTreeMap::new());
+        smoltcp::iface::NeighborCache::new(alloc::collections::btree_map::BTreeMap::new());
     let net_addresses = net_settings::get_adresses();
     info!("network addresses: {}", net_addresses);
     let mut interface = match net_addresses.ipv6_addr {
@@ -249,29 +247,64 @@ pub extern fn main() -> i32 {
         extern {
             static mut _fheap: u8;
             static mut _eheap: u8;
+            static mut _sstack_guard: u8;
         }
         ALLOC.add_range(&mut _fheap, &mut _eheap);
 
-        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(startup);
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+
+        logger_artiq::BufferLogger::new(&mut LOG_BUFFER[..]).register(||
+            boot::start_user(startup as usize)
+        );
 
         0
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+#[repr(C)]
+pub struct TrapFrame {
+    pub ra: usize,
+    pub t0: usize,
+    pub t1: usize,
+    pub t2: usize,
+    pub t3: usize,
+    pub t4: usize,
+    pub t5: usize,
+    pub t6: usize,
+    pub a0: usize,
+    pub a1: usize,
+    pub a2: usize,
+    pub a3: usize,
+    pub a4: usize,
+    pub a5: usize,
+    pub a6: usize,
+    pub a7: usize,
+}
+
 #[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    let vect = irq::Exception::try_from(vect).expect("unknown exception");
-    match vect {
-        irq::Exception::Interrupt =>
-            while irq::pending_mask() != 0 {
-                match () {
-                    #[cfg(has_timer1)]
-                    () if irq::is_pending(csr::TIMER1_INTERRUPT) =>
-                        profiler::sample(pc as usize),
-                    _ => panic!("spurious irq {}", irq::pending_mask().trailing_zeros())
+pub extern fn exception(regs: *const TrapFrame) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    match cause {
+        mcause::Trap::Interrupt(source) => {
+            info!("Called interrupt with {:?}", source);
+        },
+
+        mcause::Trap::Exception(mcause::Exception::UserEnvCall) => {
+            unsafe {
+                if (*regs).a7 == 0 {
+                    pmp::pop_pmp_region()
+                } else {
+                    pmp::push_pmp_region((*regs).a7)
                 }
-            },
-        _ => {
+            }
+            mepc::write(pc + 4);
+        },
+
+        mcause::Trap::Exception(e) => {
+            println!("Trap frame: {:x?}", unsafe { *regs });
+
             fn hexdump(addr: u32) {
                 let addr = (addr - addr % 4) as *const u32;
                 let mut ptr  = addr;
@@ -285,9 +318,9 @@ pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
                 }
             }
 
-            hexdump(pc);
-            hexdump(ea);
-            panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+            hexdump(u32::try_from(pc).unwrap());
+            let mtval = mtval::read();
+            panic!("exception {:?} at PC 0x{:x}, trap value 0x{:x}", e, u32::try_from(pc).unwrap(), mtval)
         }
     }
 }
@@ -305,10 +338,8 @@ pub fn oom(layout: core::alloc::Layout) -> ! {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
-    irq::set_ie(false);
-
     #[cfg(has_error_led)]
     unsafe {
         csr::error_led::out_write(1);
@@ -327,16 +358,17 @@ pub fn panic_impl(info: &core::panic::PanicInfo) -> ! {
 
     println!("backtrace for software version {}:", csr::CONFIG_IDENTIFIER_STR);
     let _ = unwind_backtrace::backtrace(|ip| {
-        // Backtrace gives us the return address, i.e. the address after the delay slot,
+        // Backtrace gives us the return address, i.e. the address after jal(r) insn,
         // but we're interested in the call instruction.
-        println!("{:#08x}", ip - 2 * 4);
+        println!("{:#08x}", ip - 4);
     });
 
-    if config::read_str("panic_reset", |r| r == Ok("1")) {
+    if config::read_str("panic_reset", |r| r == Ok("1")) && 
+        cfg!(any(soc_platform = "kasli", soc_platform = "metlino", soc_platform = "kc705")) {
         println!("restarting...");
         unsafe {
             kernel::stop();
-            boot::reset();
+            spiflash::reload();
         }
     } else {
         println!("halting.");

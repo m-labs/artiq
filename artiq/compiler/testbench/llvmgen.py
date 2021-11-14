@@ -1,6 +1,6 @@
 import sys, fileinput
 from pythonparser import diagnostic
-from llvmlite_artiq import ir as ll
+from llvmlite import ir as ll
 from ..module import Module, Source
 from ..targets import NativeTarget
 

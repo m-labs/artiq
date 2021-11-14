@@ -131,9 +131,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(cache_get = ::cache_get),
     api!(cache_put = ::cache_put),
 
-    api!(mfspr = ::board_misoc::spr::mfspr),
-    api!(mtspr = ::board_misoc::spr::mtspr),
-
     /* direct syscalls */
     api!(rtio_init = ::rtio::init),
     api!(rtio_get_destination_status = ::rtio::get_destination_status),

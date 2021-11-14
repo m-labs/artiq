@@ -6,7 +6,7 @@ ENTRY(_reset_handler)
  * ld does not allow this expression here.
  */
 MEMORY {
-    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x400000 /* 4M */
+    runtime (RWX) : ORIGIN = 0x40000000, LENGTH = 0x4000000 /* 64M */
 }
 
 SECTIONS
@@ -36,10 +36,14 @@ SECTIONS
     __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
     __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
 
+    .gcc_except_table :
+    {
+        *(.gcc_except_table)
+    } > runtime
+
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
-        _GLOBAL_OFFSET_TABLE_ = .;
         *(.got)
     } > runtime
 
@@ -58,20 +62,23 @@ SECTIONS
         *(.data .data.*)
     } > runtime
 
-    .bss ALIGN(4) :
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         _ebss = .;
     } > runtime
 
-    .stack :
+    .stack (NOLOAD) : ALIGN(0x1000)
     {
-        . += 0x4000;
-        _fstack = . - 4;
+        _sstack_guard = .;
+        . += 0x1000;
+        _estack = .;
+        . += 0x10000;
+        _fstack = . - 16;
     } > runtime
 
-    .heap :
+    .heap (NOLOAD) : ALIGN(16)
     {
         _fheap = .;
         . = ORIGIN(runtime) + LENGTH(runtime);

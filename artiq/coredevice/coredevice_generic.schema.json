@@ -11,16 +11,18 @@
         },
         "target": {
             "type": "string",
-            "const": "kasli",
             "description": "Target board"
         },
         "variant": {
             "type": "string",
             "description": "Target board variant name"
         },
+        "min_artiq_version": {
+            "type": "string",
+            "description": "Minimum required ARTIQ version"
+        },
         "hw_rev": {
             "type": "string",
-            "enum": ["v1.0", "v1.1", "v2.0"],
             "description": "Hardware revision"
         },
         "base": {
@@ -69,8 +71,55 @@
             }
         }
     },
+    "if": {
+        "properties": {
+            "target": { "const": "kasli" },
+            "hw_rev": {
+                "not": {
+                    "oneOf": [
+                        { "const": "v1.0" },
+                        { "const": "v1.1" }
+                    ]
+                }
+            }
+        }
+    },
+    "then": {
+        "properties": {
+            "enable_sata_drtio": {
+                "const": false
+            }
+        }
+    },
     "required": ["target", "variant", "hw_rev", "base", "peripherals"],
     "additionalProperties": false,
+
+    "oneOf": [
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0", "v1.1", "v2.0"]
+                }
+            }
+        },
+        {
+            "properties": {
+                "target": {
+                    "type": "string",
+                    "const": "kasli_soc"
+                },
+                "hw_rev": {
+                    "type": "string",
+                    "enum": ["v1.0"]
+                }
+            }
+        }
+    ],
 
     "definitions": {
         "peripheral": {
@@ -78,7 +127,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser"]
+                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
                 },
                 "board": {
                     "type": "string"
@@ -146,24 +195,24 @@
                             "type": "boolean",
                             "default": false
                         },
-		        "refclk": {
-		            "type": "number",
-		            "minimum": 0
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "clk_div": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "pll_n": {
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "clk_div": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
                             "type": "integer"
                         },
-		        "pll_vco": {
+                        "pll_vco": {
                             "type": "integer"
                         },
                         "dds": {
@@ -253,20 +302,20 @@
                             "minItems": 2,
                             "maxItems": 2
                         },
-		        "refclk": {
-		            "type": "number",
-		            "minimum": 0
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3
-		        },
-		        "pll_n": {
+                        "refclk": {
+                            "type": "number",
+                            "minimum": 0
+                        },
+                        "clk_sel": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 3
+                        },
+                        "pll_n": {
                             "type": "integer",
                             "default": 32
                         },
-		        "pll_vco": {
+                        "pll_vco": {
                             "type": "integer"
                         }
                     },
@@ -335,17 +384,25 @@
                             "minItems": 1,
                             "maxItems": 1
                         },
-		        "refclk": {
-		            "type": "number",
-		            "exclusiveMinimum": 0,
+                        "refclk": {
+                            "type": "number",
+                            "exclusiveMinimum": 0,
                             "default": 100e6
-		        },
-		        "clk_sel": {
-		            "type": "integer",
-		            "minimum": 0,
-		            "maximum": 3,
+                        },
+                        "clk_sel": {
+                            "oneOf": [
+                                {
+                                    "type": "integer",
+                                    "minimum": 0,
+                                    "maximum": 3
+                                },
+                                {
+                                    "type": "string",
+                                    "enum": ["xo", "mmcx", "sma"]
+                                }
+                            ],
                             "default": 0
-		       }
+                        }
                     },
                     "required": ["ports"]
                 }
@@ -382,6 +439,28 @@
                     "properties": {
                         "type": {
                             "const": "phaser"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "HVAmp",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "hvamp"
                         }
                     }
                 },

@@ -118,4 +118,5 @@ find the dashboard and browser configuration files are stored?
 --------------------------------------------------------------
 
 ::
+
   python -c "from artiq.tools import get_user_config_dir; print(get_user_config_dir())"

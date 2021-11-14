@@ -9,6 +9,7 @@ process via IPC.
 import sys
 import time
 import os
+import inspect
 import logging
 import traceback
 from collections import OrderedDict
@@ -20,10 +21,11 @@ from sipyco.packed_exceptions import raise_packed_exc
 from sipyco.logging_tools import multiline_log_config
 
 import artiq
-from artiq.tools import file_import
+from artiq import tools
 from artiq.master.worker_db import DeviceManager, DatasetManager, DummyDevice
-from artiq.language.environment import (is_experiment, TraceArgumentManager,
-                                        ProcessArgumentManager)
+from artiq.language.environment import (
+    is_public_experiment, TraceArgumentManager, ProcessArgumentManager
+)
 from artiq.language.core import set_watchdog_factory, TerminationRequested
 from artiq.language.types import TBool
 from artiq.compiler import import_cache
@@ -127,17 +129,9 @@ class CCB:
     issue = staticmethod(make_parent_action("ccb_issue"))
 
 
-def get_exp(file, class_name):
-    module = file_import(file, prefix="artiq_worker_")
-    if class_name is None:
-        exps = [v for k, v in module.__dict__.items()
-                if is_experiment(v)]
-        if len(exps) != 1:
-            raise ValueError("Found {} experiments in module"
-                             .format(len(exps)))
-        return exps[0]
-    else:
-        return getattr(module, class_name)
+def get_experiment(file, class_name):
+    module = tools.file_import(file, prefix="artiq_worker_")
+    return tools.get_experiment(module, class_name)
 
 
 register_experiment = make_parent_action("register_experiment")
@@ -164,24 +158,24 @@ class ExamineDatasetMgr:
 def examine(device_mgr, dataset_mgr, file):
     previous_keys = set(sys.modules.keys())
     try:
-        module = file_import(file)
-        for class_name, exp_class in module.__dict__.items():
-            if class_name[0] == "_":
-                continue
-            if is_experiment(exp_class):
-                if exp_class.__doc__ is None:
-                    name = class_name
-                else:
-                    name = exp_class.__doc__.strip().splitlines()[0].strip()
-                    if name[-1] == ".":
-                        name = name[:-1]
-                argument_mgr = TraceArgumentManager()
-                scheduler_defaults = {}
-                cls = exp_class((device_mgr, dataset_mgr, argument_mgr, scheduler_defaults))
-                arginfo = OrderedDict(
-                    (k, (proc.describe(), group, tooltip))
-                    for k, (proc, group, tooltip) in argument_mgr.requested_args.items())
-                register_experiment(class_name, name, arginfo, scheduler_defaults)
+        module = tools.file_import(file)
+        for class_name, exp_class in inspect.getmembers(module, is_public_experiment):
+            if exp_class.__doc__ is None:
+                name = class_name
+            else:
+                name = exp_class.__doc__.strip().splitlines()[0].strip()
+                if name[-1] == ".":
+                    name = name[:-1]
+            argument_mgr = TraceArgumentManager()
+            scheduler_defaults = {}
+            cls = exp_class(  # noqa: F841 (fill argument_mgr)
+                (device_mgr, dataset_mgr, argument_mgr, scheduler_defaults)
+            )
+            arginfo = OrderedDict(
+                (k, (proc.describe(), group, tooltip))
+                for k, (proc, group, tooltip) in argument_mgr.requested_args.items()
+            )
+            register_experiment(class_name, name, arginfo, scheduler_defaults)
     finally:
         new_keys = set(sys.modules.keys())
         for key in new_keys - previous_keys:
@@ -196,7 +190,7 @@ def setup_diagnostics(experiment_file, repository_path):
             message = message.replace(repository_path, "<repository>")
 
         if diagnostic.level == "warning":
-            logging.warn(message)
+            logging.warning(message)
         else:
             logging.error(message)
 
@@ -285,7 +279,7 @@ def main():
                     experiment_file = expid["file"]
                     repository_path = None
                 setup_diagnostics(experiment_file, repository_path)
-                exp = get_exp(experiment_file, expid["class_name"])
+                exp = get_experiment(experiment_file, expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)

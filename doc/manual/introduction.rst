@@ -21,10 +21,10 @@ Like any open source software ARTIQ can equally be built and installed directly 
 ARTIQ is supported by M-Labs and developed openly.
 Components, features, fixes, improvements, and extensions are funded by and developed for the partnering research groups.
 
-Technologies employed include `Python <https://www.python.org/>`_, `Migen <https://github.com/m-labs/migen>`_, `MiSoC <https://github.com/m-labs/misoc>`_/`mor1kx <https://github.com/openrisc/mor1kx>`_, `LLVM <http://llvm.org/>`_/`llvmlite <https://github.com/numba/llvmlite>`_, and `Qt5 <http://www.qt.io/>`_.
+Core technologies employed include `Python <https://www.python.org/>`_, `Migen <https://github.com/m-labs/migen>`_, `Migen-AXI <https://github.com/peteut/migen-axi>`_, `Rust <https://www.rust-lang.org/>`_, `MiSoC <https://github.com/m-labs/misoc>`_/`VexRiscv <https://github.com/SpinalHDL/VexRiscv>`_, `LLVM <https://llvm.org/>`_/`llvmlite <https://github.com/numba/llvmlite>`_, and `Qt5 <https://www.qt.io/>`_.
 
 Website: https://m-labs.hk/artiq
 
 `Cite ARTIQ <http://dx.doi.org/10.5281/zenodo.51303>`_ as ``Bourdeauducq, Sébastien et al. (2016). ARTIQ 1.0. Zenodo. 10.5281/zenodo.51303``.
 
-Copyright (C) 2014-2020 M-Labs Limited. Licensed under GNU LGPL version 3+.
+Copyright (C) 2014-2021 M-Labs Limited. Licensed under GNU LGPL version 3+.

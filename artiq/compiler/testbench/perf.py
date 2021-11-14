@@ -1,7 +1,7 @@
 import sys, os
 from pythonparser import diagnostic
 from ..module import Module, Source
-from ..targets import OR1KTarget
+from ..targets import RV32GTarget
 from . import benchmark
 
 def main():
@@ -30,7 +30,7 @@ def main():
     benchmark(lambda: Module(source),
               "ARTIQ transforms and validators")
 
-    benchmark(lambda: OR1KTarget().compile_and_link([module]),
+    benchmark(lambda: RV32GTarget().compile_and_link([module]),
               "LLVM optimization and linking")
 
 if __name__ == "__main__":

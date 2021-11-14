@@ -81,11 +81,11 @@ You can write several records at once::
 
 To remove the previously written key ``my_key``::
 
-    $ artiq_coremgmt config delete my_key
+    $ artiq_coremgmt config remove my_key
 
 You can remove several keys at once::
 
-    $ artiq_coremgmt config delete key1 key2
+    $ artiq_coremgmt config remove key1 key2
 
 To erase the entire flash storage area::
 

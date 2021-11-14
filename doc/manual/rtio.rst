@@ -131,7 +131,7 @@ Notes:
 * Configuring the gateware with more lanes for the RTIO core reduces the frequency of sequence errors.
 * The number of lanes is a hard limit on the number of simultaneous RTIO output events.
 * Whether a particular sequence of timestamps causes a sequence error or not is fully deterministic (starting from a known RTIO state, e.g. after a reset). Adding a constant offset to the whole sequence does not affect the result.
-* Zero-duration methods (such as :meth:`artiq.coredevice.ttl.TTLOut.on()`) do not advance the timeline and so will consume additional lanes if they are scheduled simultaneously. Adding a tiny delay will prevent this (e.g. ``delay_mu(self.core.ref_multiplier)``, at least one coarse rtio cycle). 
+* Zero-duration methods (such as :meth:`artiq.coredevice.ttl.TTLOut.on()`) do not advance the timeline and so will consume additional lanes if they are scheduled simultaneously. Adding a tiny delay will prevent this (e.g. ``delay_mu(np.int64(self.core.ref_multiplier))``, at least one coarse rtio cycle).
 
 The offending event is discarded and the RTIO core keeps operating.
 

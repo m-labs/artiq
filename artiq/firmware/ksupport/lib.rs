@@ -1,5 +1,5 @@
-#![feature(lang_items, asm, panic_unwind, libc, unwind_attributes,
-           panic_implementation, panic_info_message, nll)]
+#![feature(lang_items, llvm_asm, panic_unwind, libc, unwind_attributes,
+           panic_info_message, nll)]
 #![no_std]
 
 extern crate libc;
@@ -12,8 +12,9 @@ extern crate dyld;
 extern crate board_misoc;
 extern crate board_artiq;
 extern crate proto_artiq;
+extern crate riscv;
 
-use core::{mem, ptr, slice, str};
+use core::{mem, ptr, slice, str, convert::TryFrom};
 use cslice::{CSlice, AsCSlice};
 use io::Cursor;
 use dyld::Library;
@@ -22,6 +23,7 @@ use proto_artiq::{kernel_proto, rpc_proto};
 use kernel_proto::*;
 #[cfg(has_rtio_dma)]
 use board_misoc::csr;
+use riscv::register::{mcause, mepc, mtval};
 
 fn send(request: &Message) {
     unsafe { mailbox::send(request as *const _ as usize) }
@@ -49,7 +51,7 @@ macro_rules! recv {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     if let Some(location) = info.location() {
         send(&Log(format_args!("panic at {}:{}:{}",
@@ -120,7 +122,7 @@ pub extern fn send_to_rtio_log(text: CSlice<u8>) {
 }
 
 #[unwind(aborts)]
-extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while !rpc_queue::empty() {}
     send(&RpcSend {
         async:   false,
@@ -131,7 +133,7 @@ extern fn rpc_send(service: u32, tag: CSlice<u8>, data: *const *const ()) {
 }
 
 #[unwind(aborts)]
-extern fn rpc_send_async(service: u32, tag: CSlice<u8>, data: *const *const ()) {
+extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ()) {
     while rpc_queue::full() {}
     rpc_queue::enqueue(|mut slice| {
         let length = {
@@ -201,15 +203,18 @@ fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
 }
 
 #[unwind(aborts)]
-extern fn cache_get(key: CSlice<u8>) -> CSlice<'static, i32> {
+extern fn cache_get<'a>(ret: &'a mut CSlice<i32>, key: &CSlice<u8>) -> &'a CSlice<'a, i32> {
     send(&CacheGetRequest {
         key:   str::from_utf8(key.as_ref()).unwrap()
     });
-    recv!(&CacheGetReply { value } => value.as_c_slice())
+    recv!(&CacheGetReply { value } => {
+        *ret = value.as_c_slice();
+        ret
+    })
 }
 
 #[unwind(allowed)]
-extern fn cache_put(key: CSlice<u8>, list: CSlice<i32>) {
+extern fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
     send(&CachePutRequest {
         key:   str::from_utf8(key.as_ref()).unwrap(),
         value: list.as_ref()
@@ -243,7 +248,7 @@ fn dma_record_flush() {
 }
 
 #[unwind(allowed)]
-extern fn dma_record_start(name: CSlice<u8>) {
+extern fn dma_record_start(name: &CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     unsafe {
@@ -324,7 +329,7 @@ unsafe fn dma_record_output_prepare(timestamp: i64, target: i32,
 #[unwind(aborts)]
 extern fn dma_record_output(target: i32, word: i32) {
     unsafe {
-        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let data = dma_record_output_prepare(timestamp, target, 1);
         data.copy_from_slice(&[
             (word >>  0) as u8,
@@ -340,7 +345,7 @@ extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
-        let timestamp = *(csr::rtio::NOW_HI_ADDR as *const i64);
+        let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         let mut data = dma_record_output_prepare(timestamp, target, words.len());
         for word in words.as_ref().iter() {
             data[..4].copy_from_slice(&[
@@ -355,7 +360,7 @@ extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
 }
 
 #[unwind(aborts)]
-extern fn dma_erase(name: CSlice<u8>) {
+extern fn dma_erase(name: &CSlice<u8>) {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaEraseRequest { name: name });
@@ -368,7 +373,7 @@ struct DmaTrace {
 }
 
 #[unwind(allowed)]
-extern fn dma_retrieve(name: CSlice<u8>) -> DmaTrace {
+extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });
@@ -454,7 +459,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
                 attributes = attributes.offset(1);
 
                 if (*attribute).tag.len() > 0 {
-                    rpc_send_async(0, (*attribute).tag, [
+                    rpc_send_async(0, &(*attribute).tag, [
                         &object as *const _ as *const (),
                         &(*attribute).name as *const _ as *const (),
                         (object as usize + (*attribute).offset) as *const ()
@@ -488,10 +493,15 @@ pub unsafe fn main() {
     let _end = library.lookup(b"_end").unwrap();
     let __modinit__ = library.lookup(b"__modinit__").unwrap();
     let typeinfo = library.lookup(b"typeinfo");
+    let _sstack_guard = library.lookup(b"_sstack_guard").unwrap();
 
     LIBRARY = Some(library);
 
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
+
+    board_misoc::pmp::init_stack_guard(_sstack_guard as usize);
+    board_misoc::cache::flush_cpu_dcache();
+    board_misoc::cache::flush_cpu_icache();
 
     (mem::transmute::<u32, fn()>(__modinit__))();
 
@@ -519,8 +529,11 @@ pub unsafe fn main() {
 
 #[no_mangle]
 #[unwind(allowed)]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    panic!("exception {:?} at PC 0x{:x}, EA 0x{:x}", vect, pc, ea)
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    let mtval = mtval::read();
+    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
 #[no_mangle]

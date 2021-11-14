@@ -11,7 +11,14 @@ from artiq.coredevice import jsondesc
 
 
 def process_header(output, description):
-    if description["target"] != "kasli":
+    if description["target"] == "kasli":
+        if description["hw_rev"] in ("v1.0", "v1.1"):
+            cpu_target = "rv32ima"
+        else:
+            cpu_target = "rv32g"
+    elif description["target"] == "kasli_soc":
+        cpu_target = "cortexa9"
+    else:
         raise NotImplementedError
 
     print(textwrap.dedent("""
@@ -23,7 +30,7 @@ def process_header(output, description):
                 "type": "local",
                 "module": "artiq.coredevice.core",
                 "class": "Core",
-                "arguments": {{"host": core_addr, "ref_period": {ref_period}}}
+                "arguments": {{"host": core_addr, "ref_period": {ref_period},  "target": "{cpu_target}"}},
             }},
             "core_log": {{
                 "type": "controller",
@@ -58,7 +65,8 @@ def process_header(output, description):
         """).format(
             variant=description["variant"],
             core_addr=description["core_addr"],
-            ref_period=1/(8*description["rtio_frequency"])),
+            ref_period=1/(8*description["rtio_frequency"]),
+            cpu_target=cpu_target),
         file=output)
 
 
@@ -76,7 +84,7 @@ class PeripheralManager:
     def gen(self, string, **kwargs):
         print(textwrap.dedent(string).format(**kwargs), file=self.output)
 
-    def process_dio(self, rtio_offset, peripheral):
+    def process_dio(self, rtio_offset, peripheral, num_channels=8):
         class_names = {
             "input": "TTLInOut",
             "output": "TTLOut"
@@ -86,7 +94,8 @@ class PeripheralManager:
             class_names[peripheral["bank_direction_high"]]
         ]
         channel = count(0)
-        for i in range(8):
+        name = [self.get_name("ttl") for _ in range(num_channels)]
+        for i in range(num_channels):
             self.gen("""
                 device_db["{name}"] = {{
                     "type": "local",
@@ -95,23 +104,23 @@ class PeripheralManager:
                     "arguments": {{"channel": 0x{channel:06x}}},
                 }}
                 """,
-                name=self.get_name("ttl"),
-                class_name=classes[i//4],
-                channel=rtio_offset+next(channel))
+                     name=name[i],
+                     class_name=classes[i // 4],
+                     channel=rtio_offset + next(channel))
         if peripheral.get("edge_counter", False):
-            for i in range(8):
-                class_name = classes[i//4]
+            for i in range(num_channels):
+                class_name = classes[i // 4]
                 if class_name == "TTLInOut":
                     self.gen("""
-                        device_db["{name}"] = {{
+                        device_db["{name}_counter"] = {{
                             "type": "local",
                             "module": "artiq.coredevice.edge_counter",
                             "class": "EdgeCounter",
                             "arguments": {{"channel": 0x{channel:06x}}},
                         }}
                         """,
-                        name=self.get_name("ttl_counter"),
-                        channel=rtio_offset+next(channel))
+                             name=name[i],
+                             channel=rtio_offset + next(channel))
         return next(channel)
 
     def process_urukul(self, rtio_offset, peripheral):
@@ -268,6 +277,9 @@ class PeripheralManager:
                 name=mirny_name,
                 mchn=i)
 
+        clk_sel = peripheral["clk_sel"]
+        if isinstance(peripheral["clk_sel"], str):
+            clk_sel = '"' + peripheral["clk_sel"] + '"'
         self.gen("""
             device_db["{name}_cpld"] = {{
                 "type": "local",
@@ -281,7 +293,7 @@ class PeripheralManager:
             }}""",
             name=mirny_name,
             refclk=peripheral["refclk"],
-            clk_sel=peripheral["clk_sel"])
+            clk_sel=clk_sel)
 
         return next(channel)
 
@@ -503,11 +515,26 @@ class PeripheralManager:
             channel=rtio_offset)
         return 5
 
+    def process_hvamp(self, rtio_offset, peripheral):
+        hvamp_name = self.get_name("hvamp")
+        for i in range(8):
+            self.gen("""
+                device_db["ttl_{name}_sw{ch}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{channel:06x}}}
+                }}""",
+                name=hvamp_name,
+                ch=i,
+                channel=rtio_offset+i)
+        return 8
+
     def process(self, rtio_offset, peripheral):
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
 
-    def add_sfp_leds(self, rtio_offset):
+    def add_board_leds(self, rtio_offset):
         for i in range(2):
             self.gen("""
                 device_db["{name}"] = {{
@@ -538,8 +565,8 @@ def process(output, master_description, satellites):
     for peripheral in master_description["peripherals"]:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
-    if base == "standalone" and master_description["hw_rev"] in ("v1.0", "v1.1"):
-        n_channels = pm.add_sfp_leds(rtio_offset)
+    if base == "standalone":
+        n_channels = pm.add_board_leds(rtio_offset)
         rtio_offset += n_channels
 
     for destination, description in satellites:

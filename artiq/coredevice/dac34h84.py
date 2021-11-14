@@ -110,7 +110,7 @@ class DAC34H84:
     syncsel_mixercd = 0b1001  # sif_sync and register write
     syncsel_nco = 0b1000  # sif_sync
     syncsel_fifo_input = 0b10  # external lvds istr
-    sif_sync = 1
+    sif_sync = 0
 
     syncsel_fifoin = 0b0010  # istr
     syncsel_fifoout = 0b0100  # ostr
@@ -178,7 +178,8 @@ class DAC34H84:
             (self.collisiongone_ena << 12) | (self.sif4_ena << 7) |
             (self.mixer_ena << 6) | (self.mixer_gain << 5) |
             (self.nco_ena << 4) | (self.revbus << 3) | (self.twos << 1))
-        mmap.append((0x03 << 16) | (self.coarse_dac << 12) | (self.sif_txenable << 0))
+        mmap.append((0x03 << 16) | (self.coarse_dac << 12) |
+                    (self.sif_txenable << 0))
         mmap.append(
             (0x07 << 16) |
             (self.mask_alarm_from_zerochk << 15) | (1 << 14) |
@@ -200,7 +201,7 @@ class DAC34H84:
         mmap.append(
             (0x0d << 16) |
             (self.cmix_fs8 << 15) | (self.cmix_fs4 << 14) |
-            (self.cmix_fs2 << 12) | (self.cmix_nfs4 << 11) |
+            (self.cmix_fs2 << 13) | (self.cmix_nfs4 << 12) |
             (self.qmc_gainb << 0))
         mmap.append((0x0e << 16) | (self.qmc_gainc << 0))
         mmap.append(

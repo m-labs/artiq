@@ -1,5 +1,5 @@
 use core::str::Utf8Error;
-use alloc::{Vec, String};
+use alloc::{vec::Vec, string::String};
 
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
 

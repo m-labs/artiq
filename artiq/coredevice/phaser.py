@@ -1,6 +1,8 @@
+from numpy import int32, int64
+
 from artiq.language.core import kernel, delay_mu, delay
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.language.units import us, ns, ms, MHz, dB
+from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
+from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84 import DAC34H84
 from artiq.coredevice.trf372017 import TRF372017
@@ -84,12 +86,14 @@ class Phaser:
     LVDS bus operating at 1 Gb/s per pin pair and processed in the DAC (Texas
     Instruments DAC34H84). On the DAC 2x interpolation, sinx/x compensation,
     quadrature modulator compensation, fine and coarse mixing as well as group
-    delay capabilities are available.
+    delay capabilities are available. If desired, these features my be
+    configured via the `dac` dictionary.
 
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
     way to the DAC outputs is deterministic. This enables deterministic
-    absolute phase with respect to other RTIO input and output events.
+    absolute phase with respect to other RTIO input and output events
+    (see `get_next_frame_mu()`).
 
     The four analog DAC outputs are passed through anti-aliasing filters.
 
@@ -157,6 +161,7 @@ class Phaser:
         # self.core.seconds_to_mu(10*8*4*ns)  # unfortunately this returns 319
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
+        self.frame_tstamp = int64(0)
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
@@ -184,12 +189,21 @@ class Phaser:
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
+        if debug:
+            print("gw_rev:", gw_rev)
+            self.core.break_realtime()
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot
         if self.get_crc_err() > 20:
             raise ValueError("large number of frame CRC errors")
         delay(.1*ms)  # slack
+
+        # determine the origin for frame-aligned timestamps
+        self.measure_frame_timestamp()
+        if self.frame_tstamp < 0:
+            raise ValueError("frame timestamp measurement timed out")
+        delay(.1*ms)
 
         # reset
         self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,
@@ -224,6 +238,8 @@ class Phaser:
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
             delay(40*us)
+        self.dac_sync()
+        delay(40*us)
 
         # pll_ndivsync_ena disable
         config18 = self.dac_read(0x18)
@@ -254,7 +270,7 @@ class Phaser:
         if self.tune_fifo_offset:
             fifo_offset = self.dac_tune_fifo_offset()
             if debug:
-                print(fifo_offset)
+                print("fifo_offset:", fifo_offset)
                 self.core.break_realtime()
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
@@ -266,11 +282,21 @@ class Phaser:
         delay(.1*ms)  # slack
         if alarms & ~0x0040:  # ignore PLL alarms (see DS)
             if debug:
-                print(alarms)
+                print("alarms:", alarms)
                 self.core.break_realtime()
                 # ignore alarms
             else:
                 raise ValueError("DAC alarm")
+
+        # avoid malformed output for: mixer_ena=1, nco_ena=0 after power up
+        self.dac_write(self.dac_mmap[2] >> 16, self.dac_mmap[2] | (1 << 4))
+        delay(40*us)
+        self.dac_sync()
+        delay(100*us)
+        self.dac_write(self.dac_mmap[2] >> 16, self.dac_mmap[2])
+        delay(40*us)
+        self.dac_sync()
+        delay(100*us)
 
         # power up trfs, release att reset
         self.set_cfg(clk_sel=self.clk_sel, dac_txena=0)
@@ -299,6 +325,9 @@ class Phaser:
             self.duc_stb()
             delay(.1*ms)  # settle link, pipeline and impulse response
             data = channel.get_dac_data()
+            delay(1*us)
+            channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
+                                                         clr=1)
             delay(.1*ms)
             sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
             data_i = data & 0xffff
@@ -318,6 +347,7 @@ class Phaser:
             delay(.2*ms)
             for data in channel.trf_mmap:
                 channel.trf_write(data)
+            channel.cal_trf_vco()
 
             delay(2*ms)  # lock
             if not (self.get_sta() & (PHASER_STA_TRF0_LD << ch)):
@@ -326,6 +356,7 @@ class Phaser:
             if channel.trf_read(0) & 0x1000:
                 raise ValueError("TRF R_SAT_ERR")
             delay(.1*ms)
+            channel.en_trf_out()
 
         # enable dac tx
         self.set_cfg(clk_sel=self.clk_sel)
@@ -446,6 +477,27 @@ class Phaser:
         return self.read8(PHASER_ADDR_CRC_ERR)
 
     @kernel
+    def measure_frame_timestamp(self):
+        """Measure the timestamp of an arbitrary frame and store it in `self.frame_tstamp`.
+
+        To be used as reference for aligning updates to the FastLink frames.
+        See `get_next_frame_mu()`.
+        """
+        rtio_output(self.channel_base << 8, 0)  # read any register
+        self.frame_tstamp = rtio_input_timestamp(now_mu() + 4 * self.t_frame, self.channel_base)
+        delay(100 * us)
+
+    @kernel
+    def get_next_frame_mu(self):
+        """Return the timestamp of the frame strictly after `now_mu()`.
+
+        Register updates (DUC, DAC, TRF, etc.) scheduled at this timestamp and multiples
+        of `self.t_frame` later will have deterministic latency to output.
+        """
+        n = int64((now_mu() - self.frame_tstamp) / self.t_frame)
+        return self.frame_tstamp + (n + 1) * self.t_frame
+
+    @kernel
     def set_sync_dly(self, dly):
         """Set SYNC delay.
 
@@ -550,6 +602,48 @@ class Phaser:
         return self.dac_read(0x06, div=257) >> 8
 
     @kernel
+    def dac_sync(self):
+        """Trigger DAC synchronisation for both output channels.
+
+        The DAC sif_sync is de-asserts, then asserted. The synchronisation is
+        triggered on assertion.
+
+        By default, the fine-mixer (NCO) and QMC are synchronised. This
+        includes applying the latest register settings.
+
+        The synchronisation sources may be configured through the `syncsel_x`
+        fields in the `dac` configuration dictionary (see `__init__()`).
+
+        .. note:: Synchronising the NCO clears the phase-accumulator
+        """
+        config1f = self.dac_read(0x1f)
+        delay(.1*ms)
+        self.dac_write(0x1f, config1f & ~int32(1 << 1))
+        self.dac_write(0x1f, config1f | (1 << 1))
+
+    @kernel
+    def set_dac_cmix(self, fs_8_step):
+        """Set the DAC coarse mixer frequency for both channels
+
+        Use of the coarse mixer requires the DAC mixer to be enabled. The mixer
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
+        The selected coarse mixer frequency becomes active without explicit
+        synchronisation.
+
+        :param fs_8_step: coarse mixer frequency shift in 125 MHz steps. This
+            should be an integer between -3 and 4 (inclusive).
+        """
+        # values recommended in data-sheet
+        #         0       1       2       3       4       -3      -2      -1
+        vals = [0b0000, 0b1000, 0b0100, 0b1100, 0b0010, 0b1010, 0b0001, 0b1110]
+        cmix = vals[fs_8_step%8]
+        config0d = self.dac_read(0x0d)
+        delay(.1*ms)
+        self.dac_write(0x0d, (config0d & ~(0b1111 << 12)) | (cmix << 12))
+
+    @kernel
     def get_dac_alarms(self):
         """Read the DAC alarm flags.
 
@@ -566,7 +660,7 @@ class Phaser:
     def dac_iotest(self, pattern) -> TInt32:
         """Performs a DAC IO test according to the datasheet.
 
-        :param patterm: List of four int32 containing the pattern
+        :param pattern: List of four int32 containing the pattern
         :return: Bit error mask (16 bits)
         """
         if len(pattern) != 4:
@@ -684,6 +778,7 @@ class PhaserChannel:
         self.phaser = phaser
         self.index = index
         self.trf_mmap = TRF372017(trf).get_mmap()
+
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
 
     @kernel
@@ -761,6 +856,12 @@ class PhaserChannel:
     def set_nco_frequency_mu(self, ftw):
         """Set the NCO frequency.
 
+        This method stages the new NCO frequency, but does not apply it.
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
         :param ftw: NCO frequency tuning word (32 bit)
         """
         self.phaser.dac_write(0x15 + (self.index << 1), ftw >> 16)
@@ -769,6 +870,12 @@ class PhaserChannel:
     @kernel
     def set_nco_frequency(self, frequency):
         """Set the NCO frequency in SI units.
+
+        This method stages the new NCO frequency, but does not apply it.
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
 
         :param frequency: NCO frequency in Hz (passband from -400 MHz
             to 400 MHz, wrapping around at +- 500 MHz)
@@ -780,6 +887,16 @@ class PhaserChannel:
     def set_nco_phase_mu(self, pow):
         """Set the NCO phase offset.
 
+        By default, the new NCO phase applies on completion of the SPI
+        transfer. This also causes a staged NCO frequency to be applied.
+        Different triggers for applying NCO settings may be configured through
+        the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
+        `__init__()`).
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
         :param pow: NCO phase offset word (16 bit)
         """
         self.phaser.dac_write(0x12 + self.index, pow)
@@ -788,10 +905,20 @@ class PhaserChannel:
     def set_nco_phase(self, phase):
         """Set the NCO phase in SI units.
 
+        By default, the new NCO phase applies on completion of the SPI
+        transfer. This also causes a staged NCO frequency to be applied.
+        Different triggers for applying NCO settings may be configured through
+        the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
+        `__init__()`).
+
+        Use of the DAC-NCO requires the DAC mixer and NCO to be enabled. These
+        can be configured via the `dac` configuration dictionary (see
+        `__init__()`).
+
         :param phase: NCO phase in turns
         """
         pow = int32(round(phase*(1 << 16)))
-        self.set_duc_phase_mu(pow)
+        self.set_nco_phase_mu(pow)
 
     @kernel
     def set_att_mu(self, data):
@@ -886,12 +1013,38 @@ class PhaserChannel:
         return self.trf_write(0x00000008 | (cnt_mux_sel << 27),
                               readback=True)
 
+    @kernel
+    def cal_trf_vco(self):
+        """Start calibration of the upconverter (hardware variant) VCO.
+
+        TRF outputs should be disabled during VCO calibration.
+        """
+        self.trf_write(self.trf_mmap[1] | (1 << 31))
+
+    @kernel
+    def en_trf_out(self, rf=1, lo=0):
+        """Enable the rf/lo outputs of the upconverter (hardware variant).
+
+        :param rf: 1 to enable RF output, 0 to disable
+        :param lo: 1 to enable LO output, 0 to disable
+        """
+        data = self.trf_read(0xc)
+        delay(0.1 * ms)
+        # set RF and LO output bits
+        data = data | (1 << 12) | (1 << 13) | (1 << 14)
+        # clear to enable output
+        if rf == 1:
+            data = data ^ (1 << 14)
+        if lo == 1:
+            data = data ^ ((1 << 12) | (1 << 13))
+        self.trf_write(data)
+
 
 class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
 
     .. note:: Latencies between oscillators within a channel and between
-        oscillator paramters (amplitude and phase/frequency) are deterministic
+        oscillator parameters (amplitude and phase/frequency) are deterministic
         (with respect to the 25 MS/s sample clock) but not matched.
     """
     kernel_invariants = {"channel", "base_addr"}
