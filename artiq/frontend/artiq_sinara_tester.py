@@ -373,7 +373,7 @@ class SinaraTester(EnvExperiment):
             for card_n, channels in enumerate(chunker(self.mirnies, 4)):
                 for channel_n, (channel_name, channel_dev) in enumerate(channels):
                     frequency = 1000*(card_n + 2) + channel_n * 100
-                    print("{}\t{}MHz (double is {}MHz)".format(channel_name, frequency, frequency*2))
+                    print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
             print("RF OFF. Press ENTER when done.")
@@ -396,7 +396,7 @@ class SinaraTester(EnvExperiment):
             for i in range(4):
                 self.almazny_rf_toggle(almazny, i, True)
             input()
-            print("RF=Off. Press ENTER when done.")
+            print("RF OFF. Press ENTER when done.")
             for i in range(4):
                 self.almazny_rf_toggle(almazny, i, False)
             input()
