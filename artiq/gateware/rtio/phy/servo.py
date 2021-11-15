@@ -39,7 +39,7 @@ class RTServoMem(Module):
     onto the RTIO data word after the data.
 
     Servo address space (from LSB):
-      - IIR coefficient/state memory address, (w.profile + w.channel + 2) bits.
+      - IIR coefficient/state memory address, (w.profile + w_channel + 2) bits.
         If the state memory is selected, the lower bits are used directly as
         the memory address. If the coefficient memory is selected, the LSB
         (high_coeff) selects between the upper and lower halves of the memory
@@ -71,6 +71,7 @@ class RTServoMem(Module):
                 # mode=READ_FIRST,
                 clock_domain="rio")
         self.specials += m_state, m_coeff
+        w_channel = bits_for(len(servo.iir.dds) - 1)
 
         # just expose the w.coeff (18) MSBs of state
         assert w.state >= w.coeff
@@ -83,7 +84,7 @@ class RTServoMem(Module):
         assert 8 + w.dly < w.coeff
 
         # coeff, profile, channel, 2 mems, rw
-        internal_address_width = 3 + w.profile + w.channel + 1 + 1
+        internal_address_width = 3 + w.profile + w_channel + 1 + 1
         rtlink_address_width = min(8, internal_address_width)
         overflow_address_width = internal_address_width - rtlink_address_width
         self.rtlink = rtlink.Interface(
@@ -99,8 +100,9 @@ class RTServoMem(Module):
         # # #
 
         config = Signal(w.coeff, reset=0)
-        status = Signal(w.coeff)
+        status = Signal(8 + len(servo.iir.ctrl))
         pad = Signal(6)
+        assert len(status) <= len(self.rtlink.i.data)
         self.comb += [
                 Cat(servo.start).eq(config),
                 status.eq(Cat(servo.start, servo.done, pad,
