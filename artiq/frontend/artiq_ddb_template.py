@@ -294,8 +294,8 @@ class PeripheralManager:
             name=mirny_name,
             refclk=peripheral["refclk"],
             clk_sel=clk_sel)
-        almazny = peripheral.get("almazny")
-        if almazny == True:
+        almazny = peripheral.get("almazny", False)
+        if almazny:
             self.gen("""
             device_db["{name}_almazny"] = {{
                 "type": "local",
