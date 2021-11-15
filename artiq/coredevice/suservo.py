@@ -356,6 +356,30 @@ class Channel:
         return int(round(offset * (1 << COEFF_WIDTH - 1)))
 
     @kernel
+    def set_dds_phase_mu(self, profile, pow_):
+        """Set only POW in profile DDS coefficients.
+
+        See :meth:`set_dds_mu` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param pow_: Phase offset word (16 bit)
+        """
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+        self.servo.write(base + 2, pow_)
+
+    @kernel
+    def set_dds_phase(self, profile, phase):
+        """Set only phase in profile DDS coefficients.
+
+        See :meth:`set_dds` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param phase: DDS phase in turns
+        """
+        self.set_dds_phase_mu(profile, self.dds.turns_to_pow(phase))
+
+    @kernel
     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
         """Set profile IIR coefficients in machine units.
 
