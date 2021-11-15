@@ -228,9 +228,9 @@ class SUServo(StandaloneBase):
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
 
         # EEM3/2: Sampler, EEM5/4: Urukul, EEM7/6: Urukul
-        eem.SUServo.add_std(
-            self, eems_sampler=(3, 2),
-            eems_urukul0=(5, 4), eems_urukul1=(7, 6))
+        eem.SUServo.add_std(self, 
+                            eems_sampler=(3, 2), 
+                            eems_urukul=[[5, 4], [7, 6]])
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
