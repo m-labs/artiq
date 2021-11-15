@@ -351,12 +351,18 @@ class SinaraTester(EnvExperiment):
     @kernel
     def almazny_set_attenuators(self, almazny, ch, atts):
         self.core.break_realtime()
-        almazny.reg_set(ch+1, attin1=atts[0], attin2=atts[1], attin3=atts[2], attin4=atts[3], attin5=atts[4], attin6=atts[5], output_on=1)
+        almazny.set_att_mu(ch+1, atts, output_on=True)
+
+    @kernel
+    def almazny_set_attenuators_db(self, almazny, ch, atts):
+        self.core.break_realtime()
+        mu = almazny.att_to_mu(atts)
+        almazny.set_att_mu(ch+1, mu, output_on=True)
 
     @kernel
     def almazny_rf_toggle(self, almazny, ch, on):
         self.core.break_realtime()
-        almazny.reg_set(ch+1, attin1=1, attin2=1, attin3=1, attin4=1, attin5=1, attin6=1, output_on=1 if on else 0)
+        almazny.set_att_mu(ch+1, 63, on)
 
     def test_almaznys(self):
         print("*** Testing Almaznys.")
@@ -366,7 +372,7 @@ class SinaraTester(EnvExperiment):
             print("Testing attenuators. Frequencies:")
             for card_n, channels in enumerate(chunker(self.mirnies, 4)):
                 for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                    frequency = 1000*(card_n + 2) + channel_n * 100 + 8     # Extra 8 Hz for easier observation
+                    frequency = 1000*(card_n + 2) + channel_n * 100
                     print("{}\t{}MHz (double is {}MHz)".format(channel_name, frequency, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
@@ -376,15 +382,15 @@ class SinaraTester(EnvExperiment):
             input()
             print("RF ON, all attenuators on. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, [1, 1, 1, 1, 1, 1])
+                self.almazny_set_attenuators(almazny, i, 63)
             input()
             print("RF ON, half power attenuators on. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, [0, 1, 1, 1, 1, 1])
+                self.almazny_set_attenuators_db(almazny, i, 15.5)
             input()
             print("RF ON, all attenuators off. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, [0, 0, 0, 0, 0, 0])
+                self.almazny_set_attenuators_db(almazny, i, 0)
             input()
             print("RF ON, all attenuators are ON. Press ENTER when done.")
             for i in range(4):
@@ -408,7 +414,7 @@ class SinaraTester(EnvExperiment):
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.mirnies, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                frequency = 1000*(card_n + 1) + channel_n * 100 + 8     # Extra 8 Hz for easier observation
+                frequency = 1000*(card_n + 1) + channel_n * 100 + 8  # Extra 8 MHz for easier observation
                 print("{}\t{}MHz".format(channel_name, frequency))
                 self.setup_mirny(channel_dev, frequency)
                 print("{} info: {}".format(channel_name, channel_dev.info()))

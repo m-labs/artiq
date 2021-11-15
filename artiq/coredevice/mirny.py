@@ -155,7 +155,7 @@ class Almazny:
     """
     Almazny (High frequency mezzanine board for Mirny)
 
-    :param mirny - Mirny device Almazny is connected to
+    :param host_mirny - Mirny device Almazny is connected to
     """
 
     def __init__(self, dmgr, host_mirny):
@@ -174,45 +174,71 @@ class Almazny:
             ])
 
     @kernel
-    def reg_set(self, reg_i, attin1=1, attin2=1, attin3=1, attin4=1, attin5=1, attin6=1, output_on=0):
+    def att_to_mu(self, att):
         """
-        Sets the data on chosen shift register.
-        :param reg_i - index of the register [1-4]
-        :param attin[1-6] - attenuator on {0, 1} 
-        :attin1 - 16dB attenuator, att6 - 0.5dB
-        :param output_on - RF output on {0, 1}
+        Convert an attenuator setting in dB to machine units.
+
+        :param att: attenuator setting in dB [0-31.5] in 0.5 steps
+        :return: attenuator setting in machine units
         """
-        shift_reg = [0, output_on, attin6, attin5, attin4, attin3, attin2, attin1]
-        if not 4 >= reg_i >= 1:
-            raise ValueError("register must be 1, 2, 3 or 4")
+        if att > 31.5 or att < 0 or (att-int(att) != 0.0 and att-int(att) != 0.5):
+            raise ValueError("Invalid Almazny attenuator settings!")
+        return int(att * 2)
+
+    @kernel
+    def mu_to_att(self, att_mu):
+        """
+        Convert a digital attenuator setting to dB.
+
+        :param att_mu: attenuator setting in machine units
+        :return: attenuator setting in dB
+        """
+        return att_mu / 2
+
+    @kernel
+    def set_att_mu(self, channel, att_mu, output_on=True):
+        """
+        Sets attenuators on chosen shift register (channel).
+        :param channel - index of the register [1-4]
+        :param att_mu - attenuation setting in machine units [0-63] 
+        :param output_on - RF output on (bool)
+        """
+        if not 4 >= channel >= 1:
+            raise ValueError("channel must be 1, 2, 3 or 4")
+        if not 63 >= att_mu >= 0:
+            raise ValueError("Invalid Almazny attenuator setting")
+
+        att_ins = [ (att_mu >> i) & 0x01 for i in range(6) ]
+        shift_reg = [0, 1 if output_on else 0] + att_ins
+
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
         ])
         for val in shift_reg:
             self._cycle([
                 (ALMAZNY_SER_MOSI, val) 
             ])
-        self._latch(reg_i)
+        self._latch(channel)
 
     @kernel
-    def reg_clear(self, reg_i):
+    def reg_clear(self, channel):
         """
         Clears content of a register.
-        :param reg_i - index of the register [1-4]
+        :param channel - index of the register [1-4]
         """
-        if not 4 >= reg_i >= 1:
+        if not 4 >= channel >= 1:
             raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 0),
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 0),
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 1)
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 1)
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 1),
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
         ])
 
     @kernel
@@ -255,19 +281,17 @@ class Almazny:
         ] + data)
 
     @kernel
-    def _latch(self, reg_i):
+    def _latch(self, channel):
         self._send_mezz_data([
-            (ALMAZNY_SER_CLK, 0),
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 1)
+            (ALMAZNY_SER_CLK, 1),
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 1)
         ])
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
         ])
 
     @kernel
     def put_data(self, pin, d):
-        if d not in [0, 1]:
-            raise ValueError("Data can be only 0 or 1")
         self.mezz_data = (self.mezz_data & ~(1 << pin)) | d << pin  # data
         self.mezz_data |= 1 << pin + 8  # oe
 
