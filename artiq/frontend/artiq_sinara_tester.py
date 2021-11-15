@@ -59,6 +59,7 @@ class SinaraTester(EnvExperiment):
         self.mirnies = dict()
         self.suservos = dict()
         self.suschannels = dict()
+        self.almaznys = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -96,6 +97,8 @@ class SinaraTester(EnvExperiment):
                     self.suservos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
                     self.suschannels[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.mirny", "Almazny"):
+                    self.almaznys[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
         # from TTL outs (tested separately) and remove Urukuls covered by
@@ -340,6 +343,57 @@ class SinaraTester(EnvExperiment):
             for channel in channels:
                 channel.pulse(100*ms)
                 delay(100*ms)
+    @kernel
+    def init_almazny(self, almazny):
+        self.core.break_realtime()
+        almazny.init()
+
+    @kernel
+    def almazny_set_attenuators(self, almazny, ch, atts):
+        self.core.break_realtime()
+        almazny.reg_set(ch+1, attin1=atts[0], attin2=atts[1], attin3=atts[2], attin4=atts[3], attin5=atts[4], attin6=atts[5], output_on=1)
+
+    @kernel
+    def almazny_rf_toggle(self, almazny, ch, on):
+        self.core.break_realtime()
+        almazny.reg_set(ch+1, attin1=1, attin2=1, attin3=1, attin4=1, attin5=1, attin6=1, output_on=1 if on else 0)
+
+    def test_almaznys(self):
+        print("*** Testing Almaznys.")
+        for name, almazny in sorted(self.almaznys.items(), key=lambda x: x[0]):
+            print(name + "...")
+            self.init_almazny(almazny)
+            print("Testing attenuators. Frequencies:")
+            for card_n, channels in enumerate(chunker(self.mirnies, 4)):
+                for channel_n, (channel_name, channel_dev) in enumerate(channels):
+                    frequency = 1000*(card_n + 2) + channel_n * 100 + 8     # Extra 8 Hz for easier observation
+                    print("{}\t{}MHz (double is {}MHz)".format(channel_name, frequency, frequency*2))
+                    self.setup_mirny(channel_dev, frequency)
+                    print("{} info: {}".format(channel_name, channel_dev.info()))
+            print("RF OFF. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_rf_toggle(almazny, i, False)
+            input()
+            print("RF ON, all attenuators on. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, [1, 1, 1, 1, 1, 1])
+            input()
+            print("RF ON, half power attenuators on. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, [0, 1, 1, 1, 1, 1])
+            input()
+            print("RF ON, all attenuators off. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, [0, 0, 0, 0, 0, 0])
+            input()
+            print("RF ON, all attenuators are ON. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_rf_toggle(almazny, i, True)
+            input()
+            print("RF=Off. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_rf_toggle(almazny, i, False)
+            input()
 
     def test_mirnies(self):
         print("*** Testing Mirny PLLs.")
