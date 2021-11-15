@@ -31,6 +31,15 @@ WE = 1 << 24
 # supported CPLD code version
 PROTO_REV_MATCH = 0x0
 
+# almazny mezzio pin map
+ALMAZNY_SER_MOSI = 0
+ALMAZNY_SER_CLK = 1
+ALMAZNY_REG_LATCH_BASE = 2
+ALMAZNY_REG_CLEAR = 6
+
+# mirny/almazny mezz io reg address
+ALMAZNY_MEZZIO_REG = 0x03
+
 
 class Mirny:
     """
@@ -149,14 +158,6 @@ class Almazny:
     :param mirny - Mirny device Almazny is connected to
     """
 
-    # pin map
-    SER_MOSI = 0
-    SER_CLK = 1
-    REG_LATCH_BASE = 2
-    REG_CLEAR = 6
-
-    mezzio_reg = 0x03  # register addr for Mezz_IO 0~7
-
     def __init__(self, dmgr, host_mirny):
         self.mirny = dmgr.get(host_mirny)
         self.mezz_data = 0
@@ -164,12 +165,12 @@ class Almazny:
     @kernel
     def init(self):
         self._send_mezz_data([
-            (self.REG_CLEAR, 1),
-            (self.REG_LATCH_BASE+0, 0),
-            (self.REG_LATCH_BASE+1, 0),
-            (self.REG_LATCH_BASE+2, 0),
-            (self.REG_LATCH_BASE+3, 0),
-            (self.SER_CLK, 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            (ALMAZNY_REG_LATCH_BASE+0, 0),
+            (ALMAZNY_REG_LATCH_BASE+1, 0),
+            (ALMAZNY_REG_LATCH_BASE+2, 0),
+            (ALMAZNY_REG_LATCH_BASE+3, 0),
+            (ALMAZNY_SER_CLK, 0)
             ])
 
     @kernel
@@ -185,11 +186,11 @@ class Almazny:
         if not 4 >= reg_i >= 1:
             raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
-            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
         ])
         for val in shift_reg:
             self._cycle([
-                (self.SER_MOSI, val) 
+                (ALMAZNY_SER_MOSI, val) 
             ])
         self._latch(reg_i)
 
@@ -202,16 +203,16 @@ class Almazny:
         if not 4 >= reg_i >= 1:
             raise ValueError("register must be 1, 2, 3 or 4")
         self._send_mezz_data([
-            (self.REG_CLEAR, 0),
-            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_CLEAR, 0),
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
         ])
         self._send_mezz_data([
-            (self.REG_CLEAR, 0),
-            (self.REG_LATCH_BASE + (reg_i - 1), 1)
+            (ALMAZNY_REG_CLEAR, 0),
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 1)
         ])
         self._send_mezz_data([
-            (self.REG_CLEAR, 1),
-            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
         ])
 
     @kernel
@@ -220,25 +221,25 @@ class Almazny:
         Clears all registers.
         """
         self._send_mezz_data([
-            (self.REG_CLEAR, 0),
-            (self.REG_LATCH_BASE, 0),
-            (self.REG_LATCH_BASE + 1, 0),
-            (self.REG_LATCH_BASE + 2, 0),
-            (self.REG_LATCH_BASE + 3, 0),
+            (ALMAZNY_REG_CLEAR, 0),
+            (ALMAZNY_REG_LATCH_BASE, 0),
+            (ALMAZNY_REG_LATCH_BASE + 1, 0),
+            (ALMAZNY_REG_LATCH_BASE + 2, 0),
+            (ALMAZNY_REG_LATCH_BASE + 3, 0),
         ])
         self._send_mezz_data([
-            (self.REG_CLEAR, 0),
-            (self.REG_LATCH_BASE, 1),
-            (self.REG_LATCH_BASE + 1, 1),
-            (self.REG_LATCH_BASE + 2, 1),
-            (self.REG_LATCH_BASE + 3, 1),
+            (ALMAZNY_REG_CLEAR, 0),
+            (ALMAZNY_REG_LATCH_BASE, 1),
+            (ALMAZNY_REG_LATCH_BASE + 1, 1),
+            (ALMAZNY_REG_LATCH_BASE + 2, 1),
+            (ALMAZNY_REG_LATCH_BASE + 3, 1),
         ])
         self._send_mezz_data([
-            (self.REG_CLEAR, 1),
-            (self.REG_LATCH_BASE, 0),
-            (self.REG_LATCH_BASE + 1, 0),
-            (self.REG_LATCH_BASE + 2, 0),
-            (self.REG_LATCH_BASE + 3, 0),
+            (ALMAZNY_REG_CLEAR, 1),
+            (ALMAZNY_REG_LATCH_BASE, 0),
+            (ALMAZNY_REG_LATCH_BASE + 1, 0),
+            (ALMAZNY_REG_LATCH_BASE + 2, 0),
+            (ALMAZNY_REG_LATCH_BASE + 3, 0),
         ])
 
     @kernel
@@ -247,20 +248,20 @@ class Almazny:
         one cycle for inputting register data
         """
         self._send_mezz_data([
-            (self.SER_CLK, 0),
+            (ALMAZNY_SER_CLK, 0),
         ] + data)
         self._send_mezz_data([
-            (self.SER_CLK, 1),
+            (ALMAZNY_SER_CLK, 1),
         ] + data)
 
     @kernel
     def _latch(self, reg_i):
         self._send_mezz_data([
-            (self.SER_CLK, 0),
-            (self.REG_LATCH_BASE + (reg_i - 1), 1)
+            (ALMAZNY_SER_CLK, 0),
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 1)
         ])
         self._send_mezz_data([
-            (self.REG_LATCH_BASE + (reg_i - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + (reg_i - 1), 0)
         ])
 
     @kernel
@@ -278,6 +279,6 @@ class Almazny:
         """
         for pin, data in pins_data:
             self.put_data(pin, data)
-        self.mirny.write_reg(self.mezzio_reg, self.mezz_data)
+        self.mirny.write_reg(ALMAZNY_MEZZIO_REG, self.mezz_data)
         # delay to ensure the data has been read by the SR
         delay(1*us)
