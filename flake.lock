@@ -3,11 +3,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1636569584,
-        "narHash": "sha256-iDFogua24bhFJZSxG/jhZbbNxDXuKP9S/pyRIYzrRPM=",
+        "lastModified": 1636992969,
+        "narHash": "sha256-N1DBtHSrN2usDeDYD6IcnAUcMfc+i+UKv0U/+j7n5HY=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "9f70f86d73fa97e043bebeb58e5676d157069cfb",
+        "rev": "4c8fc3d7b625d2d34bfb5aedf03c131aef2f87f8",
         "type": "github"
       },
       "original": {
@@ -80,11 +80,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1636777462,
-        "narHash": "sha256-8XdQsKNno0HS5h0dxGXXzvpR0rsnTGgOL9Vpi7GdLik=",
+        "lastModified": 1637055460,
+        "narHash": "sha256-XMPoYABsiakMoQnFgBSRkFkSAS8TFZDxfDrpGfdKL9k=",
         "ref": "master",
-        "rev": "8ab3ee9cce58861eaf56c0d9b08805ccfcbace01",
-        "revCount": 429,
+        "rev": "1e47b364c5ba3a60d7715faae496fe4c24011591",
+        "revCount": 430,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },
