@@ -84,7 +84,6 @@ class Core:
         self.comm.load(kernel_library)
         self.comm.run()
         self.comm.serve(None, None, None)
-        return result
 
     @portable
     def seconds_to_mu(self, seconds: float) -> int64:
