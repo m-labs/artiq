@@ -163,7 +163,8 @@ class Almazny:
     def __init__(self, dmgr, host_mirny):
         self.mirny = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
-        self.rf_switches = [True] * 4
+        self.rf_switches = [0] * 4
+        self._mezz_data = ALMAZNY_OE_MASK
 
     @kernel
     def init(self):
@@ -177,6 +178,13 @@ class Almazny:
             ])
 
     @kernel
+    def _reverse_att_mu(self, att_mu):
+        res = 0
+        for i in range(6):
+            res |= (att_mu >> i & 0x01) << (5-i)
+        return res
+
+    @kernel
     def att_to_mu(self, att):
         """
         Convert an attenuator setting in dB to machine units.
@@ -186,7 +194,8 @@ class Almazny:
         """
         if att > 31.5 or att < 0 or (att-int(att) != 0.0 and att-int(att) != 0.5):
             raise ValueError("Invalid Almazny attenuator settings!")
-        return int(att * 2)
+        # it must be reversed for 
+        return self._reverse_att_mu(int(att * 2))
 
     @kernel
     def mu_to_att(self, att_mu):
@@ -196,7 +205,7 @@ class Almazny:
         :param att_mu: attenuator setting in machine units
         :return: attenuator setting in dB
         """
-        return att_mu / 2
+        return self._reverse_att_mu(att_mu) / 2
 
     @kernel
     def set_att_mu(self, channel, att_mu):
@@ -210,8 +219,9 @@ class Almazny:
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
-        self.att_mu[channel] = att_mu
-        self._update_register(channel)
+        ch = channel - 1
+        self.att_mu[ch] = att_mu
+        self._update_register(ch)
 
     @kernel
     def set_att_mu_all(self, att_mu):
@@ -219,12 +229,11 @@ class Almazny:
         Sets attenuators on all shift registers.
         :param att_mu - attenuation setting in machine units [0-63] 
         """
-        if not 4 >= channel >= 1:
-            raise ValueError("channel must be 1, 2, 3 or 4")
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
-        self.att_mu = [att_mu] * 4
+        for i in range(4):
+            self.att_mu[i] = att_mu
         self._update_all_registers()
 
     @kernel
@@ -237,8 +246,9 @@ class Almazny:
         if not 4 >= channel >= 1:
             raise ValueError("channel must be 1, 2, 3 or 4")
 
-        self.rf_switch[channel] = rf_on
-        self._update_register(channel)
+        ch = channel - 1
+        self.rf_switches[ch] = 1 if rf_on else 0
+        self._update_register(ch)
 
     @kernel
     def cfg_sw_all(self, rf_on):
@@ -246,10 +256,8 @@ class Almazny:
         Toggles all RF switches on or off.
         :param rf_on - RF output on (bool)
         """
-        if not 4 >= channel >= 1:
-            raise ValueError("channel must be 1, 2, 3 or 4")
-
-        self.rf_switch = [rf_on] * 4
+        for i in range(4):
+            self.rf_switches[i] = 1 if rf_on else 0
         self._update_all_registers()
 
     @kernel
@@ -260,17 +268,18 @@ class Almazny:
         """
         if not 4 >= channel >= 1:
             raise ValueError("register must be 1, 2, 3 or 4")
+        ch = channel - 1
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 0),
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + ch, 0)
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 0),
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 1)
+            (ALMAZNY_REG_LATCH_BASE + ch, 1)
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 1),
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + ch, 0)
         ])
 
     @kernel
@@ -313,13 +322,13 @@ class Almazny:
         ] + data)
 
     @kernel
-    def _latch(self, channel):
+    def _latch(self, ch):
         self._send_mezz_data([
             (ALMAZNY_SER_CLK, 1),
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 1)
+            (ALMAZNY_REG_LATCH_BASE + ch, 1)
         ])
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + ch, 0)
         ])
 
     @kernel
@@ -339,22 +348,23 @@ class Almazny:
         ])
 
     @kernel
-    def _update_register(self, channel):
-        data = (1 << 6 if self.rf_switch[channel] else 0) | self.att_mu[channel]
+    def _update_register(self, ch):
+        data = (self.rf_switches[ch] << 6) | self.att_mu[ch]
 
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
+            (ALMAZNY_REG_LATCH_BASE + ch, 0)
         ])
+
         for i in range(8):
             self._cycle([
                 (ALMAZNY_SER_MOSI, (data >> (7 - i)) & 0x01) 
             ])
-        self._latch(channel)
+        self._latch(ch)
 
     @kernel
     def _update_all_registers(self):
         # assumes data is identical for all channesls
-        data = (1 << 6 if self.rf_switch[0] else 0) | self.att_mu[0]
+        data = (self.rf_switches[0] << 6) | self.att_mu[0]
 
         self._send_mezz_data([
             (ALMAZNY_REG_LATCH_BASE + 0, 0),
@@ -369,14 +379,20 @@ class Almazny:
         self._latch_all()
 
     @kernel
+    def put_data(self, prev, pin, d):
+        return (prev & ~(1 << pin)) | d << pin 
+
+    @kernel
     def _send_mezz_data(self, pins_data):
         """
         Sends the raw data to the mezzanine board.
         :param pins_data - list of tuples in format (pin_number, bit)
         """
-        data = ALMAZNY_OE_MASK
+        data = self._mezz_data
         for pin, d in pins_data:
-            data |= d << pin
+            data = self.put_data(data, pin, d)
         self.mirny.write_reg(ALMAZNY_MEZZIO_REG, data)
+        # update
+        self._mezz_data = data
         # delay to ensure the data has been read by the SR
         delay(1*us)
