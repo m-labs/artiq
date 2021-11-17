@@ -177,9 +177,10 @@ class Almazny:
         :param att: attenuator setting in dB [0-31.5]
         :return: attenuator setting in machine units
         """
-        if att > 31.5 or att < 0:
+        mu = round(att * 2.0)
+        if mu > 63 or mu < 0:
             raise ValueError("Invalid Almazny attenuator settings!")
-        return round(att * 2.0)
+        return mu
 
     @kernel
     def mu_to_att(self, att_mu):
