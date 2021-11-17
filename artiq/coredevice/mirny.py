@@ -40,6 +40,8 @@ ALMAZNY_REG_CLEAR = 6
 # mirny/almazny mezz io reg address
 ALMAZNY_MEZZIO_REG = 0x03
 
+ALMAZNY_OE_MASK = 0xFF00
+
 
 class Mirny:
     """
@@ -208,15 +210,14 @@ class Almazny:
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
-        att_ins = [ (att_mu >> i) & 0x01 for i in range(6) ]
-        shift_reg = [0, 1 if output_on else 0] + att_ins
+        shift_reg = (1 << 6 if output_on else 0) | att_ins
 
         self._send_mezz_data([
             (ALMAZNY_REG_LATCH_BASE + (channel - 1), 0)
         ])
-        for val in shift_reg:
+        for i in range(8):
             self._cycle([
-                (ALMAZNY_SER_MOSI, val) 
+                (ALMAZNY_SER_MOSI, (shift_reg >> (7 - i)) & 0x01) 
             ])
         self._latch(channel)
 
@@ -293,7 +294,7 @@ class Almazny:
     @kernel
     def put_data(self, pin, d):
         self.mezz_data = (self.mezz_data & ~(1 << pin)) | d << pin  # data
-        self.mezz_data |= 1 << pin + 8  # oe
+        self.mezz_data |= ALMAZNY_OE_MASK
 
     @kernel
     def _send_mezz_data(self, pins_data):
