@@ -164,17 +164,12 @@ class Almazny:
         self.mirny = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
         self.rf_switches = [0] * 4
-        self._mezz_data = ALMAZNY_OE_MASK
 
     @kernel
     def init(self):
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 1),
-            (ALMAZNY_REG_LATCH_BASE+0, 0),
-            (ALMAZNY_REG_LATCH_BASE+1, 0),
-            (ALMAZNY_REG_LATCH_BASE+2, 0),
-            (ALMAZNY_REG_LATCH_BASE+3, 0),
-            (ALMAZNY_SER_CLK, 0)
+            # rest is 0
             ])
 
     @kernel
@@ -288,11 +283,7 @@ class Almazny:
         Clears all registers.
         """
         self._send_mezz_data([
-            (ALMAZNY_REG_CLEAR, 0),
-            (ALMAZNY_REG_LATCH_BASE, 0),
-            (ALMAZNY_REG_LATCH_BASE + 1, 0),
-            (ALMAZNY_REG_LATCH_BASE + 2, 0),
-            (ALMAZNY_REG_LATCH_BASE + 3, 0),
+            # everything 0 including REG_CLEAR
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 0),
@@ -303,10 +294,6 @@ class Almazny:
         ])
         self._send_mezz_data([
             (ALMAZNY_REG_CLEAR, 1),
-            (ALMAZNY_REG_LATCH_BASE, 0),
-            (ALMAZNY_REG_LATCH_BASE + 1, 0),
-            (ALMAZNY_REG_LATCH_BASE + 2, 0),
-            (ALMAZNY_REG_LATCH_BASE + 3, 0),
         ])
 
     @kernel
@@ -315,25 +302,30 @@ class Almazny:
         one cycle for inputting register data
         """
         self._send_mezz_data([
-            (ALMAZNY_SER_CLK, 0),
+            (ALMAZNY_REG_CLEAR, 1),
+            # clk = 0
         ] + data)
         self._send_mezz_data([
+            (ALMAZNY_REG_CLEAR, 1),
             (ALMAZNY_SER_CLK, 1),
         ] + data)
 
     @kernel
     def _latch(self, ch):
         self._send_mezz_data([
+            (ALMAZNY_REG_CLEAR, 1),
             (ALMAZNY_SER_CLK, 1),
             (ALMAZNY_REG_LATCH_BASE + ch, 1)
         ])
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + ch, 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            # reset latch
         ])
 
     @kernel
     def _latch_all(self):
         self._send_mezz_data([
+            (ALMAZNY_REG_CLEAR, 1),
             (ALMAZNY_SER_CLK, 1),
             (ALMAZNY_REG_LATCH_BASE + 0, 1),
             (ALMAZNY_REG_LATCH_BASE + 1, 1),
@@ -341,10 +333,8 @@ class Almazny:
             (ALMAZNY_REG_LATCH_BASE + 3, 1)
         ])
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + 0, 0),
-            (ALMAZNY_REG_LATCH_BASE + 1, 0),
-            (ALMAZNY_REG_LATCH_BASE + 2, 0),
-            (ALMAZNY_REG_LATCH_BASE + 3, 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            # reset all latches
         ])
 
     @kernel
@@ -352,7 +342,8 @@ class Almazny:
         data = (self.rf_switches[ch] << 6) | self.att_mu[ch]
 
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + ch, 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            # reset all latches
         ])
 
         for i in range(8):
@@ -367,10 +358,8 @@ class Almazny:
         data = (self.rf_switches[0] << 6) | self.att_mu[0]
 
         self._send_mezz_data([
-            (ALMAZNY_REG_LATCH_BASE + 0, 0),
-            (ALMAZNY_REG_LATCH_BASE + 1, 0),
-            (ALMAZNY_REG_LATCH_BASE + 2, 0),
-            (ALMAZNY_REG_LATCH_BASE + 3, 0)
+            (ALMAZNY_REG_CLEAR, 1),
+            # reset all latches
         ])
         for i in range(8):
             self._cycle([
@@ -379,20 +368,15 @@ class Almazny:
         self._latch_all()
 
     @kernel
-    def put_data(self, prev, pin, d):
-        return (prev & ~(1 << pin)) | d << pin 
-
-    @kernel
     def _send_mezz_data(self, pins_data):
         """
         Sends the raw data to the mezzanine board.
         :param pins_data - list of tuples in format (pin_number, bit)
         """
-        data = self._mezz_data
+        # by default data is 0 - put 1s where you need
+        data = ALMAZNY_OE_MASK
         for pin, d in pins_data:
-            data = self.put_data(data, pin, d)
+            data = (data & ~(1 << pin)) | d << pin
         self.mirny.write_reg(ALMAZNY_MEZZIO_REG, data)
-        # update
-        self._mezz_data = data
         # delay to ensure the data has been read by the SR
         delay(1*us)
