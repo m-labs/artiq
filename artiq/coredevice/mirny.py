@@ -35,7 +35,8 @@ PROTO_REV_MATCH = 0x0
 ALMAZNY_SER_MOSI = 0x01
 ALMAZNY_SER_CLK = 0x02
 ALMAZNY_REG_LATCH_BASE = 0x04
-ALMAZNY_REG_CLEAR = 0x40
+
+ALMAZNY_OUTPUT_ENABLE = 0x40
 
 # mirny/almazny mezz io reg address
 ALMAZNY_MEZZIO_REG = 0x03
@@ -164,10 +165,12 @@ class Almazny:
         self.mirny = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
         self.rf_switches = [0] * 4
+        self.output_enable = False
 
     @kernel
     def init(self):
-        self._send_mezz_data(ALMAZNY_REG_CLEAR)  # reset the rest
+        self.output_enable = False
+        self._send_mezz_data(0)  # reset everything
 
     @kernel
     def att_to_mu(self, att):
@@ -230,48 +233,31 @@ class Almazny:
         self._update_all_registers()
 
     @kernel
-    def reg_clear(self, channel):
+    def output_toggle(self, oe):
         """
-        Clears content of a register.
-        :param channel - index of the channel [0-3]
+        Toggles output on all shift registers on or off.
+        :param oe - toggle output enable (bool)
         """
-        if not 3 >= channel >= 0:
-            raise ValueError("channel must be 0, 1, 2 or 3")
-        self._send_mezz_data(0)  # reg_clear and latch are 0
-        self._send_mezz_data(ALMAZNY_REG_LATCH_BASE << channel)  # just latch is 1
-        self._send_mezz_data(ALMAZNY_REG_CLEAR)  # clear is back to 1
-
-    @kernel
-    def reg_clear_all(self):
-        """
-        Clears all registers.
-        """
-        self._send_mezz_data(0)  # reg clear and everything at 0
-        self._send_mezz_data(ALMAZNY_REG_LATCH_BASE |
-                             ALMAZNY_REG_LATCH_BASE << 1 |
-                             ALMAZNY_REG_LATCH_BASE << 2 |
-                             ALMAZNY_REG_LATCH_BASE << 3
-                            )
-        self._send_mezz_data(ALMAZNY_REG_CLEAR)
+        self.output_enable = oe
+        self._send_mezz_data(0)
 
     @kernel
     def _cycle(self, data):
         """
         one cycle for inputting register data
         """
-        self._send_mezz_data(ALMAZNY_REG_CLEAR | data)  # clk = 0
-        self._send_mezz_data(ALMAZNY_REG_CLEAR | ALMAZNY_SER_CLK | data)
+        self._send_mezz_data(data)  # clk = 0
+        self._send_mezz_data(ALMAZNY_SER_CLK | data)
 
     @kernel
     def _latch(self, ch):
-        self._send_mezz_data(ALMAZNY_REG_CLEAR | 
-                             ALMAZNY_SER_CLK |
+        self._send_mezz_data(ALMAZNY_SER_CLK |
                              ALMAZNY_REG_LATCH_BASE << ch)
-        self._send_mezz_data(ALMAZNY_REG_CLEAR)  # reset latch
+        self._send_mezz_data(0)  # reset latch
 
     @kernel
     def _update_register(self, ch):
-        self._send_mezz_data(ALMAZNY_REG_CLEAR)  # reset all latches
+        self._send_mezz_data(0)  # reset all latches
         self._cycle(0)  # initial 0 (unused value)
         self._cycle(self.rf_switches[ch])
         for i in range(6):  # data
@@ -289,6 +275,7 @@ class Almazny:
         Sends the raw data to the mezzanine board.
         :param data - data to send over
         """
-        self.mirny.write_reg(ALMAZNY_MEZZIO_REG, ALMAZNY_OE_MASK | data)
+        mask = ALMAZNY_OE_MASK | (ALMAZNY_OUTPUT_ENABLE if self.output_enable else 0)
+        self.mirny.write_reg(ALMAZNY_MEZZIO_REG, mask | data)
         # delay to ensure the data has been read by the SR
         delay(1*us)

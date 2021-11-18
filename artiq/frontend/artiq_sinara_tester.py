@@ -371,6 +371,11 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         almazny.cfg_sw(ch, on)
 
+    @kernel
+    def almazny_toggle_output(self, almazny, oe):
+        self.core.break_realtime()
+        almazny.output_toggle(oe)
+
     def test_almaznys(self):
         print("*** Testing Almaznys.")
         for name, almazny in sorted(self.almaznys.items(), key=lambda x: x[0]):
@@ -383,7 +388,10 @@ class SinaraTester(EnvExperiment):
                     print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
-            print("RF OFF. Press ENTER when done.")
+            print("RF OFF, but SR outputs are ON. Press ENTER when done.")
+            self.almazny_toggle_output(almazny, True)
+            self.almazny_toggle_output(almazny, False)
+            self.almazny_toggle_output(almazny, True)
             for i in range(4):
                 self.almazny_toggle_rf(almazny, i, False)
             input()
@@ -399,9 +407,13 @@ class SinaraTester(EnvExperiment):
             for i in range(4):
                 self.almazny_set_attenuators_db(almazny, i, 0)
             input()
+            print("SR outputs are OFF. Press ENTER when done.")
+            self.almazny_toggle_output(almazny, False)
+            input()
             print("RF ON, all attenuators are ON. Press ENTER when done.")
             for i in range(4):
                 self.almazny_set_attenuators_db(almazny, i, 31)
+            self.almazny_toggle_output(almazny, True)
             self.almazny_toggle_all_rf(almazny, True)
             input()
             print("RF OFF. Press ENTER when done.")
