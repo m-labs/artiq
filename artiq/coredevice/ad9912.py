@@ -208,7 +208,7 @@ class AD9912:
         """Returns the 48-bit frequency tuning word corresponding to the given
         frequency.
         """
-        return int64(round(self.ftw_per_hz * frequency)) & (
+        return round64(self.ftw_per_hz * frequency) & (
                 (int64(1) << int64(48)) - int64(1))
 
     @portable
