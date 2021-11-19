@@ -13,7 +13,7 @@ def get_version():
     srcroot = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(srcroot, "MAJOR_VERSION"), "r") as f:
         version = f.read().strip()
-    version += ".unknown"
+    version += ".0"
     if os.path.exists(os.path.join(srcroot, "BETA")):
         version += ".beta"
     return version
