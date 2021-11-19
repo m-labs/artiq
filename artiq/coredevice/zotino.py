@@ -4,19 +4,23 @@ Output event replacement is not supported and issuing commands at the same
 time is an error.
 """
 
-from artiq.language.core import kernel
-from artiq.coredevice import spi2 as spi
+from numpy import int32
+
+from artiq.language.core import nac3, kernel
+from artiq.coredevice.spi2 import *
 from artiq.coredevice.ad53xx import SPI_AD53XX_CONFIG, AD53xx
 
-_SPI_SR_CONFIG = (0*spi.SPI_OFFLINE | 1*spi.SPI_END |
-                  0*spi.SPI_INPUT | 0*spi.SPI_CS_POLARITY |
-                  0*spi.SPI_CLK_POLARITY | 0*spi.SPI_CLK_PHASE |
-                  0*spi.SPI_LSB_FIRST | 0*spi.SPI_HALF_DUPLEX)
+
+_SPI_SR_CONFIG = (0*SPI_OFFLINE | 1*SPI_END |
+                  0*SPI_INPUT | 0*SPI_CS_POLARITY |
+                  0*SPI_CLK_POLARITY | 0*SPI_CLK_PHASE |
+                  0*SPI_LSB_FIRST | 0*SPI_HALF_DUPLEX)
 
 _SPI_CS_DAC = 1
 _SPI_CS_SR = 2
 
 
+@nac3
 class Zotino(AD53xx):
     """ Zotino 32-channel, 16-bit 1MSPS DAC.
 
@@ -42,8 +46,8 @@ class Zotino(AD53xx):
                         div_read=div_read, core=core)
 
     @kernel
-    def set_leds(self, leds):
-        """ Sets the states of the 8 user LEDs.
+    def set_leds(self, leds: int32):
+        """Sets the states of the 8 user LEDs.
 
         :param leds: 8-bit word with LED state
         """
