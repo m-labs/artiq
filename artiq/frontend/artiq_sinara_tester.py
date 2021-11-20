@@ -101,8 +101,9 @@ class SinaraTester(EnvExperiment):
                         sw_device = desc["arguments"]["sw_device"]
                         del self.ttl_outs[sw_device]
                 elif (module, cls) == ("artiq.coredevice.urukul", "CPLD"):
-                    io_update_device = desc["arguments"]["io_update_device"]
-                    del self.ttl_outs[io_update_device]
+                    io_update_device = desc["arguments"].get("io_update_device", None)
+                    if io_update_device is not None:
+                        del self.ttl_outs[io_update_device]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
