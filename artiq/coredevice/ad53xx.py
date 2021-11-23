@@ -317,7 +317,7 @@ class AD53xx:
         self.ldac.on()
 
     @kernel
-    def set_dac_mu(self, values: list[int32], channels: list[int32] = list(range(40))):
+    def set_dac_mu(self, values: list[int32], channels: list[int32]):  # NAC3TODO default list(range(40))
         """Program multiple DAC channels and pulse LDAC to update the DAC
         outputs.
 
@@ -348,7 +348,7 @@ class AD53xx:
         at_mu(t0)
 
     @kernel
-    def set_dac(self, voltages: list[float], channels: list[int32] = list(range(40))):
+    def set_dac(self, voltages: list[float], channels: list[int32]):  # NAC3TODO default list(range(40))
         """Program multiple DAC channels and pulse LDAC to update the DAC
         outputs.
 
