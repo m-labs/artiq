@@ -13,7 +13,7 @@ class ServoSim(servo.Servo):
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4,
                 t_cnvh=4, t_conv=57 - 4, t_rtt=4 + 4)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
-                accu=48, shift=11, channel=3, profile=5, dly=8)
+                accu=48, shift=11, profile=5, dly=8)
         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
                 channels=adc_p.channels, clk=1)
 
@@ -91,7 +91,7 @@ def main():
                 "sys":   (8, 0),
                 "adc":   (8, 0),
                 "ret":   (8, 0),
-                "async": (2, 0),
+                "async_": (2, 0),
             })
 
 

@@ -44,8 +44,10 @@ class TB(Module):
                 yield
                 dat = []
                 for dds in self.ddss:
-                    v = yield from [(yield getattr(dds, k))
-                            for k in "cmd ftw pow asf".split()]
+                    v = []
+                    for k in "cmd ftw pow asf".split():
+                        f = yield getattr(dds, k)
+                        v.append(f)
                     dat.append(v)
                 data.append((i, dat))
             else:

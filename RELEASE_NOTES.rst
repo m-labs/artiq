@@ -28,6 +28,7 @@ Highlights:
   repository when building the list of experiments.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
+* Support for variable numbers of Urukul cards on SUServo.
 
 Breaking changes:
 
@@ -38,6 +39,9 @@ Breaking changes:
 * Phaser: fixed coarse mixer frequency configuration
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
+* To support variable numbers of Urukul cards, the
+  ``artiq.coredevice.suservo.SUServo`` constructor now accepts two device name lists,
+  ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
 
 
 ARTIQ-6
@@ -104,9 +108,6 @@ Breaking changes:
 * ``quamash`` has been replaced with ``qasync``.
 * Protocols are updated to use device endian.
 * Analyzer dump format includes a byte for device endianness.
-* To support variable numbers of Urukul cards in the future, the
-  ``artiq.coredevice.suservo.SUServo`` constructor now accepts two device name lists,
-  ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
 * Experiment classes with underscore-prefixed names are now ignored when ``artiq_client``
   determines which experiment to submit (consistent with ``artiq_run``).
 

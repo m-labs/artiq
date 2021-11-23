@@ -43,7 +43,7 @@ class TB(Module):
                     )
             ]
             cnv_old = Signal(reset_less=True)
-            self.sync.async += [
+            self.sync.async_ += [
                     cnv_old.eq(self.cnv),
                     If(Cat(cnv_old, self.cnv) == 0b10,
                         sr.eq(Cat(reversed(self.data[2*i:2*i + 2]))),
@@ -62,7 +62,7 @@ class TB(Module):
     def _dly(self, sig, n=0):
         n += self.params.t_rtt*4//2 # t_{sys,adc,ret}/t_async half rtt
         dly = Signal(n, reset_less=True)
-        self.sync.async += dly.eq(Cat(sig, dly))
+        self.sync.async_ += dly.eq(Cat(sig, dly))
         return dly[-1]
 
 
@@ -85,8 +85,8 @@ def main():
         assert not (yield dut.done)
         while not (yield dut.done):
             yield
-        x = (yield from [(yield d) for d in dut.data])
-        for i, ch in enumerate(x):
+        for i, d in enumerate(dut.data):
+            ch = yield d
             assert ch == i, (hex(ch), hex(i))
 
     run_simulation(tb, [run(tb)],
@@ -95,7 +95,7 @@ def main():
                 "sys":   (8, 0),
                 "adc":   (8, 0),
                 "ret":   (8, 0),
-                "async": (2, 0),
+                "async_": (2, 0),
             },
             )
 
