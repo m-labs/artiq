@@ -1,0 +1,20 @@
+{
+    "target": "kasli",
+    "min_artiq_version": "8.0",
+    "variant": "nac3devices",
+    "hw_rev": "v1.1",
+    "base": "standalone",
+    "core_addr": "192.168.1.70",
+    "peripherals": [
+        {
+            "type": "zotino",
+            "ports": [0]
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9912",
+            "ports": [2, 3],
+            "clk_sel": 2
+        }
+    ]
+}
