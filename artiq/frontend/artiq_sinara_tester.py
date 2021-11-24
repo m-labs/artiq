@@ -230,6 +230,17 @@ class SinaraTester(EnvExperiment):
         cpld.init()
 
     @kernel
+    def test_urukul_att(self, cpld):
+        self.core.break_realtime()
+        for i in range(32):
+            test_word = 1 << i
+            cpld.set_all_att_mu(test_word)
+            readback_word = cpld.get_att_mu()
+            if readback_word != test_word:
+                print(readback_word, test_word)
+                raise ValueError
+
+    @kernel
     def calibrate_urukul(self, channel):
         self.core.break_realtime()
         channel.init()
@@ -268,11 +279,12 @@ class SinaraTester(EnvExperiment):
     def test_urukuls(self):
         print("*** Testing Urukul DDSes.")
 
-        print("Initializing CPLDs...")
         for name, cpld in sorted(self.urukul_cplds.items(), key=lambda x: x[0]):
-            print(name + "...")
+            print(name + ": initializing CPLD...")
             self.init_urukul(cpld)
-        print("...done")
+            print(name + ": testing attenuator digital control...")
+            self.test_urukul_att(cpld)
+            print(name + ": done")
 
         print("Calibrating inter-device synchronization...")
         for channel_name, channel_dev in self.urukuls:
