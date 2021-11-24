@@ -18,6 +18,8 @@ export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
 
 all:: ksupport.elf
 
+cargo = cargo build -Z build-std=core,alloc
+
 .PHONY: $(RUSTOUT)/libksupport.a
 $(RUSTOUT)/libksupport.a:
 	$(cargo) --target-dir ./cargo \

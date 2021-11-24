@@ -14,6 +14,8 @@ export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
 
 all:: runtime.bin runtime.fbi
 
+cargo = cargo build -Z build-std=core,alloc
+
 .PHONY: $(RUSTOUT)/libruntime.a
 $(RUSTOUT)/libruntime.a:
 	$(cargo) --target-dir ./cargo \

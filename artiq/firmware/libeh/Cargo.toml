@@ -11,4 +11,3 @@ path = "lib.rs"
 cslice = { version = "0.3" }
 libc = { path = "../libc" }
 unwind = { path = "../libunwind" }
-compiler_builtins = "=0.1.39"    # A dependency of alloc, libeh doesn't need it

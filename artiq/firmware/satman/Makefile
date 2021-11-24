@@ -9,6 +9,8 @@ export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
 
 all:: satman.bin satman.fbi
 
+cargo = cargo build -Z build-std=core
+
 .PHONY: $(RUSTOUT)/libsatman.a
 $(RUSTOUT)/libsatman.a:
 	$(cargo) --target-dir ./cargo \
