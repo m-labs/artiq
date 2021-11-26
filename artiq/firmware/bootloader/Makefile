@@ -3,8 +3,6 @@ include $(MISOC_DIRECTORY)/software/common.mak
 
 RUSTFLAGS += -Cpanic=abort
 
-export XBUILD_SYSROOT_PATH=$(BUILDINC_DIRECTORY)/../sysroot
-
 all:: bootloader.bin
 
 cargo = cargo build -Z build-std=core
