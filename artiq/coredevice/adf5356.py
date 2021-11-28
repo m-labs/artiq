@@ -8,25 +8,36 @@ on Mirny-style prefixed SPI buses.
 # https://www.analog.com/media/en/technical-documentation/data-sheets/ADF5355.pdf
 # https://www.analog.com/media/en/technical-documentation/user-guides/EV-ADF5355SD1Z-UG-1087.pdf
 
+from numpy import int32, int64
+# NAC3TODO from math import floor, ceil
 
-from artiq.language.core import kernel, portable, delay
+from artiq.language.core import nac3, KernelInvariant, kernel, portable, round64
 from artiq.language.units import us, GHz, MHz
-from artiq.language.types import TInt32, TInt64
-from artiq.coredevice import spi2 as spi
+from artiq.coredevice.core import Core
+from artiq.coredevice.mirny import Mirny
+from artiq.coredevice.ttl import TTLOut
+from artiq.coredevice.spi2 import *
 from artiq.coredevice.adf5356_reg import *
 
-from numpy import int32, int64, floor, ceil
 
+# NAC3TODO
+@portable
+def floor(x: float) -> int32:
+    return 0
+@portable
+def ceil(x: float) -> int32:
+    return 0
+#
 
 SPI_CONFIG = (
-    0 * spi.SPI_OFFLINE
-    | 0 * spi.SPI_END
-    | 0 * spi.SPI_INPUT
-    | 1 * spi.SPI_CS_POLARITY
-    | 0 * spi.SPI_CLK_POLARITY
-    | 0 * spi.SPI_CLK_PHASE
-    | 0 * spi.SPI_LSB_FIRST
-    | 0 * spi.SPI_HALF_DUPLEX
+    0 * SPI_OFFLINE
+    | 0 * SPI_END
+    | 0 * SPI_INPUT
+    | 1 * SPI_CS_POLARITY
+    | 0 * SPI_CLK_POLARITY
+    | 0 * SPI_CLK_PHASE
+    | 0 * SPI_LSB_FIRST
+    | 0 * SPI_HALF_DUPLEX
 )
 
 
@@ -38,6 +49,7 @@ ADF5356_MAX_MODULUS2 = int32(1 << 28)  # FIXME: ADF5356 has 28 bits MOD2
 ADF5356_MAX_R_CNT = int32(1023)
 
 
+@nac3
 class ADF5356:
     """Analog Devices AD[45]35[56] family of GHz PLLs.
 
@@ -49,7 +61,14 @@ class ADF5356:
     :param core_device: Core device name (default: "core")
     """
 
-    kernel_invariants = {"cpld", "sw", "channel", "core", "sysclk"}
+    core: KernelInvariant[Core]
+    cpld: KernelInvariant[Mirny]
+    channel: KernelInvariant[int32]
+    sw: KernelInvariant[TTLOut]
+    sysclk: KernelInvariant[float]
+    regs: list[int32]
+    ref_doubler: bool
+    ref_divider: bool
 
     def __init__(
         self,
@@ -74,7 +93,7 @@ class ADF5356:
         self._init_registers()
 
     @kernel
-    def init(self, blind=False):
+    def init(self, blind: bool = False):
         """
         Initialize and configure the PLL.
 
@@ -84,18 +103,20 @@ class ADF5356:
             # MUXOUT = VDD
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 1)
             self.sync()
-            delay(1000 * us)
+            self.core.delay(1000. * us)
             if not self.read_muxout():
-                raise ValueError("MUXOUT not high")
-            delay(800 * us)
+                # NAC3TODO raise ValueError("MUXOUT not high")
+                pass
+            self.core.delay(800. * us)
 
             # MUXOUT = DGND
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 2)
             self.sync()
-            delay(1000 * us)
+            self.core.delay(1000. * us)
             if self.read_muxout():
-                raise ValueError("MUXOUT not low")
-            delay(800 * us)
+                # NAC3TODO raise ValueError("MUXOUT not low")
+                pass
+            self.core.delay(800. * us)
 
             # MUXOUT = digital lock-detect
             self.regs[4] = ADF5356_REG4_MUXOUT_UPDATE(self.regs[4], 6)
@@ -103,7 +124,7 @@ class ADF5356:
             self.sync()
 
     @kernel
-    def set_att_mu(self, att):
+    def set_att_mu(self, att: int32):
         """Set digital step attenuator in machine units.
 
         :param att: Attenuation setting, 8 bit digital.
@@ -111,11 +132,11 @@ class ADF5356:
         self.cpld.set_att_mu(self.channel, att)
 
     @kernel
-    def write(self, data):
+    def write(self, data: int32):
         self.cpld.write_ext(self.channel | 4, 32, data)
 
     @kernel
-    def read_muxout(self):
+    def read_muxout(self) -> bool:
         """
         Read the state of the MUXOUT line.
 
@@ -124,7 +145,7 @@ class ADF5356:
         return bool(self.cpld.read_reg(0) & (1 << (self.channel + 8)))
 
     @kernel
-    def set_output_power_mu(self, n):
+    def set_output_power_mu(self, n: int32):
         """
         Set the power level at output A of the PLL chip in machine units.
 
@@ -132,13 +153,14 @@ class ADF5356:
 
         :param n: output power setting, 0, 1, 2, or 3 (see ADF5356 datasheet, fig. 44).
         """
-        if n not in [0, 1, 2, 3]:
-            raise ValueError("invalid power setting")
+        if not 0 <= n <= 3:
+            # NAC3TODO raise ValueError("invalid power setting")
+            pass
         self.regs[6] = ADF5356_REG6_RF_OUTPUT_A_POWER_UPDATE(self.regs[6], n)
         self.sync()
 
     @portable
-    def output_power_mu(self):
+    def output_power_mu(self) -> int32:
         """
         Return the power level at output A of the PLL chip in machine units.
         """
@@ -161,25 +183,27 @@ class ADF5356:
         self.sync()
 
     @kernel
-    def set_frequency(self, f):
+    def set_frequency(self, f: float):
         """
         Output given frequency on output A.
 
         :param f: 53.125 MHz <= f <= 6800 MHz
         """
-        freq = int64(round(f))
+        freq = round64(f)
 
         if freq > ADF5356_MAX_VCO_FREQ:
-            raise ValueError("Requested too high frequency")
+            # NAC3TODO raise ValueError("Requested too high frequency")
+            pass
 
         # select minimal output divider
         rf_div_sel = 0
         while freq < ADF5356_MIN_VCO_FREQ:
-            freq <<= 1
+            freq <<= int64(1)
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
-            raise ValueError("Requested too low frequency")
+            # NAC3TODO raise ValueError("Requested too low frequency")
+            pass
 
         # choose reference divider that maximizes PFD frequency
         self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(
@@ -193,7 +217,7 @@ class ADF5356:
             n_min, n_max = 75, 65535
 
             # adjust reference divider to be able to match n_min constraint
-            while n_min * f_pfd > freq:
+            while int64(n_min) * f_pfd > freq:
                 r = ADF5356_REG4_R_COUNTER_GET(self.regs[4])
                 self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(self.regs[4], r + 1)
                 f_pfd = self.f_pfd()
@@ -207,7 +231,8 @@ class ADF5356:
         )
 
         if not (n_min <= n <= n_max):
-            raise ValueError("Invalid INT value")
+            # NAC3TODO raise ValueError("Invalid INT value")
+            pass
 
         # configure PLL
         self.regs[0] = ADF5356_REG0_INT_VALUE_UPDATE(self.regs[0], n)
@@ -221,10 +246,10 @@ class ADF5356:
 
         self.regs[6] = ADF5356_REG6_RF_DIVIDER_SELECT_UPDATE(self.regs[6], rf_div_sel)
         self.regs[6] = ADF5356_REG6_CP_BLEED_CURRENT_UPDATE(
-            self.regs[6], int32(floor(24 * f_pfd / (61.44 * MHz)))
+            self.regs[6], floor(24. * float(f_pfd) / (61.44 * MHz))
         )
         self.regs[9] = ADF5356_REG9_VCO_BAND_DIVISION_UPDATE(
-            self.regs[9], int32(ceil(f_pfd / 160e3))
+            self.regs[9], ceil(float(f_pfd) / 160e3)
         )
 
         # commit
@@ -236,21 +261,21 @@ class ADF5356:
         Write all registers to the device. Attempts to lock the PLL.
         """
         f_pfd = self.f_pfd()
-        delay(200 * us)         # Slack
+        self.core.delay(200. * us)         # Slack
 
-        if f_pfd <= 75.0 * MHz:
+        if f_pfd <= round64(75.0 * MHz):
             for i in range(13, 0, -1):
                 self.write(self.regs[i])
-            delay(200 * us)
+            self.core.delay(200. * us)
             self.write(self.regs[0] | ADF5356_REG0_AUTOCAL(1))
         else:
             # AUTOCAL AT HALF PFD FREQUENCY
 
             # calculate PLL at f_pfd/2
             n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb) = calculate_pll(
-                self.f_vco(), f_pfd >> 1
+                self.f_vco(), f_pfd >> int64(1)
             )
-            delay(200 * us)     # Slack
+            self.core.delay(200. * us)     # Slack
 
             self.write(
                 13
@@ -273,7 +298,7 @@ class ADF5356:
             )
             self.write(1 | ADF5356_REG1_MAIN_FRAC_VALUE(frac1))
 
-            delay(200 * us)
+            self.core.delay(200. * us)
             self.write(ADF5356_REG0_INT_VALUE(n) | ADF5356_REG0_AUTOCAL(1))
 
             # RELOCK AT WANTED PFD FREQUENCY
@@ -285,7 +310,7 @@ class ADF5356:
             self.write(self.regs[0] & ~ADF5356_REG0_AUTOCAL(1))
 
     @portable
-    def f_pfd(self) -> TInt64:
+    def f_pfd(self) -> int64:
         """
         Return the PFD frequency for the cached set of registers.
         """
@@ -295,35 +320,35 @@ class ADF5356:
         return self._compute_pfd_frequency(r, d, t)
 
     @portable
-    def f_vco(self) -> TInt64:
+    def f_vco(self) -> int64:
         """
         Return the VCO frequency for the cached set of registers.
         """
-        return int64(
-            self.f_pfd()
+        return round64(
+            float(self.f_pfd())
             * (
-                self.pll_n()
-                + (self.pll_frac1() + self.pll_frac2() / self.pll_mod2())
-                / ADF5356_MODULUS1
-            )
+                 float(self.pll_n())
+                 + (float(self.pll_frac1() + self.pll_frac2()) / float(self.pll_mod2()))
+                 / float(ADF5356_MODULUS1)
+             )
         )
 
     @portable
-    def pll_n(self) -> TInt32:
+    def pll_n(self) -> int32:
         """
         Return the PLL integer value (INT) for the cached set of registers.
         """
         return ADF5356_REG0_INT_VALUE_GET(self.regs[0])
 
     @portable
-    def pll_frac1(self) -> TInt32:
+    def pll_frac1(self) -> int32:
         """
         Return the main fractional value (FRAC1) for the cached set of registers.
         """
         return ADF5356_REG1_MAIN_FRAC_VALUE_GET(self.regs[1])
 
     @portable
-    def pll_frac2(self) -> TInt32:
+    def pll_frac2(self) -> int32:
         """
         Return the auxiliary fractional value (FRAC2) for the cached set of registers.
         """
@@ -332,7 +357,7 @@ class ADF5356:
         ) | ADF5356_REG2_AUX_FRAC_LSB_VALUE_GET(self.regs[2])
 
     @portable
-    def pll_mod2(self) -> TInt32:
+    def pll_mod2(self) -> int32:
         """
         Return the auxiliary modulus value (MOD2) for the cached set of registers.
         """
@@ -341,14 +366,14 @@ class ADF5356:
         ) | ADF5356_REG2_AUX_MOD_LSB_VALUE_GET(self.regs[2])
 
     @portable
-    def ref_counter(self) -> TInt32:
+    def ref_counter(self) -> int32:
         """
         Return the reference counter value (R) for the cached set of registers.
         """
         return ADF5356_REG4_R_COUNTER_GET(self.regs[4])
 
     @portable
-    def output_divider(self) -> TInt32:
+    def output_divider(self) -> int32:
         """
         Return the value of the output A divider.
         """
@@ -398,7 +423,7 @@ class ADF5356:
 
         # single-ended reference mode is recommended
         # for references up to 250 MHz, even if the signal is differential
-        if self.sysclk <= 250 * MHz:
+        if self.sysclk <= 250.*MHz:
             self.regs[4] |= ADF5356_REG4_REF_MODE(0)
         else:
             self.regs[4] |= ADF5356_REG4_REF_MODE(1)
@@ -440,7 +465,7 @@ class ADF5356:
 
         # charge pump bleed current
         self.regs[6] |= ADF5356_REG6_CP_BLEED_CURRENT(
-            int32(floor(24 * self.f_pfd() / (61.44 * MHz)))
+            floor(24. * float(self.f_pfd()) / (61.44 * MHz))
         )
 
         # direct feedback from VCO to N counter
@@ -484,7 +509,7 @@ class ADF5356:
         )
 
         self.regs[9] |= ADF5356_REG9_VCO_BAND_DIVISION(
-            int32(ceil(self.f_pfd() / 160e3))
+            ceil(float(self.f_pfd()) / 160e3)
         )
 
         # REG10
@@ -513,39 +538,39 @@ class ADF5356:
         self.regs[12] = int32(0x15FC)
 
     @portable
-    def _compute_pfd_frequency(self, r, d, t) -> TInt64:
+    def _compute_pfd_frequency(self, r: int32, d: int32, t: int32) -> int64:
         """
         Calculate the PFD frequency from the given reference path parameters
         """
-        return int64(self.sysclk * ((1 + d) / (r * (1 + t))))
+        return round64(self.sysclk * (float(1 + d) / float(r * (1 + t))))
 
     @portable
-    def _compute_reference_counter(self) -> TInt32:
+    def _compute_reference_counter(self) -> int32:
         """
         Determine the reference counter R that maximizes the PFD frequency
         """
         d = ADF5356_REG4_R_DOUBLER_GET(self.regs[4])
         t = ADF5356_REG4_R_DIVIDER_GET(self.regs[4])
         r = 1
-        while self._compute_pfd_frequency(r, d, t) > ADF5356_MAX_FREQ_PFD:
+        while self._compute_pfd_frequency(r, d, t) > int64(ADF5356_MAX_FREQ_PFD):
             r += 1
-        return int32(r)
+        return r
 
 
 @portable
-def gcd(a, b):
-    while b:
+def gcd(a: int64, b: int64) -> int64:
+    while b != int64(0):
         a, b = b, a % b
     return a
 
 
 @portable
-def split_msb_lsb_28b(v):
-    return int32((v >> 14) & 0x3FFF), int32(v & 0x3FFF)
+def split_msb_lsb_28b(v: int32) -> tuple[int32, int32]:
+    return (v >> 14) & 0x3FFF, v & 0x3FFF
 
 
 @portable
-def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
+def calculate_pll(f_vco: int64, f_pfd: int64) -> tuple[int32, int32, tuple[int32, int32], tuple[int32, int32]]:
     """
     Calculate fractional-N PLL parameters such that
 
@@ -558,25 +583,23 @@ def calculate_pll(f_vco: TInt64, f_pfd: TInt64):
     :param f_pfd: PFD frequency
     :return: ``(n, frac1, (frac2_msb, frac2_lsb), (mod2_msb, mod2_lsb))``
     """
-    f_pfd = int64(f_pfd)
-    f_vco = int64(f_vco)
 
     # integral part
     n, r = int32(f_vco // f_pfd), f_vco % f_pfd
 
     # main fractional part
-    r *= ADF5356_MODULUS1
+    r *= int64(ADF5356_MODULUS1)
     frac1, frac2 = int32(r // f_pfd), r % f_pfd
 
     # auxiliary fractional part
     mod2 = f_pfd
 
-    while mod2 > ADF5356_MAX_MODULUS2:
-        mod2 >>= 1
-        frac2 >>= 1
+    while mod2 > int64(ADF5356_MAX_MODULUS2):
+        mod2 >>= int64(1)
+        frac2 >>= int64(1)
 
     gcd_div = gcd(frac2, mod2)
     mod2 //= gcd_div
     frac2 //= gcd_div
 
-    return n, frac1, split_msb_lsb_28b(frac2), split_msb_lsb_28b(mod2)
+    return n, frac1, split_msb_lsb_28b(int32(frac2)), split_msb_lsb_28b(int32(mod2))
