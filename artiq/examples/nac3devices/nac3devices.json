@@ -11,6 +11,11 @@
             "ports": [0]
         },
         {
+            "type": "mirny",
+            "ports": [1],
+            "clk_sel": "mmcx"
+        },
+        {
             "type": "urukul",
             "dds": "ad9912",
             "ports": [2, 3],
