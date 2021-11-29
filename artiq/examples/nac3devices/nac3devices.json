@@ -13,7 +13,8 @@
         {
             "type": "mirny",
             "ports": [1],
-            "clk_sel": "mmcx"
+            "clk_sel": "mmcx",
+            "refclk": 125e6
         },
         {
             "type": "urukul",
