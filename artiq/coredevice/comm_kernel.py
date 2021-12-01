@@ -621,6 +621,7 @@ class CommKernel:
         function = self._read_string()
 
         backtrace = [self._read_int32() for _ in range(self._read_int32())]
+        self._process_async_error()
 
         traceback = list(reversed(symbolizer(backtrace))) + \
             [(filename, line, column, *demangler([function]), None)]
@@ -635,6 +636,19 @@ class CommKernel:
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
+    def _warn_async_errors(self, collision, busy_error, sequence_error):
+        map_name = lambda y, z: [f"{y}(s)"] if z else []
+        errors = map_name("collision", collision) + \
+                 map_name("busy error", busy_error) + \
+                 map_name("sequence error", sequence_error)
+        logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
+                       f"reported during kernel execution")
+
+    def _process_async_error(self):
+        errors = self._read_int8()
+        if errors > 0:
+            self._warn_async_errors(errors & 2**0, errors & 2**1, errors & 2**2)
+
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
             self._read_header()
@@ -646,4 +660,5 @@ class CommKernel:
                 raise exceptions.ClockFailure
             else:
                 self._read_expect(Reply.KernelFinished)
+                self._process_async_error()
                 return
