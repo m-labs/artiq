@@ -1,4 +1,3 @@
-import warnings
 from collections import OrderedDict
 from inspect import isclass
 
@@ -331,7 +330,7 @@ class HasEnvironment:
 
     @rpc(flags={"async"})
     def set_dataset(self, key, value,
-                    broadcast=False, persist=False, archive=True, save=None):
+                    broadcast=False, persist=False, archive=True):
         """Sets the contents and handling modes of a dataset.
 
         Datasets must be scalars (``bool``, ``int``, ``float`` or NumPy scalar)
@@ -343,12 +342,7 @@ class HasEnvironment:
             broadcast.
         :param archive: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
-        :param save: deprecated.
         """
-        if save is not None:
-            warnings.warn("set_dataset save parameter is deprecated, "
-                          "use archive instead", FutureWarning)
-            archive = save
         self.__dataset_mgr.set(key, value, broadcast, persist, archive)
 
     @rpc(flags={"async"})

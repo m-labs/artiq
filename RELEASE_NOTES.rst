@@ -39,6 +39,7 @@ Breaking changes:
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
+* The deprecated ``set_dataset(..., save=...)`` is no longer supported.
 
 
 ARTIQ-6
