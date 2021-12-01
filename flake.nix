@@ -1,7 +1,7 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/release-21.11;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.11;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
