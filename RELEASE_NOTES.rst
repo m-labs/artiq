@@ -39,7 +39,8 @@ Breaking changes:
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
-
+* When an RTIO async error was spotted by the kernel, it will now report back to the host
+  and prints a warning message
 
 ARTIQ-6
 -------
