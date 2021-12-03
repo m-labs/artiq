@@ -129,7 +129,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, drtio_100mhz=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
                          cpu_bus_width=64,
@@ -207,7 +207,7 @@ class _MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, drtio_100mhz=False, **kwargs):
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
                          cpu_bus_width=64,
@@ -236,11 +236,14 @@ class _MasterBase(MiniSoC, AMPSoC):
             platform.request("sfp"), platform.request("user_sma_mgt")
         ]
 
-        # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
+        rtio_clk_freq = 100e6 if drtio_100mhz else 125e6
+
+        # 1000BASE_BX10 Ethernet compatible, 100/125MHz RTIO clock
         self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
             pads=data_pads,
-            sys_clk_freq=self.clk_freq)
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
@@ -341,7 +344,7 @@ class _SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, sma_as_sat=False, **kwargs):
+    def __init__(self, gateware_identifier_str=None, sma_as_sat=False, drtio_100mhz=False, **kwargs):
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
                  cpu_bus_width=64,
@@ -369,11 +372,14 @@ class _SatelliteBase(BaseSoC):
         if sma_as_sat:
             data_pads = data_pads[::-1]
 
-        # 1000BASE_BX10 Ethernet compatible, 125MHz RTIO clock
+        rtio_clk_freq = 100e6 if drtio_100mhz else 125e6
+
+        # 1000BASE_BX10 Ethernet compatible, 100/125MHz RTIO clock
         self.submodules.drtio_transceiver = gtx_7series.GTX(
             clock_pads=platform.request("si5324_clkout"),
             pads=data_pads,
-            sys_clk_freq=self.clk_freq)
+            sys_clk_freq=self.clk_freq,
+            rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
         self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
@@ -673,6 +679,8 @@ def main():
                              "(default: %(default)s)")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("--drtio100mhz", action="store_true", default=False,
+                        help="DRTIO systems only - use 100MHz RTIO clock")
     args = parser.parse_args()
 
     variant = args.variant.lower()
@@ -681,7 +689,7 @@ def main():
     except KeyError:
         raise SystemExit("Invalid variant (-V/--variant)")
 
-    soc = cls(gateware_identifier_str=args.gateware_identifier_str, **soc_kc705_argdict(args))
+    soc = cls(gateware_identifier_str=args.gateware_identifier_str, drtio_100mhz=args.drtio100mhz, **soc_kc705_argdict(args))
     build_artiq_soc(soc, builder_argdict(args))
 
 
