@@ -28,6 +28,7 @@ Highlights:
   repository when building the list of experiments.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
+* DRTIO: added support for 100MHz clock.
 
 Breaking changes:
 
