@@ -447,6 +447,19 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
+#[cfg(all(has_si5324, rtio_frequency = "100.0"))]
+const SI5324_SETTINGS: si5324::FrequencySettings
+    = si5324::FrequencySettings {
+    n1_hs  : 5,
+    nc1_ls : 10,
+    n2_hs  : 10,
+    n2_ls  : 250,
+    n31    : 50,
+    n32    : 50,
+    bwsel  : 4,
+    crystal_ref: true
+};
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     extern {

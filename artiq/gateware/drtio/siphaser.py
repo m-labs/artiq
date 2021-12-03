@@ -44,7 +44,7 @@ class SiPhaser7Series(Module, AutoCSR):
             mmcm_freerun_output = mmcm_freerun_output_raw
 
         # 100MHz/125MHz/150MHz to 100MHz/125MHz/150MHz with controllable phase shift,
-        # VCO @ 1000MHz/1200MHz.
+        # VCO @ 800MHz/1000MHz/1200MHz.
         # Inserted between CDR and output to Si, used to correct
         # non-determinstic skew of Si5324.
         mmcm_ps_fb = Signal()
