@@ -9,7 +9,7 @@ on Mirny-style prefixed SPI buses.
 # https://www.analog.com/media/en/technical-documentation/user-guides/EV-ADF5355SD1Z-UG-1087.pdf
 
 from numpy import int32, int64
-# NAC3TODO from math import floor, ceil
+from math import floor, ceil
 
 from artiq.language.core import nac3, KernelInvariant, kernel, portable, round64
 from artiq.language.units import us, GHz, MHz
@@ -20,14 +20,6 @@ from artiq.coredevice.spi2 import *
 from artiq.coredevice.adf5356_reg import *
 
 
-# NAC3TODO
-@portable
-def floor(x: float) -> int32:
-    return 0
-@portable
-def ceil(x: float) -> int32:
-    return 0
-#
 
 SPI_CONFIG = (
     0 * SPI_OFFLINE
