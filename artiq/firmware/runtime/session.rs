@@ -9,6 +9,7 @@ use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
+use rtio_mgt::get_async_errors;
 use cache::Cache;
 use kern_hwreq;
 use board_artiq::drtio_routing;
@@ -431,7 +432,9 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 match stream {
                     None => return Ok(true),
                     Some(ref mut stream) =>
-                        host_write(stream, host::Reply::KernelFinished).map_err(|e| e.into())
+                        host_write(stream, host::Reply::KernelFinished {
+                            async_errors: unsafe { get_async_errors() }
+                        }).map_err(|e| e.into())
                 }
             }
             &kern::RunException {
@@ -458,7 +461,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             line:      line,
                             column:    column,
                             function:  function,
-                            backtrace: backtrace
+                            backtrace: backtrace,
+                            async_errors: unsafe { get_async_errors() }
                         }).map_err(|e| e.into())
                     }
                 }

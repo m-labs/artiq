@@ -31,6 +31,9 @@ Highlights:
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
 * DRTIO: added support for 100MHz clock.
+* Previously detected RTIO async errors are reported to the host after each kernel terminates and a
+  warning is logged. The warning is additional to the one already printed in the core device log upon
+  detection of the error.
 
 Breaking changes:
 
@@ -43,7 +46,6 @@ Breaking changes:
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
-
 
 ARTIQ-6
 -------
