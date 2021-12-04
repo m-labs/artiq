@@ -6,12 +6,14 @@ from typing import Generic, TypeVar
 from functools import wraps
 from inspect import getfullargspec, getmodule
 from types import SimpleNamespace
+from math import floor, ceil
 
 from artiq.language import import_cache
 
 
 __all__ = [
-    "KernelInvariant", "virtual", "round64",
+    "KernelInvariant", "virtual",
+    "round64", "floor64", "ceil64",
     "extern", "kernel", "portable", "nac3", "rpc",
     "parallel", "sequential",
     "set_watchdog_factory", "watchdog", "TerminationRequested"
@@ -29,6 +31,12 @@ class virtual(Generic[T]):
 
 def round64(x):
     return round(x)
+
+def floor64(x):
+    return floor(x)
+
+def ceil64(x):
+    return ceil(x)
 
 
 _allow_registration = True
