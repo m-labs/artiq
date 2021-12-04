@@ -1,7 +1,7 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/release-21.11;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.11;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
@@ -405,17 +405,18 @@
           phases = [ "buildPhase" ];
           buildPhase =
             ''
+            whoami
             export HOME=`mktemp -d`
             mkdir $HOME/.ssh
-            cp /opt/hydra_id_rsa $HOME/.ssh/id_rsa
-            cp /opt/hydra_id_rsa.pub $HOME/.ssh/id_rsa.pub
+            cp /opt/hydra_id_ed25519 $HOME/.ssh/id_ed25519
+            cp /opt/hydra_id_ed25519.pub $HOME/.ssh/id_ed25519.pub
             echo "rpi-1 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPOBQVcsvk6WgRj18v4m0zkFeKrcN9gA+r6sxQxNwFpv" > $HOME/.ssh/known_hosts
-            chmod 600 $HOME/.ssh/id_rsa
+            chmod 600 $HOME/.ssh/id_ed25519
             LOCKCTL=$(mktemp -d)
             mkfifo $LOCKCTL/lockctl
 
             cat $LOCKCTL/lockctl | ${pkgs.openssh}/bin/ssh \
-              -i $HOME/.ssh/id_rsa \
+              -i $HOME/.ssh/id_ed25519 \
               -o UserKnownHostsFile=$HOME/.ssh/known_hosts \
               rpi-1 \
               'mkdir -p /tmp/board_lock && flock /tmp/board_lock/kc705-1 -c "echo Ok; cat"' \

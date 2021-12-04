@@ -20,6 +20,8 @@ Highlights:
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
    - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
+* On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
+  the JSON hardware description file.
 * New hardware support:
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
@@ -28,6 +30,10 @@ Highlights:
   repository when building the list of experiments.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
+* DRTIO: added support for 100MHz clock.
+* Previously detected RTIO async errors are reported to the host after each kernel terminates and a
+  warning is logged. The warning is additional to the one already printed in the core device log upon
+  detection of the error.
 
 Breaking changes:
 
@@ -39,8 +45,7 @@ Breaking changes:
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
-* When an RTIO async error was spotted by the kernel, it will now report back to the host
-  and prints a warning message
+* The deprecated ``set_dataset(..., save=...)`` is no longer supported.
 
 ARTIQ-6
 -------
