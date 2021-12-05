@@ -202,7 +202,6 @@
             ln -s $ARTIQ_PATH/firmware/Cargo.lock .
             cargoSetupPostUnpackHook
             cargoSetupPostPatchHook
-            export TARGET_AR=llvm-ar
             ${buildCommand}
             '';
           doCheck = true;
@@ -316,7 +315,6 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
         ];
-        TARGET_AR="llvm-ar";
       };
 
       hydraJobs = {
