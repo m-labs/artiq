@@ -4,7 +4,7 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import *
 
 
-# This code assumes 125/62.5MHz reference clock and 125MHz or 150MHz RTIO
+# This code assumes 125/62.5MHz reference clock and 100MHz, 125MHz or 150MHz RTIO
 # frequency.
 
 class SiPhaser7Series(Module, AutoCSR):
@@ -15,9 +15,9 @@ class SiPhaser7Series(Module, AutoCSR):
         self.phase_shift_done = CSRStatus(reset=1)
         self.error = CSR()
 
-        assert rtio_clk_freq in (125e6, 150e6)
+        assert rtio_clk_freq in (100e6, 125e6, 150e6)
 
-        # 125MHz/62.5MHz reference clock to 125MHz/150MHz. VCO @ 750MHz.
+        # 125MHz/62.5MHz reference clock to 100MHz/125MHz/150MHz. VCO @ 750MHz.
         # Used to provide a startup clock to the transceiver through the Si,
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
@@ -43,8 +43,8 @@ class SiPhaser7Series(Module, AutoCSR):
         else:
             mmcm_freerun_output = mmcm_freerun_output_raw
 
-        # 125MHz/150MHz to 125MHz/150MHz with controllable phase shift,
-        # VCO @ 1000MHz/1200MHz.
+        # 100MHz/125MHz/150MHz to 100MHz/125MHz/150MHz with controllable phase shift,
+        # VCO @ 800MHz/1000MHz/1200MHz.
         # Inserted between CDR and output to Si, used to correct
         # non-determinstic skew of Si5324.
         mmcm_ps_fb = Signal()

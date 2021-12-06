@@ -1,12 +1,10 @@
-#![feature(asm, lang_items, never_type)]
+#![feature(lang_items, never_type)]
 #![no_std]
 
 extern crate failure;
 #[cfg(has_drtio)]
 #[macro_use]
 extern crate failure_derive;
-#[macro_use]
-extern crate bitflags;
 extern crate byteorder;
 extern crate crc;
 #[macro_use]
@@ -14,8 +12,6 @@ extern crate log;
 extern crate io;
 extern crate board_misoc;
 extern crate proto_artiq;
-
-pub mod pcr;
 
 pub mod spi;
 

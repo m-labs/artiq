@@ -27,15 +27,15 @@ class Zotino(AD53xx):
     :param clr_device: CLR RTIO TTLOut channel name.
     :param div_write: SPI clock divider for write operations (default: 4,
       50MHz max SPI clock)
-    :param div_read: SPI clock divider for read operations (default: 8, not
-      optimized for speed, but cf data sheet t22: 25ns min SCLK edge to SDO
-      valid)
+    :param div_read: SPI clock divider for read operations (default: 16, not
+      optimized for speed; datasheet says t22: 25ns min SCLK edge to SDO
+      valid, and suggests the SPI speed for reads should be <=20 MHz)
     :param vref: DAC reference voltage (default: 5.)
     :param core_device: Core device name (default: "core")
     """
 
     def __init__(self, dmgr, spi_device, ldac_device=None, clr_device=None,
-                 div_write=4, div_read=8, vref=5., core="core"):
+                 div_write=4, div_read=16, vref=5., core="core"):
         AD53xx.__init__(self, dmgr=dmgr, spi_device=spi_device,
                         ldac_device=ldac_device, clr_device=clr_device,
                         chip_select=_SPI_CS_DAC, div_write=div_write,

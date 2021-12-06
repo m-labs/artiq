@@ -110,6 +110,13 @@ def peripheral_phaser(module, peripheral, **kwargs):
     eem.Phaser.add_std(module, peripheral["ports"][0], **kwargs)
 
 
+def peripheral_hvamp(module, peripheral, **kwargs):
+    if len(peripheral["ports"]) != 1:
+        raise ValueError("wrong number of ports")
+    eem.HVAmp.add_std(module, peripheral["ports"][0], 
+        ttl_simple.Output, **kwargs)
+
+
 peripheral_processors = {
     "dio": peripheral_dio,
     "urukul": peripheral_urukul,
@@ -121,6 +128,7 @@ peripheral_processors = {
     "mirny": peripheral_mirny,
     "fastino": peripheral_fastino,
     "phaser": peripheral_phaser,
+    "hvamp": peripheral_hvamp,
 }
 
 

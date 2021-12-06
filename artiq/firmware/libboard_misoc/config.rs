@@ -77,10 +77,10 @@ mod imp {
 
     mod lock {
         use core::slice;
-        use core::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
+        use core::sync::atomic::{AtomicUsize, Ordering};
         use super::Error;
 
-        static LOCKED: AtomicUsize = ATOMIC_USIZE_INIT;
+        static LOCKED: AtomicUsize = AtomicUsize::new(0);
 
         pub struct Lock;
 
@@ -216,7 +216,7 @@ mod imp {
         let mut offset = 0;
         let mut iter = Iter::new(old_data);
         'iter: while let Some(result) = iter.next() {
-            let (key, mut value) = result?;
+            let (key, value) = result?;
             if value.is_empty() {
                 // This is a removed entry, ignore it.
                 continue

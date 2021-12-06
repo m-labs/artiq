@@ -1,19 +1,31 @@
 use core::str;
 use core::slice;
 use cslice::{CSlice, CMutSlice};
-use byteorder::{NetworkEndian, ByteOrder};
+use byteorder::{NativeEndian, ByteOrder};
 use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
+unsafe fn align_ptr<T>(ptr: *const ()) -> *const T {
+    let alignment = core::mem::align_of::<T>() as isize;
+    let fix = (alignment - (ptr as isize) % alignment) % alignment;
+    ((ptr as isize) + fix) as *const T
+}
+
+unsafe fn align_ptr_mut<T>(ptr: *mut ()) -> *mut T {
+    let alignment = core::mem::align_of::<T>() as isize;
+    let fix = (alignment - (ptr as isize) % alignment) % alignment;
+    ((ptr as isize) + fix) as *mut T
+}
+
 unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
-                           alloc: &Fn(usize) -> Result<*mut (), E>)
+                           alloc: &dyn Fn(usize) -> Result<*mut (), E>)
                           -> Result<(), E>
     where R: Read + ?Sized,
           E: From<Error<R::ReadError>>
 {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let $ptr = (*data) as *mut $ty;
+            let $ptr = align_ptr_mut::<$ty>(*data) as *mut $ty;
             *data = $ptr.offset(1) as *mut ();
             $map
         })
@@ -51,7 +63,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *mut (), length: u32 };
+            struct List { elements: *mut (), length: u32 }
             consume_value!(List, |ptr| {
                 (*ptr).length = reader.read_u32()?;
                 let length = (*ptr).length as usize;
@@ -69,13 +81,13 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NetworkEndian::from_slice_i32(dest);
+                        NativeEndian::from_slice_i32(dest);
                     },
                     Tag::Int64 | Tag::Float64 => {
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NetworkEndian::from_slice_i64(dest);
+                        NativeEndian::from_slice_i64(dest);
                     },
                     _ => {
                         for _ in 0..length {
@@ -109,13 +121,13 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NetworkEndian::from_slice_i32(dest);
+                        NativeEndian::from_slice_i32(dest);
                     },
                     Tag::Int64 | Tag::Float64 => {
                         let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
                         reader.read_exact(dest)?;
                         let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NetworkEndian::from_slice_i64(dest);
+                        NativeEndian::from_slice_i64(dest);
                     },
                     _ => {
                         for _ in 0..length {
@@ -139,7 +151,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
 }
 
 pub fn recv_return<R, E>(reader: &mut R, tag_bytes: &[u8], data: *mut (),
-                         alloc: &Fn(usize) -> Result<*mut (), E>)
+                         alloc: &dyn Fn(usize) -> Result<*mut (), E>)
                         -> Result<(), E>
     where R: Read + ?Sized,
           E: From<Error<R::ReadError>>
@@ -161,7 +173,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
 {
     macro_rules! consume_value {
         ($ty:ty, |$ptr:ident| $map:expr) => ({
-            let $ptr = (*data) as *const $ty;
+            let $ptr = align_ptr::<$ty>(*data);
             *data = $ptr.offset(1) as *const ();
             $map
         })
@@ -196,7 +208,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *const (), length: u32 };
+            struct List { elements: *const (), length: u32 }
             consume_value!(List, |ptr| {
                 let length = (*ptr).length as usize;
                 writer.write_u32((*ptr).length)?;
@@ -204,8 +216,8 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = (*ptr).elements;
                 writer.write_u8(tag.as_u8())?;
                 match tag {
-                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in network endian
+                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in native endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
@@ -243,8 +255,8 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let mut data = *buffer;
                 writer.write_u8(elt_tag.as_u8())?;
                 match elt_tag {
-                    // we cannot use NetworkEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in network endian
+                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
+                    // and that is not needed as the data is already in native endian
                     Tag::Bool => {
                         let slice = slice::from_raw_parts(data as *const u8, length);
                         writer.write_all(slice)?;
@@ -275,7 +287,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::Keyword(it) => {
             #[repr(C)]
-            struct Keyword<'a> { name: CSlice<'a, u8> };
+            struct Keyword<'a> { name: CSlice<'a, u8> }
             consume_value!(Keyword, |ptr| {
                 writer.write_string(str::from_utf8((*ptr).name.as_ref()).unwrap())?;
                 let tag = it.clone().next().expect("truncated tag");
@@ -287,7 +299,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         }
         Tag::Object => {
             #[repr(C)]
-            struct Object { id: u32 };
+            struct Object { id: u32 }
             consume_value!(*const Object, |ptr|
                 writer.write_u32((**ptr).id))
         }

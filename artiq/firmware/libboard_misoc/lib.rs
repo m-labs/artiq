@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(asm, try_from)]
+#![feature(llvm_asm)]
 
 extern crate byteorder;
 #[cfg(feature = "log")]
@@ -7,9 +7,12 @@ extern crate log;
 #[cfg(feature = "smoltcp")]
 extern crate smoltcp;
 
-#[cfg(target_arch = "or1k")]
-#[path = "or1k/mod.rs"]
+#[cfg(target_arch = "riscv32")]
+#[path = "riscv32/mod.rs"]
 mod arch;
+
+#[cfg(target_arch = "riscv32")]
+extern crate riscv;
 
 pub use arch::*;
 

@@ -20,6 +20,7 @@ class CardTest(EnvExperiment):
     @kernel
     def run(self):
         self.core.reset()
+        delay(1*ms)
         
         freq = 1*MHz
         cs = 1

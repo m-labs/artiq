@@ -1,0 +1,5 @@
+[package]
+name = "libc"
+version = "0.1.0"
+authors = ["M-Labs"]
+edition = "2018"

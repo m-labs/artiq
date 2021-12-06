@@ -17,6 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
+from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -94,17 +95,6 @@ class SMAClkinForward(Module):
         ]
 
 
-def fix_serdes_timing_path(platform):
-    # ignore timing of path from OSERDESE2 through the pad to ISERDESE2
-    platform.add_platform_command(
-        "set_false_path -quiet "
-        "-through [get_pins -filter {{REF_PIN_NAME == OQ || REF_PIN_NAME == TQ}} "
-            "-of [get_cells -filter {{REF_NAME == OSERDESE2}}]] "
-        "-to [get_pins -filter {{REF_PIN_NAME == D}} "
-            "-of [get_cells -filter {{REF_NAME == ISERDESE2}}]]"
-    )
-
-
 class StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -114,9 +104,15 @@ class StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
-                         cpu_type="or1k",
+                         cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -139,16 +135,16 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_SOFT_RESET"] = None
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, sed_lanes=8):
         self.submodules.rtio_crg = _RTIOCRG(self.platform)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -166,7 +162,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
             self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
 
@@ -232,9 +228,9 @@ class SUServo(StandaloneBase):
             ttl_serdes_7series.Output_8X, ttl_serdes_7series.Output_8X)
 
         # EEM3/2: Sampler, EEM5/4: Urukul, EEM7/6: Urukul
-        eem.SUServo.add_std(
-            self, eems_sampler=(3, 2),
-            eems_urukul0=(5, 4), eems_urukul1=(7, 6))
+        eem.SUServo.add_std(self, 
+                            eems_sampler=(3, 2), 
+                            eems_urukul=[[5, 4], [7, 6]])
 
         for i in (1, 2):
             sfp_ctl = self.platform.request("sfp_ctl", i)
@@ -255,37 +251,6 @@ class SUServo(StandaloneBase):
             pads.clkout, self.crg.cd_sys.clk)
 
 
-class _RTIOClockMultiplier(Module, AutoCSR):
-    def __init__(self, rtio_clk_freq):
-        self.pll_reset = CSRStorage(reset=1)
-        self.pll_locked = CSRStatus()
-        self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
-
-        # See "Global Clock Network Deskew Using Two BUFGs" in ug472.
-        clkfbout = Signal()
-        clkfbin = Signal()
-        rtiox4_clk = Signal()
-        pll_locked = Signal()
-        self.specials += [
-            Instance("MMCME2_BASE",
-                p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                i_CLKIN1=ClockSignal("rtio"),
-                i_RST=self.pll_reset.storage,
-                o_LOCKED=pll_locked,
-
-                p_CLKFBOUT_MULT_F=8.0, p_DIVCLK_DIVIDE=1,
-
-                o_CLKFBOUT=clkfbout, i_CLKFBIN=clkfbin,
-
-                p_CLKOUT0_DIVIDE_F=2.0, o_CLKOUT0=rtiox4_clk,
-            ),
-            Instance("BUFG", i_I=clkfbout, o_O=clkfbin),
-            Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
-
-            MultiReg(pll_locked, self.pll_locked.status)
-        ]
-
-
 class MasterBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -296,9 +261,15 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         MiniSoC.__init__(self,
-                         cpu_type="or1k",
+                         cpu_type="vexriscv",
+                         hw_rev=hw_rev,
+                         cpu_bus_width=cpu_bus_width,
                          sdram_controller_type="minicon",
                          l2_size=128*1024,
                          integrated_sram_size=8192,
@@ -374,7 +345,7 @@ class MasterBase(MiniSoC, AMPSoC):
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -400,22 +371,22 @@ class MasterBase(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = _RTIOClockMultiplier(rtio_clk_freq)
+        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
-        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
+        self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.csr_devices.append("rtio_core")
 
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
         self.submodules.rtio_dma = ClockDomainsRenamer("sys_kernel")(
-            rtio.DMA(self.get_native_sdram_if()))
+            rtio.DMA(self.get_native_sdram_if(), self.cpu_dw))
         self.register_kernel_cpu_csrdevice("rtio")
         self.register_kernel_cpu_csrdevice("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
@@ -427,7 +398,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("routing_table")
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.cri_con.switch.slave,
-                                                      self.get_native_sdram_if())
+                                                      self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
     # Never running out of stupid features, GTs on A7 make you pack
@@ -472,9 +443,15 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+        if hw_rev in ("v1.0", "v1.1"):
+            cpu_bus_width = 32
+        else:
+            cpu_bus_width = 64
         BaseSoC.__init__(self,
-                 cpu_type="or1k",
+                 cpu_type="vexriscv",
+                 hw_rev=hw_rev,
+                 cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  **kwargs)
@@ -562,7 +539,7 @@ class SatelliteBase(BaseSoC):
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
 
-            coreaux = cdr(DRTIOAuxController(core.link_layer))
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
             setattr(self.submodules, coreaux_name, coreaux)
             self.csr_devices.append(coreaux_name)
 
@@ -627,17 +604,17 @@ class SatelliteBase(BaseSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = _RTIOClockMultiplier(rtio_clk_freq)
+        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
         self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
-    def add_rtio(self, rtio_channels):
+    def add_rtio(self, rtio_channels, sed_lanes=8):
         # Only add MonInj core if there is anything to monitor
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
-        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
+        self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.drtiosat.cri],

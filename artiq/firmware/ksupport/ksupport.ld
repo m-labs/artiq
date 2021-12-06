@@ -15,7 +15,7 @@ MEMORY {
 }
 
 /* Kernel stack is at the end of main RAM. */
-_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 4;
+_fstack = ORIGIN(main_ram) + LENGTH(main_ram) - 16;
 
 /* Force ld to make the ELF header as loadable. */
 PHDRS
@@ -53,22 +53,22 @@ SECTIONS
     .eh_frame :
     {
         KEEP(*(.eh_frame))
-    } :text
+    } > ksupport :text
 
     .eh_frame_hdr :
     {
         KEEP(*(.eh_frame_hdr))
-    } :text :eh_frame
+    } > ksupport :text :eh_frame
 
     .data :
     {
         *(.data .data.*)
     }
 
-    .bss :
+    .bss (NOLOAD) : ALIGN(4)
     {
         _fbss = .;
-        *(.bss .bss.*)
+        *(.sbss .sbss.* .bss .bss.*);
         . = ALIGN(4);
         _ebss = .;
     }

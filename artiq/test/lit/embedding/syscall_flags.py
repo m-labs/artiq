@@ -4,9 +4,9 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK: call void @foo\(\)(, !dbg !\d+)?, !tbaa !\d+
+# CHECK: call void @foo\(\)(, !dbg !\d+)?
 
-# CHECK-L: ; Function Attrs: nounwind
+# CHECK-L: ; Function Attrs: inaccessiblememonly nounwind
 # CHECK-NEXT-L: declare void @foo()
 
 @syscall(flags={"nounwind", "nowrite"})

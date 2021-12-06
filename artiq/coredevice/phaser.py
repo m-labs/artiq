@@ -1,7 +1,7 @@
 from numpy import int32, int64
 
 from artiq.language.core import kernel, delay_mu, delay
-from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
 from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
 from artiq.coredevice.dac34h84 import DAC34H84
@@ -92,7 +92,8 @@ class Phaser:
     The latency/group delay from the RTIO events setting
     :class:`PhaserOscillator` or :class:`PhaserChannel` DUC parameters all the
     way to the DAC outputs is deterministic. This enables deterministic
-    absolute phase with respect to other RTIO input and output events.
+    absolute phase with respect to other RTIO input and output events
+    (see `get_next_frame_mu()`).
 
     The four analog DAC outputs are passed through anti-aliasing filters.
 
@@ -160,6 +161,7 @@ class Phaser:
         # self.core.seconds_to_mu(10*8*4*ns)  # unfortunately this returns 319
         assert self.core.ref_period == 1*ns
         self.t_frame = 10*8*4
+        self.frame_tstamp = int64(0)
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
@@ -188,7 +190,7 @@ class Phaser:
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
         if debug:
-            print(gw_rev)
+            print("gw_rev:", gw_rev)
             self.core.break_realtime()
         delay(.1*ms)  # slack
 
@@ -196,6 +198,12 @@ class Phaser:
         if self.get_crc_err() > 20:
             raise ValueError("large number of frame CRC errors")
         delay(.1*ms)  # slack
+
+        # determine the origin for frame-aligned timestamps
+        self.measure_frame_timestamp()
+        if self.frame_tstamp < 0:
+            raise ValueError("frame timestamp measurement timed out")
+        delay(.1*ms)
 
         # reset
         self.set_cfg(dac_resetb=0, dac_sleep=1, dac_txena=0,
@@ -262,7 +270,7 @@ class Phaser:
         if self.tune_fifo_offset:
             fifo_offset = self.dac_tune_fifo_offset()
             if debug:
-                print(fifo_offset)
+                print("fifo_offset:", fifo_offset)
                 self.core.break_realtime()
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
@@ -274,7 +282,7 @@ class Phaser:
         delay(.1*ms)  # slack
         if alarms & ~0x0040:  # ignore PLL alarms (see DS)
             if debug:
-                print(alarms)
+                print("alarms:", alarms)
                 self.core.break_realtime()
                 # ignore alarms
             else:
@@ -467,6 +475,27 @@ class Phaser:
             device. Overflows at 256.
         """
         return self.read8(PHASER_ADDR_CRC_ERR)
+
+    @kernel
+    def measure_frame_timestamp(self):
+        """Measure the timestamp of an arbitrary frame and store it in `self.frame_tstamp`.
+
+        To be used as reference for aligning updates to the FastLink frames.
+        See `get_next_frame_mu()`.
+        """
+        rtio_output(self.channel_base << 8, 0)  # read any register
+        self.frame_tstamp = rtio_input_timestamp(now_mu() + 4 * self.t_frame, self.channel_base)
+        delay(100 * us)
+
+    @kernel
+    def get_next_frame_mu(self):
+        """Return the timestamp of the frame strictly after `now_mu()`.
+
+        Register updates (DUC, DAC, TRF, etc.) scheduled at this timestamp and multiples
+        of `self.t_frame` later will have deterministic latency to output.
+        """
+        n = int64((now_mu() - self.frame_tstamp) / self.t_frame)
+        return self.frame_tstamp + (n + 1) * self.t_frame
 
     @kernel
     def set_sync_dly(self, dly):
@@ -860,7 +889,7 @@ class PhaserChannel:
 
         By default, the new NCO phase applies on completion of the SPI
         transfer. This also causes a staged NCO frequency to be applied.
-        Different triggers for applying nco settings may be configured through
+        Different triggers for applying NCO settings may be configured through
         the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
         `__init__()`).
 
@@ -878,7 +907,7 @@ class PhaserChannel:
 
         By default, the new NCO phase applies on completion of the SPI
         transfer. This also causes a staged NCO frequency to be applied.
-        Different triggers for applying nco settings may be configured through
+        Different triggers for applying NCO settings may be configured through
         the `syncsel_mixerxx` fields in the `dac` configuration dictionary (see
         `__init__()`).
 
@@ -1015,7 +1044,7 @@ class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
 
     .. note:: Latencies between oscillators within a channel and between
-        oscillator paramters (amplitude and phase/frequency) are deterministic
+        oscillator parameters (amplitude and phase/frequency) are deterministic
         (with respect to the 25 MS/s sample clock) but not matched.
     """
     kernel_invariants = {"channel", "base_addr"}

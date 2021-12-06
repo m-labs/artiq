@@ -10,7 +10,7 @@ from collections import defaultdict
 
 import h5py
 
-from llvmlite_artiq import binding as llvm
+from llvmlite import binding as llvm
 
 from sipyco import common_args
 
@@ -21,7 +21,6 @@ from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.coredevice.core import CompileError, host_only
 from artiq.compiler.embedding import EmbeddingMap
-from artiq.compiler.targets import OR1KTarget
 from artiq.compiler import import_cache
 from artiq.tools import *
 
@@ -53,7 +52,7 @@ class FileRunner(EnvExperiment):
     def build(self, file):
         self.setattr_device("core")
         self.file = file
-        self.target = OR1KTarget()
+        self.target = self.core.target_cls()
 
     def run(self):
         kernel_library = self.compile()

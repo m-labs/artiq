@@ -5,7 +5,7 @@ the references to the host objects and translates the functions
 annotated as ``@kernel`` when they are referenced.
 """
 
-import sys, os, re, linecache, inspect, textwrap, types as pytypes, numpy
+import os, re, linecache, inspect, textwrap, types as pytypes, numpy
 from collections import OrderedDict, defaultdict
 
 from pythonparser import ast, algorithm, source, diagnostic, parse_buffer
@@ -156,6 +156,67 @@ class ASTSynthesizer:
         return source.Range(self.source_buffer, range_from, range_to,
                             expanded_from=self.expanded_from)
 
+    def fast_quote_list(self, value):
+        elts = [None] * len(value)
+        is_T = False
+        if len(value) > 0:
+            v = value[0]
+            is_T = True
+            if isinstance(v, int):
+                T = int
+            elif isinstance(v, float):
+                T = float
+            elif isinstance(v, numpy.int32):
+                T = numpy.int32
+            elif isinstance(v, numpy.int64):
+                T = numpy.int64
+            else:
+                is_T = False
+            if is_T:
+                for v in value:
+                    if not isinstance(v, T):
+                        is_T = False
+                        break
+        if is_T:
+            is_int = T != float
+            if T == int:
+                typ = builtins.TInt()
+            elif T == float:
+                typ = builtins.TFloat()
+            elif T == numpy.int32:
+                typ = builtins.TInt32()
+            elif T == numpy.int64:
+                typ = builtins.TInt64()
+            else:
+                assert False
+            text = [repr(elt) for elt in value]
+            start = len(self.source)
+            self.source += ", ".join(text)
+            if is_int:
+                for i, (v, t) in enumerate(zip(value, text)):
+                    l = len(t)
+                    elts[i] = asttyped.NumT(
+                        n=int(v), ctx=None, type=typ,
+                        loc=source.Range(
+                            self.source_buffer, start, start + l,
+                            expanded_from=self.expanded_from))
+                    start += l + 2
+            else:
+                for i, (v, t) in enumerate(zip(value, text)):
+                    l = len(t)
+                    elts[i] = asttyped.NumT(
+                        n=v, ctx=None, type=typ,
+                        loc=source.Range(
+                            self.source_buffer, start, start + l,
+                            expanded_from=self.expanded_from))
+                    start += l + 2
+        else:
+            for index, elt in enumerate(value):
+                elts[index] = self.quote(elt)
+                if index < len(value) - 1:
+                    self._add(", ")
+        return elts
+
     def quote(self, value):
         """Construct an AST fragment equal to `value`."""
         if value is None:
@@ -217,21 +278,14 @@ class ASTSynthesizer:
             return asttyped.QuoteT(value=value, type=builtins.TByteArray(), loc=loc)
         elif isinstance(value, list):
             begin_loc = self._add("[")
-            elts = []
-            for index, elt in enumerate(value):
-                elts.append(self.quote(elt))
-                if index < len(value) - 1:
-                    self._add(", ")
+            elts = self.fast_quote_list(value)
             end_loc   = self._add("]")
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         elif isinstance(value, tuple):
             begin_loc = self._add("(")
-            elts = []
-            for index, elt in enumerate(value):
-                elts.append(self.quote(elt))
-                self._add(", ")
+            elts = self.fast_quote_list(value)
             end_loc   = self._add(")")
             return asttyped.TupleT(elts=elts, ctx=None,
                                    type=types.TTuple([e.type for e in elts]),
@@ -683,6 +737,7 @@ class Stitcher:
 
         self.embedding_map = EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
+        self.definitely_changed = False
 
     def stitch_call(self, function, args, kwargs, callback=None):
         # We synthesize source code for the initial call so that
@@ -703,13 +758,19 @@ class Stitcher:
         old_attr_count = None
         while True:
             inferencer.visit(self.typedtree)
-            typedtree_hash = typedtree_hasher.visit(self.typedtree)
-            attr_count = self.embedding_map.attribute_count()
+            if self.definitely_changed:
+                changed = True
+                self.definitely_changed = False
+            else:
+                typedtree_hash = typedtree_hasher.visit(self.typedtree)
+                attr_count = self.embedding_map.attribute_count()
+                changed = old_attr_count != attr_count or \
+                          old_typedtree_hash != typedtree_hash
+                old_typedtree_hash = typedtree_hash
+                old_attr_count = attr_count
 
-            if old_typedtree_hash == typedtree_hash and old_attr_count == attr_count:
+            if not changed:
                 break
-            old_typedtree_hash = typedtree_hash
-            old_attr_count = attr_count
 
         # After we've discovered every referenced attribute, check if any kernel_invariant
         # specifications refers to ones we didn't encounter.
@@ -837,6 +898,9 @@ class Stitcher:
             return types.TVar()
 
     def _quote_embedded_function(self, function, flags):
+        # we are now parsing new functions... definitely changed the type
+        self.definitely_changed = True
+
         if isinstance(function, SpecializedFunction):
             host_function = function.host_function
         else:
@@ -903,13 +967,11 @@ class Stitcher:
 
         # Parse.
         source_buffer = source.Buffer(source_code, filename, first_line)
-        lexer = source_lexer.Lexer(source_buffer, version=sys.version_info[0:2],
-                                   diagnostic_engine=self.engine)
+        lexer = source_lexer.Lexer(source_buffer, version=(3, 6), diagnostic_engine=self.engine)
         lexer.indent = [(initial_indent,
                          source.Range(source_buffer, 0, len(initial_whitespace)),
                          initial_whitespace)]
-        parser = source_parser.Parser(lexer, version=sys.version_info[0:2],
-                                      diagnostic_engine=self.engine)
+        parser = source_parser.Parser(lexer, version=(3, 6), diagnostic_engine=self.engine)
         function_node = parser.file_input().body[0]
 
         # Mangle the name, since we put everything into a single module.
@@ -948,6 +1010,31 @@ class Stitcher:
     def _extract_annot(self, function, annot, kind, call_loc, fn_kind):
         if annot is None:
             annot = builtins.TNone()
+
+        if isinstance(function, SpecializedFunction):
+            host_function = function.host_function
+        else:
+            host_function = function
+
+        if hasattr(host_function, 'artiq_embedded'):
+            embedded_function = host_function.artiq_embedded.function
+        else:
+            embedded_function = host_function
+
+        if isinstance(embedded_function, str):
+            embedded_function = host_function
+
+        if isinstance(annot, str):
+            try:
+                annot = eval(annot, embedded_function.__globals__)
+            except Exception:
+                diag = diagnostic.Diagnostic(
+                    "error",
+                    "type annotation for {kind}, {annot}, cannot be evaluated",
+                    {"kind": kind, "annot": repr(annot)},
+                    self._function_loc(function),
+                    notes=self._call_site_note(call_loc, fn_kind))
+                self.engine.process(diag)
 
         if not isinstance(annot, types.Type):
             diag = diagnostic.Diagnostic("error",

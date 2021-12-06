@@ -3,6 +3,7 @@ The :mod:`types` module contains the classes describing the types
 in :mod:`asttyped`.
 """
 
+import builtins
 import string
 from collections import OrderedDict
 from . import iodelay
@@ -55,40 +56,39 @@ class TVar(Type):
 
     def __init__(self):
         self.parent = self
+        self.rank = 0
 
     def find(self):
-        if self.parent is self:
+        parent = self.parent
+        if parent is self:
             return self
         else:
             # The recursive find() invocation is turned into a loop
             # because paths resulting from unification of large arrays
             # can easily cause a stack overflow.
             root = self
-            while root.__class__ == TVar:
-                if root is root.parent:
-                    break
-                else:
-                    root = root.parent
-
-            # path compression
-            iter = self
-            while iter.__class__ == TVar:
-                if iter is root:
-                    break
-                else:
-                    iter, iter.parent = iter.parent, root
-
-            return root
+            while parent.__class__ == TVar and root is not parent:
+                _, parent = root, root.parent = parent, parent.parent
+            return root.parent
 
     def unify(self, other):
         if other is self:
             return
-        other = other.find()
-
-        if self.parent is self:
-            self.parent = other
+        x = other.find()
+        y = self.find()
+        if x is y:
+            return
+        if y.__class__ == TVar:
+            if x.__class__ == TVar:
+                if x.rank < y.rank:
+                    x, y = y, x
+                y.parent = x
+                if x.rank == y.rank:
+                    x.rank += 1
+            else:
+                y.parent = x
         else:
-            self.find().unify(other)
+            y.unify(x)
 
     def fold(self, accum, fn):
         if self.parent is self:
@@ -97,6 +97,8 @@ class TVar(Type):
             return self.find().fold(accum, fn)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         if self.parent is self:
             return "<artiq.compiler.types.TVar %d>" % id(self)
         else:
@@ -143,6 +145,8 @@ class TMono(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+                return str(self)
         return "artiq.compiler.types.TMono(%s, %s)" % (repr(self.name), repr(self.params))
 
     def __getitem__(self, param):
@@ -191,6 +195,8 @@ class TTuple(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TTuple(%s)" % repr(self.elts)
 
     def __eq__(self, other):
@@ -269,6 +275,8 @@ class TFunction(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TFunction({}, {}, {})".format(
             repr(self.args), repr(self.optargs), repr(self.ret))
 
@@ -296,7 +304,7 @@ class TExternalFunction(TFunction):
         mangling rules).
     :ivar flags: (set of str) function flags.
         Flag ``nounwind`` means the function never raises an exception.
-        Flag ``nowrite`` means the function never writes any memory
+        Flag ``nowrite`` means the function never accesses any memory
         that the ARTIQ Python code can observe.
     :ivar broadcast_across_arrays: (bool)
         If True, the function is transparently applied element-wise when called
@@ -362,6 +370,8 @@ class TRPC(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TRPC({})".format(repr(self.ret))
 
     def __eq__(self, other):
@@ -399,6 +409,8 @@ class TBuiltin(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.{}({})".format(type(self).__name__, repr(self.name))
 
     def __eq__(self, other):
@@ -459,6 +471,8 @@ class TInstance(TMono):
         self.constant_attributes = set()
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TInstance({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
@@ -474,6 +488,8 @@ class TModule(TMono):
         self.constant_attributes = set()
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TModule({}, {})".format(
                     repr(self.name), repr(self.attributes))
 
@@ -513,6 +529,8 @@ class TValue(Type):
         return fn(accum, self)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         return "artiq.compiler.types.TValue(%s)" % repr(self.value)
 
     def __eq__(self, other):
@@ -571,6 +589,8 @@ class TDelay(Type):
         return not (self == other)
 
     def __repr__(self):
+        if getattr(builtins, "__in_sphinx__", False):
+            return str(self)
         if self.duration is None:
             return "<{}.TIndeterminateDelay>".format(__name__)
         elif self.cause is None:

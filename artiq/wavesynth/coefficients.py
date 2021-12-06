@@ -111,7 +111,7 @@ class CoefficientSource:
         """
         t = np.rint(x/scale)
         x_sample = t*scale
-        durations = np.diff(t).astype(np.int)
+        durations = np.diff(t).astype(int)
         return x_sample, durations
 
     def __call__(self, x, **kwargs):
@@ -201,7 +201,7 @@ class SplineSource(CoefficientSource):
         inc = np.diff(t) >= 0
         inc = np.r_[inc, inc[-1]]
         t = np.where(inc, np.ceil(t), np.floor(t))
-        dt = np.diff(t.astype(np.int))
+        dt = np.diff(t.astype(int))
 
         valid = np.absolute(dt) >= min_duration
         if not np.any(valid):

@@ -1,0 +1,31 @@
+{
+  "arch": "riscv32",
+  "cpu": "generic-rv32",
+  "data-layout": "e-m:e-p:32:32-i64:64-n32-S128",
+  "eh-frame-header": false,
+  "emit-debug-gdb-scripts": false,
+  "executables": true,
+  "features": "+m,+a,-c",
+  "is-builtin": false,
+  "linker": "rust-lld",
+  "linker-flavor": "ld.lld",
+  "llvm-target": "riscv32",
+  "max-atomic-width": 32,
+  "panic-strategy": "unwind",
+  "relocation-model": "static",
+  "target-pointer-width": "32",
+  "unsupported-abis": [
+    "cdecl",
+    "stdcall",
+    "fastcall",
+    "vectorcall",
+    "thiscall",
+    "aapcs",
+    "win64",
+    "sysv64",
+    "ptx-kernel",
+    "msp430-interrupt",
+    "x86-interrupt",
+    "amdgpu-kernel"
+  ]
+}

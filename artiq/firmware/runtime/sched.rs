@@ -3,7 +3,7 @@
 use core::mem;
 use core::result;
 use core::cell::{Cell, RefCell};
-use alloc::Vec;
+use alloc::vec::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::time::Duration;
@@ -35,7 +35,7 @@ type SocketSet = ::smoltcp::socket::SocketSet<'static, 'static, 'static>;
 
 #[derive(Debug)]
 struct WaitRequest {
-    event:   Option<*mut FnMut() -> bool>,
+    event:   Option<*mut dyn FnMut() -> bool>,
     timeout: Option<u64>
 }
 
@@ -50,7 +50,7 @@ enum WaitResult {
 
 #[derive(Debug)]
 struct Thread {
-    generator:   Generator<WaitResult, WaitRequest, OwnedStack>,
+    generator:   Generator<'static, WaitResult, WaitRequest, OwnedStack>,
     waiting_for: WaitRequest,
     interrupted: bool
 }
@@ -61,7 +61,8 @@ impl Thread {
         let spawned = io.spawned.clone();
         let sockets = io.sockets.clone();
 
-        let stack = OwnedStack::new(stack_size);
+        // Add a 4k stack guard to the stack of any new threads
+        let stack = OwnedStack::new(stack_size + 4096);
         ThreadHandle::new(Thread {
             generator: Generator::unsafe_new(stack, |yielder, _| {
                 f(Io {
@@ -194,7 +195,7 @@ impl Scheduler {
 
 #[derive(Clone)]
 pub struct Io<'a> {
-    yielder: Option<&'a Yielder<WaitResult, WaitRequest, OwnedStack>>,
+    yielder: Option<&'a Yielder<WaitResult, WaitRequest>>,
     spawned: Urc<RefCell<Vec<ThreadHandle>>>,
     sockets: Urc<RefCell<SocketSet>>,
 }
@@ -207,7 +208,7 @@ impl<'a> Io<'a> {
         handle
     }
 
-    fn yielder(&self) -> &'a Yielder<WaitResult, WaitRequest, OwnedStack> {
+    fn yielder(&self) -> &'a Yielder<WaitResult, WaitRequest> {
         self.yielder.expect("cannot suspend the scheduler thread")
     }
 
@@ -240,7 +241,7 @@ impl<'a> Io<'a> {
     }
 
     pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<(), Error> {
-        let f = unsafe { mem::transmute::<&mut FnMut() -> bool, *mut FnMut() -> bool>(&mut f) };
+        let f = unsafe { mem::transmute::<&mut dyn FnMut() -> bool, *mut dyn FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
             timeout: None,
             event:   Some(f)

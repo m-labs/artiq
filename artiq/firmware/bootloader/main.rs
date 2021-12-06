@@ -1,21 +1,23 @@
 #![no_std]
-#![feature(panic_implementation, panic_info_message)]
+#![feature(panic_info_message)]
 
 extern crate crc;
 extern crate byteorder;
 extern crate smoltcp;
 #[macro_use]
 extern crate board_misoc;
+extern crate riscv;
 
-use core::{ptr, slice};
+use core::{ptr, slice, convert::TryFrom};
 use crc::crc32;
-use byteorder::{ByteOrder, BigEndian};
+use byteorder::{ByteOrder, LittleEndian};
 use board_misoc::{ident, cache, sdram, config, boot, mem as board_mem};
 #[cfg(has_slave_fpga_cfg)]
 use board_misoc::slave_fpga;
 #[cfg(has_ethmac)]
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
+use riscv::register::{mcause, mepc, mtval};
 
 fn check_integrity() -> bool {
     extern {
@@ -45,7 +47,7 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
                 MEMORY[$index:expr] = $data:expr
             }
         ) => ({
-            $prepare;
+            $prepare
             for $i in $range {
                 unsafe { ptr::write_volatile(MEMORY.offset($index as isize), $data) };
                 *total += 1;
@@ -54,7 +56,7 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
             cache::flush_cpu_dcache();
             cache::flush_l2_cache();
 
-            $prepare;
+            $prepare
             for $i in $range {
                 if unsafe { ptr::read_volatile(MEMORY.offset($index as isize)) } != $data {
                     *wrong += 1;
@@ -119,8 +121,8 @@ fn load_slave_fpga() {
     const GATEWARE: *mut u8 = board_misoc::csr::CONFIG_SLAVE_FPGA_GATEWARE as *mut u8;
 
     let header = unsafe { slice::from_raw_parts(GATEWARE, 8) };
-    let magic = BigEndian::read_u32(&header[0..]);
-    let length = BigEndian::read_u32(&header[4..]) as usize;
+    let magic = LittleEndian::read_u32(&header[0..]);
+    let length = LittleEndian::read_u32(&header[4..]) as usize;
     println!("  magic: 0x{:08x}, length: 0x{:08x}", magic, length);
     if magic != 0x5352544d {
         println!("  ...Error: bad magic");
@@ -155,8 +157,8 @@ fn flash_boot() {
     println!("Booting from flash...");
 
     let header = unsafe { slice::from_raw_parts(FIRMWARE, 8) };
-    let length = BigEndian::read_u32(&header[0..]) as usize;
-    let expected_crc = BigEndian::read_u32(&header[4..]);
+    let length = LittleEndian::read_u32(&header[0..]) as usize;
+    let expected_crc = LittleEndian::read_u32(&header[4..]);
 
     if length == 0 || length == 0xffffffff {
         println!("No firmware present");
@@ -517,8 +519,11 @@ pub extern fn main() -> i32 {
 }
 
 #[no_mangle]
-pub extern fn exception(vect: u32, _regs: *const u32, pc: u32, ea: u32) {
-    panic!("exception {} at PC {:#08x}, EA {:#08x}", vect, pc, ea)
+pub extern fn exception(_regs: *const u32) {
+    let pc = mepc::read();
+    let cause = mcause::read().cause();
+    let mtval = mtval::read();
+    panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
 #[no_mangle]
@@ -528,7 +533,7 @@ pub extern fn abort() {
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
-#[panic_implementation]
+#[panic_handler]
 pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
     #[cfg(has_error_led)]
     unsafe {

@@ -1,8 +1,6 @@
 from collections import namedtuple
 import logging
-
 from migen import *
-
 
 logger = logging.getLogger(__name__)
 
@@ -222,31 +220,30 @@ class IIR(Module):
         assert w.word <= w.coeff  # same memory
         assert w.state + w.coeff + 3 <= w.accu
 
-        # m_coeff of active profiles should only be accessed during
+        # m_coeff of active profiles should only be accessed externally during
         # ~processing
         self.specials.m_coeff = Memory(
                 width=2*w.coeff,  # Cat(pow/ftw/offset, cfg/a/b)
                 depth=4 << w.profile + w.channel)
-        # m_state[x] should only be read during ~(shifting |
-        # loading)
-        # m_state[y] of active profiles should only be read during
+        # m_state[x] should only be read externally during ~(shifting | loading)
+        # m_state[y] of active profiles should only be read externally during
         # ~processing
         self.specials.m_state = Memory(
                 width=w.state,  # y1,x0,x1
                 depth=(1 << w.profile + w.channel) + (2 << w.channel))
         # ctrl should only be updated synchronously
         self.ctrl = [Record([
-            ("profile", w.profile),
-            ("en_out", 1),
-            ("en_iir", 1),
-            ("clip", 1),
-            ("stb", 1)])
-            for i in range(1 << w.channel)]
+                ("profile", w.profile),
+                ("en_out", 1),
+                ("en_iir", 1),
+                ("clip", 1),
+                ("stb", 1)])
+                for i in range(1 << w.channel)]
         # only update during ~loading
         self.adc = [Signal((w.adc, True), reset_less=True)
                 for i in range(1 << w.channel)]
         # Cat(ftw0, ftw1, pow, asf)
-        # only read during ~processing
+        # only read externally during ~processing
         self.dds = [Signal(4*w.word, reset_less=True)
                 for i in range(1 << w.channel)]
         # perform one IIR iteration, start with loading,
@@ -270,100 +267,116 @@ class IIR(Module):
         en_iirs = Array([ch.en_iir for ch in self.ctrl])
         clips = Array([ch.clip for ch in self.ctrl])
 
-        # state counter
-        state = Signal(w.channel + 2)
-        # pipeline group activity flags (SR)
-        stage = Signal(3)
+        # Main state machine sequencing the steps of each servo iteration. The
+        # module IDLEs until self.start is asserted, and then runs through LOAD,
+        # PROCESS and SHIFT in order (see description of corresponding flags
+        # above). The steps share the same memory ports, and are executed
+        # strictly sequentially.
+        #
+        # LOAD/SHIFT just read/write one address per cycle; the duration needed
+        # to iterate over all channels is determined by counting cycles.
+        #
+        # The PROCESSing step is split across a three-stage pipeline, where each
+        # stage has up to four clock cycles latency. We feed the first stage
+        # using the (MSBs of) t_current_step, and, after all channels have been
+        # covered, proceed once the pipeline has completely drained.
         self.submodules.fsm = fsm = FSM("IDLE")
-        state_clr = Signal()
-        stage_en = Signal()
+        t_current_step = Signal(w.channel + 2)
+        t_current_step_clr = Signal()
+
+        # pipeline group activity flags (SR)
+        #  0: load from memory
+        #  1: compute
+        #  2: write to output registers (DDS profiles, clip flags)
+        stages_active = Signal(3)
         fsm.act("IDLE",
                 self.done.eq(1),
-                state_clr.eq(1),
+                t_current_step_clr.eq(1),
                 If(self.start,
                     NextState("LOAD")
                 )
         )
         fsm.act("LOAD",
                 self.loading.eq(1),
-                If(state == (1 << w.channel) - 1,
-                    state_clr.eq(1),
-                    stage_en.eq(1),
+                If(t_current_step == (1 << w.channel) - 1,
+                    t_current_step_clr.eq(1),
+                    NextValue(stages_active[0], 1),
                     NextState("PROCESS")
                 )
         )
         fsm.act("PROCESS",
                 self.processing.eq(1),
                 # this is technically wasting three cycles
-                # (one for setting stage, and phase=2,3 with stage[2])
-                If(stage == 0,
-                    state_clr.eq(1),
-                    NextState("SHIFT")
+                # (one for setting stages_active, and phase=2,3 with stages_active[2])
+                If(stages_active == 0,
+                    t_current_step_clr.eq(1),
+                    NextState("SHIFT"),
                 )
         )
         fsm.act("SHIFT",
                 self.shifting.eq(1),
-                If(state == (2 << w.channel) - 1,
+                If(t_current_step == (2 << w.channel) - 1,
                     NextState("IDLE")
                 )
         )
 
         self.sync += [
-                state.eq(state + 1),
-                If(state_clr,
-                    state.eq(0),
-                ),
-                If(stage_en,
-                    stage[0].eq(1)
+                If(t_current_step_clr,
+                    t_current_step.eq(0)
+                ).Else(
+                    t_current_step.eq(t_current_step + 1)
                 )
         ]
 
-        # pipeline group channel pointer
+        # global pipeline phase (lower two bits of t_current_step)
+        pipeline_phase = Signal(2, reset_less=True)
+        # pipeline group channel pointer (SR)
         # for each pipeline stage, this is the channel currently being
         # processed
         channel = [Signal(w.channel, reset_less=True) for i in range(3)]
+        self.comb += Cat(pipeline_phase, channel[0]).eq(t_current_step)
+        self.sync += [
+            If(pipeline_phase == 3,
+                Cat(channel[1:]).eq(Cat(channel[:-1])),
+                stages_active[1:].eq(stages_active[:-1]),
+                If(channel[0] == (1 << w.channel) - 1,
+                    stages_active[0].eq(0)
+                )
+            )
+        ]
+
         # pipeline group profile pointer (SR)
         # for each pipeline stage, this is the profile currently being
         # processed
         profile = [Signal(w.profile, reset_less=True) for i in range(2)]
-        # pipeline phase (lower two bits of state)
-        phase = Signal(2, reset_less=True)
-
-        self.comb += Cat(phase, channel[0]).eq(state)
         self.sync += [
-                Case(phase, {
-                    0: [
-                        profile[0].eq(profiles[channel[0]]),
-                        profile[1].eq(profile[0])
-                    ],
-                    3: [
-                        Cat(channel[1:]).eq(Cat(channel[:-1])),
-                        stage[1:].eq(stage[:-1]),
-                        If(channel[0] == (1 << w.channel) - 1,
-                            stage[0].eq(0)
-                        )
-                    ]
-                })
+            If(pipeline_phase == 0,
+                profile[0].eq(profiles[channel[0]]),
+                profile[1].eq(profile[0]),
+            )
         ]
 
         m_coeff = self.m_coeff.get_port()
         m_state = self.m_state.get_port(write_capable=True)  # mode=READ_FIRST
         self.specials += m_state, m_coeff
 
+        #
+        # Hook up main IIR filter.
+        #
+
         dsp = DSP(w)
         self.submodules += dsp
 
         offset_clr = Signal()
-
         self.comb += [
-                m_coeff.adr.eq(Cat(phase, profile[0],
-                    Mux(phase==0, channel[1], channel[0]))),
+                m_coeff.adr.eq(Cat(pipeline_phase, profile[0],
+                    Mux(pipeline_phase == 0, channel[1], channel[0]))),
                 dsp.offset[-w.coeff - 1:].eq(Mux(offset_clr, 0,
                     Cat(m_coeff.dat_r[:w.coeff], m_coeff.dat_r[w.coeff - 1])
                 )),
                 dsp.coeff.eq(m_coeff.dat_r[w.coeff:]),
                 dsp.state.eq(m_state.dat_r),
-                Case(phase, {
+                Case(pipeline_phase, {
                     0: dsp.accu_clr.eq(1),
                     2: [
                         offset_clr.eq(1),
@@ -372,6 +385,11 @@ class IIR(Module):
                     3: dsp.offset_load.eq(1)
                 })
         ]
+
+
+        #
+        # Arbitrate state memory access between steps.
+        #
 
         # selected adc and profile delay (combinatorial from dat_r)
         # both share the same coeff word (sel in the lower 8 bits)
@@ -389,13 +407,13 @@ class IIR(Module):
                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
                 If(self.shifting,
-                    m_state.adr.eq(state | (1 << w.profile + w.channel)),
+                    m_state.adr.eq(t_current_step | (1 << w.profile + w.channel)),
                     m_state.dat_w.eq(m_state.dat_r),
-                    m_state.we.eq(state[0])
+                    m_state.we.eq(t_current_step[0])
                 ),
                 If(self.loading,
-                    m_state.adr.eq((state << 1) | (1 << w.profile + w.channel)),
-                    m_state.dat_w[-w.adc - 1:-1].eq(Array(self.adc)[state]),
+                    m_state.adr.eq((t_current_step << 1) | (1 << w.profile + w.channel)),
+                    m_state.dat_w[-w.adc - 1:-1].eq(Array(self.adc)[t_current_step]),
                     m_state.dat_w[-1].eq(m_state.dat_w[-2]),
                     m_state.we.eq(1)
                 ),
@@ -405,15 +423,19 @@ class IIR(Module):
                         Cat(profile[1], channel[2]),
                         # read old y
                         Cat(profile[0], channel[0]),
-                        # x0 (recent)
+                        # read x0 (recent)
                         0 | (sel_profile << 1) | (1 << w.profile + w.channel),
-                        # x1 (old)
+                        # read x1 (old)
                         1 | (sel << 1) | (1 << w.profile + w.channel),
-                    ])[phase]),
+                    ])[pipeline_phase]),
                     m_state.dat_w.eq(dsp.output),
-                    m_state.we.eq((phase == 0) & stage[2] & en[1]),
+                    m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
                 )
         ]
+
+        #
+        # Compute auxiliary signals (delayed servo enable, clip indicators, etc.).
+        #
 
         # internal channel delay counters
         dlys = Array([Signal(w.dly)
@@ -434,51 +456,65 @@ class IIR(Module):
         en_out = Signal(reset_less=True)
         # latched channel en_iir
         en_iir = Signal(reset_less=True)
+
+        self.sync += [
+            Case(pipeline_phase, {
+                0: [
+                    dly.eq(dlys[channel[0]]),
+                    en_out.eq(en_outs[channel[0]]),
+                    en_iir.eq(en_iirs[channel[0]]),
+                    If(stages_active[2] & en[1] & dsp.clip,
+                        clips[channel[2]].eq(1)
+                    )
+                ],
+                2: [
+                    en[0].eq(0),
+                    en[1].eq(en[0]),
+                    sel.eq(sel_profile),
+                    If(stages_active[0] & en_out,
+                        If(dly != dly_profile,
+                            dlys[channel[0]].eq(dly + 1)
+                        ).Elif(en_iir,
+                            en[0].eq(1)
+                        )
+                    )
+                ],
+            }),
+        ]
+
+        #
+        # Update DDS profile with FTW/POW/ASF
+        # Stage 0 loads the POW, stage 1 the FTW, and stage 2 writes
+        # the ASF computed by the IIR filter.
+        #
+
         # muxing
         ddss = Array(self.dds)
 
         self.sync += [
-                Case(phase, {
-                    0: [
-                        dly.eq(dlys[channel[0]]),
-                        en_out.eq(en_outs[channel[0]]),
-                        en_iir.eq(en_iirs[channel[0]]),
-                        If(stage[1],
-                            ddss[channel[1]][:w.word].eq(m_coeff.dat_r)
-                        ),
-                        If(stage[2] & en[1] & dsp.clip,
-                            clips[channel[2]].eq(1)
-                        )
-                    ],
-                    1: [
-                        If(stage[1],
-                            ddss[channel[1]][w.word:2*w.word].eq(
-                                m_coeff.dat_r),
-                        ),
-                        If(stage[2],
-                            ddss[channel[2]][3*w.word:].eq(
-                                m_state.dat_r[w.state - w.asf - 1:w.state - 1])
-                        )
-                    ],
-                    2: [
-                        en[0].eq(0),
-                        en[1].eq(en[0]),
-                        sel.eq(sel_profile),
-                        If(stage[0],
-                            ddss[channel[0]][2*w.word:3*w.word].eq(
-                                m_coeff.dat_r),
-                            If(en_out,
-                                If(dly != dly_profile,
-                                    dlys[channel[0]].eq(dly + 1)
-                                ).Elif(en_iir,
-                                    en[0].eq(1)
-                                )
-                            )
-                        )
-                    ],
-                    3: [
-                    ],
-                }),
+            Case(pipeline_phase, {
+                0: [
+                    If(stages_active[1],
+                        ddss[channel[1]][:w.word].eq(m_coeff.dat_r),  # ftw0
+                    ),
+                ],
+                1: [
+                    If(stages_active[1],
+                        ddss[channel[1]][w.word:2 * w.word].eq(m_coeff.dat_r),  # ftw1
+                    ),
+                    If(stages_active[2],
+                        ddss[channel[2]][3*w.word:].eq(  # asf
+                            m_state.dat_r[w.state - w.asf - 1:w.state - 1])
+                    )
+                ],
+                2: [
+                    If(stages_active[0],
+                        ddss[channel[0]][2*w.word:3*w.word].eq(m_coeff.dat_r),  # pow
+                    ),
+                ],
+                3: [
+                ],
+            }),
         ]
 
     def _coeff(self, channel, profile, coeff):

@@ -1,0 +1,114 @@
+{
+  "nodes": {
+    "mozilla-overlay": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1637337116,
+        "narHash": "sha256-LKqAcdL+woWeYajs02bDQ7q8rsqgXuzhC354NoRaV80=",
+        "owner": "mozilla",
+        "repo": "nixpkgs-mozilla",
+        "rev": "cbc7435f5b0b3d17b16fb1d20cf7b616eec5e093",
+        "type": "github"
+      },
+      "original": {
+        "owner": "mozilla",
+        "repo": "nixpkgs-mozilla",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1638279546,
+        "narHash": "sha256-1KCwN7twjp1dBdp0jPgVdYFztDkCR8+roo0B34J9oBY=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "96b4157790fc96e70d6e6c115e3f34bba7be490f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-21.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "mozilla-overlay": "mozilla-overlay",
+        "nixpkgs": "nixpkgs",
+        "src-migen": "src-migen",
+        "src-misoc": "src-misoc",
+        "src-pythonparser": "src-pythonparser",
+        "src-sipyco": "src-sipyco"
+      }
+    },
+    "src-migen": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1636715924,
+        "narHash": "sha256-V3ThFSo2d7OC4SHE0lCkKGQKeFXmvxtwZRWe5NMU3nM=",
+        "owner": "m-labs",
+        "repo": "migen",
+        "rev": "9a0be7a4210ff96043412539eb5388659b81831d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "migen",
+        "type": "github"
+      }
+    },
+    "src-misoc": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1638683371,
+        "narHash": "sha256-sm2SxHmEGfE56+V+joDHMjpOaxg8+t3EJEk1d11C1E0=",
+        "ref": "master",
+        "rev": "71b74f87b41c56a6c6d767cdfde0356c15a379a7",
+        "revCount": 2418,
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/m-labs/misoc.git"
+      },
+      "original": {
+        "submodules": true,
+        "type": "git",
+        "url": "https://github.com/m-labs/misoc.git"
+      }
+    },
+    "src-pythonparser": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1628745371,
+        "narHash": "sha256-p6TgeeaK4NEmbhimEXp31W8hVRo4DgWmcCoqZ+UdN60=",
+        "owner": "m-labs",
+        "repo": "pythonparser",
+        "rev": "5413ee5c9f8760e95c6acd5d6e88dabb831ad201",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "pythonparser",
+        "type": "github"
+      }
+    },
+    "src-sipyco": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1632832039,
+        "narHash": "sha256-GYXXCCOxNZyy6j7qScB3/QWUUCEVX+4tM4bXXVGXty0=",
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "rev": "b83d8e5d82b25dba9393f0c12bdc5253f8138545",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

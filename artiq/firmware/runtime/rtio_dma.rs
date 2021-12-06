@@ -1,5 +1,5 @@
 use core::mem;
-use alloc::{Vec, String, BTreeMap};
+use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
 
 const ALIGNMENT: usize = 64;
 

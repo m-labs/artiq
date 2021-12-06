@@ -1,4 +1,4 @@
-#![feature(lang_items, panic_unwind, libc, unwind_attributes)]
+#![feature(lang_items, panic_unwind, libc, unwind_attributes, int_bits_const)]
 #![no_std]
 
 extern crate cslice;

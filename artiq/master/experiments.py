@@ -74,19 +74,20 @@ class _RepoScanner:
                 entry_dict.update(entries)
         return entry_dict
 
-    async def scan(self, root):
+    async def scan(self, root, subdir=""):
         self.worker = Worker(self.worker_handlers)
         try:
-            r = await self._scan(root)
+            r = await self._scan(root, subdir)
         finally:
             await self.worker.close()
         return r
 
 
 class ExperimentDB:
-    def __init__(self, repo_backend, worker_handlers):
+    def __init__(self, repo_backend, worker_handlers, experiment_subdir=""):
         self.repo_backend = repo_backend
         self.worker_handlers = worker_handlers
+        self.experiment_subdir = experiment_subdir
 
         self.cur_rev = self.repo_backend.get_head_rev()
         self.repo_backend.request_rev(self.cur_rev)
@@ -115,7 +116,8 @@ class ExperimentDB:
             self.cur_rev = new_cur_rev
             self.status["cur_rev"] = new_cur_rev
             t1 = time.monotonic()
-            new_explist = await _RepoScanner(self.worker_handlers).scan(wd)
+            new_explist = await _RepoScanner(self.worker_handlers).scan(
+                wd, self.experiment_subdir)
             logger.info("repository scan took %d seconds", time.monotonic()-t1)
             update_from_dict(self.explist, new_explist)
         finally:

@@ -113,3 +113,9 @@ pub unsafe fn write(mut addr: usize, mut data: &[u8]) {
         data  = &data[size..];
     }
 }
+
+#[cfg(any(soc_platform = "kasli", soc_platform = "metlino", soc_platform = "kc705"))]
+pub unsafe fn reload () -> ! {
+    csr::icap::iprog_write(1);
+    loop {}
+}

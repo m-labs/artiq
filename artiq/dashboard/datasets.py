@@ -3,8 +3,9 @@ import logging
 
 import numpy as np
 from PyQt5 import QtCore, QtWidgets
+from sipyco import pyon
 
-from artiq.tools import short_format
+from artiq.tools import short_format, exc_to_warning
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
 from artiq.gui.scientific_spinbox import ScientificSpinBox
@@ -82,6 +83,68 @@ class StringEditor(Editor):
         return self.edit_widget.text()
 
 
+class Creator(QtWidgets.QDialog):
+    def __init__(self, parent, dataset_ctl):
+        QtWidgets.QDialog.__init__(self, parent=parent)
+        self.dataset_ctl = dataset_ctl
+
+        self.setWindowTitle("Create dataset")
+        grid = QtWidgets.QGridLayout()
+        grid.setRowMinimumHeight(1, 40)
+        grid.setColumnMinimumWidth(2, 60)
+        self.setLayout(grid)
+
+        grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
+        self.name_widget = QtWidgets.QLineEdit()
+        grid.addWidget(self.name_widget, 0, 1)
+
+        grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
+        self.value_widget = QtWidgets.QLineEdit()
+        self.value_widget.setPlaceholderText('PYON (Python)')
+        grid.addWidget(self.value_widget, 1, 1)
+        self.data_type = QtWidgets.QLabel("data type")
+        grid.addWidget(self.data_type, 1, 2)
+        self.value_widget.textChanged.connect(self.dtype)
+
+        grid.addWidget(QtWidgets.QLabel("Persist:"), 2, 0)
+        self.box_widget = QtWidgets.QCheckBox()
+        grid.addWidget(self.box_widget, 2, 1)
+
+        self.ok = QtWidgets.QPushButton('&Ok')
+        self.ok.setEnabled(False)
+        self.cancel = QtWidgets.QPushButton('&Cancel')
+        self.buttons = QtWidgets.QDialogButtonBox(self)
+        self.buttons.addButton(
+            self.ok, QtWidgets.QDialogButtonBox.AcceptRole)
+        self.buttons.addButton(
+            self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
+        grid.setRowStretch(3, 1)
+        grid.addWidget(self.buttons, 4, 0, 1, 3)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+
+    def accept(self):
+        key = self.name_widget.text()
+        value = self.value_widget.text()
+        persist = self.box_widget.isChecked()
+        asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(
+            key, pyon.decode(value), persist)))
+        QtWidgets.QDialog.accept(self)
+
+    def dtype(self):
+        txt = self.value_widget.text()
+        try:
+            result = pyon.decode(txt)
+        except:
+            pixmap = self.style().standardPixmap(
+                QtWidgets.QStyle.SP_MessageBoxWarning)
+            self.data_type.setPixmap(pixmap)
+            self.ok.setEnabled(False)
+        else:
+            self.data_type.setText(type(result).__name__)
+            self.ok.setEnabled(True)
+
+
 class Model(DictSyncTreeSepModel):
     def __init__(self, init):
         DictSyncTreeSepModel.__init__(
@@ -120,6 +183,11 @@ class DatasetsDock(QtWidgets.QDockWidget):
         grid.addWidget(self.table, 1, 0)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
+        create_action = QtWidgets.QAction("New dataset", self.table)
+        create_action.triggered.connect(self.create_clicked)
+        create_action.setShortcut("CTRL+N")
+        create_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
+        self.table.addAction(create_action)
         edit_action = QtWidgets.QAction("Edit dataset", self.table)
         edit_action.triggered.connect(self.edit_clicked)
         edit_action.setShortcut("RETURN")
@@ -145,6 +213,9 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table_model_filter = QRecursiveFilterProxyModel()
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
+
+    def create_clicked(self):
+        Creator(self, self.dataset_ctl).open()
 
     def edit_clicked(self):
         idx = self.table.selectedIndexes()

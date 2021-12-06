@@ -1,11 +1,10 @@
 use log::{self, LevelFilter};
 
 use io::{Write, ProtoWrite, Error as IoError};
-use board_misoc::{config, boot};
+use board_misoc::{config, spiflash};
 use logger_artiq::BufferLogger;
 use mgmt_proto::*;
 use sched::{Io, TcpListener, TcpStream, Error as SchedError};
-use profiler;
 
 impl From<SchedError> for Error<SchedError> {
     fn from(value: SchedError) -> Error<SchedError> {
@@ -15,7 +14,7 @@ impl From<SchedError> for Error<SchedError> {
 
 fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
     read_magic(stream)?;
-    Write::write_all(stream, "E".as_bytes())?;
+    Write::write_all(stream, "e".as_bytes())?;
     info!("new connection from {}", stream.remote_endpoint());
 
     loop {
@@ -103,64 +102,13 @@ fn worker(io: &Io, stream: &mut TcpStream) -> Result<(), Error<SchedError>> {
                 }?;
             }
 
-            Request::StartProfiler { interval_us, hits_size, edges_size } => {
-                match profiler::start(interval_us as u64,
-                                      hits_size as usize, edges_size as usize) {
-                    Ok(()) => Reply::Success.write_to(stream)?,
-                    Err(()) => Reply::Unavailable.write_to(stream)?
-                }
-            }
-            Request::StopProfiler => {
-                profiler::stop();
-                Reply::Success.write_to(stream)?;
-            }
-            Request::GetProfile => {
-                profiler::pause(|profile| {
-                    let profile = match profile {
-                        None => return Reply::Unavailable.write_to(stream),
-                        Some(profile) => profile
-                    };
-
-                    Reply::Profile.write_to(stream)?;
-                    {
-                        let hits = profile.hits();
-                        stream.write_u32(hits.len() as u32)?;
-                        for (&addr, &count) in hits.iter() {
-                            stream.write_u32(addr.as_raw() as u32)?;
-                            stream.write_u32(count)?;
-                        }
-                    }
-                    {
-                        let edges = profile.edges();
-                        stream.write_u32(edges.len() as u32)?;
-                        for (&(caller, callee), &count) in edges.iter() {
-                            stream.write_u32(caller.as_raw() as u32)?;
-                            stream.write_u32(callee.as_raw() as u32)?;
-                            stream.write_u32(count)?;
-                        }
-                    }
-
-                    Ok(())
-                })?;
-            }
-
-            Request::Hotswap(firmware) => {
-                Reply::RebootImminent.write_to(stream)?;
-                stream.close()?;
-                stream.flush()?;
-
-                profiler::stop();
-                warn!("hotswapping firmware");
-                unsafe { boot::hotswap(&firmware) }
-            }
             Request::Reboot => {
                 Reply::RebootImminent.write_to(stream)?;
                 stream.close()?;
                 stream.flush()?;
 
-                profiler::stop();
                 warn!("restarting");
-                unsafe { boot::reset() }
+                unsafe { spiflash::reload(); }
             }
 
             Request::DebugAllocator =>

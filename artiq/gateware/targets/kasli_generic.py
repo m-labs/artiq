@@ -48,15 +48,17 @@ class GenericStandalone(StandaloneBase):
                 self.rtio_channels.append(rtio.Channel.from_phy(phy))
         if hw_rev == "v2.0":
             for i in (1, 2):
+                print("USER LED at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
                 phy = ttl_simple.Output(self.platform.request("user_led", i))
                 self.submodules += phy
-                self.rtio_channels.append(rtio.Channel.from_phy(phy)) 
+                self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
@@ -93,7 +95,7 @@ class GenericMaster(MasterBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
@@ -126,7 +128,7 @@ class GenericSatellite(SatelliteBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)

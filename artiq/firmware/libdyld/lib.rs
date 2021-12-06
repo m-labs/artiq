@@ -75,6 +75,12 @@ impl<'a> fmt::Display for Error<'a> {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arch {
+    RiscV,
+    OpenRisc,
+}
+
 pub struct Library<'a> {
     image_off:   Elf32_Addr,
     image_sz:    usize,
@@ -134,7 +140,7 @@ impl<'a> Library<'a> {
     pub unsafe fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
         for rela in self.pltrel.iter() {
             match ELF32_R_TYPE(rela.r_info) {
-                R_OR1K_32 | R_OR1K_GLOB_DAT | R_OR1K_JMP_SLOT => {
+                R_RISCV_32 | R_RISCV_JUMP_SLOT => {
                     let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
                                          .ok_or("symbol out of bounds of symbol table")?;
                     let sym_name = self.name_starting_at(sym.st_name as usize)?;
@@ -151,7 +157,7 @@ impl<'a> Library<'a> {
         Ok(())
     }
 
-    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
+    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<(), Error<'a>> {
         let sym;
         if ELF32_R_SYM(rela.r_info) == 0 {
@@ -163,13 +169,13 @@ impl<'a> Library<'a> {
 
         let value;
         match ELF32_R_TYPE(rela.r_info) {
-            R_OR1K_NONE =>
+            R_RISCV_NONE =>
                 return Ok(()),
 
-            R_OR1K_RELATIVE =>
+            R_RISCV_RELATIVE =>
                 value = self.image_off + rela.r_addend as Elf32_Word,
 
-            R_OR1K_32 | R_OR1K_GLOB_DAT | R_OR1K_JMP_SLOT => {
+            R_RISCV_32 | R_RISCV_JUMP_SLOT => {
                 let sym = sym.ok_or("relocation requires an associated symbol")?;
                 let sym_name = self.name_starting_at(sym.st_name as usize)?;
 
@@ -195,7 +201,7 @@ impl<'a> Library<'a> {
         self.update_rela(rela, value)
     }
 
-    pub fn load(data: &[u8], image: &'a mut [u8], resolve: &Fn(&[u8]) -> Option<Elf32_Word>)
+    pub fn load(data: &[u8], image: &'a mut [u8], resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<Library<'a>, Error<'a>> {
         #![allow(unused_assignments)]
 
@@ -204,16 +210,22 @@ impl<'a> Library<'a> {
 
         const IDENT: [u8; EI_NIDENT] = [
             ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
-            ELFCLASS32, ELFDATA2MSB, EV_CURRENT, ELFOSABI_NONE,
+            ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
             /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
         ];
 
-        #[cfg(target_arch = "or1k")]
-        const ARCH: u16 = EM_OPENRISC;
-        #[cfg(not(target_arch = "or1k"))]
+        #[cfg(target_arch = "riscv32")]
+        const ARCH: u16 = EM_RISCV;
+        #[cfg(not(target_arch = "riscv32"))]
         const ARCH: u16 = EM_NONE;
 
-        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH {
+        #[cfg(all(target_feature = "f", target_feature = "d"))]
+        const FLAGS: u32 = EF_RISCV_FLOAT_ABI_DOUBLE;
+
+        #[cfg(not(all(target_feature = "f", target_feature = "d")))]
+        const FLAGS: u32 = EF_RISCV_FLOAT_ABI_SOFT;
+
+        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH || ehdr.e_flags != FLAGS {
             return Err("not a shared library for current architecture")?
         }
 
