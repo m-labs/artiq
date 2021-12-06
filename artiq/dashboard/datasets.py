@@ -146,16 +146,16 @@ class Creator(QtWidgets.QDialog):
 
 
 class Model(DictSyncTreeSepModel):
-    def __init__(self,  init):
-        DictSyncTreeSepModel.__init__(self, ".",
-                                      ["Dataset", "Persistent", "Value"],
-                                      init)
+    def __init__(self, init):
+        DictSyncTreeSepModel.__init__(
+            self, ".", ["Dataset", "Persistent", "Value"], init
+        )
 
     def convert(self, k, v, column):
         if column == 1:
-            return "Y" if v[0] else "N"
+            return "Y" if v["persist"] else "N"
         elif column == 2:
-            return short_format(v[1])
+            return short_format(v["value"])
         else:
             raise ValueError
 
@@ -223,8 +223,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                persist, value = self.table_model.backing_store[key]
-                t = type(value)
+                dataset = self.table_model.backing_store[key]
+                t = type(dataset["value"])
                 if np.issubdtype(t, np.number):
                     dialog_cls = NumberEditor
                 elif np.issubdtype(t, np.bool_):
@@ -235,7 +235,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
                     logger.error("Cannot edit dataset %s: "
                                  "type %s is not supported", key, t)
                     return
-                dialog_cls(self, self.dataset_ctl, key, value).open()
+                dialog_cls(self, self.dataset_ctl, key, dataset["value"]).open()
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()
