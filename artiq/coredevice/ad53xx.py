@@ -196,7 +196,7 @@ class AD53xx:
             if (ctrl & 0b10000) != 0:
                 # NAC3TODO raise ValueError("DAC over temperature")
                 pass
-            self.core.delay(125.*us)  # NAC3TODO try to restore original 25us after kernel invariants
+            self.core.delay(25.*us)
         self.bus.write(  # enable power and overtemperature shutdown
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
         if not blind:
@@ -204,7 +204,7 @@ class AD53xx:
             if (ctrl & 0b10111) != 0b00010:
                 # NAC3TODO raise ValueError("DAC CONTROL readback mismatch")
                 pass
-            self.core.delay(115.*us)  # NAC3TODO try to restore original 15us after kernel invariants
+            self.core.delay(15.*us)
 
     @kernel
     def read_reg(self, channel: int32 = 0, op: int32 = AD53XX_READ_X1A) -> int32:

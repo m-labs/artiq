@@ -108,7 +108,7 @@ class AD9912:
         if (prodid != 0x1982) and (prodid != 0x1902):
             # NAC3TODO raise ValueError("Urukul AD9912 product id mismatch")
             pass
-        self.core.delay(300. * us)  # NAC3TODO try to restore 50us after kernel invariants are implemented
+        self.core.delay(50. * us)
         # HSTL power down, CMOS power down
         self.write(AD9912_PWRCNTRL1, 0x80, 1)
         self.cpld.io_update.pulse(2. * us)
