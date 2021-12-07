@@ -54,7 +54,11 @@ Breaking changes:
 * The internal dataset representation was changed to support tracking HDF5 options like e.g.
   a compression method. This requires changes to code reading the dataset persistence file
   (``dataset_db.pyon``) and to custom applets.
-
+* Added moninj proxying support with ``aqctl_proxy_moninj`` for dashboard to connect to
+  core device for moninj indirectly:
+   - There are new fields in the core device schema, namely a new object ``moninj`` and the
+     subsequent keys ``master_addr``/``host``/``pubsub_port``/``rpc_port``. See the updated
+     JSON schema for a more detailed addition.
 
 ARTIQ-6
 -------
@@ -128,7 +132,6 @@ Breaking changes:
   ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
 * Experiment classes with underscore-prefixed names are now ignored when ``artiq_client``
   determines which experiment to submit (consistent with ``artiq_run``).
-
 
 ARTIQ-5
 -------
