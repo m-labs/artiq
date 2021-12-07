@@ -46,6 +46,30 @@ The dashboard should display the list of experiments from the repository folder 
 
 .. note:: Multiple clients may be connected at the same time, possibly on different machines, and will be synchronized. See the ``-s`` option of ``artiq_dashboard`` and the ``--bind`` option of ``artiq_master`` to use the network. Both IPv4 and IPv6 are supported.
 
+(Optional) Using a monitor/injection proxy for core device
+----------------------------------------------------------
+
+If you do not direct access to the subnet of control plane, e.g. not having symmetrical access to core device
+and master due to running in heterogeneous network architecture like one device handles all network communications by
+using NAT, or if you want to virtualize the monitor/injection controls to better handle dynamic core device transitions,
+then you could use the monitor/injection proxy after the master server was initiated: ::
+
+    $ aqctl_proxy_moninj --master-addr <master address> --port-proxy <proxy port> --bind <bind address>
+
+And add an entry of moninj to device database: ::
+
+    device_db['moninj'] = {
+        "type": "controller",
+        "host": "::1",
+        "port": "2383",
+        "master_addr": "localhost",
+        "command": "aqctl_proxy_moninj --master-addr {master_addr} --port-proxy {port} --bind {bind}"
+    }
+
+.. note:: The proxy must have direct access to both master and core device. If you still do not have direct access for both of these, consider using an advanced network solution such as VPN like `WireGuard <https://www.wireguard.com/>`_ or `ZeroTier <https://www.zerotier.com/>`_.
+
+.. note:: While the proxy could be deployed manually, it is still designated as a controller, which means running `artiq_session` would also launch the proxy with its presence. The `command` key is used by the `artiq-comtools` to setup the proxy and detects the liveness of it. You are recommended to set the `command` value correctly, otherwise you might see the proxy restarting repeatedly.
+
 Adding an argument
 ------------------
 

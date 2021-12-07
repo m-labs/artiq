@@ -12,6 +12,14 @@ Local running tool
    :ref: artiq.frontend.artiq_run.get_argparser
    :prog: artiq_run
 
+Core device monitor-injection proxy
+-----------------------------------
+
+.. argparse::
+   :ref: artiq.frontend.aqctl_proxy_moninj.get_argparser
+   :prog: aqctl_proxy_moninj
+
+
 
 Static compiler
 ---------------

@@ -57,7 +57,7 @@ Breaking changes:
 * Added moninj proxying support with ``aqctl_proxy_moninj`` for dashboard to connect to
   core device for moninj indirectly:
    - There are new fields in the core device schema, namely a new object ``moninj`` and the
-     subsequent keys ``master_addr``/``host``/``pubsub_port``/``rpc_port``. See the updated
+     subsequent keys ``master_addr``/``host``/``port.proxy``/``port.rpc``. See the updated
      JSON schema for a more detailed addition.
 
 ARTIQ-6
