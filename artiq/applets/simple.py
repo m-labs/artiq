@@ -10,6 +10,7 @@ from sipyco.sync_struct import Subscriber, process_mod
 from sipyco import pyon
 from sipyco.pipe_ipc import AsyncioChildComm
 
+from artiq.master.databases import make_dataset as empty_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -251,7 +252,7 @@ class TitleApplet(SimpleApplet):
 
     def emit_data_changed(self, data, mod_buffer):
         if self.args.title is not None:
-            title_values = {k.replace(".", "/"): data.get(k, (False, None))[1]
+            title_values = {k.replace(".", "/"): data.get(k, empty_dataset())["value"]
                             for k in self.dataset_title}
             try:
                 title = self.args.title.format(**title_values)

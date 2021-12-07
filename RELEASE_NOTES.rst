@@ -20,6 +20,8 @@ Highlights:
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
    - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
+* On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
+  the JSON hardware description file.
 * New hardware support:
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
@@ -28,6 +30,13 @@ Highlights:
   repository when building the list of experiments.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
+* DRTIO: added support for 100MHz clock.
+* Previously detected RTIO async errors are reported to the host after each kernel terminates and a
+  warning is logged. The warning is additional to the one already printed in the core device log upon
+  detection of the error.
+* HDF5 options can now be passed when creating datasets with ``set_dataset``. This allows
+  in particular to use transparent compression filters as follows:
+  ``set_dataset(name, value, hdf5_options={"compression": "gzip"})``.
 
 Breaking changes:
 
@@ -38,6 +47,11 @@ Breaking changes:
 * Phaser: fixed coarse mixer frequency configuration
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
+* DRTIO: Changed message alignment from 32-bits to 64-bits.
+* The deprecated ``set_dataset(..., save=...)`` is no longer supported.
+* The internal dataset representation was changed to support tracking HDF5 options like e.g.
+  a compression method. This requires changes to code reading the dataset persistence file
+  (``dataset_db.pyon``) and to custom applets.
 
 
 ARTIQ-6
@@ -107,8 +121,12 @@ Breaking changes:
 * ``quamash`` has been replaced with ``qasync``.
 * Protocols are updated to use device endian.
 * Analyzer dump format includes a byte for device endianness.
+* To support variable numbers of Urukul cards in the future, the
+  ``artiq.coredevice.suservo.SUServo`` constructor now accepts two device name lists,
+  ``cpld_devices`` and ``dds_devices``, rather than four individual arguments.
 * Experiment classes with underscore-prefixed names are now ignored when ``artiq_client``
   determines which experiment to submit (consistent with ``artiq_run``).
+
 
 ARTIQ-5
 -------

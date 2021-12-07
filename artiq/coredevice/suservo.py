@@ -57,32 +57,26 @@ class SUServo:
 
     :param channel: RTIO channel number
     :param pgia_device: Name of the Sampler PGIA gain setting SPI bus
-    :param cpld0_device: Name of the first Urukul CPLD SPI bus
-    :param cpld1_device: Name of the second Urukul CPLD SPI bus
-    :param dds0_device: Name of the AD9910 device for the DDS on the first
-        Urukul
-    :param dds1_device: Name of the AD9910 device for the DDS on the second
-        Urukul
+    :param cpld_devices: Names of the Urukul CPLD SPI buses
+    :param dds_devices: Names of the AD9910 devices
     :param gains: Initial value for PGIA gains shift register
         (default: 0x0000). Knowledge of this state is not transferred
         between experiments.
     :param core_device: Core device name
     """
-    kernel_invariants = {"channel", "core", "pgia", "cpld0", "cpld1",
-                         "dds0", "dds1", "ref_period_mu"}
+    kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
+                         "ref_period_mu"}
 
     def __init__(self, dmgr, channel, pgia_device,
-                 cpld0_device, cpld1_device,
-                 dds0_device, dds1_device,
+                 cpld_devices, dds_devices,
                  gains=0x0000, core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.pgia = dmgr.get(pgia_device)
         self.pgia.update_xfer_duration_mu(div=4, length=16)
-        self.dds0 = dmgr.get(dds0_device)
-        self.dds1 = dmgr.get(dds1_device)
-        self.cpld0 = dmgr.get(cpld0_device)
-        self.cpld1 = dmgr.get(cpld1_device)
+        assert len(dds_devices) == len(cpld_devices)
+        self.ddses = [dmgr.get(dds) for dds in dds_devices]
+        self.cplds = [dmgr.get(cpld) for cpld in cpld_devices]
         self.channel = channel
         self.gains = gains
         self.ref_period_mu = self.core.seconds_to_mu(
@@ -109,17 +103,15 @@ class SUServo:
             sampler.SPI_CONFIG | spi.SPI_END,
             16, 4, sampler.SPI_CS_PGIA)
 
-        self.cpld0.init(blind=True)
-        cfg0 = self.cpld0.cfg_reg
-        self.cpld0.cfg_write(cfg0 | (0xf << urukul.CFG_MASK_NU))
-        self.dds0.init(blind=True)
-        self.cpld0.cfg_write(cfg0)
+        for i in range(len(self.cplds)):
+            cpld = self.cplds[i]
+            dds = self.ddses[i]
 
-        self.cpld1.init(blind=True)
-        cfg1 = self.cpld1.cfg_reg
-        self.cpld1.cfg_write(cfg1 | (0xf << urukul.CFG_MASK_NU))
-        self.dds1.init(blind=True)
-        self.cpld1.cfg_write(cfg1)
+            cpld.init(blind=True)
+            prev_cpld_cfg = cpld.cfg_reg
+            cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+            dds.init(blind=True)
+            cpld.cfg_write(prev_cpld_cfg)
 
     @kernel
     def write(self, addr, value):
@@ -257,9 +249,11 @@ class Channel:
         self.servo = dmgr.get(servo_device)
         self.core = self.servo.core
         self.channel = channel
-        # FIXME: this assumes the mem channel is right after the control
-        # channels
-        self.servo_channel = self.channel + 8 - self.servo.channel
+        # This assumes the mem channel is right after the control channels
+        # Make sure this is always the case in eem.py
+        self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
+                              self.servo.channel)
+        self.dds = self.servo.ddses[self.servo_channel // 4]
 
     @kernel
     def set(self, en_out, en_iir=0, profile=0):
@@ -311,12 +305,8 @@ class Channel:
             see :meth:`dds_offset_to_mu`
         :param phase: DDS phase in turns
         """
-        if self.servo_channel < 4:
-            dds = self.servo.dds0
-        else:
-            dds = self.servo.dds1
-        ftw = dds.frequency_to_ftw(frequency)
-        pow_ = dds.turns_to_pow(phase)
+        ftw = self.dds.frequency_to_ftw(frequency)
+        pow_ = self.dds.turns_to_pow(phase)
         offs = self.dds_offset_to_mu(offset)
         self.set_dds_mu(profile, ftw, offs, pow_)
 
