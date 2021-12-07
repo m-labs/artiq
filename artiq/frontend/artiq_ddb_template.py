@@ -38,6 +38,13 @@ def process_header(output, description):
                 "port": 1068,
                 "command": "aqctl_corelog -p {{port}} --bind {{bind}} " + core_addr
             }},
+            "moninj": {{
+                "type": "controller",
+                "host": "::1",
+                "port": 2384,
+                "command": "aqctl_proxy_moninj --bind {{bind}} --master-addr ::1 "
+                            "--port-proxy-core-moninj-pubsub 2383 --port-proxy-core-moninj-rpc 2384"
+            }},
             "core_cache": {{
                 "type": "local",
                 "module": "artiq.coredevice.cache",

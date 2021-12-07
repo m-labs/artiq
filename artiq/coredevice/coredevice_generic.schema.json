@@ -47,6 +47,30 @@
             "description": "IPv4 address",
             "default": "192.168.1.70"
         },
+        "moninj": {
+            "type": "object",
+            "description": "Proxy settings for core device mon/inj proxy",
+            "properties": {
+                "master_addr": {
+                    "type": "string",
+                    "description": "Address of the ARTIQ master server"
+                },
+                "host": {
+                    "type": "string",
+                    "description": "Listening address of the proxy"
+                },
+                "pubsub_port": {
+                    "type": "number",
+                    "description": "Port for the pubsub/data synchronization component",
+                    "default": 2383
+                },
+                "rpc_port": {
+                    "type": "number",
+                    "description": "Port for clients (such as dashboard) to control the proxy",
+                    "default": 2384
+                }
+            }
+        },
         "vendor": {
             "type": "string",
             "description": "Board vendor"
