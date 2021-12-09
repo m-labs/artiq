@@ -337,11 +337,9 @@ class AD53xx:
 
         # t10: max busy period after writing to DAC registers
         t_10 = self.core.seconds_to_mu(1500.*ns)
-        # NAC3TODO len(values) https://git.m-labs.hk/M-Labs/nac3/issues/103
-        len_values = 4
         # compensate all delays that will be applied
-        delay_mu(-t_10-int64(len_values)*self.bus.xfer_duration_mu)
-        for i in range(len_values):
+        delay_mu(-t_10-int64(len(values))*self.bus.xfer_duration_mu)
+        for i in range(len(values)):
             self.write_dac_mu(channels[i], values[i])
         delay_mu(t_10)
         self.load()
