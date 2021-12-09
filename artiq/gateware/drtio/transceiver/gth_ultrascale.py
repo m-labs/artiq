@@ -312,7 +312,7 @@ class GTHSingle(Module):
             p_RX_BIAS_CFG0                   =0b0000101010110100,
             p_RX_BUFFER_CFG                  =0b000000,
             p_RX_CAPFF_SARC_ENB              =0b0,
-            p_RX_CLK25_DIV                   =6,
+            p_RX_CLK25_DIV                   =5,    # Applicable to 125MHz RXPLLREFCLK_DIV1 = CPLL GTREFCLK0
             p_RX_CLKMUX_EN                   =0b1,
             p_RX_CLK_SLIP_OVRD               =0b00000,
             p_RX_CM_BUF_CFG                  =0b1010,
@@ -411,7 +411,7 @@ class GTHSingle(Module):
             p_TXSYNC_MULTILANE               =0 if mode == "single" else 1,
             p_TXSYNC_OVRD                    =0b0,
             p_TXSYNC_SKIP_DA                 =0b0,
-            p_TX_CLK25_DIV                   =6,
+            p_TX_CLK25_DIV                   =5,    # Applicable to 125MHz TXPLLREFCLK_DIV1 = CPLL GTREFCLK0
             p_TX_CLKMUX_EN                   =0b1,
             p_TX_DATA_WIDTH                  =dw,
             p_TX_DCD_CFG                     =0b000010,
