@@ -240,7 +240,7 @@ class JDCGSyncDDS(Module, AutoCSR):
 
         self.sawgs = []
 
-        ftw = round(2**len(self.coarse_ts)*9e6/600e6)
+        ftw = round(2**len(self.coarse_ts)*9e6/1000e6)
         parallelism = 8
 
         mul_1 = Signal.like(self.coarse_ts)
