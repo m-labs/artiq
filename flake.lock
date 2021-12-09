@@ -3,11 +3,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1637337116,
-        "narHash": "sha256-LKqAcdL+woWeYajs02bDQ7q8rsqgXuzhC354NoRaV80=",
+        "lastModified": 1638887313,
+        "narHash": "sha256-FMYV6rVtvSIfthgC1sK1xugh3y7muoQcvduMdriz4ag=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "cbc7435f5b0b3d17b16fb1d20cf7b616eec5e093",
+        "rev": "7c1e8b1dd6ed0043fb4ee0b12b815256b0b9de6f",
         "type": "github"
       },
       "original": {
@@ -18,17 +18,17 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1637328665,
-        "narHash": "sha256-z6ufVwquLM0IiNZxd5oT1M33Lv0aB3WICpk8ZKwpxjw=",
+        "lastModified": 1638887115,
+        "narHash": "sha256-emjtIeqyJ84Eb3X7APJruTrwcfnHQKs55XGljj62prs=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "0f4b4b85d959200f52c16bbb74036994e7db5f74",
+        "rev": "1bd4bbd49bef217a3d1adea43498270d6e779d65",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
+        "ref": "nixos-21.11",
         "repo": "nixpkgs",
-        "rev": "0f4b4b85d959200f52c16bbb74036994e7db5f74",
         "type": "github"
       }
     },
@@ -80,11 +80,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1638707403,
-        "narHash": "sha256-NcGX9uS5/Gb1geUo4NEZsX5b+Eq9uWkT04iwUVQnHBg=",
+        "lastModified": 1638985025,
+        "narHash": "sha256-0Cw40IFu+DbCjrfYYlN4eleOiKkTaxO9Y90tdxfXjXQ=",
         "ref": "master",
-        "rev": "6d00d4dabb54f6944a9c97981a1d3416093a3df9",
-        "revCount": 490,
+        "rev": "4d2fd9582a61c0d12ebb83373736f2b41b0b4535",
+        "revCount": 497,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },

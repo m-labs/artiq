@@ -10,7 +10,7 @@
 
   outputs = { self, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
     let
-      pkgs = import src-nac3.nixpkgs-patched { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import src-nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
         sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";
