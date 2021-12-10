@@ -278,7 +278,7 @@ def main():
     builder_args(parser)
     soc_sayma_rtm_args(parser)
     parser.add_argument("--rtio-clk-freq",
-        default=150, type=int, help="RTIO clock frequency in MHz")
+        default=125, type=int, help="RTIO clock frequency in MHz")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))

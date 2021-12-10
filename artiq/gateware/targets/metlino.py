@@ -54,7 +54,7 @@ class Master(MiniSoC, AMPSoC):
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
-        rtio_clk_freq = 150e6
+        rtio_clk_freq = 125e6
 
         self.comb += platform.request("input_clk_sel").eq(1)
         self.comb += platform.request("filtered_clk_sel").eq(1)

@@ -34,9 +34,9 @@ fn read(addr: u16) -> u8 {
 }
 
 // ad9154 mode 1
-// linerate 5Gbps or 6Gbps
-// deviceclock_fpga 125MHz or 150MHz
-// deviceclock_dac 500MHz or 600MHz
+// linerate 10Gbps
+// deviceclock_fpga 125MHz
+// deviceclock_dac 1000MHz
 
 struct JESDSettings {
     did: u8,
@@ -87,7 +87,7 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     np: 16,
     f: 2,
     s: 2,
-    k: 16,
+    k: 32,
     cs: 0,
 
     subclassv: 1,
@@ -144,7 +144,7 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::DEVICE_CONFIG_REG_1, 0x01); // magic
     write(ad9154_reg::DEVICE_CONFIG_REG_2, 0x01); // magic
 
-    write(ad9154_reg::INTERP_MODE, 0x03); // 4x
+    write(ad9154_reg::INTERP_MODE, 0x01); // 2x
     write(ad9154_reg::MIX_MODE, 0);
     write(ad9154_reg::DATA_FORMAT, 0*ad9154_reg::BINARY_FORMAT); // s16
     write(ad9154_reg::DATAPATH_CTRL,
@@ -351,6 +351,28 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::GENERAL_JRX_CTRL_0,
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
             0*ad9154_reg::LINK_MODE | 0*ad9154_reg::CHECKSUM_MODE);
+
+    // JESD Checks
+    let jesd_checks = read(ad9154_reg::JESD_CHECKS);
+    if jesd_checks & ad9154_reg::ERR_DLYOVER == ad9154_reg::ERR_DLYOVER {
+        error!("LMFC_Delay > JESD_K Parameter")
+    }
+    if jesd_checks & ad9154_reg::ERR_WINLIMIT == ad9154_reg::ERR_WINLIMIT {
+        error!("Unsupported Window Limit")
+    }
+    if jesd_checks & ad9154_reg::ERR_JESDBAD == ad9154_reg::ERR_JESDBAD {
+        error!("Unsupported M/L/S/F Selection")
+    }
+    if jesd_checks & ad9154_reg::ERR_KUNSUPP == ad9154_reg::ERR_KUNSUPP {
+        error!("Unsupported K Values")
+    }
+    if jesd_checks & ad9154_reg::ERR_SUBCLASS == ad9154_reg::ERR_SUBCLASS {
+        error!("Unsupported SUBCLASSV Value")
+    }
+    if jesd_checks & ad9154_reg::ERR_INTSUPP == ad9154_reg::ERR_INTSUPP {
+        error!("Unsupported Interpolation Factor")
+    }
+
     info!("  ...done");
     Ok(())
 }
