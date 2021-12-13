@@ -236,7 +236,7 @@ class AD9910:
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 24,
                                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write((addr << 24) | (data << 8))
+        self.bus.write((addr << 24) | ((data & 0xffff) << 8))
 
     @kernel
     def write32(self, addr: TInt32, data: TInt32):
@@ -516,10 +516,11 @@ class AD9910:
         self.cpld.io_update.pulse(1 * us)
 
     @kernel
-    def set_mu(self, ftw: TInt32, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
+    def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
                phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0) -> TInt32:
-        """Set profile 0 data in machine units.
+               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+               ram_destination: TInt32 = -1) -> TInt32:
+        """Set DDS data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
         width is 32, the phase offset word width is 16, and the amplitude
@@ -538,7 +539,13 @@ class AD9910:
             by :meth:`set_phase_mode` for this call.
         :param ref_time_mu: Fiducial time used to compute absolute or tracking
             phase updates. In machine units as obtained by `now_mu()`.
-        :param profile: Profile number to set (0-7, default: 0).
+        :param profile: Single tone profile number to set (0-7, default: 7).
+            Ineffective if `ram_destination` is specified.
+        :param ram_destination: RAM destination (:const:`RAM_DEST_FTW`,
+            :const:`RAM_DEST_POW`, :const:`RAM_DEST_ASF`,
+            :const:`RAM_DEST_POWASF`). If specified, write free DDS parameters
+            to the ASF/FTW/POW registers instead of to the single tone profile
+            register (default behaviour, see `profile`).
         :return: Resulting phase offset word after application of phase
             tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
             subsequent calls, use this value as the "current" phase.
@@ -561,8 +568,17 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time_mu)
                 pow_ += dt * ftw * self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PROFILE0 + profile,
-                     (asf << 16) | (pow_ & 0xffff), ftw)
+        if ram_destination == -1:
+            self.write64(_AD9910_REG_PROFILE0 + profile,
+                         (asf << 16) | (pow_ & 0xffff), ftw)
+        else:
+            if not ram_destination == RAM_DEST_FTW:
+                self.set_ftw(ftw)
+            if not ram_destination == RAM_DEST_POWASF:
+                if not ram_destination == RAM_DEST_ASF:
+                    self.set_asf(asf)
+                if not ram_destination == RAM_DEST_POW:
+                    self.set_pow(pow_)
         delay_mu(int64(self.sync_data.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~7)  # clear fine TSC again
@@ -821,10 +837,11 @@ class AD9910:
         return self.pow_to_turns(self.get_pow())
 
     @kernel
-    def set(self, frequency: TFloat, phase: TFloat = 0.0,
+    def set(self, frequency: TFloat = 0.0, phase: TFloat = 0.0,
             amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0) -> TFloat:
-        """Set profile 0 data in SI units.
+            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+            ram_destination: TInt32 = -1) -> TFloat:
+        """Set DDS data in SI units.
 
         .. seealso:: :meth:`set_mu`
 
@@ -833,13 +850,14 @@ class AD9910:
         :param amplitude: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
         :param ref_time_mu: Fiducial time stamp in machine units
-        :param profile: Profile to affect
+        :param profile: Single tone profile to affect.
+        :param ram_destination: RAM destination.
         :return: Resulting phase offset in turns
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
             self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu,
-            profile))
+            profile, ram_destination))
 
     @kernel
     def get(self, profile: TInt32 = 0) -> TTuple([TFloat, TFloat, TFloat]):
