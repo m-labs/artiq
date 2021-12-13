@@ -149,20 +149,20 @@ pub mod hmc7043 {
 
     // enabled, divider, output config, is sysref
     const OUTPUT_CONFIG: [(bool, u16, u8, bool); 14] = [
-        (true,  DAC_CLK_DIV,  0x08, false),  //  0: DAC1_CLK
-        (true,  SYSREF_DIV,   0x01, true),   //  1: DAC1_SYSREF
-        (true,  DAC_CLK_DIV,  0x08, false),  //  2: DAC0_CLK
-        (true,  SYSREF_DIV,   0x01, true),   //  3: DAC0_SYSREF
-        (true,  SYSREF_DIV,   0x10, true),   //  4: AMC_FPGA_SYSREF0
-        (false, FPGA_CLK_DIV, 0x10, true),   //  5: AMC_FPGA_SYSREF1
-        (false, 0,            0x10, false),  //  6: unused
-        (true,  FPGA_CLK_DIV, 0x10, true),   //  7: RTM_FPGA_SYSREF0
-        (true,  FPGA_CLK_DIV, 0x08, false),  //  8: GTP_CLK0_IN
-        (false, 0,            0x10, false),  //  9: unused
-        (false, 0,            0x10, false),  // 10: unused
-        (false, 0,            0x08, false),  // 11: unused / uFL
-        (false, 0,            0x10, false),  // 12: unused
-        (false, FPGA_CLK_DIV, 0x10, true),   // 13: RTM_FPGA_SYSREF1
+        (true,  DAC_CLK_DIV,    0x08, false),  //  0: DAC1_CLK
+        (true,  SYSREF_DIV,     0x01, true),   //  1: DAC1_SYSREF
+        (true,  DAC_CLK_DIV,    0x08, false),  //  2: DAC0_CLK
+        (true,  SYSREF_DIV,     0x01, true),   //  3: DAC0_SYSREF
+        (true,  SYSREF_DIV,     0x10, true),   //  4: AMC_FPGA_SYSREF0
+        (false, FPGA_CLK_DIV,   0x10, true),   //  5: AMC_FPGA_SYSREF1
+        (false, 0,              0x10, false),  //  6: unused
+        (true,  FPGA_CLK_DIV,   0x10, true),   //  7: RTM_FPGA_SYSREF0
+        (true,  FPGA_CLK_DIV/2, 0x08, false),  //  8: GTP_CLK0_IN
+        (false, 0,              0x10, false),  //  9: unused
+        (false, 0,              0x10, false),  // 10: unused
+        (false, 0,              0x08, false),  // 11: unused / uFL
+        (false, 0,              0x10, false),  // 12: unused
+        (false, FPGA_CLK_DIV,   0x10, true),   // 13: RTM_FPGA_SYSREF1
     ];
 
     fn spi_setup() {
@@ -393,8 +393,6 @@ pub mod hmc7043 {
 pub fn init() -> Result<(), &'static str> {
     #[cfg(all(hmc830_ref = "125", rtio_frequency = "125.0"))]
     const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 125MHz -> 2.0GHz
-    #[cfg(all(hmc830_ref = "150", rtio_frequency = "150.0"))]
-    const DIV: (u32, u32, u32, u32) = (2, 32, 0, 1); // 150MHz -> 2.4GHz
 
     /* do not use other SPI devices before HMC830 SPI mode selection */
     hmc830::select_spi_mode();
@@ -406,7 +404,7 @@ pub fn init() -> Result<(), &'static str> {
     hmc830::check_locked()?;
 
     if hmc7043::get_id() == hmc7043::CHIP_ID {
-        error!("HMC7043 detected while in reset (board rework missing?)");
+        error!("HMC7043 detected while in reset");
     }
     hmc7043::enable();
     hmc7043::detect()?;

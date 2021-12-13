@@ -173,11 +173,11 @@ class SatelliteBase(MiniSoC):
 class JDCGSAWG(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         # Kintex Ultrascale GTH, speed grade -1C:
-        # CPLL linerate (D=1): 4.0 - 8.5 Gb/s
+        # QPLL0 linerate (D=1): 9.8 - 12.5 Gb/s
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
 
-        self.submodules.sawgs = [sawg.Channel(width=16, parallelism=4) for i in range(4)]
+        self.submodules.sawgs = [sawg.Channel(width=16, parallelism=8) for i in range(4)]
 
         for conv, ch in zip(self.jesd.core.sink.flatten(), self.sawgs):
             assert len(Cat(ch.o)) == len(conv)
@@ -187,34 +187,42 @@ class JDCGSAWG(Module, AutoCSR):
 class JDCGPattern(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
 
         self.sawgs = []
 
         ramp = Signal(4)
         self.sync.rtio += ramp.eq(ramp + 1)
 
-        samples = [[Signal(16) for i in range(4)] for j in range(4)]
+        samples = [[Signal(16) for i in range(8)] for j in range(4)]
         self.comb += [
             a.eq(Cat(b)) for a, b in zip(
                 self.jesd.core.sink.flatten(), samples)
         ]
         # ch0: 16-step ramp with big carry toggles
-        for i in range(4):
+        for i in range(8):
             self.comb += [
                 samples[0][i][-4:].eq(ramp),
                 samples[0][i][:-4].eq(0x7ff if i % 2 else 0x800)
             ]
         # ch1: 50 MHz
+        # - Formulae:
+        #                   target cosine wave frequency:    f = 50e6
+        #                         DAC sampling frequency:   fs = 1000e6
+        #       number of samples per coarse RTIO period:    P = 8
+        #       number of samples needed per wave period:    M = (1/f) / (1/fs)) = 20
+        #             number of repeating samples needed:    N = LCM(P, M) = 40
+        #    number of RTIO periods needed for repeating:    k = N/P = 5
+        #                  discretized value of the wave: y[i] = cos(i/M * 2pi)
         from math import pi, cos
-        data = [int(round(cos(i/12*2*pi)*((1 << 15) - 1)))
-                for i in range(12)]
-        k = Signal(2)
-        self.sync.rtio += If(k == 2, k.eq(0)).Else(k.eq(k + 1))
+        data = [int(round(cos(i/20*2*pi)*((1 << 15) - 1)))
+                for i in range(40)]
+        k = Signal(max=5)
+        self.sync.rtio += If(k == 4, k.eq(0)).Else(k.eq(k + 1))
         self.comb += [
             Case(k, {
-                i: [samples[1][j].eq(data[i*4 + j]) for j in range(4)]
-                for i in range(3)
+                i: [samples[1][j].eq(data[i*8 + j]) for j in range(8)]
+                for i in range(5)
             })
         ]
         # ch2: ch0, ch3: ch1
@@ -227,13 +235,13 @@ class JDCGPattern(Module, AutoCSR):
 class JDCGSyncDDS(Module, AutoCSR):
     def __init__(self, platform, sys_crg, jesd_crg, dac):
         self.submodules.jesd = jesd204_tools.UltrascaleTX(
-            platform, sys_crg, jesd_crg, dac)
+            platform, sys_crg, jesd_crg, dac, pll_type="qpll", tx_half=True)
         self.coarse_ts = Signal(32)
 
         self.sawgs = []
 
-        ftw = round(2**len(self.coarse_ts)*9e6/600e6)
-        parallelism = 4
+        ftw = round(2**len(self.coarse_ts)*9e6/1000e6)
+        parallelism = 8
 
         mul_1 = Signal.like(self.coarse_ts)
         mul_2 = Signal.like(self.coarse_ts)
@@ -271,9 +279,7 @@ class Satellite(SatelliteBase):
     DRTIO satellite with local DAC/SAWG channels, as well as TTL channels via FMC and VHDCI carrier.
     """
     def __init__(self, jdcg_type, **kwargs):
-        SatelliteBase.__init__(self, 150e6,
-            identifier_suffix="." + jdcg_type,
-            **kwargs)
+        SatelliteBase.__init__(self, identifier_suffix="." + jdcg_type, **kwargs)
 
         platform = self.platform
 
@@ -307,8 +313,7 @@ class Satellite(SatelliteBase):
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.jesd_crg = jesd204_tools.UltrascaleCRG(
-            platform, use_rtio_clock=True)
+        self.submodules.jesd_crg = jesd204_tools.UltrascaleCRG(platform)
         cls = {
             "sawg": JDCGSAWG,
             "pattern": JDCGPattern,

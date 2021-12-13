@@ -34,9 +34,9 @@ fn read(addr: u16) -> u8 {
 }
 
 // ad9154 mode 1
-// linerate 5Gbps or 6Gbps
-// deviceclock_fpga 125MHz or 150MHz
-// deviceclock_dac 500MHz or 600MHz
+// linerate 10Gbps
+// deviceclock_fpga 125MHz
+// deviceclock_dac 1000MHz
 
 struct JESDSettings {
     did: u8,
@@ -87,7 +87,7 @@ const JESD_SETTINGS: JESDSettings = JESDSettings {
     np: 16,
     f: 2,
     s: 2,
-    k: 16,
+    k: 32,
     cs: 0,
 
     subclassv: 1,
@@ -144,9 +144,7 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::DEVICE_CONFIG_REG_1, 0x01); // magic
     write(ad9154_reg::DEVICE_CONFIG_REG_2, 0x01); // magic
 
-    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
-
-    write(ad9154_reg::INTERP_MODE, 0x03); // 4x
+    write(ad9154_reg::INTERP_MODE, 0x01); // 2x
     write(ad9154_reg::MIX_MODE, 0);
     write(ad9154_reg::DATA_FORMAT, 0*ad9154_reg::BINARY_FORMAT); // s16
     write(ad9154_reg::DATAPATH_CTRL,
@@ -326,13 +324,17 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
             1*ad9154_reg::EQ_POWER_MODE);
 
     write(ad9154_reg::GENERAL_JRX_CTRL_1, 1); // subclass 1
-    write(ad9154_reg::LMFC_DELAY_0, 0);
-    write(ad9154_reg::LMFC_DELAY_1, 0);
-    write(ad9154_reg::LMFC_VAR_0, 0x0a); // receive buffer delay
-    write(ad9154_reg::LMFC_VAR_1, 0x0a);
+    // LMFCDel & LMFCVar were deduced from values of DYN_LINK_LATENCY_0
+    // gathered from repeated power-cycles; see datasheet (Rev. C) p.44
+    // "Link Delay Setup Example, Without Known Delay"
+    write(ad9154_reg::LMFC_DELAY_0, 14);
+    write(ad9154_reg::LMFC_DELAY_1, 14);
+    write(ad9154_reg::LMFC_VAR_0, 4); // receive buffer delay
+    write(ad9154_reg::LMFC_VAR_1, 4);
     write(ad9154_reg::SYNC_ERRWINDOW, 0); // +- 1/2 DAC clock
     // datasheet seems to say ENABLE and ARM should be separate steps,
     // so enable now so it can be armed in sync().
+    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
     write(ad9154_reg::SYNC_CONTROL,
         0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
         0*ad9154_reg::SYNCARM | 0*ad9154_reg::SYNCCLRSTKY);
@@ -349,6 +351,28 @@ pub fn setup(dacno: u8, linerate: u64) -> Result<(), &'static str> {
     write(ad9154_reg::GENERAL_JRX_CTRL_0,
             0x1*ad9154_reg::LINK_EN | 0*ad9154_reg::LINK_PAGE |
             0*ad9154_reg::LINK_MODE | 0*ad9154_reg::CHECKSUM_MODE);
+
+    // JESD Checks
+    let jesd_checks = read(ad9154_reg::JESD_CHECKS);
+    if jesd_checks & ad9154_reg::ERR_DLYOVER == ad9154_reg::ERR_DLYOVER {
+        error!("LMFC_Delay > JESD_K Parameter")
+    }
+    if jesd_checks & ad9154_reg::ERR_WINLIMIT == ad9154_reg::ERR_WINLIMIT {
+        error!("Unsupported Window Limit")
+    }
+    if jesd_checks & ad9154_reg::ERR_JESDBAD == ad9154_reg::ERR_JESDBAD {
+        error!("Unsupported M/L/S/F Selection")
+    }
+    if jesd_checks & ad9154_reg::ERR_KUNSUPP == ad9154_reg::ERR_KUNSUPP {
+        error!("Unsupported K Values")
+    }
+    if jesd_checks & ad9154_reg::ERR_SUBCLASS == ad9154_reg::ERR_SUBCLASS {
+        error!("Unsupported SUBCLASSV Value")
+    }
+    if jesd_checks & ad9154_reg::ERR_INTSUPP == ad9154_reg::ERR_INTSUPP {
+        error!("Unsupported Interpolation Factor")
+    }
+
     info!("  ...done");
     Ok(())
 }
@@ -529,6 +553,7 @@ pub fn stpl(dacno: u8, m: u8, s: u8) -> Result<(), &'static str> {
 pub fn sync(dacno: u8) -> Result<bool, &'static str> {
     spi_setup(dacno);
 
+    write(ad9154_reg::SPI_PAGEINDX, 0x3); // A and B dual
     write(ad9154_reg::SYNC_CONTROL,
         0x1*ad9154_reg::SYNCMODE | 1*ad9154_reg::SYNCENABLE |
         1*ad9154_reg::SYNCARM | 1*ad9154_reg::SYNCCLRSTKY);
@@ -545,5 +570,10 @@ pub fn sync(dacno: u8) -> Result<bool, &'static str> {
         return Err("no sysref edge");
     }
     let realign_occured = sync_status & ad9154_reg::SYNC_ROTATE != 0;
+    let phase_error = sync_status & ad9154_reg::SYNC_WLIM != 0;
+    if !realign_occured && phase_error {
+        // see also: SYNC_ERRWINDOW
+        warn!("  phase error window exceeded but clock did not rotate");
+    }
     Ok(realign_occured)
 }

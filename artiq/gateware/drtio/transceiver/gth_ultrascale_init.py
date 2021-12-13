@@ -18,6 +18,8 @@ class GTHInit(Module):
         self.plllock = Signal()
         self.pllreset = Signal()
         self.gtXxreset = Signal()
+        # Reset signal for programmable divider: https://www.xilinx.com/support/answers/64103.html
+        self.gtXxprogdivreset = Signal()
         self.Xxresetdone = Signal()
         self.Xxdlysreset = Signal()
         self.Xxdlysresetdone = Signal()
@@ -46,10 +48,12 @@ class GTHInit(Module):
 
         # Deglitch FSM outputs driving transceiver asynch inputs
         gtXxreset = Signal()
+        gtXxprogdivreset = Signal()
         Xxdlysreset = Signal()
         Xxuserrdy = Signal()
         self.sync += [
             self.gtXxreset.eq(gtXxreset),
+            self.gtXxprogdivreset.eq(gtXxprogdivreset),
             self.Xxdlysreset.eq(Xxdlysreset),
             self.Xxuserrdy.eq(Xxuserrdy)
         ]
@@ -80,6 +84,7 @@ class GTHInit(Module):
 
         startup_fsm.act("RESET_ALL",
             gtXxreset.eq(1),
+            gtXxprogdivreset.eq(1),
             self.pllreset.eq(1),
             pll_reset_timer.wait.eq(1),
             If(pll_reset_timer.done,

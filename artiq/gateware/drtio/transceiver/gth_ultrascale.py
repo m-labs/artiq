@@ -77,8 +77,6 @@ class GTHSingle(Module):
             p_ALIGN_PCOMMA_DET               ="FALSE",
             p_ALIGN_PCOMMA_VALUE             =0b0101111100,
             p_A_RXOSCALRESET                 =0b0,
-            p_A_RXPROGDIVRESET               =0b0,
-            p_A_TXPROGDIVRESET               =0b0,
             p_CBCC_DATA_SOURCE_SEL           ="ENCODED",
             p_CDR_SWAP_MODE_EN               =0b0,
             p_CHAN_BOND_KEEP_ALIGN           ="FALSE",
@@ -314,7 +312,7 @@ class GTHSingle(Module):
             p_RX_BIAS_CFG0                   =0b0000101010110100,
             p_RX_BUFFER_CFG                  =0b000000,
             p_RX_CAPFF_SARC_ENB              =0b0,
-            p_RX_CLK25_DIV                   =6,
+            p_RX_CLK25_DIV                   =5,    # Applicable to 125MHz RXPLLREFCLK_DIV1 = CPLL GTREFCLK0
             p_RX_CLKMUX_EN                   =0b1,
             p_RX_CLK_SLIP_OVRD               =0b00000,
             p_RX_CM_BUF_CFG                  =0b1010,
@@ -413,7 +411,7 @@ class GTHSingle(Module):
             p_TXSYNC_MULTILANE               =0 if mode == "single" else 1,
             p_TXSYNC_OVRD                    =0b0,
             p_TXSYNC_SKIP_DA                 =0b0,
-            p_TX_CLK25_DIV                   =6,
+            p_TX_CLK25_DIV                   =5,    # Applicable to 125MHz TXPLLREFCLK_DIV1 = CPLL GTREFCLK0
             p_TX_CLKMUX_EN                   =0b1,
             p_TX_DATA_WIDTH                  =dw,
             p_TX_DCD_CFG                     =0b000010,
@@ -475,6 +473,7 @@ class GTHSingle(Module):
 
             # TX Startup/Reset
             i_GTTXRESET=tx_init.gtXxreset,
+            i_TXPROGDIVRESET=tx_init.gtXxprogdivreset,
             o_TXRESETDONE=tx_init.Xxresetdone,
             i_TXDLYSRESET=tx_init.Xxdlysreset if mode != "slave" else self.txdlysreset,
             o_TXDLYSRESETDONE=tx_init.Xxdlysresetdone,
@@ -501,6 +500,7 @@ class GTHSingle(Module):
 
             # RX Startup/Reset
             i_GTRXRESET=rx_init.gtXxreset,
+            i_RXPROGDIVRESET=rx_init.gtXxprogdivreset,
             o_RXRESETDONE=rx_init.Xxresetdone,
             i_RXDLYSRESET=rx_init.Xxdlysreset,
             o_RXPHALIGNDONE=rxphaligndone,
