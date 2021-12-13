@@ -681,6 +681,8 @@ def main():
                         help="Override ROM identifier")
     parser.add_argument("--drtio100mhz", action="store_true", default=False,
                         help="DRTIO systems only - use 100MHz RTIO clock")
+    parser.add_argument("-n", "--dry-run", action="store_true",
+                        help="Perform a trail run, do not build the gateware")
     args = parser.parse_args()
 
     variant = args.variant.lower()
@@ -690,7 +692,8 @@ def main():
         raise SystemExit("Invalid variant (-V/--variant)")
 
     soc = cls(gateware_identifier_str=args.gateware_identifier_str, drtio_100mhz=args.drtio100mhz, **soc_kc705_argdict(args))
-    build_artiq_soc(soc, builder_argdict(args))
+    if not args.dry_run:
+        build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

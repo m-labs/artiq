@@ -170,10 +170,13 @@ def main():
     parser.set_defaults(output_dir="artiq_metlino")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("-n", "--dry-run", action="store_true",
+                        help="Perform a trail run, do not build the gateware")
     args = parser.parse_args()
     args.variant = "master"
     soc = Master(gateware_identifier_str=args.gateware_identifier_str, **soc_sdram_argdict(args))
-    build_artiq_soc(soc, builder_argdict(args))
+    if not args.dry_run:
+        build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

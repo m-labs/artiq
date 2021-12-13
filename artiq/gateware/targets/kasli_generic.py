@@ -147,6 +147,8 @@ def main():
                         help="JSON system description file")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("-n", "--dry-run", action="store_true",
+                        help="Perform a trail run, do not build the gateware")
     args = parser.parse_args()
     description = jsondesc.load(args.description)
 
@@ -169,7 +171,8 @@ def main():
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
-    build_artiq_soc(soc, builder_argdict(args))
+    if not args.dry_run:
+        build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

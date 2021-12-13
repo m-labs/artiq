@@ -436,6 +436,8 @@ def main():
     parser.add_argument("--with-wrpll", default=False, action="store_true")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("-n", "--dry-run", action="store_true",
+                        help="Perform a trail run, do not build the gateware")
     args = parser.parse_args()
 
     variant = args.variant.lower()
@@ -455,7 +457,8 @@ def main():
     else:
         raise SystemExit("Invalid variant (-V/--variant)")
 
-    build_artiq_soc(soc, builder_argdict(args))
+    if not args.dry_run:
+        build_artiq_soc(soc, builder_argdict(args))
 
 
 if __name__ == "__main__":

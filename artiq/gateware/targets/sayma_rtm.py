@@ -261,6 +261,8 @@ def main():
     parser.add_argument("--with-wrpll", default=False, action="store_true")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
+    parser.add_argument("-n", "--dry-run", action="store_true",
+                        help="Perform a trail run, do not build the gateware")
     parser.set_defaults(output_dir=os.path.join("artiq_sayma", "rtm"))
     args = parser.parse_args()
 
@@ -269,11 +271,13 @@ def main():
         with_wrpll=args.with_wrpll,
         gateware_identifier_str=args.gateware_identifier_str,
         **soc_sayma_rtm_argdict(args))
-    builder = SatmanSoCBuilder(soc, **builder_argdict(args))
-    try:
-        builder.build()
-    except subprocess.CalledProcessError as e:
-        raise SystemExit("Command {} failed".format(" ".join(e.cmd)))
+
+    if not args.dry_run:
+        builder = SatmanSoCBuilder(soc, **builder_argdict(args))
+        try:
+            builder.build()
+        except subprocess.CalledProcessError as e:
+            raise SystemExit("Command {} failed".format(" ".join(e.cmd)))
 
 
 if __name__ == "__main__":
