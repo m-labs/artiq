@@ -8,12 +8,11 @@ ARTIQ-7
 
 Highlights:
 
-* Support for Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
+* New hardware support:
+   - Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
+   - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotinos
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
-* WRPLL
-* Compiler:
-   - Supports kernel decorator with paths.
-   - Faster compilation for large arrays/lists.
+* Faster compilation for large arrays/lists.
 * Phaser:
    - Improved documentation
    - Expose the DAC coarse mixer and ``sif_sync``
@@ -22,8 +21,6 @@ Highlights:
 * ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912
 * On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
   the JSON hardware description file.
-* New hardware support:
-   - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotino
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
   TTL device (e.g. ``"ttl_0_counter"`` for the edge counter on TTL device``"ttl_0"``)
 * ``artiq_master`` now has an ``--experiment-subdir`` option to scan only a subdirectory of the
@@ -40,6 +37,9 @@ Highlights:
 
 Breaking changes:
 
+* Due to the new RISC-V CPU, the device database entry for the core device needs to be updated.
+  The ``target`` parameter needs to be set to ``rv32ima`` for Kasli 1.x and to ``rv32g`` for all
+  other boards. Freshly generated device database templates already contain this update.
 * Updated Phaser-Upconverter default frequency 2.875 GHz. The new default uses the target PFD
   frequency of the hardware design.
 * ``Phaser.init()`` now disables all Kasli-oscillators. This avoids full power RF output being
