@@ -5,7 +5,7 @@ device_db = {
         "type": "local",
         "module": "artiq.coredevice.core",
         "class": "Core",
-        "arguments": {"host": core_addr, "ref_period": 1/(8*150e6)}
+        "arguments": {"host": core_addr, "ref_period": 1/(8*125e6)}
     },
     "core_log": {
         "type": "controller",
@@ -69,7 +69,7 @@ device_db.update(
         "arguments": {
             "spi_device": "spi_urukul0",
             "io_update_device": "ttl_urukul0_io_update",
-            "refclk": 150e6,
+            "refclk": 125e6,
             "clk_sel": 2
         }
     }
