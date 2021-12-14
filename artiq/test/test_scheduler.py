@@ -2,7 +2,6 @@ import unittest
 import logging
 import asyncio
 import sys
-import os
 from time import time, sleep
 
 from artiq.experiment import *
@@ -87,10 +86,7 @@ class _RIDCounter:
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
-        if os.name == "nt":
-            self.loop = asyncio.ProactorEventLoop()
-        else:
-            self.loop = asyncio.new_event_loop()
+        self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_steps(self):
