@@ -1,6 +1,7 @@
 """Test internal dataset representation (persistence, applets)"""
 import unittest
 import tempfile
+import os
 
 from artiq.master.databases import DatasetDB
 from sipyco import pyon
@@ -11,11 +12,14 @@ KEY3 = "key3"
 DATA = list(range(10))
 COMP = "gzip"
 
+# tempfile.NamedTemporaryFile:
+# use delete=False and manual cleanup
+# for Windows compatibility
 
 class TestDatasetDB(unittest.TestCase):
     def setUp(self):
         # empty dataset persistance file
-        self.persist_file = tempfile.NamedTemporaryFile(mode="w+")
+        self.persist_file = tempfile.NamedTemporaryFile(mode="w+", delete=False)
         print("{}", file=self.persist_file, flush=True)
 
         self.ddb = DatasetDB(self.persist_file.name)
@@ -25,6 +29,9 @@ class TestDatasetDB(unittest.TestCase):
         self.ddb.set(KEY3, DATA, hdf5_options=dict(shuffle=True))
 
         self.save_ddb_to_disk()
+
+    def tearDown(self):
+        os.unlink(self.persist_file.name)
 
     def save_ddb_to_disk(self):
         self.ddb.save()
