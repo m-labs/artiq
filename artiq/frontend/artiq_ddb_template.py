@@ -121,6 +121,46 @@ class PeripheralManager:
                              channel=rtio_offset + next(channel))
         return next(channel)
 
+    def process_dio_spi(self, rtio_offset, peripheral):
+        channel = count(0)
+        for spi in peripheral["spi"]:
+            self.gen("""
+                        device_db["{name}"] = {{
+                            "type": "local",
+                            "module": "artiq.coredevice.spi2",
+                            "class": "SPIMaster",
+                            "arguments": {{"channel": 0x{channel:06x}}}
+                        }}""",
+                     name=self.get_name(spi.get("name", "dio_spi")),
+                     channel=rtio_offset + next(channel))
+        for ttl in peripheral.get("ttl", []):
+            ttl_class_names = {
+                "input": "TTLInOut",
+                "output": "TTLOut"
+            }
+            name = self.get_name(ttl.get("name", "ttl"))
+            self.gen("""
+                device_db["{name}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "{class_name}",
+                    "arguments": {{"channel": 0x{channel:06x}}},
+                }}""",
+                     name=name,
+                     class_name=ttl_class_names[ttl["direction"]],
+                     channel=rtio_offset + next(channel))
+            if ttl.get("edge_counter", False):
+                self.gen("""
+                    device_db["{name}_counter"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.edge_counter",
+                        "class": "EdgeCounter",
+                        "arguments": {{"channel": 0x{channel:06x}}},
+                    }}""",
+                         name=name,
+                         channel=rtio_offset + next(channel))
+        return next(channel)
+
     def process_urukul(self, rtio_offset, peripheral):
         urukul_name = self.get_name("urukul")
         synchronization = peripheral["synchronization"]
