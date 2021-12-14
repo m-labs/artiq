@@ -30,7 +30,7 @@ def process_header(output, description):
                 "type": "local",
                 "module": "artiq.coredevice.core",
                 "class": "Core",
-                "arguments": {{"host": core_addr, "ref_period": {ref_period},  "target": "{cpu_target}"}},
+                "arguments": {{"host": core_addr, "ref_period": {ref_period}, "target": "{cpu_target}"}},
             }},
             "core_log": {{
                 "type": "controller",
@@ -102,8 +102,7 @@ class PeripheralManager:
                     "module": "artiq.coredevice.ttl",
                     "class": "{class_name}",
                     "arguments": {{"channel": 0x{channel:06x}}},
-                }}
-                """,
+                }}""",
                      name=name[i],
                      class_name=classes[i // 4],
                      channel=rtio_offset + next(channel))
@@ -117,8 +116,7 @@ class PeripheralManager:
                             "module": "artiq.coredevice.edge_counter",
                             "class": "EdgeCounter",
                             "arguments": {{"channel": 0x{channel:06x}}},
-                        }}
-                        """,
+                        }}""",
                              name=name[i],
                              channel=rtio_offset + next(channel))
         return next(channel)
@@ -128,14 +126,14 @@ class PeripheralManager:
         synchronization = peripheral["synchronization"]
         channel = count(0)
         self.gen("""
-            device_db["eeprom_{name}"]={{
+            device_db["eeprom_{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.kasli_i2c",
                 "class": "KasliEEPROM",
                 "arguments": {{"port": "EEM{eem}"}}
             }}
 
-            device_db["spi_{name}"]={{
+            device_db["spi_{name}"] = {{
                 "type": "local",
                 "module": "artiq.coredevice.spi2",
                 "class": "SPIMaster",
