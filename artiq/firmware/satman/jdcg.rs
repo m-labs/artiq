@@ -410,9 +410,21 @@ pub mod jesd204sync {
     }
 
     pub fn sysref_auto_rtio_align() -> Result<(), &'static str> {
-        test_ddmtd_stability(true, 4)?;
-        test_ddmtd_stability(false, 1)?;
-        test_slip_ddmtd()?;
+        for i in 0..3 {        // Allow resetting DDMTD core 2 times at max
+            let result = {
+                test_ddmtd_stability(true, 4)?;
+                test_ddmtd_stability(false, 1)?;
+                test_slip_ddmtd()
+            };
+            if let Err(_) = result {
+                if i == 3 {
+                    error!("SYSREF test failed with too many retries");
+                    return result
+                }
+                warn!("SYSREF test failed, retrying...");
+                jdac::basic_request(0, jdac_common::DDMTD_INIT, 0)?;
+            } else { break }
+        }
 
         info!("determining SYSREF S/H limits...");
         let sysref_sh_limits = measure_sysref_sh_limits()?;

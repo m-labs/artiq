@@ -320,7 +320,8 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     },
                     jdac_common::DDMTD_SYSREF_RAW => (true, jdac_common::measure_ddmdt_phase_raw() as u8),
                     jdac_common::DDMTD_SYSREF => (true, jdac_common::measure_ddmdt_phase() as u8),
-                    _ => (false, 0)
+                    jdac_common::DDMTD_INIT => (init_ddmtd_reset_ad9154().is_ok(), 0),
+                    _ => (false, 0),
                 }
             };
             #[cfg(not(has_ad9154))]
@@ -413,6 +414,15 @@ fn hardware_tick(ts: &mut u64) {
         board_artiq::grabber::tick();
         *ts = now + 200;
     }
+}
+
+#[cfg(has_ad9154)]
+fn init_ddmtd_reset_ad9154() -> Result<(), &'static str> {
+    jdac_common::init_ddmtd()?;
+    for dacno in 0..csr::CONFIG_AD9154_COUNT {
+        board_artiq::ad9154::reset_and_detect(dacno as u8)?;
+    }
+    Ok(())
 }
 
 #[cfg(all(has_si5324, rtio_frequency = "125.0"))]
