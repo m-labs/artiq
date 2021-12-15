@@ -140,7 +140,7 @@ pub mod jdac {
 pub mod jesd204sync {
     use board_misoc::{csr, clock, config};
 
-    use super::jdac;
+    use super::{jdac, jesd};
     use super::super::jdac_common;
 
     const HMC7043_ANALOG_DELAY_RANGE: u8 = 24;
@@ -423,6 +423,8 @@ pub mod jesd204sync {
                 }
                 warn!("SYSREF test failed, retrying...");
                 jdac::basic_request(0, jdac_common::DDMTD_INIT, 0)?;
+                jesd::reset(false);
+                let _ = jdac::init();
             } else { break }
         }
 
