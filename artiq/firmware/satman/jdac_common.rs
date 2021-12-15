@@ -9,6 +9,7 @@ pub const SYNC: u8              = 0x12;
 
 pub const DDMTD_SYSREF_RAW: u8  = 0x20;
 pub const DDMTD_SYSREF: u8      = 0x21;
+pub const DDMTD_INIT: u8        = 0x22;
 
 
 fn average_2phases(a: i32, b: i32, modulo: i32) -> i32 {
