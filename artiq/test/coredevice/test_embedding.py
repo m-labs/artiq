@@ -117,6 +117,87 @@ class DefaultArgTest(ExperimentCase):
         self.assertEqual(exp.run(), 42)
 
 
+class _RPCHostRoundtripTypeTest(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self, host_callback, host_value):
+        host_callback(host_value())
+
+
+class RPCHostRoundtripTypeTest(ExperimentCase):
+    def assert_roundtrip_value_equal(self, feed_value_fn):
+        exp = self.create(_RPCHostRoundtripTypeTest)
+
+        def host_callback(value):
+            self.assertEqual(feed_value_fn(), value)
+
+        exp.run(host_callback, feed_value_fn)
+
+    def test_i32(self):
+        def i32_max() -> TInt32:
+            return (2 ** 31) - 1
+
+        def i32_min() -> TInt32:
+            return -2 ** 31
+
+        self.assert_roundtrip_value_equal(i32_max)
+        self.assert_roundtrip_value_equal(i32_min)
+
+    def test_i64(self):
+        def i64_max() -> TInt64:
+            return (2 ** 63) - 1
+
+        def i64_min() -> TInt64:
+            return -2 ** 63
+
+        self.assert_roundtrip_value_equal(i64_max)
+        self.assert_roundtrip_value_equal(i64_min)
+
+    def test_array_i32(self):
+        def i32_maxmin() -> TList(TInt32):
+            return [(2 ** 31) - 1, -2 ** 31]
+
+        self.assert_roundtrip_value_equal(i32_maxmin)
+
+    def test_array_i64(self):
+        def i64_maxmin() -> TList(TInt64):
+            return [(2 ** 63) - 1, -2 ** 63]
+
+        self.assert_roundtrip_value_equal(i64_maxmin)
+
+    def test_i32_bad(self):
+        # Notice: the constant itself is valid if casted as u32
+        def invalid_as_i32() -> TInt32:
+            return 2 ** 31
+
+        with self.assertRaises(RPCReturnValueError):
+            self.assert_roundtrip_value_equal(invalid_as_i32)
+
+    def test_i64_bad(self):
+        # Notice: the constant itself is valid if casted as u64
+        def invalid_as_i64() -> TInt64:
+            return 2 ** 63
+
+        with self.assertRaises(RPCReturnValueError):
+            self.assert_roundtrip_value_equal(invalid_as_i64)
+
+    def test_array_i32_bad(self):
+        def invalid_as_i32() -> TList(TInt32):
+            return [(2 ** 31)]
+
+        with self.assertRaises(RPCReturnValueError):
+            self.assert_roundtrip_value_equal(invalid_as_i32)
+
+    def test_array_i64_bad(self):
+        def invalid_as_i64() -> TList(TInt64):
+            return [(2 ** 63)]
+
+        with self.assertRaises(RPCReturnValueError):
+            self.assert_roundtrip_value_equal(invalid_as_i64)
+
+
 class _RPCTypes(EnvExperiment):
     def build(self):
         self.setattr_device("core")
