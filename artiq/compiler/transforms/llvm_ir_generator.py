@@ -1249,12 +1249,12 @@ class LLVMIRGenerator:
             self.engine.process(diag)
         tag += ir.rpc_tag(fun_type.ret, ret_error_handler)
 
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="rpc.stack")
+
         lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
         lltagptr = self.llbuilder.alloca(lltag.type)
         self.llbuilder.store(lltag, lltagptr)
-
-        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
-                                         name="rpc.stack")
 
         llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
                                        name="rpc.args")
