@@ -43,9 +43,8 @@ pub fn get_adresses() -> NetAddresses {
             }
             #[cfg(soc_platform = "sayma_amc")]
             {
-                let mut eui48 = [0_u8; 6];
-                mmcspi::read_eui48(&mut eui48)
-                    .expect("Failed to detect EUI48 from MMC");
+                let mut eui48 = [0x02, 0x00, 0x00, 0x00, 0x00, 0x11];
+                let _ = mmcspi::read_eui48(&mut eui48);
                 hardware_addr = EthernetAddress(eui48);
             }
             #[cfg(soc_platform = "metlino")]
