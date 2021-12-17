@@ -1,4 +1,4 @@
-use super::csr;
+use super::{csr, clock};
 
 // Sayma MMC SSP1 configuration:
 //
@@ -46,44 +46,52 @@ fn cs_n() -> bool {
     unsafe { csr::mmcspi::cs_n_in_read() == 1 }
 }
 
-fn detect_cs_n_rise() {
-    loop {
+fn detect_cs_n_rise(timeout_us: u64) -> bool {
+    let start = clock::get_us();
+    while clock::get_us() - start < timeout_us {
         if cs_n() && unsafe { !PREV_CS_N } {
             unsafe { PREV_CS_N = true; }
-            break
+            return true;
         }
     }
+    false
 }
 
-fn detect_cs_n_fall() {
-    loop {
+fn detect_cs_n_fall(timeout_us: u64) -> bool {
+    let start = clock::get_us();
+    while clock::get_us() - start < timeout_us {
         if !cs_n() && unsafe { PREV_CS_N } {
             unsafe { PREV_CS_N = false; }
-            break
+            return true;
         }
     }
+    false
 }
 
 fn clk() -> bool {
     unsafe { csr::mmcspi::clk_in_read() == 1 }
 }
 
-fn detect_clk_rise() {
-    loop {
+fn detect_clk_rise(timeout_us: u64) -> bool {
+    let start = clock::get_us();
+    while clock::get_us() - start < timeout_us {
         if clk() && unsafe { !PREV_CLK } {
             unsafe { PREV_CLK = true; }
-            break
+            return true;
         }
     }
+    false
 }
 
-fn detect_clk_fall() {
-    loop {
+fn detect_clk_fall(timeout_us: u64) -> bool {
+    let start = clock::get_us();
+    while clock::get_us() - start < timeout_us {
         if !clk() && unsafe { PREV_CLK } {
             unsafe { PREV_CLK = false; }
-            break
+            return true;
         }
     }
+    false
 }
 
 fn mosi() -> u8 {
@@ -100,7 +108,7 @@ fn read_continuous(buf: &mut [u8]) {
     }
 
     // Wait until CS_n falling edge is detected, which indicates a new transaction
-    detect_cs_n_fall();
+    if !detect_cs_n_fall(1) { return }
 
     for byte_ind in 0..buf.len() {
         // Read bits from MSB to LSB
@@ -108,13 +116,13 @@ fn read_continuous(buf: &mut [u8]) {
             // If CS_n goes high, return to indicate a complete SPI transaction
             if cs_n() { break }
             // Detect and register CLK rising edge
-            detect_clk_rise();
+            if !detect_clk_rise(1000) { return }
             // Store the MOSI state as the current bit of the current byte
             if mosi() == 1 {
                 buf[byte_ind] |= 1 << bit_ind;
             }
             // Detect and register CLK falling edge
-            detect_clk_fall();
+            if !detect_clk_fall(1000) { return }
         }
     }
 }
@@ -152,13 +160,16 @@ pub fn read_eui48(buf: &mut [u8]) -> Result<(), ()> {
     let mut spi_buf = [0_u8; 21];
     let mut is_broadcast = false;
 
-    // Loop to read a continuous byte transaction until the header correspond to the MMC broadcast format
-    while !is_broadcast {
+    // Loop 10s to read a continuous byte transaction until the header correspond to the MMC broadcast format
+    let start = clock::get_ms();
+    while !is_broadcast && clock::get_ms() - start <= 10_000 {
         // Read 21 continguous bytes in a row
         read_continuous(&mut spi_buf);
         // Check the header
         is_broadcast = is_broadcast_header(&spi_buf[0..7]);
     }
+    // Return Err(()) if no broadcast header is detected
+    if !is_broadcast { return Err(()) }
     // Truncate the header to get all data captured
     let data = &spi_buf[7..];
 
@@ -181,7 +192,7 @@ pub fn read_eui48(buf: &mut [u8]) -> Result<(), ()> {
 
     match (eui48_lo_ok, eui48_hi_ok) {
         (true, true) => Ok(()),
-        // This should never return Err()
+        // This should never return Err(), unless the broadcast format has changed
         _ => Err(()),
     }
 }
