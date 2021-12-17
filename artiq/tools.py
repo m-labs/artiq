@@ -70,9 +70,12 @@ def short_format(v):
         return r
 
 
-def file_import(filename, prefix="file_import_"):
+def file_import(filename, prefix="file_import_", repository_path=None):
     filename = pathlib.Path(filename)
     modname = prefix + filename.stem
+
+    if repository_path and (pathlib.Path(repository_path) / "__init__.py").exists():
+        sys.path.insert(0, repository_path)
 
     path = str(filename.resolve().parent)
     sys.path.insert(0, path)
