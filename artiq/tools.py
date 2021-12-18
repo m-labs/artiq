@@ -71,13 +71,17 @@ def short_format(v):
 
 
 def file_import(filename, prefix="file_import_", repository_path=None):
-    filename = pathlib.Path(filename)
+    filename = pathlib.Path(filename).resolve()
     modname = prefix + filename.stem
 
-    if repository_path and (pathlib.Path(repository_path) / "__init__.py").exists():
-        sys.path.insert(0, repository_path)
+    if repository_path:
+        repository_path = pathlib.Path(repository_path).resolve()
+        relative_file_path = filename.relative_to(repository_path)
+        modname = '.'.join(relative_file_path.parts[:-1] + (modname,))
+        path = str(repository_path)
+    else:
+        path = str(filename.parent)
 
-    path = str(filename.resolve().parent)
     sys.path.insert(0, path)
 
     try:
