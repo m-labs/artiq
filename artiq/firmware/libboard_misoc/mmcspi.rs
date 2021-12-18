@@ -24,6 +24,7 @@ static mut PREV_CLK: bool = false;      // Low when idling
 const WR_COMMAND: u8 = 0x80;
 const ADDR_HEADER: u16 = 0x0005;    // "Data Valid Byte"
 const DATA_HEADER: u32 = 0x55555555;
+const FPGA_UPDATE_RATE: u64 = 5000; // Delay interval between broadcast
 
 // Layout of MMC-to-FPGA data
 // (see openMMC modules/fpga_spi.h board_diagnostic_t)
@@ -100,15 +101,16 @@ fn mosi() -> u8 {
 
 /// Detects CS_n assertion and keeps reading until the buffer is full or CS_n is deasserted
 /// TODO: Generalise this driver for future possible changes to the MMC SPI master settings
-fn read_continuous(buf: &mut [u8]) {
+fn read_continuous(buf: &mut [u8], timeout_ms: u64) {
     // Register CS_n and CLK states
     unsafe {
-        PREV_CS_N = cs_n();
+        // Give up if CS_n has already been asserted (we're in the middle of transaction)
+        if !cs_n() { return } else { PREV_CS_N = true }
         PREV_CLK = clk();
     }
 
-    // Wait until CS_n falling edge is detected, which indicates a new transaction
-    if !detect_cs_n_fall(1) { return }
+    // Wait until timeout or CS_n falling edge is detected, which indicates a new transaction
+    if !detect_cs_n_fall(timeout_ms * 1000) { return }
 
     for byte_ind in 0..buf.len() {
         // Read bits from MSB to LSB
@@ -163,8 +165,8 @@ pub fn read_eui48(buf: &mut [u8]) -> Result<(), ()> {
     // Loop 10s to read a continuous byte transaction until the header correspond to the MMC broadcast format
     let start = clock::get_ms();
     while !is_broadcast && clock::get_ms() - start <= 10_000 {
-        // Read 21 continguous bytes in a row
-        read_continuous(&mut spi_buf);
+        // Read 21 contiguous bytes in a row, which is broadcast every 5 seconds
+        read_continuous(&mut spi_buf, FPGA_UPDATE_RATE + 100);  // +100ms margin
         // Check the header
         is_broadcast = is_broadcast_header(&spi_buf[0..7]);
     }
