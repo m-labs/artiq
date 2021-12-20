@@ -3,7 +3,7 @@
 
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
-  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; rev = "2c6601d97c111f07278b51272ffd1539847cad9f"; };
+  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; };
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
