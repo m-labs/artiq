@@ -10,7 +10,7 @@ time is an error.
 
 from numpy import int32, int64
 
-from artiq.language.core import nac3, kernel, portable, KernelInvariant
+from artiq.language.core import nac3, kernel, portable, Kernel, KernelInvariant
 from artiq.language.units import ns, us
 from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut
@@ -150,7 +150,7 @@ class AD53xx:
     div_write: KernelInvariant[int32]
     div_read: KernelInvariant[int32]
     vref: KernelInvariant[float]
-    offset_dacs: int32
+    offset_dacs: Kernel[int32]
 
     def __init__(self, dmgr, spi_device, ldac_device=None, clr_device=None,
                  chip_select=1, div_write=4, div_read=16, vref=5.,

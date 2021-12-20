@@ -9,7 +9,7 @@ time is an error.
 
 from numpy import int32, int64
 
-from artiq.language.core import nac3, KernelInvariant, kernel, portable, extern
+from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, extern
 from artiq.coredevice.core import Core
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
@@ -68,7 +68,7 @@ class SPIMaster:
     core: KernelInvariant[Core]
     ref_period_mu: KernelInvariant[int64]
     channel: KernelInvariant[int32]
-    xfer_duration_mu: int64
+    xfer_duration_mu: Kernel[int64]
 
     def __init__(self, dmgr, channel, div=0, length=0, core_device="core"):
         self.core = dmgr.get(core_device)

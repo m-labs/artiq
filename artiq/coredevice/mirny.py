@@ -1,7 +1,7 @@
 """RTIO driver for Mirny (4 channel GHz PLLs)
 """
 
-from artiq.language.core import nac3, KernelInvariant, kernel
+from artiq.language.core import nac3, Kernel, KernelInvariant, kernel
 from artiq.language.units import us
 
 from numpy import int32
@@ -51,9 +51,9 @@ class Mirny:
     core: KernelInvariant[Core]
     bus: KernelInvariant[SPIMaster]
     refclk: KernelInvariant[float]
-    clk_sel_hw_rev: list[int32]
-    hw_rev: int32
-    clk_sel: int32
+    clk_sel_hw_rev: Kernel[list[int32]]
+    hw_rev: Kernel[int32]
+    clk_sel: Kernel[int32]
 
     def __init__(self, dmgr, spi_device, refclk=100e6, clk_sel="XO", core_device="core"):
         self.core = dmgr.get(core_device)

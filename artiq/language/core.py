@@ -12,7 +12,7 @@ from artiq.language import import_cache
 
 
 __all__ = [
-    "KernelInvariant", "virtual",
+    "Kernel", "KernelInvariant", "virtual",
     "round64", "floor64", "ceil64",
     "extern", "kernel", "portable", "nac3", "rpc",
     "parallel", "sequential",
@@ -21,6 +21,9 @@ __all__ = [
 
 
 T = TypeVar('T')
+
+class Kernel(Generic[T]):
+    pass
 
 class KernelInvariant(Generic[T]):
     pass

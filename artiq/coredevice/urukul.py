@@ -1,6 +1,6 @@
 from numpy import int32, int64
 
-from artiq.language.core import nac3, KernelInvariant, kernel, portable
+from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable
 from artiq.language.units import us, ms
 
 from artiq.coredevice.core import Core
@@ -157,9 +157,9 @@ class CPLD:
     io_update: KernelInvariant[TTLOut]
     clk_div: KernelInvariant[int32]
     sync: KernelInvariant[_DummySync]
-    cfg_reg: int32
-    att_reg: int32
-    sync_div: int32
+    cfg_reg: Kernel[int32]
+    att_reg: Kernel[int32]
+    sync_div: Kernel[int32]
 
     def __init__(self, dmgr, spi_device, io_update_device=None,
                  dds_reset_device=None, sync_device=None,

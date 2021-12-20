@@ -11,7 +11,7 @@ on Mirny-style prefixed SPI buses.
 from numpy import int32, int64
 from math import floor, ceil
 
-from artiq.language.core import nac3, KernelInvariant, kernel, portable, round64
+from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable, round64
 from artiq.language.units import us, GHz, MHz
 from artiq.coredevice.core import Core
 from artiq.coredevice.mirny import Mirny
@@ -58,9 +58,9 @@ class ADF5356:
     channel: KernelInvariant[int32]
     sw: KernelInvariant[TTLOut]
     sysclk: KernelInvariant[float]
-    regs: list[int32]
-    ref_doubler: bool
-    ref_divider: bool
+    regs: Kernel[list[int32]]
+    ref_doubler: Kernel[bool]
+    ref_divider: Kernel[bool]
 
     def __init__(
         self,
