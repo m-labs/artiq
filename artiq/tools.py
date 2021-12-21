@@ -1,5 +1,6 @@
 import asyncio
-import importlib
+import importlib.util
+import importlib.machinery
 import inspect
 import logging
 import os
