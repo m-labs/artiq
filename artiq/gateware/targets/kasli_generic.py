@@ -57,7 +57,8 @@ class GenericStandalone(StandaloneBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
@@ -94,7 +95,7 @@ class GenericMaster(MasterBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
@@ -127,7 +128,7 @@ class GenericSatellite(SatelliteBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels)
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)

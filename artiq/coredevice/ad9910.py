@@ -236,7 +236,7 @@ class AD9910:
         """
         self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 24,
                                urukul.SPIT_DDS_WR, self.chip_select)
-        self.bus.write((addr << 24) | (data << 8))
+        self.bus.write((addr << 24) | ((data & 0xffff) << 8))
 
     @kernel
     def write32(self, addr: TInt32, data: TInt32):
@@ -374,18 +374,25 @@ class AD9910:
             data[(n - preload) + i] = self.bus.read()
 
     @kernel
-    def set_cfr1(self, power_down: TInt32 = 0b0000,
+    def set_cfr1(self,
+                 power_down: TInt32 = 0b0000,
                  phase_autoclear: TInt32 = 0,
-                 drg_load_lrr: TInt32 = 0, drg_autoclear: TInt32 = 0,
-                 internal_profile: TInt32 = 0, ram_destination: TInt32 = 0,
-                 ram_enable: TInt32 = 0, manual_osk_external: TInt32 = 0,
-                 osk_enable: TInt32 = 0, select_auto_osk: TInt32 = 0):
+                 drg_load_lrr: TInt32 = 0,
+                 drg_autoclear: TInt32 = 0,
+                 phase_clear: TInt32 = 0,
+                 internal_profile: TInt32 = 0,
+                 ram_destination: TInt32 = 0,
+                 ram_enable: TInt32 = 0,
+                 manual_osk_external: TInt32 = 0,
+                 osk_enable: TInt32 = 0,
+                 select_auto_osk: TInt32 = 0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
 
         :param power_down: Power down bits.
         :param phase_autoclear: Autoclear phase accumulator.
+        :param phase_clear: Asynchronous, static reset of the phase accumulator.
         :param drg_load_lrr: Load digital ramp generator LRR.
         :param drg_autoclear: Autoclear digital ramp generator.
         :param internal_profile: Internal profile control.
@@ -405,10 +412,40 @@ class AD9910:
                      (drg_load_lrr << 15) |
                      (drg_autoclear << 14) |
                      (phase_autoclear << 13) |
+                     (phase_clear << 11) |
                      (osk_enable << 9) |
                      (select_auto_osk << 8) |
                      (power_down << 4) |
                      2)  # SDIO input only, MSB first
+
+    @kernel
+    def set_cfr2(self, 
+                 asf_profile_enable: TInt32 = 1, 
+                 drg_enable: TInt32 = 0, 
+                 effective_ftw: TInt32 = 1,
+                 sync_validation_disable: TInt32 = 0, 
+                 matched_latency_enable: TInt32 = 0):
+        """Set CFR2. See the AD9910 datasheet for parameter meanings.
+
+        This method does not pulse IO_UPDATE.
+
+        :param asf_profile_enable: Enable amplitude scale from single tone profiles.
+        :param drg_enable: Digital ramp enable.
+        :param effective_ftw: Read effective FTW.
+        :param sync_validation_disable: Disable the SYNC_SMP_ERR pin indicating
+            (active high) detection of a synchronization pulse sampling error.
+        :param matched_latency_enable: Simultaneous application of amplitude,
+            phase, and frequency changes to the DDS arrive at the output
+
+            * matched_latency_enable = 0: in the order listed
+            * matched_latency_enable = 1: simultaneously.
+        """
+        self.write32(_AD9910_REG_CFR2,
+                     (asf_profile_enable << 24) |
+                     (drg_enable << 19) |
+                     (effective_ftw << 16) |
+                     (matched_latency_enable << 7) |
+                     (sync_validation_disable << 5))
 
     @kernel
     def init(self, blind: TBool = False):
@@ -442,7 +479,7 @@ class AD9910:
         # enable amplitude scale from profiles
         # read effective FTW
         # sync timing validation disable (enabled later)
-        self.write32(_AD9910_REG_CFR2, 0x01010020)
+        self.set_cfr2(sync_validation_disable=1)
         self.cpld.io_update.pulse(1 * us)
         cfr3 = (0x0807c000 | (self.pll_vco << 24) |
                 (self.pll_cp << 19) | (self.pll_en << 8) |
@@ -465,7 +502,7 @@ class AD9910:
                     if i >= 100 - 1:
                         raise ValueError("PLL lock timeout")
         delay(10 * us)  # slack
-        if self.sync_data.sync_delay_seed >= 0:
+        if self.sync_data.sync_delay_seed >= 0 and not blind:
             self.tune_sync_delay(self.sync_data.sync_delay_seed)
         delay(1 * ms)
 
@@ -479,10 +516,11 @@ class AD9910:
         self.cpld.io_update.pulse(1 * us)
 
     @kernel
-    def set_mu(self, ftw: TInt32, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
+    def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
                phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0):
-        """Set profile 0 data in machine units.
+               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+               ram_destination: TInt32 = -1) -> TInt32:
+        """Set DDS data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
         width is 32, the phase offset word width is 16, and the amplitude
@@ -501,7 +539,13 @@ class AD9910:
             by :meth:`set_phase_mode` for this call.
         :param ref_time_mu: Fiducial time used to compute absolute or tracking
             phase updates. In machine units as obtained by `now_mu()`.
-        :param profile: Profile number to set (0-7, default: 0).
+        :param profile: Single tone profile number to set (0-7, default: 7).
+            Ineffective if `ram_destination` is specified.
+        :param ram_destination: RAM destination (:const:`RAM_DEST_FTW`,
+            :const:`RAM_DEST_POW`, :const:`RAM_DEST_ASF`,
+            :const:`RAM_DEST_POWASF`). If specified, write free DDS parameters
+            to the ASF/FTW/POW registers instead of to the single tone profile
+            register (default behaviour, see `profile`).
         :return: Resulting phase offset word after application of phase
             tracking offset. When using :const:`PHASE_MODE_CONTINUOUS` in
             subsequent calls, use this value as the "current" phase.
@@ -524,8 +568,17 @@ class AD9910:
                 # is equivalent to an output pipeline latency.
                 dt = int32(now_mu()) - int32(ref_time_mu)
                 pow_ += dt * ftw * self.sysclk_per_mu >> 16
-        self.write64(_AD9910_REG_PROFILE0 + profile,
-                     (asf << 16) | (pow_ & 0xffff), ftw)
+        if ram_destination == -1:
+            self.write64(_AD9910_REG_PROFILE0 + profile,
+                         (asf << 16) | (pow_ & 0xffff), ftw)
+        else:
+            if not ram_destination == RAM_DEST_FTW:
+                self.set_ftw(ftw)
+            if not ram_destination == RAM_DEST_POWASF:
+                if not ram_destination == RAM_DEST_ASF:
+                    self.set_asf(asf)
+                if not ram_destination == RAM_DEST_POW:
+                    self.set_pow(pow_)
         delay_mu(int64(self.sync_data.io_update_delay))
         self.cpld.io_update.pulse_mu(8)  # assumes 8 mu > t_SYN_CCLK
         at_mu(now_mu() & ~7)  # clear fine TSC again
@@ -784,10 +837,11 @@ class AD9910:
         return self.pow_to_turns(self.get_pow())
 
     @kernel
-    def set(self, frequency: TFloat, phase: TFloat = 0.0,
+    def set(self, frequency: TFloat = 0.0, phase: TFloat = 0.0,
             amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 0):
-        """Set profile 0 data in SI units.
+            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+            ram_destination: TInt32 = -1) -> TFloat:
+        """Set DDS data in SI units.
 
         .. seealso:: :meth:`set_mu`
 
@@ -796,13 +850,14 @@ class AD9910:
         :param amplitude: Amplitude in units of full scale
         :param phase_mode: Phase mode constant
         :param ref_time_mu: Fiducial time stamp in machine units
-        :param profile: Profile to affect
+        :param profile: Single tone profile to affect.
+        :param ram_destination: RAM destination.
         :return: Resulting phase offset in turns
         """
         return self.pow_to_turns(self.set_mu(
             self.frequency_to_ftw(frequency), self.turns_to_pow(phase),
             self.amplitude_to_asf(amplitude), phase_mode, ref_time_mu,
-            profile))
+            profile, ram_destination))
 
     @kernel
     def get(self, profile: TInt32 = 0) -> TTuple([TFloat, TFloat, TFloat]):
@@ -875,20 +930,26 @@ class AD9910:
         self.cpld.cfg_sw(self.chip_select - 4, state)
 
     @kernel
-    def set_sync(self, in_delay: TInt32, window: TInt32):
+    def set_sync(self, 
+                 in_delay: TInt32, 
+                 window: TInt32, 
+                 en_sync_gen: TInt32 = 0):
         """Set the relevant parameters in the multi device synchronization
         register. See the AD9910 datasheet for details. The SYNC clock
         generator preset value is set to zero, and the SYNC_OUT generator is
-        disabled.
+        disabled by default.
 
         :param in_delay: SYNC_IN delay tap (0-31) in steps of ~75ps
         :param window: Symmetric SYNC_IN validation window (0-15) in
             steps of ~75ps for both hold and setup margin.
+        :param en_sync_gen: Whether to enable the DDS-internal sync generator
+            (SYNC_OUT, cf. sync_sel == 1). Should be left off for the normal
+            use case, where the SYNC clock is supplied by the core device.
         """
         self.write32(_AD9910_REG_SYNC,
                      (window << 28) |  # SYNC S/H validation delay
                      (1 << 27) |  # SYNC receiver enable
-                     (0 << 26) |  # SYNC generator disable
+                     (en_sync_gen << 26) |  # SYNC generator enable
                      (0 << 25) |  # SYNC generator SYS rising edge
                      (0 << 18) |  # SYNC preset
                      (0 << 11) |  # SYNC output delay
@@ -904,9 +965,10 @@ class AD9910:
 
         Also modifies CFR2.
         """
-        self.write32(_AD9910_REG_CFR2, 0x01010020)  # clear SMP_ERR
+        self.set_cfr2(sync_validation_disable=1)  # clear SMP_ERR
         self.cpld.io_update.pulse(1 * us)
-        self.write32(_AD9910_REG_CFR2, 0x01010000)  # enable SMP_ERR
+        delay(10 * us)  # slack
+        self.set_cfr2(sync_validation_disable=0)  # enable SMP_ERR
         self.cpld.io_update.pulse(1 * us)
 
     @kernel
@@ -984,7 +1046,7 @@ class AD9910:
         # set up DRG
         self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
         # DRG -> FTW, DRG enable
-        self.write32(_AD9910_REG_CFR2, 0x01090000)
+        self.set_cfr2(drg_enable=1)
         # no limits
         self.write64(_AD9910_REG_RAMP_LIMIT, -1, 0)
         # DRCTL=0, dt=1 t_SYNC_CLK
@@ -1005,7 +1067,7 @@ class AD9910:
         ftw = self.read32(_AD9910_REG_FTW)  # read out effective FTW
         delay(100 * us)  # slack
         # disable DRG
-        self.write32(_AD9910_REG_CFR2, 0x01010000)
+        self.set_cfr2(drg_enable=0)
         self.cpld.io_update.pulse_mu(8)
         return ftw & 1
 

@@ -64,6 +64,13 @@
             "type": "boolean",
             "default": false
         },
+        "sed_lanes": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 32,
+            "default": 8,
+            "description": "Number of FIFOs in the SED, must be a power of 2"
+        },
         "peripherals": {
             "type": "array",
             "items": {

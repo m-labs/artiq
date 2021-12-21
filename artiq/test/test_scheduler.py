@@ -2,11 +2,11 @@ import unittest
 import logging
 import asyncio
 import sys
-import os
 from time import time, sleep
 
 from artiq.experiment import *
 from artiq.master.scheduler import Scheduler
+from artiq.master.databases import make_dataset
 
 
 class EmptyExperiment(EnvExperiment):
@@ -86,10 +86,7 @@ class _RIDCounter:
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
-        if os.name == "nt":
-            self.loop = asyncio.ProactorEventLoop()
-        else:
-            self.loop = asyncio.new_event_loop()
+        self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_steps(self):
@@ -291,8 +288,13 @@ class SchedulerCase(unittest.TestCase):
             nonlocal termination_ok
             self.assertEqual(
                 mod,
-                {"action": "setitem", "key": "termination_ok",
-                 "value": (False, True), "path": []})
+                {
+                    "action": "setitem",
+                    "key": "termination_ok",
+                    "value": make_dataset(value=True),
+                    "path": []
+                }
+            )
             termination_ok = True
         handlers = {
             "update_dataset": check_termination

@@ -3,6 +3,9 @@
 import copy
 import unittest
 
+import h5py
+import numpy as np
+
 from sipyco.sync_struct import process_mod
 
 from artiq.experiment import EnvExperiment
@@ -14,7 +17,7 @@ class MockDatasetDB:
         self.data = dict()
 
     def get(self, key):
-        return self.data[key][1]
+        return self.data[key]["value"]
 
     def update(self, mod):
         # Copy mod before applying to avoid sharing references to objects
@@ -82,9 +85,9 @@ class ExperimentDatasetCase(unittest.TestCase):
     def test_append_broadcast(self):
         self.exp.set(KEY, [], broadcast=True)
         self.exp.append(KEY, 0)
-        self.assertEqual(self.dataset_db.data[KEY][1], [0])
+        self.assertEqual(self.dataset_db.data[KEY]["value"], [0])
         self.exp.append(KEY, 1)
-        self.assertEqual(self.dataset_db.data[KEY][1], [0, 1])
+        self.assertEqual(self.dataset_db.data[KEY]["value"], [0, 1])
 
     def test_append_array(self):
         for broadcast in (True, False):
@@ -103,3 +106,44 @@ class ExperimentDatasetCase(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.exp.append(KEY, 0)
 
+    def test_write_hdf5_options(self):
+        data = np.random.randint(0, 1024, 1024)
+        self.exp.set(
+            KEY,
+            data,
+            hdf5_options=dict(
+                compression="gzip",
+                compression_opts=6,
+                shuffle=True,
+                fletcher32=True
+            ),
+        )
+
+        with h5py.File("test.h5", "a", "core", backing_store=False) as f:
+            self.dataset_mgr.write_hdf5(f)
+
+            self.assertTrue(np.array_equal(f["datasets"][KEY][()], data))
+            self.assertEqual(f["datasets"][KEY].compression, "gzip")
+            self.assertEqual(f["datasets"][KEY].compression_opts, 6)
+            self.assertTrue(f["datasets"][KEY].shuffle)
+            self.assertTrue(f["datasets"][KEY].fletcher32)
+
+    def test_write_hdf5_no_options(self):
+        data = np.random.randint(0, 1024, 1024)
+        self.exp.set(KEY, data)
+
+        with h5py.File("test.h5", "a", "core", backing_store=False) as f:
+            self.dataset_mgr.write_hdf5(f)
+            self.assertTrue(np.array_equal(f["datasets"][KEY][()], data))
+            self.assertIsNone(f["datasets"][KEY].compression)
+
+    def test_write_hdf5_invalid_type(self):
+        class CustomType:
+            def __init__(self, x):
+                self.x = x
+
+        self.exp.set(KEY, CustomType(42))
+
+        with h5py.File("test.h5", "w", "core", backing_store=False) as f:
+            with self.assertRaisesRegex(TypeError, "CustomType"):
+                self.dataset_mgr.write_hdf5(f)

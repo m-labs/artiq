@@ -326,6 +326,14 @@ pub mod drtio {
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
 }
 
+static mut SEEN_ASYNC_ERRORS: u8 = 0;
+
+pub unsafe fn get_async_errors() -> u8 {
+    let mut errors = SEEN_ASYNC_ERRORS;
+    SEEN_ASYNC_ERRORS = 0;
+    errors
+}
+
 fn async_error_thread(io: Io) {
     loop {
         unsafe {
@@ -343,6 +351,7 @@ fn async_error_thread(io: Io) {
                 error!("RTIO sequence error involving channel {}",
                        csr::rtio_core::sequence_error_channel_read());
             }
+            SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);
         }
     }

@@ -156,7 +156,7 @@ class AD9912:
         return self.cpld.get_channel_att(self.chip_select - 4)
 
     @kernel
-    def set_mu(self, ftw: TInt64, pow_: TInt32):
+    def set_mu(self, ftw: TInt64, pow_: TInt32 = 0):
         """Set profile 0 data in machine units.
 
         After the SPI transfer, the shared IO update pin is pulsed to

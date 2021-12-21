@@ -1,5 +1,6 @@
 import asyncio
 import importlib.util
+import importlib.machinery
 import inspect
 import logging
 import os
@@ -78,7 +79,10 @@ def file_import(filename, prefix="file_import_"):
     sys.path.insert(0, path)
 
     try:
-        spec = importlib.util.spec_from_file_location(modname, filename)
+        spec = importlib.util.spec_from_loader(
+            modname,
+            importlib.machinery.SourceFileLoader(modname, str(filename)),
+        )
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
     finally:

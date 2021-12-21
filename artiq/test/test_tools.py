@@ -1,7 +1,8 @@
 from contextlib import contextmanager
-import unittest
+import importlib
 from pathlib import Path
 import tempfile
+import unittest
 
 from artiq import tools
 
@@ -10,13 +11,13 @@ from artiq import tools
 # Very simplified version of CPython's
 # Lib/test/test_importlib/util.py:create_modules
 @contextmanager
-def create_modules(*names):
+def create_modules(*names, extension=".py"):
     mapping = {}
     with tempfile.TemporaryDirectory() as temp_dir:
         mapping[".root"] = Path(temp_dir)
 
         for name in names:
-            file_path = Path(temp_dir) / f"{name}.py"
+            file_path = Path(temp_dir) / f"{name}{extension}"
             with file_path.open("w") as fp:
                 print(f"_MODULE_NAME = {name!r}", file=fp)
             mapping[name] = file_path
@@ -44,6 +45,13 @@ class TestFileImport(unittest.TestCase):
             mod2 = tools.file_import(str(mods[m2_name]))
 
             self.assertEqual(mod2._M1_NAME, mod1._MODULE_NAME)
+
+    def test_can_import_not_in_source_suffixes(self):
+        for extension in ["", ".something"]:
+            self.assertNotIn(extension, importlib.machinery.SOURCE_SUFFIXES)
+            with create_modules(MODNAME, extension=extension) as mods:
+                mod = tools.file_import(str(mods[MODNAME]))
+                self.assertEqual(Path(mod.__file__).name, f"{MODNAME}{extension}")
 
 
 class TestGetExperiment(unittest.TestCase):
