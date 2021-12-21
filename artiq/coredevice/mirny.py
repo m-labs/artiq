@@ -32,16 +32,8 @@ WE = 1 << 24
 PROTO_REV_MATCH = 0x0
 
 # almazny mezzio pin map
-ALMAZNY_SER_MOSI = 0x01
-ALMAZNY_SER_CLK = 0x02
-ALMAZNY_REG_LATCH_BASE = 0x04
-
-ALMAZNY_OUTPUT_ENABLE = 0x40
-
-# mirny/almazny mezz io reg address
-ALMAZNY_MEZZIO_REG = 0x03
-
-ALMAZNY_OE_MASK = 0xFF00
+ALMAZNY_REG_BASE = 0x0C
+ALMAZNY_OE_SHIFT = 11
 
 
 class Mirny:
@@ -164,13 +156,12 @@ class Almazny:
     def __init__(self, dmgr, host_mirny):
         self.mirny = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
-        self.rf_switches = [0] * 4
         self.output_enable = False
 
     @kernel
     def init(self):
         self.output_enable = False
-        self._send_mezz_data(0)  # reset everything
+        self.output_toggle(self.output_toggle)
 
     @kernel
     def att_to_mu(self, att):
@@ -196,6 +187,21 @@ class Almazny:
         return att_mu / 2
 
     @kernel
+    def set_att(self, channel, att):
+        """
+        Sets attenuators on chosen shift register (channel).
+        :param channel - index of the register [0-3]
+        :param att_mu - attenuation setting in dBm [0-31.5]
+        """
+        if not 3 >= channel >= 0:
+            raise ValueError("channel must be 0, 1, 2 or 3")
+        if not 31.5 >= att >= 0:
+            raise ValueError("Invalid Almazny attenuator setting")
+
+        self.att_mu[channel] = self.att_to_mu(att)
+        self._update_register(channel)
+
+    @kernel
     def set_att_mu(self, channel, att_mu):
         """
         Sets attenuators on chosen shift register (channel).
@@ -211,71 +217,20 @@ class Almazny:
         self._update_register(channel)
 
     @kernel
-    def cfg_sw(self, channel, rf_on):
-        """
-        Toggles RF switch on or off.
-        :param channel - index of the channel [0-3]
-        :param rf_on - RF output on (bool)
-        """
-        if not 3 >= channel >= 0:
-            raise ValueError("channel must be 0, 1, 2 or 3")
-        self.rf_switches[channel] = 1 if rf_on else 0
-        self._update_register(channel)
-
-    @kernel
-    def cfg_sw_all(self, rf_on):
-        """
-        Toggles all RF switches on or off.
-        :param rf_on - RF output on (bool)
-        """
-        for i in range(4):
-            self.rf_switches[i] = 1 if rf_on else 0
-        self._update_all_registers()
-
-    @kernel
     def output_toggle(self, oe):
         """
         Toggles output on all shift registers on or off.
         :param oe - toggle output enable (bool)
         """
         self.output_enable = oe
-        self._send_mezz_data(0)
-
-    @kernel
-    def _cycle(self, data):
-        """
-        one cycle for inputting register data
-        """
-        self._send_mezz_data(data)  # clk = 0
-        self._send_mezz_data(ALMAZNY_SER_CLK | data)
-
-    @kernel
-    def _latch(self, ch):
-        self._send_mezz_data(ALMAZNY_SER_CLK |
-                             ALMAZNY_REG_LATCH_BASE << ch)
-        self._send_mezz_data(0)  # reset latch
+        cfg_reg = self.host_mirny.read_reg(1)
+        self.host_mirny.write_reg(1, (cfg_reg & ((int(oe) << ALMAZNY_OE_SHIFT) | 0x3FF)))
 
     @kernel
     def _update_register(self, ch):
-        self._send_mezz_data(0)  # reset all latches
-        self._cycle(0)  # initial 0 (unused value)
-        self._cycle(self.rf_switches[ch])
-        for i in range(6):  # data
-            self._cycle((self.att_mu[ch] >> i) & 0x01)
-        self._latch(ch)
+        self.host_mirny.write_reg(ALMAZNY_REG_BASE + ch, self.att_mu[ch])
 
     @kernel
     def _update_all_registers(self):
         for i in range(4):
             self._update_register(i)
-
-    @kernel
-    def _send_mezz_data(self, data):
-        """
-        Sends the raw data to the mezzanine board.
-        :param data - data to send over
-        """
-        mask = ALMAZNY_OE_MASK | (ALMAZNY_OUTPUT_ENABLE if self.output_enable else 0)
-        self.mirny.write_reg(ALMAZNY_MEZZIO_REG, mask | data)
-        # delay to ensure the data has been read by the SR
-        delay(1*us)

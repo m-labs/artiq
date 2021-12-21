@@ -359,34 +359,23 @@ class SinaraTester(EnvExperiment):
     def init_almazny(self, almazny):
         self.core.break_realtime()
         almazny.init()
+        almazny.output_toggle(True)
 
     @kernel
     def almazny_set_attenuators(self, almazny, ch, atts):
         self.core.break_realtime()
         almazny.set_att_mu(ch, atts)
-        almazny.cfg_sw(ch, True)
 
     @kernel
     def almazny_set_attenuators_db(self, almazny, ch, atts):
         self.core.break_realtime()
         mu = almazny.att_to_mu(atts)
         almazny.set_att_mu(ch, mu)
-        almazny.cfg_sw(ch, True)
     
     @kernel
-    def almazny_toggle_all_rf(self, almazny, rf_on):
+    def almazny_toggle_output(self, almazny, rf_on):
         self.core.break_realtime()
-        almazny.cfg_sw_all(rf_on)
-
-    @kernel
-    def almazny_toggle_rf(self, almazny, ch, on):
-        self.core.break_realtime()
-        almazny.cfg_sw(ch, on)
-
-    @kernel
-    def almazny_toggle_output(self, almazny, oe):
-        self.core.break_realtime()
-        almazny.output_toggle(oe)
+        almazny.output_toggle(rf_on)
 
     def test_almaznys(self):
         print("*** Testing Almaznys.")
@@ -400,13 +389,6 @@ class SinaraTester(EnvExperiment):
                     print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
-            print("RF OFF, but SR outputs are ON. Press ENTER when done.")
-            self.almazny_toggle_output(almazny, True)
-            self.almazny_toggle_output(almazny, False)
-            self.almazny_toggle_output(almazny, True)
-            for i in range(4):
-                self.almazny_toggle_rf(almazny, i, False)
-            input()
             print("RF ON, all attenuators ON. Press ENTER when done.")
             for i in range(4):
                 self.almazny_set_attenuators(almazny, i, 63)
@@ -426,10 +408,9 @@ class SinaraTester(EnvExperiment):
             for i in range(4):
                 self.almazny_set_attenuators_db(almazny, i, 31)
             self.almazny_toggle_output(almazny, True)
-            self.almazny_toggle_all_rf(almazny, True)
             input()
             print("RF OFF. Press ENTER when done.")
-            self.almazny_toggle_all_rf(almazny, False)
+            self.almazny_toggle_output(almazny, False)
             input()
 
     def test_mirnies(self):
