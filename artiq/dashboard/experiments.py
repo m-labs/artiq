@@ -741,8 +741,8 @@ class ExperimentManager:
             file, use_repository, revision)
         return description[class_name]
 
-    async def open_file(self, file):
-        description = await self.experiment_db_ctl.examine(file, False)
+    async def open_file(self, file, wd=None):
+        description = await self.experiment_db_ctl.examine(file, use_repository=False, wd=wd)
         for class_name, class_desc in description.items():
             expurl = "file:{}@{}".format(class_name, file)
             self.initialize_submission_arguments(expurl, class_desc["arginfo"])

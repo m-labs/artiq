@@ -128,8 +128,7 @@ class ExperimentDB:
         asyncio.ensure_future(
             exc_to_warning(self.scan_repository(new_cur_rev)))
 
-    async def examine(self, filename, use_repository=True, revision=None):
-        wd = None  # todo: else: wd = os.path.base(filename) to allow relative imports even with out-of-repo exps?
+    async def examine(self, filename, use_repository=True, revision=None, wd=None):
         if use_repository:
             if revision is None:
                 revision = self.cur_rev
