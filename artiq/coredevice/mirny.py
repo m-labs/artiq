@@ -154,14 +154,14 @@ class Almazny:
     """
 
     def __init__(self, dmgr, host_mirny):
-        self.mirny = dmgr.get(host_mirny)
+        self.mirny_cpld = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
         self.output_enable = False
 
     @kernel
     def init(self):
         self.output_enable = False
-        self.output_toggle(self.output_toggle)
+        self.output_toggle(self.output_enable)
 
     @kernel
     def att_to_mu(self, att):
@@ -223,12 +223,15 @@ class Almazny:
         :param oe - toggle output enable (bool)
         """
         self.output_enable = oe
-        cfg_reg = self.host_mirny.read_reg(1)
-        self.host_mirny.write_reg(1, (cfg_reg & ((int(oe) << ALMAZNY_OE_SHIFT) | 0x3FF)))
+        cfg_reg = self.mirny_cpld.read_reg(1)
+        en = 1 if self.output_enable else 0
+        delay(100 * us)
+        self.mirny_cpld.write_reg(1, (en << ALMAZNY_OE_SHIFT) | (cfg_reg & 0x400))
+        delay(100 * us)
 
     @kernel
     def _update_register(self, ch):
-        self.host_mirny.write_reg(ALMAZNY_REG_BASE + ch, self.att_mu[ch])
+        self.mirny_cpld.write_reg(ALMAZNY_REG_BASE + ch, self.att_mu[ch])
 
     @kernel
     def _update_all_registers(self):
