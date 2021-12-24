@@ -36,10 +36,10 @@ class _OpenFileDialog(QtWidgets.QDialog):
         grid.addWidget(self.file_list, 1, 0, 1, 2)
         self.file_list.doubleClicked.connect(self.accept)
 
-        wd_label = QtWidgets.QLabel("\"Repository\" directory:")
-        grid.addWidget(wd_label, 2, 0, 1, 2)
-        self.working_dir = QtWidgets.QLineEdit(self.location_label.text())
-        grid.addWidget(self.working_dir, 3, 0, 1, 2)
+        repo_dir_label = QtWidgets.QLabel("\"Repository\" directory:")
+        grid.addWidget(repo_dir_label, 2, 0, 1, 2)
+        self.repo_dir = QtWidgets.QLineEdit(self.location_label.text())
+        grid.addWidget(self.repo_dir, 3, 0, 1, 2)
         # todo: validator to make sure wd is parent of file
         #  or just completely different interface for choosing wd
 
@@ -56,7 +56,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
         else:
             self.location_label.setText(self.explorer.current_directory)
 
-        self.working_dir.setText(self.location_label.text())
+        self.repo_dir.setText(self.location_label.text())
 
         item = QtWidgets.QListWidgetItem()
         item.setText("..")
@@ -114,7 +114,7 @@ class _OpenFileDialog(QtWidgets.QDialog):
                 file = self.explorer.current_directory + selected
                 async def open_task():
                     try:
-                        await self.exp_manager.open_file(file, self.working_dir.text())
+                        await self.exp_manager.open_file(file, self.repo_dir.text())
                     except:
                         logger.error("Failed to open file '%s'",
                                      file, exc_info=True)

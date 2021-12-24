@@ -639,7 +639,7 @@ class ExperimentManager:
             arguments = self.initialize_submission_arguments(expurl, arginfo)
             return arguments
 
-    def open_experiment(self, expurl):
+    def open_experiment(self, expurl, repo_dir=None):
         if expurl in self.open_experiments:
             dock = self.open_experiments[expurl]
             if dock.isMinimized():
@@ -741,14 +741,14 @@ class ExperimentManager:
             file, use_repository, revision)
         return description[class_name]
 
-    async def open_file(self, file, wd=None):
-        description = await self.experiment_db_ctl.examine(file, use_repository=False, wd=wd)
+    async def open_file(self, file, repo_dir):
+        description = await self.experiment_db_ctl.examine(file, use_repository=False, wd=repo_dir)
         for class_name, class_desc in description.items():
             expurl = "file:{}@{}".format(class_name, file)
             self.initialize_submission_arguments(expurl, class_desc["arginfo"])
             if expurl in self.open_experiments:
                 self.open_experiments[expurl].close()
-            self.open_experiment(expurl)
+            self.open_experiment(expurl, repo_dir=repo_dir)
 
     def save_state(self):
         for expurl, dock in self.open_experiments.items():
