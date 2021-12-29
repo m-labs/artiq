@@ -42,8 +42,7 @@ def process_header(output, description):
                 "type": "controller",
                 "host": "::1",
                 "port": 2384,
-                "command": "aqctl_proxy_moninj --bind {{bind}} --master-addr ::1 "
-                            "--port-proxy-core-moninj-pubsub 2383 --port-proxy-core-moninj-rpc 2384"
+                "command": "aqctl_proxy_moninj --bind {{bind}} --master-addr ::1 --port-proxy 2383 --port-rpc 2384"
             }},
             "core_cache": {{
                 "type": "local",

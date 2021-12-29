@@ -59,15 +59,21 @@
                     "type": "string",
                     "description": "Listening address of the proxy"
                 },
-                "pubsub_port": {
-                    "type": "number",
-                    "description": "Port for the pubsub/data synchronization component",
-                    "default": 2383
-                },
-                "rpc_port": {
-                    "type": "number",
-                    "description": "Port for clients (such as dashboard) to control the proxy",
-                    "default": 2384
+                "port": {
+                    "type": "object",
+                    "description": "Listening ports of the proxy",
+                    "properties": {
+                        "proxy": {
+                            "type": "number",
+                            "description": "Port for the proxy service",
+                            "default": 2383
+                        },
+                        "rpc": {
+                            "type": "number",
+                            "description": "Port for heartbeat detection",
+                            "default": 2384
+                        }
+                    }
                 }
             }
         },

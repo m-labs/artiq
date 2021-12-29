@@ -4,11 +4,13 @@ import argparse
 import asyncio
 import atexit
 import logging
+import struct
+from collections import defaultdict
 
 from sipyco import common_args
-from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.asyncio_tools import atexit_register_coroutine, AsyncioServer
 from sipyco.pc_rpc import Server as RPCServer
-from sipyco.sync_struct import Publisher, Notifier, Subscriber
+from sipyco.sync_struct import Subscriber
 
 from artiq import __version__ as artiq_version
 from artiq.coredevice.comm_moninj import CommMonInj
@@ -17,100 +19,105 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class Connectable:
+class _Client:
+    def __init__(self, reader, writer):
+        self.probe = set()
+        self.injection = set()
+        self.reader = reader
+        self.writer = writer
+
+    async def read_format(self, fmt):
+        return struct.unpack(fmt, await self.reader.readexactly(struct.calcsize(fmt)))
+
+
+class _MonitoredFieldInfo:
     def __init__(self):
-        self.connected_event = asyncio.Event()
-
-    async def connect(self, addr, port): raise NotImplementedError
-
-    async def disconnect(self): raise NotImplementedError
-
-    async def on_connected(self):
-        self.connected_event.set()
-
-    async def on_disconnected(self):
-        self.connected_event.clear()
-
-    @property
-    def connected(self):
-        return self.connected_event.is_set()
+        self.refs = 0
+        self.value = None
 
 
-class MonInjCoredev(Connectable):
-    def __init__(self, supervisor):
-        super().__init__()
-        self._supervisor = supervisor
+class _MonitoredField:
+    def __init__(self):
+        self.probe = defaultdict(_MonitoredFieldInfo)
+        self.injection = defaultdict(_MonitoredFieldInfo)
+
+
+class MonInjCoredev:
+    def __init__(self, proxy):
+        self.proxy = proxy
         self.comm = None
-        self.init_comm()
-
-    def init_comm(self):
-        self.comm = CommMonInj(self.on_monitor, self.on_injection_status, self.on_disconnected)
+        self._connected = False
 
     async def connect(self, addr, port):
         try:
             logging.info(f"trying to connect to coredev at {addr}:{port}")
-            self.init_comm()
-            await self.comm.connect(addr, port)
+            comm = CommMonInj(self.on_monitor, self.on_injection_status, self.on_disconnected)
+            await comm.connect(addr, port)
         except asyncio.CancelledError:
             raise
         except:
             logger.error("failed to connect to core device moninj", exc_info=True)
             await asyncio.sleep(10.)
         else:
+            self.comm = comm
             await self.on_connected()
 
     async def disconnect(self):
         if self.connected:
             await self.comm.close()
+            self.comm = None
 
     @property
     def connected(self):
-        return super().connected and hasattr(self.comm, "_writer")
+        return self._connected and hasattr(self.comm, "_writer")
+
+    @connected.setter
+    def connected(self, value):
+        self._connected = value
 
     # Callbacks
     async def on_connected(self):
-        if self.connected:
-            return
-
-        await super().on_connected()
-        logging.info("connected to coredev")
-        self._supervisor.notify["connected"]["coredev"] = True
+        if not self.connected:
+            self.connected = True
+            logging.info("connected to core device")
+            self.proxy.endian = self.comm.endian
 
     async def on_disconnected(self):
-        if not self.connected:
-            return
-
-        await super().on_disconnected()
-        logger.error("disconnected from core device")
-        self._supervisor.notify["connected"]["coredev"] = False
-        while self._supervisor.activation_event.is_set() and not self.connected:
-            try:
-                await self.connect(self._supervisor.master.core_addr, 1383)
-            except:
-                logging.error("core device still unreachable, retrying...")
-                await asyncio.sleep(10)
+        if self.connected:
+            self.connected = False
+            logger.info("disconnected from core device")
+            while self.proxy.active and not self.connected:
+                try:
+                    await self.connect(self.proxy.master.core_addr, 1383)
+                except:
+                    logging.error("core device still unreachable, retrying...")
+                    await asyncio.sleep(10)
 
     def on_monitor(self, channel, probe, value):
         logger.debug(f"received monitor data {(channel, probe, value)}")
-        if channel not in self._supervisor.notify["monitor"].raw_view:
-            self._supervisor.notify["monitor"][channel] = dict()
-        self._supervisor.notify["monitor"][channel][probe] = value
+        self.proxy.mon_fields.probe[(channel, probe)].value = value
+        for client in self.proxy.clients:
+            # MonitorStatus
+            packet = struct.pack(self.comm.endian + "blbl", 0, channel, probe, value)
+            client.writer.write(packet)
 
     def on_injection_status(self, channel, override, value):
         logger.debug(f"received injection status {(channel, override, value)}")
-        if channel not in self._supervisor.notify["injection_status"].raw_view:
-            self._supervisor.notify["injection_status"][channel] = dict()
-        self._supervisor.notify["injection_status"][channel][override] = value
+        self.proxy.mon_fields.injection[(channel, override)].value = value
+        for client in self.proxy.clients:
+            if (channel, override) in client.injection:
+                # InjectionStatus
+                packet = struct.pack(self.comm.endian + "blbb", 1, channel, override, value)
+                client.writer.write(packet)
 
 
-class MonInjMaster(Connectable):
-    def __init__(self, supervisor):
-        super().__init__()
-        self._core_addr_cache = None
-        self._supervisor = supervisor
+class MonInjMaster:
+    def __init__(self, proxy):
+        self._core_addr = None
+        self.proxy = proxy
         self.ddb = dict()
-        self.ddb_notify = Subscriber(notifier_name="devices", notify_cb=self.on_notify,
-                                     target_builder=self.build_ddb, disconnect_cb=self.on_disconnected)
+        self.ddb_notify = Subscriber("devices", self.build_ddb, self.on_notify, self.on_disconnected)
+        self.connected = False
 
     def build_ddb(self, init):
         self.ddb = init
@@ -126,108 +133,157 @@ class MonInjMaster(Connectable):
 
     @property
     def core_addr(self):
-        return self.ddb["core"]["arguments"]["host"]
+        return self._core_addr
+
+    async def set_core_addr(self, value):
+        if self._core_addr and value and self._core_addr != value:
+            logging.debug(f"core address changed, old: {self._core_addr}, new: {value}")
+            await self.proxy.core.disconnect()
+        self._core_addr = value
 
     # Callbacks
     async def on_connected(self):
-        if self.connected:
-            return
-
-        await super().on_connected()
-        logger.info("connected to master")
-        self._supervisor.notify["connected"]["master"] = True
-
-        # if the core device address is not the same of what we memoized, notify the change
-        if self._core_addr_cache != self.core_addr:
-            await self.on_core_addr_changed(self._core_addr_cache, self.core_addr)
-            self._core_addr_cache = self.core_addr
-
-        if not self._supervisor.core.connected:
-            await self._supervisor.core.connect(self.core_addr, 1383)
+        if not self.connected:
+            self.connected = True
+            logger.info("connected to master")
+            await self.set_core_addr(self.ddb["core"]["arguments"]["host"])
+            if not self.proxy.core.connected:
+                await self.proxy.core.connect(self.core_addr, 1383)
 
     async def on_disconnected(self):
-        if not self.connected:
-            return
-
-        await super().on_disconnected()
-        logger.info("disconnected from master")
-        self._supervisor.notify["connected"]["master"] = False
-        while self._supervisor.activation_event.is_set() and not self.connected:
-            try:
-                await self.connect(self._supervisor.master_addr, self._supervisor.master_notify_port)
-            except:
-                logging.error("master still unreachable, retrying...")
-                await asyncio.sleep(10)
-
-    async def on_core_addr_changed(self, old_addr, addr):
-        if old_addr and addr:
-            logging.debug(f"core address changed, old: {old_addr}, new: {addr}")
-            await self._supervisor.core.disconnect()
-
-    async def on_core_change(self, mod):
-        if mod["value"]["arguments"]["host"] != self._core_addr_cache:
-            await self.on_core_addr_changed(self._core_addr_cache, self.core_addr)
-            self._core_addr_cache = self.core_addr
+        if self.connected:
+            self.connected = False
+            logger.info("disconnected from master")
+            while self.proxy.active and not self.connected:
+                try:
+                    await self.connect(self.proxy.master_addr, self.proxy.master_notify_port)
+                except:
+                    logging.error("master still unreachable, retrying...")
+                    await asyncio.sleep(10)
 
     async def on_notify(self, mod):
         logger.debug(f"received mod from master {mod}")
-
         if mod["action"] == "init":
             await self.on_connected()
-
-        if mod["action"] == "setitem":
-            if mod["key"] == "core":
-                await self.on_core_change(mod)
+        if mod["action"] == "setitem" and mod["key"] == "core":
+            await self.set_core_addr(mod["value"]["arguments"]["host"])
 
 
-class MonInjSupervisor:
+class MonInjProxy(AsyncioServer):
     def __init__(self, master, notify_port):
-        self.notify = Notifier({
-            # could have used defaultdict for these two, sadly it didn't work
-            "monitor": dict(),
-            "injection_status": dict(),
-            "connected": {"coredev": False, "master": False}
-        })
+        super().__init__()
         self.master_addr = master
         self.master_notify_port = notify_port
         self.core, self.master = MonInjCoredev(self), MonInjMaster(self)
-        self.activation_event = asyncio.Event()
+        self.active = False
+        self.mon_fields = _MonitoredField()
+        self.clients = []
+        self.endian = ""
 
     async def connect(self):
-        logger.debug("starting the subcomponents")
-        self.activation_event.set()
+        logger.debug("starting the proxy")
         await self.master.connect(self.master_addr, self.master_notify_port)
+        self.active = True
 
     async def reconnect(self):
-        logger.debug("reconnecting the subcomponents")
+        logger.debug("reconnecting the proxy")
         await self.stop()
         await self.connect()
 
     async def stop(self):
-        logger.debug("stopping the subcomponents")
-        self.activation_event.clear()
-        await self.core.disconnect()
-        await self.master.disconnect()
+        logger.debug("stopping the proxy")
+        self.active = False
+        await asyncio.wait([self.core.disconnect(), self.master.disconnect(), super().stop()])
 
-    # RPC methods
-    def monitor_probe(self, enable, channel, probe):
-        self.core.comm.monitor_probe(enable, channel, probe)
+    async def _handle_connection_cr(self, reader, writer):
+        if await reader.readline() == b"ARTIQ moninj\n":
+            writer.write(b"e")
+            client, client_idx = _Client(reader, writer), len(self.clients)
+            self.clients.append(client)
+            try:
+                for (channel, overrd), v in self.mon_fields.injection.items():
+                    packet = struct.pack(self.core.comm.endian + "blbb", 1, channel, overrd, v.value)
+                    client.writer.write(packet)
 
-    def monitor_injection(self, enable, channel, overrd):
-        self.core.comm.monitor_injection(enable, channel, overrd)
+                while opcode := await reader.read(1):
+                    if opcode == b"\x00":
+                        enable, channel, probe = await client.read_format(self.endian + "blb")
+                        logger.debug(f"received MonitorProbe {(enable, channel, probe)}")
+                        self.update_probe(enable, channel, probe, client=client)
+                    elif opcode == b"\x01":
+                        channel, override, value = await client.read_format(self.endian + "lbb")
+                        logger.debug(f"received Inject {(channel, override, value)}")
+                        self.core.comm.inject(channel, override, value)
+                    elif opcode == b"\x02":
+                        channel, override = await client.read_format(self.endian + "lb")
+                        logger.debug(f"received GetInjectionStatus {(channel, override)}")
+                        self.core.comm.get_injection_status(channel, override)
+                    elif opcode == b"\x03":
+                        enable, channel, overrd = await client.read_format(self.endian + "blb")
+                        logger.debug(f"received MonitorInjection {(enable, channel, overrd)}")
+                        self.update_injection(enable, channel, overrd, client=client)
+                    else:
+                        raise ValueError("Unknown packet type", opcode)
+            except:
+                logger.error("Error occurred during connection loop", exc_info=True)
+            finally:
+                for (channel, probe) in client.probe:
+                    self.update_probe(False, channel, probe)
+                for (channel, overrd) in client.injection:
+                    self.update_injection(False, channel, overrd)
+                self.clients.pop(client_idx)
 
-    def inject(self, channel, override, value):
-        self.core.comm.inject(channel, override, value)
+    def update_probe(self, enable, channel, probe, client=None):
+        commit_monitor = False
+        if enable:
+            if client:
+                client.probe.add((channel, probe))
+            commit_monitor = self.mon_fields.probe[(channel, probe)].refs == 0
+            self.mon_fields.probe[(channel, probe)].refs += 1
+        elif (channel, probe) in self.mon_fields.probe:
+            if client:
+                client.probe.remove((channel, probe))
+            if self.mon_fields.probe[(channel, probe)].refs <= 1:
+                commit_monitor = True
+                del self.mon_fields.probe[(channel, probe)]
+            else:
+                self.mon_fields.probe[(channel, probe)].refs -= 1
+        if commit_monitor:
+            logger.debug(f"committing monitor probe {(enable, channel, probe)}")
+            self.core.comm.monitor_probe(enable, channel, probe)
 
-    def get_injection_status(self, channel, override):
-        self.core.comm.get_injection_status(channel, override)
+    def update_injection(self, enable, channel, overrd, client=None):
+        commit_monitor = False
+        if enable:
+            if client:
+                client.injection.add((channel, overrd))
+            commit_monitor = self.mon_fields.injection[(channel, overrd)].refs == 0
+            self.mon_fields.injection[(channel, overrd)].refs += 1
+        elif (channel, overrd) in self.mon_fields.injection:
+            if client:
+                client.injection.remove((channel, overrd))
+            if self.mon_fields.injection[(channel, overrd)].refs == 1:
+                commit_monitor = True
+                del self.mon_fields.injection[(channel, overrd)]
+            else:
+                self.mon_fields.injection[(channel, overrd)].refs -= 1
+        if commit_monitor:
+            logger.debug(f"committing monitor injection {(enable, channel, overrd)}")
+            self.core.comm.monitor_injection(enable, channel, overrd)
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ MonInj Proxy")
+    parser = argparse.ArgumentParser(description="ARTIQ Core Device Monitor/Injection Proxy")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
+    parser.add_argument(
+        "--bind", default=[], action="append",
+        help="additional hostname or IP address to bind to; "
+             "use '*' to bind to all interfaces (default: %(default)s)")
+    parser.add_argument(
+        "--no-localhost-bind", default=False, action="store_true",
+        help="do not implicitly also bind to localhost addresses")
 
     group = parser.add_argument_group("master related")
     group.add_argument(
@@ -238,11 +294,11 @@ def get_argparser():
         "--master-port-notify", type=int, default=3250,
         help="port to connect to for notification service in master")
 
-    common_args.simple_network_args(parser, [
-        ("proxy-core-moninj-pubsub", "data synchronization service for core device moninj", 2383),
-        ("proxy-core-moninj-rpc", "remote control service to core device moninj", 2384)
-    ])
-
+    group = parser.add_argument_group("proxy server")
+    group.add_argument("--port-proxy", default=2383, type=int,
+                       help="TCP port for proxy to listen to (default: 2383)")
+    group.add_argument("--port-rpc", default=2384, type=int,
+                       help="TCP port for RPC heartbeat to listen to (default: 2384)")
     return parser
 
 
@@ -257,19 +313,12 @@ def main():
     atexit.register(loop.close)
     bind = common_args.bind_address_from_args(args)
 
-    proxy = MonInjSupervisor(args.master_addr, args.master_port_notify)
-    proxy_pubsub = Publisher({
-        "coredevice": proxy.notify,
-    })
-    proxy_rpc = RPCServer({
-        "proxy": proxy,
-        "ping": PingTarget()
-    }, allow_parallel=False, builtin_terminate=True)
+    proxy = MonInjProxy(args.master_addr, args.master_port_notify)
+    proxy_rpc = RPCServer({"ping": PingTarget()}, builtin_terminate=True)
     loop.run_until_complete(proxy.connect())
-    loop.run_until_complete(proxy_pubsub.start(bind, args.port_proxy_core_moninj_pubsub))
-    loop.run_until_complete(proxy_rpc.start(bind, args.port_proxy_core_moninj_rpc))
+    loop.run_until_complete(proxy.start(bind, args.port_proxy))
+    loop.run_until_complete(proxy_rpc.start(bind, args.port_rpc))
 
-    atexit_register_coroutine(proxy_pubsub.stop)
     atexit_register_coroutine(proxy_rpc.stop)
     atexit_register_coroutine(proxy.stop)
 
