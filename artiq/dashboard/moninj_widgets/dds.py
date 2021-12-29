@@ -16,9 +16,9 @@ class DDSWidget(SimpleDisplayWidget):
     def sort_key(self):
         return self.bus_channel, self.channel
 
-    async def setup_monitoring(self, enable):
-        if conn := self.dm.proxy_connection_rpc:
-            await conn.monitor_probe(enable, self.bus_channel, self.channel)
+    def setup_monitoring(self, enable):
+        if conn := self.dm.comm:
+            conn.monitor_probe(enable, self.bus_channel, self.channel)
 
     def on_monitor(self, value):
         self.cur_frequency = value * self.dm.dds_sysclk / 2 ** 32

@@ -16,9 +16,9 @@ class DACWidget(SimpleDisplayWidget):
     def sort_key(self):
         return self.spi_channel, self.channel
 
-    async def setup_monitoring(self, enable):
-        if conn := self.dm.proxy_connection_rpc:
-            await conn.monitor_probe(enable, self.spi_channel, self.channel)
+    def setup_monitoring(self, enable):
+        if conn := self.dm.comm:
+            conn.monitor_probe(enable, self.spi_channel, self.channel)
 
     def on_monitor(self, value):
         self.cur_value = value

@@ -4,15 +4,13 @@ from collections import namedtuple
 from itertools import chain
 
 from PyQt5 import QtWidgets
-
 from sipyco.sync_struct import Subscriber
-from sipyco.pc_rpc import AsyncioClient
 
-from artiq.gui.flowlayout import FlowLayout
-
+from artiq.coredevice.comm_moninj import CommMonInj
 from artiq.dashboard.moninj_widgets.dac import DACWidget
 from artiq.dashboard.moninj_widgets.dds import DDSWidget
 from artiq.dashboard.moninj_widgets.ttl import TTLWidget
+from artiq.gui.flowlayout import FlowLayout
 
 logger = logging.getLogger(__name__)
 
@@ -23,23 +21,23 @@ class _WidgetContainer:
         self._widgets = dict()
         self._widgets_by_uid = dict()
 
-    async def remove_by_widget(self, widget):
+    def remove_by_widget(self, widget):
         widget.deleteLater()
-        await widget.setup_monitoring(False)
+        widget.setup_monitoring(False)
         del self._widgets_by_uid[next(uid for uid, wkey in self._widgets_by_uid.items() if wkey == widget.sort_key)]
         del self._widgets[widget.sort_key]
         self.setup_layout(self._widgets.values())
 
-    async def remove_by_key(self, key):
-        await self.remove_by_widget(self._widgets[key])
+    def remove_by_key(self, key):
+        self.remove_by_widget(self._widgets[key])
 
-    async def remove_by_uid(self, uid):
-        await self.remove_by_key(self._widgets_by_uid[uid])
+    def remove_by_uid(self, uid):
+        self.remove_by_key(self._widgets_by_uid[uid])
 
-    async def add(self, uid, widget):
+    def add(self, uid, widget):
         self._widgets_by_uid[uid] = widget.sort_key
         self._widgets[widget.sort_key] = widget
-        await widget.setup_monitoring(True)
+        widget.setup_monitoring(True)
         self.setup_layout(self._widgets.values())
 
     def get_by_key(self, key):
@@ -54,8 +52,7 @@ _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
 
 def setup_from_ddb(ddb):
     proxy_moninj_server = None
-    proxy_moninj_pubsub_port = None
-    proxy_moninj_rpc_port = None
+    proxy_moninj_port = None
     dds_sysclk = None
     description = set()
 
@@ -68,8 +65,7 @@ def setup_from_ddb(ddb):
                 continue
             if v["type"] == "controller" and k == "moninj":
                 proxy_moninj_server = v["host"]
-                proxy_moninj_pubsub_port = v["pubsub_port"]
-                proxy_moninj_rpc_port = v["rpc_port"]
+                proxy_moninj_port = v["port"]["proxy"]
             if v["type"] == "local":
                 args, module_, class_ = v["arguments"], v["module"], v["class"]
 
@@ -94,20 +90,16 @@ def setup_from_ddb(ddb):
                     handle_spi()
         except KeyError:
             pass
-    return proxy_moninj_server, proxy_moninj_pubsub_port, proxy_moninj_rpc_port, dds_sysclk, description
+    return proxy_moninj_server, proxy_moninj_port, dds_sysclk, description
 
 
 class _DeviceManager:
     def __init__(self):
         self.reconnect_proxy = asyncio.Event()
         self.proxy_moninj_server = None
-        self.proxy_moninj_pubsub_port = None
-        self.proxy_moninj_rpc_port = None
-
-        self.proxy_connection_pubsub = None
-        self.proxy_connection_rpc = None
+        self.proxy_moninj_port = None
+        self.comm = None
         self.proxy_connector_task = asyncio.ensure_future(self.moninj_connector())
-        self.proxy_sync_data = dict()
 
         self.ddb = dict()
         self.description = set()
@@ -119,22 +111,21 @@ class _DeviceManager:
         self.ddb = ddb
         return ddb
 
-    async def notify(self, _mod):
-        proxy_moninj_server, proxy_moninj_pubsub_port, proxy_moninj_rpc_port, dds_sysclk, new_desc = \
+    def notify(self, _mod):
+        proxy_moninj_server, proxy_moninj_port, dds_sysclk, new_desc = \
             setup_from_ddb(self.ddb)
         self.dds_sysclk = dds_sysclk if dds_sysclk else 0
         if proxy_moninj_server != self.proxy_moninj_server:
             self.proxy_moninj_server = proxy_moninj_server
-            self.proxy_moninj_pubsub_port = proxy_moninj_pubsub_port
-            self.proxy_moninj_rpc_port = proxy_moninj_rpc_port
+            self.proxy_moninj_port = proxy_moninj_port
             self.reconnect_proxy.set()
         for uid, _, klass, _ in self.description - new_desc:
-            await self.docks[klass].remove_by_uid(uid)
+            self.docks[klass].remove_by_uid(uid)
         for uid, comment, klass, arguments in new_desc - self.description:
             widget = klass(self, *arguments)
             if comment:
                 widget.setToolTip(comment)
-            await self.docks[klass].add(uid, widget)
+            self.docks[klass].add(uid, widget)
         self.description = new_desc
 
     def monitor_cb(self, channel, probe, value):
@@ -157,17 +148,14 @@ class _DeviceManager:
         while True:
             await self.reconnect_proxy.wait()
             self.reconnect_proxy.clear()
-            self._reset_connection_state()
+            await self._reset_connection_state()
             # if there is no moninj server defined, just stop connecting
             if self.proxy_moninj_server is None:
                 continue
-            new_moninj_pubsub = Subscriber("coredevice", target_builder=self.replay_snapshots, notify_cb=self.on_notify,
-                                           disconnect_cb=self.disconnect_cb)
-            new_moninj_rpc = AsyncioClient()
+            new_comm = CommMonInj(monitor_cb=self.monitor_cb, injection_status_cb=self.injection_status_cb,
+                              disconnect_cb=self.disconnect_cb)
             try:
-                await new_moninj_pubsub.connect(self.proxy_moninj_server, self.proxy_moninj_pubsub_port)
-                await new_moninj_rpc.connect_rpc(self.proxy_moninj_server, self.proxy_moninj_rpc_port,
-                                                 target_name="proxy")
+                await new_comm.connect(self.proxy_moninj_server, self.proxy_moninj_port)
             except asyncio.CancelledError:
                 logger.info("cancelled connection to moninj proxy")
                 break
@@ -177,10 +165,9 @@ class _DeviceManager:
                 self.reconnect_proxy.set()
             else:
                 logger.info("connected to moninj proxy")
-                self.proxy_connection_pubsub = new_moninj_pubsub
-                self.proxy_connection_rpc = new_moninj_rpc
+                self.comm = new_comm
                 for widget in self.widgets:
-                    await widget.setup_monitoring(True)
+                    widget.setup_monitoring(True)
                     widget.setEnabled(True)
 
     async def close(self):
@@ -189,44 +176,14 @@ class _DeviceManager:
             await asyncio.wait_for(self.proxy_connector_task, None)
         except asyncio.CancelledError:
             pass
-        self._reset_connection_state()
+        await self._reset_connection_state()
 
-    def _reset_connection_state(self):
-        async def ensure_connection_closed():
-            if self.proxy_connection_pubsub is not None:
-                asyncio.ensure_future(self.proxy_connection_pubsub.close())
-            if self.proxy_connection_rpc is not None:
-                asyncio.ensure_future(self.proxy_connection_rpc.close())
-
-        asyncio.ensure_future(ensure_connection_closed())
-        self.proxy_connection_pubsub = None
-        self.proxy_connection_rpc = None
+    async def _reset_connection_state(self):
+        if self.comm is not None:
+            await self.comm.close()
+        self.comm = None
         for widget in self.widgets:
             widget.setEnabled(False)
-
-    def replay_snapshots(self, data):
-        self.proxy_sync_data = data
-        for channel, chan_data in data["monitor"].items():
-            for probe, value in chan_data.items():
-                self.monitor_cb(channel, probe, value)
-        for channel, chan_data in data["injection_status"].items():
-            for override, value in chan_data.items():
-                self.injection_status_cb(channel, override, value)
-        return self.proxy_sync_data
-
-    def on_notify(self, mod):
-        if mod["action"] == "setitem":
-            path_, key_, value_ = mod["path"], mod["key"], mod["value"]
-            target = self.proxy_sync_data
-            for key in path_:
-                target = target[key]
-            if 'injection_status' in path_ and len(path_) > 1:
-                self.injection_status_cb(path_[-1], key_, value_)
-            if 'monitor' in path_ and len(path_) > 1:
-                self.monitor_cb(path_[-1], key_, value_)
-            if 'connected' in path_:
-                if (key_ in ['coredev', 'master']) and not value_:
-                    self.disconnect_cb()
 
     @property
     def widgets(self):

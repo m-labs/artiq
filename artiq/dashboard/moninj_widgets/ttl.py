@@ -63,8 +63,8 @@ class TTLWidget(MoninjWidget):
         grid.setRowStretch(4, 1)
 
         self.programmatic_change = False
-        self.override.clicked.connect(lambda override: asyncio.ensure_future(self.override_toggled(override)))
-        self.level.clicked.connect(lambda toggled: asyncio.ensure_future(self.level_toggled(toggled)))
+        self.override.clicked.connect(self.override_toggled)
+        self.level.clicked.connect(self.level_toggled)
 
         self.cur_level = False
         self.cur_oe = False
@@ -81,15 +81,15 @@ class TTLWidget(MoninjWidget):
             self.stack.setCurrentIndex(0)
         super().leaveEvent(event)
 
-    async def override_toggled(self, override):
+    def override_toggled(self, override):
         if self.programmatic_change:
             return
-        await self.set_mode(("1" if self.level.isChecked() else "0") if override else "exp")
+        self.set_mode(("1" if self.level.isChecked() else "0") if override else "exp")
 
-    async def level_toggled(self, level):
+    def level_toggled(self, level):
         if self.programmatic_change:
             return
-        await self.set_mode("1" if level else "0")
+        self.set_mode("1" if level else "0")
 
     def refresh_display(self):
         level = self.cur_override_level if self.cur_override else self.cur_level
@@ -116,32 +116,32 @@ class TTLWidget(MoninjWidget):
     def sort_key(self):
         return self.channel
 
-    async def setup_monitoring(self, enable):
-        if conn := self.dm.proxy_connection_rpc:
-            await conn.monitor_probe(enable, self.channel, TTLProbe.level.value)
-            await conn.monitor_probe(enable, self.channel, TTLProbe.oe.value)
-            await conn.monitor_injection(enable, self.channel, TTLOverride.en.value)
-            await conn.monitor_injection(enable, self.channel, TTLOverride.level.value)
+    def setup_monitoring(self, enable):
+        if conn := self.dm.comm:
+            conn.monitor_probe(enable, self.channel, TTLProbe.level.value)
+            conn.monitor_probe(enable, self.channel, TTLProbe.oe.value)
+            conn.monitor_injection(enable, self.channel, TTLOverride.en.value)
+            conn.monitor_injection(enable, self.channel, TTLOverride.level.value)
             if enable:
-                await conn.get_injection_status(self.channel, TTLOverride.en.value)
+                conn.get_injection_status(self.channel, TTLOverride.en.value)
 
-    async def set_mode(self, mode):
-        if conn := self.dm.proxy_connection_rpc:
+    def set_mode(self, mode):
+        if conn := self.dm.comm:
             if mode == "0":
                 self.cur_override = True
                 self.cur_level = False
-                await conn.inject(self.channel, TTLOverride.level.value, 0)
-                await conn.inject(self.channel, TTLOverride.oe.value, 1)
-                await conn.inject(self.channel, TTLOverride.en.value, 1)
+                conn.inject(self.channel, TTLOverride.level.value, 0)
+                conn.inject(self.channel, TTLOverride.oe.value, 1)
+                conn.inject(self.channel, TTLOverride.en.value, 1)
             elif mode == "1":
                 self.cur_override = True
                 self.cur_level = True
-                await conn.inject(self.channel, TTLOverride.level.value, 1)
-                await conn.inject(self.channel, TTLOverride.oe.value, 1)
-                await conn.inject(self.channel, TTLOverride.en.value, 1)
+                conn.inject(self.channel, TTLOverride.level.value, 1)
+                conn.inject(self.channel, TTLOverride.oe.value, 1)
+                conn.inject(self.channel, TTLOverride.en.value, 1)
             elif mode == "exp":
                 self.cur_override = False
-                await conn.inject(self.channel, TTLOverride.en.value, 0)
+                conn.inject(self.channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
             # override state may have changed
