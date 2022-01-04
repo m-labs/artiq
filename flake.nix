@@ -272,6 +272,7 @@
     in rec {
       packages.x86_64-linux = rec {
         inherit migen misoc vivadoEnv vivado openocd-bscanspi artiq;
+        inherit (src-nac3.packages.x86_64-linux) python3-mimalloc;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
@@ -298,12 +299,12 @@
         };
       };
 
-      defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
+      defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
       devShell.x86_64-linux = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc jesd204b artiq ps.paramiko ps.jsonschema microscope ]))
+          (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc jesd204b artiq ps.paramiko ps.jsonschema microscope ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           cargo-xbuild
