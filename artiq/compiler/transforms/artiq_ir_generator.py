@@ -718,6 +718,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         cleanup = self.add_block('handler.cleanup')
         landingpad = dispatcher.append(ir.LandingPad(cleanup))
+        if not any(node.finalbody):
+            landingpad.has_cleanup = False
 
         handlers = []
         for handler_node in node.handlers:
