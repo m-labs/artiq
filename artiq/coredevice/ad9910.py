@@ -7,6 +7,7 @@ from artiq.language.types import TBool, TInt32, TInt64, TFloat, TList, TTuple
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
+from artiq.coredevice.urukul import DEFAULT_PROFILE
 
 # Work around ARTIQ-Python import machinery
 urukul_sta_pll_lock = urukul.urukul_sta_pll_lock
@@ -59,6 +60,9 @@ RAM_MODE_RAMPUP = 1
 RAM_MODE_BIDIR_RAMP = 2
 RAM_MODE_CONT_BIDIR_RAMP = 3
 RAM_MODE_CONT_RAMPUP = 4
+
+# Default profile for RAM mode
+_DEFAULT_PROFILE_RAM = 0
 
 
 class SyncDataUser:
@@ -518,7 +522,8 @@ class AD9910:
     @kernel
     def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
                phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-               ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+               ref_time_mu: TInt64 = int64(-1),
+               profile: TInt32 = DEFAULT_PROFILE,
                ram_destination: TInt32 = -1) -> TInt32:
         """Set DDS data in machine units.
 
@@ -588,13 +593,14 @@ class AD9910:
         return pow_
 
     @kernel
-    def get_mu(self, profile: TInt32 = 0) -> TTuple([TInt32, TInt32, TInt32]):
+    def get_mu(self, profile: TInt32 = DEFAULT_PROFILE
+               ) -> TTuple([TInt32, TInt32, TInt32]):
         """Get the frequency tuning word, phase offset word,
         and amplitude scale factor.
 
         .. seealso:: :meth:`get`
 
-        :param profile: Profile number to get (0-7, default: 0)
+        :param profile: Profile number to get (0-7, default: 7)
         :return: A tuple ``(ftw, pow, asf)``
         """
 
@@ -608,8 +614,9 @@ class AD9910:
 
     @kernel
     def set_profile_ram(self, start: TInt32, end: TInt32, step: TInt32 = 1,
-                        profile: TInt32 = 0, nodwell_high: TInt32 = 0,
-                        zero_crossing: TInt32 = 0, mode: TInt32 = 1):
+                        profile: TInt32 = _DEFAULT_PROFILE_RAM,
+                        nodwell_high: TInt32 = 0, zero_crossing: TInt32 = 0,
+                        mode: TInt32 = 1):
         """Set the RAM profile settings.
 
         :param start: Profile start address in RAM.
@@ -839,7 +846,7 @@ class AD9910:
     @kernel
     def set(self, frequency: TFloat = 0.0, phase: TFloat = 0.0,
             amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = 7,
+            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = DEFAULT_PROFILE,
             ram_destination: TInt32 = -1) -> TFloat:
         """Set DDS data in SI units.
 
@@ -860,12 +867,13 @@ class AD9910:
             profile, ram_destination))
 
     @kernel
-    def get(self, profile: TInt32 = 0) -> TTuple([TFloat, TFloat, TFloat]):
+    def get(self, profile: TInt32 = DEFAULT_PROFILE
+            ) -> TTuple([TFloat, TFloat, TFloat]):
         """Get the frequency, phase, and amplitude.
 
         .. seealso:: :meth:`get_mu`
 
-        :param profile: Profile number to get (0-7, default: 0)
+        :param profile: Profile number to get (0-7, default: 7)
         :return: A tuple ``(frequency, phase, amplitude)``
         """
 
