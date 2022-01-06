@@ -31,9 +31,15 @@ WE = 1 << 24
 # supported CPLD code version
 PROTO_REV_MATCH = 0x0
 
-# almazny mezzio pin map
+# almazny-specific data
 ALMAZNY_REG_BASE = 0x0C
-ALMAZNY_OE_SHIFT = 11
+ALMAZNY_OE_SHIFT = 12
+
+# higher SPI write divider to match almazny shift register timing 
+# min SER time before SRCLK rise = 125ns
+# -> div=32 gives 125ns for data before clock rise
+# works at faster dividers too but could be less reliable
+ALMAZNY_SPIT_WR = 32
 
 
 class Mirny:
@@ -136,11 +142,11 @@ class Mirny:
         self.bus.write(((channel | 8) << 25) | (att << 16))
 
     @kernel
-    def write_ext(self, addr, length, data):
+    def write_ext(self, addr, length, data, ext_div=SPIT_WR):
         """Perform SPI write to a prefixed address"""
         self.bus.set_config_mu(SPI_CONFIG, 8, SPIT_WR, SPI_CS)
         self.bus.write(addr << 25)
-        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, length, SPIT_WR, SPI_CS)
+        self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, length, ext_div, SPI_CS)
         if length < 32:
             data <<= 32 - length
         self.bus.write(data)
@@ -156,11 +162,11 @@ class Almazny:
     def __init__(self, dmgr, host_mirny):
         self.mirny_cpld = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
+        self.channel_oe = [0] * 4
         self.output_enable = False
 
     @kernel
     def init(self):
-        self.output_enable = False
         self.output_toggle(self.output_enable)
 
     @kernel
@@ -202,17 +208,19 @@ class Almazny:
         self._update_register(channel)
 
     @kernel
-    def set_att_mu(self, channel, att_mu):
+    def set_att_mu(self, channel, att_mu, oe=True):
         """
         Sets attenuators on chosen shift register (channel).
         :param channel - index of the register [0-3]
         :param att_mu - attenuation setting in machine units [0-63]
+        :param oe - output enable (bool)
         """
         if not 3 >= channel >= 0:
             raise ValueError("channel must be 0, 1, 2 or 3")
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
+        self.channel_oe[channel] = 1 if oe else 0
         self.att_mu[channel] = att_mu
         self._update_register(channel)
 
@@ -226,12 +234,30 @@ class Almazny:
         cfg_reg = self.mirny_cpld.read_reg(1)
         en = 1 if self.output_enable else 0
         delay(100 * us)
-        self.mirny_cpld.write_reg(1, (en << ALMAZNY_OE_SHIFT) | (cfg_reg & 0x400))
+        new_reg = (en << ALMAZNY_OE_SHIFT) | (cfg_reg & 0x3FF)
+        self.mirny_cpld.write_reg(1, new_reg)
         delay(100 * us)
 
     @kernel
+    def _flip_mu_bits(self, mu):
+        # in this form MSB is actually 0.5dB attenuator
+        # unnatural for users, so we flip the six bits
+        return ((mu & 0x01) << 5) 
+                | ((mu & 0x02) << 3) 
+                | ((mu & 0x04) << 1) 
+                | ((mu & 0x08) >> 1) 
+                | ((mu & 0x10) >> 3) 
+                | ((mu & 0x20) >> 5)
+
+    @kernel
     def _update_register(self, ch):
-        self.mirny_cpld.write_reg(ALMAZNY_REG_BASE + ch, self.att_mu[ch])
+        self.mirny_cpld.write_ext(
+            ALMAZNY_REG_BASE + ch, 
+            8, 
+            self._flip_mu_bits(self.att_mu[ch]) | (self.channel_oe[ch] << 6), 
+            ALMAZNY_SPIT_WR
+        )
+        delay(100 * us)
 
     @kernel
     def _update_all_registers(self):

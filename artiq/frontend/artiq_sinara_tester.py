@@ -381,14 +381,20 @@ class SinaraTester(EnvExperiment):
         print("*** Testing Almaznys.")
         for name, almazny in sorted(self.almaznys.items(), key=lambda x: x[0]):
             print(name + "...")
-            self.init_almazny(almazny)
+            print("Initializing Mirny CPLDs...")
+            for name, cpld in sorted(self.mirny_cplds.items(), key=lambda x: x[0]):
+                print(name + "...")
+                self.init_mirny(cpld)
+            print("...done")
+
             print("Testing attenuators. Frequencies:")
             for card_n, channels in enumerate(chunker(self.mirnies, 4)):
                 for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                    frequency = 1000*(card_n + 2) + channel_n * 100
+                    frequency = 2000 + channel_n * 100
                     print("{}\t{}MHz".format(channel_name, frequency*2))
                     self.setup_mirny(channel_dev, frequency)
                     print("{} info: {}".format(channel_name, channel_dev.info()))
+            self.init_almazny(almazny)
             print("RF ON, all attenuators ON. Press ENTER when done.")
             for i in range(4):
                 self.almazny_set_attenuators(almazny, i, 63)
@@ -406,7 +412,7 @@ class SinaraTester(EnvExperiment):
             input()
             print("RF ON, all attenuators are ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators_db(almazny, i, 31)
+                self.almazny_set_attenuators_db(almazny, i, 31.5)
             self.almazny_toggle_output(almazny, True)
             input()
             print("RF OFF. Press ENTER when done.")
