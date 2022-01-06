@@ -557,12 +557,6 @@ class CommKernel:
             result = service(*args, **kwargs)
             logger.debug("rpc service: %d %r %r = %r",
                          service_id, args, kwargs, result)
-
-            self._write_header(Request.RPCReply)
-            self._write_bytes(return_tags)
-            self._send_rpc_value(bytearray(return_tags),
-                                 result, result, service)
-            self._flush()
         except RPCReturnValueError as exn:
             raise
         except Exception as exn:
@@ -608,6 +602,12 @@ class CommKernel:
                 self._write_int32(line)
                 self._write_int32(-1)  # column not known
                 self._write_string(function)
+            self._flush()
+        else:
+            self._write_header(Request.RPCReply)
+            self._write_bytes(return_tags)
+            self._send_rpc_value(bytearray(return_tags),
+                                 result, result, service)
             self._flush()
 
     def _serve_exception(self, embedding_map, symbolizer, demangler):
