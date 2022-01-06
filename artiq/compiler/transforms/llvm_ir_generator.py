@@ -1722,7 +1722,8 @@ class LLVMIRGenerator:
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
         lllandingpadty = ll.LiteralStructType([llptr, llptr])
-        lllandingpad = self.llbuilder.landingpad(lllandingpadty, cleanup=True)
+        lllandingpad = self.llbuilder.landingpad(lllandingpadty,
+                                                 cleanup=insn.has_cleanup)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
         llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
@@ -1731,23 +1732,34 @@ class LLVMIRGenerator:
 
         for target, typ in insn.clauses():
             if typ is None:
-                exnname = "" # see the comment in ksupport/eh.rs
+                # we use a null pointer here, similar to how cpp does it
+                # https://llvm.org/docs/ExceptionHandling.html#try-catch
+                # > If @ExcType is null, any exception matches, so the
+                # landingpad should always be entered. This is used for C++
+                # catch-all blocks (“catch (...)”).
+                lllandingpad.add_clause(
+                    ll.CatchClause(
+                        ll.Constant(lli32, 0).inttoptr(llptr)
+                    )
+                )
             else:
                 exnname = "{}:{}".format(typ.id, typ.name)
 
-            llclauseexnname = self.llconst_of_const(
-                ir.Constant(exnname, builtins.TStr()))
-            llclauseexnnameptr = self.llmodule.globals.get("exn.{}".format(exnname))
-            if llclauseexnnameptr is None:
-                llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
-                                                       name="exn.{}".format(exnname))
-                llclauseexnnameptr.global_constant = True
-                llclauseexnnameptr.initializer = llclauseexnname
-                llclauseexnnameptr.linkage = "private"
-                llclauseexnnameptr.unnamed_addr = True
-            lllandingpad.add_clause(ll.CatchClause(llclauseexnnameptr))
+                llclauseexnname = self.llconst_of_const(
+                    ir.Constant(exnname, builtins.TStr()))
+                llclauseexnnameptr = self.llmodule.globals.get("exn.{}".format(exnname))
+                if llclauseexnnameptr is None:
+                    llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
+                                                           name="exn.{}".format(exnname))
+                    llclauseexnnameptr.global_constant = True
+                    llclauseexnnameptr.initializer = llclauseexnname
+                    llclauseexnnameptr.linkage = "private"
+                    llclauseexnnameptr.unnamed_addr = True
+                lllandingpad.add_clause(ll.CatchClause(llclauseexnnameptr))
 
             if typ is None:
+                # typ is None means that we match all exceptions, so no need to
+                # compare
                 self.llbuilder.branch(self.map(target))
             else:
                 llexnlen       = self.llbuilder.extract_value(llexnname, 1)
@@ -1764,6 +1776,9 @@ class LLVMIRGenerator:
                         self.llbuilder.branch(self.map(target))
 
         if self.llbuilder.basic_block.terminator is None:
-            self.llbuilder.branch(self.map(insn.cleanup()))
+            if insn.has_cleanup:
+                self.llbuilder.branch(self.map(insn.cleanup()))
+            else:
+                self.llbuilder.resume(lllandingpad)
 
         return llexn

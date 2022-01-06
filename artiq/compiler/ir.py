@@ -1347,6 +1347,7 @@ class LandingPad(Terminator):
     def __init__(self, cleanup, name=""):
         super().__init__([cleanup], builtins.TException(), name)
         self.types = []
+        self.has_cleanup = True
 
     def copy(self, mapper):
         self_copy = super().copy(mapper)
