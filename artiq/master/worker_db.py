@@ -120,11 +120,6 @@ class DatasetManager:
 
     def set(self, key, value, broadcast=False, persist=False, archive=True,
             hdf5_options=None):
-        if key in self.archive:
-            logger.warning("Modifying dataset '%s' which is in archive, "
-                           "archive will remain untouched",
-                           key, stack_info=True)
-
         if persist:
             broadcast = True
 

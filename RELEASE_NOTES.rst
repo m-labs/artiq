@@ -34,6 +34,7 @@ Highlights:
 * HDF5 options can now be passed when creating datasets with ``set_dataset``. This allows
   in particular to use transparent compression filters as follows:
   ``set_dataset(name, value, hdf5_options={"compression": "gzip"})``.
+* Removed worker DB warning for writing a dataset that is also in the archive
 
 Breaking changes:
 
