@@ -26,7 +26,7 @@ class DDS(spi.SPISimple):
 
         self.profile = [Signal(32 + 16 + 16, reset_less=True)
                 for i in range(params.channels)]
-        cmd = Signal(8, reset=0x0e)  # write to single tone profile 0
+        cmd = Signal(8, reset=0x15)  # write to single tone profile 7
         assert params.width == len(cmd) + len(self.profile[0])
 
         self.sync += [
