@@ -392,11 +392,11 @@ class HasEnvironment:
 
         By default, datasets obtained by this method are archived into the output
         HDF5 file of the experiment. If an archived dataset is requested more
-        than one time (and therefore its value has potentially changed) or is
-        modified, a warning is emitted.
+        than one time or is modified, only the value at the time of the first call
+        is archived. This may impact reproducibility of experiments.
 
         :param archive: Set to ``False`` to prevent archival together with the run's results.
-            Default is ``True``
+            Default is ``True``.
         """
         try:
             return self.__dataset_mgr.get(key, archive)
