@@ -482,16 +482,14 @@ class TTLClockGen:
         """Returns the frequency tuning word corresponding to the given
         frequency.
         """
-        # NAC3TODO return round64(2**self.acc_width*frequency*self.core.coarse_ref_period)
-        return 0
+        return round(2.**float(self.acc_width)*frequency*self.core.coarse_ref_period)
 
     @portable
     def ftw_to_frequency(self, ftw: int32) -> float:
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        # NAC3TODO return float(ftw)/self.core.coarse_ref_period/2**int64(self.acc_width)
-        return 0.0
+        return float(ftw)/self.core.coarse_ref_period/2.**float(self.acc_width)
 
     @kernel
     def set_mu(self, frequency: int32):
