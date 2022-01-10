@@ -208,19 +208,19 @@ class Almazny:
         self._update_register(channel)
 
     @kernel
-    def set_att_mu(self, channel, att_mu, oe=True):
+    def set_att_mu(self, channel, att_mu, rf_switch=True):
         """
         Sets attenuators on chosen shift register (channel).
         :param channel - index of the register [0-3]
         :param att_mu - attenuation setting in machine units [0-63]
-        :param oe - output enable (bool)
+        :param rf_switch - rf switch (bool)
         """
         if not 3 >= channel >= 0:
             raise ValueError("channel must be 0, 1, 2 or 3")
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
-        self.channel_sw[channel] = 1 if oe else 0
+        self.channel_sw[channel] = 1 if rf_switch else 0
         self.att_mu[channel] = att_mu
         self._update_register(channel)
 
