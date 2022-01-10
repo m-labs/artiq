@@ -232,12 +232,12 @@ class Almazny:
     def _flip_mu_bits(self, mu):
         # in this form MSB is actually 0.5dB attenuator
         # unnatural for users, so we flip the six bits
-        return ((mu & 0x01) << 5) 
+        return (((mu & 0x01) << 5)
                 | ((mu & 0x02) << 3) 
                 | ((mu & 0x04) << 1) 
                 | ((mu & 0x08) >> 1) 
                 | ((mu & 0x10) >> 3) 
-                | ((mu & 0x20) >> 5)
+                | ((mu & 0x20) >> 5))
 
     @kernel
     def _update_register(self, ch):
