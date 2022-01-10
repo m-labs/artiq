@@ -115,11 +115,10 @@ class SinaraTester(EnvExperiment):
                         del self.ttl_outs[io_update_device]
                 # check for suservos and delete respective urukuls
                 elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
-                    del self.urukuls[desc["arguments"]["dds0_device"]]
-                    del self.urukul_cplds[desc["arguments"]["cpld0_device"]]
-                    if "dds1_device" in desc["arguments"]:
-                        del self.urukuls[desc["arguments"]["dds1_device"]]
-                        del self.urukul_cplds[desc["arguments"]["cpld1_device"]]
+                    for cpld in desc["arguments"]["cpld_devices"]:
+                        del self.urukul_cplds[cpld]
+                    for dds in desc["arguments"]["dds_devices"]:
+                        del self.urukuls[dds]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -597,8 +596,8 @@ class SinaraTester(EnvExperiment):
             delay(10*us)
         # DDS attenuator 10dB
         for i in range(4):
-            channel.cpld0.set_att(i, 10.)
-            channel.cpld1.set_att(i, 10.)
+            for cpld in channel.cplds:
+                cpld.set_att(i, 10.)
         delay(1*us)
         # Servo is done and disabled
         assert channel.get_status() & 0xff == 2
