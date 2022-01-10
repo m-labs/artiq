@@ -115,7 +115,7 @@ class DebugInfoEmitter:
             "scopeLine":       func.loc.line(),
             "isLocal":         func.is_internal,
             "isDefinition":    True,
-            "variables":   self.emit_metadata([])
+            "retainedNodes":   self.emit_metadata([])
         }, is_distinct=True)
 
     @memoize
