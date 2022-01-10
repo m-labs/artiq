@@ -162,7 +162,7 @@ class Almazny:
     def __init__(self, dmgr, host_mirny):
         self.mirny_cpld = dmgr.get(host_mirny)
         self.att_mu = [0x3f] * 4
-        self.channel_oe = [0] * 4
+        self.channel_sw = [0] * 4
         self.output_enable = False
 
     @kernel
@@ -220,7 +220,7 @@ class Almazny:
         if not 63 >= att_mu >= 0:
             raise ValueError("Invalid Almazny attenuator setting")
 
-        self.channel_oe[channel] = 1 if oe else 0
+        self.channel_sw[channel] = 1 if oe else 0
         self.att_mu[channel] = att_mu
         self._update_register(channel)
 
@@ -254,7 +254,7 @@ class Almazny:
         self.mirny_cpld.write_ext(
             ALMAZNY_REG_BASE + ch, 
             8, 
-            self._flip_mu_bits(self.att_mu[ch]) | (self.channel_oe[ch] << 6), 
+            self._flip_mu_bits(self.att_mu[ch]) | (self.channel_sw[ch] << 6), 
             ALMAZNY_SPIT_WR
         )
         delay(100 * us)
