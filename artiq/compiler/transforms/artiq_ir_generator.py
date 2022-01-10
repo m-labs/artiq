@@ -627,6 +627,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = raise_proxy
 
         if exn is not None:
+            # if we need to raise the exception in a final body, we have to
+            # lazy-evaluate the exception object to make sure that we generate
+            # it in the raise_proxy block
+            exn = exn()
+        if exn is not None:
             assert loc is not None
             loc_file = ir.Constant(loc.source_buffer.name, builtins.TStr())
             loc_line = ir.Constant(loc.line(), builtins.TInt32())
@@ -650,9 +655,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     def visit_Raise(self, node):
         if node.exc is not None and types.is_exn_constructor(node.exc.type):
-            self.raise_exn(self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
+            self.raise_exn(lambda: self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
         else:
-            self.raise_exn(self.visit(node.exc), loc=self.current_loc)
+            self.raise_exn(lambda: self.visit(node.exc), loc=self.current_loc)
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
@@ -670,6 +675,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 block.append(ir.SetLocal(final_state, "$cont", target))
                 final_targets.append(target)
                 final_paths.append(block)
+
+            final_exn_targets = []
+            final_exn_paths = []
+            # raise has to be treated differently
+            # we cannot follow indirectbr for local access validation, so we
+            # have to construct the control flow explicitly
+            def exception_final_branch(target, block):
+                final_exn_targets.append(target)
+                final_exn_paths.append(block)
 
             if self.break_target is not None:
                 break_proxy = self.add_block("try.break")
@@ -714,7 +728,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.continue_target = old_continue
             self.return_target = old_return
 
-            old_final_branch, self.final_branch = self.final_branch, final_branch
+            old_final_branch, self.final_branch = self.final_branch, exception_final_branch
 
         cleanup = self.add_block('handler.cleanup')
         landingpad = dispatcher.append(ir.LandingPad(cleanup))
@@ -744,6 +758,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
         if any(node.finalbody):
             # Finalize and continue after try statement.
             self.final_branch = old_final_branch
+
+            for (i, (target, block)) in enumerate(zip(final_exn_targets, final_exn_paths)):
+                finalizer = self.add_block(f"finally{i}")
+                self.current_block = block
+                self.terminate(ir.Branch(finalizer))
+                self.current_block = finalizer
+                self.visit(node.finalbody)
+                self.terminate(ir.Branch(target))
 
             finalizer = self.add_block("finally")
             self.current_block = finalizer
@@ -997,7 +1019,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
-            self.raise_exn(exn_gen(*args[1:]), loc=loc)
+            self.raise_exn(lambda: exn_gen(*args[1:]), loc=loc)
         finally:
             self.current_function = old_func
             self.current_block = old_block
