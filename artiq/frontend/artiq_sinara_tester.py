@@ -362,15 +362,14 @@ class SinaraTester(EnvExperiment):
         almazny.output_toggle(True)
 
     @kernel
-    def almazny_set_attenuators(self, almazny, ch, atts):
+    def almazny_set_attenuators_mu(self, almazny, ch, atts):
         self.core.break_realtime()
         almazny.set_att_mu(ch, atts)
 
     @kernel
-    def almazny_set_attenuators_db(self, almazny, ch, atts):
+    def almazny_set_attenuators(self, almazny, ch, atts):
         self.core.break_realtime()
-        mu = almazny.att_to_mu(atts)
-        almazny.set_att_mu(ch, mu)
+        almazny.set_att(ch, atts)
     
     @kernel
     def almazny_toggle_output(self, almazny, rf_on):
@@ -397,22 +396,22 @@ class SinaraTester(EnvExperiment):
             self.init_almazny(almazny)
             print("RF ON, all attenuators ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, 63)
+                self.almazny_set_attenuators_mu(almazny, i, 63)
             input()
             print("RF ON, half power attenuators ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators_db(almazny, i, 15.5)
+                self.almazny_set_attenuators(almazny, i, 15.5)
             input()
             print("RF ON, all attenuators OFF. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators_db(almazny, i, 0)
+                self.almazny_set_attenuators(almazny, i, 0)
             input()
             print("SR outputs are OFF. Press ENTER when done.")
             self.almazny_toggle_output(almazny, False)
             input()
             print("RF ON, all attenuators are ON. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators_db(almazny, i, 31.5)
+                self.almazny_set_attenuators(almazny, i, 31.5)
             self.almazny_toggle_output(almazny, True)
             input()
             print("RF OFF. Press ENTER when done.")
