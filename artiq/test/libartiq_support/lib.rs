@@ -25,6 +25,10 @@ mod cslice {
         pub fn len(&self) -> usize {
             self.len as usize
         }
+
+        pub fn as_ptr(&self) -> *const T {
+            self.base
+        }
     }
 
     impl<'a, T> AsRef<[T]> for CSlice<'a, T> {
