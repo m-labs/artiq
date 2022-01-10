@@ -1360,6 +1360,14 @@ class LandingPad(Terminator):
     def cleanup(self):
         return self.operands[0]
 
+    def erase(self):
+        self.remove_from_parent()
+        # we should erase all clauses as well
+        for block in set(self.operands):
+            block.uses.remove(self)
+            block.erase()
+        assert not any(self.uses)
+
     def clauses(self):
         return zip(self.operands[1:], self.types)
 
