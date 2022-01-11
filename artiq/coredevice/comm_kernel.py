@@ -476,11 +476,27 @@ class CommKernel:
             if tag_element == "b":
                 self._write(bytes(value))
             elif tag_element == "i":
-                self._write(struct.pack(self.endian + "%sl" %
-                                        len(value), *value))
+                try:
+                    data = struct.pack(self.endian + "%sl" % len(value), *value)
+                except struct.error:
+                    raise RPCReturnValueError(
+                        "type mismatch: cannot serialize {value} as {type}"
+                        " ({function} has returned {root})".format(
+                            value=repr(value), type="32-bit integer list",
+                            function=function, root=root))
+                else:
+                    self._write(data)
             elif tag_element == "I":
-                self._write(struct.pack(self.endian + "%sq" %
-                                        len(value), *value))
+                try:
+                    data = struct.pack(self.endian + "%sq" % len(value), *value)
+                except struct.error:
+                    raise RPCReturnValueError(
+                        "type mismatch: cannot serialize {value} as {type}"
+                        " ({function} has returned {root})".format(
+                            value=repr(value), type="64-bit integer list",
+                            function=function, root=root))
+                else:
+                    self._write(data)
             elif tag_element == "f":
                 self._write(struct.pack(self.endian + "%sd" %
                                         len(value), *value))
