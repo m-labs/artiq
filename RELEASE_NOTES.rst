@@ -11,6 +11,7 @@ Highlights:
 * New hardware support:
    - Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotinos
+   - Almazny mezzanine board for Mirny
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * Faster compilation for large arrays/lists.
 * Phaser:

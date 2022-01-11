@@ -409,6 +409,10 @@
                                 }
                             ],
                             "default": 0
+                        },
+                        "almazny": {
+                            "type": "boolean",
+                            "default": false
                         }
                     },
                     "required": ["ports"]
