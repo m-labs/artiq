@@ -79,7 +79,7 @@ def main():
     data = []
     run_simulation(tb, [tb.log(data), run(tb)], vcd_name="dds.vcd")
 
-    assert data[-1][1] == [[0xe, 0x40 | i, 0x30 | i, 0x20 | i] for i in
+    assert data[-1][1] == [[0x15, 0x40 | i, 0x30 | i, 0x20 | i] for i in
             range(4)]
 
 
