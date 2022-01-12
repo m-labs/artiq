@@ -215,7 +215,10 @@ class MonInjProxy(AsyncioServer):
                                          channel, overrd, v.value)
                     client.writer.write(packet)
 
-                while opcode := await reader.read(1):
+                while True:
+                    opcode = await reader.read(1)
+                    if not opcode:
+                        break
                     if opcode == b"\x00":
                         enable, channel, probe = await client.read_format(
                             self.endian + "blb")
