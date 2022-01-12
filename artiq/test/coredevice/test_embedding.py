@@ -168,7 +168,6 @@ class RPCHostRoundtripTypeTest(ExperimentCase):
         self.assert_roundtrip_value_equal(i64_maxmin)
 
     def test_i32_bad(self):
-        # Notice: the constant itself is valid if casted as u32
         def invalid_as_i32() -> TInt32:
             return 2 ** 31
 
@@ -176,7 +175,6 @@ class RPCHostRoundtripTypeTest(ExperimentCase):
             self.assert_roundtrip_value_equal(invalid_as_i32)
 
     def test_i64_bad(self):
-        # Notice: the constant itself is valid if casted as u64
         def invalid_as_i64() -> TInt64:
             return 2 ** 63
 
