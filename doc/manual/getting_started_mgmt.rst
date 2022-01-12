@@ -46,15 +46,15 @@ The dashboard should display the list of experiments from the repository folder 
 
 .. note:: Multiple clients may be connected at the same time, possibly on different machines, and will be synchronized. See the ``-s`` option of ``artiq_dashboard`` and the ``--bind`` option of ``artiq_master`` to use the network. Both IPv4 and IPv6 are supported.
 
-(Optional) Using a monitor/injection proxy for core device
-----------------------------------------------------------
+Using a monitor/injection proxy for core device
+-----------------------------------------------
 
 If you do not have direct access to the subnet of control plane, e.g. not having symmetrical access to core device
 and master due to running in heterogeneous network architecture like one device handles all network communications by
 using NAT, or if you want to virtualize the monitor/injection controls to better handle dynamic core device transitions,
 then you could use the monitor/injection proxy after the master server was initiated: ::
 
-    $ aqctl_proxy_moninj --master-addr <master address> --port-proxy <proxy port> --bind <bind address>
+    $ aqctl_proxy_moninj --master-addr <master address> --port <proxy port> --bind <bind address>
 
 And add an entry of moninj to device database: ::
 
@@ -63,7 +63,7 @@ And add an entry of moninj to device database: ::
         "host": "::1",
         "port": "2383",
         "master_addr": "localhost",
-        "command": "aqctl_proxy_moninj --master-addr {master_addr} --port-proxy {port} --bind {bind}"
+        "command": "aqctl_proxy_moninj --master-addr {master_addr} --port {port} --bind {bind}"
     }
 
 .. note:: The proxy must have direct access to both master and core device. If you still do not have direct access for both of these, consider using an advanced network solution such as VPN like `WireGuard <https://www.wireguard.com/>`_ or `ZeroTier <https://www.zerotier.com/>`_.
