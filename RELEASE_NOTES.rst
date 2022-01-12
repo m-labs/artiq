@@ -52,8 +52,19 @@ Breaking changes:
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
 * The internal dataset representation was changed to support tracking HDF5 options like e.g.
-  a compression method. This requires changes to code reading the dataset persistence file
-  (``dataset_db.pyon``) and to custom applets.
+  a compression method. As a consequence:
+
+   - code reading ``dataset_db.pyon`` (in particular custom applets) needs to be modified to use
+     the new dictionary-based interface (see ``artiq.master.databases.make_dataset``)
+   - ``dataset_db.pyon`` files must be migrated. This can be achieved with the following script::
+
+       from sipyco import pyon
+       from artiq.master.databases import make_dataset
+
+       datasets = pyon.load_file("dataset_db.pyon")
+       new = {name: make_dataset(value=value, persist=True) for name, value in datasets.items()}
+       pyon.store_file("dataset_db.pyon", new)
+
 
 
 ARTIQ-6
