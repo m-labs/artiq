@@ -195,6 +195,7 @@ class MonInjProxy(AsyncioServer):
 
     async def _handle_connection_cr(self, reader, writer):
         if await reader.readline() == b"ARTIQ moninj\n":
+            logger.info("client connected (remote: %s)", writer.get_extra_info('peername'))
             writer.write(b"e")
             client, client_idx = _Client(reader, writer), len(self.clients)
             self.clients.append(client)
@@ -230,6 +231,7 @@ class MonInjProxy(AsyncioServer):
                 for (channel, overrd) in client.injection:
                     self.update_injection(False, channel, overrd)
                 self.clients.pop(client_idx)
+                logger.info("client disconnected (remote: %s)", writer.get_extra_info('peername'))
 
     def update_probe(self, enable, channel, probe, client=None):
         commit_monitor = False
