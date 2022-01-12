@@ -5,11 +5,12 @@ import asyncio
 import atexit
 import logging
 import struct
+import sys
 from collections import defaultdict
 
-from sipyco import common_args
+from sipyco import common_args, pyon
 from sipyco.asyncio_tools import atexit_register_coroutine, AsyncioServer
-from sipyco.pc_rpc import Server as RPCServer
+from sipyco.packed_exceptions import current_exc_packed
 from sipyco.sync_struct import Subscriber
 
 from artiq import __version__ as artiq_version
@@ -200,65 +201,72 @@ class MonInjProxy(AsyncioServer):
         logger.debug("stopping the proxy")
         self.active = False
         await asyncio.wait(
-            [self.core.disconnect(), self.master.disconnect(), super().stop()])
+            [self.core.disconnect(), self.master.disconnect()])
 
     async def _handle_connection_cr(self, reader, writer):
-        if await reader.readline() == b"ARTIQ moninj\n":
-            logger.info("client connected (remote: %s)",
-                        writer.get_extra_info('peername'))
-            writer.write(b"e")
-            client, client_idx = _Client(reader, writer), len(self.clients)
-            self.clients.append(client)
-            try:
-                for (channel, overrd), v in self.mon_fields.injection.items():
-                    packet = struct.pack(self.core.comm.endian + "blbb", 1,
-                                         channel, overrd, v.value)
-                    client.writer.write(packet)
+        line = await reader.readline()
+        if line == b"ARTIQ moninj\n":
+            return await self._handle_moninj_connection_cr(reader, writer)
+        elif line == b"ARTIQ pc_rpc\n":
+            return await self._handle_rpc_connection_cr(reader, writer)
+        return
 
-                while True:
-                    opcode = await reader.read(1)
-                    if not opcode:
-                        break
-                    if opcode == b"\x00":
-                        enable, channel, probe = await client.read_format(
-                            self.endian + "blb")
-                        logger.debug(
-                            f"received MonitorProbe {(enable, channel, probe)}"
-                        )
-                        self.update_probe(enable, channel, probe,
+    async def _handle_moninj_connection_cr(self, reader, writer):
+        logger.info("client connected (remote: %s)",
+                    writer.get_extra_info('peername'))
+        writer.write(b"e")
+        client, client_idx = _Client(reader, writer), len(self.clients)
+        self.clients.append(client)
+        try:
+            for (channel, overrd), v in self.mon_fields.injection.items():
+                packet = struct.pack(self.core.comm.endian + "blbb", 1,
+                                     channel, overrd, v.value)
+                client.writer.write(packet)
+
+            while True:
+                opcode = await reader.read(1)
+                if not opcode:
+                    break
+                if opcode == b"\x00":
+                    enable, channel, probe = await client.read_format(
+                        self.endian + "blb")
+                    logger.debug(
+                        f"received MonitorProbe {(enable, channel, probe)}"
+                    )
+                    self.update_probe(enable, channel, probe,
+                                      client=client)
+                elif opcode == b"\x01":
+                    channel, override, value = await client.read_format(
+                        self.endian + "lbb")
+                    logger.debug(
+                        f"received Inject {(channel, override, value)}")
+                    self.core.comm.inject(channel, override, value)
+                elif opcode == b"\x02":
+                    channel, override = await client.read_format(
+                        self.endian + "lb")
+                    logger.debug(
+                        f"received GetInjectionStatus {(channel, override)}")
+                    self.core.comm.get_injection_status(channel, override)
+                elif opcode == b"\x03":
+                    enable, channel, overrd = await client.read_format(
+                        self.endian + "blb")
+                    logger.debug(
+                        f"received MonitorInjection {(enable, channel, overrd)}")
+                    self.update_injection(enable, channel, overrd,
                                           client=client)
-                    elif opcode == b"\x01":
-                        channel, override, value = await client.read_format(
-                            self.endian + "lbb")
-                        logger.debug(
-                            f"received Inject {(channel, override, value)}")
-                        self.core.comm.inject(channel, override, value)
-                    elif opcode == b"\x02":
-                        channel, override = await client.read_format(
-                            self.endian + "lb")
-                        logger.debug(
-                            f"received GetInjectionStatus {(channel, override)}")
-                        self.core.comm.get_injection_status(channel, override)
-                    elif opcode == b"\x03":
-                        enable, channel, overrd = await client.read_format(
-                            self.endian + "blb")
-                        logger.debug(
-                            f"received MonitorInjection {(enable, channel, overrd)}")
-                        self.update_injection(enable, channel, overrd,
-                                              client=client)
-                    else:
-                        raise ValueError("Unknown packet type", opcode)
-            except:
-                logger.error("Error occurred during connection loop",
-                             exc_info=True)
-            finally:
-                for (channel, probe) in client.probe:
-                    self.update_probe(False, channel, probe)
-                for (channel, overrd) in client.injection:
-                    self.update_injection(False, channel, overrd)
-                self.clients.pop(client_idx)
-                logger.info("client disconnected (remote: %s)",
-                            writer.get_extra_info('peername'))
+                else:
+                    raise ValueError("Unknown packet type", opcode)
+        except:
+            logger.error("Error occurred during connection loop",
+                         exc_info=True)
+        finally:
+            for (channel, probe) in client.probe:
+                self.update_probe(False, channel, probe)
+            for (channel, overrd) in client.injection:
+                self.update_injection(False, channel, overrd)
+            self.clients.pop(client_idx)
+            logger.info("client disconnected (remote: %s)",
+                        writer.get_extra_info('peername'))
 
     def update_probe(self, enable, channel, probe, client=None):
         commit_monitor = False
@@ -305,6 +313,52 @@ class MonInjProxy(AsyncioServer):
     def endian(self):
         return self.core.comm.endian if self.core.comm else None
 
+    # Tiny RPC Ping/Terminte handler
+    async def _process_action(self, obj):
+        if obj["action"] == "call":
+            if obj["name"] == "terminate":
+                sys.exit(0)
+            elif obj["name"] == "ping":
+                return True
+            else:
+                return None
+        else:
+            raise ValueError("Unknown action: {}"
+                             .format(obj["action"]))
+
+    async def _process_and_pyonize(self, obj):
+        try:
+            return pyon.encode(
+                {"status": "ok", "ret": await self._process_action(obj)})
+        except (asyncio.CancelledError, SystemExit):
+            raise
+        except:
+            return pyon.encode(
+                {"status": "failed", "exception": current_exc_packed()})
+
+    async def _handle_rpc_connection_cr(self, reader, writer):
+        try:
+            obj = {"targets": ["ping"], "description": ""}
+            line = pyon.encode(obj) + "\n"
+            writer.write(line.encode())
+            line = await reader.readline()
+            if not line:
+                return
+            valid_methods = {"ping", "terminate"}
+            writer.write((pyon.encode(valid_methods) + "\n").encode())
+            while True:
+                line = await reader.readline()
+                if not line:
+                    break
+                reply = await self._process_and_pyonize(
+                    pyon.decode(line.decode()))
+                writer.write((reply + "\n").encode())
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # May happens on Windows when client disconnects
+            pass
+        finally:
+            writer.close()
+
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -312,34 +366,14 @@ def get_argparser():
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
-    parser.add_argument(
-        "--bind", default=[], action="append",
-        help="additional hostname or IP address to bind to; "
-             "use '*' to bind to all interfaces (default: %(default)s)")
-    parser.add_argument(
-        "--no-localhost-bind", default=False, action="store_true",
-        help="do not implicitly also bind to localhost addresses")
-
+    common_args.verbosity_args(parser)
+    common_args.simple_network_args(parser, 2383)
     group = parser.add_argument_group("master related")
-    group.add_argument(
-        "--master-addr", type=str, required=True,
-        help="hostname or IP of the master to connect to")
-
-    group.add_argument(
-        "--master-port-notify", type=int, default=3250,
-        help="port to connect to for notification service in master")
-
-    group = parser.add_argument_group("proxy server")
-    group.add_argument("--port-proxy", default=2383, type=int,
-                       help="TCP port for proxy to listen to (default: 2383)")
-    group.add_argument("--port-rpc", default=2384, type=int,
-                       help="TCP port for RPC heartbeat to listen to (default: 2384)")
+    group.add_argument("--master-addr", type=str, required=True,
+                       help="hostname or IP of the master to connect to")
+    group.add_argument("--master-port-notify", type=int, default=3250,
+                       help="port to connect to for notification service in master")
     return parser
-
-
-class PingTarget:
-    def ping(self):
-        return True
 
 
 def main():
@@ -349,12 +383,9 @@ def main():
     bind = common_args.bind_address_from_args(args)
 
     proxy = MonInjProxy(args.master_addr, args.master_port_notify)
-    proxy_rpc = RPCServer({"ping": PingTarget()}, builtin_terminate=True)
     loop.run_until_complete(proxy.connect())
-    loop.run_until_complete(proxy.start(bind, args.port_proxy))
-    loop.run_until_complete(proxy_rpc.start(bind, args.port_rpc))
+    loop.run_until_complete(proxy.start(bind, args.port))
 
-    atexit_register_coroutine(proxy_rpc.stop)
     atexit_register_coroutine(proxy.stop)
 
     logger.info("ARTIQ Core Device MonInj Proxy is now ready.")
