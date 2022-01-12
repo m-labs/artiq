@@ -49,7 +49,7 @@ The dashboard should display the list of experiments from the repository folder 
 (Optional) Using a monitor/injection proxy for core device
 ----------------------------------------------------------
 
-If you do not direct access to the subnet of control plane, e.g. not having symmetrical access to core device
+If you do not have direct access to the subnet of control plane, e.g. not having symmetrical access to core device
 and master due to running in heterogeneous network architecture like one device handles all network communications by
 using NAT, or if you want to virtualize the monitor/injection controls to better handle dynamic core device transitions,
 then you could use the monitor/injection proxy after the master server was initiated: ::
