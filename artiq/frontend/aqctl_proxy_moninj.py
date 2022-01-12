@@ -80,7 +80,6 @@ class MonInjCoredev:
         if not self.connected:
             self.connected = True
             logging.info("connected to core device")
-            self.proxy.endian = self.comm.endian
 
     async def on_disconnected(self):
         if self.connected:
@@ -178,7 +177,6 @@ class MonInjProxy(AsyncioServer):
         self.active = False
         self.mon_fields = _MonitoredField()
         self.clients = []
-        self.endian = ""
 
     async def connect(self):
         logger.debug("starting the proxy")
@@ -270,6 +268,10 @@ class MonInjProxy(AsyncioServer):
         if commit_monitor:
             logger.debug(f"committing monitor injection {(enable, channel, overrd)}")
             self.core.comm.monitor_injection(enable, channel, overrd)
+
+    @property
+    def endian(self):
+        return self.core.comm.endian if self.core.comm else None
 
 
 def get_argparser():
