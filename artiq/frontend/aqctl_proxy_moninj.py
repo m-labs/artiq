@@ -27,7 +27,8 @@ class _Client:
         self.writer = writer
 
     async def read_format(self, fmt):
-        return struct.unpack(fmt, await self.reader.readexactly(struct.calcsize(fmt)))
+        data = await self.reader.readexactly(struct.calcsize(fmt))
+        return struct.unpack(fmt, data)
 
 
 class _MonitoredFieldInfo:
@@ -51,12 +52,14 @@ class MonInjCoredev:
     async def connect(self, addr, port):
         try:
             logging.info(f"trying to connect to coredev at {addr}:{port}")
-            comm = CommMonInj(self.on_monitor, self.on_injection_status, self.on_disconnected)
+            comm = CommMonInj(self.on_monitor, self.on_injection_status,
+                              self.on_disconnected)
             await comm.connect(addr, port)
         except asyncio.CancelledError:
             raise
         except:
-            logger.error("failed to connect to core device moninj", exc_info=True)
+            logger.error("failed to connect to core device moninj",
+                         exc_info=True)
             await asyncio.sleep(10.)
         else:
             self.comm = comm
@@ -97,7 +100,8 @@ class MonInjCoredev:
         self.proxy.mon_fields.probe[(channel, probe)].value = value
         for client in self.proxy.clients:
             # MonitorStatus
-            packet = struct.pack(self.comm.endian + "blbl", 0, channel, probe, value)
+            packet = struct.pack(self.comm.endian + "blbl", 0, channel, probe,
+                                 value)
             client.writer.write(packet)
 
     def on_injection_status(self, channel, override, value):
@@ -106,7 +110,8 @@ class MonInjCoredev:
         for client in self.proxy.clients:
             if (channel, override) in client.injection:
                 # InjectionStatus
-                packet = struct.pack(self.comm.endian + "blbb", 1, channel, override, value)
+                packet = struct.pack(self.comm.endian + "blbb", 1, channel,
+                                     override, value)
                 client.writer.write(packet)
 
 
@@ -115,7 +120,8 @@ class MonInjMaster:
         self._core_addr = None
         self.proxy = proxy
         self.ddb = dict()
-        self.ddb_notify = Subscriber("devices", self.build_ddb, self.on_notify, self.on_disconnected)
+        self.ddb_notify = Subscriber("devices", self.build_ddb, self.on_notify,
+                                     self.on_disconnected)
         self.connected = False
 
     def build_ddb(self, init):
@@ -136,7 +142,8 @@ class MonInjMaster:
 
     async def set_core_addr(self, value):
         if self._core_addr and value and self._core_addr != value:
-            logging.debug(f"core address changed, old: {self._core_addr}, new: {value}")
+            logging.debug(
+                f"core address changed, old: {self._core_addr}, new: {value}")
             await self.proxy.core.disconnect()
         self._core_addr = value
 
@@ -155,7 +162,8 @@ class MonInjMaster:
             logger.info("disconnected from master")
             while self.proxy.active and not self.connected:
                 try:
-                    await self.connect(self.proxy.master_addr, self.proxy.master_notify_port)
+                    await self.connect(self.proxy.master_addr,
+                                       self.proxy.master_notify_port)
                 except:
                     logging.error("master still unreachable, retrying...")
                     await asyncio.sleep(10)
@@ -191,47 +199,63 @@ class MonInjProxy(AsyncioServer):
     async def stop(self):
         logger.debug("stopping the proxy")
         self.active = False
-        await asyncio.wait([self.core.disconnect(), self.master.disconnect(), super().stop()])
+        await asyncio.wait(
+            [self.core.disconnect(), self.master.disconnect(), super().stop()])
 
     async def _handle_connection_cr(self, reader, writer):
         if await reader.readline() == b"ARTIQ moninj\n":
-            logger.info("client connected (remote: %s)", writer.get_extra_info('peername'))
+            logger.info("client connected (remote: %s)",
+                        writer.get_extra_info('peername'))
             writer.write(b"e")
             client, client_idx = _Client(reader, writer), len(self.clients)
             self.clients.append(client)
             try:
                 for (channel, overrd), v in self.mon_fields.injection.items():
-                    packet = struct.pack(self.core.comm.endian + "blbb", 1, channel, overrd, v.value)
+                    packet = struct.pack(self.core.comm.endian + "blbb", 1,
+                                         channel, overrd, v.value)
                     client.writer.write(packet)
 
                 while opcode := await reader.read(1):
                     if opcode == b"\x00":
-                        enable, channel, probe = await client.read_format(self.endian + "blb")
-                        logger.debug(f"received MonitorProbe {(enable, channel, probe)}")
-                        self.update_probe(enable, channel, probe, client=client)
+                        enable, channel, probe = await client.read_format(
+                            self.endian + "blb")
+                        logger.debug(
+                            f"received MonitorProbe {(enable, channel, probe)}"
+                        )
+                        self.update_probe(enable, channel, probe,
+                                          client=client)
                     elif opcode == b"\x01":
-                        channel, override, value = await client.read_format(self.endian + "lbb")
-                        logger.debug(f"received Inject {(channel, override, value)}")
+                        channel, override, value = await client.read_format(
+                            self.endian + "lbb")
+                        logger.debug(
+                            f"received Inject {(channel, override, value)}")
                         self.core.comm.inject(channel, override, value)
                     elif opcode == b"\x02":
-                        channel, override = await client.read_format(self.endian + "lb")
-                        logger.debug(f"received GetInjectionStatus {(channel, override)}")
+                        channel, override = await client.read_format(
+                            self.endian + "lb")
+                        logger.debug(
+                            f"received GetInjectionStatus {(channel, override)}")
                         self.core.comm.get_injection_status(channel, override)
                     elif opcode == b"\x03":
-                        enable, channel, overrd = await client.read_format(self.endian + "blb")
-                        logger.debug(f"received MonitorInjection {(enable, channel, overrd)}")
-                        self.update_injection(enable, channel, overrd, client=client)
+                        enable, channel, overrd = await client.read_format(
+                            self.endian + "blb")
+                        logger.debug(
+                            f"received MonitorInjection {(enable, channel, overrd)}")
+                        self.update_injection(enable, channel, overrd,
+                                              client=client)
                     else:
                         raise ValueError("Unknown packet type", opcode)
             except:
-                logger.error("Error occurred during connection loop", exc_info=True)
+                logger.error("Error occurred during connection loop",
+                             exc_info=True)
             finally:
                 for (channel, probe) in client.probe:
                     self.update_probe(False, channel, probe)
                 for (channel, overrd) in client.injection:
                     self.update_injection(False, channel, overrd)
                 self.clients.pop(client_idx)
-                logger.info("client disconnected (remote: %s)", writer.get_extra_info('peername'))
+                logger.info("client disconnected (remote: %s)",
+                            writer.get_extra_info('peername'))
 
     def update_probe(self, enable, channel, probe, client=None):
         commit_monitor = False
@@ -249,7 +273,8 @@ class MonInjProxy(AsyncioServer):
             else:
                 self.mon_fields.probe[(channel, probe)].refs -= 1
         if commit_monitor:
-            logger.debug(f"committing monitor probe {(enable, channel, probe)}")
+            logger.debug(
+                f"committing monitor probe {(enable, channel, probe)}")
             self.core.comm.monitor_probe(enable, channel, probe)
 
     def update_injection(self, enable, channel, overrd, client=None):
@@ -257,7 +282,8 @@ class MonInjProxy(AsyncioServer):
         if enable:
             if client:
                 client.injection.add((channel, overrd))
-            commit_monitor = self.mon_fields.injection[(channel, overrd)].refs == 0
+            commit_monitor = self.mon_fields.injection[
+                                 (channel, overrd)].refs == 0
             self.mon_fields.injection[(channel, overrd)].refs += 1
         elif (channel, overrd) in self.mon_fields.injection:
             if client:
@@ -268,7 +294,8 @@ class MonInjProxy(AsyncioServer):
             else:
                 self.mon_fields.injection[(channel, overrd)].refs -= 1
         if commit_monitor:
-            logger.debug(f"committing monitor injection {(enable, channel, overrd)}")
+            logger.debug(
+                f"committing monitor injection {(enable, channel, overrd)}")
             self.core.comm.monitor_injection(enable, channel, overrd)
 
     @property
@@ -277,7 +304,8 @@ class MonInjProxy(AsyncioServer):
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ Core Device Monitor/Injection Proxy")
+    parser = argparse.ArgumentParser(
+        description="ARTIQ Core Device Monitor/Injection Proxy")
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
