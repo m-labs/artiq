@@ -184,7 +184,7 @@ class MonInjProxy(AsyncioServer):
         self.core, self.master = MonInjCoredev(self), MonInjMaster(self)
         self.active = False
         self.mon_fields = _MonitoredField()
-        self.clients = []
+        self.clients = set()
 
     async def connect(self):
         logger.debug("starting the proxy")
@@ -214,8 +214,8 @@ class MonInjProxy(AsyncioServer):
         logger.info("client connected (remote: %s)",
                     writer.get_extra_info('peername'))
         writer.write(b"e")
-        client, client_idx = _Client(reader, writer), len(self.clients)
-        self.clients.append(client)
+        client = _Client(reader, writer)
+        self.clients.add(client)
         try:
             for (channel, overrd), v in self.mon_fields.injection.items():
                 packet = struct.pack(self.core.comm.endian + "blbb", 1,
@@ -263,7 +263,7 @@ class MonInjProxy(AsyncioServer):
                 self.update_probe(False, channel, probe)
             for (channel, overrd) in client.injection:
                 self.update_injection(False, channel, overrd)
-            self.clients.pop(client_idx)
+            self.clients.remove(client)
             logger.info("client disconnected (remote: %s)",
                         writer.get_extra_info('peername'))
 
