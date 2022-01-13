@@ -16,7 +16,6 @@ from sipyco.sync_struct import Subscriber
 from artiq import __version__ as artiq_version
 from artiq.coredevice.comm_moninj import CommMonInj
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -52,7 +51,7 @@ class MonInjCoredev:
 
     async def connect(self, addr, port):
         try:
-            logging.info(f"trying to connect to coredev at {addr}:{port}")
+            logger.info(f"trying to connect to coredev at {addr}:{port}")
             comm = CommMonInj(self.on_monitor, self.on_injection_status,
                               self.on_disconnected)
             await comm.connect(addr, port)
@@ -83,7 +82,7 @@ class MonInjCoredev:
     async def on_connected(self):
         if not self.connected:
             self.connected = True
-            logging.info("connected to core device")
+            logger.info("connected to core device")
 
     async def on_disconnected(self):
         if self.connected:
@@ -93,7 +92,7 @@ class MonInjCoredev:
                 try:
                     await self.connect(self.proxy.master.core_addr, 1383)
                 except:
-                    logging.error("core device still unreachable, retrying...")
+                    logger.error("core device still unreachable, retrying...")
                     await asyncio.sleep(10)
 
     def on_monitor(self, channel, probe, value):
@@ -143,7 +142,7 @@ class MonInjMaster:
 
     async def set_core_addr(self, value):
         if self._core_addr and value and self._core_addr != value:
-            logging.debug(
+            logger.debug(
                 f"core address changed, old: {self._core_addr}, new: {value}")
             await self.proxy.core.disconnect()
         self._core_addr = value
@@ -166,7 +165,7 @@ class MonInjMaster:
                     await self.connect(self.proxy.master_addr,
                                        self.proxy.master_notify_port)
                 except:
-                    logging.error("master still unreachable, retrying...")
+                    logger.error("master still unreachable, retrying...")
                     await asyncio.sleep(10)
 
     async def on_notify(self, mod):
@@ -378,6 +377,7 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
+    common_args.init_logger_from_args(args)
     loop = asyncio.get_event_loop()
     atexit.register(loop.close)
     bind = common_args.bind_address_from_args(args)
@@ -388,7 +388,7 @@ def main():
 
     atexit_register_coroutine(proxy.stop)
 
-    logger.info("ARTIQ Core Device MonInj Proxy is now ready.")
+    print("ARTIQ Core Device MonInj Proxy is now ready.")
     loop.run_forever()
 
 
