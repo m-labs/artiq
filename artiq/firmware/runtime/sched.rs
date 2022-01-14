@@ -2,13 +2,13 @@
 
 use core::mem;
 use core::result;
-use core::cell::{Cell, RefCell};
+use core::cell::{Cell, RefCell, RefMut};
 use alloc::vec::Vec;
 use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::time::Duration;
 use smoltcp::Error as NetworkError;
-use smoltcp::wire::IpEndpoint;
+use smoltcp::wire::{IpEndpoint, Ipv4Cidr, IpCidr};
 use smoltcp::iface::{Interface, SocketHandle};
 
 use io::{Read, Write};
@@ -16,6 +16,7 @@ use board_misoc::clock;
 use urc::Urc;
 use board_misoc::ethmac::EthernetDevice;
 use smoltcp::phy::Tracer;
+use IPV4_INDEX;
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -272,6 +273,12 @@ impl<'a> Io<'a> {
 
     pub fn join(&self, handle: ThreadHandle) -> Result<(), Error> {
         self.until(move || handle.terminated())
+    }
+
+    pub fn set_ipv4_address(&self, addr: &Ipv4Cidr) {
+        self.network.borrow_mut().update_ip_addrs(|addrs| {
+            addrs.as_mut()[IPV4_INDEX] = IpCidr::Ipv4(*addr);
+        })
     }
 }
 
@@ -561,5 +568,47 @@ impl<'a> Drop for TcpStream<'a> {
     fn drop(&mut self) {
         self.with_lower(|s| s.close());
         self.io.network.borrow_mut().remove_socket(self.handle);
+    }
+}
+
+pub struct Dhcpv4Socket<'a> {
+    io: &'a Io<'a>,
+    handle: SocketHandle,
+}
+
+impl<'a> Dhcpv4Socket<'a> {
+
+    fn new_lower(io: &'a Io<'a>) -> SocketHandle {
+        let socket = smoltcp::socket::Dhcpv4Socket::new();
+        io.network.borrow_mut().add_socket(socket)
+    }
+
+    pub fn new(io: &'a Io<'a>) -> Self {
+        Self {
+            io,
+            handle: Self::new_lower(io)
+        }
+    }
+
+    fn lower(&mut self) -> RefMut<smoltcp::socket::Dhcpv4Socket> {
+        RefMut::map(
+            self.io.network.borrow_mut(),
+            |network| network.get_socket::<smoltcp::socket::Dhcpv4Socket>(self.handle),
+        )
+    }
+
+    pub fn poll(&mut self) -> Option<smoltcp::socket::Dhcpv4Event> {
+        self.lower().poll()
+    }
+
+    pub fn reset(&mut self) {
+        self.lower().reset()
+    }
+}
+
+impl<'a> Drop for Dhcpv4Socket<'a> {
+    fn drop(&mut self) {
+        let mut network = self.io.network.borrow_mut();
+        network.remove_socket(self.handle);
     }
 }

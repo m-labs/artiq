@@ -1,10 +1,13 @@
 use core::fmt;
 
-use smoltcp::wire::{EthernetAddress, IpAddress};
+use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address};
 
 use config;
 #[cfg(soc_platform = "kasli")]
 use i2c_eeprom;
+
+
+pub const USE_DHCP: IpAddress = IpAddress::Ipv4(Ipv4Address::UNSPECIFIED);
 
 
 pub struct NetAddresses {
@@ -49,7 +52,13 @@ pub fn get_adresses() -> NetAddresses {
     }
 
     let ipv4_addr;
-    match config::read_str("ip", |r| r.map(|s| s.parse())) {
+    match config::read_str("ip", |r| r.map(|s| {
+        if s == "use_dhcp" {
+            Ok(USE_DHCP)
+        } else {
+            s.parse()
+        }
+    })) {
         Ok(Ok(addr)) => ipv4_addr = addr,
         _ => {
             #[cfg(soc_platform = "kasli")]

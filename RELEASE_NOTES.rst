@@ -42,6 +42,7 @@ Highlights:
 * ``PCA9548`` I2C switch class renamed to ``I2CSwitch``, to accomodate support for PCA9547, and
   possibly other switches in future. Readback has been removed, and now only one channel per 
   switch is supported.
+* The "ip" config option can now be set to "use_dhcp" to use DHCP to obtain an IP address.
 
 Breaking changes:
 
