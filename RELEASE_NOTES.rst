@@ -36,7 +36,8 @@ Highlights:
   in particular to use transparent compression filters as follows:
   ``set_dataset(name, value, hdf5_options={"compression": "gzip"})``.
 * Removed worker DB warning for writing a dataset that is also in the archive
-* The "ip" config option can now be set to "use_dhcp" to use DHCP to obtain an IP address.
+* The "ip" config option can now be set to "use_dhcp" in order to use DHCP to obtain an IP address.
+  DHCP will also be used if no "ip" config option is set.
 
 Breaking changes:
 
