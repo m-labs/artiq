@@ -203,6 +203,8 @@ _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
 
 def setup_from_ddb(ddb):
     core_addr = None
+    proxy_addr = None
+    proxy_port = None
     dds_sysclk = None
     description = set()
 
@@ -211,6 +213,10 @@ def setup_from_ddb(ddb):
         if "comment" in v:
             comment = v["comment"]
         try:
+            if isinstance(v, dict) and v["type"] == "controller":
+                if k == "moninj":
+                    proxy_addr = v["host"]
+                    proxy_port = v["port_proxy"]
             if isinstance(v, dict) and v["type"] == "local":
                 if k == "core":
                     core_addr = v["arguments"]["host"]
@@ -238,12 +244,15 @@ def setup_from_ddb(ddb):
                         description.add(widget)
         except KeyError:
             pass
-    return core_addr, dds_sysclk, description
+    if proxy_addr and proxy_port:
+        return proxy_addr, proxy_port, dds_sysclk, description
+    return core_addr, 1383, dds_sysclk, description
 
 
 class _DeviceManager:
     def __init__(self):
-        self.core_addr = None
+        self.moninj_addr = None
+        self.moninj_port = None
         self.reconnect_core = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
@@ -265,10 +274,11 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        core_addr, dds_sysclk, description = setup_from_ddb(self.ddb)
+        moninj_addr, moninj_port, dds_sysclk, description = setup_from_ddb(self.ddb)
 
-        if core_addr != self.core_addr:
-            self.core_addr = core_addr
+        if moninj_addr != self.moninj_addr:
+            self.moninj_addr = moninj_addr
+            self.moninj_port = moninj_port
             self.reconnect_core.set()
 
         self.dds_sysclk = dds_sysclk
@@ -398,7 +408,7 @@ class _DeviceManager:
             new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                     self.disconnect_cb)
             try:
-                await new_core_connection.connect(self.core_addr, 1383)
+                await new_core_connection.connect(self.moninj_addr, self.moninj_port)
             except asyncio.CancelledError:
                 logger.info("cancelled connection to core device moninj")
                 break
