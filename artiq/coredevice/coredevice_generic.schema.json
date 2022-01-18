@@ -60,9 +60,20 @@
                     "description": "Listening address of the proxy"
                 },
                 "port": {
-                    "type": "number",
-                    "description": "Port for the proxy service",
-                    "default": 2383
+                    "type": "object",
+                    "description": "Listening ports of the proxy",
+                    "properties": {
+                        "proxy": {
+                            "type": "number",
+                            "description": "Port for the proxy service",
+                            "default": 2383
+                        },
+                        "rpc": {
+                            "type": "number",
+                            "description": "Port for heartbeat detection",
+                            "default": 2384
+                        }
+                    }
                 }
             }
         },
