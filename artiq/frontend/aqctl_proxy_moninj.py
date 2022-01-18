@@ -205,6 +205,7 @@ class MonInjProxy(AsyncioServer):
     async def stop(self):
         logger.debug("stopping the proxy")
         self.active = False
+        await super().stop()
         await asyncio.wait(
             [self.core.disconnect(), self.master.disconnect()])
 
@@ -222,9 +223,11 @@ class MonInjProxy(AsyncioServer):
         self.clients.add(client)
         try:
             for (channel, probe), v in self.mon_fields.probe.items():
-                client.write_monitor_status(channel, probe, v.value, self.endian)
+                client.write_monitor_status(channel, probe, v.value,
+                                            self.endian)
             for (channel, overrd), v in self.mon_fields.injection.items():
-                client.write_injection_status(channel, overrd, v.value, self.endian)
+                client.write_injection_status(channel, overrd, v.value,
+                                              self.endian)
             while True:
                 opcode = await reader.read(1)
                 if not opcode:
