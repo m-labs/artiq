@@ -208,8 +208,8 @@ class MonInjProxy(AsyncioServer):
         return
 
     async def _handle_moninj_connection_cr(self, reader, writer):
-        logger.info("client connected (remote: %s)",
-                    writer.get_extra_info('peername'))
+        remote_addr = writer.get_extra_info('peername')
+        logger.info("client connected (remote: %s)", remote_addr)
         writer.write(b"e")
         client = _Client(reader, writer)
         self.clients.add(client)
@@ -261,8 +261,7 @@ class MonInjProxy(AsyncioServer):
             for (channel, overrd) in client.injection:
                 self.update_injection(False, channel, overrd)
             self.clients.remove(client)
-            logger.info("client disconnected (remote: %s)",
-                        writer.get_extra_info('peername'))
+            logger.info("client disconnected (remote: %s)", remote_addr)
 
     def update_probe(self, enable, channel, probe, client=None):
         commit_monitor = False
