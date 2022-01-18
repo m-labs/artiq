@@ -29,6 +29,16 @@ class _Client:
         data = await self.reader.readexactly(struct.calcsize(fmt))
         return struct.unpack(fmt, data)
 
+    def write_monitor_status(self, channel, probe, value, endian):
+        # MonitorStatus
+        packet = struct.pack(endian + "blbl", 0, channel, probe, value)
+        self.writer.write(packet)
+
+    def write_injection_status(self, channel, override, value, endian):
+        # InjectionStatus
+        packet = struct.pack(endian + "blbb", 1, channel, override, value)
+        self.writer.write(packet)
+
 
 class _MonitoredFieldInfo:
     def __init__(self):
@@ -98,20 +108,17 @@ class MonInjCoredev:
         logger.debug(f"received monitor data {(channel, probe, value)}")
         self.proxy.mon_fields.probe[(channel, probe)].value = value
         for client in self.proxy.clients:
-            # MonitorStatus
-            packet = struct.pack(self.comm.endian + "blbl", 0, channel, probe,
-                                 value)
-            client.writer.write(packet)
+            if (channel, probe) in client.probe:
+                client.write_monitor_status(channel, probe, value,
+                                            self.comm.endian)
 
     def on_injection_status(self, channel, override, value):
         logger.debug(f"received injection status {(channel, override, value)}")
         self.proxy.mon_fields.injection[(channel, override)].value = value
         for client in self.proxy.clients:
             if (channel, override) in client.injection:
-                # InjectionStatus
-                packet = struct.pack(self.comm.endian + "blbb", 1, channel,
-                                     override, value)
-                client.writer.write(packet)
+                client.write_injection_status(channel, override, value,
+                                              self.comm.endian)
 
 
 class MonInjMaster:
@@ -214,11 +221,10 @@ class MonInjProxy(AsyncioServer):
         client = _Client(reader, writer)
         self.clients.add(client)
         try:
+            for (channel, probe), v in self.mon_fields.probe.items():
+                client.write_monitor_status(channel, probe, v.value, self.endian)
             for (channel, overrd), v in self.mon_fields.injection.items():
-                packet = struct.pack(self.core.comm.endian + "blbb", 1,
-                                     channel, overrd, v.value)
-                client.writer.write(packet)
-
+                client.write_injection_status(channel, overrd, v.value, self.endian)
             while True:
                 opcode = await reader.read(1)
                 if not opcode:
