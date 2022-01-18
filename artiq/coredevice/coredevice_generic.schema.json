@@ -47,36 +47,6 @@
             "description": "IPv4 address",
             "default": "192.168.1.70"
         },
-        "moninj": {
-            "type": "object",
-            "description": "Proxy settings for core device mon/inj proxy",
-            "properties": {
-                "master_addr": {
-                    "type": "string",
-                    "description": "Address of the ARTIQ master server"
-                },
-                "host": {
-                    "type": "string",
-                    "description": "Listening address of the proxy"
-                },
-                "port": {
-                    "type": "object",
-                    "description": "Listening ports of the proxy",
-                    "properties": {
-                        "proxy": {
-                            "type": "number",
-                            "description": "Port for the proxy service",
-                            "default": 2383
-                        },
-                        "rpc": {
-                            "type": "number",
-                            "description": "Port for heartbeat detection",
-                            "default": 2384
-                        }
-                    }
-                }
-            }
-        },
         "vendor": {
             "type": "string",
             "description": "Board vendor"

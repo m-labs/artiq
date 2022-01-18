@@ -54,11 +54,8 @@ Breaking changes:
 * The internal dataset representation was changed to support tracking HDF5 options like e.g.
   a compression method. This requires changes to code reading the dataset persistence file
   (``dataset_db.pyon``) and to custom applets.
-* Added moninj proxying support with ``aqctl_proxy_moninj`` for dashboard to connect to
-  core device for moninj indirectly:
-   - There are new fields in the core device schema, namely a new object ``moninj`` and the
-     subsequent keys ``master_addr``/``host``/``port.proxy``/``port.rpc``. See the updated
-     JSON schema for a more detailed addition.
+* Added moninj proxy support with ``aqctl_proxy_moninj`` for dashboard client to control moninj indirectly:
+   - New optional field in the device database: new key ``moninj`` of type ``controller`` with keys ``host``/``port``/``proxy_port``/``command``.
 
 ARTIQ-6
 -------
