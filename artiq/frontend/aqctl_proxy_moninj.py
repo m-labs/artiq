@@ -57,27 +57,47 @@ class MonInjCoredev:
         self.proxy = proxy
         self.comm = None
         self._connected = False
+        self.connector_task = None
+        self.connection_event = asyncio.Event()
+
+    async def connector(self, addr, port):
+        while True:
+            await self.connection_event.wait()
+            self.connection_event.clear()
+            try:
+                logger.info(f"trying to connect to coredev at {addr}:{port}")
+                comm = CommMonInj(self.on_monitor, self.on_injection_status,
+                                  self.on_disconnected)
+                await comm.connect(addr, port)
+            except asyncio.CancelledError:
+                logger.debug("core connection task is cancelled")
+                break
+            except:
+                logger.error("core device is unreachable, retrying...",
+                             exc_info=True)
+                await asyncio.sleep(10.)
+                self.connection_event.set()
+            else:
+                self.comm = comm
+                await self.on_connected()
 
     async def connect(self, addr, port):
-        try:
-            logger.info(f"trying to connect to coredev at {addr}:{port}")
-            comm = CommMonInj(self.on_monitor, self.on_injection_status,
-                              self.on_disconnected)
-            await comm.connect(addr, port)
-        except asyncio.CancelledError:
-            raise
-        except:
-            logger.error("failed to connect to core device moninj",
-                         exc_info=True)
-            await asyncio.sleep(10.)
-        else:
-            self.comm = comm
-            await self.on_connected()
+        if self.connector_task:
+            await self.disconnect()
+        self.connector_task = asyncio.ensure_future(self.connector(addr, port))
+        self.connection_event.set()
 
     async def disconnect(self):
-        if self.connected:
+        self.connector_task.cancel()
+        try:
+            await asyncio.wait_for(self.connector_task, None)
+        except asyncio.CancelledError:
+            pass
+        self.connector_task = None
+        if self.comm:
             await self.comm.close()
-            self.comm = None
+        self.comm = None
+        await self.on_disconnected()
 
     @property
     def connected(self):
@@ -97,7 +117,7 @@ class MonInjCoredev:
         if self.connected:
             self.connected = False
             logger.info("disconnected from core device")
-            while self.proxy.active and not self.connected:
+            while self.connector_task and not self.connected:
                 try:
                     await self.connect(self.proxy.master.core_addr, 1383)
                 except:
@@ -129,16 +149,41 @@ class MonInjMaster:
         self.ddb_notify = Subscriber("devices", self.build_ddb, self.on_notify,
                                      self.on_disconnected)
         self.connected = False
+        self.connector_task = None
+        self.connection_event = asyncio.Event()
 
     def build_ddb(self, init):
         self.ddb = init
         return self.ddb
 
+    async def connector(self, master, port):
+        while True:
+            await self.connection_event.wait()
+            self.connection_event.clear()
+            logger.debug(f"trying to connect to master server at {master}:{port}")
+            try:
+                await self.ddb_notify.connect(master, port)
+            except asyncio.CancelledError:
+                logger.debug("master connection task is cancelled")
+                break
+            except:
+                logger.error("master is unreachable, retrying...")
+                await asyncio.sleep(10.)
+                self.connection_event.set()
+
     async def connect(self, master, port):
-        logger.debug(f"trying to connect to master server at {master}:{port}")
-        await self.ddb_notify.connect(master, port)
+        if self.connector_task:
+            await self.disconnect()
+        self.connector_task = asyncio.ensure_future(self.connector(master, port))
+        self.connection_event.set()
 
     async def disconnect(self):
+        self.connector_task.cancel()
+        try:
+            await asyncio.wait_for(self.connector_task, None)
+        except asyncio.CancelledError:
+            pass
+        self.connector_task = None
         await self.ddb_notify.close()
         await self.on_disconnected()
 
@@ -166,13 +211,8 @@ class MonInjMaster:
         if self.connected:
             self.connected = False
             logger.info("disconnected from master")
-            while self.proxy.active and not self.connected:
-                try:
-                    await self.connect(self.proxy.master_addr,
-                                       self.proxy.master_notify_port)
-                except:
-                    logger.error("master still unreachable, retrying...")
-                    await asyncio.sleep(10)
+            while self.connector_task and not self.connection_event.is_set():
+                self.connection_event.set()
 
     async def on_notify(self, mod):
         logger.debug(f"received mod from master {mod}")
