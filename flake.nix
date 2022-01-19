@@ -12,6 +12,12 @@
   outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+
+      artiqVersionMajor = 7;
+      artiqVersionMinor = self.sourceInfo.revCount or 0;
+      artiqVersionId = self.sourceInfo.shortRev or "unknown";
+      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "-" + artiqVersionId;
+
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
         sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";
@@ -134,7 +140,7 @@
 
       artiq = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
-        version = "7.0-dev";
+        version = artiqVersion;
         src = self;
 
         preBuild = "export VERSIONEER_OVERRIDE=${version}";
