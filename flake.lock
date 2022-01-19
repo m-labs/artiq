@@ -18,11 +18,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1641244400,
-        "narHash": "sha256-8i4oasWEz/2y9U+F1XU15jfwSbd5YOEBh2tyBBm/W8E=",
+        "lastModified": 1642522226,
+        "narHash": "sha256-m/j9U8KYuwwxjwgRCjmEj8ejftvdMLJ+NGXh/L2I4FU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "c6019d8efb5530dcf7ce98086b8e091be5ff900a",
+        "rev": "610d4ea2750e064bf34b33fa38cb671edd893d3d",
         "type": "github"
       },
       "original": {
@@ -60,11 +60,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1638683371,
-        "narHash": "sha256-sm2SxHmEGfE56+V+joDHMjpOaxg8+t3EJEk1d11C1E0=",
+        "lastModified": 1641889368,
+        "narHash": "sha256-0Ai25lry9ju1HxFmfMRNKG8mamBqvw+kvDfpuK8Dtjo=",
         "ref": "master",
-        "rev": "71b74f87b41c56a6c6d767cdfde0356c15a379a7",
-        "revCount": 2418,
+        "rev": "7242dc5a41732135425acc4871487461dfae6c66",
+        "revCount": 2419,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
@@ -80,11 +80,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1641699066,
-        "narHash": "sha256-tjcdd8h9Jy1JzZKPjCVGYJtC4sXLmteMrpVeXs0Cff4=",
+        "lastModified": 1642598227,
+        "narHash": "sha256-lx0pb3ZI4CJc0qzkV3ktQFoSw1edAwZpwNGpQlwyq/8=",
         "ref": "master",
-        "rev": "8ef9e74aaf0e548d4b636a1d1c1cb208b26b04c1",
-        "revCount": 544,
+        "rev": "f478c6afcc07e5c966c762c4378e8c5ddd6b1ead",
+        "revCount": 555,
         "type": "git",
         "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       },
@@ -96,11 +96,11 @@
     "src-sipyco": {
       "flake": false,
       "locked": {
-        "lastModified": 1639887898,
-        "narHash": "sha256-slXtLgkTK9HLifwkSWRgQlxSzSXr2kRDPAZpp6CaqKc=",
+        "lastModified": 1641866796,
+        "narHash": "sha256-TSH0IgNbi9IcMcBDb2nWRphKlxstbWeATjrGbi6K2m0=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "854bba70ee06407cede7048d739152690d753d55",
+        "rev": "b04234c49379cd446d4cb3346d4741868d86841a",
         "type": "github"
       },
       "original": {
