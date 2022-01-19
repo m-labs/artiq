@@ -137,11 +137,10 @@ pub fn send(linkno: u8, packet: &Packet) -> Result<(), Error<!>> {
 
         packet.write_to(&mut writer)?;
 
-        let padding = 4 - (writer.position() % 4);
-        if padding != 4 {
-            for _ in 0..padding {
-                writer.write_u8(0)?;
-            }
+        // Pad till offset 4, insert checksum there
+        let padding = (12 - (writer.position() % 8)) % 8;
+        for _ in 0..padding {
+            writer.write_u8(0)?;
         }
 
         let checksum = crc::crc32::checksum_ieee(&writer.get_ref()[0..writer.position()]);

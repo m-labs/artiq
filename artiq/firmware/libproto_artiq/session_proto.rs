@@ -90,7 +90,9 @@ pub enum Reply<'a> {
     LoadCompleted,
     LoadFailed(&'a str),
 
-    KernelFinished,
+    KernelFinished {
+        async_errors: u8
+    },
     KernelStartupFailed,
     KernelException {
         name:      &'a str,
@@ -100,7 +102,8 @@ pub enum Reply<'a> {
         line:      u32,
         column:    u32,
         function:  &'a str,
-        backtrace: &'a [usize]
+        backtrace: &'a [usize],
+        async_errors: u8
     },
 
     RpcRequest { async: bool },
@@ -160,14 +163,16 @@ impl<'a> Reply<'a> {
                 writer.write_string(reason)?;
             },
 
-            Reply::KernelFinished => {
+            Reply::KernelFinished { async_errors } => {
                 writer.write_u8(7)?;
+                writer.write_u8(async_errors)?;
             },
             Reply::KernelStartupFailed => {
                 writer.write_u8(8)?;
             },
             Reply::KernelException {
-                name, message, param, file, line, column, function, backtrace
+                name, message, param, file, line, column, function, backtrace,
+                async_errors
             } => {
                 writer.write_u8(9)?;
                 writer.write_string(name)?;
@@ -183,6 +188,7 @@ impl<'a> Reply<'a> {
                 for &addr in backtrace {
                     writer.write_u32(addr as u32)?
                 }
+                writer.write_u8(async_errors)?;
             },
 
             Reply::RpcRequest { async } => {

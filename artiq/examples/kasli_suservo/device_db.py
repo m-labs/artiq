@@ -191,10 +191,8 @@ device_db = {
         "arguments": {
             "channel": 24,
             "pgia_device": "spi_sampler0_pgia",
-            "cpld0_device": "urukul0_cpld",
-            "cpld1_device": "urukul1_cpld",
-            "dds0_device": "urukul0_dds",
-            "dds1_device": "urukul1_dds"
+            "cpld_devices": ["urukul0_cpld", "urukul1_cpld"],
+            "dds_devices": ["urukul0_dds", "urukul1_dds"],
         }
     },
 

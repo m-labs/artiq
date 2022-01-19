@@ -44,8 +44,10 @@ class TB(Module):
                 yield
                 dat = []
                 for dds in self.ddss:
-                    v = yield from [(yield getattr(dds, k))
-                            for k in "cmd ftw pow asf".split()]
+                    v = []
+                    for k in "cmd ftw pow asf".split():
+                        f = yield getattr(dds, k)
+                        v.append(f)
                     dat.append(v)
                 data.append((i, dat))
             else:
@@ -79,7 +81,7 @@ def main():
     data = []
     run_simulation(tb, [tb.log(data), run(tb)], vcd_name="dds.vcd")
 
-    assert data[-1][1] == [[0xe, 0x40 | i, 0x30 | i, 0x20 | i] for i in
+    assert data[-1][1] == [[0x15, 0x40 | i, 0x30 | i, 0x20 | i] for i in
             range(4)]
 
 

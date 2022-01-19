@@ -362,7 +362,10 @@ def main():
                 variants.remove("rtm")
             except ValueError:
                 pass
-        if len(variants) == 0:
+        if all(action in ["rtm_gateware", "storage", "rtm_load", "erase", "start"]
+            for action in args.action) and args.action:
+            pass
+        elif len(variants) == 0:
             raise FileNotFoundError("no variants found, did you install a board binary package?")
         elif len(variants) == 1:
             variant = variants[0]

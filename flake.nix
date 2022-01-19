@@ -11,6 +11,12 @@
   outputs = { self, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
     let
       pkgs = import src-nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+
+      artiqVersionMajor = 8;
+      artiqVersionMinor = self.sourceInfo.revCount or 0;
+      artiqVersionId = self.sourceInfo.shortRev or "unknown";
+      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "-" + artiqVersionId + "-beta";
+
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
         sha256 = "sha256-EZKgw89AH4vxaJpUHmIMzMW/80wAFQlfcxRoBD9nz0c=";
@@ -53,12 +59,12 @@
 
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
-        version = "0.10.0";
+        version = "0.19.0";
         src = pkgs.fetchFromGitHub {
           owner = "CabbageDevelopment";
           repo = "qasync";
           rev = "v${version}";
-          sha256 = "1zga8s6dr7gk6awmxkh4pf25gbg8n6dv1j4b0by7y0fhi949qakq";
+          sha256 = "sha256-xGAUAyOq+ELwzMGbLLmXijxLG8pv4a6tPvfAVOt1YwU=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyqt5 ];
         checkInputs = [ pkgs.python3Packages.pytest ];
@@ -69,7 +75,7 @@
 
       artiq = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
-        version = "8.0-dev";
+        version = artiqVersion;
         src = self;
 
         preBuild = "export VERSIONEER_OVERRIDE=${version}";

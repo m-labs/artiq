@@ -6,6 +6,7 @@ from PyQt5.QtCore import QTimer
 import pyqtgraph
 
 from artiq.applets.simple import TitleApplet
+from artiq.master.databases import make_dataset as empty_dataset
 
 
 class XYPlot(pyqtgraph.PlotWidget):
@@ -21,14 +22,14 @@ class XYPlot(pyqtgraph.PlotWidget):
 
     def data_changed(self, data, mods, title):
         try:
-            y = data[self.args.y][1]
+            y = data[self.args.y]["value"]
         except KeyError:
             return
-        x = data.get(self.args.x, (False, None))[1]
+        x = data.get(self.args.x, empty_dataset())["value"]
         if x is None:
             x = np.arange(len(y))
-        error = data.get(self.args.error, (False, None))[1]
-        fit = data.get(self.args.fit, (False, None))[1]
+        error = data.get(self.args.error, empty_dataset())["value"]
+        fit = data.get(self.args.fit, empty_dataset())["value"]
 
         if not len(y) or len(y) != len(x):
             self.mismatch['X values'] = True

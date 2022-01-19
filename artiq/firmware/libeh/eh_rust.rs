@@ -87,5 +87,5 @@ unsafe fn find_eh_action(context: *mut uw::_Unwind_Context) -> Result<EHAction, 
         get_text_start: &|| uw::_Unwind_GetTextRelBase(context),
         get_data_start: &|| uw::_Unwind_GetDataRelBase(context),
     };
-    dwarf::find_eh_action(lsda, &eh_context)
+    dwarf::find_eh_action(lsda, &eh_context, core::ptr::null(), 0)
 }

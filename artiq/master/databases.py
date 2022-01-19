@@ -35,6 +35,15 @@ class DeviceDB:
         return desc
 
 
+def make_dataset(*, persist=False, value=None, hdf5_options=None):
+    "PYON-serializable representation of a dataset in the DatasetDB"
+    return {
+        "persist": persist,
+        "value": value,
+        "hdf5_options": hdf5_options or {},
+    }
+
+
 class DatasetDB(TaskObject):
     def __init__(self, persist_file, autosave_period=30):
         self.persist_file = persist_file
@@ -44,10 +53,23 @@ class DatasetDB(TaskObject):
             file_data = pyon.load_file(self.persist_file)
         except FileNotFoundError:
             file_data = dict()
-        self.data = Notifier({k: (True, v) for k, v in file_data.items()})
+        self.data = Notifier(
+            {
+                k: make_dataset(
+                    persist=True,
+                    value=v["value"],
+                    hdf5_options=v["hdf5_options"]
+                )
+                for k, v in file_data.items()
+            }
+        )
 
     def save(self):
-        data = {k: v[1] for k, v in self.data.raw_view.items() if v[0]}
+        data = {
+            k: d
+            for k, d in self.data.raw_view.items()
+            if d["persist"]
+        }
         pyon.store_file(self.persist_file, data)
 
     async def _do(self):
@@ -59,20 +81,23 @@ class DatasetDB(TaskObject):
             self.save()
 
     def get(self, key):
-        return self.data.raw_view[key][1]
+        return self.data.raw_view[key]
 
     def update(self, mod):
         process_mod(self.data, mod)
 
     # convenience functions (update() can be used instead)
-    def set(self, key, value, persist=None):
+    def set(self, key, value, persist=None, hdf5_options=None):
         if persist is None:
             if key in self.data.raw_view:
-                persist = self.data.raw_view[key][0]
+                persist = self.data.raw_view[key]["persist"]
             else:
                 persist = False
-        self.data[key] = (persist, value)
+        self.data[key] = make_dataset(
+            persist=persist,
+            value=value,
+            hdf5_options=hdf5_options,
+        )
 
     def delete(self, key):
         del self.data[key]
-    #

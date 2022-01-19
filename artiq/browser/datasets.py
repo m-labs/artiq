@@ -104,8 +104,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                persist, value = self.table_model.backing_store[key]
-                asyncio.ensure_future(self._upload_dataset(key, value))
+                dataset = self.table_model.backing_store[key]
+                asyncio.ensure_future(self._upload_dataset(key, dataset["value"]))
 
     def save_state(self):
         return bytes(self.table.header().saveState())

@@ -88,7 +88,9 @@ pub extern fn personality(version: c_int,
         let exception_info = &mut *(uw_exception as *mut ExceptionInfo);
         let exception = &exception_info.exception.unwrap();
 
-        let eh_action = match dwarf::find_eh_action(lsda, &eh_context) {
+        let name_ptr = exception.name.as_ptr();
+        let len = exception.name.len();
+        let eh_action = match dwarf::find_eh_action(lsda, &eh_context, name_ptr, len) {
             Ok(action) => action,
             Err(_) => return uw::_URC_FATAL_PHASE1_ERROR,
         };

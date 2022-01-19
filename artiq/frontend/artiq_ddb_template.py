@@ -294,6 +294,18 @@ class PeripheralManager:
             name=mirny_name,
             refclk=peripheral["refclk"],
             clk_sel=clk_sel)
+        almazny = peripheral.get("almazny", False)
+        if almazny:
+            self.gen("""
+            device_db["{name}_almazny"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.mirny",
+                "class": "Almazny",
+                "arguments": {{
+                    "host_mirny": "{name}_cpld",
+                }},
+            }}""",
+            name=mirny_name)
 
         return next(channel)
 
@@ -364,8 +376,7 @@ class PeripheralManager:
     def process_suservo(self, rtio_offset, peripheral):
         suservo_name = self.get_name("suservo")
         sampler_name = self.get_name("sampler")
-        urukul0_name = self.get_name("urukul")
-        urukul1_name = self.get_name("urukul")
+        urukul_names = [self.get_name("urukul") for _ in range(2)]
         channel = count(0)
         for i in range(8):
             self.gen("""
@@ -386,16 +397,14 @@ class PeripheralManager:
                 "arguments": {{
                     "channel": 0x{suservo_channel:06x},
                     "pgia_device": "spi_{sampler_name}_pgia",
-                    "cpld0_device": "{urukul0_name}_cpld",
-                    "cpld1_device": "{urukul1_name}_cpld",
-                    "dds0_device": "{urukul0_name}_dds",
-                    "dds1_device": "{urukul1_name}_dds"
+                    "cpld_devices": {cpld_names_list},
+                    "dds_devices": {dds_names_list}
                 }}
             }}""",
             suservo_name=suservo_name,
             sampler_name=sampler_name,
-            urukul0_name=urukul0_name,
-            urukul1_name=urukul1_name,
+            cpld_names_list=[urukul_name + "_cpld" for urukul_name in urukul_names],
+            dds_names_list=[urukul_name + "_dds" for urukul_name in urukul_names],
             suservo_channel=rtio_offset+next(channel))
         self.gen("""
             device_db["spi_{sampler_name}_pgia"] = {{
@@ -407,7 +416,7 @@ class PeripheralManager:
             sampler_name=sampler_name,
             sampler_channel=rtio_offset+next(channel))
         pll_vco = peripheral.get("pll_vco")
-        for urukul_name in (urukul0_name, urukul1_name):
+        for urukul_name in urukul_names:
             self.gen("""
                 device_db["spi_{urukul_name}"] = {{
                     "type": "local",

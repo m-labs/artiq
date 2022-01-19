@@ -54,6 +54,9 @@ CS_DDS_CH1 = 5
 CS_DDS_CH2 = 6
 CS_DDS_CH3 = 7
 
+# Default profile
+DEFAULT_PROFILE = 7
+
 
 @portable
 def urukul_cfg(rf_sw: int32, led: int32, profile: int32, io_update: int32, mask_nu: int32,
@@ -192,7 +195,7 @@ class CPLD:
             assert sync_div is None
             sync_div = 0
 
-        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=0,
+        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=DEFAULT_PROFILE,
                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
                                   sync_sel=sync_sel,
                                   rst=0, io_rst=0, clk_div=clk_div)
