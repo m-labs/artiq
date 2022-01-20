@@ -314,19 +314,20 @@ class MonInjProxy(AsyncioServer):
 
     def update_probe(self, enable, channel, probe, client=None):
         commit_monitor = False
+        field = self.mon_fields.probe[(channel, probe)]
         if enable:
             if client:
                 client.probe.add((channel, probe))
-            commit_monitor = self.mon_fields.probe[(channel, probe)].refs == 0
-            self.mon_fields.probe[(channel, probe)].refs += 1
+            commit_monitor = field.refs == 0
+            field.refs += 1
         elif (channel, probe) in self.mon_fields.probe:
             if client:
                 client.probe.remove((channel, probe))
-            if self.mon_fields.probe[(channel, probe)].refs <= 1:
+            if field.refs <= 1:
                 commit_monitor = True
                 del self.mon_fields.probe[(channel, probe)]
             else:
-                self.mon_fields.probe[(channel, probe)].refs -= 1
+                field.refs -= 1
         if commit_monitor:
             logger.debug(
                 f"committing monitor probe {(enable, channel, probe)}")
@@ -334,20 +335,20 @@ class MonInjProxy(AsyncioServer):
 
     def update_injection(self, enable, channel, overrd, client=None):
         commit_monitor = False
+        field = self.mon_fields.injection[(channel, overrd)]
         if enable:
             if client:
                 client.injection.add((channel, overrd))
-            commit_monitor = self.mon_fields.injection[
-                                 (channel, overrd)].refs == 0
-            self.mon_fields.injection[(channel, overrd)].refs += 1
+            commit_monitor = field.refs == 0
+            field.refs += 1
         elif (channel, overrd) in self.mon_fields.injection:
             if client:
                 client.injection.remove((channel, overrd))
-            if self.mon_fields.injection[(channel, overrd)].refs == 1:
+            if field.refs == 1:
                 commit_monitor = True
                 del self.mon_fields.injection[(channel, overrd)]
             else:
-                self.mon_fields.injection[(channel, overrd)].refs -= 1
+                field.refs -= 1
         if commit_monitor:
             logger.debug(
                 f"committing monitor injection {(enable, channel, overrd)}")
