@@ -71,30 +71,28 @@ def setup_from_ddb(ddb):
                 proxy_moninj_port = v["port"]["proxy"]
             if v["type"] == "local":
                 args, module_, class_ = v["arguments"], v["module"], v["class"]
-
-                def handle_spi():
+                is_ad9914 = module_ == "artiq.coredevice.ad9914" and class_ == "AD9914"
+                is_ad53xx = module_ == "artiq.coredevice.ad53xx" and class_ == "AD53XX"
+                is_zotino = module_ == "artiq.coredevice.zotino" and class_ == "Zotino"
+                if module_ == "artiq.coredevice.ttl":
+                    channel = args["channel"]
+                    description.add(_WidgetDesc(k, comment, TTLWidget, (
+                        channel, class_ == "TTLOut", k)))
+                elif is_ad9914:
+                    dds_sysclk, bus_channel, channel = args["sysclk"], args[
+                        "bus_channel"], args["channel"]
+                    description.add(_WidgetDesc(k, comment, DDSWidget,
+                                                (bus_channel, channel, k)))
+                elif is_ad53xx or is_zotino:
                     spi_device = ddb[args["spi_device"]]
                     while isinstance(spi_device, str):
                         spi_device = ddb[spi_device]
                     spi_channel = spi_device["arguments"]["channel"]
                     for channel in range(32):
-                        widget = _WidgetDesc((k, channel), comment, DACWidget,
+                        widget = _WidgetDesc((k, channel), comment,
+                                             DACWidget,
                                              (spi_channel, channel, k))
                         description.add(widget)
-
-                if module_ == "artiq.coredevice.ttl":
-                    channel = args["channel"]
-                    description.add(_WidgetDesc(k, comment, TTLWidget, (
-                    channel, class_ == "TTLOut", k)))
-                elif module_ == "artiq.coredevice.ad9914" and class_ == "AD9914":
-                    dds_sysclk, bus_channel, channel = args["sysclk"], args[
-                        "bus_channel"], args["channel"]
-                    description.add(_WidgetDesc(k, comment, DDSWidget,
-                                                (bus_channel, channel, k)))
-                elif module_ == "artiq.coredevice.ad53xx" and class_ == "AD53XX":
-                    handle_spi()
-                elif module_ == "artiq.coredevice.zotino" and class_ == "Zotino":
-                    handle_spi()
         except KeyError:
             pass
     return proxy_moninj_server, proxy_moninj_port, dds_sysclk, description
