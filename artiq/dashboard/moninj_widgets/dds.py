@@ -20,6 +20,9 @@ class DDSWidget(SimpleDisplayWidget):
         if conn := self.dm.comm:
             conn.monitor_probe(enable, self.bus_channel, self.channel)
 
-    def on_monitor(self, value):
+    def on_monitor(self, *, value, **_):
         self.cur_frequency = value * self.dm.dds_sysclk / 2 ** 32
-        self.refresh_display()
+
+    @staticmethod
+    def extract_key(*, channel, probe, **_):
+        return channel, probe

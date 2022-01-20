@@ -135,16 +135,22 @@ class _DeviceManager:
         self.description = new_desc
 
     def monitor_cb(self, channel, probe, value):
-        if widget := self.docks[TTLWidget].get_by_key(channel):
-            widget.on_monitor(probe, value)
-        if widget := self.docks[DDSWidget].get_by_key((channel, probe)):
-            widget.on_monitor(value)
-        if widget := self.docks[DACWidget].get_by_key((channel, probe)):
-            widget.on_monitor(value)
+        for klass, widgets in self.docks.items():
+            if hasattr(klass, 'on_monitor'):
+                key = klass.extract_key(channel=channel, probe=probe)
+                widget = widgets.get_by_key(key)
+                if widget:
+                    widget.on_monitor(probe=probe, value=value)
+                    widget.refresh_display()
 
     def injection_status_cb(self, channel, override, value):
-        if widget := self.docks[TTLWidget].get_by_key(channel):
-            widget.on_injection_status(override, value)
+        for klass, widgets in self.docks.items():
+            if hasattr(klass, 'on_injection_status'):
+                key = klass.extract_key(channel=channel)
+                widget = widgets.get_by_key(key)
+                if widget:
+                    widget.on_injection_status(value=value, override=override)
+                    widget.refresh_display()
 
     def disconnect_cb(self):
         logger.error("lost connection to moninj proxy")

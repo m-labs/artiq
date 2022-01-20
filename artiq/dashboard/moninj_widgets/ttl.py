@@ -147,16 +147,18 @@ class TTLWidget(MoninjWidget):
             # override state may have changed
             self.refresh_display()
 
-    def on_monitor(self, probe, value):
+    def on_monitor(self, *, probe, value, **_):
         if probe == TTLProbe.level.value:
             self.cur_level = bool(value)
         elif probe == TTLProbe.oe.value:
             self.cur_oe = bool(value)
-        self.refresh_display()
 
-    def on_injection_status(self, override, value):
+    def on_injection_status(self, *, override, value, **_):
         if override == TTLOverride.en.value:
             self.cur_override = bool(value)
         if override == TTLOverride.level.value:
             self.cur_override_level = bool(value)
-        self.refresh_display()
+
+    @staticmethod
+    def extract_key(*, channel, **_):
+        return channel

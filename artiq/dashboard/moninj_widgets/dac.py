@@ -20,6 +20,9 @@ class DACWidget(SimpleDisplayWidget):
         if conn := self.dm.comm:
             conn.monitor_probe(enable, self.spi_channel, self.channel)
 
-    def on_monitor(self, value):
+    def on_monitor(self, *, value, **_):
         self.cur_value = value
-        self.refresh_display()
+
+    @staticmethod
+    def extract_key(*, channel, probe, **_):
+        return channel, probe
