@@ -117,12 +117,8 @@ class MonInjCoredev:
         if self.connected:
             self.connected = False
             logger.info("disconnected from core device")
-            while self.connector_task and not self.connected:
-                try:
-                    await self.connect(self.proxy.master.core_addr, 1383)
-                except:
-                    logger.error("core device still unreachable, retrying...")
-                    await asyncio.sleep(10)
+            while self.connector_task and not self.connection_event.is_set():
+                self.connection_event.set()
 
     def on_monitor(self, channel, probe, value):
         logger.debug(f"received monitor data {(channel, probe, value)}")
