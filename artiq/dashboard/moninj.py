@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 class _WidgetContainer:
     def __init__(self, setup_layout=lambda x: None):
         self.setup_layout = setup_layout
-        self._widgets = dict()
-        self._widgets_by_uid = dict()
+        self._widgets = {}
+        self._widgets_by_uid = {}
 
     def remove_by_widget(self, widget):
         widget.deleteLater()
@@ -107,11 +107,11 @@ class _DeviceManager:
         self.proxy_connector_task = asyncio.ensure_future(
             self.moninj_connector())
 
-        self.ddb = dict()
+        self.ddb = {}
         self.description = set()
 
         self.dds_sysclk = 0
-        self.docks = dict()
+        self.docks = {}
 
     def init_ddb(self, ddb):
         self.ddb = ddb
