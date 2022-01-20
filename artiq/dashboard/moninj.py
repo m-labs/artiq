@@ -24,7 +24,9 @@ class _WidgetContainer:
     def remove_by_widget(self, widget):
         widget.deleteLater()
         widget.setup_monitoring(False)
-        del self._widgets_by_uid[next(uid for uid, wkey in self._widgets_by_uid.items() if wkey == widget.sort_key)]
+        del self._widgets_by_uid[next(
+            uid for uid, wkey in self._widgets_by_uid.items() if
+            wkey == widget.sort_key)]
         del self._widgets[widget.sort_key]
         self.setup_layout(self._widgets.values())
 
@@ -75,15 +77,19 @@ def setup_from_ddb(ddb):
                         spi_device = ddb[spi_device]
                     spi_channel = spi_device["arguments"]["channel"]
                     for channel in range(32):
-                        widget = _WidgetDesc((k, channel), comment, DACWidget, (spi_channel, channel, k))
+                        widget = _WidgetDesc((k, channel), comment, DACWidget,
+                                             (spi_channel, channel, k))
                         description.add(widget)
 
                 if module_ == "artiq.coredevice.ttl":
                     channel = args["channel"]
-                    description.add(_WidgetDesc(k, comment, TTLWidget, (channel, class_ == "TTLOut", k)))
+                    description.add(_WidgetDesc(k, comment, TTLWidget, (
+                    channel, class_ == "TTLOut", k)))
                 elif module_ == "artiq.coredevice.ad9914" and class_ == "AD9914":
-                    dds_sysclk, bus_channel, channel = args["sysclk"], args["bus_channel"], args["channel"]
-                    description.add(_WidgetDesc(k, comment, DDSWidget, (bus_channel, channel, k)))
+                    dds_sysclk, bus_channel, channel = args["sysclk"], args[
+                        "bus_channel"], args["channel"]
+                    description.add(_WidgetDesc(k, comment, DDSWidget,
+                                                (bus_channel, channel, k)))
                 elif module_ == "artiq.coredevice.ad53xx" and class_ == "AD53XX":
                     handle_spi()
                 elif module_ == "artiq.coredevice.zotino" and class_ == "Zotino":
@@ -99,7 +105,8 @@ class _DeviceManager:
         self.proxy_moninj_server = None
         self.proxy_moninj_port = None
         self.comm = None
-        self.proxy_connector_task = asyncio.ensure_future(self.moninj_connector())
+        self.proxy_connector_task = asyncio.ensure_future(
+            self.moninj_connector())
 
         self.ddb = dict()
         self.description = set()
@@ -152,15 +159,18 @@ class _DeviceManager:
             # if there is no moninj server defined, just stop connecting
             if self.proxy_moninj_server is None:
                 continue
-            new_comm = CommMonInj(monitor_cb=self.monitor_cb, injection_status_cb=self.injection_status_cb,
-                              disconnect_cb=self.disconnect_cb)
+            new_comm = CommMonInj(monitor_cb=self.monitor_cb,
+                                  injection_status_cb=self.injection_status_cb,
+                                  disconnect_cb=self.disconnect_cb)
             try:
-                await new_comm.connect(self.proxy_moninj_server, self.proxy_moninj_port)
+                await new_comm.connect(self.proxy_moninj_server,
+                                       self.proxy_moninj_port)
             except asyncio.CancelledError:
                 logger.info("cancelled connection to moninj proxy")
                 break
             except:
-                logger.error("failed to connect to moninj proxy", exc_info=True)
+                logger.error("failed to connect to moninj proxy",
+                             exc_info=True)
                 await asyncio.sleep(10.)
                 self.reconnect_proxy.set()
             else:
@@ -220,12 +230,16 @@ class MonInj:
 
         self.dm = _DeviceManager()
         self.dm.docks.update({
-            TTLWidget: _WidgetContainer(lambda x: self.ttl_dock.layout_widgets(x)),
-            DDSWidget: _WidgetContainer(lambda x: self.dds_dock.layout_widgets(x)),
-            DACWidget: _WidgetContainer(lambda x: self.dac_dock.layout_widgets(x))
+            TTLWidget: _WidgetContainer(
+                lambda x: self.ttl_dock.layout_widgets(x)),
+            DDSWidget: _WidgetContainer(
+                lambda x: self.dds_dock.layout_widgets(x)),
+            DACWidget: _WidgetContainer(
+                lambda x: self.dac_dock.layout_widgets(x))
         })
 
-        self.subscriber = Subscriber("devices", self.dm.init_ddb, self.dm.notify)
+        self.subscriber = Subscriber("devices", self.dm.init_ddb,
+                                     self.dm.notify)
 
     async def start(self, server, port):
         await self.subscriber.connect(server, port)
