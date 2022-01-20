@@ -17,7 +17,8 @@ class DDSWidget(SimpleDisplayWidget):
         return self.bus_channel, self.channel
 
     def setup_monitoring(self, enable):
-        if conn := self.dm.comm:
+        conn = self.dm.comm
+        if conn:
             conn.monitor_probe(enable, self.bus_channel, self.channel)
 
     def on_monitor(self, *, value, **_):
