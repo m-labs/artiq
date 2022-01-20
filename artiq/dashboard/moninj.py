@@ -24,9 +24,10 @@ class _WidgetContainer:
     def remove_by_widget(self, widget):
         widget.deleteLater()
         widget.setup_monitoring(False)
-        del self._widgets_by_uid[next(
-            uid for uid, wkey in self._widgets_by_uid.items() if
-            wkey == widget.sort_key)]
+        uid = next((uid for uid, wkey in self._widgets_by_uid.items() if
+                    wkey == widget.sort_key), None)
+        if uid is not None:
+            del self._widgets_by_uid[uid]
         del self._widgets[widget.sort_key]
         self.setup_layout(self._widgets.values())
 
