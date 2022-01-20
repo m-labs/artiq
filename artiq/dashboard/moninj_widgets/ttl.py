@@ -1,5 +1,3 @@
-import asyncio
-
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QToolButton, QStackedWidget, QLabel, QSizePolicy, QGridLayout, QFrame
 
@@ -15,20 +13,34 @@ class TTLWidget(MoninjWidget):
         self.channel = channel
         self.dm = dm
         self.force_out = force_out
-
-        self.setFrameShape(QFrame.Box)
-        self.setFrameShadow(QFrame.Raised)
+        self.programmatic_change = False
+        self.cur_level = False
+        self.cur_oe = False
+        self.cur_override = False
+        self.cur_override_level = False
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(0)
         grid.setVerticalSpacing(0)
-        self.setLayout(grid)
+
         label = QLabel(title)
         label.setAlignment(Qt.AlignCenter)
-        label.setSizePolicy(QSizePolicy.Ignored,
-                            QSizePolicy.Preferred)
+        label.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
         grid.addWidget(label, 1, 1)
+
+        self.value = QLabel()
+        self.value.setAlignment(Qt.AlignCenter)
+        grid.addWidget(self.value, 3, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 0)
+        grid.setRowStretch(3, 0)
+        grid.setRowStretch(4, 1)
+
+        self.setLayout(grid)
+        self.setFrameShape(QFrame.Box)
+        self.setFrameShadow(QFrame.Raised)
 
         self.stack = QStackedWidget()
         grid.addWidget(self.stack, 2, 1)
@@ -41,35 +53,22 @@ class TTLWidget(MoninjWidget):
         grid_cb.layout.setContentsMargins(0, 0, 0, 0)
         grid_cb.layout.setHorizontalSpacing(0)
         grid_cb.layout.setVerticalSpacing(0)
+        self.stack.addWidget(grid_cb)
+
         self.override = QToolButton()
         self.override.setText("OVR")
         self.override.setCheckable(True)
         self.override.setToolTip("Override")
+        self.override.clicked.connect(self.override_toggled)
         grid_cb.addWidget(self.override, 3, 1)
+
         self.level = QToolButton()
         self.level.setText("LVL")
         self.level.setCheckable(True)
         self.level.setToolTip("Level")
-        grid_cb.addWidget(self.level, 3, 2)
-        self.stack.addWidget(grid_cb)
-
-        self.value = QLabel()
-        self.value.setAlignment(Qt.AlignCenter)
-        grid.addWidget(self.value, 3, 1)
-
-        grid.setRowStretch(1, 1)
-        grid.setRowStretch(2, 0)
-        grid.setRowStretch(3, 0)
-        grid.setRowStretch(4, 1)
-
-        self.programmatic_change = False
-        self.override.clicked.connect(self.override_toggled)
         self.level.clicked.connect(self.level_toggled)
+        grid_cb.addWidget(self.level, 3, 2)
 
-        self.cur_level = False
-        self.cur_oe = False
-        self.cur_override = False
-        self.cur_override_level = False
         self.refresh_display()
 
     def enterEvent(self, event):
@@ -84,7 +83,8 @@ class TTLWidget(MoninjWidget):
     def override_toggled(self, override):
         if self.programmatic_change:
             return
-        self.set_mode(("1" if self.level.isChecked() else "0") if override else "exp")
+        self.set_mode(
+            ("1" if self.level.isChecked() else "0") if override else "exp")
 
     def level_toggled(self, level):
         if self.programmatic_change:
@@ -101,7 +101,8 @@ class TTLWidget(MoninjWidget):
         else:
             color = ""
         self.value.setText(f'<font size="5"{color}>{value_s}</font>')
-        self.direction.setText(f'<font size="2">{"OUT" if self.force_out or self.cur_oe else "IN"}</font>')
+        self.direction.setText(
+            f'<font size="2">{"OUT" if self.force_out or self.cur_oe else "IN"}</font>')
 
         try:
             self.programmatic_change = True
