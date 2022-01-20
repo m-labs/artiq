@@ -156,7 +156,8 @@ class MonInjMaster:
         while True:
             await self.connection_event.wait()
             self.connection_event.clear()
-            logger.debug(f"trying to connect to master server at {master}:{port}")
+            logger.debug(
+                f"trying to connect to master server at {master}:{port}")
             try:
                 await self.ddb_notify.connect(master, port)
             except asyncio.CancelledError:
@@ -170,7 +171,8 @@ class MonInjMaster:
     async def connect(self, master, port):
         if self.connector_task:
             await self.disconnect()
-        self.connector_task = asyncio.ensure_future(self.connector(master, port))
+        self.connector_task = asyncio.ensure_future(
+            self.connector(master, port))
         self.connection_event.set()
 
     async def disconnect(self):
@@ -379,10 +381,12 @@ def get_argparser():
         help="port to connect to for notification service in master")
 
     group = parser.add_argument_group("proxy server")
-    group.add_argument("--port-proxy", default=2383, type=int,
-                       help="TCP port for proxy to listen to (default: 2383)")
-    group.add_argument("--port-rpc", default=2384, type=int,
-                       help="TCP port for RPC heartbeat to listen to (default: 2384)")
+    group.add_argument(
+        "--port-proxy", default=2383, type=int,
+        help="TCP port for proxy to listen to (default: 2383)")
+    group.add_argument(
+        "--port-rpc", default=2384, type=int,
+        help="TCP port for RPC heartbeat to listen to (default: 2384)")
     return parser
 
 
