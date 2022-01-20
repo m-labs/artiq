@@ -7,7 +7,7 @@ class DDSWidget(SimpleDisplayWidget):
         self.bus_channel = bus_channel
         self.channel = channel
         self.cur_frequency = 0
-        SimpleDisplayWidget.__init__(self, title)
+        super().__init__(title)
 
     def refresh_display(self):
         self.value.setText(f'<font size="4">{self.cur_frequency / 1e6:.7f}</font><font size="2"> MHz</font>')

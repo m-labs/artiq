@@ -26,7 +26,7 @@ class MoninjWidget(QFrame):
 
 class SimpleDisplayWidget(MoninjWidget):
     def __init__(self, title):
-        QFrame.__init__(self)
+        super().__init__()
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)

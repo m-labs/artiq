@@ -10,7 +10,7 @@ from artiq.gui.tools import LayoutWidget
 
 class TTLWidget(MoninjWidget):
     def __init__(self, dm, channel, force_out, title):
-        QFrame.__init__(self)
+        super().__init__()
 
         self.channel = channel
         self.dm = dm
