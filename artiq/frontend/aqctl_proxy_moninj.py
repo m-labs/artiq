@@ -88,15 +88,16 @@ class MonInjCoredev:
         self.connection_event.set()
 
     async def disconnect(self):
-        self.connector_task.cancel()
         try:
-            await asyncio.wait_for(self.connector_task, None)
+            if self.connector_task:
+                self.connector_task.cancel()
+                await self.connector_task
+                self.connector_task = None
         except asyncio.CancelledError:
             pass
-        self.connector_task = None
         if self.comm:
             await self.comm.close()
-        self.comm = None
+            self.comm = None
         await self.on_disconnected()
 
     @property
@@ -176,12 +177,13 @@ class MonInjMaster:
         self.connection_event.set()
 
     async def disconnect(self):
-        self.connector_task.cancel()
         try:
-            await asyncio.wait_for(self.connector_task, None)
+            if self.connector_task:
+                self.connector_task.cancel()
+                await self.connector_task
+                self.connector_task = None
         except asyncio.CancelledError:
             pass
-        self.connector_task = None
         await self.ddb_notify.close()
         await self.on_disconnected()
 
