@@ -125,6 +125,57 @@ class _Pulses(EnvExperiment):
 class _MyException(Exception):
     pass
 
+class _NestedFinally(EnvExperiment):
+    def build(self, trace):
+        self.setattr_device("core")
+        self.trace = trace
+
+    def _trace(self, i):
+        self.trace.append(i)
+
+    @kernel
+    def run(self):
+        try:
+            try:
+                raise ValueError
+            finally:
+                try:
+                    raise IndexError()
+                except ValueError:
+                    self._trace(0)
+        except:
+            self._trace(1)
+        finally:
+            self._trace(2)
+
+class _NestedExceptions(EnvExperiment):
+    def build(self, trace):
+        self.setattr_device("core")
+        self.trace = trace
+
+    def _trace(self, i):
+        self.trace.append(i)
+
+    @kernel
+    def run(self):
+        try:
+            try:
+                raise ValueError
+            except _MyException:
+                self._trace(0)
+                raise
+            finally:
+                try:
+                    raise IndexError()
+                except ValueError:
+                    self._trace(1)
+                    raise
+        except IndexError:
+            self._trace(2)
+        except:
+            self._trace(3)
+        finally:
+            self._trace(4)
 
 class _Exceptions(EnvExperiment):
     def build(self, trace):
@@ -251,6 +302,18 @@ class HostVsDeviceCase(ExperimentCase):
             self.execute(_Exceptions, trace=t_device)
         with self.assertRaises(IndexError):
             _run_on_host(_Exceptions, trace=t_host)
+        self.assertEqual(t_device, t_host)
+
+    def test_nested_finally(self):
+        t_device, t_host = [], []
+        self.execute(_NestedFinally, trace=t_device)
+        _run_on_host(_NestedFinally, trace=t_host)
+        self.assertEqual(t_device, t_host)
+
+    def test_nested_exceptions(self):
+        t_device, t_host = [], []
+        self.execute(_NestedExceptions, trace=t_device)
+        _run_on_host(_NestedExceptions, trace=t_host)
         self.assertEqual(t_device, t_host)
 
     def test_rpc_exceptions(self):
