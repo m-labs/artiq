@@ -135,6 +135,7 @@ class NamedValue(Value):
     def __init__(self, typ, name):
         super().__init__(typ)
         self.name, self.function = name, None
+        self.is_removed = False
 
     def set_name(self, new_name):
         if self.function is not None:
@@ -235,7 +236,7 @@ class Instruction(User):
         self.drop_references()
         # Check this after drop_references in case this
         # is a self-referencing phi.
-        assert not any(self.uses)
+        assert all(use.is_removed for use in self.uses)
 
     def replace_with(self, value):
         self.replace_all_uses_with(value)
@@ -370,7 +371,7 @@ class BasicBlock(NamedValue):
         self.remove_from_parent()
         # Check this after erasing instructions in case the block
         # loops into itself.
-        assert not any(self.uses)
+        assert all(use.is_removed for use in self.uses)
 
     def prepend(self, insn):
         assert isinstance(insn, Instruction)
@@ -1359,14 +1360,6 @@ class LandingPad(Terminator):
 
     def cleanup(self):
         return self.operands[0]
-
-    def erase(self):
-        self.remove_from_parent()
-        # we should erase all clauses as well
-        for block in set(self.operands):
-            block.uses.remove(self)
-            block.erase()
-        assert not any(self.uses)
 
     def clauses(self):
         return zip(self.operands[1:], self.types)
