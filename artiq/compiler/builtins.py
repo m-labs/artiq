@@ -123,18 +123,23 @@ class TException(types.TMono):
     #  * File, line and column where it was raised (str, int, int).
     #  * Message, which can contain substitutions {0}, {1} and {2} (str).
     #  * Three 64-bit integers, parameterizing the message (numpy.int64).
+    # These attributes are prefixed with `#` so that users cannot access them,
+    # and we don't have to do string allocation in the runtime.
+    # #__name__ is now a string key in the host. TStr may not be an actual
+    # CSlice in the runtime, they might be a CSlice with length = i32::MAX and
+    # ptr = string key in the host.
 
     # Keep this in sync with the function ARTIQIRGenerator.alloc_exn.
     attributes = OrderedDict([
-        ("__name__",    TStr()),
-        ("__file__",    TStr()),
-        ("__line__",    TInt32()),
-        ("__col__",     TInt32()),
-        ("__func__",    TStr()),
-        ("__message__", TStr()),
-        ("__param0__",  TInt64()),
-        ("__param1__",  TInt64()),
-        ("__param2__",  TInt64()),
+        ("#__name__",    TInt32()),
+        ("#__file__",    TStr()),
+        ("#__line__",    TInt32()),
+        ("#__col__",     TInt32()),
+        ("#__func__",    TStr()),
+        ("#__message__", TStr()),
+        ("#__param0__",  TInt64()),
+        ("#__param1__",  TInt64()),
+        ("#__param2__",  TInt64()),
     ])
 
     def __init__(self, name="Exception", id=0):

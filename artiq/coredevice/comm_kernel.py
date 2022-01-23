@@ -571,29 +571,33 @@ class CommKernel:
 
             self._write_header(Request.RPCException)
 
+            # Note: instead of sending strings, we send object ID
+            # This is to avoid the need of allocatio on the device side
+            # This is a special case: this only applies to exceptions
             if hasattr(exn, "artiq_core_exception"):
                 exn = exn.artiq_core_exception
-                self._write_string(exn.name)
-                self._write_string(self._truncate_message(exn.message))
+                self._write_int32(embedding_map.store_str(exn.name))
+                self._write_int32(embedding_map.store_str(self._truncate_message(exn.message)))
                 for index in range(3):
                     self._write_int64(exn.param[index])
 
                 filename, line, column, function = exn.traceback[-1]
-                self._write_string(filename)
+                self._write_int32(embedding_map.store_str(filename))
                 self._write_int32(line)
                 self._write_int32(column)
-                self._write_string(function)
+                self._write_int32(embedding_map.store_str(function))
             else:
                 exn_type = type(exn)
                 if exn_type in (ZeroDivisionError, ValueError, IndexError, RuntimeError) or \
                         hasattr(exn, "artiq_builtin"):
-                    self._write_string("0:{}".format(exn_type.__name__))
+                    name = "0:{}".format(exn_type.__name__)
                 else:
                     exn_id = embedding_map.store_object(exn_type)
-                    self._write_string("{}:{}.{}".format(exn_id,
-                                                         exn_type.__module__,
-                                                         exn_type.__qualname__))
-                self._write_string(self._truncate_message(str(exn)))
+                    name = "{}:{}.{}".format(exn_id,
+                                             exn_type.__module__,
+                                             exn_type.__qualname__)
+                self._write_int32(embedding_map.store_str(name))
+                self._write_int32(embedding_map.store_str(self._truncate_message(str(exn))))
                 for index in range(3):
                     self._write_int64(0)
 
@@ -604,10 +608,10 @@ class CommKernel:
                     ((filename, line, function, _), ) = tb
                 else:
                     assert False
-                self._write_string(filename)
+                self._write_int32(embedding_map.store_str(filename))
                 self._write_int32(line)
                 self._write_int32(-1)  # column not known
-                self._write_string(function)
+                self._write_int32(embedding_map.store_str(function))
             self._flush()
         else:
             logger.debug("rpc service: %d %r %r = %r",

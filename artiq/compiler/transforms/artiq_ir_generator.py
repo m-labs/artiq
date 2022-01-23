@@ -88,8 +88,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     _size_type = builtins.TInt32()
 
-    def __init__(self, module_name, engine, ref_period):
+    def __init__(self, module_name, engine, ref_period, embedding_map):
         self.engine = engine
+        self.embedding_map = embedding_map
         self.functions = []
         self.name = [module_name] if module_name != "" else []
         self.ref_period = ir.Constant(ref_period, builtins.TFloat())
@@ -638,10 +639,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             loc_column = ir.Constant(loc.column(), builtins.TInt32())
             loc_function = ir.Constant(".".join(self.name), builtins.TStr())
 
-            self.append(ir.SetAttr(exn, "__file__", loc_file))
-            self.append(ir.SetAttr(exn, "__line__", loc_line))
-            self.append(ir.SetAttr(exn, "__col__", loc_column))
-            self.append(ir.SetAttr(exn, "__func__", loc_function))
+            self.append(ir.SetAttr(exn, "#__file__", loc_file))
+            self.append(ir.SetAttr(exn, "#__line__", loc_line))
+            self.append(ir.SetAttr(exn, "#__col__", loc_column))
+            self.append(ir.SetAttr(exn, "#__func__", loc_function))
 
             if self.unwind_target is not None:
                 self.append(ir.Raise(exn, self.unwind_target))
@@ -2105,8 +2106,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
     def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
         typ = typ.find()
         name = "{}:{}".format(typ.id, typ.name)
+        name_id = self.embedding_map.store_str(name)
         attributes = [
-            ir.Constant(name,           builtins.TStr()),   # typeinfo
+            ir.Constant(name_id,        builtins.TInt32()),   # typeinfo
             ir.Constant("<not thrown>", builtins.TStr()),   # file
             ir.Constant(0,              builtins.TInt32()), # line
             ir.Constant(0,              builtins.TInt32()), # column
@@ -2578,10 +2580,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_unwind, self.unwind_target = self.unwind_target, None
 
             exn = self.alloc_exn(builtins.TException("AssertionError"), message=msg)
-            self.append(ir.SetAttr(exn, "__file__", file))
-            self.append(ir.SetAttr(exn, "__line__", line))
-            self.append(ir.SetAttr(exn, "__col__", col))
-            self.append(ir.SetAttr(exn, "__func__", function))
+            self.append(ir.SetAttr(exn, "#__file__", file))
+            self.append(ir.SetAttr(exn, "#__line__", line))
+            self.append(ir.SetAttr(exn, "#__col__", col))
+            self.append(ir.SetAttr(exn, "#__func__", function))
             self.append(ir.Raise(exn))
         finally:
             self.current_function = old_func
@@ -2717,11 +2719,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 format_string += ")"
             elif builtins.is_exception(value.type):
-                name    = self.append(ir.GetAttr(value, "__name__"))
-                message = self.append(ir.GetAttr(value, "__message__"))
-                param1  = self.append(ir.GetAttr(value, "__param0__"))
-                param2  = self.append(ir.GetAttr(value, "__param1__"))
-                param3  = self.append(ir.GetAttr(value, "__param2__"))
+                name    = self.append(ir.GetAttr(value, "#__name__"))
+                message = self.append(ir.GetAttr(value, "#__message__"))
+                param1  = self.append(ir.GetAttr(value, "#__param0__"))
+                param2  = self.append(ir.GetAttr(value, "#__param1__"))
+                param3  = self.append(ir.GetAttr(value, "#__param2__"))
 
                 format_string += "%.*s(%.*s, %lld, %lld, %lld)"
                 args += [name, message, param1, param2, param3]

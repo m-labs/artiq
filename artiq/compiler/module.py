@@ -57,7 +57,8 @@ class Module:
         constness_validator = validators.ConstnessValidator(engine=self.engine)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
-                                                         ref_period=ref_period)
+                                                         ref_period=ref_period,
+                                                         embedding_map=self.embedding_map)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
         local_demoter = transforms.LocalDemoter()
