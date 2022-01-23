@@ -1245,9 +1245,9 @@ class Raise(Terminator):
         if len(self.operands) > 1:
             return self.operands[1]
 
-class Reraise(Terminator):
+class Resume(Terminator):
     """
-    A reraise instruction.
+    A resume instruction.
     """
 
     """
@@ -1261,7 +1261,7 @@ class Reraise(Terminator):
         super().__init__(operands, builtins.TNone(), name)
 
     def opcode(self):
-        return "reraise"
+        return "resume"
 
     def exception_target(self):
         if len(self.operands) > 0:
