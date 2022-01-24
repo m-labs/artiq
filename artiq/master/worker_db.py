@@ -8,12 +8,9 @@ from operator import setitem
 import importlib
 import logging
 
-import numpy as np
-
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
-from artiq.master.databases import make_dataset
 
 logger = logging.getLogger(__name__)
 
@@ -118,26 +115,22 @@ class DatasetManager:
         self.ddb = ddb
         self._broadcaster.publish = ddb.update
 
-    def set(self, key, value, broadcast=False, persist=False, archive=True,
-            hdf5_options=None):
+    def set(self, key, value, broadcast=False, persist=False, archive=True):
+        if key in self.archive:
+            logger.warning("Modifying dataset '%s' which is in archive, "
+                           "archive will remain untouched",
+                           key, stack_info=True)
+
         if persist:
             broadcast = True
 
         if broadcast:
-            self._broadcaster[key] = make_dataset(
-                persist=persist,
-                value=value,
-                hdf5_options=hdf5_options,
-            )
+            self._broadcaster[key] = persist, value
         elif key in self._broadcaster.raw_view:
             del self._broadcaster[key]
 
         if archive:
-            self.local[key] = make_dataset(
-                persist=persist,
-                value=value,
-                hdf5_options=hdf5_options,
-            )
+            self.local[key] = value
         elif key in self.local:
             del self.local[key]
 
@@ -145,11 +138,11 @@ class DatasetManager:
         target = self.local.get(key, None)
         if key in self._broadcaster.raw_view:
             if target is not None:
-                assert target["value"] is self._broadcaster.raw_view[key]["value"]
-            return self._broadcaster[key]["value"]
+                assert target is self._broadcaster.raw_view[key][1]
+            return self._broadcaster[key][1]
         if target is None:
             raise KeyError("Cannot mutate nonexistent dataset '{}'".format(key))
-        return target["value"]
+        return target
 
     def mutate(self, key, index, value):
         target = self._get_mutation_target(key)
@@ -165,15 +158,15 @@ class DatasetManager:
 
     def get(self, key, archive=False):
         if key in self.local:
-            return self.local[key]["value"]
-
-        dataset = self.ddb.get(key)
+            return self.local[key]
+        
+        data = self.ddb.get(key)
         if archive:
             if key in self.archive:
                 logger.warning("Dataset '%s' is already in archive, "
                                "overwriting", key, stack_info=True)
-            self.archive[key] = dataset
-        return dataset["value"]
+            self.archive[key] = data
+        return data
 
     def write_hdf5(self, f):
         datasets_group = f.create_group("datasets")
@@ -189,7 +182,7 @@ def _write(group, k, v):
     # Add context to exception message when the user writes a dataset that is
     # not representable in HDF5.
     try:
-        group.create_dataset(k, data=v["value"], **v["hdf5_options"])
+        group[k] = v
     except TypeError as e:
         raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
-            k, type(v["value"]), e))
+            k, type(v), e))
