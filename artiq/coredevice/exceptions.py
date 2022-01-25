@@ -103,7 +103,7 @@ class CoreException:
                         'another exception occurred:\n\n').join(tracebacks)
         return 'Core Device Traceback:\n' +\
                 traceback_str +\
-                '\n\nEnd of Code Device Traceback\n'
+                '\n\nEnd of Core Device Traceback\n'
 
 
 class InternalError(Exception):
