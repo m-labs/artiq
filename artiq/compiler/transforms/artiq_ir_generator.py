@@ -2814,14 +2814,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 format_string += ")"
             elif builtins.is_exception(value.type):
+                # message may not be an actual string...
+                # so we cannot really print it
                 name    = self.append(ir.GetAttr(value, "#__name__"))
-                message = self.append(ir.GetAttr(value, "#__message__"))
                 param1  = self.append(ir.GetAttr(value, "#__param0__"))
                 param2  = self.append(ir.GetAttr(value, "#__param1__"))
                 param3  = self.append(ir.GetAttr(value, "#__param2__"))
 
-                format_string += "%.*s(%.*s, %lld, %lld, %lld)"
-                args += [name, message, param1, param2, param3]
+                format_string += "%ld(%lld, %lld, %lld)"
+                args += [name, param1, param2, param3]
             else:
                 assert False
 

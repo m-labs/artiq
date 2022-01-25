@@ -50,9 +50,22 @@ class EmbeddingMap:
         self.str_forward_map = {}
         self.str_reverse_map = {}
 
+        self.preallocate_runtime_exception_names(["RuntimeError",
+                                                  "RTIOUnderflow",
+                                                  "RTIOOverflow",
+                                                  "RTIODestinationUnreachable",
+                                                  "DMAError",
+                                                  "I2CError",
+                                                  "CacheError",
+                                                  "SPIError",
+                                                  "0:ZeroDivisionError",
+                                                  "0:IndexError"])
+
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):
-            exn_id = self.store_str("0:artiq.coredevice.exceptions." + name)
+            if ":" not in name:
+                name = "0:artiq.coredevice.exceptions." + name
+            exn_id = self.store_str(name)
             assert exn_id == i
 
     def store_str(self, s):
@@ -754,12 +767,6 @@ class Stitcher:
         self.functions = {}
 
         self.embedding_map = EmbeddingMap()
-        self.embedding_map.preallocate_runtime_exception_names(["runtimeerror",
-                                                                "RTIOUnderflow",
-                                                                "RTIOOverflow",
-                                                                "RTIODestinationUnreachable",
-                                                                "DMAError",
-                                                                "I2CError"])
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
 
