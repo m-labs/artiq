@@ -253,6 +253,7 @@ dependencies = [
  "byteorder",
  "cslice",
  "dyld",
+ "eh",
  "failure",
  "failure_derive",
  "io",

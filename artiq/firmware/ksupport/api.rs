@@ -117,7 +117,8 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
     api!(__artiq_personality = ::eh_artiq::personality),
     api!(__artiq_raise = ::eh_artiq::raise),
-    api!(__artiq_reraise = ::eh_artiq::reraise),
+    api!(__artiq_resume = ::eh_artiq::resume),
+    api!(__artiq_end_catch = ::eh_artiq::end_catch),
 
     /* proxified syscalls */
     api!(core_log),
