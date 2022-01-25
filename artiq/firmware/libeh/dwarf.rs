@@ -202,8 +202,7 @@ unsafe fn get_ttype_entry(
 pub unsafe fn find_eh_action(
     lsda: *const u8,
     context: &EHContext<'_>,
-    name: *const u8,
-    len: usize,
+    id: u32,
 ) -> Result<EHAction, ()> {
     if lsda.is_null() {
         return Ok(EHAction::None);
@@ -275,19 +274,9 @@ pub unsafe fn find_eh_action(
                                 return Ok(EHAction::Catch(lpad));
                             }
                             // this seems to be target dependent
-                            let clause_ptr = *(catch_type as *const CSlice<u8>);
-                            let clause_name_ptr = (clause_ptr).as_ptr();
-                            let clause_name_len = (clause_ptr).len();
-                            if clause_name_len == len {
-                                if (clause_name_ptr == core::ptr::null() ||
-                                    clause_name_ptr == name ||
-                                    // somehow their name pointers might differ, but the content is the
-                                    // same
-                                    core::slice::from_raw_parts(clause_name_ptr, clause_name_len) ==
-                                    core::slice::from_raw_parts(name, len))
-                                {
-                                    return Ok(EHAction::Catch(lpad));
-                                }
+                            let clause_id = *(catch_type as *const u32);
+                            if clause_id == id {
+                                return Ok(EHAction::Catch(lpad));
                             }
                         } else if ar_filter < 0 {
                             // FIXME: how to handle this?

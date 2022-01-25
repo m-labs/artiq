@@ -1,5 +1,5 @@
 #![feature(lang_items, llvm_asm, panic_unwind, libc, unwind_attributes,
-           panic_info_message, nll)]
+           panic_info_message, nll, const_in_array_repeat_expressions)]
 #![no_std]
 
 extern crate libc;
@@ -80,8 +80,9 @@ macro_rules! println {
 macro_rules! raise {
     ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
         use cslice::AsCSlice;
+        let name_id = $crate::eh_artiq::get_exception_id($name);
         let exn = $crate::eh_artiq::Exception {
-            name:     concat!("0:artiq.coredevice.exceptions.", $name).as_c_slice(),
+            id:       name_id,
             file:     file!().as_c_slice(),
             line:     line!(),
             column:   column!(),
@@ -164,12 +165,12 @@ extern fn rpc_recv(slot: *mut ()) -> usize {
             &Err(ref exception) =>
             unsafe {
                 eh_artiq::raise(&eh_artiq::Exception {
-                    name:     exception.name.as_bytes().as_c_slice(),
-                    file:     exception.file.as_bytes().as_c_slice(),
+                    id:       exception.id,
+                    file:     exception.file,
                     line:     exception.line,
                     column:   exception.column,
-                    function: exception.function.as_bytes().as_c_slice(),
-                    message:  exception.message.as_bytes().as_c_slice(),
+                    function: exception.function,
+                    message:  exception.message,
                     param:    exception.param
                 })
             }
@@ -177,27 +178,13 @@ extern fn rpc_recv(slot: *mut ()) -> usize {
     })
 }
 
-fn terminate(exception: &eh_artiq::Exception, backtrace: &mut [usize]) -> ! {
-    let mut cursor = 0;
-    for index in 0..backtrace.len() {
-        if backtrace[index] > kernel_proto::KERNELCPU_PAYLOAD_ADDRESS {
-            backtrace[cursor] = backtrace[index] - kernel_proto::KERNELCPU_PAYLOAD_ADDRESS;
-            cursor += 1;
-        }
-    }
-    let backtrace = &mut backtrace.as_mut()[0..cursor];
-
+fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
+             stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
+             backtrace: &mut [(usize, usize)]) -> ! {
     send(&RunException {
-        exception: kernel_proto::Exception {
-            name:     str::from_utf8(exception.name.as_ref()).unwrap(),
-            file:     str::from_utf8(exception.file.as_ref()).unwrap(),
-            line:     exception.line,
-            column:   exception.column,
-            function: str::from_utf8(exception.function.as_ref()).unwrap(),
-            message:  str::from_utf8(exception.message.as_ref()).unwrap(),
-            param:    exception.param,
-        },
-        backtrace: backtrace
+        exceptions,
+        stack_pointers,
+        backtrace
     });
     loop {}
 }
@@ -472,6 +459,7 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
 
 #[no_mangle]
 pub unsafe fn main() {
+    eh_artiq::reset_exception_buffer(KERNELCPU_PAYLOAD_ADDRESS);
     let image = slice::from_raw_parts_mut(kernel_proto::KERNELCPU_PAYLOAD_ADDRESS as *mut u8,
                                           kernel_proto::KERNELCPU_LAST_ADDRESS -
                                           kernel_proto::KERNELCPU_PAYLOAD_ADDRESS);
