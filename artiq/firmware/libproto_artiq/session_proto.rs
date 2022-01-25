@@ -1,5 +1,7 @@
 use core::str::Utf8Error;
-use alloc::{vec::Vec, string::String};
+use alloc::vec::Vec;
+use eh::eh_artiq::{Exception, StackPointerBacktrace};
+use cslice::CSlice;
 
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
 
@@ -70,13 +72,13 @@ pub enum Request {
 
     RpcReply { tag: Vec<u8> },
     RpcException {
-        name:     String,
-        message:  String,
+        id:       u32,
+        message:  u32,
         param:    [i64; 3],
-        file:     String,
+        file:     u32,
         line:     u32,
         column:   u32,
-        function: String,
+        function: u32,
     },
 }
 
@@ -95,14 +97,9 @@ pub enum Reply<'a> {
     },
     KernelStartupFailed,
     KernelException {
-        name:      &'a str,
-        message:   &'a str,
-        param:     [i64; 3],
-        file:      &'a str,
-        line:      u32,
-        column:    u32,
-        function:  &'a str,
-        backtrace: &'a [usize],
+        exceptions: &'a [Option<Exception<'a>>],
+        stack_pointers: &'a [StackPointerBacktrace],
+        backtrace: &'a [(usize, usize)],
         async_errors: u8
     },
 
@@ -126,20 +123,32 @@ impl Request {
                 tag: reader.read_bytes()?
             },
             8  => Request::RpcException {
-                name:     reader.read_string()?,
-                message:  reader.read_string()?,
+                id:       reader.read_u32()?,
+                message:  reader.read_u32()?,
                 param:    [reader.read_u64()? as i64,
                            reader.read_u64()? as i64,
                            reader.read_u64()? as i64],
-                file:     reader.read_string()?,
+                file:     reader.read_u32()?,
                 line:     reader.read_u32()?,
                 column:   reader.read_u32()?,
-                function: reader.read_string()?
+                function: reader.read_u32()?
             },
 
             ty  => return Err(Error::UnknownPacket(ty))
         })
     }
+}
+
+fn write_exception_string<'a, W>(writer: &mut W, s: &CSlice<'a, u8>) -> Result<(), IoError<W::WriteError>>
+    where W: Write + ?Sized
+{
+    if s.len() == usize::MAX {
+        writer.write_u32(u32::MAX)?;
+        writer.write_u32(s.as_ptr() as u32)?;
+    } else {
+        writer.write_string(core::str::from_utf8(s.as_ref()).unwrap())?;
+    }
+    Ok(())
 }
 
 impl<'a> Reply<'a> {
@@ -171,22 +180,36 @@ impl<'a> Reply<'a> {
                 writer.write_u8(8)?;
             },
             Reply::KernelException {
-                name, message, param, file, line, column, function, backtrace,
+                exceptions,
+                stack_pointers,
+                backtrace,
                 async_errors
             } => {
                 writer.write_u8(9)?;
-                writer.write_string(name)?;
-                writer.write_string(message)?;
-                writer.write_u64(param[0] as u64)?;
-                writer.write_u64(param[1] as u64)?;
-                writer.write_u64(param[2] as u64)?;
-                writer.write_string(file)?;
-                writer.write_u32(line)?;
-                writer.write_u32(column)?;
-                writer.write_string(function)?;
+                writer.write_u32(exceptions.len() as u32)?;
+                for exception in exceptions.iter() {
+                    let exception = exception.as_ref().unwrap();
+                    writer.write_u32(exception.id as u32)?;
+                    write_exception_string(writer, &exception.message)?;
+                    writer.write_u64(exception.param[0] as u64)?;
+                    writer.write_u64(exception.param[1] as u64)?;
+                    writer.write_u64(exception.param[2] as u64)?;
+                    write_exception_string(writer, &exception.file)?;
+                    writer.write_u32(exception.line)?;
+                    writer.write_u32(exception.column)?;
+                    write_exception_string(writer, &exception.function)?;
+                }
+
+                for sp in stack_pointers.iter() {
+                    writer.write_u32(sp.stack_pointer as u32)?;
+                    writer.write_u32(sp.initial_backtrace_size as u32)?;
+                    writer.write_u32(sp.current_backtrace_size as u32)?;
+                }
+
                 writer.write_u32(backtrace.len() as u32)?;
-                for &addr in backtrace {
-                    writer.write_u32(addr as u32)?
+                for &(addr, sp) in backtrace {
+                    writer.write_u32(addr as u32)?;
+                    writer.write_u32(sp as u32)?;
                 }
                 writer.write_u8(async_errors)?;
             },

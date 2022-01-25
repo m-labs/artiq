@@ -571,29 +571,33 @@ class CommKernel:
 
             self._write_header(Request.RPCException)
 
+            # Note: instead of sending strings, we send object ID
+            # This is to avoid the need of allocatio on the device side
+            # This is a special case: this only applies to exceptions
             if hasattr(exn, "artiq_core_exception"):
                 exn = exn.artiq_core_exception
-                self._write_string(exn.name)
-                self._write_string(self._truncate_message(exn.message))
+                self._write_int32(embedding_map.store_str(exn.name))
+                self._write_int32(embedding_map.store_str(self._truncate_message(exn.message)))
                 for index in range(3):
                     self._write_int64(exn.param[index])
 
                 filename, line, column, function = exn.traceback[-1]
-                self._write_string(filename)
+                self._write_int32(embedding_map.store_str(filename))
                 self._write_int32(line)
                 self._write_int32(column)
-                self._write_string(function)
+                self._write_int32(embedding_map.store_str(function))
             else:
                 exn_type = type(exn)
                 if exn_type in (ZeroDivisionError, ValueError, IndexError, RuntimeError) or \
                         hasattr(exn, "artiq_builtin"):
-                    self._write_string("0:{}".format(exn_type.__name__))
+                    name = "0:{}".format(exn_type.__name__)
                 else:
                     exn_id = embedding_map.store_object(exn_type)
-                    self._write_string("{}:{}.{}".format(exn_id,
-                                                         exn_type.__module__,
-                                                         exn_type.__qualname__))
-                self._write_string(self._truncate_message(str(exn)))
+                    name = "{}:{}.{}".format(exn_id,
+                                             exn_type.__module__,
+                                             exn_type.__qualname__)
+                self._write_int32(embedding_map.store_str(name))
+                self._write_int32(embedding_map.store_str(self._truncate_message(str(exn))))
                 for index in range(3):
                     self._write_int64(0)
 
@@ -604,10 +608,10 @@ class CommKernel:
                     ((filename, line, function, _), ) = tb
                 else:
                     assert False
-                self._write_string(filename)
+                self._write_int32(embedding_map.store_str(filename))
                 self._write_int32(line)
                 self._write_int32(-1)  # column not known
-                self._write_string(function)
+                self._write_int32(embedding_map.store_str(function))
             self._flush()
         else:
             logger.debug("rpc service: %d %r %r = %r",
@@ -619,28 +623,59 @@ class CommKernel:
             self._flush()
 
     def _serve_exception(self, embedding_map, symbolizer, demangler):
-        name = self._read_string()
-        message = self._read_string()
-        params = [self._read_int64() for _ in range(3)]
+        exception_count = self._read_int32()
+        nested_exceptions = []
 
-        filename = self._read_string()
-        line = self._read_int32()
-        column = self._read_int32()
-        function = self._read_string()
+        def read_exception_string():
+            # note: if length == -1, the following int32 is the object key
+            length = self._read_int32()
+            if length == -1:
+                return embedding_map.retrieve_str(self._read_int32())
+            else:
+                return self._read(length).decode("utf-8")
 
-        backtrace = [self._read_int32() for _ in range(self._read_int32())]
+        for _ in range(exception_count):
+            name = embedding_map.retrieve_str(self._read_int32())
+            message = read_exception_string()
+            params = [self._read_int64() for _ in range(3)]
+
+            filename = read_exception_string()
+            line = self._read_int32()
+            column = self._read_int32()
+            function = read_exception_string()
+            nested_exceptions.append([name, message, params,
+                                      filename, line, column, function])
+
+        demangled_names = demangler([ex[6] for ex in nested_exceptions])
+        for i in range(exception_count):
+            nested_exceptions[i][6] = demangled_names[i]
+
+        exception_info = []
+        for _ in range(exception_count):
+            sp = self._read_int32()
+            initial_backtrace = self._read_int32()
+            current_backtrace = self._read_int32()
+            exception_info.append((sp, initial_backtrace, current_backtrace))
+
+        backtrace = []
+        stack_pointers = []
+        for _ in range(self._read_int32()):
+            backtrace.append(self._read_int32())
+            stack_pointers.append(self._read_int32())
+
         self._process_async_error()
 
-        traceback = list(reversed(symbolizer(backtrace))) + \
-            [(filename, line, column, *demangler([function]), None)]
-        core_exn = exceptions.CoreException(name, message, params, traceback)
+        traceback = list(symbolizer(backtrace))
+        core_exn = exceptions.CoreException(nested_exceptions, exception_info,
+                                            traceback, stack_pointers)
 
         if core_exn.id == 0:
             python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])
         else:
             python_exn_type = embedding_map.retrieve_object(core_exn.id)
 
-        python_exn = python_exn_type(message.format(*params))
+        python_exn = python_exn_type(
+            nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
