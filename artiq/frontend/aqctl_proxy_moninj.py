@@ -113,6 +113,10 @@ class MonInjCoredev:
         if not self.connected:
             self.connected = True
             logger.info("connected to core device")
+            for (channel, probe) in self.proxy.mon_fields.probe.keys():
+                self.comm.monitor_probe(True, channel, probe)
+            for (channel, overrd) in self.proxy.mon_fields.injection.keys():
+                self.comm.monitor_injection(True, channel, overrd)
 
     async def on_disconnected(self):
         if self.connected:
