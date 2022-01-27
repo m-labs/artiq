@@ -2198,7 +2198,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return phi
 
     # Keep this function with builtins.TException.attributes.
-    def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
+    def alloc_exn(self, typ, message=None, param0=None, param1=None,
+                  param2=None, nomsgcheck=False):
         typ = typ.find()
         name = "{}:{}".format(typ.id, typ.name)
         name_id = self.embedding_map.store_str(name)
@@ -2212,8 +2213,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if message is None:
             attributes.append(ir.Constant(typ.name, builtins.TStr()))
+        elif isinstance(message, ir.Constant) or nomsgcheck:
+            attributes.append(message)                  # message
         else:
-            attributes.append(message)                    # message
+            diag = diagnostic.Diagnostic(
+                "error",
+                "only constant exception messages are supported",
+                {},
+                self.current_loc if message.loc is None else message.loc
+            )
+            self.engine.process(diag)
 
         param_type = builtins.TInt64()
         for param in [param0, param1, param2]:
@@ -2674,7 +2683,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
 
-            exn = self.alloc_exn(builtins.TException("AssertionError"), message=msg)
+            exn = self.alloc_exn(builtins.TException("AssertionError"),
+                                 message=msg, nomsgcheck=True)
             self.append(ir.SetAttr(exn, "#__file__", file))
             self.append(ir.SetAttr(exn, "#__line__", line))
             self.append(ir.SetAttr(exn, "#__col__", col))
