@@ -102,10 +102,11 @@ class NumberEntryInt(QtWidgets.QSpinBox):
         else:
             have_max = "max" in procdesc and procdesc["max"] is not None
             have_min = "min" in procdesc and procdesc["min"] is not None
-            if have_max and have_min and procdesc["min"] <= 0 < procdesc["max"]:
-                return 0
+            if have_max and have_min:
+                if procdesc["min"] <= 0 < procdesc["max"]:
+                    return 0
             elif have_min and not have_max:
-                if procdesc["min"] > 0:
+                if procdesc["min"] >= 0:
                     return procdesc["min"]
             elif not have_min and have_max:
                 if procdesc["max"] < 0:
