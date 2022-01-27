@@ -100,8 +100,7 @@ class NumberEntryInt(QtWidgets.QSpinBox):
         if "default" in procdesc:
             return procdesc["default"]
         elif "min" in procdesc and procdesc["min"] is not None:
-            # when the min value is negative, we clamp it to 0 instead
-            return max(0, procdesc["min"])
+            return procdesc["min"]
         else:
             return 0
 
