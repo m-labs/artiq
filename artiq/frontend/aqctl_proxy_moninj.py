@@ -188,7 +188,9 @@ class MonInjMaster:
                 self.connector_task = None
         except asyncio.CancelledError:
             pass
-        await self.ddb_notify.close()
+        if self.ddb_notify:
+            await self.ddb_notify.close()
+            self.ddb_notify = None
         await self.on_disconnected()
 
     @property
