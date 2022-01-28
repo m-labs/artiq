@@ -515,3 +515,23 @@ class NumpyBoolTest(ExperimentCase):
     def test_numpy_bool(self):
         """Test NumPy bools decay to ARTIQ compiler builtin bools as expected"""
         self.create(_NumpyBool).run()
+
+class _Alignment(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @rpc
+    def a_tuple(self) -> TTuple([TInt64, TBool, TInt32]):
+        return 1234, True, 5678
+
+    @kernel
+    def run(self):
+        a, b, c = self.a_tuple()
+        assert a == 1234
+        assert b
+        assert c == 5678
+
+
+class AlignmentTest(ExperimentCase):
+    def test_tuple(self):
+        self.create(_Alignment).run()
