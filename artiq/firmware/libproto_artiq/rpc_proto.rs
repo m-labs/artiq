@@ -1,4 +1,3 @@
-use core::ops::Neg;
 use core::str;
 use core::slice;
 use cslice::{CSlice, CMutSlice};
@@ -6,15 +5,20 @@ use byteorder::{NativeEndian, ByteOrder};
 use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
+#[inline]
+fn alignment_offset(alignment: isize, ptr: isize) -> isize {
+    (-ptr).rem_euclid(alignment)
+}
+
 unsafe fn align_ptr<T>(ptr: *const ()) -> *const T {
     let alignment = core::mem::align_of::<T>() as isize;
-    let fix = (ptr as isize).neg().rem_euclid(alignment);
+    let fix = alignment_offset(alignment as isize, ptr as isize);
     ((ptr as isize) + fix) as *const T
 }
 
 unsafe fn align_ptr_mut<T>(ptr: *mut ()) -> *mut T {
     let alignment = core::mem::align_of::<T>() as isize;
-    let fix =  (ptr as isize).neg().rem_euclid(alignment);
+    let fix =  alignment_offset(alignment as isize, ptr as isize);
     ((ptr as isize) + fix) as *mut T
 }
 
@@ -55,7 +59,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             })
         }
         Tag::Tuple(it, arity) => {
-            *data = data.offset((*data as isize).neg().rem_euclid(tag.alignment() as isize));
+            *data = data.offset(alignment_offset(tag.alignment() as isize, *data as isize));
             let mut it = it.clone();
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
@@ -74,7 +78,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 let padding = if let Tag::Int64 | Tag::Float64 = tag { 4 } else { 0 };
                 let mut data = alloc(tag.size() * length + padding)?;
 
-                data = data.offset((data as isize).neg().rem_euclid(tag.alignment() as isize));
+                data = data.offset(alignment_offset(tag.alignment() as isize, data as isize));
 
                 (*ptr).elements = data;
                 match tag {
@@ -116,7 +120,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 let elt_tag = it.clone().next().expect("truncated tag");
                 let padding = if let Tag::Int64 | Tag::Float64 = tag { 4 } else { 0 };
                 let mut data = alloc(elt_tag.size() * length + padding)?;
-                data = data.offset((data as isize).neg().rem_euclid(tag.alignment() as isize));
+                data = data.offset(alignment_offset(tag.alignment() as isize, data as isize));
 
                 *buffer = data;
                 match elt_tag {
@@ -146,7 +150,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             })
         }
         Tag::Range(it) => {
-            *data = data.offset((*data as isize).neg().rem_euclid(tag.alignment() as isize));
+            *data = data.offset(alignment_offset(tag.alignment() as isize, *data as isize));
             let tag = it.clone().next().expect("truncated tag");
             recv_value(reader, tag, data, alloc)?;
             recv_value(reader, tag, data, alloc)?;
@@ -344,7 +348,7 @@ pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const
 
 mod tag {
     use core::fmt;
-    use core::ops::Neg;
+    use super::alignment_offset;
 
     pub fn split_tag(tag_bytes: &[u8]) -> (&[u8], &[u8]) {
         let tag_separator =
@@ -437,7 +441,7 @@ mod tag {
                     for _ in 0..arity {
                         let tag = it.next().expect("truncated tag");
                         size += tag.size();
-                        size += (size as isize).neg().rem_euclid(tag.alignment() as isize) as usize;
+                        size += alignment_offset(tag.alignment() as isize, size as isize) as usize;
                     }
                     size
                 }
