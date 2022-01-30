@@ -260,7 +260,7 @@
             sha256 = "sha256-YyycMsDzR+JRcMZJd6A/CRi2J9nKmaWY/KXUnAQaZ00=";
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_11.clang-unwrapped
