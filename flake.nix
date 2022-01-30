@@ -372,6 +372,8 @@
         };
       };
 
+      inherit makeArtiqBoardPackage;
+
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
       devShell.x86_64-linux = pkgs.mkShell {
