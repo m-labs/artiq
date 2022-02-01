@@ -403,7 +403,7 @@ class LLVMIRGenerator:
 
         if isinstance(llty, ll.FunctionType):
             llglobal = ll.Function(self.llmodule, llty, name)
-            if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
+            if name in ("__artiq_raise", "__artiq_resume", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
             if name in ("rtio_log", "rpc_send", "rpc_send_async",
                         self.target.print_function):
