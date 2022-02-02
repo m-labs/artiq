@@ -350,26 +350,6 @@
           target = "kc705";
           variant = "nist_clock";
         };
-        artiq-board-kc705-nist_qc2 = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
-        };
-        artiq-board-kc705-nist_clock_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock_master";
-        };
-        artiq-board-kc705-nist_qc2_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2_master";
-        };
-        artiq-board-kc705-nist_clock_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock";
-        };
-        artiq-board-kc705-nist_qc2_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
-        };
       };
 
       inherit makeArtiqBoardPackage;
