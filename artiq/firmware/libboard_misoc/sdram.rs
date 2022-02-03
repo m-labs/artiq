@@ -211,9 +211,10 @@ mod ddr {
 
         // Generate pseudo-random sequence
         let mut prs = [0; DFII_NPHASES * DFII_PIX_DATA_SIZE];
-        let mut prv = 42;
+        let mut prv: u32 = 42;
         for b in prs.iter_mut() {
-            prv = 1664525 * prv + 1013904223;
+
+            prv = u32::wrapping_add(u32::wrapping_mul(1664525, prv), 1013904223);
             *b = prv as u8;
         }
 
@@ -296,7 +297,7 @@ mod ddr {
         let mut prs = [0; DFII_NPHASES * DFII_PIX_DATA_SIZE];
         let mut prv = 42;
         for b in prs.iter_mut() {
-            prv = 1664525 * prv + 1013904223;
+            prv = u32::wrapping_add(u32::wrapping_mul(1664525, prv), 1013904223);
             *b = prv as u8;
         }
 
