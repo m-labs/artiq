@@ -264,23 +264,23 @@ class MonInjProxy(AsyncioServer):
     async def _handle_moninj_connection_cr(self, reader, writer):
         remote_addr = writer.get_extra_info('peername')
         logger.info("client connected (remote: %s)", remote_addr)
-        writer.write(b"e")
+        writer.write(b"e" if self.core.comm.endian == "<" else b"E")
         client = _Client(reader, writer)
         self.clients.add(client)
         try:
             for (channel, probe), v in self.mon_fields.probe.items():
                 client.write_monitor_status(channel, probe, v.value,
-                                            self.endian)
+                                            self.core.comm.endian)
             for (channel, overrd), v in self.mon_fields.injection.items():
                 client.write_injection_status(channel, overrd, v.value,
-                                              self.endian)
+                                              self.core.comm.endian)
             while True:
                 opcode = await reader.read(1)
                 if not opcode:
                     break
                 if opcode == b"\x00":
                     enable, channel, probe = await client.read_format(
-                        self.endian + "blb")
+                        self.core.comm.endian + "blb")
                     logger.debug(
                         f"received MonitorProbe {(enable, channel, probe)}"
                     )
@@ -288,19 +288,19 @@ class MonInjProxy(AsyncioServer):
                                       client=client)
                 elif opcode == b"\x01":
                     channel, override, value = await client.read_format(
-                        self.endian + "lbb")
+                        self.core.comm.endian + "lbb")
                     logger.debug(
                         f"received Inject {(channel, override, value)}")
                     self.core.comm.inject(channel, override, value)
                 elif opcode == b"\x02":
                     channel, override = await client.read_format(
-                        self.endian + "lb")
+                        self.core.comm.endian + "lb")
                     logger.debug(
                         f"received GetInjectionStatus {(channel, override)}")
                     self.core.comm.get_injection_status(channel, override)
                 elif opcode == b"\x03":
                     enable, channel, overrd = await client.read_format(
-                        self.endian + "blb")
+                        self.core.comm.endian + "blb")
                     logger.debug(
                         f"received MonitorInjection {(enable, channel, overrd)}")
                     self.update_injection(enable, channel, overrd,
@@ -359,10 +359,6 @@ class MonInjProxy(AsyncioServer):
             logger.debug(
                 f"committing monitor injection {(enable, channel, overrd)}")
             self.core.comm.monitor_injection(enable, channel, overrd)
-
-    @property
-    def endian(self):
-        return self.core.comm.endian if self.core.comm else None
 
 
 def get_argparser():
