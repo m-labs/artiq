@@ -98,7 +98,7 @@ class MonInjCoredev:
         if self.comm:
             await self.comm.close()
             self.comm = None
-        await self.on_disconnected()
+        self.on_disconnected()
 
     @property
     def connected(self):
@@ -118,7 +118,7 @@ class MonInjCoredev:
             for (channel, overrd) in self.proxy.mon_fields.injection.keys():
                 self.comm.monitor_injection(True, channel, overrd)
 
-    async def on_disconnected(self):
+    def on_disconnected(self):
         if self.connected:
             self.connected = False
             logger.info("disconnected from core device")
@@ -191,7 +191,7 @@ class MonInjMaster:
         if self.ddb_notify:
             await self.ddb_notify.close()
             self.ddb_notify = None
-        await self.on_disconnected()
+        self.on_disconnected()
 
     @property
     def core_addr(self):
@@ -213,7 +213,7 @@ class MonInjMaster:
             if not self.proxy.core.connected:
                 await self.proxy.core.connect(self.core_addr, 1383)
 
-    async def on_disconnected(self):
+    def on_disconnected(self):
         if self.connected:
             self.connected = False
             logger.info("disconnected from master")
