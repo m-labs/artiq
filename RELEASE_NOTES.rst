@@ -32,9 +32,6 @@ Highlights:
 * Previously detected RTIO async errors are reported to the host after each kernel terminates and a
   warning is logged. The warning is additional to the one already printed in the core device log upon
   detection of the error.
-* HDF5 options can now be passed when creating datasets with ``set_dataset``. This allows
-  in particular to use transparent compression filters as follows:
-  ``set_dataset(name, value, hdf5_options={"compression": "gzip"})``.
 * Removed worker DB warning for writing a dataset that is also in the archive
 
 Breaking changes:
@@ -51,9 +48,6 @@ Breaking changes:
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
-* The internal dataset representation was changed to support tracking HDF5 options like e.g.
-  a compression method. This requires changes to code reading the dataset persistence file
-  (``dataset_db.pyon``) and to custom applets.
 * Added moninj proxy support with ``aqctl_proxy_moninj`` for dashboard client to control moninj indirectly:
    - New optional field in the device database: new key ``moninj`` of type ``controller`` with keys ``host``/``port``/``proxy_port``/``command``.
 

@@ -212,6 +212,7 @@ class Target:
         # just after the call. Offset them back to get an address somewhere
         # inside the call instruction (or its delay slot), since that's what
         # the backtrace entry should point at.
+        last_inlined = None
         offset_addresses = [hex(addr - 1) for addr in addresses]
         with RunTool([self.tool_addr2line, "--addresses",  "--functions", "--inlines",
                       "--demangle", "--exe={library}"] + offset_addresses,
@@ -227,9 +228,11 @@ class Target:
                 if address_or_function[:2] == "0x":
                     address  = int(address_or_function[2:], 16) + 1 # remove offset
                     function = next(lines)
+                    inlined = False
                 else:
                     address  = backtrace[-1][4] # inlined
                     function = address_or_function
+                    inlined = True
                 location = next(lines)
 
                 filename, line = location.rsplit(":", 1)
@@ -240,7 +243,12 @@ class Target:
                 else:
                     line = int(line)
                 # can't get column out of addr2line D:
-                backtrace.append((filename, line, -1, function, address))
+                if inlined:
+                    last_inlined.append((filename, line, -1, function, address))
+                else:
+                    last_inlined = []
+                    backtrace.append((filename, line, -1, function, address,
+                                      last_inlined))
             return backtrace
 
     def demangle(self, names):

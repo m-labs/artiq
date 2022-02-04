@@ -16,7 +16,7 @@
       artiqVersionMajor = 7;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
-      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "-" + artiqVersionId + "-beta";
+      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "." + artiqVersionId + ".beta";
 
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
@@ -101,8 +101,13 @@
           rustc $src/artiq/test/libartiq_support/lib.rs -Cpanic=unwind -g
         '';
         installPhase = ''
-          mkdir $out
-          cp libartiq_support.so $out
+          mkdir -p $out/lib $out/bin
+          cp libartiq_support.so $out/lib
+          cat > $out/bin/libartiq-support << EOF
+          #!/bin/sh
+          echo $out/lib/libartiq_support.so
+          EOF
+          chmod 755 $out/bin/libartiq-support
         '';
       };
 
@@ -165,13 +170,13 @@
         ];
 
         # FIXME: automatically propagate lld_11 llvm_11 dependencies
-        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 pkgs.lit outputcheck ];
+        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 libartiq-support pkgs.lit outputcheck ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
 
           TESTDIR=`mktemp -d`
           cp --no-preserve=mode,ownership -R $src/artiq/test/lit $TESTDIR
-          LIBARTIQ_SUPPORT=${libartiq-support}/libartiq_support.so lit -v $TESTDIR/lit
+          LIBARTIQ_SUPPORT=`libartiq-support` lit -v $TESTDIR/lit
           '';
       };
 
@@ -257,10 +262,10 @@
           cargoDeps = rustPlatform.fetchCargoTarball {
             name = "artiq-firmware-cargo-deps";
             src = "${self}/artiq/firmware";
-            sha256 = "sha256-Lf6M4M/jdRiO5MsWSoqtOSNfRIhbze+qvg4kaiiBWW4=";
+            sha256 = "sha256-YyycMsDzR+JRcMZJd6A/CRi2J9nKmaWY/KXUnAQaZ00=";
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_11.clang-unwrapped
@@ -350,27 +355,9 @@
           target = "kc705";
           variant = "nist_clock";
         };
-        artiq-board-kc705-nist_qc2 = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
-        };
-        artiq-board-kc705-nist_clock_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock_master";
-        };
-        artiq-board-kc705-nist_qc2_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2_master";
-        };
-        artiq-board-kc705-nist_clock_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock";
-        };
-        artiq-board-kc705-nist_qc2_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
-        };
       };
+
+      inherit makeArtiqBoardPackage;
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 

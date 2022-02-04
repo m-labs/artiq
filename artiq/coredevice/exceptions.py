@@ -16,50 +16,94 @@ AssertionError = builtins.AssertionError
 
 class CoreException:
     """Information about an exception raised or passed through the core device."""
+    def __init__(self, exceptions, exception_info, traceback, stack_pointers):
+        self.exceptions = exceptions
+        self.exception_info = exception_info
+        self.traceback = list(traceback)
+        self.stack_pointers = stack_pointers
 
-    def __init__(self, name, message, params, traceback):
+        first_exception = exceptions[0]
+        name = first_exception[0]
         if ':' in name:
             exn_id, self.name = name.split(':', 2)
             self.id = int(exn_id)
         else:
             self.id, self.name = 0, name
-        self.message, self.params = message, params
-        self.traceback = list(traceback)
+        self.message = first_exception[1]
+        self.params = first_exception[2]
+
+    def append_backtrace(self, record, inlined=False):
+        filename, line, column, function, address = record
+        stub_globals = {"__name__": filename, "__loader__": source_loader}
+        source_line = linecache.getline(filename, line, stub_globals)
+        indentation = re.search(r"^\s*", source_line).end()
+
+        if address is None:
+            formatted_address = ""
+        elif inlined:
+            formatted_address = " (inlined)"
+        else:
+            formatted_address = " (RA=+0x{:x})".format(address)
+
+        filename = filename.replace(artiq_dir, "<artiq>")
+        lines = []
+        if column == -1:
+            lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+            lines.append("  File \"{file}\", line {line}, in {function}{address}".
+                         format(file=filename, line=line, function=function,
+                                address=formatted_address))
+        else:
+            lines.append("    {}^".format(" " * (column - indentation)))
+            lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
+            lines.append("  File \"{file}\", line {line}, column {column},"
+                         " in {function}{address}".
+                         format(file=filename, line=line, column=column + 1,
+                                function=function, address=formatted_address))
+        return lines
+
+    def single_traceback(self, exception_index):
+        # note that we insert in reversed order
+        lines = []
+        last_sp = 0
+        start_backtrace_index = self.exception_info[exception_index][1]
+        zipped = list(zip(self.traceback[start_backtrace_index:],
+                          self.stack_pointers[start_backtrace_index:]))
+        exception = self.exceptions[exception_index]
+        name = exception[0]
+        message = exception[1]
+        params = exception[2]
+        if ':' in name:
+            exn_id, name = name.split(':', 2)
+            exn_id = int(exn_id)
+        else:
+            exn_id = 0
+        lines.append("{}({}): {}".format(name, exn_id, message.format(*params)))
+        zipped.append(((exception[3], exception[4], exception[5], exception[6],
+                       None, []), None))
+
+        for ((filename, line, column, function, address, inlined), sp) in zipped:
+            # backtrace of nested exceptions may be discontinuous
+            # but the stack pointer must increase monotonically
+            if sp is not None and sp <= last_sp:
+                continue
+            last_sp = sp
+
+            for record in reversed(inlined):
+                lines += self.append_backtrace(record, True)
+            lines += self.append_backtrace((filename, line, column, function,
+                                            address))
+
+        lines.append("Traceback (most recent call first):")
+
+        return "\n".join(reversed(lines))
 
     def __str__(self):
-        lines = []
-        lines.append("Core Device Traceback (most recent call last):")
-        last_address = 0
-        for (filename, line, column, function, address) in self.traceback:
-            stub_globals = {"__name__": filename, "__loader__": source_loader}
-            source_line = linecache.getline(filename, line, stub_globals)
-            indentation = re.search(r"^\s*", source_line).end()
-
-            if address is None:
-                formatted_address = ""
-            elif address == last_address:
-                formatted_address = " (inlined)"
-            else:
-                formatted_address = " (RA=+0x{:x})".format(address)
-            last_address = address
-
-            filename = filename.replace(artiq_dir, "<artiq>")
-            if column == -1:
-                lines.append("  File \"{file}\", line {line}, in {function}{address}".
-                             format(file=filename, line=line, function=function,
-                                    address=formatted_address))
-                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
-            else:
-                lines.append("  File \"{file}\", line {line}, column {column},"
-                             " in {function}{address}".
-                             format(file=filename, line=line, column=column + 1,
-                                    function=function, address=formatted_address))
-                lines.append("    {}".format(source_line.strip() if source_line else "<unknown>"))
-                lines.append("    {}^".format(" " * (column - indentation)))
-
-        lines.append("{}({}): {}".format(self.name, self.id,
-                                         self.message.format(*self.params)))
-        return "\n".join(lines)
+        tracebacks = [self.single_traceback(i) for i in range(len(self.exceptions))]
+        traceback_str = ('\n\nDuring handling of the above exception, ' +
+                        'another exception occurred:\n\n').join(tracebacks)
+        return 'Core Device Traceback:\n' +\
+                traceback_str +\
+                '\n\nEnd of Core Device Traceback\n'
 
 
 class InternalError(Exception):

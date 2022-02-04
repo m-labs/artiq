@@ -15,13 +15,26 @@ class DeadCodeEliminator:
             self.process_function(func)
 
     def process_function(self, func):
-        modified = True
-        while modified:
-            modified = False
-            for block in list(func.basic_blocks):
-                if not any(block.predecessors()) and block != func.entry():
-                    self.remove_block(block)
-                    modified = True
+        # defer removing those blocks, so our use checks will ignore deleted blocks
+        preserve = [func.entry()]
+        work_list = [func.entry()]
+        while any(work_list):
+            block = work_list.pop()
+            for succ in block.successors():
+                if succ not in preserve:
+                    preserve.append(succ)
+                    work_list.append(succ)
+
+        to_be_removed = []
+        for block in func.basic_blocks:
+            if block not in preserve:
+                block.is_removed = True
+                to_be_removed.append(block)
+                for insn in block.instructions:
+                    insn.is_removed = True
+
+        for block in to_be_removed:
+            self.remove_block(block)
 
         modified = True
         while modified:
@@ -42,6 +55,8 @@ class DeadCodeEliminator:
     def remove_block(self, block):
         # block.uses are updated while iterating
         for use in set(block.uses):
+            if use.is_removed:
+                continue
             if isinstance(use, ir.Phi):
                 use.remove_incoming_block(block)
                 if not any(use.operands):
@@ -56,6 +71,8 @@ class DeadCodeEliminator:
 
     def remove_instruction(self, insn):
         for use in set(insn.uses):
+            if use.is_removed:
+                continue
             if isinstance(use, ir.Phi):
                 use.remove_incoming_value(insn)
                 if not any(use.operands):

@@ -6,17 +6,6 @@ pub const KERNELCPU_PAYLOAD_ADDRESS: usize = 0x45060000;
 pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE:      usize = 0x80;
 
-#[derive(Debug, Clone)]
-pub struct Exception<'a> {
-    pub name:     &'a str,
-    pub file:     &'a str,
-    pub line:     u32,
-    pub column:   u32,
-    pub function: &'a str,
-    pub message:  &'a str,
-    pub param:    [i64; 3]
-}
-
 #[derive(Debug)]
 pub enum Message<'a> {
     LoadRequest(&'a [u8]),
@@ -47,8 +36,9 @@ pub enum Message<'a> {
 
     RunFinished,
     RunException {
-        exception: Exception<'a>,
-        backtrace: &'a [usize]
+        exceptions: &'a [Option<eh::eh_artiq::Exception<'a>>],
+        stack_pointers: &'a [eh::eh_artiq::StackPointerBacktrace],
+        backtrace: &'a [(usize, usize)]
     },
     RunAborted,
 
@@ -59,7 +49,7 @@ pub enum Message<'a> {
         data: *const *const ()
     },
     RpcRecvRequest(*mut ()),
-    RpcRecvReply(Result<usize, Exception<'a>>),
+    RpcRecvReply(Result<usize, eh::eh_artiq::Exception<'a>>),
     RpcFlush,
 
     CacheGetRequest { key: &'a str },
