@@ -278,6 +278,8 @@ class MonInjProxy(AsyncioServer):
                 opcode = await reader.read(1)
                 if not opcode:
                     break
+                while not self.core.connected:
+                    await asyncio.sleep(0)
                 if opcode == b"\x00":
                     enable, channel, probe = await client.read_format(
                         self.core.comm.endian + "blb")
