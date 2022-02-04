@@ -246,6 +246,10 @@ def setup_from_ddb(ddb):
             pass
     if proxy_addr and proxy_port:
         return proxy_addr, proxy_port, dds_sysclk, description
+    missing = ["proxy address"] if not proxy_addr else []
+    missing += ["proxy port"] if not proxy_port else []
+    logger.warning(f"missing {' and '.join(missing)} for proxy support")
+    logger.warning("falling back to direct connection")
     return core_addr, 1383, dds_sysclk, description
 
 
@@ -301,7 +305,7 @@ class _DeviceManager:
                 self.setup_dac_monitoring(False, widget.spi_channel, widget.channel)
                 widget.deleteLater()
                 del self.dac_widgets[(widget.spi_channel, widget.channel)]
-                self.dac_cb()     
+                self.dac_cb()
             else:
                 raise ValueError
 
