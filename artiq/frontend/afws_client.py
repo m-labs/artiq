@@ -117,6 +117,7 @@ def main():
         if not client.login(args.username, password):
             print("Login failed")
             sys.exit(1)
+        print("Logged in successfully.")
         if args.action == "passwd":
             print("Password must made of alphanumeric characters (a-z, A-Z, 0-9) and be at least 8 characters long.")
             password = getpass("New password: ")
