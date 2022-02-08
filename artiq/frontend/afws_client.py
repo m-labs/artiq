@@ -26,14 +26,7 @@ def get_artiq_rev():
         import artiq
     except ImportError:
         return None
-    version = artiq.__version__
-    if version.endswith(".beta"):
-        version = version[:-5]
-    version = version.split(".")
-    if len(version) != 3:
-        return None
-    major, minor, rev = version
-    return rev
+    return artiq._version.get_rev()
 
 
 def zip_unarchive(data, directory):

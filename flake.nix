@@ -17,6 +17,7 @@
       artiqVersionMinor = self.sourceInfo.revCount or 0;
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
       artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "." + artiqVersionId + ".beta";
+      artiqRev = self.sourceInfo.rev or "unknown";
 
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
@@ -148,7 +149,11 @@
         version = artiqVersion;
         src = self;
 
-        preBuild = "export VERSIONEER_OVERRIDE=${version}";
+        preBuild =
+          ''
+          export VERSIONEER_OVERRIDE=${version}
+          export VERSIONEER_REV=${artiqRev}
+          '';
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
