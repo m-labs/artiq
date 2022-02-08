@@ -132,8 +132,12 @@ def main():
             try:
                 os.mkdir(args.directory)
             except FileExistsError:
-                if any(os.scandir(args.directory)):
-                    print("Output directory already exists and is not empty. Please remove it and try again.")
+                try:
+                    if any(os.scandir(args.directory)):
+                        print("Output directory already exists and is not empty. Please remove it and try again.")
+                        sys.exit(1)
+                except NotADirectoryError:
+                    print("A file with the same name as the output directory already exists. Please remove it and try again.")
                     sys.exit(1)
             rev = args.rev
             if rev is None:
