@@ -34,6 +34,7 @@ console_scripts = [
     "artiq_flash = artiq.frontend.artiq_flash:main",
     "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
     "aqctl_proxy_moninj = artiq.frontend.aqctl_proxy_moninj:main"
+    "afws_client = artiq.frontend.afws_client:main",
 ]
 
 gui_scripts = [

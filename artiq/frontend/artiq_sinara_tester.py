@@ -331,7 +331,7 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
 
-        channel.set_att_mu(160)
+        channel.set_att(11.5*dB)
         channel.sw.on()
         self.core.break_realtime()
 
