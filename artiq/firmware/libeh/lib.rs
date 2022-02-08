@@ -7,3 +7,4 @@ extern crate libc;
 
 pub mod dwarf;
 pub mod eh_rust;
+pub mod eh_artiq;

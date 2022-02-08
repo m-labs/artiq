@@ -171,10 +171,16 @@ class LLVMIRGenerator:
         self.llfunction = None
         self.llmap = {}
         self.llobject_map = {}
+        self.llpred_map = {}
         self.phis = []
         self.debug_info_emitter = DebugInfoEmitter(self.llmodule)
         self.empty_metadata = self.llmodule.add_metadata([])
         self.quote_fail_msg = None
+
+    def add_pred(self, pred, block):
+        if block not in self.llpred_map:
+            self.llpred_map[block] = set()
+        self.llpred_map[block].add(pred)
 
     def needs_sret(self, lltyp, may_be_large=True):
         if isinstance(lltyp, ll.VoidType):
@@ -367,7 +373,9 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(lli32, [], var_arg=True)
         elif name == "__artiq_raise":
             llty = ll.FunctionType(llvoid, [self.llty_of_type(builtins.TException())])
-        elif name == "__artiq_reraise":
+        elif name == "__artiq_resume":
+            llty = ll.FunctionType(llvoid, [])
+        elif name == "__artiq_end_catch":
             llty = ll.FunctionType(llvoid, [])
         elif name == "memcmp":
             llty = ll.FunctionType(lli32, [llptr, llptr, lli32])
@@ -395,7 +403,7 @@ class LLVMIRGenerator:
 
         if isinstance(llty, ll.FunctionType):
             llglobal = ll.Function(self.llmodule, llty, name)
-            if name in ("__artiq_raise", "__artiq_reraise", "llvm.trap"):
+            if name in ("__artiq_raise", "__artiq_resume", "llvm.trap"):
                 llglobal.attributes.add("noreturn")
             if name in ("rtio_log", "rpc_send", "rpc_send_async",
                         self.target.print_function):
@@ -653,6 +661,28 @@ class LLVMIRGenerator:
             self.llbuilder = ll.IRBuilder()
             llblock_map = {}
 
+            # this is the predecessor map, from basic block to the set of its
+            # predecessors
+            # handling for branch and cbranch is here, and the handling of
+            # indirectbr and landingpad are in their respective process_*
+            # function
+            self.llpred_map = llpred_map = {}
+            branch_fn = self.llbuilder.branch
+            cbranch_fn = self.llbuilder.cbranch
+            def override_branch(block):
+                nonlocal self, branch_fn
+                self.add_pred(self.llbuilder.basic_block, block)
+                return branch_fn(block)
+
+            def override_cbranch(pred, bbif, bbelse):
+                nonlocal self, cbranch_fn
+                self.add_pred(self.llbuilder.basic_block, bbif)
+                self.add_pred(self.llbuilder.basic_block, bbelse)
+                return cbranch_fn(pred, bbif, bbelse)
+
+            self.llbuilder.branch = override_branch
+            self.llbuilder.cbranch = override_cbranch
+
             if not func.is_generated:
                 lldisubprogram = self.debug_info_emitter.emit_subprogram(func, self.llfunction)
                 self.llfunction.set_metadata('dbg', lldisubprogram)
@@ -675,6 +705,10 @@ class LLVMIRGenerator:
             # Third, translate all instructions.
             for block in func.basic_blocks:
                 self.llbuilder.position_at_end(self.llmap[block])
+                old_block = None
+                if len(block.instructions) == 1 and \
+                    isinstance(block.instructions[0], ir.LandingPad):
+                    old_block = self.llbuilder.basic_block
                 for insn in block.instructions:
                     if insn.loc is not None and not func.is_generated:
                         self.llbuilder.debug_metadata = \
@@ -689,12 +723,28 @@ class LLVMIRGenerator:
                 # instruction so that the result spans several LLVM basic
                 # blocks. This only really matters for phis, which are thus
                 # using a different map (the following one).
-                llblock_map[block] = self.llbuilder.basic_block
+                if old_block is None:
+                    llblock_map[block] = self.llbuilder.basic_block
+                else:
+                    llblock_map[block] = old_block
 
             # Fourth, add incoming values to phis.
             for phi, llphi in self.phis:
                 for value, block in phi.incoming():
-                    llphi.add_incoming(self.map(value), llblock_map[block])
+                    if isinstance(phi.type, builtins.TException):
+                        # a hack to patch phi from landingpad
+                        # because landingpad is a single bb in artiq IR, but
+                        # generates multiple bb, we need to find out the
+                        # predecessor to figure out the actual bb
+                        landingpad = llblock_map[block]
+                        for pred in llpred_map[llphi.parent]:
+                            if pred in llpred_map and landingpad in llpred_map[pred]:
+                                llphi.add_incoming(self.map(value), pred)
+                                break
+                        else:
+                            llphi.add_incoming(self.map(value), landingpad)
+                    else:
+                        llphi.add_incoming(self.map(value), llblock_map[block])
         finally:
             self.function_flags = None
             self.llfunction = None
@@ -1247,6 +1297,8 @@ class LLVMIRGenerator:
                 return llstore_lo
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
+        elif insn.op == "end_catch":
+            return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         else:
             assert False
 
@@ -1678,7 +1730,12 @@ class LLVMIRGenerator:
     def process_IndirectBranch(self, insn):
         llinsn = self.llbuilder.branch_indirect(self.map(insn.target()))
         for dest in insn.destinations():
-            llinsn.add_destination(self.map(dest))
+            dest = self.map(dest)
+            self.add_pred(self.llbuilder.basic_block, dest)
+            if dest not in self.llpred_map:
+                self.llpred_map[dest] = set()
+            self.llpred_map[dest].add(self.llbuilder.basic_block)
+            llinsn.add_destination(dest)
         return llinsn
 
     def process_Return(self, insn):
@@ -1716,8 +1773,8 @@ class LLVMIRGenerator:
         llexn = self.map(insn.value())
         return self._gen_raise(insn, self.llbuiltin("__artiq_raise"), [llexn])
 
-    def process_Reraise(self, insn):
-        return self._gen_raise(insn, self.llbuiltin("__artiq_reraise"), [])
+    def process_Resume(self, insn):
+        return self._gen_raise(insn, self.llbuiltin("__artiq_resume"), [])
 
     def process_LandingPad(self, insn):
         # Layout on return from landing pad: {%_Unwind_Exception*, %Exception*}
@@ -1726,10 +1783,11 @@ class LLVMIRGenerator:
                                                  cleanup=insn.has_cleanup)
         llrawexn = self.llbuilder.extract_value(lllandingpad, 1)
         llexn = self.llbuilder.bitcast(llrawexn, self.llty_of_type(insn.type))
-        llexnnameptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
+        llexnidptr = self.llbuilder.gep(llexn, [self.llindex(0), self.llindex(0)],
                                           inbounds=True)
-        llexnname = self.llbuilder.load(llexnnameptr)
+        llexnid = self.llbuilder.load(llexnidptr)
 
+        landingpadbb = self.llbuilder.basic_block
         for target, typ in insn.clauses():
             if typ is None:
                 # we use a null pointer here, similar to how cpp does it
@@ -1742,42 +1800,40 @@ class LLVMIRGenerator:
                         ll.Constant(lli32, 0).inttoptr(llptr)
                     )
                 )
-            else:
-                exnname = "{}:{}".format(typ.id, typ.name)
 
-                llclauseexnname = self.llconst_of_const(
-                    ir.Constant(exnname, builtins.TStr()))
-                llclauseexnnameptr = self.llmodule.globals.get("exn.{}".format(exnname))
-                if llclauseexnnameptr is None:
-                    llclauseexnnameptr = ll.GlobalVariable(self.llmodule, llclauseexnname.type,
-                                                           name="exn.{}".format(exnname))
-                    llclauseexnnameptr.global_constant = True
-                    llclauseexnnameptr.initializer = llclauseexnname
-                    llclauseexnnameptr.linkage = "private"
-                    llclauseexnnameptr.unnamed_addr = True
-                lllandingpad.add_clause(ll.CatchClause(llclauseexnnameptr))
-
-            if typ is None:
                 # typ is None means that we match all exceptions, so no need to
                 # compare
-                self.llbuilder.branch(self.map(target))
+                target = self.map(target)
+                self.add_pred(landingpadbb, target)
+                self.add_pred(landingpadbb, self.llbuilder.basic_block)
+                self.llbuilder.branch(target)
             else:
-                llexnlen       = self.llbuilder.extract_value(llexnname, 1)
-                llclauseexnlen = self.llbuilder.extract_value(llclauseexnname, 1)
-                llmatchinglen  = self.llbuilder.icmp_unsigned('==', llexnlen, llclauseexnlen)
-                with self.llbuilder.if_then(llmatchinglen):
-                    llexnptr       = self.llbuilder.extract_value(llexnname, 0)
-                    llclauseexnptr = self.llbuilder.extract_value(llclauseexnname, 0)
-                    llcomparedata  = self.llbuilder.call(self.llbuiltin("memcmp"),
-                                                         [llexnptr, llclauseexnptr, llexnlen])
-                    llmatchingdata = self.llbuilder.icmp_unsigned('==', llcomparedata,
-                                                                  ll.Constant(lli32, 0))
-                    with self.llbuilder.if_then(llmatchingdata):
-                        self.llbuilder.branch(self.map(target))
+                exnname = "{}:{}".format(typ.id, typ.name)
+                llclauseexnidptr = self.llmodule.globals.get("exn.{}".format(exnname))
+                exnid = ll.Constant(lli32, self.embedding_map.store_str(exnname))
+                if llclauseexnidptr is None:
+                    llclauseexnidptr = ll.GlobalVariable(self.llmodule, lli32,
+                                                         name="exn.{}".format(exnname))
+                    llclauseexnidptr.global_constant = True
+                    llclauseexnidptr.initializer = exnid
+                    llclauseexnidptr.linkage = "private"
+                    llclauseexnidptr.unnamed_addr = True
+                lllandingpad.add_clause(ll.CatchClause(llclauseexnidptr))
+                llmatchingdata = self.llbuilder.icmp_unsigned("==", llexnid,
+                                                              exnid)
+                with self.llbuilder.if_then(llmatchingdata):
+                    target = self.map(target)
+                    self.add_pred(landingpadbb, target)
+                    self.add_pred(landingpadbb, self.llbuilder.basic_block)
+                    self.llbuilder.branch(target)
+                self.add_pred(landingpadbb, self.llbuilder.basic_block)
 
         if self.llbuilder.basic_block.terminator is None:
             if insn.has_cleanup:
-                self.llbuilder.branch(self.map(insn.cleanup()))
+                target = self.map(insn.cleanup())
+                self.add_pred(landingpadbb, target)
+                self.add_pred(landingpadbb, self.llbuilder.basic_block)
+                self.llbuilder.branch(target)
             else:
                 self.llbuilder.resume(lllandingpad)
 

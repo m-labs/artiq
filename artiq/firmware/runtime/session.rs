@@ -1,6 +1,7 @@
 use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
 use alloc::{vec::Vec, string::String};
 use byteorder::{ByteOrder, NativeEndian};
+use cslice::CSlice;
 
 use io::{Read, Write, Error as IoError};
 use board_misoc::{ident, cache, config};
@@ -291,7 +292,7 @@ fn process_host_message(io: &Io,
         }
 
         host::Request::RpcException {
-            name, message, param, file, line, column, function
+            id, message, param, file, line, column, function
         } => {
             if session.kernel_state != KernelState::RpcWait {
                 unexpected!("unsolicited RPC reply")
@@ -305,16 +306,18 @@ fn process_host_message(io: &Io,
                 }
             })?;
 
-            let exn = kern::Exception {
-                name:     name.as_ref(),
-                message:  message.as_ref(),
-                param:    param,
-                file:     file.as_ref(),
-                line:     line,
-                column:   column,
-                function: function.as_ref()
-            };
-            kern_send(io, &kern::RpcRecvReply(Err(exn)))?;
+            unsafe {
+                let exn = eh::eh_artiq::Exception {
+                    id:       id,
+                    message:  CSlice::new(message as *const u8, usize::MAX),
+                    param:    param,
+                    file:     CSlice::new(file as *const u8, usize::MAX),
+                    line:     line,
+                    column:   column,
+                    function: CSlice::new(function as *const u8, usize::MAX),
+                };
+                kern_send(io, &kern::RpcRecvReply(Err(exn)))?;
+            }
 
             session.kernel_state = KernelState::Running
         }
@@ -438,7 +441,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 }
             }
             &kern::RunException {
-                exception: kern::Exception { name, message, param, file, line, column, function },
+                exceptions,
+                stack_pointers,
                 backtrace
             } => {
                 unsafe { kernel::stop() }
@@ -448,19 +452,15 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 match stream {
                     None => {
                         error!("exception in flash kernel");
-                        error!("{}: {} {:?}", name, message, param);
-                        error!("at {}:{}:{} in {}", file, line, column, function);
+                        for exception in exceptions {
+                            error!("{:?}", exception.unwrap());
+                        }
                         return Ok(true)
                     },
                     Some(ref mut stream) => {
                         host_write(stream, host::Reply::KernelException {
-                            name:      name,
-                            message:   message,
-                            param:     param,
-                            file:      file,
-                            line:      line,
-                            column:    column,
-                            function:  function,
+                            exceptions: exceptions,
+                            stack_pointers: stack_pointers,
                             backtrace: backtrace,
                             async_errors: unsafe { get_async_errors() }
                         }).map_err(|e| e.into())

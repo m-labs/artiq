@@ -15,6 +15,7 @@ cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false, optional = true }
 io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
+eh = { path = "../libeh" }
 
 [features]
 alloc = ["io/alloc"]

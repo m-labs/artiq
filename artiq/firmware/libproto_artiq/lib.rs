@@ -13,6 +13,7 @@ extern crate log;
 extern crate byteorder;
 extern crate io;
 extern crate dyld;
+extern crate eh;
 
 // Internal protocols.
 pub mod kernel_proto;

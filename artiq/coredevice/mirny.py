@@ -1,7 +1,7 @@
 """RTIO driver for Mirny (4 channel GHz PLLs)
 """
 
-from artiq.language.core import kernel, delay
+from artiq.language.core import kernel, delay, portable
 from artiq.language.units import us
 
 from numpy import int32
@@ -132,6 +132,18 @@ class Mirny:
         self.write_reg(1, (self.clk_sel << 4))
         delay(1000 * us)
 
+    @portable(flags={"fast-math"})
+    def att_to_mu(self, att):
+        """Convert an attenuation setting in dB to machine units.
+
+        :param att: Attenuation setting in dB.
+        :return: Digital attenuation setting.
+        """
+        code = int32(255) - int32(round(att * 8))
+        if code < 0 or code > 255:
+            raise ValueError("Invalid Mirny attenuation!")
+        return code
+
     @kernel
     def set_att_mu(self, channel, att):
         """Set digital step attenuator in machine units.
@@ -140,6 +152,21 @@ class Mirny:
         """
         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END, 16, SPIT_WR, SPI_CS)
         self.bus.write(((channel | 8) << 25) | (att << 16))
+
+    @kernel
+    def set_att(self, channel, att):
+        """Set digital step attenuator in SI units.
+
+        This method will write the attenuator settings of the selected channel.
+
+        .. seealso:: :meth:`set_att_mu`
+
+        :param channel: Attenuator channel (0-3).
+        :param att: Attenuation setting in dB. Higher value is more
+            attenuation. Minimum attenuation is 0*dB, maximum attenuation is
+            31.5*dB.
+        """
+        self.set_att_mu(channel, self.att_to_mu(att))
 
     @kernel
     def write_ext(self, addr, length, data, ext_div=SPIT_WR):

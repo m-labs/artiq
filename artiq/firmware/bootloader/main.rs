@@ -65,8 +65,8 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
         })
     }
 
-    fn prng32(seed: &mut u32) -> u32 { *seed = 1664525 * *seed + 1013904223; *seed }
-    fn prng16(seed: &mut u16) -> u16 { *seed = 25173 * *seed + 13849; *seed }
+    fn prng32(seed: &mut u32) -> u32 { *seed = u32::wrapping_add(u32::wrapping_mul(1664525, *seed), 1013904223); *seed }
+    fn prng16(seed: &mut u16) -> u16 { *seed = u16::wrapping_add(u16::wrapping_mul(25173, *seed), 13849); *seed }
 
     for _ in 0..4 {
         // Test data bus

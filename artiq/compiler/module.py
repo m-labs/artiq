@@ -10,7 +10,7 @@ string and infers types for it using a trivial :module:`prelude`.
 
 import os
 from pythonparser import source, diagnostic, parse_buffer
-from . import prelude, types, transforms, analyses, validators
+from . import prelude, types, transforms, analyses, validators, embedding
 
 class Source:
     def __init__(self, source_buffer, engine=None):
@@ -18,7 +18,7 @@ class Source:
             self.engine = diagnostic.Engine(all_errors_are_fatal=True)
         else:
             self.engine = engine
-        self.embedding_map = None
+        self.embedding_map = embedding.EmbeddingMap()
         self.name, _ = os.path.splitext(os.path.basename(source_buffer.name))
 
         asttyped_rewriter = transforms.ASTTypedRewriter(engine=engine,
@@ -57,7 +57,8 @@ class Module:
         constness_validator = validators.ConstnessValidator(engine=self.engine)
         artiq_ir_generator = transforms.ARTIQIRGenerator(engine=self.engine,
                                                          module_name=src.name,
-                                                         ref_period=ref_period)
+                                                         ref_period=ref_period,
+                                                         embedding_map=self.embedding_map)
         dead_code_eliminator = transforms.DeadCodeEliminator(engine=self.engine)
         local_access_validator = validators.LocalAccessValidator(engine=self.engine)
         local_demoter = transforms.LocalDemoter()
