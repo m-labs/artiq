@@ -397,9 +397,24 @@ def get_argparser():
     return parser
 
 
-class PingTarget:
+class HealthCheckService:
+    def __init__(self, proxy: MonInjProxy):
+        self.proxy = proxy
+
     def ping(self):
         return True
+
+    def healthy(self):
+        degraded = set()
+        if not hasattr(self.proxy, "server"):
+            degraded.add("proxy")
+        if not self.proxy.master.connected:
+            degraded.add("master")
+        if not self.proxy.core.connected:
+            degraded.add("core")
+        if degraded:
+            return {"health": "unhealthy", "degraded": degraded}
+        return {"health": "healthy"}
 
 
 def main():
@@ -410,7 +425,9 @@ def main():
     bind = common_args.bind_address_from_args(args)
 
     proxy = MonInjProxy(args.master_addr, args.master_port_notify)
-    proxy_rpc = RPCServer({"ping": PingTarget()}, builtin_terminate=True)
+    proxy_rpc = RPCServer({
+        "health": HealthCheckService(proxy)
+    }, builtin_terminate=True)
     loop.run_until_complete(proxy.connect())
     loop.run_until_complete(proxy.start(bind, args.port_proxy))
     loop.run_until_complete(proxy_rpc.start(bind, args.port_rpc))
