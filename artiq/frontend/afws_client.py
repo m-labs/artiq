@@ -26,14 +26,7 @@ def get_artiq_rev():
         import artiq
     except ImportError:
         return None
-    version = artiq.__version__
-    if version.endswith(".beta"):
-        version = version[:-5]
-    version = version.split(".")
-    if len(version) != 3:
-        return None
-    major, minor, rev = version
-    return rev
+    return artiq._version.get_rev()
 
 
 def zip_unarchive(data, directory):
@@ -124,6 +117,7 @@ def main():
         if not client.login(args.username, password):
             print("Login failed")
             sys.exit(1)
+        print("Logged in successfully.")
         if args.action == "passwd":
             print("Password must made of alphanumeric characters (a-z, A-Z, 0-9) and be at least 8 characters long.")
             password = getpass("New password: ")
@@ -139,8 +133,12 @@ def main():
             try:
                 os.mkdir(args.directory)
             except FileExistsError:
-                if any(os.scandir(args.directory)):
-                    print("Output directory already exists and is not empty. Please remove it and try again.")
+                try:
+                    if any(os.scandir(args.directory)):
+                        print("Output directory already exists and is not empty. Please remove it and try again.")
+                        sys.exit(1)
+                except NotADirectoryError:
+                    print("A file with the same name as the output directory already exists. Please remove it and try again.")
                     sys.exit(1)
             rev = args.rev
             if rev is None:
