@@ -453,7 +453,7 @@ class _DeviceManager:
             else:
                 self.core_connection = new_core_connection
                 if self.moninj_conn_mode == "proxy" and self.moninj_port_rpc:
-                    await self.init_rpc()
+                    await self._proxy_rpc_init()
 
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
@@ -462,7 +462,7 @@ class _DeviceManager:
                 for spi_channel, channel in self.dac_widgets.keys():
                     self.setup_dac_monitoring(True, spi_channel, channel)
 
-    async def init_rpc(self):
+    async def _proxy_rpc_init(self):
         new_conn = None
         if self.moninj_proxy_rpc_connection is not None:
             self.moninj_proxy_rpc_connection.close_rpc()
