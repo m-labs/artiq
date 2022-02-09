@@ -353,9 +353,28 @@
         name = "openocd-bscanspi";
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
+
+      sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "sphinxcontrib-wavedrom";
+        version = "3.0.2";
+        src = pkgs.python3Packages.fetchPypi {
+          inherit pname version;
+          sha256 = "sha256-ukZd3ajt0Sx3LByof4R80S31F5t1yo+L8QUADrMMm2A=";
+        };
+        buildInputs = [ pkgs.python3Packages.setuptools_scm ];
+        propagatedBuildInputs = with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ];
+      };
+      artiq-manual-latex = pkgs.texlive.combine {
+        inherit (pkgs.texlive)
+          scheme-basic latexmk cmap collection-fontsrecommended fncychap
+          titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
+          upquote capt-of needspace etoolbox;
+      };
     in rec {
       packages.x86_64-linux = rec {
-        inherit sipyco pythonparser qasync migen misoc asyncserial microscope vivadoEnv vivado openocd-bscanspi artiq;
+        inherit migen misoc asyncserial microscope vivadoEnv vivado;
+        inherit sipyco pythonparser qasync openocd-bscanspi artiq;
+        inherit sphinxcontrib-wavedrom artiq-manual-latex;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
@@ -380,6 +399,8 @@
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
+          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom artiq-manual-latex
         ];
       };
 
