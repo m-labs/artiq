@@ -245,18 +245,19 @@ def setup_from_ddb(ddb):
         except KeyError:
             pass
     if proxy_addr and proxy_port:
-        return proxy_addr, proxy_port, dds_sysclk, description
+        return "proxy", proxy_addr, proxy_port, dds_sysclk, description
     missing = ["proxy address"] if not proxy_addr else []
     missing += ["proxy port"] if not proxy_port else []
     logger.warning(f"missing {' and '.join(missing)} for proxy support")
     logger.warning("falling back to direct connection")
-    return core_addr, 1383, dds_sysclk, description
+    return "fallback", core_addr, 1383, dds_sysclk, description
 
 
 class _DeviceManager:
     def __init__(self):
         self.moninj_addr = None
         self.moninj_port = None
+        self.moninj_conn_mode = None
         self.reconnect_core = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
@@ -278,9 +279,12 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        moninj_addr, moninj_port, dds_sysclk, description = setup_from_ddb(self.ddb)
+        conn_mode, moninj_addr, moninj_port, dds_sysclk, description = setup_from_ddb(self.ddb)
 
-        if moninj_addr != self.moninj_addr:
+        if moninj_addr != self.moninj_addr or \
+                moninj_port != self.moninj_port or \
+                conn_mode != self.moninj_conn_mode:
+            self.moninj_conn_mode = conn_mode
             self.moninj_addr = moninj_addr
             self.moninj_port = moninj_port
             self.reconnect_core.set()
@@ -412,6 +416,7 @@ class _DeviceManager:
             new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                     self.disconnect_cb)
             try:
+                logger.info(f"using {self.moninj_conn_mode} for moninj support")
                 await new_core_connection.connect(self.moninj_addr, self.moninj_port)
             except asyncio.CancelledError:
                 logger.info("cancelled connection to core device moninj")
