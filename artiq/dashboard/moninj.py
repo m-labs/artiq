@@ -3,6 +3,7 @@ import logging
 from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
+from sipyco.pc_rpc import AsyncioClient
 
 from sipyco.sync_struct import Subscriber
 
@@ -205,6 +206,7 @@ def setup_from_ddb(ddb):
     core_addr = None
     proxy_addr = None
     proxy_port = None
+    proxy_port_rpc = None
     dds_sysclk = None
     description = set()
 
@@ -217,6 +219,7 @@ def setup_from_ddb(ddb):
                 if k == "moninj":
                     proxy_addr = v["host"]
                     proxy_port = v["port_proxy"]
+                    proxy_port_rpc = v["port"]
             if isinstance(v, dict) and v["type"] == "local":
                 if k == "core":
                     core_addr = v["arguments"]["host"]
@@ -245,12 +248,12 @@ def setup_from_ddb(ddb):
         except KeyError:
             pass
     if proxy_addr and proxy_port:
-        return "proxy", proxy_addr, proxy_port, dds_sysclk, description
+        return "proxy", proxy_addr, proxy_port, proxy_port_rpc, dds_sysclk, description
     missing = ["proxy address"] if not proxy_addr else []
     missing += ["proxy port"] if not proxy_port else []
     logger.warning(f"missing {' and '.join(missing)} for proxy support")
     logger.warning("falling back to direct connection")
-    return "fallback", core_addr, 1383, dds_sysclk, description
+    return "fallback", core_addr, 1383, None, dds_sysclk, description
 
 
 class _DeviceManager:
@@ -258,6 +261,12 @@ class _DeviceManager:
         self.moninj_addr = None
         self.moninj_port = None
         self.moninj_conn_mode = None
+        self.moninj_port_rpc = None
+        self.moninj_proxy_rpc_connection = None
+
+        self.health = None
+        self.healthcheck_task = None
+
         self.reconnect_core = asyncio.Event()
         self.core_connection = None
         self.core_connector_task = asyncio.ensure_future(self.core_connector())
@@ -279,7 +288,7 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        conn_mode, moninj_addr, moninj_port, dds_sysclk, description = setup_from_ddb(self.ddb)
+        conn_mode, moninj_addr, moninj_port, moninj_port_rpc, dds_sysclk, description = setup_from_ddb(self.ddb)
 
         if moninj_addr != self.moninj_addr or \
                 moninj_port != self.moninj_port or \
@@ -287,6 +296,7 @@ class _DeviceManager:
             self.moninj_conn_mode = conn_mode
             self.moninj_addr = moninj_addr
             self.moninj_port = moninj_port
+            self.moninj_port_rpc = moninj_port_rpc
             self.reconnect_core.set()
 
         self.dds_sysclk = dds_sysclk
@@ -406,6 +416,21 @@ class _DeviceManager:
         logger.error("lost connection to core device moninj")
         self.reconnect_core.set()
 
+    async def health_check_poll(self):
+        try:
+            while True:
+                healthy = await self.moninj_proxy_rpc_connection.healthy()
+                if healthy["health"] != self.health:
+                    if self.health and healthy["health"] == "healthy":
+                        logger.info("proxy is in a healthy state")
+                    if healthy["health"] == "unhealthy":
+                        degraded = healthy["degraded"]
+                        logger.warning(f"proxy is in an unhealthy state, degraded components: {' and '.join(degraded)}")
+                    self.health = healthy["health"]
+                await asyncio.sleep(3)
+        except asyncio.CancelledError:
+            return
+
     async def core_connector(self):
         while True:
             await self.reconnect_core.wait()
@@ -427,12 +452,33 @@ class _DeviceManager:
                 self.reconnect_core.set()
             else:
                 self.core_connection = new_core_connection
+                if self.moninj_conn_mode == "proxy" and self.moninj_port_rpc:
+                    await self.init_rpc()
+
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
                 for bus_channel, channel in self.dds_widgets.keys():
                     self.setup_dds_monitoring(True, bus_channel, channel)
                 for spi_channel, channel in self.dac_widgets.keys():
                     self.setup_dac_monitoring(True, spi_channel, channel)
+
+    async def init_rpc(self):
+        new_conn = None
+        if self.moninj_proxy_rpc_connection is not None:
+            self.moninj_proxy_rpc_connection.close_rpc()
+            self.moninj_proxy_rpc_connection = None
+        if self.healthcheck_task is not None:
+            self.healthcheck_task.cancel()
+            self.healthcheck_task = None
+        try:
+            new_conn = AsyncioClient()
+            await new_conn.connect_rpc(self.moninj_addr, self.moninj_port_rpc, "health")
+        except:
+            logger.warning("connection to proxy rpc service failed")
+        else:
+            logger.debug("rpc support enabled")
+            self.moninj_proxy_rpc_connection = new_conn
+            self.healthcheck_task = asyncio.ensure_future(self.health_check_poll())
 
     async def close(self):
         self.core_connector_task.cancel()
@@ -442,6 +488,9 @@ class _DeviceManager:
             pass
         if self.core_connection is not None:
             await self.core_connection.close()
+        if self.healthcheck_task is not None:
+            self.healthcheck_task.cancel()
+            self.healthcheck_task = None
 
 
 class _MonInjDock(QtWidgets.QDockWidget):
