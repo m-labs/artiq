@@ -355,7 +355,7 @@
       };
     in rec {
       packages.x86_64-linux = rec {
-        inherit migen misoc vivadoEnv vivado openocd-bscanspi artiq;
+        inherit sipyco pythonparser qasync migen misoc asyncserial microscope vivadoEnv vivado openocd-bscanspi artiq;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
