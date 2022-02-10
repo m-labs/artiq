@@ -225,7 +225,7 @@ _templates = [
                        "HIST_BIN_BOUNDARIES_DATASET "
                        "HISTS_COUNTS_DATASET"),
     ("Image", "${artiq_applet}image IMG_DATASET"),
-    ("Progress bar", "${artiq_applet}progress_bar COUNTER COUNTER_MAX"),
+    ("Progress bar", "${artiq_applet}progress_bar VALUE"),
 ]
 
 
