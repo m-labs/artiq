@@ -1,9 +1,8 @@
 ARTIQ documentation
 ===================
 
-Contents:
-
 .. toctree::
+    :caption: Contents
     :maxdepth: 2
 
     introduction
