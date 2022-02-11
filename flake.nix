@@ -362,7 +362,7 @@
           sha256 = "sha256-ukZd3ajt0Sx3LByof4R80S31F5t1yo+L8QUADrMMm2A=";
         };
         buildInputs = [ pkgs.python3Packages.setuptools_scm ];
-        propagatedBuildInputs = with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ];
+        propagatedBuildInputs = [ pkgs.nodejs pkgs.nodePackages.wavedrom-cli ] ++ (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
       };
       artiq-manual-latex = pkgs.texlive.combine {
         inherit (pkgs.texlive)
