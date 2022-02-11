@@ -364,20 +364,64 @@
         buildInputs = [ pkgs.python3Packages.setuptools_scm ];
         propagatedBuildInputs = [ pkgs.nodejs pkgs.nodePackages.wavedrom-cli ] ++ (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
       };
-      artiq-manual-latex = pkgs.texlive.combine {
+      latex-artiq-manual = pkgs.texlive.combine {
         inherit (pkgs.texlive)
           scheme-basic latexmk cmap collection-fontsrecommended fncychap
           titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
           upquote capt-of needspace etoolbox;
       };
     in rec {
-      packages.x86_64-linux = rec {
-        inherit migen misoc asyncserial microscope vivadoEnv vivado;
+      packages.x86_64-linux = {
         inherit sipyco pythonparser qasync openocd-bscanspi artiq;
-        inherit sphinxcontrib-wavedrom artiq-manual-latex;
+        inherit migen misoc asyncserial microscope vivadoEnv vivado;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
+        };
+        inherit sphinxcontrib-wavedrom latex-artiq-manual;
+        artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
+          name = "artiq-manual-html-${version}";
+          version = artiqVersion;
+          src = self;
+          buildInputs = [
+            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+          ];
+          preBuild = ''
+          '';
+          buildPhase = ''
+            export VERSIONEER_OVERRIDE=${artiqVersion}
+            export SOURCE_DATE_EPOCH=${builtins.toString  self.sourceInfo.lastModified}
+            cd doc/manual
+            make html
+          '';
+          installPhase = ''
+            cp -r _build/html $out
+            mkdir $out/nix-support
+            echo doc manual $out index.html >> $out/nix-support/hydra-build-products
+          '';
+        };
+        artiq-manual-pdf = pkgs.stdenvNoCC.mkDerivation rec {
+          name = "artiq-manual-pdf-${version}";
+          version = artiqVersion;
+          src = self;
+          buildInputs = [
+            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+            latex-artiq-manual
+          ];
+          buildPhase = ''
+            export VERSIONEER_OVERRIDE=${artiq.version}
+            export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
+            cd doc/manual
+            make latexpdf
+          '';
+          installPhase = ''
+            mkdir $out
+            cp _build/latex/ARTIQ.pdf $out
+            mkdir $out/nix-support
+            echo doc-pdf manual $out ARTIQ.pdf >> $out/nix-support/hydra-build-products
+          '';
         };
       };
 
@@ -400,7 +444,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom artiq-manual-latex
+          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
       };
 
@@ -458,6 +502,7 @@
             touch $out
             '';
         };
+        inherit (packages.x86_64-linux) artiq-manual-html artiq-manual-pdf;
       };
     };
 
