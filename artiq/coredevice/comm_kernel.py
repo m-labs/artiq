@@ -553,7 +553,7 @@ class CommKernel:
         if service_id == 0:
             def service(obj, attr, value): return setattr(obj, attr, value)
         else:
-            service = embedding_map.retrieve_object(service_id)
+            service = embedding_map.retrieve_function(service_id)
         logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
                      (" (async)" if is_async else ""), args, kwargs, return_tags)
 
@@ -622,7 +622,7 @@ class CommKernel:
                                  result, result, service)
             self._flush()
 
-    def _serve_exception(self, embedding_map, symbolizer, demangler):
+    def _serve_exception(self, embedding_map, symbolizer):
         exception_count = self._read_int32()
         nested_exceptions = []
 
@@ -645,10 +645,6 @@ class CommKernel:
             function = read_exception_string()
             nested_exceptions.append([name, message, params,
                                       filename, line, column, function])
-
-        demangled_names = demangler([ex[6] for ex in nested_exceptions])
-        for i in range(exception_count):
-            nested_exceptions[i][6] = demangled_names[i]
 
         exception_info = []
         for _ in range(exception_count):
@@ -689,13 +685,13 @@ class CommKernel:
             logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
                            f"reported during kernel execution")
 
-    def serve(self, embedding_map, symbolizer, demangler):
+    def serve(self, embedding_map, symbolizer):
         while True:
             self._read_header()
             if self._read_type == Reply.RPCRequest:
                 self._serve_rpc(embedding_map)
             elif self._read_type == Reply.KernelException:
-                self._serve_exception(embedding_map, symbolizer, demangler)
+                self._serve_exception(embedding_map, symbolizer)
             elif self._read_type == Reply.ClockFailure:
                 raise exceptions.ClockFailure
             else:

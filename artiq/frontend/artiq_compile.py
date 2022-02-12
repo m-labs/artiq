@@ -8,6 +8,7 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager
 from artiq.language.environment import ProcessArgumentManager
+from artiq.language.embedding_map import EmbeddingMap
 from artiq.tools import *
 
 
@@ -46,6 +47,8 @@ def main():
     device_mgr = DeviceManager(DeviceDB(args.device_db))
     dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))
 
+    embedding_map = EmbeddingMap()
+
     output = args.output
     if output is None:
         basename, ext = os.path.splitext(args.file)
@@ -60,7 +63,7 @@ def main():
 
         if not getattr(exp.run, "__artiq_kernel__", False):
             raise ValueError("Experiment entry point must be a kernel")
-        exp_inst.core.compile(exp_inst.run, [], {}, file_output=output)
+        exp_inst.core.compile(exp_inst.run, [], {}, embedding_map, file_output=output)
     finally:
         device_mgr.close_devices()
 

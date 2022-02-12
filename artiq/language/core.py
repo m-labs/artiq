@@ -104,7 +104,7 @@ def rpc(arg=None, flags={}):
         def inner_decorator(function):
             return rpc(function, flags)
         return inner_decorator
-
+    return arg
 
 @nac3
 class KernelContextManager:

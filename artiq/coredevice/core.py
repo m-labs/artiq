@@ -1,4 +1,4 @@
-import os, sys
+import os, sys, tempfile, subprocess, io
 from numpy import int32, int64
 
 import nac3artiq
@@ -6,6 +6,7 @@ import nac3artiq
 from artiq.language.core import *
 from artiq.language import core as core_language
 from artiq.language.units import *
+from artiq.language.embedding_map import EmbeddingMap
 
 from artiq.coredevice.comm_kernel import CommKernel, CommKernelDummy
 
@@ -55,11 +56,12 @@ class Core:
         self.core = self
         self.comm.core = self
         self.compiler = nac3artiq.NAC3(target)
+        self.embedding_map = EmbeddingMap()
 
     def close(self):
         self.comm.close()
 
-    def compile(self, method, args, kwargs, file_output=None):
+    def compile(self, method, args, kwargs, embedding_map, file_output=None):
         if core_language._allow_registration:
             self.compiler.analyze(core_language._registered_functions, core_language._registered_classes)
             core_language._allow_registration = False
@@ -72,18 +74,21 @@ class Core:
             name = ""
 
         if file_output is None:
-            return self.compiler.compile_method_to_mem(obj, name, args)
+            return self.compiler.compile_method_to_mem(obj, name, args, embedding_map)
         else:
-            self.compiler.compile_method_to_file(obj, name, args, file_output)
+            self.compiler.compile_method_to_file(obj, name, args, file_output, embedding_map)
 
     def run(self, function, args, kwargs):
-        kernel_library = self.compile(function, args, kwargs)
+        kernel_library = self.compile(function, args, kwargs, self.embedding_map)
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
+
+        symbolizer = lambda addresses: symbolize(kernel_library, addresses)
+
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(None, None, None)
+        self.comm.serve(self.embedding_map, symbolizer)
 
     @portable
     def seconds_to_mu(self, seconds: float) -> int64:
@@ -155,3 +160,96 @@ class Core:
         min_now = rtio_get_counter() + int64(125000)
         if now_mu() < min_now:
             at_mu(min_now)
+
+
+class RunTool:
+    def __init__(self, pattern, **tempdata):
+        self._pattern   = pattern
+        self._tempdata  = tempdata
+        self._tempnames = {}
+        self._tempfiles = {}
+
+    def __enter__(self):
+        for key, data in self._tempdata.items():
+            if data is None:
+                fd, filename = tempfile.mkstemp()
+                os.close(fd)
+                self._tempnames[key] = filename
+            else:
+                with tempfile.NamedTemporaryFile(delete=False) as f:
+                    f.write(data)
+                    self._tempnames[key] = f.name
+
+        cmdline = []
+        for argument in self._pattern:
+            cmdline.append(argument.format(**self._tempnames))
+
+        # https://bugs.python.org/issue17023
+        windows = os.name == "nt"
+        process = subprocess.Popen(cmdline, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                   universal_newlines=True, shell=windows)
+        stdout, stderr = process.communicate()
+        if process.returncode != 0:
+            raise Exception("{} invocation failed: {}".
+                            format(cmdline[0], stderr))
+
+        self._tempfiles["__stdout__"] = io.StringIO(stdout)
+        for key in self._tempdata:
+            if self._tempdata[key] is None:
+                self._tempfiles[key] = open(self._tempnames[key], "rb")
+        return self._tempfiles
+
+    def __exit__(self, exc_typ, exc_value, exc_trace):
+        for file in self._tempfiles.values():
+            file.close()
+        for filename in self._tempnames.values():
+            os.unlink(filename)
+
+
+def symbolize(library, addresses):
+    if addresses == []:
+        return []
+
+    # We got a list of return addresses, i.e. addresses of instructions
+    # just after the call. Offset them back to get an address somewhere
+    # inside the call instruction (or its delay slot), since that's what
+    # the backtrace entry should point at.
+    last_inlined = None
+    offset_addresses = [hex(addr - 1) for addr in addresses]
+    with RunTool(["llvm-addr2line", "--addresses",  "--functions", "--inlines",
+                  "--demangle", "--exe={library}"] + offset_addresses,
+                 library=library) \
+            as results:
+        lines = iter(results["__stdout__"].read().rstrip().split("\n"))
+        backtrace = []
+        while True:
+            try:
+                address_or_function = next(lines)
+            except StopIteration:
+                break
+            if address_or_function[:2] == "0x":
+                address  = int(address_or_function[2:], 16) + 1 # remove offset
+                function = next(lines)
+                inlined = False
+            else:
+                address  = backtrace[-1][4] # inlined
+                function = address_or_function
+                inlined = True
+            location = next(lines)
+
+            filename, line = location.rsplit(":", 1)
+            if filename == "??" or filename == "<synthesized>":
+                continue
+            if line == "?":
+                line = -1
+            else:
+                line = int(line)
+            # can't get column out of addr2line D:
+            if inlined:
+                last_inlined.append((filename, line, -1, function, address))
+            else:
+                last_inlined = []
+                backtrace.append((filename, line, -1, function, address,
+                                  last_inlined))
+        return backtrace
+
