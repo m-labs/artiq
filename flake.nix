@@ -387,11 +387,9 @@
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
             pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
           ];
-          preBuild = ''
-          '';
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
-            export SOURCE_DATE_EPOCH=${builtins.toString  self.sourceInfo.lastModified}
+            export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
             cd doc/manual
             make html
           '';
