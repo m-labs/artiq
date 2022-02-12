@@ -36,10 +36,30 @@
       "inputs": {
         "mozilla-overlay": "mozilla-overlay",
         "nixpkgs": "nixpkgs",
+        "sipyco": "sipyco",
         "src-migen": "src-migen",
         "src-misoc": "src-misoc",
-        "src-pythonparser": "src-pythonparser",
-        "src-sipyco": "src-sipyco"
+        "src-pythonparser": "src-pythonparser"
+      }
+    },
+    "sipyco": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1644634510,
+        "narHash": "sha256-5p88NKK/DTdb0F0+/7uObBohthdxHWLl782AaiPRf8E=",
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "rev": "e9e69527927761544ab6d62f751e1ff512d1e661",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "type": "github"
       }
     },
     "src-migen": {
@@ -89,22 +109,6 @@
       "original": {
         "owner": "m-labs",
         "repo": "pythonparser",
-        "type": "github"
-      }
-    },
-    "src-sipyco": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1641866796,
-        "narHash": "sha256-TSH0IgNbi9IcMcBDb2nWRphKlxstbWeATjrGbi6K2m0=",
-        "owner": "m-labs",
-        "repo": "sipyco",
-        "rev": "b04234c49379cd446d4cb3346d4741868d86841a",
-        "type": "github"
-      },
-      "original": {
-        "owner": "m-labs",
-        "repo": "sipyco",
         "type": "github"
       }
     }

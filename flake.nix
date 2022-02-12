@@ -3,13 +3,14 @@
 
   inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.11;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
-  inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
+  inputs.sipyco.url = github:m-labs/sipyco;
+  inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, src-sipyco, src-pythonparser, src-migen, src-misoc }:
+  outputs = { self, nixpkgs, mozilla-overlay, sipyco, src-pythonparser, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
 
@@ -52,12 +53,6 @@
         freetype
         fontconfig
       ];
-
-      sipyco = pkgs.python3Packages.buildPythonPackage {
-        name = "sipyco";
-        src = src-sipyco;
-        propagatedBuildInputs = with pkgs.python3Packages; [ pybase64 numpy ];
-      };
 
       pythonparser = pkgs.python3Packages.buildPythonPackage {
         name = "pythonparser";
@@ -157,7 +152,7 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco pythonparser ]
+        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco.packages.x86_64-linux.sipyco pythonparser ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
@@ -372,7 +367,7 @@
       };
     in rec {
       packages.x86_64-linux = {
-        inherit sipyco pythonparser qasync openocd-bscanspi artiq;
+        inherit pythonparser qasync openocd-bscanspi artiq;
         inherit migen misoc asyncserial microscope vivadoEnv vivado;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
