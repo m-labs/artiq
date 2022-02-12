@@ -55,7 +55,8 @@
       ];
 
       pythonparser = pkgs.python3Packages.buildPythonPackage {
-        name = "pythonparser";
+        pname = "pythonparser";
+        version = "1.4";
         src = src-pythonparser;
         doCheck = false;
         propagatedBuildInputs = with pkgs.python3Packages; [ regex ];
