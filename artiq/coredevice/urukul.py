@@ -260,8 +260,7 @@ class CPLD:
         else:
             proto_rev = urukul_sta_proto_rev(self.sta_read())
             if proto_rev != STA_PROTO_REV_MATCH:
-                # NAC3TODO raise ValueError("Urukul proto_rev mismatch")
-                pass
+                raise ValueError("Urukul proto_rev mismatch")
         self.core.delay(100. * us)  # reset, slack
         self.cfg_write(cfg)
         if self.sync_div != 0:
@@ -317,8 +316,7 @@ class CPLD:
         """
         code = 255 - round(att * 8.)
         if code < 0 or code > 255:
-            # NAC3TODO raise ValueError("Invalid urukul.CPLD attenuation!")
-            pass
+            raise ValueError("Invalid urukul.CPLD attenuation!")
         return code
 
     @kernel

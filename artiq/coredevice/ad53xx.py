@@ -110,8 +110,7 @@ def voltage_to_mu(voltage: float, offset_dacs: int32 = 0x2000, vref: float = 5.)
     """
     code = round(float(1 << 16) * (voltage / (4. * vref))) + offset_dacs * 0x4
     if code < 0x0 or code > 0xffff:
-        # NAC3TODO raise ValueError("Invalid DAC voltage!")
-        pass
+        raise ValueError("Invalid DAC voltage!")
     return code
 
 
@@ -197,19 +196,16 @@ class AD53xx:
         if not blind:
             ctrl = self.read_reg(0, AD53XX_READ_CONTROL)
             if ctrl == 0xffff:
-                # NAC3TODO raise ValueError("DAC not found")
-                pass
+                raise ValueError("DAC not found")
             if (ctrl & 0b10000) != 0:
-                # NAC3TODO raise ValueError("DAC over temperature")
-                pass
+                raise ValueError("DAC over temperature")
             self.core.delay(25.*us)
         self.bus.write(  # enable power and overtemperature shutdown
             (AD53XX_CMD_SPECIAL | AD53XX_SPECIAL_CONTROL | 0b0010) << 8)
         if not blind:
             ctrl = self.read_reg(0, AD53XX_READ_CONTROL)
             if (ctrl & 0b10111) != 0b00010:
-                # NAC3TODO raise ValueError("DAC CONTROL readback mismatch")
-                pass
+                raise ValueError("DAC CONTROL readback mismatch")
             self.core.delay(15.*us)
 
     @kernel

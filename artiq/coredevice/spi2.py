@@ -174,11 +174,10 @@ class SPIMaster:
             Or number of the chip select to assert if ``cs`` is decoded
             downstream. (reset=0)
         """
-        # NAC3TODO
-        #if length > 32 or length < 1:
-        #    raise ValueError("Invalid SPI transfer length")
-        #if div > 257 or div < 2:
-        #    raise ValueError("Invalid SPI clock divider")
+        if length > 32 or length < 1:
+            raise ValueError("Invalid SPI transfer length")
+        if div > 257 or div < 2:
+            raise ValueError("Invalid SPI clock divider")
         rtio_output((self.channel << 8) | SPI_CONFIG_ADDR, flags |
                 ((length - 1) << 8) | ((div - 2) << 16) | (cs << 24))
         self.update_xfer_duration_mu(div, length)

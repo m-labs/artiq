@@ -103,8 +103,7 @@ class ADF5356:
             self.sync()
             self.core.delay(1000. * us)
             if not self.read_muxout():
-                # NAC3TODO raise ValueError("MUXOUT not high")
-                pass
+                raise ValueError("MUXOUT not high")
             self.core.delay(800. * us)
 
             # MUXOUT = DGND
@@ -112,8 +111,7 @@ class ADF5356:
             self.sync()
             self.core.delay(1000. * us)
             if self.read_muxout():
-                # NAC3TODO raise ValueError("MUXOUT not low")
-                pass
+                raise ValueError("MUXOUT not low")
             self.core.delay(800. * us)
 
             # MUXOUT = digital lock-detect
@@ -152,8 +150,7 @@ class ADF5356:
         :param n: output power setting, 0, 1, 2, or 3 (see ADF5356 datasheet, fig. 44).
         """
         if not 0 <= n <= 3:
-            # NAC3TODO raise ValueError("invalid power setting")
-            pass
+            raise ValueError("invalid power setting")
         self.regs[6] = ADF5356_REG6_RF_OUTPUT_A_POWER_UPDATE(self.regs[6], n)
         self.sync()
 
@@ -190,8 +187,7 @@ class ADF5356:
         freq = round64(f)
 
         if freq > ADF5356_MAX_VCO_FREQ:
-            # NAC3TODO raise ValueError("Requested too high frequency")
-            pass
+            raise ValueError("Requested too high frequency")
 
         # select minimal output divider
         rf_div_sel = 0
@@ -200,8 +196,7 @@ class ADF5356:
             rf_div_sel += 1
 
         if (1 << rf_div_sel) > 64:
-            # NAC3TODO raise ValueError("Requested too low frequency")
-            pass
+            raise ValueError("Requested too low frequency")
 
         # choose reference divider that maximizes PFD frequency
         self.regs[4] = ADF5356_REG4_R_COUNTER_UPDATE(
@@ -229,8 +224,7 @@ class ADF5356:
         )
 
         if not (n_min <= n <= n_max):
-            # NAC3TODO raise ValueError("Invalid INT value")
-            pass
+            raise ValueError("Invalid INT value")
 
         # configure PLL
         self.regs[0] = ADF5356_REG0_INT_VALUE_UPDATE(self.regs[0], n)

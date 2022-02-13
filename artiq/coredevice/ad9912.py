@@ -112,8 +112,7 @@ class AD9912:
         # Verify chip ID and presence
         prodid = self.read(AD9912_PRODIDH, 2)
         if (prodid != 0x1982) and (prodid != 0x1902):
-            # NAC3TODO raise ValueError("Urukul AD9912 product id mismatch")
-            pass
+            raise ValueError() # NAC3TODO("Urukul AD9912 product id mismatch")
         self.core.delay(50. * us)
         # HSTL power down, CMOS power down
         self.write(AD9912_PWRCNTRL1, 0x80, 1)

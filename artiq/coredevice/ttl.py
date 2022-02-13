@@ -434,7 +434,7 @@ class TTLInOut:
         rtio_output(self.target_sample, 1)  # gate rising
         return rtio_input_data(self.channel) == 0
 
-    # NAC3TODO @kernel
+    @kernel
     def watch_done(self) -> bool:
         """Stop watching the input at the position of the time cursor.
 

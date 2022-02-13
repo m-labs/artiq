@@ -132,16 +132,14 @@ class Mirny:
 
         if not blind:
             if (reg0 >> 2) & 0x3 != PROTO_REV_MATCH:
-                # NAC3TODO raise ValueError("Mirny PROTO_REV mismatch")
-                pass
+                raise ValueError("Mirny PROTO_REV mismatch")
             self.core.delay(100. * us)  # slack
 
         # select clock source
         self.clk_sel = self.clk_sel_hw_rev[self.hw_rev]
 
         if self.clk_sel < 0:
-            # NAC3TODO raise ValueError("Hardware revision not supported")
-            pass
+            raise ValueError("Hardware revision not supported")
 
         self.write_reg(1, (self.clk_sel << 4))
         self.core.delay(1000. * us)
