@@ -758,7 +758,7 @@ class CommKernel:
         self._process_async_error()
 
         traceback = list(symbolizer(backtrace))
-        core_exn = exceptions.CoreException(nested_exceptions, exception_info,
+        core_exn = CoreException(nested_exceptions, exception_info,
                                             traceback, stack_pointers)
 
         if core_exn.id == 0:
