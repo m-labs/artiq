@@ -447,7 +447,7 @@ class TTLInOut:
         rtio_output(self.target_sens, 0)
         success = True
         try:
-            while rtio_input_timestamp(now_mu() + int64(self.gate_latency_mu), self.channel) != -1:
+            while rtio_input_timestamp(now_mu() + int64(self.gate_latency_mu), self.channel) != int64(-1):
                 success = False
         except RTIOOverflow:
             success = False
