@@ -11,6 +11,8 @@ class EmbeddingMap:
         self.function_map = {}
 
         # preallocate exception names
+        # must be kept in sync with EXCEPTION_ID_LOOKUP in artiq/firmware/ksupport/eh_artiq.rs,
+        # and src/runtime/src/eh_artiq.rs (Zynq)
         self.preallocate_runtime_exception_names(["RuntimeError",
                                           "RTIOUnderflow",
                                           "RTIOOverflow",
