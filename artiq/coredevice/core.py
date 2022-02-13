@@ -238,7 +238,7 @@ def symbolize(library, addresses):
             location = next(lines)
 
             filename, line = location.rsplit(":", 1)
-            if filename == "??":
+            if filename == "??" or filename == "<synthesized>":
                 continue
             if line == "?":
                 line = -1
