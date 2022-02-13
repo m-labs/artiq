@@ -6,11 +6,14 @@
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
+  inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
+  inputs.artiq-comtools.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, nixpkgs, mozilla-overlay, sipyco, src-pythonparser, src-migen, src-misoc }:
+  outputs = { self, nixpkgs, mozilla-overlay, sipyco, src-pythonparser, artiq-comtools, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
 
@@ -153,7 +156,7 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco.packages.x86_64-linux.sipyco pythonparser ]
+        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
