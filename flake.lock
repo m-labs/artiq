@@ -1,5 +1,29 @@
 {
   "nodes": {
+    "artiq-comtools": {
+      "inputs": {
+        "nixpkgs": [
+          "nac3",
+          "nixpkgs"
+        ],
+        "sipyco": [
+          "sipyco"
+        ]
+      },
+      "locked": {
+        "lastModified": 1644743100,
+        "narHash": "sha256-XqxMq2l2DXSovV7r2k/FXjYRM3bvVl3Mjy+C1koVAx4=",
+        "owner": "m-labs",
+        "repo": "artiq-comtools",
+        "rev": "8a126dd7d0a3f2d50ae151ec633cd52587d98796",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "artiq-comtools",
+        "type": "github"
+      }
+    },
     "mozilla-overlay": {
       "flake": false,
       "locked": {
@@ -14,6 +38,24 @@
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
         "type": "github"
+      }
+    },
+    "nac3": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1644759922,
+        "narHash": "sha256-3hNFahCeHp0seppVONSlAMXIzn0vjCJGrJj6CySLLxw=",
+        "ref": "master",
+        "rev": "21d9182ba2924cf9cc555a201e661d2ea474eed9",
+        "revCount": 594,
+        "type": "git",
+        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
       }
     },
     "nixpkgs": {
@@ -34,11 +76,33 @@
     },
     "root": {
       "inputs": {
+        "artiq-comtools": "artiq-comtools",
         "mozilla-overlay": "mozilla-overlay",
+        "nac3": "nac3",
+        "sipyco": "sipyco",
         "src-migen": "src-migen",
-        "src-misoc": "src-misoc",
-        "src-nac3": "src-nac3",
-        "src-sipyco": "src-sipyco"
+        "src-misoc": "src-misoc"
+      }
+    },
+    "sipyco": {
+      "inputs": {
+        "nixpkgs": [
+          "nac3",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1644649772,
+        "narHash": "sha256-LE9L5bDSunCPEnuf5Ed8enTAXA2vkTSmjvqPX9ILO0Y=",
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "rev": "8e4382352bc64bd01c9db35d9c9b0ef42b8b9d3b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "m-labs",
+        "repo": "sipyco",
+        "type": "github"
       }
     },
     "src-migen": {
@@ -73,40 +137,6 @@
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
-      }
-    },
-    "src-nac3": {
-      "inputs": {
-        "nixpkgs": "nixpkgs"
-      },
-      "locked": {
-        "lastModified": 1644723702,
-        "narHash": "sha256-2pLJHYvQmoXhdy3WDZpfU7kDMpgH/G7uREZOyql7R10=",
-        "ref": "master",
-        "rev": "4b8e70f7462b139e388f098d42f9f47e4915f431",
-        "revCount": 589,
-        "type": "git",
-        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
-      },
-      "original": {
-        "type": "git",
-        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
-      }
-    },
-    "src-sipyco": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1644649772,
-        "narHash": "sha256-LE9L5bDSunCPEnuf5Ed8enTAXA2vkTSmjvqPX9ILO0Y=",
-        "owner": "m-labs",
-        "repo": "sipyco",
-        "rev": "8e4382352bc64bd01c9db35d9c9b0ef42b8b9d3b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "m-labs",
-        "repo": "sipyco",
-        "type": "github"
       }
     }
   },

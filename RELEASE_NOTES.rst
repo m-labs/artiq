@@ -23,7 +23,7 @@ Highlights:
 * On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
   the JSON hardware description file.
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
-  TTL device (e.g. ``"ttl_0_counter"`` for the edge counter on TTL device``"ttl_0"``)
+  TTL device (e.g. ``ttl_0_counter`` for the edge counter on TTL device ``ttl_0``).
 * ``artiq_master`` now has an ``--experiment-subdir`` option to scan only a subdirectory of the
   repository when building the list of experiments.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage

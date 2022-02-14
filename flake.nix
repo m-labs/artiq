@@ -2,20 +2,25 @@
   description = "A leading-edge control system for quantum information experiments";
 
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
-  inputs.src-sipyco = { url = github:m-labs/sipyco; flake = false; };
-  inputs.src-nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; };
+  inputs.sipyco.url = github:m-labs/sipyco;
+  inputs.sipyco.inputs.nixpkgs.follows = "nac3/nixpkgs";
+  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; };
+  inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
+  inputs.artiq-comtools.inputs.nixpkgs.follows = "nac3/nixpkgs";
+  inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
 
   inputs.src-migen = { url = github:m-labs/migen; flake = false; };
   inputs.src-misoc = { type = "git"; url = "https://github.com/m-labs/misoc.git"; submodules = true; flake = false; };
 
-  outputs = { self, mozilla-overlay, src-sipyco, src-nac3, src-migen, src-misoc }:
+  outputs = { self, mozilla-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
     let
-      pkgs = import src-nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
 
       artiqVersionMajor = 8;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
-      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "-" + artiqVersionId + "-beta";
+      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "." + artiqVersionId + ".beta";
+      artiqRev = self.sourceInfo.rev or "unknown";
 
       rustManifest = pkgs.fetchurl {
         url = "https://static.rust-lang.org/dist/2021-01-29/channel-rust-nightly.toml";
@@ -51,12 +56,6 @@
         fontconfig
       ];
 
-      sipyco = pkgs.python3Packages.buildPythonPackage {
-        name = "sipyco";
-        src = src-sipyco;
-        propagatedBuildInputs = with pkgs.python3Packages; [ pybase64 numpy ];
-      };
-
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
         version = "0.19.0";
@@ -78,11 +77,15 @@
         version = artiqVersion;
         src = self;
 
-        preBuild = "export VERSIONEER_OVERRIDE=${version}";
+        preBuild =
+          ''
+          export VERSIONEER_OVERRIDE=${version}
+          export VERSIONEER_REV=${artiqRev}
+          '';
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_13 pkgs.lld_13 src-nac3.packages.x86_64-linux.nac3artiq sipyco ]
+        propagatedBuildInputs = [ pkgs.llvm_13 pkgs.lld_13 nac3.packages.x86_64-linux.nac3artiq sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
@@ -183,7 +186,7 @@
       };
 
       makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
-        pkgs.python3Packages.toPythonModule (pkgs.stdenv.mkDerivation {
+        pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
           cargoDeps = rustPlatform.fetchCargoTarball {
@@ -192,7 +195,7 @@
             sha256 = "sha256-YyycMsDzR+JRcMZJd6A/CRi2J9nKmaWY/KXUnAQaZ00=";
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ migen misoc artiq ]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_13.clang-unwrapped
@@ -222,7 +225,7 @@
             '';
           installPhase =
             ''
-            TARGET_DIR=$out/${pkgs.python3Packages.python.sitePackages}/artiq/board-support/${target}-${variant}
+            TARGET_DIR=$out
             mkdir -p $TARGET_DIR
             cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
             if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
@@ -235,7 +238,7 @@
             '';
           # don't mangle ELF files as they are not for NixOS
           dontFixup = true;
-        });
+        };
 
       openocd-bscanspi = let
         bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
@@ -275,35 +278,78 @@
         name = "openocd-bscanspi";
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
+
+      sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "sphinxcontrib-wavedrom";
+        version = "3.0.2";
+        src = pkgs.python3Packages.fetchPypi {
+          inherit pname version;
+          sha256 = "sha256-ukZd3ajt0Sx3LByof4R80S31F5t1yo+L8QUADrMMm2A=";
+        };
+        buildInputs = [ pkgs.python3Packages.setuptools_scm ];
+        propagatedBuildInputs = [ pkgs.nodejs pkgs.nodePackages.wavedrom-cli ] ++ (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
+      };
+      latex-artiq-manual = pkgs.texlive.combine {
+        inherit (pkgs.texlive)
+          scheme-basic latexmk cmap collection-fontsrecommended fncychap
+          titlesec tabulary varwidth framed fancyvrb float wrapfig parskip
+          upquote capt-of needspace etoolbox;
+      };
     in rec {
       packages.x86_64-linux = rec {
-        inherit migen misoc vivadoEnv vivado openocd-bscanspi artiq;
-        inherit (src-nac3.packages.x86_64-linux) python3-mimalloc;
+        inherit (nac3.packages.x86_64-linux) python3-mimalloc;
+        inherit qasync openocd-bscanspi artiq;
+        inherit migen misoc asyncserial microscope vivadoEnv vivado;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
         };
-        artiq-board-kc705-nist_qc2 = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
+        inherit sphinxcontrib-wavedrom latex-artiq-manual;
+        artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
+          name = "artiq-manual-html-${version}";
+          version = artiqVersion;
+          src = self;
+          buildInputs = [
+            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+          ];
+          buildPhase = ''
+            export VERSIONEER_OVERRIDE=${artiqVersion}
+            export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
+            cd doc/manual
+            make html
+          '';
+          installPhase = ''
+            cp -r _build/html $out
+            mkdir $out/nix-support
+            echo doc manual $out index.html >> $out/nix-support/hydra-build-products
+          '';
         };
-        artiq-board-kc705-nist_clock_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock_master";
-        };
-        artiq-board-kc705-nist_qc2_master = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2_master";
-        };
-        artiq-board-kc705-nist_clock_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_clock";
-        };
-        artiq-board-kc705-nist_qc2_satellite = makeArtiqBoardPackage {
-          target = "kc705";
-          variant = "nist_qc2";
+        artiq-manual-pdf = pkgs.stdenvNoCC.mkDerivation rec {
+          name = "artiq-manual-pdf-${version}";
+          version = artiqVersion;
+          src = self;
+          buildInputs = [
+            pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+            latex-artiq-manual
+          ];
+          buildPhase = ''
+            export VERSIONEER_OVERRIDE=${artiq.version}
+            export SOURCE_DATE_EPOCH=${builtins.toString self.sourceInfo.lastModified}
+            cd doc/manual
+            make latexpdf
+          '';
+          installPhase = ''
+            mkdir $out
+            cp _build/latex/ARTIQ.pdf $out
+            mkdir $out/nix-support
+            echo doc-pdf manual $out ARTIQ.pdf >> $out/nix-support/hydra-build-products
+          '';
         };
       };
+
+      inherit makeArtiqBoardPackage;
 
       defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
@@ -321,6 +367,8 @@
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
+          pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
+          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
       };
 
