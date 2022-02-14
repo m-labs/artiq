@@ -260,7 +260,7 @@
       };
 
       makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
-        pkgs.python3Packages.toPythonModule (pkgs.stdenv.mkDerivation {
+        pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
           cargoDeps = rustPlatform.fetchCargoTarball {
@@ -299,7 +299,7 @@
             '';
           installPhase =
             ''
-            TARGET_DIR=$out/${pkgs.python3Packages.python.sitePackages}/artiq/board-support/${target}-${variant}
+            TARGET_DIR=$out
             mkdir -p $TARGET_DIR
             cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
             if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
@@ -312,7 +312,7 @@
             '';
           # don't mangle ELF files as they are not for NixOS
           dontFixup = true;
-        });
+        };
 
       openocd-bscanspi = let
         bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
@@ -454,7 +454,7 @@
           __networked = true;
 
           buildInputs = [
-            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq artiq-board-kc705-nist_clock ps.paramiko ]))
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
             pkgs.llvm_11
             pkgs.lld_11
             pkgs.openssh
@@ -488,7 +488,7 @@
               # Read "Ok" line when remote successfully locked
               read LOCK_OK
 
-              artiq_flash -t kc705 -H rpi-1
+              artiq_flash -t kc705 -H rpi-1 -d ${packages.x86_64-linux.artiq-board-kc705-nist_clock}
               sleep 15
 
               export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
