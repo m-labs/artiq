@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class _TTLWidget(QtWidgets.QFrame):
     def __init__(self, dm, channel, force_out, title):
-        QtWidgets.QFrame.__init__(self)
+        super().__init__()
 
         self.channel = channel
         self.set_mode = dm.ttl_set_mode
@@ -137,7 +137,7 @@ class _TTLWidget(QtWidgets.QFrame):
 
 class _SimpleDisplayWidget(QtWidgets.QFrame):
     def __init__(self, title):
-        QtWidgets.QFrame.__init__(self)
+        super().__init__()
 
         self.setFrameShape(QtWidgets.QFrame.Box)
         self.setFrameShadow(QtWidgets.QFrame.Raised)
@@ -188,7 +188,7 @@ class _DACWidget(_SimpleDisplayWidget):
         self.spi_channel = spi_channel
         self.channel = channel
         self.cur_value = 0
-        _SimpleDisplayWidget.__init__(self, "{} ch{}".format(title, channel))
+        super().__init__("{} ch{}".format(title, channel))
 
     def refresh_display(self):
         self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
