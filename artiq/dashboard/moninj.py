@@ -131,6 +131,7 @@ class _TTLWidget(QtWidgets.QFrame):
         finally:
             self.programmatic_change = False
 
+    @property
     def sort_key(self):
         return self.channel
 
@@ -164,6 +165,7 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
     def refresh_display(self):
         raise NotImplementedError
 
+    @property
     def sort_key(self):
         raise NotImplementedError
 
@@ -179,6 +181,7 @@ class _DDSWidget(_SimpleDisplayWidget):
         self.value.setText("<font size=\"4\">{:.7f}</font><font size=\"2\"> MHz</font>"
                            .format(self.cur_frequency/1e6))
 
+    @property
     def sort_key(self):
         return (self.bus_channel, self.channel)
 
@@ -194,6 +197,7 @@ class _DACWidget(_SimpleDisplayWidget):
         self.value.setText("<font size=\"4\">{:.3f}</font><font size=\"2\"> %</font>"
                            .format(self.cur_value*100/2**16))
 
+    @property
     def sort_key(self):
         return (self.spi_channel, self.channel)
 
@@ -440,7 +444,7 @@ class _MonInjDock(QtWidgets.QDockWidget):
         grid_widget = QtWidgets.QWidget()
         grid_widget.setLayout(grid)
 
-        for widget in sorted(widgets, key=lambda w: w.sort_key()):
+        for widget in sorted(widgets, key=lambda w: w.sort_key):
             grid.addWidget(widget)
 
         scroll_area.setWidgetResizable(True)
