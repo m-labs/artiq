@@ -283,9 +283,9 @@ class _UrukulWidget(QtWidgets.QFrame):
         self.ttl = None
 
     def on_all_widgets_initialized(self):
-        docks = self.dm.ttl_widgets
-        if docks:
-            ttl = docks[self.sw_channel]
+        ttls = self.dm.ttl_widgets
+        if ttls:
+            ttl = ttls[self.sw_channel]
             if ttl:
                 self.ttl = ttl
                 self.override.toggled.connect(ttl.override.setChecked)
@@ -535,6 +535,10 @@ class _DeviceManager:
             else:
                 raise ValueError
 
+        for to_add in description - self.description:
+            widget = self.widgets_by_uid[to_add.uid]
+            if isinstance(widget, _UrukulWidget):
+                widget.on_all_widgets_initialized()
         self.description = description
 
     def ttl_set_mode(self, channel, mode):
@@ -633,6 +637,8 @@ class _DeviceManager:
                     self.setup_dac_monitoring(True, spi_channel, channel)
                 for widget in self.urukul_widgets.values():
                     widget.setup_monitoring(True)
+                for widget in self.urukul_widgets.values():
+                    widget.on_all_widgets_initialized()
 
     async def close(self):
         self.core_connector_task.cancel()
