@@ -135,6 +135,17 @@ class _TTLWidget(QtWidgets.QFrame):
     def sort_key(self):
         return self.channel
 
+    def on_monitor(self, probe, value):
+        if probe == TTLProbe.level.value:
+            self.level.setChecked(bool(value))
+        elif probe == TTLProbe.oe.value:
+            self.cur_oe = bool(value)
+
+    def on_injection_status(self, override, value):
+        if override == TTLOverride.en.value:
+            self.override.setChecked(bool(value))
+        if override == TTLOverride.level.value:
+            self.cur_override_level = bool(value)
 
 class _SimpleDisplayWidget(QtWidgets.QFrame):
     def __init__(self, title):
@@ -365,10 +376,7 @@ class _DeviceManager:
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
             widget = self.ttl_widgets[channel]
-            if probe == TTLProbe.level.value:
-                widget.cur_level = bool(value)
-            elif probe == TTLProbe.oe.value:
-                widget.cur_oe = bool(value)
+            widget.on_monitor(probe, value)
             widget.refresh_display()
         if (channel, probe) in self.dds_widgets:
             widget = self.dds_widgets[(channel, probe)]
@@ -382,10 +390,7 @@ class _DeviceManager:
     def injection_status_cb(self, channel, override, value):
         if channel in self.ttl_widgets:
             widget = self.ttl_widgets[channel]
-            if override == TTLOverride.en.value:
-                widget.cur_override = bool(value)
-            if override == TTLOverride.level.value:
-                widget.cur_override_level = bool(value)
+            widget.on_injection_status(override, value)
             widget.refresh_display()
 
     def disconnect_cb(self):
