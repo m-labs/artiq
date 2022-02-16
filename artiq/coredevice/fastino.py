@@ -65,6 +65,9 @@ class Fastino:
 
         It does not change set channel voltages and does not reset the PLLs or clock
         domains.
+
+        Note: On Fastino gateware before v0.2 this may lead to 0 voltage being emitted
+        transiently.
         """
         self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=1)
         delay_mu(self.t_frame)
@@ -274,9 +277,12 @@ class Fastino:
     def apply_cic(self, channel_mask):
         """Apply the staged interpolator configuration on the specified channels.
 
-        Each Fastino channel includes a fourth order (cubic) CIC interpolator with
-        variable rate change and variable output gain compensation (see
-        :meth:`stage_cic`).
+        Each Fastino channel starting with gateware v0.2 includes a fourth order
+        (cubic) CIC interpolator with variable rate change and variable output
+        gain compensation (see :meth:`stage_cic`).
+
+        Fastino gateware before v0.2 does not include the interpolators and the
+        methods affecting the CICs should not be used.
 
         Channels using non-unity interpolation rate should have
         continous DAC updates enabled (see :meth:`set_continuous`) unless
