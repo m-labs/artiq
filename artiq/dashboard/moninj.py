@@ -68,15 +68,18 @@ class _TTLWidget(QtWidgets.QFrame):
         grid.setRowStretch(3, 0)
         grid.setRowStretch(4, 1)
 
-        self.programmatic_change = False
-        self.override.clicked.connect(self.override_toggled)
-        self.level.clicked.connect(self.level_toggled)
+        self.override.toggled.connect(self.override_toggled)
+        self.override.toggled.connect(self.refresh_display)
 
-        self.cur_level = False
+        self.level.toggled.connect(self.level_toggled)
+        self.level.toggled.connect(self.refresh_display)
+
         self.cur_oe = False
-        self.cur_override = False
         self.cur_override_level = False
-        self.refresh_display()
+
+    @property
+    def cur_level(self):
+        return self.cur_override_level if self.override.isChecked() else self.level.isChecked()
 
     def enterEvent(self, event):
         self.stack.setCurrentIndex(1)
@@ -88,48 +91,24 @@ class _TTLWidget(QtWidgets.QFrame):
         QtWidgets.QFrame.leaveEvent(self, event)
 
     def override_toggled(self, override):
-        if self.programmatic_change:
-            return
-        if override:
-            if self.level.isChecked():
-                self.set_mode(self.channel, "1")
-            else:
-                self.set_mode(self.channel, "0")
-        else:
-            self.set_mode(self.channel, "exp")
+        self.set_mode(self.channel, ("1" if self.level.isChecked() else "0") if override else "exp")
 
     def level_toggled(self, level):
-        if self.programmatic_change:
-            return
-        if self.override.isChecked():
-            if level:
-                self.set_mode(self.channel, "1")
-            else:
-                self.set_mode(self.channel, "0")
+        self.set_mode(self.channel, "1" if level else "0")
 
     def refresh_display(self):
-        level = self.cur_override_level if self.cur_override else self.cur_level
-        value_s = "1" if level else "0"
+        value_s = "1" if self.cur_level else "0"
 
-        if self.cur_override:
-            value_s = "<b>" + value_s + "</b>"
-            color = " color=\"red\""
+        if self.override.isChecked():
+            value_s = f"<b>{value_s}</b>"
+            color = ' color="red"'
         else:
             color = ""
-        self.value.setText("<font size=\"5\"{}>{}</font>".format(
-                            color, value_s))
-        oe = self.cur_oe or self.force_out
-        direction = "OUT" if oe else "IN"
-        self.direction.setText("<font size=\"2\">" + direction + "</font>")
+        self.value.setText(f'<font size="5"{color}>{value_s}</font>')
+        self.direction.setText(f'<font size="2">{"OUT" if self.force_out or self.cur_oe else "IN"}</font>')
 
-        self.programmatic_change = True
-        try:
-            self.override.setChecked(self.cur_override)
-            if self.cur_override:
-                self.stack.setCurrentIndex(1)
-                self.level.setChecked(self.cur_level)
-        finally:
-            self.programmatic_change = False
+        if self.override.isChecked():
+            self.stack.setCurrentIndex(1)
 
     @property
     def sort_key(self):
@@ -337,19 +316,19 @@ class _DeviceManager:
         if self.core_connection is not None:
             widget = self.ttl_widgets[channel]
             if mode == "0":
-                widget.cur_override = True
-                widget.cur_level = False
+                widget.override.setChecked(True)
+                widget.level.setChecked(False)
                 self.core_connection.inject(channel, TTLOverride.level.value, 0)
                 self.core_connection.inject(channel, TTLOverride.oe.value, 1)
                 self.core_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "1":
-                widget.cur_override = True
-                widget.cur_level = True
+                widget.override.setChecked(True)
+                widget.level.setChecked(True)
                 self.core_connection.inject(channel, TTLOverride.level.value, 1)
                 self.core_connection.inject(channel, TTLOverride.oe.value, 1)
                 self.core_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "exp":
-                widget.cur_override = False
+                widget.override.setChecked(False)
                 self.core_connection.inject(channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
