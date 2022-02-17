@@ -51,8 +51,6 @@ Breaking changes:
   calling `ADF5356.init()`.
 * DRTIO: Changed message alignment from 32-bits to 64-bits.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
-* Added moninj proxy support with ``aqctl_proxy_moninj`` for dashboard client to control moninj indirectly:
-   - New optional field in the device database: new key ``moninj`` of type ``controller`` with keys ``host``/``port``/``proxy_port``/``command``.
 * moninj protocol change: some messages now have different format, as some fields are larger bitwise
   due to bigger monitor CSR file size. If you failed to see any data updates nor does any interactions
   worked in moninj panel, ensure if gateware and firmware are recompiled and reflashed completely,
