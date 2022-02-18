@@ -347,7 +347,10 @@ def main():
         raise ValueError("the directory containing the binaries need to be specified using -d.")
 
     binary_dir = args.dir
-    rtm_binary_dir = os.path.join(binary_dir, "rtm")
+    if binary_dir is not None:
+        rtm_binary_dir = os.path.join(binary_dir, "rtm")
+    else:
+        rtm_binary_dir = None
 
     if args.host is None:
         client = LocalClient()
