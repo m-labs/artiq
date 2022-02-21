@@ -164,6 +164,9 @@ You need to write three binary images onto the FPGA board:
 Installing OpenOCD
 ^^^^^^^^^^^^^^^^^^
 
+.. note::
+  This version of OpenOCD is not applicable to Kasli-SoC.
+
 OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
 
 With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
@@ -176,6 +179,9 @@ With Conda, install ``openocd`` as follows::
 
 Configuring OpenOCD
 ^^^^^^^^^^^^^^^^^^^
+
+.. note::
+  These instructions are not applicable to Kasli-SoC.
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
@@ -213,9 +219,9 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client USERNAME build VARIANT AFWS_DIRECTORY
+  $ afws_client [username] build [variant] [afws_directory]
 
-Replace ``USERNAME`` with the login name that was given to you with the subscription, ``VARIANT`` with the name of your system variant, and ``AFWS_DIRECTORY`` to the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` to the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 
 Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
 
@@ -226,13 +232,19 @@ Then, you can write the flash:
 
 * For Kasli::
 
-      $ artiq_flash -d AFWS_DIRECTORY
+      $ artiq_flash -d [afws_directory]
 
 The JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you simply need to connect your computer to the micro-USB connector on the Kasli front panel.
 
+* For Kasli-SoC::
+
+      $ artiq_coremgmt [-D 192.168.1.75] config write -f boot [afws_directory]/boot.bin
+
+If the Kasli-SoC won't boot due to corrupted firmware and ``artiq_coremgmt`` cannot access it, extract the SD card and replace ``boot.bin`` manually.
+
 * For the KC705 board::
 
-    $ artiq_flash -t kc705 -d AFWS_DIRECTORY
+    $ artiq_flash -t kc705 -d [afws_directory]
 
   The SW13 switches need to be set to 00001.
 
