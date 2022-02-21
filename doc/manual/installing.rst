@@ -16,7 +16,7 @@ Installing via Nix (Linux)
 
 First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher.
 
-Once Nix is installed, enable Flakes ::
+Once Nix is installed, enable Flakes: ::
 
   $ mkdir -p ~/.config/nix
   $ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
@@ -221,7 +221,7 @@ Run the command::
 
   $ afws_client [username] build [variant] [afws_directory]
 
-Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` to the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 
 Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
 
