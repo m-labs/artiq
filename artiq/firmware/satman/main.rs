@@ -201,7 +201,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
 
         drtioaux::Packet::MonitorRequest { destination: _destination, channel, probe } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let value;
+            let value: u32;
             #[cfg(has_rtio_moninj)]
             unsafe {
                 csr::rtio_moninj::mon_chan_sel_write(channel as _);
@@ -213,7 +213,7 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             {
                 value = 0;
             }
-            let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
+            let reply = drtioaux::Packet::MonitorReply { value: value };
             drtioaux::send(0, &reply)
         },
         drtioaux::Packet::InjectionRequest { destination: _destination, channel, overrd, value } => {

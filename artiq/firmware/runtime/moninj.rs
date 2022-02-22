@@ -18,7 +18,7 @@ mod local_moninj {
             csr::rtio_moninj::mon_chan_sel_write(channel as _);
             csr::rtio_moninj::mon_probe_sel_write(probe);
             csr::rtio_moninj::mon_value_update_write(1);
-            csr::rtio_moninj::mon_value_read() as u32
+            csr::rtio_moninj::mon_value_read()
         }
     }
 
@@ -55,7 +55,7 @@ mod remote_moninj {
     use sched::{Io, Mutex};
 
     pub fn read_probe(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, channel: u16, probe: u8) -> u32 {
-        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::MonitorRequest { 
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::MonitorRequest {
             destination: destination,
             channel: channel,
             probe: probe
