@@ -251,13 +251,12 @@ class ExplorerDock(QtWidgets.QDockWidget):
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
-        rescan_ddb_action = QtWidgets.QAction("Re-scan device database on master",
+        scan_ddb_action = QtWidgets.QAction("Scan device database",
                                                    self.el)
-        def rescan_ddb():
-            logger.info("Reloading device database...")
+        def scan_ddb():
             asyncio.ensure_future(device_db_ctl.scan())
-        rescan_ddb_action.triggered.connect(rescan_ddb)
-        self.el.addAction(rescan_ddb_action)
+        scan_ddb_action.triggered.connect(scan_ddb)
+        self.el.addAction(scan_ddb_action)
 
         self.current_directory = ""
         open_file_action = QtWidgets.QAction("Open file outside repository",
