@@ -113,7 +113,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.return_target = None
         self.unwind_target = None
         self.catch_clauses = []
-        self.outer_final = None
         self.final_branch = None
         self.function_map = dict()
         self.variable_map = dict()
@@ -468,7 +467,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.append(ir.BranchIf(cond, if_true, tail), block=head)
 
     def visit_While(self, node):
-        old_outer_final, self.outer_final = self.outer_final, None
         try:
             head = self.add_block("while.head")
             self.append(ir.Branch(head))
@@ -488,7 +486,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
-            self.outer_final = old_outer_final
 
         if any(node.orelse):
             else_tail = self.add_block("while.else")
@@ -563,7 +560,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert False
 
     def visit_ForT(self, node):
-        old_outer_final, self.outer_final = self.outer_final, None
         try:
             iterable = self.visit(node.iter)
             length = self.iterable_len(iterable)
@@ -601,7 +597,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
-            self.outer_final = old_outer_final
 
         if any(node.orelse):
             else_tail = self.add_block("for.else")
@@ -710,9 +705,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 value = return_action.append(ir.GetLocal(self.current_private_env, "$return"))
                 return_action.append(ir.Return(value))
                 final_branch(return_action, return_proxy)
-
-            old_outer_final, self.outer_final = self.outer_final, final_branch
-        elif self.outer_final is None:
+        else:
             landingpad.has_cleanup = False
 
         # we should propagate the clauses to nested try catch blocks
@@ -777,7 +770,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.continue_target = old_continue
             self.return_target = old_return
 
-        if any(node.finalbody) or self.outer_final is not None:
+        if any(node.finalbody):
             # create new unwind target for cleanup
             final_dispatcher = self.add_block("try.final.dispatch")
             final_landingpad = ir.LandingPad(cleanup)
@@ -790,16 +783,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             # if we have a while:try/finally continue must execute finally
             # before continuing the while
             redirect = final_branch
-        elif self.outer_final is not None:
-            # If we have while:try/finally:try then we need to execute that finally
-            # before the continuing the while
-            # If we have try/finally:while:try then we should just continue the
-            # while without having to execute the finally until later
-            # If we have try/finally:while:try/finally:try we should execute
-            # one but not the other
-            # This is achieved by reseting self.outer_final in while and for
-            # loops
-            redirect = self.outer_final
         else:
             redirect = lambda dest, proxy: proxy.append(ir.Branch(dest))
 
@@ -860,7 +843,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if any(node.finalbody):
             # Finalize and continue after try statement.
-            self.outer_final = old_outer_final
             self.unwind_target = old_unwind
             # Exception path
             finalizer_reraise = self.add_block("finally.resume")
@@ -910,8 +892,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                         block.append(ir.SetLocal(final_state, "$cont", tail))
                         block.append(ir.Branch(finalizer))
         else:
-            if self.outer_final is not None:
-                self.unwind_target = old_unwind
             self.current_block = tail = self.add_block("try.tail")
             if not body.is_terminated():
                 body.append(ir.Branch(tail))
