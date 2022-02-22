@@ -468,6 +468,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.append(ir.BranchIf(cond, if_true, tail), block=head)
 
     def visit_While(self, node):
+        old_outer_final, self.outer_final = self.outer_final, None
         try:
             head = self.add_block("while.head")
             self.append(ir.Branch(head))
@@ -487,6 +488,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
+            self.outer_final = old_outer_final
 
         if any(node.orelse):
             else_tail = self.add_block("while.else")
@@ -561,6 +563,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             assert False
 
     def visit_ForT(self, node):
+        old_outer_final, self.outer_final = self.outer_final, None
         try:
             iterable = self.visit(node.iter)
             length = self.iterable_len(iterable)
@@ -598,6 +601,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.break_target = old_break
             self.continue_target = old_continue
+            self.outer_final = old_outer_final
 
         if any(node.orelse):
             else_tail = self.add_block("for.else")
@@ -783,8 +787,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_unwind, self.unwind_target = self.unwind_target, final_dispatcher
 
         if any(node.finalbody):
+            # if we have a while:try/finally continue must execute finally
+            # before continuing the while
             redirect = final_branch
         elif self.outer_final is not None:
+            # If we have while:try/finally:try then we need to execute that finally
+            # before the continuing the while
+            # If we have try/finally:while:try then we should just continue the
+            # while without having to execute the finally until later
+            # If we have try/finally:while:try/finally:try we should execute
+            # one but not the other
+            # This is achieved by reseting self.outer_final in while and for
+            # loops
             redirect = self.outer_final
         else:
             redirect = lambda dest, proxy: proxy.append(ir.Branch(dest))
