@@ -251,8 +251,7 @@ class ExplorerDock(QtWidgets.QDockWidget):
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
 
-        scan_ddb_action = QtWidgets.QAction("Scan device database",
-                                                   self.el)
+        scan_ddb_action = QtWidgets.QAction("Scan device database", self.el)
         def scan_ddb():
             asyncio.ensure_future(device_db_ctl.scan())
         scan_ddb_action.triggered.connect(scan_ddb)
