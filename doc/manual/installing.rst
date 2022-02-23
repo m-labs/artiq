@@ -14,91 +14,81 @@ In the current state of affairs, we recommend that Linux users install ARTIQ via
 Installing via Nix (Linux)
 --------------------------
 
-.. note::
-  Make sure you are using a 64-bit x86 Linux system. If you are using other systems, such as 32-bit x86, Nix will attempt to compile a number of dependencies from source on your machine. This may work, but the installation process will use a lot of CPU time, memory, and disk space.
+First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_. Make sure you get Nix version 2.4 or higher.
 
-First, install the Nix package manager. Some distributions provide a package for the Nix package manager, otherwise, it can be installed via the script on the `Nix website <http://nixos.org/nix/>`_.
+Once Nix is installed, enable Flakes: ::
 
-Once Nix is installed, add the M-Labs package channel with: ::
+  $ mkdir -p ~/.config/nix
+  $ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 
-  $ nix-channel --add https://nixbld.m-labs.hk/channel/custom/artiq/full-beta/artiq-full
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix profile install git+https://github.com/m-labs/artiq.git``. Answer "Yes" to the questions about setting Nix configuration options. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
-Those channels track `nixpkgs 21.05 <https://github.com/NixOS/nixpkgs/tree/release-21.05>`_. You can check the latest status through the `Hydra interface <https://nixbld.m-labs.hk>`_. As the Nix package manager default installation uses the development version of nixpkgs, we need to tell it to switch to the release: ::
+This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them.
 
-  $ nix-channel --remove nixpkgs
-  $ nix-channel --add https://nixos.org/channels/nixos-21.05 nixpkgs
-
-Finally, make all the channel changes effective: ::
-
-  $ nix-channel --update
-
-Nix won't install packages without verifying their cryptographic signature. Add the M-Labs public key by creating the file ``~/.config/nix/nix.conf`` with the following contents:
+Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create an empty directory with a file ``flake.nix`` with the following contents:
 
 ::
 
-  substituters = https://cache.nixos.org https://nixbld.m-labs.hk
-  trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=
+  {
+    inputs.artiq.url = "git+https://github.com/m-labs/artiq.git";
+    inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
+    inputs.extrapkg.inputs.artiq.follows = "artiq";
+    outputs = { self, artiq, extrapkg }:
+      let
+        pkgs = artiq.inputs.nixpkgs.legacyPackages.x86_64-linux;
+        aqmain = artiq.packages.x86_64-linux;
+        aqextra = extrapkg.packages.x86_64-linux;
+      in {
+        defaultPackage.x86_64-linux = pkgs.buildEnv {
+          name = "artiq-env";
+          paths = [
+            # ========================================
+            # EDIT BELOW
+            # ========================================
+            (pkgs.python3.withPackages(ps: [
+              # List desired Python packages here.
+              aqmain.artiq
+              #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
+              #aqextra.flake8-artiq
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix-env -iA artiq-full.artiq-env``. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+              # The NixOS package collection contains many other packages that you may find
+              # interesting. Here are some examples:
+              #ps.pandas
+              #ps.numpy
+              #ps.scipy
+              #ps.numba
+              #ps.matplotlib
+              # or if you need Qt (will recompile):
+              #(ps.matplotlib.override { enableQt = true; })
+              #ps.bokeh
+              #ps.cirq
+              #ps.qiskit
+            ]))
+            #aqextra.korad_ka3005p
+            #aqextra.novatech409b
+            # List desired non-Python packages here
+            #aqmain.openocd-bscanspi  # needed if and only if flashing boards
+            # Other potentially interesting packages from the NixOS package collection:
+            #pkgs.gtkwave
+            #pkgs.spyder
+            #pkgs.R
+            #pkgs.julia
+            # ========================================
+            # EDIT ABOVE
+            # ========================================
+          ];
+        };
+      };
+  }
 
-This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them, and this restriction also applies to the M-Labs packages containing board binaries, which means that ``artiq_flash`` will not automatically find them.
 
-Installing multiple packages and making them visible to the ARTIQ commands requires using the Nix language. Create a file ``my-artiq-env.nix`` with the following contents:
+Then spawn a shell containing the packages with ``$ nix shell``. The ARTIQ commands with all the additional packages should now be available.
 
-::
+You can exit the shell by typing Control-D. The next time ``$ nix shell`` is invoked, Nix uses the cached packages so the shell startup is fast.
 
-  let
-    # pkgs contains the NixOS package collection. ARTIQ depends on some of them, and
-    # you may want some additional packages from there.
-    pkgs = import <nixpkgs> {};
-    artiq-full = import <artiq-full> { inherit pkgs; };
-  in
-    pkgs.mkShell {
-      buildInputs = [
-        (pkgs.python3.withPackages(ps: [
-          # List desired Python packages here.
+You can create directories containing each a ``flake.nix`` that correspond to different sets of packages. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
 
-          # You probably want these two.
-          artiq-full.artiq
-          artiq-full.artiq-comtools
-
-          # You need a board support package if and only if you intend to flash
-          # a board (those packages contain only board firmware).
-          # The lines below are only examples, you need to select appropriate
-          # packages for your boards.
-          #artiq-full.artiq-board-kc705-nist_clock
-          #artiq-full.artiq-board-kasli-wipm
-          #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
-
-          # The NixOS package collection contains many other packages that you may find
-          # interesting for your research. Here are some examples:
-          #ps.pandas
-          #ps.numpy
-          #ps.scipy
-          #ps.numba
-          #(ps.matplotlib.override { enableQt = true; })
-          #ps.bokeh
-          #ps.cirq
-          #ps.qiskit
-        ]))
-
-        # List desired non-Python packages here
-        #artiq-full.openocd  # needed if and only if flashing boards
-        # Other potentially interesting packages from the NixOS package collection:
-        #pkgs.gtkwave
-        #pkgs.spyder
-        #pkgs.R
-        #pkgs.julia
-      ];
-    }
-
-Then spawn a shell containing the packages with ``$ nix-shell my-artiq-env.nix``. The ARTIQ commands with all the additional packages should now be available.
-
-You can exit the shell by typing Control-D. The next time ``$ nix-shell my-artiq-env.nix`` is invoked, Nix uses the cached packages so the shell startup is fast.
-
-You can edit this file according to your needs, and also create multiple ``.nix`` files that correspond to different sets of packages. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
-
-If your favorite package is not available with Nix, contact us.
+If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
 Installing via Conda (Windows, Linux)
 -------------------------------------
@@ -137,9 +127,9 @@ This activation has to be performed in every new shell you open to make the ARTI
 Upgrading ARTIQ (with Nix)
 --------------------------
 
-Run ``$ nix-channel --update`` to retrieve information about the latest versions, and then either reinstall ARTIQ into the user environment (``$ nix-env -i python3.6-artiq``) or re-run the ``nix-shell`` command.
+Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter ``$ nix shell``.
 
-To rollback to the previous version, use ``$ nix-channel --rollback`` and then re-do the second step. You can switch between versions by passing a parameter to ``--rollback`` (see the ``nix-channel`` documentation).
+To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up version of the ``flake.lock`` file.
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
 
@@ -165,20 +155,21 @@ Flashing gateware and firmware into the core device
 .. note::
   If you have purchased a pre-assembled system from M-Labs or QUARTIQ, the gateware and firmware are already flashed and you can skip those steps, unless you want to replace them with a different version of ARTIQ.
 
-You now need to write three binary images onto the FPGA board:
+You need to write three binary images onto the FPGA board:
 
 1. The FPGA gateware bitstream
 2. The bootloader
 3. The ARTIQ runtime or satellite manager
 
-They are all shipped in the Nix and Conda packages, along with the required flash proxy gateware bitstreams.
-
 Installing OpenOCD
 ^^^^^^^^^^^^^^^^^^
 
+.. note::
+  This version of OpenOCD is not applicable to Kasli-SoC.
+
 OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
 
-With Nix, add ``artiq-full.openocd`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
+With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
 With Conda, install ``openocd`` as follows::
 
@@ -188,6 +179,9 @@ With Conda, install ``openocd`` as follows::
 
 Configuring OpenOCD
 ^^^^^^^^^^^^^^^^^^^
+
+.. note::
+  These instructions are not applicable to Kasli-SoC.
 
 Some additional steps are necessary to ensure that OpenOCD can communicate with the FPGA board.
 
@@ -218,6 +212,19 @@ On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. 
 
 You may need to repeat these steps every time you plug the FPGA board into a port where it has not been plugged into previously on the same system.
 
+Obtaining the board binaries
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you have an active firmware subscription with M-Labs or QUARTIQ, you can obtain firmware that corresponds to the currently installed version of ARTIQ using AFWS (ARTIQ firmware service). One year of subscription is included with most hardware purchases. You may purchase or extend firmware subscriptions by writing to the sales@ email.
+
+Run the command::
+
+  $ afws_client [username] build [variant] [afws_directory]
+
+Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
+
+Without a subscription, you may build the firmware yourself from the open source code. See the section :ref:`Developing ARTIQ <developing-artiq>`.
+
 Writing the flash
 ^^^^^^^^^^^^^^^^^
 
@@ -225,13 +232,19 @@ Then, you can write the flash:
 
 * For Kasli::
 
-      $ artiq_flash -V [your system variant]
+      $ artiq_flash -d [afws_directory]
 
 The JTAG adapter is integrated into the Kasli board; for flashing (and debugging) you simply need to connect your computer to the micro-USB connector on the Kasli front panel.
 
+* For Kasli-SoC::
+
+      $ artiq_coremgmt [-D 192.168.1.75] config write -f boot [afws_directory]/boot.bin
+
+If the Kasli-SoC won't boot due to corrupted firmware and ``artiq_coremgmt`` cannot access it, extract the SD card and replace ``boot.bin`` manually.
+
 * For the KC705 board::
 
-    $ artiq_flash -t kc705 -V [nist_clock/nist_qc2]
+    $ artiq_flash -t kc705 -d [afws_directory]
 
   The SW13 switches need to be set to 00001.
 
