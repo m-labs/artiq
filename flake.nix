@@ -504,8 +504,8 @@
     };
 
   nixConfig = {
-    binaryCachePublicKeys = ["nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc="];
-    binaryCaches = ["https://nixbld.m-labs.hk" "https://cache.nixos.org"];
+    extra-trusted-public-keys = "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=";
+    extra-substituters = "https://nixbld.m-labs.hk";
     sandboxPaths = ["/opt"];
   };
 }
