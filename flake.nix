@@ -113,22 +113,12 @@
 
       llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
         pname = "llvmlite";
-        version = "0.37.0-artiq";
+        version = "0.38.0";
         src = pkgs.python3Packages.fetchPypi {
           inherit pname;
-          version = "0.37.0";
-          sha256 = "sha256-Y5K4cM0BjsDGRda7uRjWqg7sqMYmdLqu4whi1raGWxU=";
+          version = "0.38.0";
+          sha256 = "qZ0WbM87EW87ntI7m3C6JBVkCpyXjzqqE/rUnFj0llw=";
         };
-        patches = [
-          (pkgs.fetchurl {
-            url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/branch/master/artiq-fast/pkgs/llvmlite-abiname.diff";
-            sha256 = "1zlss9vlhjgch6gf5gc0647kkjdwjk0833ld88xwd9vmwvkdmp3v";
-          })
-          (pkgs.fetchurl {
-            url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/branch/master/artiq-fast/pkgs/llvmlite-callsite.diff";
-            sha256 = "sha256-JrIXPnI7E7Y5NIFxswVBmRfQvv61lqKDDnNJrr+nDCg=";
-          })
-        ];
         nativeBuildInputs = [ pkgs.llvm_11 ];
         # Disable static linking
         # https://github.com/numba/llvmlite/issues/93
