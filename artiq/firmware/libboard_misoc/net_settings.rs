@@ -39,10 +39,6 @@ pub fn get_adresses() -> NetAddresses {
                     .map(|addr_buf| EthernetAddress(addr_buf))
                     .unwrap_or_else(|_e| EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]));
             }
-            #[cfg(soc_platform = "sayma_amc")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]); }
-            #[cfg(soc_platform = "metlino")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]); }
             #[cfg(soc_platform = "kc705")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]); }
         }
@@ -54,10 +50,6 @@ pub fn get_adresses() -> NetAddresses {
         _ => {
             #[cfg(soc_platform = "kasli")]
             { ipv4_addr = IpAddress::v4(192, 168, 1, 70); }
-            #[cfg(soc_platform = "sayma_amc")]
-            { ipv4_addr = IpAddress::v4(192, 168, 1, 60); }
-            #[cfg(soc_platform = "metlino")]
-            { ipv4_addr = IpAddress::v4(192, 168, 1, 65); }
             #[cfg(soc_platform = "kc705")]
             { ipv4_addr = IpAddress::v4(192, 168, 1, 50); }
         }

@@ -134,7 +134,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
+                    "enum": ["dio", "urukul", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
                 },
                 "board": {
                     "type": "string"
@@ -228,50 +228,6 @@
                             "default": "ad9910"
                         }
                     },                    
-                    "required": ["ports"]
-                }
-            }, {
-                "title": "Novogorny",
-                "if": {
-                    "properties": {
-                        "type": {
-                            "const": "novogorny"
-                        }
-                    }
-                },
-                "then": {
-                    "properties": {
-                        "ports": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            },
-                            "minItems": 1,
-                            "maxItems": 1
-                        }
-                    },
-                    "required": ["ports"]
-                }
-            }, {
-                "title": "Sampler",
-                "if": {
-                    "properties": {
-                        "type": {
-                            "const": "sampler"
-                        }
-                    }
-                },
-                "then": {
-                    "properties": {
-                        "ports": {
-                            "type": "array",
-                            "items": {
-                                "type": "integer"
-                            },
-                            "minItems": 1,
-                            "maxItems": 2
-                        }
-                    },
                     "required": ["ports"]
                 }
             }, {

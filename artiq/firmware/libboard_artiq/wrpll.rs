@@ -175,8 +175,6 @@ mod si549 {
     use board_misoc::clock;
     use super::i2c;
 
-    #[cfg(any(soc_platform = "metlino", soc_platform = "sayma_amc", soc_platform = "sayma_rtm"))]
-    pub const ADDRESS: u8 = 0x55;
     #[cfg(soc_platform = "kasli")]
     pub const ADDRESS: u8 = 0x67;
 

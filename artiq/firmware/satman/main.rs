@@ -16,15 +16,9 @@ use board_artiq::si5324;
 use board_artiq::wrpll;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
-#[cfg(has_hmc830_7043)]
-use board_artiq::hmc830_7043;
 use riscv::register::{mcause, mepc, mtval};
 
 mod repeater;
-#[cfg(has_jdcg)]
-mod jdcg;
-#[cfg(any(has_ad9154, has_jdcg))]
-pub mod jdac_common;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -298,43 +292,6 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
             }
         }
 
-        drtioaux::Packet::JdacBasicRequest { destination: _destination, dacno: _dacno,
-                                             reqno: _reqno, param: _param } => {
-            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            #[cfg(has_ad9154)]
-            let (succeeded, retval) = {
-                #[cfg(rtio_frequency = "125.0")]
-                const LINERATE: u64 = 5_000_000_000;
-                #[cfg(rtio_frequency = "150.0")]
-                const LINERATE: u64 = 6_000_000_000;
-                match _reqno {
-                    jdac_common::INIT => (board_artiq::ad9154::setup(_dacno, LINERATE).is_ok(), 0),
-                    jdac_common::PRINT_STATUS => { board_artiq::ad9154::status(_dacno); (true, 0) },
-                    jdac_common::PRBS => (board_artiq::ad9154::prbs(_dacno).is_ok(), 0),
-                    jdac_common::STPL => (board_artiq::ad9154::stpl(_dacno, 4, 2).is_ok(), 0),
-                    jdac_common::SYSREF_DELAY_DAC => { board_artiq::hmc830_7043::hmc7043::sysref_delay_dac(_dacno, _param); (true, 0) },
-                    jdac_common::SYSREF_SLIP => { board_artiq::hmc830_7043::hmc7043::sysref_slip(); (true, 0) },
-                    jdac_common::SYNC => {
-                        match board_artiq::ad9154::sync(_dacno) {
-                            Ok(false) => (true, 0),
-                            Ok(true) => (true, 1),
-                            Err(e) => {
-                                error!("DAC sync failed: {}", e);
-                                (false, 0)
-                            }
-                        }
-                    },
-                    jdac_common::DDMTD_SYSREF_RAW => (true, jdac_common::measure_ddmdt_phase_raw() as u8),
-                    jdac_common::DDMTD_SYSREF => (true, jdac_common::measure_ddmdt_phase() as u8),
-                    _ => (false, 0)
-                }
-            };
-            #[cfg(not(has_ad9154))]
-            let (succeeded, retval) = (false, 0);
-            drtioaux::send(0,
-                &drtioaux::Packet::JdacBasicReply { succeeded: succeeded, retval: retval })
-        }
-
         _ => {
             warn!("received unexpected aux packet");
             Ok(())
@@ -528,17 +485,6 @@ pub extern fn main() -> i32 {
     #[cfg(has_wrpll)]
     wrpll::diagnostics();
     init_rtio_crg();
-
-    #[cfg(has_hmc830_7043)]
-    /* must be the first SPI init because of HMC830 SPI mode selection */
-    hmc830_7043::init().expect("cannot initialize HMC830/7043");
-    #[cfg(has_ad9154)]
-    {
-        jdac_common::init_ddmtd().expect("failed to initialize SYSREF DDMTD core");
-        for dacno in 0..csr::CONFIG_AD9154_COUNT {
-            board_artiq::ad9154::reset_and_detect(dacno as u8).expect("AD9154 DAC not detected");
-        }
-    }
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];

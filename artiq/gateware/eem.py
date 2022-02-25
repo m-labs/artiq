@@ -275,53 +275,6 @@ class Sampler(_EEM):
         target.specials += DifferentialOutput(1, sdr.p, sdr.n)
 
 
-class Novogorny(_EEM):
-    @staticmethod
-    def io(eem, iostandard):
-        return [
-            ("novogorny{}_spi_p".format(eem), 0,
-                Subsignal("clk", Pins(_eem_pin(eem, 0, "p"))),
-                Subsignal("mosi", Pins(_eem_pin(eem, 1, "p"))),
-                Subsignal("miso", Pins(_eem_pin(eem, 2, "p"))),
-                Subsignal("cs_n", Pins(
-                    _eem_pin(eem, 3, "p"), _eem_pin(eem, 4, "p"))),
-                iostandard(eem),
-            ),
-            ("novogorny{}_spi_n".format(eem), 0,
-                Subsignal("clk", Pins(_eem_pin(eem, 0, "n"))),
-                Subsignal("mosi", Pins(_eem_pin(eem, 1, "n"))),
-                Subsignal("miso", Pins(_eem_pin(eem, 2, "n"))),
-                Subsignal("cs_n", Pins(
-                    _eem_pin(eem, 3, "n"), _eem_pin(eem, 4, "n"))),
-                iostandard(eem),
-            ),
-        ] + [
-            ("novogorny{}_{}".format(eem, sig), 0,
-                Subsignal("p", Pins(_eem_pin(j, i, "p"))),
-                Subsignal("n", Pins(_eem_pin(j, i, "n"))),
-                iostandard(j)
-            ) for i, j, sig in [
-                (5, eem, "cnv"),
-                (6, eem, "busy"),
-                (7, eem, "scko"),
-            ]
-        ]
-
-    @classmethod
-    def add_std(cls, target, eem, ttl_out_cls, iostandard=default_iostandard):
-        cls.add_extension(target, eem, iostandard=iostandard)
-
-        phy = spi2.SPIMaster(target.platform.request("novogorny{}_spi_p".format(eem)),
-                target.platform.request("novogorny{}_spi_n".format(eem)))
-        target.submodules += phy
-        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=16))
-
-        pads = target.platform.request("novogorny{}_cnv".format(eem))
-        phy = ttl_out_cls(pads.p, pads.n)
-        target.submodules += phy
-        target.rtio_channels.append(rtio.Channel.from_phy(phy))
-
-
 class Zotino(_EEM):
     @staticmethod
     def io(eem, iostandard):
