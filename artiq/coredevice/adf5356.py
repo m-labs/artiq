@@ -103,6 +103,18 @@ class ADF5356:
             self.sync()
 
     @kernel
+    def set_att(self, att):
+        """Set digital step attenuator in SI units.
+
+        This method will write the attenuator settings of the channel.
+
+        .. seealso:: :meth:`artiq.coredevice.mirny.Mirny.set_att`
+
+        :param att: Attenuation in dB.
+        """
+        self.cpld.set_att(self.channel, att)
+
+    @kernel
     def set_att_mu(self, att):
         """Set digital step attenuator in machine units.
 

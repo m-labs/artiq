@@ -12,6 +12,7 @@
 #![allow(unused)]
 
 use core::mem;
+use cslice::CSlice;
 
 pub const DW_EH_PE_omit: u8 = 0xFF;
 pub const DW_EH_PE_absptr: u8 = 0x00;
@@ -63,6 +64,10 @@ impl DwarfReader {
         result
     }
 
+    pub unsafe fn offset(&mut self, offset: isize) {
+        self.ptr = self.ptr.offset(offset);
+    }
+
     // ULEB128 and SLEB128 encodings are defined in Section 7.6 - "Variable
     // Length Data".
     pub unsafe fn read_uleb128(&mut self) -> u64 {
@@ -105,10 +110,19 @@ unsafe fn read_encoded_pointer(
     context: &EHContext<'_>,
     encoding: u8,
 ) -> Result<usize, ()> {
+    read_encoded_pointer_with_base(reader, encoding, get_base(encoding, context)?)
+}
+
+unsafe fn read_encoded_pointer_with_base(
+    reader: &mut DwarfReader,
+    encoding: u8,
+    base: usize,
+) -> Result<usize, ()> {
     if encoding == DW_EH_PE_omit {
         return Err(());
     }
 
+    let original_ptr = reader.ptr;
     // DW_EH_PE_aligned implies it's an absolute pointer value
     if encoding == DW_EH_PE_aligned {
         reader.ptr = round_up(reader.ptr as usize, mem::size_of::<usize>())? as *const u8;
@@ -128,19 +142,10 @@ unsafe fn read_encoded_pointer(
         _ => return Err(()),
     };
 
-    result += match encoding & 0x70 {
-        DW_EH_PE_absptr => 0,
-        // relative to address of the encoded value, despite the name
-        DW_EH_PE_pcrel => reader.ptr as usize,
-        DW_EH_PE_funcrel => {
-            if context.func_start == 0 {
-                return Err(());
-            }
-            context.func_start
-        }
-        DW_EH_PE_textrel => (*context.get_text_start)(),
-        DW_EH_PE_datarel => (*context.get_data_start)(),
-        _ => return Err(()),
+    result += if (encoding & 0x70) == DW_EH_PE_pcrel {
+        original_ptr as usize
+    } else {
+        base
     };
 
     if encoding & DW_EH_PE_indirect != 0 {
@@ -150,6 +155,7 @@ unsafe fn read_encoded_pointer(
     Ok(result)
 }
 
+#[derive(Debug)]
 pub enum EHAction {
     None,
     Cleanup(usize),
@@ -159,7 +165,45 @@ pub enum EHAction {
 
 pub const USING_SJLJ_EXCEPTIONS: bool = cfg!(all(target_os = "ios", target_arch = "arm"));
 
-pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result<EHAction, ()> {
+fn size_of_encoded_value(encoding: u8) -> usize {
+    if encoding == DW_EH_PE_omit {
+        0
+    } else {
+        let encoding = encoding & 0x07;
+        match encoding {
+            DW_EH_PE_absptr => core::mem::size_of::<*const ()>(),
+            DW_EH_PE_udata2 => 2,
+            DW_EH_PE_udata4 => 4,
+            DW_EH_PE_udata8 => 8,
+            _ => unreachable!(),
+        }
+    }
+}
+
+unsafe fn get_ttype_entry(
+    offset: usize,
+    encoding: u8,
+    ttype_base: usize,
+    ttype: *const u8,
+) -> Result<*const u8, ()> {
+    let i = (offset * size_of_encoded_value(encoding)) as isize;
+    read_encoded_pointer_with_base(
+        &mut DwarfReader::new(ttype.offset(-i)),
+        // the DW_EH_PE_pcrel is a hack.
+        // It seems that the default encoding is absolute, but we have to take reallocation into
+        // account. Unsure if we can fix this in the compiler setting or if this would be affected
+        // by updating the compiler
+        encoding,
+        ttype_base,
+    )
+    .map(|v| v as *const u8)
+}
+
+pub unsafe fn find_eh_action(
+    lsda: *const u8,
+    context: &EHContext<'_>,
+    id: u32,
+) -> Result<EHAction, ()> {
     if lsda.is_null() {
         return Ok(EHAction::None);
     }
@@ -176,10 +220,14 @@ pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result
     };
 
     let ttype_encoding = reader.read::<u8>();
-    if ttype_encoding != DW_EH_PE_omit {
-        // Rust doesn't analyze exception types, so we don't care about the type table
-        reader.read_uleb128();
-    }
+    // we do care about the type table
+    let ttype_offset = if ttype_encoding != DW_EH_PE_omit {
+        reader.read_uleb128()
+    } else {
+        0
+    };
+    let ttype_base = get_base(ttype_encoding, context).unwrap_or(0);
+    let ttype_table = reader.ptr.offset(ttype_offset as isize);
 
     let call_site_encoding = reader.read::<u8>();
     let call_site_table_length = reader.read_uleb128();
@@ -198,11 +246,52 @@ pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result
                 break;
             }
             if ip < func_start + cs_start + cs_len {
+                // https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-v3/libsupc%2B%2B/eh_personality.cc#L528
+                let lpad = lpad_base + cs_lpad;
                 if cs_lpad == 0 {
+                    // no cleanups/handler
                     return Ok(EHAction::None);
+                } else if cs_action == 0 {
+                    return Ok(EHAction::Cleanup(lpad));
                 } else {
-                    let lpad = lpad_base + cs_lpad;
-                    return Ok(interpret_cs_action(cs_action, lpad));
+                    let mut saw_cleanup = false;
+                    let mut action_record = action_table.offset(cs_action as isize - 1);
+                    loop {
+                        let mut reader = DwarfReader::new(action_record);
+                        let ar_filter = reader.read_sleb128();
+                        action_record = reader.ptr;
+                        let ar_disp = reader.read_sleb128();
+                        if ar_filter == 0 {
+                            saw_cleanup = true;
+                        } else if ar_filter > 0 {
+                            let catch_type = get_ttype_entry(
+                                ar_filter as usize,
+                                ttype_encoding,
+                                ttype_base,
+                                ttype_table,
+                            )?;
+                            if (catch_type as *const CSlice<u8>).is_null() {
+                                return Ok(EHAction::Catch(lpad));
+                            }
+                            // this seems to be target dependent
+                            let clause_id = *(catch_type as *const u32);
+                            if clause_id == id {
+                                return Ok(EHAction::Catch(lpad));
+                            }
+                        } else if ar_filter < 0 {
+                            // FIXME: how to handle this?
+                            break;
+                        }
+                        if ar_disp == 0 {
+                            break;
+                        }
+                        action_record = action_record.offset((ar_disp as usize) as isize);
+                    }
+                    if saw_cleanup {
+                        return Ok(EHAction::Cleanup(lpad));
+                    } else {
+                        return Ok(EHAction::None);
+                    }
                 }
             }
         }
@@ -210,7 +299,7 @@ pub unsafe fn find_eh_action(lsda: *const u8, context: &EHContext<'_>) -> Result
         // So rather than returning EHAction::Terminate, we do this.
         Ok(EHAction::None)
     } else {
-        // SjLj version:
+        // SjLj version: (not yet modified)
         // The "IP" is an index into the call-site table, with two exceptions:
         // -1 means 'no-action', and 0 means 'terminate'.
         match ip as isize {
@@ -246,5 +335,20 @@ fn interpret_cs_action(cs_action: u64, lpad: usize) -> EHAction {
 
 #[inline]
 fn round_up(unrounded: usize, align: usize) -> Result<usize, ()> {
-    if align.is_power_of_two() { Ok((unrounded + align - 1) & !(align - 1)) } else { Err(()) }
+    if align.is_power_of_two() {
+        Ok((unrounded + align - 1) & !(align - 1))
+    } else {
+        Err(())
+    }
 }
+
+fn get_base(encoding: u8, context: &EHContext<'_>) -> Result<usize, ()> {
+    match encoding & 0x70 {
+        DW_EH_PE_absptr | DW_EH_PE_pcrel | DW_EH_PE_aligned => Ok(0),
+        DW_EH_PE_textrel => Ok((*context.get_text_start)()),
+        DW_EH_PE_datarel => Ok((*context.get_data_start)()),
+        DW_EH_PE_funcrel if context.func_start != 0 => Ok(context.func_start),
+        _ => return Err(()),
+    }
+}
+

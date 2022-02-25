@@ -329,7 +329,7 @@ pub mod drtio {
 static mut SEEN_ASYNC_ERRORS: u8 = 0;
 
 pub unsafe fn get_async_errors() -> u8 {
-    let mut errors = SEEN_ASYNC_ERRORS;
+    let errors = SEEN_ASYNC_ERRORS;
     SEEN_ASYNC_ERRORS = 0;
     errors
 }

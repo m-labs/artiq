@@ -13,7 +13,6 @@ from collections import defaultdict
 from sipyco import common_args
 
 from artiq import __version__ as artiq_version
-from artiq import __artiq_dir__ as artiq_dir
 from artiq.remoting import SSHClient, LocalClient
 from artiq.frontend.bit2bin import bit2bin
 
@@ -63,13 +62,11 @@ Prerequisites:
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
                              "kasli sayma metlino kc705")
-    parser.add_argument("-V", "--variant", default=None,
-                        help="board variant. Autodetected if only one is installed.")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
-    parser.add_argument("-d", "--dir", help="look for board binaries in this directory")
+    parser.add_argument("-d", "--dir", default=None, help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
                         default=False, action="store_true")
     parser.add_argument("--no-rtm-jtag", help="do not attempt JTAG to the RTM",
@@ -338,56 +335,22 @@ def main():
         },
     }[args.target]
 
-    bin_dir = args.dir
-    if bin_dir is None:
-        bin_dir = os.path.join(artiq_dir, "board-support")
-
-    needs_artifacts = not args.action or any(
-        action in args.action
-        for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
-    variant = args.variant
-    if needs_artifacts and variant is None:
-        variants = []
-        if args.srcbuild:
-            for entry in os.scandir(bin_dir):
-                if entry.is_dir():
-                    variants.append(entry.name)
-        else:
-            prefix = args.target + "-"
-            for entry in os.scandir(bin_dir):
-                if entry.is_dir() and entry.name.startswith(prefix):
-                    variants.append(entry.name[len(prefix):])
-        if args.target == "sayma":
-            try:
-                variants.remove("rtm")
-            except ValueError:
-                pass
-        if all(action in ["rtm_gateware", "storage", "rtm_load", "erase", "start"]
-            for action in args.action) and args.action:
-            pass
-        elif len(variants) == 0:
-            raise FileNotFoundError("no variants found, did you install a board binary package?")
-        elif len(variants) == 1:
-            variant = variants[0]
-        else:
-            raise ValueError("more than one variant found for selected board, specify -V. "
-                "Found variants: {}".format(" ".join(sorted(variants))))
-    if needs_artifacts:
-        if args.srcbuild:
-            variant_dir = variant
-        else:
-            variant_dir = args.target + "-" + variant
-        if args.target == "sayma":
-            if args.srcbuild:
-                rtm_variant_dir = "rtm"
-            else:
-                rtm_variant_dir = "sayma-rtm"
-
     if not args.action:
-        if args.target == "sayma" and variant != "simplesatellite" and variant != "master":
+        if args.target == "sayma":
             args.action = "gateware rtm_gateware bootloader firmware start".split()
         else:
             args.action = "gateware bootloader firmware start".split()
+    needs_artifacts = any(
+        action in args.action
+        for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
+    if needs_artifacts and args.dir is None:
+        raise ValueError("the directory containing the binaries need to be specified using -d.")
+
+    binary_dir = args.dir
+    if binary_dir is not None:
+        rtm_binary_dir = os.path.join(binary_dir, "rtm")
+    else:
+        rtm_binary_dir = None
 
     if args.host is None:
         client = LocalClient()
@@ -400,14 +363,14 @@ def main():
         programmer_cls = config["programmer"]
     programmer = programmer_cls(client, preinit_script=args.preinit_command)
 
-    def artifact_path(this_variant_dir, *path_filename):
+    def artifact_path(this_binary_dir, *path_filename):
         if args.srcbuild:
             # source tree - use path elements to locate file
-            return os.path.join(bin_dir, this_variant_dir, *path_filename)
+            return os.path.join(this_binary_dir, *path_filename)
         else:
             # flat tree - all files in the same directory, discard path elements
             *_, filename = path_filename
-            return os.path.join(bin_dir, this_variant_dir, filename)
+            return os.path.join(this_binary_dir, filename)
 
     def convert_gateware(bit_filename, header=False):
         bin_handle, bin_filename = tempfile.mkstemp(
@@ -429,15 +392,15 @@ def main():
     for action in args.action:
         if action == "gateware":
             gateware_bin = convert_gateware(
-                artifact_path(variant_dir, "gateware", "top.bit"))
+                artifact_path(binary_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
         elif action == "rtm_gateware":
             rtm_gateware_bin = convert_gateware(
-                artifact_path(rtm_variant_dir, "gateware", "top.bit"), header=True)
+                artifact_path(rtm_binary_dir, "gateware", "top.bit"), header=True)
             programmer.write_binary(*config["rtm_gateware"],
                                     rtm_gateware_bin)
         elif action == "bootloader":
-            bootloader_bin = artifact_path(variant_dir, "software", "bootloader", "bootloader.bin")
+            bootloader_bin = artifact_path(binary_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
         elif action == "storage":
             storage_img = args.storage
@@ -445,7 +408,7 @@ def main():
         elif action == "firmware":
             firmware_fbis = []
             for firmware in "satman", "runtime":
-                filename = artifact_path(variant_dir, "software", firmware, firmware + ".fbi")
+                filename = artifact_path(binary_dir, "software", firmware, firmware + ".fbi")
                 if os.path.exists(filename):
                     firmware_fbis.append(filename)
             if not firmware_fbis:
@@ -456,13 +419,13 @@ def main():
             programmer.write_binary(*config["firmware"], firmware_fbis[0])
         elif action == "load":
             if args.target == "sayma":
-                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
+                gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 1)
             else:
-                gateware_bit = artifact_path(variant_dir, "gateware", "top.bit")
+                gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
                 programmer.load(gateware_bit, 0)
         elif action == "rtm_load":
-            rtm_gateware_bit = artifact_path(rtm_variant_dir, "gateware", "top.bit")
+            rtm_gateware_bit = artifact_path(rtm_binary_dir, "gateware", "top.bit")
             programmer.load(rtm_gateware_bit, 0)
         elif action == "start":
             programmer.start()

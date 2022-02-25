@@ -1,4 +1,4 @@
-#![feature(libc, panic_unwind, unwind_attributes, rustc_private, int_bits_const)]
+#![feature(libc, panic_unwind, unwind_attributes, rustc_private, int_bits_const, const_in_array_repeat_expressions)]
 #![crate_name = "artiq_support"]
 #![crate_type = "cdylib"]
 
@@ -24,6 +24,10 @@ mod cslice {
     impl<'a, T> CSlice<'a, T> {
         pub fn len(&self) -> usize {
             self.len as usize
+        }
+
+        pub fn as_ptr(&self) -> *const T {
+            self.base
         }
     }
 
@@ -54,23 +58,31 @@ mod cslice {
 pub mod eh {
     #[path = "../../firmware/libeh/dwarf.rs"]
     pub mod dwarf;
+    #[path = "../../firmware/libeh/eh_artiq.rs"]
+    pub mod eh_artiq;
 }
 #[path = "../../firmware/ksupport/eh_artiq.rs"]
 pub mod eh_artiq;
 
 use std::{str, process};
 
-fn terminate(exception: &eh_artiq::Exception, mut _backtrace: &mut [usize]) -> ! {
-    println!("Uncaught {}: {} ({}, {}, {})",
-             str::from_utf8(exception.name.as_ref()).unwrap(),
-             str::from_utf8(exception.message.as_ref()).unwrap(),
-             exception.param[0],
-             exception.param[1],
-             exception.param[2]);
-    println!("at {}:{}:{}",
-             str::from_utf8(exception.file.as_ref()).unwrap(),
-             exception.line,
-             exception.column);
+fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
+             _stack_pointers: &'static [eh_artiq::StackPointerBacktrace],
+             _backtrace: &'static mut [(usize, usize)]) -> ! {
+    println!("{}", exceptions.len());
+    for exception in exceptions.iter() {
+        let exception = exception.as_ref().unwrap();
+        println!("Uncaught {}: {} ({}, {}, {})",
+                 exception.id,
+                 str::from_utf8(exception.message.as_ref()).unwrap(),
+                 exception.param[0],
+                 exception.param[1],
+                 exception.param[2]);
+        println!("at {}:{}:{}",
+                 str::from_utf8(exception.file.as_ref()).unwrap(),
+                 exception.line,
+                 exception.column);
+    }
     process::exit(1);
 }
 

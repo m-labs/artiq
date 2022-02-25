@@ -1,12 +1,12 @@
 """RTIO driver for the Fastino 32channel, 16 bit, 2.5 MS/s per channel,
 streaming DAC.
 """
-from numpy import int32
+from numpy import int32, int64
 
 from artiq.language.core import kernel, portable, delay, delay_mu
 from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
                                    rtio_input_data)
-from artiq.language.units import us
+from artiq.language.units import ns
 from artiq.language.types import TInt32, TList
 
 
@@ -41,24 +41,48 @@ class Fastino:
     :param log2_width: Width of DAC channel group (logarithm base 2).
         Value must match the corresponding value in the RTIO PHY (gateware).
     """
-    kernel_invariants = {"core", "channel", "width"}
+    kernel_invariants = {"core", "channel", "width", "t_frame"}
 
     def __init__(self, dmgr, channel, core_device="core", log2_width=0):
         self.channel = channel << 8
         self.core = dmgr.get(core_device)
         self.width = 1 << log2_width
+        # frame duration in mu (14 words each 7 clock cycles each 4 ns)
+        # self.core.seconds_to_mu(14*7*4*ns)  # unfortunately this may round wrong
+        assert self.core.ref_period == 1*ns
+        self.t_frame = int64(14*7*4)
 
     @kernel
     def init(self):
         """Initialize the device.
 
-        This clears reset, unsets DAC_CLR, enables AFE_PWR,
-        clears error counters, then enables error counting
+            * disables RESET, DAC_CLR, enables AFE_PWR
+            * clears error counters, enables error counting
+            * turns LEDs off
+            * clears `hold` and `continuous` on all channels
+            * clear and resets interpolators to unit rate change on all
+              channels
+
+        It does not change set channel voltages and does not reset the PLLs or clock
+        domains.
+
+        Note: On Fastino gateware before v0.2 this may lead to 0 voltage being emitted
+        transiently.
         """
         self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=1)
-        delay(1*us)
+        delay_mu(self.t_frame)
         self.set_cfg(reset=0, afe_power_down=0, dac_clr=0, clr_err=0)
-        delay(1*us)
+        delay_mu(self.t_frame)
+        self.set_continuous(0)
+        delay_mu(self.t_frame)
+        self.stage_cic(1)
+        delay_mu(self.t_frame)
+        self.apply_cic(0xffffffff)
+        delay_mu(self.t_frame)
+        self.set_leds(0)
+        delay_mu(self.t_frame)
+        self.set_hold(0)
+        delay_mu(self.t_frame)
 
     @kernel
     def write(self, addr, data):
@@ -78,8 +102,9 @@ class Fastino:
         :param addr: Address to read from.
         :return: The data read.
         """
-        rtio_output(self.channel | addr | 0x80)
-        return rtio_input_data(self.channel >> 8)
+        raise NotImplementedError
+        # rtio_output(self.channel | addr | 0x80)
+        # return rtio_input_data(self.channel >> 8)
 
     @kernel
     def set_dac_mu(self, dac, data):
@@ -252,9 +277,12 @@ class Fastino:
     def apply_cic(self, channel_mask):
         """Apply the staged interpolator configuration on the specified channels.
 
-        Each Fastino channel includes a fourth order (cubic) CIC interpolator with
-        variable rate change and variable output gain compensation (see
-        :meth:`stage_cic`).
+        Each Fastino channel starting with gateware v0.2 includes a fourth order
+        (cubic) CIC interpolator with variable rate change and variable output
+        gain compensation (see :meth:`stage_cic`).
+
+        Fastino gateware before v0.2 does not include the interpolators and the
+        methods affecting the CICs should not be used.
 
         Channels using non-unity interpolation rate should have
         continous DAC updates enabled (see :meth:`set_continuous`) unless

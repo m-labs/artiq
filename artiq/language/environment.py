@@ -330,8 +330,7 @@ class HasEnvironment:
 
     @rpc(flags={"async"})
     def set_dataset(self, key, value,
-                    broadcast=False, persist=False, archive=True,
-                    hdf5_options=None):
+                    broadcast=False, persist=False, archive=True):
         """Sets the contents and handling modes of a dataset.
 
         Datasets must be scalars (``bool``, ``int``, ``float`` or NumPy scalar)
@@ -343,16 +342,8 @@ class HasEnvironment:
             broadcast.
         :param archive: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
-        :param hdf5_options: dict of keyword arguments to pass to
-            :meth:`h5py.Group.create_dataset`. For example, pass ``{"compression": "gzip"}``
-            to enable transparent zlib compression of this dataset in the HDF5 archive.
-            See the `h5py documentation <https://docs.h5py.org/en/stable/high/group.html#h5py.Group.create_dataset>`_
-            for a list of valid options.
         """
-        
-        self.__dataset_mgr.set(
-            key, value, broadcast, persist, archive, hdf5_options
-        )
+        self.__dataset_mgr.set(key, value, broadcast, persist, archive)
 
     @rpc(flags={"async"})
     def mutate_dataset(self, key, index, value):
@@ -392,11 +383,11 @@ class HasEnvironment:
 
         By default, datasets obtained by this method are archived into the output
         HDF5 file of the experiment. If an archived dataset is requested more
-        than one time (and therefore its value has potentially changed) or is
-        modified, a warning is emitted.
+        than one time or is modified, only the value at the time of the first call
+        is archived. This may impact reproducibility of experiments.
 
         :param archive: Set to ``False`` to prevent archival together with the run's results.
-            Default is ``True``
+            Default is ``True``.
         """
         try:
             return self.__dataset_mgr.get(key, archive)

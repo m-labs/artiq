@@ -13,7 +13,7 @@ class Image(pyqtgraph.ImageView):
 
     def data_changed(self, data, mods):
         try:
-            img = data[self.args.img]["value"]
+            img = data[self.args.img][1]
         except KeyError:
             return
         self.setImage(img)

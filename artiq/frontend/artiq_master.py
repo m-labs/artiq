@@ -3,7 +3,6 @@
 import asyncio
 import argparse
 import atexit
-import os
 import logging
 
 from sipyco.pc_rpc import Server as RPCServer
@@ -75,11 +74,7 @@ class MasterConfig:
 def main():
     args = get_argparser().parse_args()
     log_forwarder = init_log(args)
-    if os.name == "nt":
-        loop = asyncio.ProactorEventLoop()
-        asyncio.set_event_loop(loop)
-    else:
-        loop = asyncio.get_event_loop()
+    loop = asyncio.get_event_loop()
     atexit.register(loop.close)
     bind = common_args.bind_address_from_args(args)
 

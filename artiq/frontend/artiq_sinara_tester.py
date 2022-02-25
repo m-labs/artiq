@@ -59,6 +59,7 @@ class SinaraTester(EnvExperiment):
         self.mirnies = dict()
         self.suservos = dict()
         self.suschannels = dict()
+        self.almaznys = dict()
 
         ddb = self.get_device_db()
         for name, desc in ddb.items():
@@ -96,6 +97,8 @@ class SinaraTester(EnvExperiment):
                     self.suservos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
                     self.suschannels[name] = self.get_device(name)
+                elif (module, cls) == ("artiq.coredevice.mirny", "Almazny"):
+                    self.almaznys[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals
         # from TTL outs (tested separately) and remove Urukuls covered by
@@ -115,11 +118,10 @@ class SinaraTester(EnvExperiment):
                         del self.ttl_outs[io_update_device]
                 # check for suservos and delete respective urukuls
                 elif (module, cls) == ("artiq.coredevice.suservo", "SUServo"):
-                    del self.urukuls[desc["arguments"]["dds0_device"]]
-                    del self.urukul_cplds[desc["arguments"]["cpld0_device"]]
-                    if "dds1_device" in desc["arguments"]:
-                        del self.urukuls[desc["arguments"]["dds1_device"]]
-                        del self.urukul_cplds[desc["arguments"]["cpld1_device"]]
+                    for cpld in desc["arguments"]["cpld_devices"]:
+                        del self.urukul_cplds[cpld]
+                    for dds in desc["arguments"]["dds_devices"]:
+                        del self.urukuls[dds]
                 elif (module, cls) == ("artiq.coredevice.sampler", "Sampler"):
                     cnv_device = desc["arguments"]["cnv_device"]
                     del self.ttl_outs[cnv_device]
@@ -329,7 +331,7 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         channel.init()
 
-        channel.set_att_mu(160)
+        channel.set_att(11.5*dB)
         channel.sw.on()
         self.core.break_realtime()
 
@@ -352,6 +354,68 @@ class SinaraTester(EnvExperiment):
             for channel in channels:
                 channel.pulse(100*ms)
                 delay(100*ms)
+    @kernel
+    def init_almazny(self, almazny):
+        self.core.break_realtime()
+        almazny.init()
+        almazny.output_toggle(True)
+
+    @kernel
+    def almazny_set_attenuators_mu(self, almazny, ch, atts):
+        self.core.break_realtime()
+        almazny.set_att_mu(ch, atts)
+
+    @kernel
+    def almazny_set_attenuators(self, almazny, ch, atts):
+        self.core.break_realtime()
+        almazny.set_att(ch, atts)
+    
+    @kernel
+    def almazny_toggle_output(self, almazny, rf_on):
+        self.core.break_realtime()
+        almazny.output_toggle(rf_on)
+
+    def test_almaznys(self):
+        print("*** Testing Almaznys.")
+        for name, almazny in sorted(self.almaznys.items(), key=lambda x: x[0]):
+            print(name + "...")
+            print("Initializing Mirny CPLDs...")
+            for name, cpld in sorted(self.mirny_cplds.items(), key=lambda x: x[0]):
+                print(name + "...")
+                self.init_mirny(cpld)
+            print("...done")
+
+            print("Testing attenuators. Frequencies:")
+            for card_n, channels in enumerate(chunker(self.mirnies, 4)):
+                for channel_n, (channel_name, channel_dev) in enumerate(channels):
+                    frequency = 2000 + card_n * 250 + channel_n * 50
+                    print("{}\t{}MHz".format(channel_name, frequency*2))
+                    self.setup_mirny(channel_dev, frequency)
+                    print("{} info: {}".format(channel_name, channel_dev.info()))
+            self.init_almazny(almazny)
+            print("RF ON, all attenuators ON. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators_mu(almazny, i, 63)
+            input()
+            print("RF ON, half power attenuators ON. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, 15.5)
+            input()
+            print("RF ON, all attenuators OFF. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, 0)
+            input()
+            print("SR outputs are OFF. Press ENTER when done.")
+            self.almazny_toggle_output(almazny, False)
+            input()
+            print("RF ON, all attenuators are ON. Press ENTER when done.")
+            for i in range(4):
+                self.almazny_set_attenuators(almazny, i, 31.5)
+            self.almazny_toggle_output(almazny, True)
+            input()
+            print("RF OFF. Press ENTER when done.")
+            self.almazny_toggle_output(almazny, False)
+            input()
 
     def test_mirnies(self):
         print("*** Testing Mirny PLLs.")
@@ -366,7 +430,7 @@ class SinaraTester(EnvExperiment):
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.mirnies, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                frequency = 1000*(card_n + 1) + channel_n * 100 + 8     # Extra 8 Hz for easier observation
+                frequency = 1000*(card_n + 1) + channel_n * 100
                 print("{}\t{}MHz".format(channel_name, frequency))
                 self.setup_mirny(channel_dev, frequency)
                 print("{} info: {}".format(channel_name, channel_dev.info()))
@@ -597,8 +661,8 @@ class SinaraTester(EnvExperiment):
             delay(10*us)
         # DDS attenuator 10dB
         for i in range(4):
-            channel.cpld0.set_att(i, 10.)
-            channel.cpld1.set_att(i, 10.)
+            for cpld in channel.cplds:
+                cpld.set_att(i, 10.)
         delay(1*us)
         # Servo is done and disabled
         assert channel.get_status() & 0xff == 2

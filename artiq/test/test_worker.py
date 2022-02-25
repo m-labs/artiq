@@ -2,7 +2,6 @@ import unittest
 import logging
 import asyncio
 import sys
-import os
 from time import sleep
 
 from artiq.experiment import *
@@ -77,10 +76,7 @@ def _run_experiment(class_name):
 
 class WorkerCase(unittest.TestCase):
     def setUp(self):
-        if os.name == "nt":
-            self.loop = asyncio.ProactorEventLoop()
-        else:
-            self.loop = asyncio.new_event_loop()
+        self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
     def test_simple_run(self):

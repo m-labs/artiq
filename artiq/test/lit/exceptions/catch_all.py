@@ -8,7 +8,7 @@ def catch(f):
     except Exception as e:
         print(e)
 
-# CHECK-L: ZeroDivisionError
+# CHECK-L: 8(0, 0, 0)
 catch(lambda: 1/0)
-# CHECK-L: IndexError
+# CHECK-L: 9(10, 1, 0)
 catch(lambda: [1.0][10])

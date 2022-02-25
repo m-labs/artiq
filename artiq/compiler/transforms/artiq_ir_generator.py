@@ -8,6 +8,7 @@ semantics explicitly.
 
 from collections import OrderedDict, defaultdict
 from functools import reduce
+from itertools import chain
 from pythonparser import algorithm, diagnostic, ast
 from .. import types, builtins, asttyped, ir, iodelay
 
@@ -61,6 +62,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
         the basic block to which ``return`` will transfer control
     :ivar unwind_target: (:class:`ir.BasicBlock` or None)
         the basic block to which unwinding will transfer control
+    :ivar catch_clauses: (list of (:class:`ir.BasicBlock`, :class:`types.Type` or None))
+        a list of catch clauses that should be appended to inner try block
+        landingpad
     :ivar final_branch: (function (target: :class:`ir.BasicBlock`, block: :class:`ir.BasicBlock)
                          or None)
         the function that appends to ``block`` a jump through the ``finally`` statement
@@ -88,8 +92,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
     _size_type = builtins.TInt32()
 
-    def __init__(self, module_name, engine, ref_period):
+    def __init__(self, module_name, engine, ref_period, embedding_map):
         self.engine = engine
+        self.embedding_map = embedding_map
         self.functions = []
         self.name = [module_name] if module_name != "" else []
         self.ref_period = ir.Constant(ref_period, builtins.TFloat())
@@ -102,10 +107,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_private_env = None
         self.current_args = None
         self.current_assign = None
+        self.current_exception = None
         self.break_target = None
         self.continue_target = None
         self.return_target = None
         self.unwind_target = None
+        self.catch_clauses = []
         self.final_branch = None
         self.function_map = dict()
         self.variable_map = dict()
@@ -627,16 +634,21 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = raise_proxy
 
         if exn is not None:
+            # if we need to raise the exception in a final body, we have to
+            # lazy-evaluate the exception object to make sure that we generate
+            # it in the raise_proxy block
+            exn = exn()
+        if exn is not None:
             assert loc is not None
             loc_file = ir.Constant(loc.source_buffer.name, builtins.TStr())
             loc_line = ir.Constant(loc.line(), builtins.TInt32())
             loc_column = ir.Constant(loc.column(), builtins.TInt32())
             loc_function = ir.Constant(".".join(self.name), builtins.TStr())
 
-            self.append(ir.SetAttr(exn, "__file__", loc_file))
-            self.append(ir.SetAttr(exn, "__line__", loc_line))
-            self.append(ir.SetAttr(exn, "__col__", loc_column))
-            self.append(ir.SetAttr(exn, "__func__", loc_function))
+            self.append(ir.SetAttr(exn, "#__file__", loc_file))
+            self.append(ir.SetAttr(exn, "#__line__", loc_line))
+            self.append(ir.SetAttr(exn, "#__col__", loc_column))
+            self.append(ir.SetAttr(exn, "#__func__", loc_function))
 
             if self.unwind_target is not None:
                 self.append(ir.Raise(exn, self.unwind_target))
@@ -644,18 +656,21 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.append(ir.Raise(exn))
         else:
             if self.unwind_target is not None:
-                self.append(ir.Reraise(self.unwind_target))
+                self.append(ir.Resume(self.unwind_target))
             else:
-                self.append(ir.Reraise())
+                self.append(ir.Resume())
 
     def visit_Raise(self, node):
         if node.exc is not None and types.is_exn_constructor(node.exc.type):
-            self.raise_exn(self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
+            self.raise_exn(lambda: self.alloc_exn(node.exc.type.instance), loc=self.current_loc)
         else:
-            self.raise_exn(self.visit(node.exc), loc=self.current_loc)
+            self.raise_exn(lambda: self.visit(node.exc), loc=self.current_loc)
 
     def visit_Try(self, node):
         dispatcher = self.add_block("try.dispatch")
+        cleanup = self.add_block('handler.cleanup')
+        landingpad = ir.LandingPad(cleanup)
+        dispatcher.append(landingpad)
 
         if any(node.finalbody):
             # k for continuation
@@ -690,16 +705,51 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 value = return_action.append(ir.GetLocal(self.current_private_env, "$return"))
                 return_action.append(ir.Return(value))
                 final_branch(return_action, return_proxy)
+        else:
+            landingpad.has_cleanup = False
+
+        # we should propagate the clauses to nested try catch blocks
+        # so nested try catch will jump to our clause if the inner one does not
+        # match
+        # note that the phi instruction here requires some hack, see
+        # llvm_ir_generator process_function for details
+        clauses = []
+        found_catch_all = False
+        for handler_node in node.handlers:
+            if found_catch_all:
+                self.warn_unreachable(handler_node)
+                continue
+            exn_type = handler_node.name_type.find()
+            if handler_node.filter is not None and \
+                    not builtins.is_exception(exn_type, 'Exception'):
+                handler = self.add_block("handler." + exn_type.name)
+                phi = ir.Phi(builtins.TException(), 'exn')
+                handler.append(phi)
+                clauses.append((handler, exn_type, phi))
+            else:
+                handler = self.add_block("handler.catchall")
+                phi = ir.Phi(builtins.TException(), 'exn')
+                handler.append(phi)
+                clauses.append((handler, None, phi))
+                found_catch_all = True
+
+        all_clauses = clauses[:]
+        for clause in self.catch_clauses:
+            # if the last clause is accept all, do not add further clauses
+            if len(all_clauses) == 0 or all_clauses[-1][1] is not None:
+                all_clauses.append(clause)
 
         body = self.add_block("try.body")
         self.append(ir.Branch(body))
         self.current_block = body
 
+        old_unwind, self.unwind_target = self.unwind_target, dispatcher
+        old_clauses, self.catch_clauses = self.catch_clauses, all_clauses
         try:
-            old_unwind, self.unwind_target = self.unwind_target, dispatcher
             self.visit(node.body)
         finally:
             self.unwind_target = old_unwind
+            self.catch_clauses = old_clauses
 
         if not self.current_block.is_terminated():
             self.visit(node.orelse)
@@ -708,85 +758,149 @@ class ARTIQIRGenerator(algorithm.Visitor):
         body = self.current_block
 
         if any(node.finalbody):
+            # if we have a final block, we should not append clauses to our
+            # landingpad or we will skip the finally block.
+            # when the finally block calls resume, it will unwind to the outer
+            # try catch block automatically
+            all_clauses = clauses
+            # reset targets
             if self.break_target:
                 self.break_target = old_break
             if self.continue_target:
                 self.continue_target = old_continue
             self.return_target = old_return
 
-            old_final_branch, self.final_branch = self.final_branch, final_branch
+        if any(node.finalbody):
+            # create new unwind target for cleanup
+            final_dispatcher = self.add_block("try.final.dispatch")
+            final_landingpad = ir.LandingPad(cleanup)
+            final_dispatcher.append(final_landingpad)
 
-        cleanup = self.add_block('handler.cleanup')
-        landingpad = dispatcher.append(ir.LandingPad(cleanup))
+            # make sure that exception clauses are unwinded to the finally block
+            old_unwind, self.unwind_target = self.unwind_target, final_dispatcher
+
+        if any(node.finalbody):
+            # if we have a while:try/finally continue must execute finally
+            # before continuing the while
+            redirect = final_branch
+        else:
+            redirect = lambda dest, proxy: proxy.append(ir.Branch(dest))
+
+        # we need to set break/continue/return to execute end_catch
+        if self.break_target is not None:
+            break_proxy = self.add_block("try.break")
+            break_proxy.append(ir.Builtin("end_catch", [], builtins.TNone()))
+            old_break, self.break_target = self.break_target, break_proxy
+            redirect(old_break, break_proxy)
+
+        if self.continue_target is not None:
+            continue_proxy = self.add_block("try.continue")
+            continue_proxy.append(ir.Builtin("end_catch", [],
+                                             builtins.TNone()))
+            old_continue, self.continue_target = self.continue_target, continue_proxy
+            redirect(old_continue, continue_proxy)
+
+        return_proxy = self.add_block("try.return")
+        return_proxy.append(ir.Builtin("end_catch", [], builtins.TNone()))
+        old_return, self.return_target = self.return_target, return_proxy
+        old_return_target = old_return
+        if old_return_target is None:
+            old_return_target = self.add_block("try.doreturn")
+            value = old_return_target.append(ir.GetLocal(self.current_private_env, "$return"))
+            old_return_target.append(ir.Return(value))
+        redirect(old_return_target, return_proxy)
 
         handlers = []
-        for handler_node in node.handlers:
-            exn_type = handler_node.name_type.find()
-            if handler_node.filter is not None and \
-                    not builtins.is_exception(exn_type, 'Exception'):
-                handler = self.add_block("handler." + exn_type.name)
-                landingpad.add_clause(handler, exn_type)
-            else:
-                handler = self.add_block("handler.catchall")
-                landingpad.add_clause(handler, None)
 
+        for (handler_node, (handler, exn_type, phi)) in zip(node.handlers, clauses):
             self.current_block = handler
             if handler_node.name is not None:
-                exn = self.append(ir.Builtin("exncast", [landingpad], handler_node.name_type))
+                exn = self.append(ir.Builtin("exncast", [phi], handler_node.name_type))
                 self._set_local(handler_node.name, exn)
             self.visit(handler_node.body)
+            # only need to call end_catch if the current block is not terminated
+            # other possible paths: break/continue/return/raise
+            # we will call end_catch in the first 3 cases, and we should not
+            # end_catch in the last case for nested exception
+            if not self.current_block.is_terminated():
+                self.append(ir.Builtin("end_catch", [], builtins.TNone()))
             post_handler = self.current_block
+            handlers.append(post_handler)
 
-            handlers.append((handler, post_handler))
+        # branch to all possible clauses, including those from outer try catch
+        # block
+        # if we have a finally block, all_clauses will not include those from
+        # the outer block
+        for (handler, clause, phi) in all_clauses:
+            phi.add_incoming(landingpad, dispatcher)
+            landingpad.add_clause(handler, clause)
+
+        if self.break_target:
+            self.break_target = old_break
+        if self.continue_target:
+            self.continue_target = old_continue
+        self.return_target = old_return
 
         if any(node.finalbody):
             # Finalize and continue after try statement.
-            self.final_branch = old_final_branch
-
-            finalizer = self.add_block("finally")
-            self.current_block = finalizer
-
-            self.visit(node.finalbody)
-            post_finalizer = self.current_block
-
-            # Finalize and reraise. Separate from previous case to expose flow
-            # to LocalAccessValidator.
-            finalizer_reraise = self.add_block("finally.reraise")
+            self.unwind_target = old_unwind
+            # Exception path
+            finalizer_reraise = self.add_block("finally.resume")
             self.current_block = finalizer_reraise
-
             self.visit(node.finalbody)
-            self.terminate(ir.Reraise(self.unwind_target))
-
-        self.current_block = tail = self.add_block("try.tail")
-        if any(node.finalbody):
-            final_targets.append(tail)
-
-            for block in final_paths:
-                block.append(ir.Branch(finalizer))
-
-            if not body.is_terminated():
-                body.append(ir.SetLocal(final_state, "$cont", tail))
-                body.append(ir.Branch(finalizer))
-
+            self.terminate(ir.Resume(self.unwind_target))
             cleanup.append(ir.Branch(finalizer_reraise))
 
-            for handler, post_handler in handlers:
-                if not post_handler.is_terminated():
-                    post_handler.append(ir.SetLocal(final_state, "$cont", tail))
-                    post_handler.append(ir.Branch(finalizer))
+            # Normal path
+            finalizer = self.add_block("finally")
+            self.current_block = finalizer
+            self.visit(node.finalbody)
+            post_finalizer = self.current_block
+            self.current_block = tail = self.add_block("try.tail")
+            final_targets.append(tail)
 
+            # if final block is not terminated, branch to tail
             if not post_finalizer.is_terminated():
                 dest = post_finalizer.append(ir.GetLocal(final_state, "$cont"))
                 post_finalizer.append(ir.IndirectBranch(dest, final_targets))
+            # make sure proxies will branch to finalizer
+            for block in final_paths:
+                if finalizer in block.predecessors():
+                    # avoid producing irreducible graphs
+                    # generate a new finalizer
+                    self.current_block = tmp_finalizer = self.add_block("finally.tmp")
+                    self.visit(node.finalbody)
+                    if not self.current_block.is_terminated():
+                        assert isinstance(block.instructions[-1], ir.SetLocal)
+                        self.current_block.append(ir.Branch(block.instructions[-1].operands[-1]))
+                        block.instructions[-1].erase()
+                    block.append(ir.Branch(tmp_finalizer))
+                    self.current_block = tail
+                else:
+                    block.append(ir.Branch(finalizer))
+            # if no raise in body/handlers, branch to finalizer
+            for block in chain([body], handlers):
+                if not block.is_terminated():
+                    if finalizer in block.predecessors():
+                        # similar to the above case
+                        self.current_block = tmp_finalizer = self.add_block("finally.tmp")
+                        self.visit(node.finalbody)
+                        self.terminate(ir.Branch(tail))
+                        block.append(ir.Branch(tmp_finalizer))
+                        self.current_block = tail
+                    else:
+                        block.append(ir.SetLocal(final_state, "$cont", tail))
+                        block.append(ir.Branch(finalizer))
         else:
+            self.current_block = tail = self.add_block("try.tail")
             if not body.is_terminated():
                 body.append(ir.Branch(tail))
 
-            cleanup.append(ir.Reraise(self.unwind_target))
+            cleanup.append(ir.Resume(self.unwind_target))
 
-            for handler, post_handler in handlers:
-                if not post_handler.is_terminated():
-                    post_handler.append(ir.Branch(tail))
+            for handler in handlers:
+                if not handler.is_terminated():
+                    handler.append(ir.Branch(tail))
 
     def _try_finally(self, body_gen, finally_gen, name):
         dispatcher = self.add_block("{}.dispatch".format(name))
@@ -805,7 +919,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_block = self.add_block("{}.cleanup".format(name))
         dispatcher.append(ir.LandingPad(self.current_block))
         finally_gen()
-        self.raise_exn()
+        self.terminate(ir.Resume(self.unwind_target))
 
         self.current_block = self.post_body
 
@@ -995,7 +1109,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
-            self.raise_exn(exn_gen(*args[1:]), loc=loc)
+            self.raise_exn(lambda: exn_gen(*args[1:]), loc=loc)
         finally:
             self.current_function = old_func
             self.current_block = old_block
@@ -2078,11 +2192,13 @@ class ARTIQIRGenerator(algorithm.Visitor):
         return phi
 
     # Keep this function with builtins.TException.attributes.
-    def alloc_exn(self, typ, message=None, param0=None, param1=None, param2=None):
+    def alloc_exn(self, typ, message=None, param0=None, param1=None,
+                  param2=None, nomsgcheck=False):
         typ = typ.find()
         name = "{}:{}".format(typ.id, typ.name)
+        name_id = self.embedding_map.store_str(name)
         attributes = [
-            ir.Constant(name,           builtins.TStr()),   # typeinfo
+            ir.Constant(name_id,        builtins.TInt32()),   # typeinfo
             ir.Constant("<not thrown>", builtins.TStr()),   # file
             ir.Constant(0,              builtins.TInt32()), # line
             ir.Constant(0,              builtins.TInt32()), # column
@@ -2091,8 +2207,16 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if message is None:
             attributes.append(ir.Constant(typ.name, builtins.TStr()))
+        elif isinstance(message, ir.Constant) or nomsgcheck:
+            attributes.append(message)                  # message
         else:
-            attributes.append(message)                    # message
+            diag = diagnostic.Diagnostic(
+                "error",
+                "only constant exception messages are supported",
+                {},
+                self.current_loc if message.loc is None else message.loc
+            )
+            self.engine.process(diag)
 
         param_type = builtins.TInt64()
         for param in [param0, param1, param2]:
@@ -2553,11 +2677,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_final_branch, self.final_branch = self.final_branch, None
             old_unwind, self.unwind_target = self.unwind_target, None
 
-            exn = self.alloc_exn(builtins.TException("AssertionError"), message=msg)
-            self.append(ir.SetAttr(exn, "__file__", file))
-            self.append(ir.SetAttr(exn, "__line__", line))
-            self.append(ir.SetAttr(exn, "__col__", col))
-            self.append(ir.SetAttr(exn, "__func__", function))
+            exn = self.alloc_exn(builtins.TException("AssertionError"),
+                                 message=msg, nomsgcheck=True)
+            self.append(ir.SetAttr(exn, "#__file__", file))
+            self.append(ir.SetAttr(exn, "#__line__", line))
+            self.append(ir.SetAttr(exn, "#__col__", col))
+            self.append(ir.SetAttr(exn, "#__func__", function))
             self.append(ir.Raise(exn))
         finally:
             self.current_function = old_func
@@ -2693,14 +2818,15 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
                 format_string += ")"
             elif builtins.is_exception(value.type):
-                name    = self.append(ir.GetAttr(value, "__name__"))
-                message = self.append(ir.GetAttr(value, "__message__"))
-                param1  = self.append(ir.GetAttr(value, "__param0__"))
-                param2  = self.append(ir.GetAttr(value, "__param1__"))
-                param3  = self.append(ir.GetAttr(value, "__param2__"))
+                # message may not be an actual string...
+                # so we cannot really print it
+                name    = self.append(ir.GetAttr(value, "#__name__"))
+                param1  = self.append(ir.GetAttr(value, "#__param0__"))
+                param2  = self.append(ir.GetAttr(value, "#__param1__"))
+                param3  = self.append(ir.GetAttr(value, "#__param2__"))
 
-                format_string += "%.*s(%.*s, %lld, %lld, %lld)"
-                args += [name, message, param1, param2, param3]
+                format_string += "%ld(%lld, %lld, %lld)"
+                args += [name, param1, param2, param3]
             else:
                 assert False
 

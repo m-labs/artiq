@@ -115,9 +115,15 @@ static mut API: &'static [(&'static str, *const ())] = &[
 
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
+    api!(__nac3_personality = ::eh_artiq::personality),
+    api!(__nac3_raise = ::eh_artiq::raise),
+    api!(__nac3_resume = ::eh_artiq::resume),
+    api!(__nac3_end_catch = ::eh_artiq::end_catch),
+    /* legacy exception symbols */
     api!(__artiq_personality = ::eh_artiq::personality),
     api!(__artiq_raise = ::eh_artiq::raise),
-    api!(__artiq_reraise = ::eh_artiq::reraise),
+    api!(__artiq_resume = ::eh_artiq::resume),
+    api!(__artiq_end_catch = ::eh_artiq::end_catch),
 
     /* proxified syscalls */
     api!(core_log),

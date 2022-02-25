@@ -135,6 +135,7 @@ class NamedValue(Value):
     def __init__(self, typ, name):
         super().__init__(typ)
         self.name, self.function = name, None
+        self.is_removed = False
 
     def set_name(self, new_name):
         if self.function is not None:
@@ -235,7 +236,7 @@ class Instruction(User):
         self.drop_references()
         # Check this after drop_references in case this
         # is a self-referencing phi.
-        assert not any(self.uses)
+        assert all(use.is_removed for use in self.uses)
 
     def replace_with(self, value):
         self.replace_all_uses_with(value)
@@ -370,7 +371,7 @@ class BasicBlock(NamedValue):
         self.remove_from_parent()
         # Check this after erasing instructions in case the block
         # loops into itself.
-        assert not any(self.uses)
+        assert all(use.is_removed for use in self.uses)
 
     def prepend(self, insn):
         assert isinstance(insn, Instruction)
@@ -1245,9 +1246,9 @@ class Raise(Terminator):
         if len(self.operands) > 1:
             return self.operands[1]
 
-class Reraise(Terminator):
+class Resume(Terminator):
     """
-    A reraise instruction.
+    A resume instruction.
     """
 
     """
@@ -1261,7 +1262,7 @@ class Reraise(Terminator):
         super().__init__(operands, builtins.TNone(), name)
 
     def opcode(self):
-        return "reraise"
+        return "resume"
 
     def exception_target(self):
         if len(self.operands) > 0:
@@ -1347,6 +1348,7 @@ class LandingPad(Terminator):
     def __init__(self, cleanup, name=""):
         super().__init__([cleanup], builtins.TException(), name)
         self.types = []
+        self.has_cleanup = True
 
     def copy(self, mapper):
         self_copy = super().copy(mapper)
