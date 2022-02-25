@@ -3,7 +3,7 @@ import os, unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.exceptions import I2CError
-from artiq.coredevice.i2c import PCA9548
+from artiq.coredevice.i2c import PCA954X
 
 
 class I2CSwitch(EnvExperiment):
@@ -25,7 +25,7 @@ class NonexistentI2CBus(EnvExperiment):
     def build(self):
         self.setattr_device("core")
         self.setattr_device("i2c_switch")  # HACK: only run this test on boards with I2C
-        self.broken_switch = PCA9548(self._HasEnvironment__device_mgr, 255)
+        self.broken_switch = PCA954X(self._HasEnvironment__device_mgr, 255)
 
     @kernel
     def run(self):

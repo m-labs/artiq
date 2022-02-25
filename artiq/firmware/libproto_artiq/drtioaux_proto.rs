@@ -47,6 +47,7 @@ pub enum Packet {
     I2cReadRequest { destination: u8, busno: u8, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
+    I2cPca954xSelectRequest { destination: u8, busno: u8, address: u8, channel: u8, clear: bool },
 
     SpiSetConfigRequest { destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { destination: u8, busno: u8, data: u32 },
@@ -153,6 +154,13 @@ impl Packet {
             },
             0x87 => Packet::I2cBasicReply {
                 succeeded: reader.read_bool()?
+            },
+            0x88 => Packet::I2cPca954xSelectRequest {
+                destination: reader.read_u8()?,
+                busno: reader.read_u8()?,
+                address: reader.read_u8()?,
+                channel: reader.read_u8()?,
+                clear: reader.read_bool()?
             },
 
             0x90 => Packet::SpiSetConfigRequest {
@@ -312,6 +320,14 @@ impl Packet {
             Packet::I2cBasicReply { succeeded } => {
                 writer.write_u8(0x87)?;
                 writer.write_bool(succeeded)?;
+            },
+            Packet::I2cPca954xSelectRequest { destination, busno, address, channel, clear } => {
+                writer.write_u8(0x88)?;
+                writer.write_u8(destination)?;
+                writer.write_u8(busno)?;
+                writer.write_u8(address)?;
+                writer.write_u8(channel)?;
+                writer.write_bool(clear)?;
             },
 
             Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {

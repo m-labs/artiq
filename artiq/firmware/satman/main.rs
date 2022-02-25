@@ -275,6 +275,11 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     &drtioaux::Packet::I2cReadReply { succeeded: false, data: 0xff })
             }
         }
+        drtioaux::Packet::I2cPca954xSelectRequest { destination: _destination, busno, address, channel, clear } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let succeeded = i2c::pca954x_select(busno, address, channel, clear).is_ok();
+            drtioaux::send(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
+        }
 
         drtioaux::Packet::SpiSetConfigRequest { destination: _destination, busno, flags, length, div, cs } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);

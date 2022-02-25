@@ -115,6 +115,29 @@ mod remote_i2c {
             }
         }
     }
+
+    pub fn pca954x_select(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, address: u8, channel: u8, clear: bool) -> Result<u8, &'static str> {
+        let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cPca954xSelectRequest {
+            destination: destination,
+            busno: busno,
+            address: address,
+            channel: channel,
+            clear: clear
+        });
+        match reply {
+            Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
+                if succeeded { Ok(()) } else { Err("i2c basic reply error") }
+            }
+            Ok(packet) => {
+                error!("received unexpected aux packet: {:?}", packet);
+                Err("received unexpected aux packet")
+            }
+            Err(e) => {
+                error!("aux packet error ({})", e);
+                Err(e)
+            }
+        }
+    }
 }
 
 #[cfg(has_drtio)]
@@ -258,6 +281,10 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
                 Ok(data) => kern_send(io, &kern::I2cReadReply { succeeded: true, data: data }),
                 Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
             }
+        }
+        &kern::I2cPca954xSelectRequest { busno, address, channel } => {
+            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, address, channel).is_ok();
+            kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
 
         &kern::SpiSetConfigRequest { busno, flags, length, div, cs } => {

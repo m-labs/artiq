@@ -179,17 +179,17 @@ fn init() -> Result<()> {
 
     #[cfg(soc_platform = "kasli")]
     {
-        i2c::pca9548_select(BUSNO, 0x70, 0)?;
-        i2c::pca9548_select(BUSNO, 0x71, 1 << 3)?;
+        i2c::pca954x_select(BUSNO, 0x70, 0, true)?;
+        i2c::pca954x_select(BUSNO, 0x71, 3, false)?;
     }
     #[cfg(soc_platform = "sayma_amc")]
-    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
+    i2c::pca954x_select(BUSNO, 0x70, 4, false)?;
     #[cfg(soc_platform = "sayma_rtm")]
-    i2c::pca9548_select(BUSNO, 0x77, 1 << 5)?;
+    i2c::pca954x_select(BUSNO, 0x77, 5, false)?;
     #[cfg(soc_platform = "metlino")]
-    i2c::pca9548_select(BUSNO, 0x70, 1 << 4)?;
+    i2c::pca954x_select(BUSNO, 0x70, 4, false)?;
     #[cfg(soc_platform = "kc705")]
-    i2c::pca9548_select(BUSNO, 0x74, 1 << 7)?;
+    i2c::pca954x_select(BUSNO, 0x74, 7, false)?;
 
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");
