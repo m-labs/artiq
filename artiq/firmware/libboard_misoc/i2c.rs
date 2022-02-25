@@ -192,7 +192,7 @@ mod imp {
         // channel - between 0 and 7
         // clear - disable all outputs
         // PCA9458 only for now
-        let ch = 0 if clear else 1 << channel;
+        let ch = if clear { 0 } else { 1 << channel };
         
         start(busno)?;
         if !write(busno, address << 1)? {

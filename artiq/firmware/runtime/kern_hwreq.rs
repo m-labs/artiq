@@ -282,8 +282,9 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
                 Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
             }
         }
-        &kern::I2cPca954xSelectRequest { busno, address, channel } => {
-            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno, address, channel).is_ok();
+        &kern::I2cPca954xSelectRequest { busno, address, channel, clear } => {
+            let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno,
+                pca954x_select, address, channel, clear).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
 

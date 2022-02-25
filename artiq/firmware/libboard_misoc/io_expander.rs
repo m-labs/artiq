@@ -42,7 +42,7 @@ impl IoExpander {
 
     #[cfg(soc_platform = "kasli")]
     fn select(&self) -> Result<(), &'static str> {
-        if port > 7 { // first 8 ports
+        if self.port > 7 { // first 8 ports
             i2c::pca954x_select(self.busno, 0x70, self.port as u8, false)?;
             i2c::pca954x_select(self.busno, 0x71, 0, true)?;
         }
