@@ -5,6 +5,7 @@ from artiq.coredevice.mirny import Mirny as MirnyCPLD
 from artiq.coredevice.adf5356 import ADF5356
 from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9912 import AD9912
+from artiq.coredevice.sampler import Sampler
 
 
 @nac3
@@ -15,6 +16,7 @@ class NAC3Devices(EnvExperiment):
     mirny0_ch0: KernelInvariant[ADF5356]
     urukul0_cpld: KernelInvariant[UrukulCPLD]
     urukul0_ch0: KernelInvariant[AD9912]
+    sampler0: KernelInvariant[Sampler]
 
     def build(self):
         self.setattr_device("core")
@@ -23,6 +25,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("mirny0_ch0")
         self.setattr_device("urukul0_cpld")
         self.setattr_device("urukul0_ch0")
+        self.setattr_device("sampler0")
 
     @kernel
     def run(self):
@@ -46,3 +49,8 @@ class NAC3Devices(EnvExperiment):
             self.urukul0_ch0.set((10. + float(i))*MHz)
             self.urukul0_ch0.set_att(6.)
             self.core.delay(500.*ms)
+
+        self.core.break_realtime()
+        self.sampler0.init()
+        samples = [0. for _ in range(8)]
+        self.sampler0.sample(samples)

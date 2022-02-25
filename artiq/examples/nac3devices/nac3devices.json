@@ -21,6 +21,10 @@
             "dds": "ad9912",
             "ports": [2, 3],
             "clk_sel": 2
+        },
+        {
+            "type": "sampler",
+            "ports": [4]
         }
     ]
 }
