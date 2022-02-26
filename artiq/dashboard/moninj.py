@@ -226,7 +226,7 @@ def setup_from_ddb(ddb):
                     dds_sysclk = v["arguments"]["sysclk"]
                     widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
                     description.add(widget)
-                elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53XX")
+                elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
                       or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
                     spi_device = v["arguments"]["spi_device"]
                     spi_device = ddb[spi_device]
