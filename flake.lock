@@ -51,11 +51,11 @@
         "rev": "804d5db27e36da8ca6a046f20a43130d1cfe6e1e",
         "revCount": 612,
         "type": "git",
-        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
+        "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
       "original": {
         "type": "git",
-        "url": "https://git.m-labs.hk/M-Labs/nac3.git"
+        "url": "https://git.m-labs.hk/m-labs/nac3.git"
       }
     },
     "nixpkgs": {
