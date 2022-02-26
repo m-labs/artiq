@@ -1,7 +1,7 @@
 import unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
-from artiq.language.core import kernel, delay
+from artiq.language.core import kernel
 from artiq.language.units import us
 
 
