@@ -25,6 +25,13 @@
         {
             "type": "sampler",
             "ports": [4]
+        },
+        {
+            "type": "dio",
+            "ports": [5],
+            "bank_direction_low": "input",
+            "bank_direction_high": "output",
+            "edge_counter": true
         }
     ]
 }
