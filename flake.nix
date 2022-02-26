@@ -4,7 +4,7 @@
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nac3/nixpkgs";
-  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/M-Labs/nac3.git"; };
+  inputs.nac3 = { type = "git"; url = "https://git.m-labs.hk/m-labs/nac3.git"; };
   inputs.artiq-comtools.url = github:m-labs/artiq-comtools;
   inputs.artiq-comtools.inputs.nixpkgs.follows = "nac3/nixpkgs";
   inputs.artiq-comtools.inputs.sipyco.follows = "sipyco";
