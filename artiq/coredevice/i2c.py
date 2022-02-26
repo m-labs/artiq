@@ -2,34 +2,33 @@
 Non-realtime drivers for I2C chips on the core device.
 """
 
-
-from artiq.language.core import syscall, kernel
-from artiq.language.types import TBool, TInt32, TNone
+from numpy import int32
+from artiq.language.core import extern, kernel
 from artiq.coredevice.exceptions import I2CError
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_start(busno: TInt32) -> TNone:
+@extern
+def i2c_start(busno: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_restart(busno: TInt32) -> TNone:
+@extern
+def i2c_restart(busno: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_stop(busno: TInt32) -> TNone:
+@extern
+def i2c_stop(busno: int32):
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_write(busno: TInt32, b: TInt32) -> TBool:
+@extern
+def i2c_write(busno: int32, b: int32) -> bool:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
+@extern
+def i2c_read(busno: int32, ack: bool) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
