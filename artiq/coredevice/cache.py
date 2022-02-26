@@ -1,23 +1,29 @@
-from artiq.language.core import *
-from artiq.language.types import *
+from numpy import int32
+
+from artiq.language.core import nac3, extern, kernel, KernelInvariant
+from artiq.coredevice.core import Core
 
 
-@syscall(flags={"nounwind"})
-def cache_get(key: TStr) -> TList(TInt32):
+@extern
+def cache_get(key: str) -> list[int32]:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
-def cache_put(key: TStr, value: TList(TInt32)) -> TNone:
+@extern
+def cache_put(key: str, value: list[int32]):
     raise NotImplementedError("syscall not simulated")
 
 
+@nac3
 class CoreCache:
     """Core device cache access"""
+
+    core: KernelInvariant[Core]
+
     def __init__(self, dmgr, core_device="core"):
         self.core = dmgr.get(core_device)
 
     @kernel
-    def get(self, key):
+    def get(self, key: str) -> list[int32]:
         """Extract a value from the core device cache.
         After a value is extracted, it cannot be replaced with another value using
         :meth:`put` until all kernel functions finish executing; attempting
@@ -34,7 +40,7 @@ class CoreCache:
         return cache_get(key)
 
     @kernel
-    def put(self, key, value):
+    def put(self, key: str, value: list[int32]):
         """Put a value into the core device cache. The value will persist until reboot.
 
         To remove a value from the cache, call :meth:`put` with an empty list.
