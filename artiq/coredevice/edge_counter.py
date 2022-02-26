@@ -139,38 +139,37 @@ class EdgeCounter:
         """
         return self.gate_both_mu(self.core.seconds_to_mu(duration))
 
-    # NAC3TODO: restore keyword arguments in calls (https://git.m-labs.hk/M-Labs/nac3/issues/199)
     @kernel
     def gate_rising_mu(self, duration_mu: int64) -> int64:
         """See :meth:`gate_rising`."""
         return self._gate_mu(
-            duration_mu, True, False)
+            duration_mu, count_rising=True, count_falling=False)
 
     @kernel
     def gate_falling_mu(self, duration_mu: int64) -> int64:
         """See :meth:`gate_falling`."""
         return self._gate_mu(
-            duration_mu, False, True)
+            duration_mu, count_rising=False, count_falling=True)
 
     @kernel
     def gate_both_mu(self, duration_mu: int64) -> int64:
         """See :meth:`gate_both_mu`."""
         return self._gate_mu(
-            duration_mu, True, True)
+            duration_mu, count_rising=True, count_falling=True)
 
     @kernel
     def _gate_mu(self, duration_mu: int64, count_rising: bool, count_falling: bool) -> int64:
         self.set_config(
-            count_rising,
-            count_falling,
-            False,
-            True)
+            count_rising=count_rising,
+            count_falling=count_falling,
+            send_count_event=False,
+            reset_to_zero=True)
         delay_mu(duration_mu)
         self.set_config(
-            False,
-            False,
-            True,
-            False)
+            count_rising=False,
+            count_falling=False,
+            send_count_event=True,
+            reset_to_zero=False)
         return now_mu()
 
     @kernel
