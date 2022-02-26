@@ -107,7 +107,6 @@
         checkPhase = ''
           python -m unittest discover -v artiq.test
           '';
-        doCheck = false;  # TODO
       };
 
       migen = pkgs.python3Packages.buildPythonPackage rec {
