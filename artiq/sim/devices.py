@@ -1,7 +1,7 @@
 from random import Random
 import numpy
 
-from artiq.language.core import delay, at_mu, kernel
+from artiq.language.core import kernel
 from artiq.sim import time
 
 
