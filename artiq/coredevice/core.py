@@ -55,6 +55,7 @@ class Core:
         self.dmgr = dmgr
         self.core = self
         self.comm.core = self
+        self.target = target
         self.compiler = nac3artiq.NAC3(target)
         self.embedding_map = EmbeddingMap()
 
