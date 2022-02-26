@@ -12,7 +12,6 @@ from artiq.coredevice import exceptions
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, InputMessage,
                                             decode_dump, get_analyzer_dump)
-from artiq.compiler.targets import CortexA9Target
 
 
 artiq_low_latency = os.getenv("ARTIQ_LOW_LATENCY")
@@ -466,7 +465,7 @@ class CoredeviceTest(ExperimentCase):
         rate = self.dataset_mgr.get("pulse_rate")
         print(rate)
         self.assertGreater(rate, 100*ns)
-        if exp.core.target_cls == CortexA9Target:
+        if exp.core.target == "cortexa9":
             # Crappy AXI PS/PL interface from Xilinx is slow.
             self.assertLess(rate, 810*ns)
         else:
@@ -728,7 +727,7 @@ class DMATest(ExperimentCase):
             raise unittest.SkipTest("skipped on Kasli for now")
 
         exp = self.create(_DMA)
-        is_zynq = exp.core.target_cls == CortexA9Target
+        is_zynq = exp.core.target == "cortexa9"
         count = 20000
         exp.record_many(40)
         exp.playback_many(count, is_zynq)
