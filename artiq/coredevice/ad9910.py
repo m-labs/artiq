@@ -1,9 +1,7 @@
 from numpy import int32, int64
 
-from artiq.language.core import (
-    kernel, delay, portable, delay_mu, now_mu, at_mu)
+from artiq.language.core import kernel, portable
 from artiq.language.units import us, ms
-from artiq.language.types import TBool, TInt32, TInt64, TFloat, TList, TTuple
 
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul
@@ -187,7 +185,7 @@ class AD9910:
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
     @kernel
-    def set_phase_mode(self, phase_mode: TInt32):
+    def set_phase_mode(self, phase_mode: int32):
         r"""Set the default phase mode.
 
         for future calls to :meth:`set` and
@@ -232,7 +230,7 @@ class AD9910:
         self.phase_mode = phase_mode
 
     @kernel
-    def write16(self, addr: TInt32, data: TInt32):
+    def write16(self, addr: int32, data: int32):
         """Write to 16 bit register.
 
         :param addr: Register address
@@ -243,7 +241,7 @@ class AD9910:
         self.bus.write((addr << 24) | ((data & 0xffff) << 8))
 
     @kernel
-    def write32(self, addr: TInt32, data: TInt32):
+    def write32(self, addr: int32, data: int32):
         """Write to 32 bit register.
 
         :param addr: Register address
@@ -257,7 +255,7 @@ class AD9910:
         self.bus.write(data)
 
     @kernel
-    def read16(self, addr: TInt32) -> TInt32:
+    def read16(self, addr: int32) -> int32:
         """Read from 16 bit register.
 
         :param addr: Register address
@@ -272,7 +270,7 @@ class AD9910:
         return self.bus.read()
 
     @kernel
-    def read32(self, addr: TInt32) -> TInt32:
+    def read32(self, addr: int32) -> int32:
         """Read from 32 bit register.
 
         :param addr: Register address
@@ -287,7 +285,7 @@ class AD9910:
         return self.bus.read()
 
     @kernel
-    def read64(self, addr: TInt32) -> TInt64:
+    def read64(self, addr: int32) -> int64:
         """Read from 64 bit register.
 
         :param addr: Register address
@@ -310,7 +308,7 @@ class AD9910:
         return (int64(hi) << 32) | lo
 
     @kernel
-    def write64(self, addr: TInt32, data_high: TInt32, data_low: TInt32):
+    def write64(self, addr: int32, data_high: int32, data_low: int32):
         """Write to 64 bit register.
 
         :param addr: Register address
@@ -328,7 +326,7 @@ class AD9910:
         self.bus.write(data_low)
 
     @kernel
-    def write_ram(self, data: TList(TInt32)):
+    def write_ram(self, data: list[int32]):
         """Write data to RAM.
 
         The profile to write to and the step, start, and end address
@@ -349,7 +347,7 @@ class AD9910:
         self.bus.write(data[len(data) - 1])
 
     @kernel
-    def read_ram(self, data: TList(TInt32)):
+    def read_ram(self, data: list[int32]):
         """Read data from RAM.
 
         The profile to read from and the step, start, and end address
@@ -379,17 +377,17 @@ class AD9910:
 
     @kernel
     def set_cfr1(self,
-                 power_down: TInt32 = 0b0000,
-                 phase_autoclear: TInt32 = 0,
-                 drg_load_lrr: TInt32 = 0,
-                 drg_autoclear: TInt32 = 0,
-                 phase_clear: TInt32 = 0,
-                 internal_profile: TInt32 = 0,
-                 ram_destination: TInt32 = 0,
-                 ram_enable: TInt32 = 0,
-                 manual_osk_external: TInt32 = 0,
-                 osk_enable: TInt32 = 0,
-                 select_auto_osk: TInt32 = 0):
+                 power_down: int32 = 0b0000,
+                 phase_autoclear: int32 = 0,
+                 drg_load_lrr: int32 = 0,
+                 drg_autoclear: int32 = 0,
+                 phase_clear: int32 = 0,
+                 internal_profile: int32 = 0,
+                 ram_destination: int32 = 0,
+                 ram_enable: int32 = 0,
+                 manual_osk_external: int32 = 0,
+                 osk_enable: int32 = 0,
+                 select_auto_osk: int32 = 0):
         """Set CFR1. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
@@ -424,11 +422,11 @@ class AD9910:
 
     @kernel
     def set_cfr2(self, 
-                 asf_profile_enable: TInt32 = 1, 
-                 drg_enable: TInt32 = 0, 
-                 effective_ftw: TInt32 = 1,
-                 sync_validation_disable: TInt32 = 0, 
-                 matched_latency_enable: TInt32 = 0):
+                 asf_profile_enable: int32 = 1,
+                 drg_enable: int32 = 0,
+                 effective_ftw: int32 = 1,
+                 sync_validation_disable: int32 = 0,
+                 matched_latency_enable: int32 = 0):
         """Set CFR2. See the AD9910 datasheet for parameter meanings.
 
         This method does not pulse IO_UPDATE.
@@ -452,7 +450,7 @@ class AD9910:
                      (sync_validation_disable << 5))
 
     @kernel
-    def init(self, blind: TBool = False):
+    def init(self, blind: bool = False):
         """Initialize and configure the DDS.
 
         Sets up SPI mode, confirms chip presence, powers down unused blocks,
@@ -511,7 +509,7 @@ class AD9910:
         delay(1 * ms)
 
     @kernel
-    def power_down(self, bits: TInt32 = 0b1111):
+    def power_down(self, bits: int32 = 0b1111):
         """Power down DDS.
 
         :param bits: Power down bits, see datasheet
@@ -520,11 +518,11 @@ class AD9910:
         self.cpld.io_update.pulse(1 * us)
 
     @kernel
-    def set_mu(self, ftw: TInt32 = 0, pow_: TInt32 = 0, asf: TInt32 = 0x3fff,
-               phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-               ref_time_mu: TInt64 = int64(-1),
-               profile: TInt32 = DEFAULT_PROFILE,
-               ram_destination: TInt32 = -1) -> TInt32:
+    def set_mu(self, ftw: int32 = 0, pow_: int32 = 0, asf: int32 = 0x3fff,
+               phase_mode: int32 = _PHASE_MODE_DEFAULT,
+               ref_time_mu: int64 = int64(-1),
+               profile: int32 = DEFAULT_PROFILE,
+               ram_destination: int32 = -1) -> int32:
         """Set DDS data in machine units.
 
         This uses machine units (FTW, POW, ASF). The frequency tuning word
@@ -593,8 +591,8 @@ class AD9910:
         return pow_
 
     @kernel
-    def get_mu(self, profile: TInt32 = DEFAULT_PROFILE
-               ) -> TTuple([TInt32, TInt32, TInt32]):
+    def get_mu(self, profile: int32 = DEFAULT_PROFILE
+               ) -> tuple[int32, int32, int32]:
         """Get the frequency tuning word, phase offset word,
         and amplitude scale factor.
 
@@ -613,10 +611,10 @@ class AD9910:
         return ftw, pow_, asf
 
     @kernel
-    def set_profile_ram(self, start: TInt32, end: TInt32, step: TInt32 = 1,
-                        profile: TInt32 = _DEFAULT_PROFILE_RAM,
-                        nodwell_high: TInt32 = 0, zero_crossing: TInt32 = 0,
-                        mode: TInt32 = 1):
+    def set_profile_ram(self, start: int32, end: int32, step: int32 = 1,
+                        profile: int32 = _DEFAULT_PROFILE_RAM,
+                        nodwell_high: int32 = 0, zero_crossing: int32 = 0,
+                        mode: int32 = 1):
         """Set the RAM profile settings.
 
         :param start: Profile start address in RAM.
@@ -640,7 +638,7 @@ class AD9910:
         self.write64(_AD9910_REG_PROFILE0 + profile, hi, lo)
 
     @kernel
-    def set_ftw(self, ftw: TInt32):
+    def set_ftw(self, ftw: int32):
         """Set the value stored to the AD9910's frequency tuning word (FTW)
         register.
 
@@ -649,7 +647,7 @@ class AD9910:
         self.write32(_AD9910_REG_FTW, ftw)
 
     @kernel
-    def set_asf(self, asf: TInt32):
+    def set_asf(self, asf: int32):
         """Set the value stored to the AD9910's amplitude scale factor (ASF)
         register.
 
@@ -658,7 +656,7 @@ class AD9910:
         self.write32(_AD9910_REG_ASF, asf << 2)
 
     @kernel
-    def set_pow(self, pow_: TInt32):
+    def set_pow(self, pow_: int32):
         """Set the value stored to the AD9910's phase offset word (POW)
         register.
 
@@ -667,7 +665,7 @@ class AD9910:
         self.write16(_AD9910_REG_POW, pow_)
 
     @kernel
-    def get_ftw(self) -> TInt32:
+    def get_ftw(self) -> int32:
         """Get the value stored to the AD9910's frequency tuning word (FTW)
         register.
 
@@ -676,7 +674,7 @@ class AD9910:
         return self.read32(_AD9910_REG_FTW)
 
     @kernel
-    def get_asf(self) -> TInt32:
+    def get_asf(self) -> int32:
         """Get the value stored to the AD9910's amplitude scale factor (ASF)
         register.
 
@@ -685,7 +683,7 @@ class AD9910:
         return self.read32(_AD9910_REG_ASF) >> 2
 
     @kernel
-    def get_pow(self) -> TInt32:
+    def get_pow(self) -> int32:
         """Get the value stored to the AD9910's phase offset word (POW)
         register.
 
@@ -693,34 +691,34 @@ class AD9910:
         """
         return self.read16(_AD9910_REG_POW)
 
-    @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency: TFloat) -> TInt32:
+    @portable
+    def frequency_to_ftw(self, frequency: float) -> int32:
         """Return the 32-bit frequency tuning word corresponding to the given
         frequency.
         """
         return int32(round(self.ftw_per_hz * frequency))
 
-    @portable(flags={"fast-math"})
-    def ftw_to_frequency(self, ftw: TInt32) -> TFloat:
+    @portable
+    def ftw_to_frequency(self, ftw: int32) -> float:
         """Return the frequency corresponding to the given frequency tuning
         word.
         """
         return ftw / self.ftw_per_hz
 
-    @portable(flags={"fast-math"})
-    def turns_to_pow(self, turns: TFloat) -> TInt32:
+    @portable
+    def turns_to_pow(self, turns: float) -> int32:
         """Return the 16-bit phase offset word corresponding to the given phase
         in turns."""
         return int32(round(turns * 0x10000)) & int32(0xffff)
 
-    @portable(flags={"fast-math"})
-    def pow_to_turns(self, pow_: TInt32) -> TFloat:
+    @portable
+    def pow_to_turns(self, pow_: int32) -> float:
         """Return the phase in turns corresponding to a given phase offset
         word."""
         return pow_ / 0x10000
 
-    @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude: TFloat) -> TInt32:
+    @portable
+    def amplitude_to_asf(self, amplitude: float) -> int32:
         """Return 14-bit amplitude scale factor corresponding to given
         fractional amplitude."""
         code = int32(round(amplitude * 0x3fff))
@@ -728,14 +726,14 @@ class AD9910:
             raise ValueError("Invalid AD9910 fractional amplitude!")
         return code
 
-    @portable(flags={"fast-math"})
-    def asf_to_amplitude(self, asf: TInt32) -> TFloat:
+    @portable
+    def asf_to_amplitude(self, asf: int32) -> float:
         """Return amplitude as a fraction of full scale corresponding to given
         amplitude scale factor."""
         return asf / float(0x3fff)
 
-    @portable(flags={"fast-math"})
-    def frequency_to_ram(self, frequency: TList(TFloat), ram: TList(TInt32)):
+    @portable
+    def frequency_to_ram(self, frequency: list[float], ram: list[int32]):
         """Convert frequency values to RAM profile data.
 
         To be used with :const:`RAM_DEST_FTW`.
@@ -747,8 +745,8 @@ class AD9910:
         for i in range(len(ram)):
             ram[i] = self.frequency_to_ftw(frequency[i])
 
-    @portable(flags={"fast-math"})
-    def turns_to_ram(self, turns: TList(TFloat), ram: TList(TInt32)):
+    @portable
+    def turns_to_ram(self, turns: list[float], ram: list[int32]):
         """Convert phase values to RAM profile data.
 
         To be used with :const:`RAM_DEST_POW`.
@@ -760,8 +758,8 @@ class AD9910:
         for i in range(len(ram)):
             ram[i] = self.turns_to_pow(turns[i]) << 16
 
-    @portable(flags={"fast-math"})
-    def amplitude_to_ram(self, amplitude: TList(TFloat), ram: TList(TInt32)):
+    @portable
+    def amplitude_to_ram(self, amplitude: list[float], ram: list[int32]):
         """Convert amplitude values to RAM profile data.
 
         To be used with :const:`RAM_DEST_ASF`.
@@ -773,9 +771,9 @@ class AD9910:
         for i in range(len(ram)):
             ram[i] = self.amplitude_to_asf(amplitude[i]) << 18
 
-    @portable(flags={"fast-math"})
-    def turns_amplitude_to_ram(self, turns: TList(TFloat),
-                               amplitude: TList(TFloat), ram: TList(TInt32)):
+    @portable
+    def turns_amplitude_to_ram(self, turns: list[float],
+                               amplitude: list[float], ram: list[int32]):
         """Convert phase and amplitude values to RAM profile data.
 
         To be used with :const:`RAM_DEST_POWASF`.
@@ -790,7 +788,7 @@ class AD9910:
                       self.amplitude_to_asf(amplitude[i]) << 2)
 
     @kernel
-    def set_frequency(self, frequency: TFloat):
+    def set_frequency(self, frequency: float):
         """Set the value stored to the AD9910's frequency tuning word (FTW)
         register.
 
@@ -799,7 +797,7 @@ class AD9910:
         self.set_ftw(self.frequency_to_ftw(frequency))
 
     @kernel
-    def set_amplitude(self, amplitude: TFloat):
+    def set_amplitude(self, amplitude: float):
         """Set the value stored to the AD9910's amplitude scale factor (ASF)
         register.
 
@@ -808,7 +806,7 @@ class AD9910:
         self.set_asf(self.amplitude_to_asf(amplitude))
 
     @kernel
-    def set_phase(self, turns: TFloat):
+    def set_phase(self, turns: float):
         """Set the value stored to the AD9910's phase offset word (POW)
         register.
 
@@ -817,7 +815,7 @@ class AD9910:
         self.set_pow(self.turns_to_pow(turns))
 
     @kernel
-    def get_frequency(self) -> TFloat:
+    def get_frequency(self) -> float:
         """Get the value stored to the AD9910's frequency tuning word (FTW)
         register.
 
@@ -826,7 +824,7 @@ class AD9910:
         return self.ftw_to_frequency(self.get_ftw())
 
     @kernel
-    def get_amplitude(self) -> TFloat:
+    def get_amplitude(self) -> float:
         """Get the value stored to the AD9910's amplitude scale factor (ASF)
         register.
 
@@ -835,7 +833,7 @@ class AD9910:
         return self.asf_to_amplitude(self.get_asf())
 
     @kernel
-    def get_phase(self) -> TFloat:
+    def get_phase(self) -> float:
         """Get the value stored to the AD9910's phase offset word (POW)
         register.
 
@@ -844,10 +842,10 @@ class AD9910:
         return self.pow_to_turns(self.get_pow())
 
     @kernel
-    def set(self, frequency: TFloat = 0.0, phase: TFloat = 0.0,
-            amplitude: TFloat = 1.0, phase_mode: TInt32 = _PHASE_MODE_DEFAULT,
-            ref_time_mu: TInt64 = int64(-1), profile: TInt32 = DEFAULT_PROFILE,
-            ram_destination: TInt32 = -1) -> TFloat:
+    def set(self, frequency: float = 0.0, phase: float = 0.0,
+            amplitude: float = 1.0, phase_mode: int32 = _PHASE_MODE_DEFAULT,
+            ref_time_mu: int64 = int64(-1), profile: int32 = DEFAULT_PROFILE,
+            ram_destination: int32 = -1) -> float:
         """Set DDS data in SI units.
 
         .. seealso:: :meth:`set_mu`
@@ -867,8 +865,8 @@ class AD9910:
             profile, ram_destination))
 
     @kernel
-    def get(self, profile: TInt32 = DEFAULT_PROFILE
-            ) -> TTuple([TFloat, TFloat, TFloat]):
+    def get(self, profile: int32 = DEFAULT_PROFILE
+            ) -> tuple[float, float, float]:
         """Get the frequency, phase, and amplitude.
 
         .. seealso:: :meth:`get_mu`
@@ -884,7 +882,7 @@ class AD9910:
                 self.asf_to_amplitude(asf))
 
     @kernel
-    def set_att_mu(self, att: TInt32):
+    def set_att_mu(self, att: int32):
         """Set digital step attenuator in machine units.
 
         This method will write the attenuator settings of all four channels.
@@ -896,7 +894,7 @@ class AD9910:
         self.cpld.set_att_mu(self.chip_select - 4, att)
 
     @kernel
-    def set_att(self, att: TFloat):
+    def set_att(self, att: float):
         """Set digital step attenuator in SI units.
 
         This method will write the attenuator settings of all four channels.
@@ -908,7 +906,7 @@ class AD9910:
         self.cpld.set_att(self.chip_select - 4, att)
 
     @kernel
-    def get_att_mu(self) -> TInt32:
+    def get_att_mu(self) -> int32:
         """Get digital step attenuator value in machine units.
 
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att_mu`
@@ -918,7 +916,7 @@ class AD9910:
         return self.cpld.get_channel_att_mu(self.chip_select - 4)
 
     @kernel
-    def get_att(self) -> TFloat:
+    def get_att(self) -> float:
         """Get digital step attenuator value in SI units.
 
         .. seealso:: :meth:`artiq.coredevice.urukul.CPLD.get_channel_att`
@@ -928,7 +926,7 @@ class AD9910:
         return self.cpld.get_channel_att(self.chip_select - 4)
 
     @kernel
-    def cfg_sw(self, state: TBool):
+    def cfg_sw(self, state: bool):
         """Set CPLD CFG RF switch state. The RF switch is controlled by the
         logical or of the CPLD configuration shift register
         RF switch bit and the SW TTL line (if used).
@@ -939,9 +937,9 @@ class AD9910:
 
     @kernel
     def set_sync(self, 
-                 in_delay: TInt32, 
-                 window: TInt32, 
-                 en_sync_gen: TInt32 = 0):
+                 in_delay: int32,
+                 window: int32,
+                 en_sync_gen: int32 = 0):
         """Set the relevant parameters in the multi device synchronization
         register. See the AD9910 datasheet for details. The SYNC clock
         generator preset value is set to zero, and the SYNC_OUT generator is
@@ -981,7 +979,7 @@ class AD9910:
 
     @kernel
     def tune_sync_delay(self,
-                        search_seed: TInt32 = 15) -> TTuple([TInt32, TInt32]):
+                        search_seed: int32 = 15) -> tuple[int32, int32]:
         """Find a stable SYNC_IN delay.
 
         This method first locates a valid SYNC_IN delay at zero validation
@@ -1037,8 +1035,8 @@ class AD9910:
         raise ValueError("no valid window/delay")
 
     @kernel
-    def measure_io_update_alignment(self, delay_start: TInt64,
-                                    delay_stop: TInt64) -> TInt32:
+    def measure_io_update_alignment(self, delay_start: int64,
+                                    delay_stop: int64) -> int32:
         """Use the digital ramp generator to locate the alignment between
         IO_UPDATE and SYNC_CLK.
 
@@ -1080,7 +1078,7 @@ class AD9910:
         return ftw & 1
 
     @kernel
-    def tune_io_update_delay(self) -> TInt32:
+    def tune_io_update_delay(self) -> int32:
         """Find a stable IO_UPDATE delay alignment.
 
         Scan through increasing IO_UPDATE delays until a delay is found that
