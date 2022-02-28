@@ -164,7 +164,7 @@ class PCA954X:
 
         :param channel: channel number (0-7)
         """
-        i2c_pca954x_select(self.busno, self.core, channel, clear)
+        i2c_pca954x_select(self.busno, self.address, channel, clear)
 
     @kernel
     def readback(self):
