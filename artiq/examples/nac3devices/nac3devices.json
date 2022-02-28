@@ -36,6 +36,10 @@
         {
             "type": "grabber",
             "ports": [6]
+        },
+        {
+            "type": "fastino",
+            "ports": [7]
         }
     ]
 }
