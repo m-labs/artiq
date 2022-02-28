@@ -32,6 +32,10 @@
             "bank_direction_low": "input",
             "bank_direction_high": "output",
             "edge_counter": true
+        },
+        {
+            "type": "grabber",
+            "ports": [6]
         }
     ]
 }

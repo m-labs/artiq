@@ -1,19 +1,23 @@
 from numpy import int32, int64
 
 from artiq.language.core import *
-from artiq.language.types import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
+from artiq.coredevice.core import Core
 
 
+@nac3
 class OutOfSyncException(Exception):
     """Raised when an incorrect number of ROI engine outputs has been
     retrieved from the RTIO input FIFO."""
     pass
 
 
+@nac3
 class Grabber:
     """Driver for the Grabber camera interface."""
-    kernel_invariants = {"core", "channel_base", "sentinel"}
+    core: KernelInvariant[Core]
+    channel_base: KernelInvariant[int32]
+    sentinel: KernelInvariant[int32]
 
     def __init__(self, dmgr, channel_base, res_width=12, count_shift=0,
                  core_device="core"):
@@ -26,7 +30,7 @@ class Grabber:
         self.sentinel = int32(int64(2**count_width))
 
     @kernel
-    def setup_roi(self, n, x0, y0, x1, y1):
+    def setup_roi(self, n: int32, x0: int32, y0: int32, x1: int32, y1: int32):
         """
         Defines the coordinates of a ROI.
 
@@ -50,7 +54,7 @@ class Grabber:
         delay_mu(c)
 
     @kernel
-    def gate_roi(self, mask):
+    def gate_roi(self, mask: int32):
         """
         Defines which ROI engines produce input events.
 
@@ -70,15 +74,15 @@ class Grabber:
         rtio_output((self.channel_base + 1) << 8, mask)
 
     @kernel
-    def gate_roi_pulse(self, mask, dt):
+    def gate_roi_pulse(self, mask: int32, dt: float):
         """Sets a temporary mask for the specified duration (in seconds), before
         disabling all ROI engines."""
         self.gate_roi(mask)
-        delay(dt)
+        self.core.delay(dt)
         self.gate_roi(0)
 
     @kernel
-    def input_mu(self, data):
+    def input_mu(self, data: list[int32]):
         """
         Retrieves the accumulated values for one frame from the ROI engines.
         Blocks until values are available.
@@ -96,10 +100,10 @@ class Grabber:
 
         sentinel = rtio_input_data(channel)
         if sentinel != self.sentinel:
-            raise OutOfSyncException
+            raise OutOfSyncException()
 
         for i in range(len(data)):
             roi_output = rtio_input_data(channel)
             if roi_output == self.sentinel:
-                raise OutOfSyncException
+                raise OutOfSyncException()
             data[i] = roi_output

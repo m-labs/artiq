@@ -8,6 +8,7 @@ from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9912 import AD9912
 from artiq.coredevice.sampler import Sampler
 from artiq.coredevice.edge_counter import EdgeCounter
+from artiq.coredevice.grabber import Grabber
 
 
 @nac3
@@ -21,6 +22,7 @@ class NAC3Devices(EnvExperiment):
     urukul0_ch0: KernelInvariant[AD9912]
     sampler0: KernelInvariant[Sampler]
     ttl0_counter: KernelInvariant[EdgeCounter]
+    grabber0: KernelInvariant[Grabber]
 
     def build(self):
         self.setattr_device("core")
@@ -32,6 +34,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("urukul0_ch0")
         self.setattr_device("sampler0")
         self.setattr_device("ttl0_counter")
+        self.setattr_device("grabber0")
 
     @kernel
     def run(self):
