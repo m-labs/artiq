@@ -5,6 +5,7 @@ import numpy
 import socket
 import re
 import linecache
+import os
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
@@ -12,7 +13,6 @@ from collections import namedtuple
 from artiq.coredevice import exceptions
 from artiq.coredevice.comm import initialize_connection
 from artiq import __version__ as software_version
-from artiq.coredevice.runtime import source_loader
 from artiq import __artiq_dir__ as artiq_dir
 
 
@@ -174,6 +174,16 @@ class CommKernelDummy:
     def check_system_info(self):
         pass
 
+
+class SourceLoader:
+    def __init__(self, runtime_root):
+        self.runtime_root = runtime_root
+
+    def get_source(self, filename):
+        with open(os.path.join(self.runtime_root, filename)) as f:
+            return f.read()
+
+source_loader = SourceLoader(os.path.join(artiq_dir, "soc", "runtime"))
 
 
 class CoreException:
