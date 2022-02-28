@@ -2,13 +2,18 @@
 Driver for the AD9914 DDS (with parallel bus) on RTIO.
 """
 
+from numpy import int32, int64
 
 from artiq.language.core import *
-from artiq.language.types import *
 from artiq.language.units import *
 from artiq.coredevice.rtio import rtio_output
+from artiq.coredevice.core import Core
 
-from numpy import int32, int64
+
+# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
+@nac3
+class ValueError(Exception):
+    pass
 
 
 __all__ = [
@@ -43,6 +48,7 @@ AD9914_FUD       = 0x80
 AD9914_GPIO      = 0x81
 
 
+@nac3
 class AD9914:
     """Driver for one AD9914 DDS channel.
 
@@ -57,10 +63,21 @@ class AD9914:
     :param channel: channel number (on the bus) of the DDS device to control.
     """
 
-    kernel_invariants = {"core", "sysclk", "bus_channel", "channel",
-        "rtio_period_mu", "sysclk_per_mu", "write_duration_mu",
-        "dac_cal_duration_mu", "init_duration_mu", "init_sync_duration_mu",
-        "set_duration_mu", "set_x_duration_mu", "exit_x_duration_mu"}
+    core: KernelInvariant[Core]
+    sysclk: KernelInvariant[float]
+    bus_channel: KernelInvariant[int32]
+    channel: KernelInvariant[int32]
+    phase_mode: Kernel[int32]
+    rtio_period_mu: KernelInvariant[int64]
+    sysclk_per_mu: KernelInvariant[int64]
+    write_duration_mu: KernelInvariant[int64]
+    dac_cal_duration_mu: KernelInvariant[int64]
+    init_duration_mu: KernelInvariant[int64]
+    init_sync_duration_mu: KernelInvariant[int64]
+    set_duration_mu: KernelInvariant[int64]
+    set_x_duration_mu: KernelInvariant[int64]
+    exit_x_duration_mu: KernelInvariant[int64]
+
 
     def __init__(self, dmgr, sysclk, bus_channel, channel, core_device="core"):
         self.core        = dmgr.get(core_device)
@@ -70,7 +87,7 @@ class AD9914:
         self.phase_mode  = PHASE_MODE_CONTINUOUS
 
         self.rtio_period_mu        = int64(8)
-        self.sysclk_per_mu         = int32(self.sysclk * self.core.ref_period)
+        self.sysclk_per_mu         = int64(self.sysclk * self.core.ref_period)
 
         self.write_duration_mu     = 5 * self.rtio_period_mu
         self.dac_cal_duration_mu   = 147000 * self.rtio_period_mu
@@ -81,7 +98,7 @@ class AD9914:
         self.exit_x_duration_mu    = 3 * self.write_duration_mu
 
     @kernel
-    def write(self, addr, data):
+    def write(self, addr: int32, data: int32):
         rtio_output((self.bus_channel << 8) | addr, data)
         delay_mu(self.write_duration_mu)
 
@@ -113,7 +130,7 @@ class AD9914:
         self.write(AD9914_FUD,       0)
 
     @kernel
-    def init_sync(self, sync_delay):
+    def init_sync(self, sync_delay: int32):
         """Resets and initializes the DDS channel as well as configures
         the AD9914 DDS for synchronisation. The synchronisation procedure
         follows the steps outlined in the AN-1254 application note.
@@ -157,7 +174,7 @@ class AD9914:
         self.write(AD9914_FUD,       0)
 
     @kernel
-    def set_phase_mode(self, phase_mode):
+    def set_phase_mode(self, phase_mode: int32):
         """Sets the phase mode of the DDS channel. Supported phase modes are:
 
         * :const:`PHASE_MODE_CONTINUOUS`: the phase accumulator is unchanged when
@@ -181,8 +198,8 @@ class AD9914:
         self.phase_mode = phase_mode
 
     @kernel
-    def set_mu(self, ftw, pow=0, phase_mode=_PHASE_MODE_DEFAULT,
-               asf=0x0fff, ref_time_mu=-1):
+    def set_mu(self, ftw: int32, pow: int32 = 0, phase_mode: int32 = _PHASE_MODE_DEFAULT,
+               asf: int32 = 0x0fff, ref_time_mu: int64 = int64(-1)) -> int32:
         """Sets the DDS channel to the specified frequency and phase.
 
         This uses machine units (FTW and POW). The frequency tuning word width
@@ -205,7 +222,7 @@ class AD9914:
         """
         if phase_mode == _PHASE_MODE_DEFAULT:
             phase_mode = self.phase_mode
-        if ref_time_mu < 0:
+        if ref_time_mu < int64(0):
             ref_time_mu = now_mu()
         delay_mu(-self.set_duration_mu)
 
@@ -224,60 +241,60 @@ class AD9914:
             # Clear phase accumulator on FUD
             # Enable autoclear phase accumulator and enables OSK.
             self.write(AD9914_REG_CFR1L, 0x2108)
-            fud_time = now_mu() + 2 * self.write_duration_mu
-            pow -= int32((ref_time_mu - fud_time) * self.sysclk_per_mu * ftw >> (32 - 16))
+            fud_time = now_mu() + int64(2) * self.write_duration_mu
+            pow -= int32((ref_time_mu - fud_time) * self.sysclk_per_mu * int64(ftw) >> int64(32 - 16))
             if phase_mode == PHASE_MODE_TRACKING:
-                pow += int32(ref_time_mu * self.sysclk_per_mu * ftw >> (32 - 16))
+                pow += int32(ref_time_mu * self.sysclk_per_mu * int64(ftw) >> int64(32 - 16))
 
         self.write(AD9914_REG_POW,  pow)
         self.write(AD9914_REG_ASF,  asf)
         self.write(AD9914_FUD,      0)
         return pow
 
-    @portable(flags={"fast-math"})
-    def frequency_to_ftw(self, frequency):
+    @portable
+    def frequency_to_ftw(self, frequency: float) -> int32:
         """Returns the 32-bit frequency tuning word corresponding to the given
         frequency.
         """
-        return int32(round(float(int64(2)**32*frequency/self.sysclk)))
+        return round(float(int64(2)**int64(32))*frequency/self.sysclk)
 
-    @portable(flags={"fast-math"})
-    def ftw_to_frequency(self, ftw):
+    @portable
+    def ftw_to_frequency(self, ftw: int32) -> float:
         """Returns the frequency corresponding to the given frequency tuning
         word.
         """
-        return ftw*self.sysclk/int64(2)**32
+        return float(ftw)*self.sysclk/float(int64(2)**int64(32))
 
-    @portable(flags={"fast-math"})
-    def turns_to_pow(self, turns):
+    @portable
+    def turns_to_pow(self, turns: float) -> int32:
         """Returns the 16-bit phase offset word corresponding to the given
         phase in turns."""
-        return round(float(turns*2**16)) & 0xffff
+        return round(float(turns*float(2**16))) & 0xffff
 
-    @portable(flags={"fast-math"})
-    def pow_to_turns(self, pow):
+    @portable
+    def pow_to_turns(self, pow: int32) -> float:
         """Returns the phase in turns corresponding to the given phase offset
         word."""
-        return pow/2**16
+        return float(pow)/float(2**16)
 
-    @portable(flags={"fast-math"})
-    def amplitude_to_asf(self, amplitude):
+    @portable
+    def amplitude_to_asf(self, amplitude: float) -> int32:
         """Returns 12-bit amplitude scale factor corresponding to given
         amplitude."""
-        code = round(float(amplitude * 0x0fff))
+        code = round(float(amplitude * float(0x0fff)))
         if code < 0 or code > 0xfff:
             raise ValueError("Invalid AD9914 amplitude!")
         return code
 
-    @portable(flags={"fast-math"})
-    def asf_to_amplitude(self, asf):
+    @portable
+    def asf_to_amplitude(self, asf: int32) -> float:
         """Returns the amplitude corresponding to the given amplitude scale
            factor."""
         return asf/0x0fff
 
     @kernel
-    def set(self, frequency, phase=0.0, phase_mode=_PHASE_MODE_DEFAULT,
-            amplitude=1.0):
+    def set(self, frequency: float, phase: float = 0.0, phase_mode: int32 = _PHASE_MODE_DEFAULT,
+            amplitude: float = 1.0) -> float:
         """Like :meth:`set_mu`, but uses Hz and turns."""
         return self.pow_to_turns(
             self.set_mu(self.frequency_to_ftw(frequency),
@@ -286,7 +303,7 @@ class AD9914:
 
     # Extended-resolution functions
     @kernel
-    def set_x_mu(self, xftw, amplitude=0x0fff):
+    def set_x_mu(self, xftw: int64, amplitude: int32 = 0x0fff):
         """Set the DDS frequency and amplitude with an extended-resolution
         (63-bit) frequency tuning word.
 
@@ -300,10 +317,10 @@ class AD9914:
 
         self.write(AD9914_GPIO,      (1 << self.channel) << 1)
 
-        self.write(AD9914_REG_DRGAL, xftw & 0xffff)
-        self.write(AD9914_REG_DRGAH, (xftw >> 16) & 0x7fff)
-        self.write(AD9914_REG_DRGFL, (xftw >> 31) & 0xffff)
-        self.write(AD9914_REG_DRGFH, (xftw >> 47) & 0xffff)
+        self.write(AD9914_REG_DRGAL, int32(xftw) & 0xffff)
+        self.write(AD9914_REG_DRGAH, int32(xftw >> int64(16)) & 0x7fff)
+        self.write(AD9914_REG_DRGFL, int32(xftw >> int64(31)) & 0xffff)
+        self.write(AD9914_REG_DRGFH, int32(xftw >> int64(47)) & 0xffff)
         self.write(AD9914_REG_ASF,   amplitude)
 
         self.write(AD9914_FUD,       0)
@@ -316,23 +333,23 @@ class AD9914:
         self.write(AD9914_REG_DRGAL, 0)
         self.write(AD9914_REG_DRGAH, 0)
 
-    @portable(flags={"fast-math"})
-    def frequency_to_xftw(self, frequency):
+    @portable
+    def frequency_to_xftw(self, frequency: float) -> int64:
         """Returns the 63-bit frequency tuning word corresponding to the given
         frequency (extended resolution mode).
         """
-        return int64(round(2.0*float(int64(2)**62)*frequency/self.sysclk)) & (
-                (int64(1) << 63) - 1)
+        return round64(2.0*float(int64(2)**int64(62))*frequency/self.sysclk) & (
+                (int64(1) << int64(63)) - int64(1))
 
-    @portable(flags={"fast-math"})
-    def xftw_to_frequency(self, xftw):
+    @portable
+    def xftw_to_frequency(self, xftw: int64) -> float:
         """Returns the frequency corresponding to the given frequency tuning
         word (extended resolution mode).
         """
-        return xftw*self.sysclk/(2.0*float(int64(2)**62))
+        return float(xftw)*self.sysclk/(2.0*float(int64(2)**int64(62)))
 
     @kernel
-    def set_x(self, frequency, amplitude=1.0):
+    def set_x(self, frequency: float, amplitude: float = 1.0):
         """Like :meth:`set_x_mu`, but uses Hz and turns.
 
         Note that the precision of ``float`` is less than the precision
