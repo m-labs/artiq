@@ -40,6 +40,10 @@
         {
             "type": "fastino",
             "ports": [7]
+        },
+        {
+            "type": "phaser",
+            "ports": [8]
         }
     ]
 }

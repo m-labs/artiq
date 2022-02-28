@@ -10,6 +10,7 @@ from artiq.coredevice.sampler import Sampler
 from artiq.coredevice.edge_counter import EdgeCounter
 from artiq.coredevice.grabber import Grabber
 from artiq.coredevice.fastino import Fastino
+from artiq.coredevice.phaser import Phaser
 
 
 @nac3
@@ -25,6 +26,7 @@ class NAC3Devices(EnvExperiment):
     ttl0_counter: KernelInvariant[EdgeCounter]
     grabber0: KernelInvariant[Grabber]
     fastino0: KernelInvariant[Fastino]
+    # NAC3TODO segfault phaser0: KernelInvariant[Fastino]
 
     def build(self):
         self.setattr_device("core")
@@ -38,6 +40,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device("grabber0")
         self.setattr_device("fastino0")
+        # NAC3TODO segfault self.setattr_device("phaser0")
 
     @kernel
     def run(self):
