@@ -164,12 +164,12 @@ class PCA954X:
 
         :param channel: channel number (0-7)
         """
-        i2c_pca954x_select(self.busno, self.address, channel, clear)
+        # pca954x select expects address in 7-bit form (adds read/write bit on its own)
+        i2c_pca954x_select(self.busno, self.address >> 1, channel, clear)
 
     @kernel
     def readback(self):
         return i2c_read_byte(self.busno, self.address)
-
 
 
 class TCA6424A:
