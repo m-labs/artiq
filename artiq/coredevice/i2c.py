@@ -33,6 +33,11 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
+@syscall(flags={"nounwind", "nowrite"})
+def i2c_switch_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
 @kernel
 def i2c_poll(busno, busaddr):
     """Poll I2C device at address.
@@ -137,8 +142,10 @@ def i2c_read_many(busno, busaddr, addr, data):
         i2c_stop(busno)
 
 
-class PCA9548:
-    """Driver for the PCA9548 I2C bus switch.
+class I2CSwitch:
+    """Driver for the I2C bus switch.
+
+    PCA954X (or other) type detection is done by the CPU during I2C init.
 
     I2C transactions not real-time, and are performed by the CPU without
     involving RTIO.
@@ -152,24 +159,17 @@ class PCA9548:
         self.address = address
 
     @kernel
-    def select(self, mask):
-        """Enable/disable channels.
-
-        :param mask: Bit mask of enabled channels
-        """
-        i2c_write_byte(self.busno, self.address, mask)
-
-    @kernel
     def set(self, channel):
         """Enable one channel.
-
         :param channel: channel number (0-7)
         """
-        self.select(1 << channel)
+        i2c_switch_select(self.busno, self.address >> 1, 1 << channel)
 
     @kernel
-    def readback(self):
-        return i2c_read_byte(self.busno, self.address)
+    def unset(self):
+        """Disable output of the I2C switch.
+        """
+        i2c_switch_select(self.busno, self.address >> 1, 0)
 
 
 class TCA6424A:
