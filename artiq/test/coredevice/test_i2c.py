@@ -3,7 +3,7 @@ import os, unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.exceptions import I2CError
-from artiq.coredevice.i2c import I2CSwitch
+from artiq.coredevice.i2c import I2CSwitch, i2c_read_byte
 
 
 class I2CSwitchTest(EnvExperiment):
@@ -16,7 +16,9 @@ class I2CSwitchTest(EnvExperiment):
         passed = True
         for i in range(8):
             self.i2c_switch.set(i)
-            if self.i2c_switch.readback() != 1 << i:
+            # this will work only with pca9548 (like on kc705)
+            # otherwise we cannot guarantee exact readback values
+            if i2c_read_byte(self.i2c_switch.busno, self.i2c_switch.address) != 1 << i:
                 passed = False
         self.set_dataset("passed", passed)
 
