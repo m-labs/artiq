@@ -1,7 +1,8 @@
 from numpy import int32
 
 from artiq.experiment import *
-from artiq.coredevice.i2c import i2c_write_many, i2c_read_many, i2c_poll
+from artiq.coredevice.core import Core
+from artiq.coredevice.i2c import I2CSwitch, i2c_write_many, i2c_read_many, i2c_poll
 
 
 port_mapping = {
@@ -24,7 +25,15 @@ port_mapping = {
 }
 
 
+@nac3
 class KasliEEPROM:
+    core: KernelInvariant[Core]
+    sw0: KernelInvariant[I2CSwitch]
+    sw1: KernelInvariant[I2CSwitch]
+    busno: KernelInvariant[int32]
+    port: KernelInvariant[int32]
+    address: KernelInvariant[int32]
+
     def __init__(self, dmgr, port, busno=0,
             core_device="core", sw0_device="i2c_switch0", sw1_device="i2c_switch1"):
         self.core = dmgr.get(core_device)
@@ -50,10 +59,10 @@ class KasliEEPROM:
         self.sw1.unset()
 
     @kernel
-    def write_i32(self, addr, value):
+    def write_i32(self, addr: int32, value: int32):
         self.select()
         try:
-            data = [0]*4
+            data = [0 for _ in range(4)]
             for i in range(4):
                 data[i] = (value >> 24) & 0xff
                 value <<= 8
@@ -63,12 +72,12 @@ class KasliEEPROM:
             self.deselect()
 
     @kernel
-    def read_i32(self, addr):
+    def read_i32(self, addr: int32) -> int32:
         self.select()
+        value = int32(0)
         try:
-            data = [0]*4
+            data = [0 for _ in range(4)]
             i2c_read_many(self.busno, self.address, addr, data)
-            value = int32(0)
             for i in range(4):
                 value <<= 8
                 value |= data[i]
