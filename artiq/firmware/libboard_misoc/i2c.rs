@@ -194,10 +194,10 @@ mod imp {
         // PCA9548 support only for now
         start(busno)?;
         if !write(busno, address << 1)? {
-            return Err("I2C Switch failed to ack write address")
+            return Err("PCA9548 failed to ack write address")
         }
         if !write(busno, mask)? {
-            return Err("I2C Switch failed to ack control word")
+            return Err("PCA9548 failed to ack control word")
         }
         stop(busno)?;
         Ok(())
