@@ -3,8 +3,10 @@ Non-realtime drivers for I2C chips on the core device.
 """
 
 from numpy import int32
-from artiq.language.core import extern, kernel
+
+from artiq.language.core import nac3, extern, kernel, KernelInvariant
 from artiq.coredevice.exceptions import I2CError
+from artiq.coredevice.core import Core
 
 
 @extern
@@ -32,13 +34,13 @@ def i2c_read(busno: int32, ack: bool) -> int32:
     raise NotImplementedError("syscall not simulated")
 
 
-@syscall(flags={"nounwind", "nowrite"})
-def i2c_switch_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
+@extern
+def i2c_switch_select(busno: int32, address: int32, mask: int32):
     raise NotImplementedError("syscall not simulated")
 
 
 @kernel
-def i2c_poll(busno, busaddr):
+def i2c_poll(busno: int32, busaddr: int32) -> bool:
     """Poll I2C device at address.
 
     :param busno: I2C bus number
@@ -52,7 +54,7 @@ def i2c_poll(busno, busaddr):
 
 
 @kernel
-def i2c_write_byte(busno, busaddr, data, ack=True):
+def i2c_write_byte(busno: int32, busaddr: int32, data: int32, ack: bool = True):
     """Write one byte to a device.
 
     :param busno: I2C bus number
@@ -71,7 +73,7 @@ def i2c_write_byte(busno, busaddr, data, ack=True):
 
 
 @kernel
-def i2c_read_byte(busno, busaddr):
+def i2c_read_byte(busno: int32, busaddr: int32) -> int32:
     """Read one byte from a device.
 
     :param busno: I2C bus number
@@ -90,7 +92,7 @@ def i2c_read_byte(busno, busaddr):
 
 
 @kernel
-def i2c_write_many(busno, busaddr, addr, data, ack_last=True):
+def i2c_write_many(busno: int32, busaddr: int32, addr: int32, data: list[int32], ack_last: bool = True):
     """Transfer multiple bytes to a device.
 
     :param busno: I2c bus number
@@ -116,7 +118,7 @@ def i2c_write_many(busno, busaddr, addr, data, ack_last=True):
 
 
 @kernel
-def i2c_read_many(busno, busaddr, addr, data):
+def i2c_read_many(busno: int32, busaddr: int32, addr: int32, data: list[int32]):
     """Transfer multiple bytes from a device.
 
     :param busno: I2c bus number
@@ -141,6 +143,7 @@ def i2c_read_many(busno, busaddr, addr, data):
         i2c_stop(busno)
 
 
+@nac3
 class I2CSwitch:
     """Driver for the I2C bus switch.
 
@@ -152,13 +155,18 @@ class I2CSwitch:
     On the KC705, this chip is used for selecting the I2C buses on the two FMC
     connectors. HPC=1, LPC=2.
     """
+
+    core: KernelInvariant[Core]
+    busno: KernelInvariant[int32]
+    address: KernelInvariant[int32]
+
     def __init__(self, dmgr, busno=0, address=0xe8, core_device="core"):
         self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
 
     @kernel
-    def set(self, channel):
+    def set(self, channel: int32):
         """Enable one channel.
         :param channel: channel number (0-7)
         """
@@ -171,6 +179,7 @@ class I2CSwitch:
         i2c_switch_select(self.busno, self.address >> 1, 0)
 
 
+@kernel
 class TCA6424A:
     """Driver for the TCA6424A I2C I/O expander.
 
@@ -179,18 +188,23 @@ class TCA6424A:
 
     On the NIST QC2 hardware, this chip is used for switching the directions
     of TTL buffers."""
+
+    core: KernelInvariant[Core]
+    busno: KernelInvariant[int32]
+    address: KernelInvariant[int32]
+
     def __init__(self, dmgr, busno=0, address=0x44, core_device="core"):
         self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
 
     @kernel
-    def _write24(self, addr, value):
+    def _write24(self, addr: int32, value: int32):
         i2c_write_many(self.busno, self.address, addr,
                        [value >> 16, value >> 8, value])
 
     @kernel
-    def set(self, outputs):
+    def set(self, outputs: int32):
         """Drive all pins of the chip to the levels given by the
         specified 24-bit word.
 
@@ -207,19 +221,26 @@ class TCA6424A:
         self._write24(0x8c, 0)  # set all directions to output
         self._write24(0x84, outputs_le)  # set levels
 
+
+@nac3
 class PCF8574A:
     """Driver for the PCF8574 I2C remote 8-bit I/O expander.
 
     I2C transactions not real-time, and are performed by the CPU without
     involving RTIO.
     """
+
+    core: KernelInvariant[Core]
+    busno: KernelInvariant[int32]
+    address: KernelInvariant[int32]
+
     def __init__(self, dmgr, busno=0, address=0x7c, core_device="core"):
         self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
 
     @kernel
-    def set(self, data):
+    def set(self, data: int32):
         """Drive data on the quasi-bidirectional pins.
 
         :param data: Pin data. High bits are weakly driven high
@@ -235,7 +256,7 @@ class PCF8574A:
             i2c_stop(self.busno)
 
     @kernel
-    def get(self):
+    def get(self) -> int32:
         """Retrieve quasi-bidirectional pin input data.
 
         :return: Pin data
