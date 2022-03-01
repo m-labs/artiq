@@ -43,6 +43,17 @@ pub mod i2c {
             data
         }) as i32
     }
+
+    pub extern fn switch_select(busno: i32, address: i32, mask: i32) {
+        send(&I2cSwitchSelectRequest { 
+            busno: busno as u32, 
+            address: address as u8, 
+            mask: mask as u8 });
+        recv!(&I2cBasicReply { succeeded } => { if !succeeded {
+                raise!("I2CError", "I2C bus could not be accessed");
+            }
+        });
+    }
 }
 
 pub mod spi {

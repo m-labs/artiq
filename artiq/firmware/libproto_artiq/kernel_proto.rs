@@ -65,6 +65,7 @@ pub enum Message<'a> {
     I2cReadRequest { busno: u32, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
+    I2cSwitchSelectRequest { busno: u32, address: u8, mask: u8 },
 
     SpiSetConfigRequest { busno: u32, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { busno: u32, data: u32 },

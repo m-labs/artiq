@@ -31,8 +31,8 @@ impl EEPROM {
     #[cfg(soc_platform = "kasli")]
     fn select(&self) -> Result<(), &'static str> {
         let mask: u16 = 1 << self.port;
-        i2c::pca9548_select(self.busno, 0x70, mask as u8)?;
-        i2c::pca9548_select(self.busno, 0x71, (mask >> 8) as u8)?;
+        i2c::switch_select(self.busno, 0x70, mask as u8)?;
+        i2c::switch_select(self.busno, 0x71, (mask >> 8) as u8)?;
         Ok(())
     }
 
