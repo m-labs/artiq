@@ -52,6 +52,7 @@ class AD9912:
         self.chip_select = chip_select
         if sw_device:
             self.sw = dmgr.get(sw_device)
+            # NAC3TODO: support no sw
         self.pll_n = pll_n
         sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
         assert sysclk <= 1e9
