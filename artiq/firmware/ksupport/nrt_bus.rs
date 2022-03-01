@@ -44,12 +44,11 @@ pub mod i2c {
         }) as i32
     }
 
-    pub extern fn pca954x_select(busno: i32, address: i32, channel: i32, clear: bool) {
-        send(&I2cPca954xSelectRequest { 
+    pub extern fn switch_select(busno: i32, address: i32, channel: i32, clear: bool) {
+        send(&I2cSwitchSelectRequest { 
             busno: busno as u32, 
             address: address as u8, 
-            channel: channel as u8, 
-            clear: clear });
+            mask: mask as u8 });
         recv!(&I2cBasicReply { succeeded } => { if !succeeded {
                 raise!("I2CError", "I2C bus could not be accessed");
             }

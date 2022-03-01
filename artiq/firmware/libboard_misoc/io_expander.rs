@@ -42,14 +42,9 @@ impl IoExpander {
 
     #[cfg(soc_platform = "kasli")]
     fn select(&self) -> Result<(), &'static str> {
-        if self.port > 7 { // first 8 ports
-            i2c::pca954x_select(self.busno, 0x70, self.port as u8, false)?;
-            i2c::pca954x_select(self.busno, 0x71, 0, true)?;
-        }
-        else { // second 8
-            i2c::pca954x_select(self.busno, 0x70, 0, true)?;
-            i2c::pca954x_select(self.busno, 0x71, (self.port - 8) as u8, false)?;
-        }
+        let mask: u16 = 1 << self.port;
+        i2c::switch_select(self.busno, 0x70 << 1, mask as u8)?;
+        i2c::switch_select(self.busno, 0x71 << 1, (mask >> 8) as u8)?;
         Ok(())
     }
 

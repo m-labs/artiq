@@ -34,7 +34,7 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
 
 
 @syscall(flags={"nounwind", "nowrite"})
-def i2c_pca954x_select(busno: TInt32, address: TInt32, channel: TInt32, clear: TBool) -> TNone:
+def i2c_pca954x_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -142,10 +142,10 @@ def i2c_read_many(busno, busaddr, addr, data):
         i2c_stop(busno)
 
 
-class PCA954X:
-    """Driver for the PCA954X I2C bus switch.
+class I2CSwitch:
+    """Driver for the I2C bus switch.
 
-    PCA954X type detection is done by the CPU during I2C init.
+    PCA954X (or other) type detection is done by the CPU during I2C init.
 
     I2C transactions not real-time, and are performed by the CPU without
     involving RTIO.
@@ -159,13 +159,20 @@ class PCA954X:
         self.address = address
 
     @kernel
-    def set(self, channel, clear=False):
-        """Enable one channel.
+    def select(self, mask):
+        """Enable/disable channels.
+        Support for multiple channels is possible on platforms with PCA9548.
 
+        :param mask: Bit mask of enabled channels
+        """
+        i2c_pca954x_select(self.busno, self.address, mask)
+
+    @kernel
+    def set(self, channel):
+        """Enable one channel.
         :param channel: channel number (0-7)
         """
-        # pca954x select expects address in 7-bit form (adds read/write bit on its own)
-        i2c_pca954x_select(self.busno, self.address >> 1, channel, clear)
+        self.select(1 << channel)
 
     @kernel
     def readback(self):

@@ -116,13 +116,12 @@ mod remote_i2c {
         }
     }
 
-    pub fn pca954x_select(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, address: u8, channel: u8, clear: bool) -> Result<u8, &'static str> {
+    pub fn switch_select(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, address: u8, mask: u8) -> Result<u8, &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cPca954xSelectRequest {
             destination: destination,
             busno: busno,
             address: address,
-            channel: channel,
-            clear: clear
+            mask: mask,
         });
         match reply {
             Ok(drtioaux::Packet::I2cBasicReply { succeeded }) => {
@@ -282,9 +281,9 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
                 Err(_) => kern_send(io, &kern::I2cReadReply { succeeded: false, data: 0xff })
             }
         }
-        &kern::I2cPca954xSelectRequest { busno, address, channel, clear } => {
+        &kern::I2cSwitchSelectRequest { busno, address, mask } => {
             let succeeded = dispatch!(io, aux_mutex, local_i2c, remote_i2c, _routing_table, busno,
-                pca954x_select, address, channel, clear).is_ok();
+                switch_select, address, mask).is_ok();
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
 

@@ -188,18 +188,16 @@ mod imp {
         Ok(data)
     }
 
-    pub fn pca954x_select(busno: u8, address: u8, channel: u8, clear: bool) -> Result<(), &'static str> {
-        // channel - between 0 and 7
-        // clear - disable all outputs
-        // PCA9458 only for now
-        let ch = if clear { 0 } else { 1 << channel };
-        
+    pub fn switch_select(busno: u8, address: u8, mask: u8) -> Result<(), &'static str> {
+        // address in 8-bit form (already left-shifted by 1)
+        // mask in format of 1 << channel (or 0 for disabling output)
+        // PCA9548 support only for now
         start(busno)?;
-        if !write(busno, address << 1)? {
-            return Err("PCA954X failed to ack write address")
+        if !write(busno, address)? {
+            return Err("I2C Switch failed to ack write address")
         }
-        if !write(busno, ch)? {
-            return Err("PCA954X failed to ack control word")
+        if !write(busno, mask)? {
+            return Err("I2C Switch failed to ack control word")
         }
         stop(busno)?;
         Ok(())
@@ -215,7 +213,7 @@ mod imp {
     pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
     pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
-    pub fn pca954x_select(_busno: u8, _address: u8, _channel: u8, _clear: bool) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn switch_select(_busno: u8, _address: u8, _mask: u8) -> Result<(), &'static str> { Err(NO_I2C) }
 }
 
 pub use self::imp::*;
