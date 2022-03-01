@@ -7,6 +7,7 @@ from artiq.coredevice.mirny import Mirny as MirnyCPLD
 from artiq.coredevice.adf5356 import ADF5356
 from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9912 import AD9912
+from artiq.coredevice.ad9910 import AD9910
 from artiq.coredevice.sampler import Sampler
 from artiq.coredevice.edge_counter import EdgeCounter
 from artiq.coredevice.grabber import Grabber
@@ -24,6 +25,8 @@ class NAC3Devices(EnvExperiment):
     urukul0_cpld: KernelInvariant[UrukulCPLD]
     eeprom_urukul0: KernelInvariant[KasliEEPROM]
     urukul0_ch0: KernelInvariant[AD9912]
+    urukul1_cpld: KernelInvariant[UrukulCPLD]
+    urukul1_ch0: KernelInvariant[AD9910]
     sampler0: KernelInvariant[Sampler]
     ttl0_counter: KernelInvariant[EdgeCounter]
     grabber0: KernelInvariant[Grabber]
@@ -39,6 +42,8 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("urukul0_cpld")
         self.setattr_device("eeprom_urukul0")
         self.setattr_device("urukul0_ch0")
+        self.setattr_device("urukul1_cpld")
+        self.setattr_device("urukul1_ch0")
         self.setattr_device("sampler0")
         self.setattr_device("ttl0_counter")
         self.setattr_device("grabber0")
