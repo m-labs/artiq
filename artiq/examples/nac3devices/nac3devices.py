@@ -1,6 +1,7 @@
 from artiq.experiment import *
 from artiq.coredevice.core import Core
 from artiq.coredevice.cache import CoreCache
+from artiq.coredevice.kasli_i2c import KasliEEPROM
 from artiq.coredevice.zotino import Zotino
 from artiq.coredevice.mirny import Mirny as MirnyCPLD
 from artiq.coredevice.adf5356 import ADF5356
@@ -21,6 +22,7 @@ class NAC3Devices(EnvExperiment):
     mirny0_cpld: KernelInvariant[MirnyCPLD]
     mirny0_ch0: KernelInvariant[ADF5356]
     urukul0_cpld: KernelInvariant[UrukulCPLD]
+    eeprom_urukul0: KernelInvariant[KasliEEPROM]
     urukul0_ch0: KernelInvariant[AD9912]
     sampler0: KernelInvariant[Sampler]
     ttl0_counter: KernelInvariant[EdgeCounter]
@@ -35,6 +37,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("mirny0_cpld")
         self.setattr_device("mirny0_ch0")
         self.setattr_device("urukul0_cpld")
+        self.setattr_device("eeprom_urukul0")
         self.setattr_device("urukul0_ch0")
         self.setattr_device("sampler0")
         self.setattr_device("ttl0_counter")
