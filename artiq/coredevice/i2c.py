@@ -159,19 +159,17 @@ class I2CSwitch:
         self.address = address
 
     @kernel
-    def select(self, mask):
-        """Enable/disable channels.
-
-        :param mask: Bit mask of enabled channels
-        """
-        i2c_pca954x_select(self.busno, self.address, mask)
-
-    @kernel
     def set(self, channel):
         """Enable one channel.
         :param channel: channel number (0-7)
         """
-        self.select(1 << channel)
+        i2c_switch_select(self.busno, self.address >> 1, 1 << channel)
+
+    @kernel
+    def unset(self):
+        """Disable output of the I2C switch.
+        """
+        i2c_switch_select(self.busno, self.address >> 1, 0)
 
 
 class TCA6424A:

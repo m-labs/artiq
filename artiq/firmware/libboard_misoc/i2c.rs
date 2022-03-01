@@ -189,11 +189,11 @@ mod imp {
     }
 
     pub fn switch_select(busno: u8, address: u8, mask: u8) -> Result<(), &'static str> {
-        // address in 8-bit form (already left-shifted by 1)
+        // address in 7-bit form
         // mask in format of 1 << channel (or 0 for disabling output)
         // PCA9548 support only for now
         start(busno)?;
-        if !write(busno, address)? {
+        if !write(busno, address << 1)? {
             return Err("I2C Switch failed to ack write address")
         }
         if !write(busno, mask)? {

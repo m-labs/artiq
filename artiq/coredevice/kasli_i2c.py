@@ -37,13 +37,17 @@ class KasliEEPROM:
     @kernel
     def select(self):
         mask = 1 << self.port
-        self.sw0.select(mask)
-        self.sw1.select(mask >> 8)
+        if self.port < 8:
+            self.sw0.set(self.port)
+            self.sw1.unset()
+        else:
+            self.sw0.unset()
+            self.sw1.set(self.port - 8)
 
     @kernel
     def deselect(self):
-        self.sw0.select(0)
-        self.sw1.select(0)
+        self.sw0.unset()
+        self.sw1.unset()
 
     @kernel
     def write_i32(self, addr, value):

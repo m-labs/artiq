@@ -44,7 +44,7 @@ pub mod i2c {
         }) as i32
     }
 
-    pub extern fn switch_select(busno: i32, address: i32, channel: i32, clear: bool) {
+    pub extern fn switch_select(busno: i32, address: i32, mask: i32) {
         send(&I2cSwitchSelectRequest { 
             busno: busno as u32, 
             address: address as u8, 
