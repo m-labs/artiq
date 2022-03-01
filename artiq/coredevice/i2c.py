@@ -161,7 +161,6 @@ class I2CSwitch:
     @kernel
     def select(self, mask):
         """Enable/disable channels.
-        Support for multiple channels is possible on platforms with PCA9548.
 
         :param mask: Bit mask of enabled channels
         """

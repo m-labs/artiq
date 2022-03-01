@@ -33,6 +33,8 @@ Highlights:
   warning is logged. The warning is additional to the one already printed in the core device log upon
   detection of the error.
 * Removed worker DB warning for writing a dataset that is also in the archive
+* PCA9547 I2C switch support on platforms that may use it. 
+  To keep compatibility between platforms, only 1 channel can be selected with the switch.
 
 Breaking changes:
 
