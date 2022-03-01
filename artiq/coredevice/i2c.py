@@ -34,7 +34,7 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
 
 
 @syscall(flags={"nounwind", "nowrite"})
-def i2c_pca954x_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
+def i2c_switch_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
@@ -172,10 +172,6 @@ class I2CSwitch:
         :param channel: channel number (0-7)
         """
         self.select(1 << channel)
-
-    @kernel
-    def readback(self):
-        return i2c_read_byte(self.busno, self.address)
 
 
 class TCA6424A:

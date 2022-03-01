@@ -35,6 +35,7 @@ Highlights:
 * Removed worker DB warning for writing a dataset that is also in the archive
 * PCA9547 I2C switch support on platforms that may use it. 
   To keep compatibility between platforms, only 1 channel can be selected with the switch.
+  Readback was also removed as specific values cannot be guaranteed anymore.
 
 Breaking changes:
 
