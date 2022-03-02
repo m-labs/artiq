@@ -1,8 +1,19 @@
-from artiq.language.core import kernel, delay, delay_mu, portable
+from numpy import int32, int64
+
+from artiq.language.core import *
 from artiq.language.units import us, ns
+from artiq.coredevice.core import Core
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
-from artiq.coredevice import spi2 as spi
-from artiq.coredevice import urukul, sampler
+from artiq.coredevice.spi2 import SPI_END, SPIMaster
+from artiq.coredevice.urukul import CFG_MASK_NU, CPLD
+from artiq.coredevice.ad9910 import AD9910
+from artiq.coredevice.sampler import adc_mu_to_volt as sampler_adc_mu_to_volt, SPI_CONFIG as SAMPLER_SPI_CONFIG, SPI_CS_PGIA as SAMPLER_SPI_CS_PGIA
+
+
+# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
+@nac3
+class ValueError(Exception):
+    pass
 
 
 COEFF_WIDTH = 18
@@ -17,20 +28,21 @@ COEFF_SHIFT = 11
 
 
 @portable
-def y_mu_to_full_scale(y):
+def y_mu_to_full_scale(y: int32) -> float:
     """Convert servo Y data from machine units to units of full scale."""
-    return y / Y_FULL_SCALE_MU
+    return float(y) / float(Y_FULL_SCALE_MU)
 
 
 @portable
-def adc_mu_to_volts(x, gain):
+def adc_mu_to_volts(x: int32, gain: int32) -> float:
     """Convert servo ADC data from machine units to Volt."""
     val = (x >> 1) & 0xffff
     mask = 1 << 15
     val = -(val & mask) + (val & ~mask)
-    return sampler.adc_mu_to_volt(val, gain)
+    return sampler_adc_mu_to_volt(val, gain)
 
 
+@nac3
 class SUServo:
     """Sampler-Urukul Servo parent and configuration device.
 
@@ -64,8 +76,15 @@ class SUServo:
         between experiments.
     :param core_device: Core device name
     """
-    kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
-                         "ref_period_mu"}
+
+    core: KernelInvariant[Core]
+    pgia: KernelInvariant[SPIMaster]
+    ddses: KernelInvariant[list[AD9910]]
+    cplds: KernelInvariant[list[CPLD]]
+    channel: KernelInvariant[int32]
+    gains: Kernel[int32]
+    ref_period_mu: KernelInvariant[int64]
+
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
@@ -97,11 +116,11 @@ class SUServo:
         or the channel controls.
         """
         self.set_config(enable=0)
-        delay(3*us)  # pipeline flush
+        self.core.delay(3.*us)  # pipeline flush
 
         self.pgia.set_config_mu(
-            sampler.SPI_CONFIG | spi.SPI_END,
-            16, 4, sampler.SPI_CS_PGIA)
+            SAMPLER_SPI_CONFIG | SPI_END,
+            16, 4, SAMPLER_SPI_CS_PGIA)
 
         for i in range(len(self.cplds)):
             cpld = self.cplds[i]
@@ -109,12 +128,12 @@ class SUServo:
 
             cpld.init(blind=True)
             prev_cpld_cfg = cpld.cfg_reg
-            cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+            cpld.cfg_write(prev_cpld_cfg | (0xf << CFG_MASK_NU))
             dds.init(blind=True)
             cpld.cfg_write(prev_cpld_cfg)
 
     @kernel
-    def write(self, addr, value):
+    def write(self, addr: int32, value: int32):
         """Write to servo memory.
 
         This method advances the timeline by one coarse RTIO cycle.
@@ -130,7 +149,7 @@ class SUServo:
         delay_mu(self.ref_period_mu)
 
     @kernel
-    def read(self, addr):
+    def read(self, addr: int32) -> int32:
         """Read from servo memory.
 
         This method does not advance the timeline but consumes all slack.
@@ -143,7 +162,7 @@ class SUServo:
         return rtio_input_data(self.channel)
 
     @kernel
-    def set_config(self, enable):
+    def set_config(self, enable: int32):
         """Set SU Servo configuration.
 
         This method advances the timeline by one servo memory access.
@@ -161,7 +180,7 @@ class SUServo:
         self.write(CONFIG_ADDR, enable)
 
     @kernel
-    def get_status(self):
+    def get_status(self) -> int32:
         """Get current SU Servo status.
 
         This method does not advance the timeline but consumes all slack.
@@ -182,7 +201,7 @@ class SUServo:
         return self.read(CONFIG_ADDR)
 
     @kernel
-    def get_adc_mu(self, adc):
+    def get_adc_mu(self, adc: int32) -> int32:
         """Get the latest ADC reading (IIR filter input X0) in machine units.
 
         This method does not advance the timeline but consumes all slack.
@@ -200,7 +219,7 @@ class SUServo:
         return self.read(STATE_SEL | (adc << 1) | (1 << 8))
 
     @kernel
-    def set_pgia_mu(self, channel, gain):
+    def set_pgia_mu(self, channel: int32, gain: int32):
         """Set instrumentation amplifier gain of a ADC channel.
 
         The four gain settings (0, 1, 2, 3) corresponds to gains of
@@ -216,7 +235,7 @@ class SUServo:
         self.gains = gains
 
     @kernel
-    def get_adc(self, channel):
+    def get_adc(self, channel: int32) -> float:
         """Get the latest ADC reading (IIR filter input X0).
 
         This method does not advance the timeline but consumes all slack.
@@ -237,13 +256,19 @@ class SUServo:
         return adc_mu_to_volts(val, gain)
 
 
+@nac3
 class Channel:
     """Sampler-Urukul Servo channel
 
     :param channel: RTIO channel number
     :param servo_device: Name of the parent SUServo device
     """
-    kernel_invariants = {"channel", "core", "servo", "servo_channel"}
+
+    core: KernelInvariant[Core]
+    servo: KernelInvariant[SUServo]
+    channel: KernelInvariant[int32]
+    servo_channel: KernelInvariant[int32]
+    dds: KernelInvariant[AD9910]
 
     def __init__(self, dmgr, channel, servo_device):
         self.servo = dmgr.get(servo_device)
@@ -256,7 +281,7 @@ class Channel:
         self.dds = self.servo.ddses[self.servo_channel // 4]
 
     @kernel
-    def set(self, en_out, en_iir=0, profile=0):
+    def set(self, en_out: bool, en_iir: bool = False, profile: int32 = 0):
         """Operate channel.
 
         This method does not advance the timeline. Output RF switch setting
@@ -272,10 +297,10 @@ class Channel:
         :param profile: Active profile (0-31)
         """
         rtio_output(self.channel << 8,
-                    en_out | (en_iir << 1) | (profile << 2))
+                    int32(en_out) | (int32(en_iir) << 1) | (profile << 2))
 
     @kernel
-    def set_dds_mu(self, profile, ftw, offs, pow_=0):
+    def set_dds_mu(self, profile: int32, ftw: int32, offs: int32, pow_: int32 = 0):
         """Set profile DDS coefficients in machine units.
 
         .. seealso:: :meth:`set_amplitude`
@@ -292,7 +317,7 @@ class Channel:
         self.servo.write(base + 2, pow_)
 
     @kernel
-    def set_dds(self, profile, frequency, offset, phase=0.):
+    def set_dds(self, profile: int32, frequency: float, offset: float, phase: float = 0.):
         """Set profile DDS coefficients.
 
         This method advances the timeline by four servo memory accesses.
@@ -311,7 +336,7 @@ class Channel:
         self.set_dds_mu(profile, ftw, offs, pow_)
 
     @kernel
-    def set_dds_offset_mu(self, profile, offs):
+    def set_dds_offset_mu(self, profile: int32, offs: int32):
         """Set only IIR offset in DDS coefficient profile.
 
         See :meth:`set_dds_mu` for setting the complete DDS profile.
@@ -323,7 +348,7 @@ class Channel:
         self.servo.write(base + 4, offs)
 
     @kernel
-    def set_dds_offset(self, profile, offset):
+    def set_dds_offset(self, profile: int32, offset: float):
         """Set only IIR offset in DDS coefficient profile.
 
         See :meth:`set_dds` for setting the complete DDS profile.
@@ -334,7 +359,7 @@ class Channel:
         self.set_dds_offset_mu(profile, self.dds_offset_to_mu(offset))
 
     @portable
-    def dds_offset_to_mu(self, offset):
+    def dds_offset_to_mu(self, offset: float) -> int32:
         """Convert IIR offset (negative setpoint) from units of full scale to
         machine units (see :meth:`set_dds_mu`, :meth:`set_dds_offset_mu`).
 
@@ -342,10 +367,10 @@ class Channel:
         rounding and representation as two's complement, ``offset=1`` can not
         be represented while ``offset=-1`` can.
         """
-        return int(round(offset * (1 << COEFF_WIDTH - 1)))
+        return round(offset * float(1 << COEFF_WIDTH - 1))
 
     @kernel
-    def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
+    def set_iir_mu(self, profile: int32, adc: int32, a1: int32, b0: int32, b1: int32, dly: int32 = 0):
         """Set profile IIR coefficients in machine units.
 
         The recurrence relation is (all data signed and MSB aligned):
@@ -385,7 +410,7 @@ class Channel:
         self.servo.write(base + 7, b0)
 
     @kernel
-    def set_iir(self, profile, adc, kp, ki=0., g=0., delay=0.):
+    def set_iir(self, profile: int32, adc: int32, kp: float, ki: float = 0., g: float = 0., delay: float = 0.):
         """Set profile IIR coefficients.
 
         This method advances the timeline by four servo memory accesses.
@@ -427,23 +452,23 @@ class Channel:
         A_NORM = 1 << COEFF_SHIFT
         COEFF_MAX = 1 << COEFF_WIDTH - 1
 
-        kp *= B_NORM
+        kp *= float(B_NORM)
         if ki == 0.:
             # pure P
             a1 = 0
             b1 = 0
-            b0 = int(round(kp))
+            b0 = round(kp)
         else:
             # I or PI
-            ki *= B_NORM*T_CYCLE/2.
+            ki *= float(B_NORM)*T_CYCLE/2.
             if g == 0.:
                 c = 1.
                 a1 = A_NORM
             else:
-                c = 1./(1. + ki/(g*B_NORM))
-                a1 = int(round((2.*c - 1.)*A_NORM))
-            b0 = int(round(kp + ki*c))
-            b1 = int(round(kp + (ki - 2.*kp)*c))
+                c = 1./(1. + ki/(g*float(B_NORM)))
+                a1 = round((2.*c - 1.)*float(A_NORM))
+            b0 = round(kp + ki*c)
+            b1 = round(kp + (ki - 2.*kp)*c)
             if b1 == -b0:
                 raise ValueError("low integrator gain and/or gain limit")
 
@@ -451,11 +476,11 @@ class Channel:
                 b1 >= COEFF_MAX or b1 < -COEFF_MAX):
             raise ValueError("high gains")
 
-        dly = int(round(delay/T_CYCLE))
+        dly = round(delay/T_CYCLE)
         self.set_iir_mu(profile, adc, a1, b0, b1, dly)
 
     @kernel
-    def get_profile_mu(self, profile, data):
+    def get_profile_mu(self, profile: int32, data: list[int32]):
         """Retrieve profile data.
 
         Profile data is returned in the ``data`` argument in machine units
@@ -473,10 +498,10 @@ class Channel:
         base = (self.servo_channel << 8) | (profile << 3)
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
-            delay(4*us)
+            self.core.delay(4.*us)
 
     @kernel
-    def get_y_mu(self, profile):
+    def get_y_mu(self, profile: int32) -> int32:
         """Get a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
@@ -494,7 +519,7 @@ class Channel:
         return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
 
     @kernel
-    def get_y(self, profile):
+    def get_y(self, profile: int32) -> float:
         """Get a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
@@ -512,7 +537,7 @@ class Channel:
         return y_mu_to_full_scale(self.get_y_mu(profile))
 
     @kernel
-    def set_y_mu(self, profile, y):
+    def set_y_mu(self, profile: int32, y: int32):
         """Set a profile's IIR state (filter output, Y0) in machine units.
 
         The IIR state is also know as the "integrator", or the DDS amplitude
@@ -532,7 +557,7 @@ class Channel:
         self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
 
     @kernel
-    def set_y(self, profile, y):
+    def set_y(self, profile: int32, y: float) -> int32:
         """Set a profile's IIR state (filter output, Y0).
 
         The IIR state is also know as the "integrator", or the DDS amplitude
@@ -547,7 +572,7 @@ class Channel:
         :param profile: Profile number (0-31)
         :param y: IIR state in units of full scale
         """
-        y_mu = int(round(y * Y_FULL_SCALE_MU))
+        y_mu = round(y * float(Y_FULL_SCALE_MU))
         if y_mu < 0 or y_mu > (1 << 17) - 1:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
