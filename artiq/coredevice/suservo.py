@@ -115,7 +115,7 @@ class SUServo:
         This method does not alter the profile configuration memory
         or the channel controls.
         """
-        self.set_config(enable=0)
+        self.set_config(enable=False)
         self.core.delay(3.*us)  # pipeline flush
 
         self.pgia.set_config_mu(
@@ -162,7 +162,7 @@ class SUServo:
         return rtio_input_data(self.channel)
 
     @kernel
-    def set_config(self, enable: int32):
+    def set_config(self, enable: bool):
         """Set SU Servo configuration.
 
         This method advances the timeline by one servo memory access.
@@ -177,7 +177,7 @@ class SUServo:
             Disabling takes up to two servo cycles (~2.3 µs) to clear the
             processing pipeline.
         """
-        self.write(CONFIG_ADDR, enable)
+        self.write(CONFIG_ADDR, int32(enable))
 
     @kernel
     def get_status(self) -> int32:
