@@ -191,12 +191,19 @@ class Mirny:
         self.bus.write(data)
 
 
+@nac3
 class Almazny:
     """
     Almazny (High frequency mezzanine board for Mirny)
 
     :param host_mirny - Mirny device Almazny is connected to
     """
+
+    core: KernelInvariant[Core]
+    mirny_cpld: KernelInvariant[Mirny]
+    att_mu: Kernel[list[int32]]
+    channel_sw: Kernel[list[int32]]
+    output_enable: Kernel[bool]
 
     def __init__(self, dmgr, host_mirny):
         self.mirny_cpld = dmgr.get(host_mirny)
@@ -209,7 +216,7 @@ class Almazny:
         self.output_toggle(self.output_enable)
 
     @kernel
-    def att_to_mu(self, att):
+    def att_to_mu(self, att: float) -> int32:
         """
         Convert an attenuator setting in dB to machine units.
 
@@ -222,17 +229,17 @@ class Almazny:
         return mu
 
     @kernel
-    def mu_to_att(self, att_mu):
+    def mu_to_att(self, att_mu: int32) -> float:
         """
         Convert a digital attenuator setting to dB.
 
         :param att_mu: attenuator setting in machine units
         :return: attenuator setting in dB
         """
-        return att_mu / 2
+        return float(att_mu) / 2.
 
     @kernel
-    def set_att(self, channel, att, rf_switch=True):
+    def set_att(self, channel: int32, att: float, rf_switch: bool = True):
         """
         Sets attenuators on chosen shift register (channel).
         :param channel - index of the register [0-3]
@@ -242,7 +249,7 @@ class Almazny:
         self.set_att_mu(channel, self.att_to_mu(att), rf_switch)
 
     @kernel
-    def set_att_mu(self, channel, att_mu, rf_switch=True):
+    def set_att_mu(self, channel: int32, att_mu: int32, rf_switch: bool = True):
         """
         Sets attenuators on chosen shift register (channel).
         :param channel - index of the register [0-3]
@@ -254,7 +261,7 @@ class Almazny:
         self._update_register(channel)
 
     @kernel
-    def output_toggle(self, oe):
+    def output_toggle(self, oe: bool):
         """
         Toggles output on all shift registers on or off.
         :param oe - toggle output enable (bool)
@@ -262,13 +269,13 @@ class Almazny:
         self.output_enable = oe
         cfg_reg = self.mirny_cpld.read_reg(1)
         en = 1 if self.output_enable else 0
-        delay(100 * us)
+        self.core.delay(100. * us)
         new_reg = (en << ALMAZNY_OE_SHIFT) | (cfg_reg & 0x3FF)
         self.mirny_cpld.write_reg(1, new_reg)
-        delay(100 * us)
+        self.core.delay(100. * us)
 
     @kernel
-    def _flip_mu_bits(self, mu):
+    def _flip_mu_bits(self, mu: int32) -> int32:
         # in this form MSB is actually 0.5dB attenuator
         # unnatural for users, so we flip the six bits
         return (((mu & 0x01) << 5)
@@ -279,14 +286,14 @@ class Almazny:
                 | ((mu & 0x20) >> 5))
 
     @kernel
-    def _update_register(self, ch):
+    def _update_register(self, ch: int32):
         self.mirny_cpld.write_ext(
             ALMAZNY_REG_BASE + ch, 
             8, 
             self._flip_mu_bits(self.att_mu[ch]) | (self.channel_sw[ch] << 6), 
             ALMAZNY_SPIT_WR
         )
-        delay(100 * us)
+        self.core.delay(100. * us)
 
     @kernel
     def _update_all_registers(self):
