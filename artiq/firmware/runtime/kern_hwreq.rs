@@ -116,7 +116,7 @@ mod remote_i2c {
         }
     }
 
-    pub fn switch_select(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, address: u8, mask: u8) -> Result<u8, &'static str> {
+    pub fn switch_select(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, address: u8, mask: u8) -> Result<(), &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::I2cSwitchSelectRequest {
             destination: destination,
             busno: busno,
