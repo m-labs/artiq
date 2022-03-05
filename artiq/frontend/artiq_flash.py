@@ -280,10 +280,7 @@ def main():
     def convert_gateware(bit_filename):
         bin_handle, bin_filename = tempfile.mkstemp(
             prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
-        with open(bit_filename, "rb") as bit_file, \
-                open(bin_handle, "wb") as bin_file:
-            if header:
-                bin_file.write(b"\x00"*8)
+        with open(bit_filename, "rb") as bit_file, open(bin_handle, "wb") as bin_file:
             bit2bin(bit_file, bin_file)
         atexit.register(lambda: os.unlink(bin_filename))
         return bin_filename
