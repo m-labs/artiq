@@ -605,7 +605,7 @@ class AD9910:
             phase_mode = self.phase_mode
         # Align to coarse RTIO which aligns SYNC_CLK. I.e. clear fine TSC
         # This will not cause a collision or sequence error.
-        at_mu(now_mu() & int64(~7))
+        at_mu(now_mu() & ~int64(7))
         if phase_mode != PHASE_MODE_CONTINUOUS:
             # Auto-clear phase accumulator on IO_UPDATE.
             # This is active already for the next IO_UPDATE
@@ -632,7 +632,7 @@ class AD9910:
                     self.set_pow(pow_)
         delay_mu(int64(self.sync_data.io_update_delay))
         self.cpld.io_update.pulse_mu(int64(8))  # assumes 8 mu > t_SYN_CCLK
-        at_mu(now_mu() & int64(~7))  # clear fine TSC again
+        at_mu(now_mu() & ~int64(7))  # clear fine TSC again
         if phase_mode != PHASE_MODE_CONTINUOUS:
             self.set_cfr1()
             # future IO_UPDATE will activate
@@ -1108,7 +1108,7 @@ class AD9910:
         # dFTW = 1, (work around negative slope)
         self.write64(_AD9910_REG_RAMP_STEP, -1, 0)
         # delay io_update after RTIO edge
-        t = now_mu() + int64(8) & int64(~7)
+        t = now_mu() + int64(8) & ~int64(7)
         at_mu(t + delay_start)
         # assumes a maximum t_SYNC_CLK period
         self.cpld.io_update.pulse_mu(int64(16) - delay_start)  # realign
