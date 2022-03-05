@@ -39,7 +39,7 @@ class EmbeddingMap:
         obj_id = id(obj)
         if obj_id in self.object_inverse_map:
             return self.object_inverse_map[obj_id]
-        key = len(self.object_map)
+        key = len(self.object_map) + 1
         self.object_map[key] = obj
         self.object_inverse_map[obj_id] = key
         return key
