@@ -329,7 +329,7 @@ class SinaraTester(EnvExperiment):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
                 frequency = 10*(card_n + 1) + channel_n
                 print("{}\t{}MHz".format(channel_name, frequency))
-                self.setup_urukul(channel_dev, frequency)
+                self.setup_urukul(channel_dev, float(frequency))
         print("Press ENTER when done.")
         input()
 
