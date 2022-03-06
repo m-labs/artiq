@@ -11,16 +11,7 @@ def get_rev():
 """
 
 def get_version():
-    override = os.getenv("VERSIONEER_OVERRIDE")
-    if override:
-      return override
-    srcroot = os.path.dirname(os.path.abspath(__file__))
-    with open(os.path.join(srcroot, "MAJOR_VERSION"), "r") as f:
-        version = f.read().strip()
-    version += ".unknown"
-    if os.path.exists(os.path.join(srcroot, "BETA")):
-        version += ".beta"
-    return version
+    return os.getenv("VERSIONEER_OVERRIDE", default="7.0.beta")
 
 def get_rev():
     return os.getenv("VERSIONEER_REV", default="unknown")
