@@ -24,7 +24,7 @@ class _RepoScanner:
         logger.debug("processing file %s %s", root, filename)
         try:
             description = await self.worker.examine(
-                "scan", os.path.join(root, filename))
+                "scan", os.path.join(root, filename), root)
         except:
             log_worker_exception()
             raise
@@ -128,7 +128,7 @@ class ExperimentDB:
         asyncio.ensure_future(
             exc_to_warning(self.scan_repository(new_cur_rev)))
 
-    async def examine(self, filename, use_repository=True, revision=None):
+    async def examine(self, filename, use_repository=True, revision=None, wd=None):
         if use_repository:
             if revision is None:
                 revision = self.cur_rev
@@ -136,7 +136,7 @@ class ExperimentDB:
             filename = os.path.join(wd, filename)
         worker = Worker(self.worker_handlers)
         try:
-            description = await worker.examine("examine", filename)
+            description = await worker.examine("examine", filename, wd)
         finally:
             await worker.close()
         if use_repository:

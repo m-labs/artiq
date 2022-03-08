@@ -129,8 +129,8 @@ class CCB:
     issue = staticmethod(make_parent_action("ccb_issue"))
 
 
-def get_experiment(file, class_name):
-    module = tools.file_import(file, prefix="artiq_worker_")
+def get_experiment(file, class_name, repository_path=None):
+    module = tools.file_import(file, prefix="artiq_worker_", repository_path=repository_path)
     return tools.get_experiment(module, class_name)
 
 
@@ -155,10 +155,10 @@ class ExamineDatasetMgr:
         pass
 
 
-def examine(device_mgr, dataset_mgr, file):
+def examine(device_mgr, dataset_mgr, file, wd):
     previous_keys = set(sys.modules.keys())
     try:
-        module = tools.file_import(file)
+        module = tools.file_import(file, repository_path=wd)
         for class_name, exp_class in inspect.getmembers(module, is_public_experiment):
             if exp_class.__doc__ is None:
                 name = class_name
@@ -279,7 +279,7 @@ def main():
                     experiment_file = expid["file"]
                     repository_path = None
                 setup_diagnostics(experiment_file, repository_path)
-                exp = get_experiment(experiment_file, expid["class_name"])
+                exp = get_experiment(experiment_file, expid["class_name"], repository_path)
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)
@@ -311,7 +311,7 @@ def main():
                 finally:
                     write_results()
             elif action == "examine":
-                examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
+                examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"], obj["wd"])
                 put_completed()
             elif action == "terminate":
                 break

@@ -486,7 +486,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
     async def examine(self, file):
         worker = Worker(self.worker_handlers)
         try:
-            return await worker.examine("examine", file)
+            return await worker.examine("examine", file, self.current_dir)
         finally:
             await worker.close()
 

@@ -602,18 +602,26 @@ class ExperimentManager:
             self.submission_scheduling[expurl] = scheduling
             return scheduling
 
+    def initialize_submission_options(self, expurl, repo_dir):
+        # mutated by _ExperimentDock
+        options = {
+            "log_level": logging.WARNING
+        }
+        if expurl[:5] == "repo:":
+            options["repo_rev"] = None
+        elif repo_dir:
+            options["repo_dir"] = repo_dir
+        self.submission_options[expurl] = options
+        return options
+
     def get_submission_options(self, expurl):
         if expurl in self.submission_options:
             return self.submission_options[expurl]
         else:
-            # mutated by _ExperimentDock
-            options = {
-                "log_level": logging.WARNING
-            }
-            if expurl[:5] == "repo:":
-                options["repo_rev"] = None
-            self.submission_options[expurl] = options
-            return options
+            if expurl[:5] != "repo:":
+                raise ValueError("Submission options must be preinitialized "
+                                 "when not using repository")
+            return self.initialize_submission_options(expurl, None)
 
     def initialize_submission_arguments(self, expurl, arginfo):
         arguments = OrderedDict()
@@ -696,6 +704,8 @@ class ExperimentManager:
         }
         if "repo_rev" in options:
             expid["repo_rev"] = options["repo_rev"]
+        elif "repo_dir" in options:
+            expid["repo_dir"] = options["repo_dir"]
         asyncio.ensure_future(self._submit_task(
             expurl,
             scheduling["pipeline_name"],
@@ -733,19 +743,22 @@ class ExperimentManager:
 
     async def compute_expdesc(self, expurl):
         file, class_name, use_repository = self.resolve_expurl(expurl)
+        options = self.get_submission_options(expurl)
         if use_repository:
-            revision = self.get_submission_options(expurl)["repo_rev"]
+            revision = options["repo_rev"]
         else:
             revision = None
+        repo_dir = options.get("repo_dir")
         description = await self.experiment_db_ctl.examine(
-            file, use_repository, revision)
+            file, use_repository=use_repository, revision=revision, wd=repo_dir)
         return description[class_name]
 
-    async def open_file(self, file):
-        description = await self.experiment_db_ctl.examine(file, False)
+    async def open_file(self, file, repo_dir):
+        description = await self.experiment_db_ctl.examine(file, use_repository=False, wd=repo_dir)
         for class_name, class_desc in description.items():
             expurl = "file:{}@{}".format(class_name, file)
             self.initialize_submission_arguments(expurl, class_desc["arginfo"])
+            self.initialize_submission_options(expurl, repo_dir)
             if expurl in self.open_experiments:
                 self.open_experiments[expurl].close()
             self.open_experiment(expurl)

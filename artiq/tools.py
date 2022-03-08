@@ -71,11 +71,18 @@ def short_format(v):
         return r
 
 
-def file_import(filename, prefix="file_import_"):
-    filename = pathlib.Path(filename)
+def file_import(filename, prefix="file_import_", repository_path=None):
+    filename = pathlib.Path(filename).resolve()
     modname = prefix + filename.stem
 
-    path = str(filename.resolve().parent)
+    if repository_path:
+        repository_path = pathlib.Path(repository_path).resolve()
+        relative_file_path = filename.relative_to(repository_path)
+        modname = '.'.join(relative_file_path.parts[:-1] + (modname,))
+        path = str(repository_path)
+    else:
+        path = str(filename.parent)
+
     sys.path.insert(0, path)
 
     try:
