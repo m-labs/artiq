@@ -208,7 +208,7 @@ class Phaser:
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
         if debug:
-            # NAC3TODO print("gw_rev:", gw_rev)
+            print_rpc(("gw_rev:", gw_rev))
             self.core.break_realtime()
         self.core.delay(.1*ms)  # slack
 
@@ -288,7 +288,7 @@ class Phaser:
         if self.tune_fifo_offset:
             fifo_offset = self.dac_tune_fifo_offset()
             if debug:
-                # NAC3TODO print("fifo_offset:", fifo_offset)
+                print_rpc(("fifo_offset:", fifo_offset))
                 self.core.break_realtime()
 
         # self.dac_write(0x20, 0x0000)  # stop fifo sync
@@ -300,7 +300,7 @@ class Phaser:
         self.core.delay(.1*ms)  # slack
         if alarms & ~0x0040 != 0:  # ignore PLL alarms (see DS)
             if debug:
-                # NAC3TODO print("alarms:", alarms)
+                print_rpc(("alarms:", alarms))
                 self.core.break_realtime()
                 # ignore alarms
             else:

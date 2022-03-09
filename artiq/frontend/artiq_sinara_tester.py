@@ -257,7 +257,7 @@ class SinaraTester(EnvExperiment):
             cpld.set_all_att_mu(test_word)
             readback_word = cpld.get_att_mu()
             if readback_word != test_word:
-                # NAC3TODO print(readback_word, test_word)
+                print_rpc((readback_word, test_word))
                 # NAC3TODO raise ValueError
                 pass
 
@@ -389,7 +389,7 @@ class SinaraTester(EnvExperiment):
     def almazny_set_attenuators(self, almazny: Almazny, ch: int32, atts: float):
         self.core.break_realtime()
         almazny.set_att(ch, atts)
-    
+
     @kernel
     def almazny_toggle_output(self, almazny: Almazny, rf_on: bool):
         self.core.break_realtime()
@@ -654,7 +654,7 @@ class SinaraTester(EnvExperiment):
         card_dev.input_mu(n)
         self.core.break_realtime()
         card_dev.gate_roi(0)
-        # NAC3TODO print("ROI sums:", n)
+        print_rpc(("ROI sums:", n))
 
     def test_grabbers(self):
         print("*** Testing Grabber Frame Grabbers.")
