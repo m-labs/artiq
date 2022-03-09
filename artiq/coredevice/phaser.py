@@ -14,14 +14,6 @@ from artiq.coredevice.trf372017 import TRF372017
 class ValueError(Exception):
     pass
 
-# NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/201
-@portable
-def abs(x: int32) -> int32:
-    if x > 0:
-        return x
-    else:
-        return -x
-
 
 PHASER_BOARD_ID = 19
 PHASER_ADDR_BOARD_ID = 0x00

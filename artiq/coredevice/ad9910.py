@@ -15,21 +15,6 @@ from artiq.coredevice.kasli_i2c import KasliEEPROM  # NAC3TODO
 class ValueError(Exception):
     pass
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/206
-@portable
-def min(a: int32, b: int32) -> int32:
-    if a > b:
-        return b
-    else:
-        return a
-
-@portable
-def max(a: int32, b: int32) -> int32:
-    if a > b:
-        return a
-    else:
-        return b
-
 
 __all__ = [
     "AD9910",
