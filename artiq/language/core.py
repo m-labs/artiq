@@ -6,6 +6,7 @@ from typing import Generic, TypeVar
 from functools import wraps
 from inspect import getfullargspec, getmodule
 from types import SimpleNamespace
+from typing import TypeVar
 from math import floor, ceil
 
 from artiq.language import import_cache
@@ -16,7 +17,8 @@ __all__ = [
     "round64", "floor64", "ceil64",
     "extern", "kernel", "portable", "nac3", "rpc",
     "parallel", "sequential",
-    "set_watchdog_factory", "watchdog", "TerminationRequested"
+    "set_watchdog_factory", "watchdog", "TerminationRequested",
+    "print_rpc"
 ]
 
 
@@ -105,6 +107,14 @@ def rpc(arg=None, flags={}):
             return rpc(function, flags)
         return inner_decorator
     return arg
+
+
+T = TypeVar('T')
+
+@rpc
+def print_rpc(a: T):
+    print(a)
+
 
 @nac3
 class KernelContextManager:
