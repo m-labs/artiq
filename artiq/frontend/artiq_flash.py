@@ -440,7 +440,7 @@ def main():
             storage_img = args.storage
             programmer.write_binary(*config["storage"], storage_img)
         elif action == "firmware":
-            if variant.endswith("satellite"):
+            if "satellite" in variant:
                 firmware = "satman"
             else:
                 firmware = "runtime"
