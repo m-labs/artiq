@@ -1,4 +1,5 @@
 use core::fmt;
+use cslice::CSlice;
 use dyld;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x45000000;
@@ -53,7 +54,7 @@ pub enum Message<'a> {
     RpcFlush,
 
     CacheGetRequest { key: &'a str },
-    CacheGetReply   { value: &'static [i32] },
+    CacheGetReply   { value: *const CSlice<'static, i32> },
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
