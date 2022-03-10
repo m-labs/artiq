@@ -253,7 +253,10 @@ class LLVMIRGenerator:
             return ll.LiteralStructType([llbufferty, llshapety])
         elif builtins.is_listish(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
-            return ll.LiteralStructType([lleltty.as_pointer(), lli32])
+            lltyp = ll.LiteralStructType([lleltty.as_pointer(), lli32])
+            if builtins.is_list(typ):
+                lltyp = lltyp.as_pointer()
+            return lltyp
         elif builtins.is_range(typ):
             lleltty = self.llty_of_type(builtins.get_iterable_elt(typ))
             return ll.LiteralStructType([lleltty, lleltty, lleltty])
@@ -782,9 +785,20 @@ class LLVMIRGenerator:
             llalloc = self.llbuilder.alloca(lleltty, size=llsize)
             if types._is_pointer(insn.type):
                 return llalloc
-            llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
-            llvalue = self.llbuilder.insert_value(llvalue, llalloc, 0, name=insn.name)
-            llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
+            if builtins.is_list(insn.type):
+                llvalue = self.llbuilder.alloca(self.llty_of_type(insn.type).pointee, size=1)
+                self.llbuilder.store(llalloc, self.llbuilder.gep(llvalue,
+                                                                 [self.llindex(0),
+                                                                  self.llindex(0)],
+                                                                 inbounds=True))
+                self.llbuilder.store(llsize, self.llbuilder.gep(llvalue,
+                                                                 [self.llindex(0),
+                                                                  self.llindex(1)],
+                                                                 inbounds=True))
+            else:
+                llvalue = ll.Constant(self.llty_of_type(insn.type), ll.Undefined)
+                llvalue = self.llbuilder.insert_value(llvalue, llalloc, 0)
+                llvalue = self.llbuilder.insert_value(llvalue, llsize, 1)
             return llvalue
         elif (not builtins.is_allocated(insn.type) or ir.is_keyword(insn.type)
               or builtins.is_array(insn.type)):
@@ -988,9 +1002,15 @@ class LLVMIRGenerator:
     def process_Offset(self, insn):
         base, idx = insn.base(), insn.index()
         llelts, llidx = map(self.map, (base, idx))
-        if not types._is_pointer(base.type):
+        if builtins.is_listish(base.type):
             # This is list-ish.
-            llelts = self.llbuilder.extract_value(llelts, 0)
+            if builtins.is_list(base.type):
+                llelts = self.llbuilder.load(self.llbuilder.gep(llelts,
+                                                                [self.llindex(0),
+                                                                 self.llindex(0)],
+                                                                inbounds=True))
+            else:
+                llelts = self.llbuilder.extract_value(llelts, 0)
         llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
         return llelt
 
@@ -1004,9 +1024,15 @@ class LLVMIRGenerator:
     def process_SetElem(self, insn):
         base, idx = insn.base(), insn.index()
         llelts, llidx = map(self.map, (base, idx))
-        if not types._is_pointer(base.type):
+        if builtins.is_listish(base.type):
             # This is list-ish.
-            llelts = self.llbuilder.extract_value(llelts, 0)
+            if builtins.is_list(base.type):
+                llelts = self.llbuilder.load(self.llbuilder.gep(llelts,
+                                                                [self.llindex(0),
+                                                                 self.llindex(0)],
+                                                                inbounds=True))
+            else:
+                llelts = self.llbuilder.extract_value(llelts, 0)
         llelt = self.llbuilder.gep(llelts, [llidx], inbounds=True)
         return self.llbuilder.store(self.map(insn.value()), llelt)
 
@@ -1152,6 +1178,11 @@ class LLVMIRGenerator:
         lllhs, llrhs = map(self.map, (insn.lhs(), insn.rhs()))
         assert lllhs.type == llrhs.type
 
+        if isinstance(lllhs.type, ll.PointerType) and \
+                isinstance(lllhs.type.pointee, ll.LiteralStructType):
+            lllhs = self.llbuilder.load(lllhs)
+            llrhs = self.llbuilder.load(llrhs)
+
         if isinstance(lllhs.type, ll.IntType):
             return self.llbuilder.icmp_signed(op, lllhs, llrhs,
                                                 name=insn.name)
@@ -1222,7 +1253,12 @@ class LLVMIRGenerator:
                 shape = self.llbuilder.extract_value(self.map(collection),
                     self.attr_index(collection.type, "shape"))
                 return self.llbuilder.extract_value(shape, 0)
-            return self.llbuilder.extract_value(self.map(collection), 1)
+            elif builtins.is_list(collection.type):
+                return self.llbuilder.load(self.llbuilder.gep(self.map(collection),
+                                                              [self.llindex(0),
+                                                               self.llindex(1)]))
+            else:
+                return self.llbuilder.extract_value(self.map(collection), 1)
         elif insn.op in ("printf", "rtio_log"):
             # We only get integers, floats, pointers and strings here.
             lloperands = []
@@ -1677,6 +1713,13 @@ class LLVMIRGenerator:
             assert isinstance(value, (list, numpy.ndarray)), fail_msg
             elt_type  = builtins.get_iterable_elt(typ)
             lleltsptr = self._quote_listish_to_llglobal(value, elt_type, path, typ.find().name)
+            if builtins.is_list(typ):
+                llconst   = ll.Constant(llty.pointee, [lleltsptr, ll.Constant(lli32, len(value))])
+                name = self.llmodule.scope.deduplicate("quoted.{}".format(typ.find().name))
+                llglobal = ll.GlobalVariable(self.llmodule, llconst.type, name)
+                llglobal.initializer = llconst
+                llglobal.linkage = "private"
+                return llglobal
             llconst   = ll.Constant(llty, [lleltsptr, ll.Constant(lli32, len(value))])
             return llconst
         elif types.is_tuple(typ):
