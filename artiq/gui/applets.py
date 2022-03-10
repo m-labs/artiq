@@ -11,7 +11,6 @@ from itertools import count
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 from sipyco.pipe_ipc import AsyncioParentComm
-from sipyco.logging_tools import LogParser
 from sipyco import pyon
 
 from artiq.gui.tools import QDockWidgetCloseDetect, LayoutWidget
@@ -111,9 +110,6 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.applet_name = name
         self.setWindowTitle("Applet: " + name)
 
-    def _get_log_source(self):
-        return "applet({})".format(self.applet_name)
-
     async def start_process(self, args, stdin):
         if self.starting_stopping:
             return
@@ -127,7 +123,6 @@ class _AppletDock(QDockWidgetCloseDetect):
                 await self.ipc.create_subprocess(
                     *args,
                     stdin=None if stdin is None else subprocess.PIPE,
-                    stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     env=env, start_new_session=True)
             except:
                 logger.warning("Applet %s failed to start", self.applet_name,
@@ -136,12 +131,6 @@ class _AppletDock(QDockWidgetCloseDetect):
             if stdin is not None:
                 self.ipc.process.stdin.write(stdin.encode())
                 self.ipc.process.stdin.write_eof()
-            asyncio.ensure_future(
-                LogParser(self._get_log_source).stream_task(
-                    self.ipc.process.stdout))
-            asyncio.ensure_future(
-                LogParser(self._get_log_source).stream_task(
-                    self.ipc.process.stderr))
             self.ipc.start_server(self.embed, self.fix_initial_size)
         finally:
             self.starting_stopping = False
