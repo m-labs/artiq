@@ -26,11 +26,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1643634764,
-        "narHash": "sha256-EcFlgzZnZSHwZixELYV1pa267t+u5mCeLhSNBeAA/+c=",
+        "lastModified": 1645464064,
+        "narHash": "sha256-YeN4bpPvHkVOpQzb8APTAfE7/R+MFMwJUMkqmfvytSk=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996",
+        "rev": "15b7a05f20aab51c4ffbefddb1b448e862dccb7d",
         "type": "github"
       },
       "original": {
@@ -41,11 +41,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1644472683,
-        "narHash": "sha256-sP6iM4NksOYO6NFfTJ96cg+ClPnq6cdY30xKA1iYtyU=",
+        "lastModified": 1646588256,
+        "narHash": "sha256-ZHljmNlt19nSm0Mz8fx6QEhddKUkU4hhwFmfNmGn+EY=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7adc9c14ec74b27358a8df9b973087e351425a79",
+        "rev": "2ebb6c1e5ae402ba35cca5eec58385e5f1adea04",
         "type": "github"
       },
       "original": {
