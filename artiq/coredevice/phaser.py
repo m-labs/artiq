@@ -478,8 +478,7 @@ class Phaser:
         * :const:`PHASER_STA_TRF1_LD`: Quadrature upconverter 1 lock detect
         * :const:`PHASER_STA_TERM0`: ADC channel 0 termination indicator
         * :const:`PHASER_STA_TERM1`: ADC channel 1 termination indicator
-        * :const:`PHASER_STA_SPI_IDLE`: SPI machine is idle and data registers
-            can be read/written
+        * :const:`PHASER_STA_SPI_IDLE`: SPI machine is idle and data registers can be read/written
 
         :return: Status register
         """
@@ -769,10 +768,11 @@ class PhaserChannel:
     * multiple oscillators (in the coredevice phy),
     * an interpolation chain and digital upconverter (DUC) on Phaser,
     * several channel-specific settings in the DAC:
+
         * quadrature modulation compensation QMC
         * numerically controlled oscillator NCO or coarse mixer CMIX,
-    * the analog quadrature upconverter (in the Phaser-Upconverter hardware
-        variant), and
+
+    * the analog quadrature upconverter (in the Phaser-Upconverter hardware variant), and
     * a digitally controlled step attenuator.
 
     Attributes:

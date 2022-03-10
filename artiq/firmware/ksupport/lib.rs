@@ -15,7 +15,7 @@ extern crate proto_artiq;
 extern crate riscv;
 
 use core::{mem, ptr, slice, str, convert::TryFrom};
-use cslice::{CSlice, AsCSlice};
+use cslice::CSlice;
 use io::Cursor;
 use dyld::Library;
 use board_artiq::{mailbox, rpc_queue};
@@ -190,13 +190,12 @@ fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
 }
 
 #[unwind(aborts)]
-extern fn cache_get<'a>(ret: &'a mut CSlice<i32>, key: &CSlice<u8>) -> &'a CSlice<'a, i32> {
+extern fn cache_get<'a>(key: &CSlice<u8>) -> *const CSlice<'a, i32> {
     send(&CacheGetRequest {
         key:   str::from_utf8(key.as_ref()).unwrap()
     });
     recv!(&CacheGetReply { value } => {
-        *ret = value.as_c_slice();
-        ret
+        value
     })
 }
 
