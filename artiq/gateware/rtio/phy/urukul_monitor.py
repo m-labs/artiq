@@ -10,22 +10,19 @@ class AD99XXMonitorGeneric(Module):
 
         self.current_address = Signal.like(self.rtlink.o.address)
         self.current_data = Signal.like(self.rtlink.o.data)
-        self.sync.rio += If(
-            self.rtlink.o.stb,
-            self.current_address.eq(self.rtlink.o.address),
-            self.current_data.eq(self.rtlink.o.data)
-        )
-
         self.cs = Signal(8)
         self.length = Signal(8)
         self.flags = Signal(8)
 
-        self.sync.rio += If(
-            self.rtlink.o.stb & (self.current_address == SPI_CONFIG_ADDR),
-            self.cs.eq(self.current_data[24:]),
-            self.length.eq(self.current_data[8:16] + 1),
-            self.flags.eq(self.current_data[0:8])
-        )
+        self.sync.rio += If(self.rtlink.o.stb, [
+            self.current_address.eq(self.rtlink.o.address),
+            self.current_data.eq(self.rtlink.o.data),
+            If(self.current_address == SPI_CONFIG_ADDR, [
+                self.cs.eq(self.current_data[24:]),
+                self.length.eq(self.current_data[8:16] + 1),
+                self.flags.eq(self.current_data[0:8])
+            ])
+        ])
 
     def selected(self, c):
         if self.cs == CS_DDS_MULTI:
