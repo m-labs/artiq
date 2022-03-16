@@ -25,10 +25,7 @@ class AD99XXMonitorGeneric(Module):
         ])
 
     def selected(self, c):
-        if self.cs == CS_DDS_MULTI:
-            return True
-        else:
-            return c == self.cs
+        return (self.cs == CS_DDS_MULTI) | (self.cs == c)
 
     def master_is_data_and_not_input(self):
         return (self.current_address == SPI_DATA_ADDR) & ~(self.flags & SPI_INPUT)
@@ -49,26 +46,25 @@ class AD9910Monitor(AD99XXMonitorGeneric):
         # 0 -> init, 1 -> start read value
         state = Signal()
         for i in range(nchannels):
-            self.sync.rio_phy += If(
-                self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR) & ~(self.flags & SPI_INPUT), [
-                    Case(state, {
-                        0: [
-                            # write16
-                            If(self.length == 24 & (self.flags & SPI_END), [
-                                buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
-                                buffer[i]['value'].eq((self.current_data >> 8) & 0xffff),
-                            ]).
-                             # write32
-                             Elif(self.length == 8, [
-                                buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
-                                state.eq(1)
-                            ])
-                        ],
-                        1: [
-                            If(self.flags & SPI_END, buffer[i]['value'].eq(self.current_data))
-                        ]
-                    })
-                ])
+            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
+                Case(state, {
+                    0: [
+                        # write16
+                        If(self.length == 24 & (self.flags & SPI_END), [
+                            buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
+                            buffer[i]['value'].eq((self.current_data >> 8) & 0xffff),
+                        ]).
+                         # write32
+                         Elif(self.length == 8, [
+                            buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
+                            state.eq(1)
+                        ])
+                    ],
+                    1: [
+                        If(self.flags & SPI_END, buffer[i]['value'].eq(self.current_data))
+                    ]
+                })
+            ])
 
         self.sync.rio_phy += If(phy.rtlink.o.stb, [
             state.eq(0),
@@ -101,22 +97,21 @@ class AD9912Monitor(AD99XXMonitorGeneric):
         state = Signal(1)
 
         for i in range(nchannels):
-            self.sync.rio_phy += If(
-                self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR) & ~(self.flags & SPI_INPUT), [
-                    Case(state, {
-                        0: [
-                            # write/set_mu
-                            If(self.length == 16, [
-                                buffer[i]['register'].eq(self.current_data[16:28]),
-                                state.eq(1)
-                            ])
-                        ],
-                        1: [
-                            If(self.flags & SPI_END, buffer[i]['value'][:32].eq(self.current_data)).
-                            Else(buffer[i]['value'][32:48].eq(self.current_data[:16]))
-                        ]
-                    })
-                ])
+            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
+                Case(state, {
+                    0: [
+                        # write/set_mu
+                        If(self.length == 16, [
+                            buffer[i]['register'].eq(self.current_data[16:28]),
+                            state.eq(1)
+                        ])
+                    ],
+                    1: [
+                        If(self.flags & SPI_END, buffer[i]['value'][:32].eq(self.current_data))
+                        .Else(buffer[i]['value'][32:48].eq(self.current_data[:16]))
+                    ]
+                })
+            ])
 
         self.sync.rio_phy += If(phy.rtlink.o.stb, [
             state.eq(0),
