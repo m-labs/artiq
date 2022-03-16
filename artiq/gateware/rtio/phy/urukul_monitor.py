@@ -5,8 +5,8 @@ from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI
 
 
 class AD99XXMonitorGeneric(Module):
-    def __init__(self, spi_rtlink):
-        self.rtlink = spi_rtlink
+    def __init__(self, rtlink):
+        self.rtlink = rtlink
 
         self.current_address = Signal.like(self.rtlink.o.address)
         self.current_data = Signal.like(self.rtlink.o.data)
@@ -35,7 +35,7 @@ class AD99XXMonitorGeneric(Module):
 
 
 class AD9910Monitor(AD99XXMonitorGeneric):
-    def __init__(self, spi_rtlink, phy, nchannels=4):
+    def __init__(self, rtlink, phy, nchannels=4):
         data = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
         buffer = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
 
@@ -44,7 +44,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(spi_rtlink)
+        super().__init__(rtlink)
 
         # 0 -> init, 1 -> start read value
         state = Signal()
@@ -82,7 +82,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
 
 
 class AD9912Monitor(AD99XXMonitorGeneric):
-    def __init__(self, spi_rtlink, phy, nchannels=4):
+    def __init__(self, rtlink, phy, nchannels=4):
         data = [
             {'register': Signal(24), 'value': Signal(48)} for i in range(nchannels)
         ]
@@ -95,7 +95,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(spi_rtlink)
+        super().__init__(rtlink)
 
         # 0 -> init, 1 -> start read value
         state = Signal(1)
