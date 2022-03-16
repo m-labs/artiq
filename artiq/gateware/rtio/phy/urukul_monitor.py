@@ -23,7 +23,6 @@ class AD99XXMonitorGeneric(Module):
         self.sync.rio += If(
             self.rtlink.o.stb & (self.current_address == SPI_CONFIG_ADDR),
             self.cs.eq(self.current_data[24:]),
-            # self.div.eq(self.current_data[16:24] + 2),
             self.length.eq(self.current_data[8:16] + 1),
             self.flags.eq(self.current_data[0:8])
         )
