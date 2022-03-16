@@ -171,6 +171,16 @@ class CommKernelDummy:
         pass
 
 
+def incompatible_versions(v1, v2):
+    if v1.endswith(".beta") or v2.endswith(".beta"):
+        # Beta branches may introduce breaking changes. Check version strictly.
+        return v1 != v2
+    else:
+        # On stable branches, runtime/software protocol backward compatibility is kept.
+        # Runtime and software with the same major version number are compatible.
+        return v1.split(".", maxsplit=1)[0] != v2.split(".", maxsplit=1)[0]
+
+
 class CommKernel:
     warned_of_mismatch = False
 
@@ -347,7 +357,7 @@ class CommKernel:
         runtime_id = self._read(4)
         if runtime_id == b"AROR":
             gateware_version = self._read_string().split(";")[0]
-            if gateware_version != software_version and not self.warned_of_mismatch:
+            if not self.warned_of_mismatch and incompatible_versions(gateware_version, software_version):
                 logger.warning("Mismatch between gateware (%s) "
                                "and software (%s) versions",
                                gateware_version, software_version)
