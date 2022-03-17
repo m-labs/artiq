@@ -207,13 +207,13 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                 csr::rtio_moninj::mon_chan_sel_write(channel as _);
                 csr::rtio_moninj::mon_probe_sel_write(probe);
                 csr::rtio_moninj::mon_value_update_write(1);
-                value = csr::rtio_moninj::mon_value_read();
+                value = csr::rtio_moninj::mon_value_read() as u64;
             }
             #[cfg(not(has_rtio_moninj))]
             {
                 value = 0;
             }
-            let reply = drtioaux::Packet::MonitorReply { value: value as u32 };
+            let reply = drtioaux::Packet::MonitorReply { value: value };
             drtioaux::send(0, &reply)
         },
         drtioaux::Packet::InjectionRequest { destination: _destination, channel, overrd, value } => {

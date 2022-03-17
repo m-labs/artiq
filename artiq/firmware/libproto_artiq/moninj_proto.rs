@@ -40,7 +40,7 @@ pub enum HostMessage {
 
 #[derive(Debug)]
 pub enum DeviceMessage {
-    MonitorStatus { channel: u32, probe: u8, value: u32 },
+    MonitorStatus { channel: u32, probe: u8, value: u64 },
     InjectionStatus { channel: u32, overrd: u8, value: u8 }
 }
 
@@ -82,7 +82,7 @@ impl DeviceMessage {
                 writer.write_u8(0)?;
                 writer.write_u32(channel)?;
                 writer.write_u8(probe)?;
-                writer.write_u32(value)?;
+                writer.write_u64(value)?;
             },
             DeviceMessage::InjectionStatus { channel, overrd, value } => {
                 writer.write_u8(1)?;
