@@ -12,7 +12,7 @@ class Monitor(Module, AutoCSR):
         self.chan_sel = CSRStorage(bits_for(len(chan_probes)-1))
         self.probe_sel = CSRStorage(bits_for(max_chan_probes-1))
         self.value_update = CSR()
-        self.value = CSRStatus(max(48, max_probe_len))
+        self.value = CSRStatus(max_probe_len)
 
         # # #
 

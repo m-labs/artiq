@@ -18,7 +18,7 @@ mod local_moninj {
             csr::rtio_moninj::mon_chan_sel_write(channel as _);
             csr::rtio_moninj::mon_probe_sel_write(probe);
             csr::rtio_moninj::mon_value_update_write(1);
-            csr::rtio_moninj::mon_value_read()
+            csr::rtio_moninj::mon_value_read() as _
         }
     }
 
