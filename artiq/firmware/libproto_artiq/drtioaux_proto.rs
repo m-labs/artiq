@@ -34,7 +34,7 @@ pub enum Packet {
     RoutingAck,
 
     MonitorRequest { destination: u8, channel: u16, probe: u8 },
-    MonitorReply { value: u32 },
+    MonitorReply { value: u64 },
     InjectionRequest { destination: u8, channel: u16, overrd: u8, value: u8 },
     InjectionStatusRequest { destination: u8, channel: u16, overrd: u8 },
     InjectionStatusReply { value: u8 },
@@ -104,7 +104,7 @@ impl Packet {
                 probe: reader.read_u8()?
             },
             0x41 => Packet::MonitorReply {
-                value: reader.read_u32()?
+                value: reader.read_u64()?
             },
             0x50 => Packet::InjectionRequest {
                 destination: reader.read_u8()?,
@@ -252,7 +252,7 @@ impl Packet {
             },
             Packet::MonitorReply { value } => {
                 writer.write_u8(0x41)?;
-                writer.write_u32(value)?;
+                writer.write_u64(value)?;
             },
             Packet::InjectionRequest { destination, channel, overrd, value } => {
                 writer.write_u8(0x50)?;
