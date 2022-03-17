@@ -5,18 +5,18 @@ from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI
 
 
 class AD99XXMonitorGeneric(Module):
-    def __init__(self, rtlink):
-        self.rtlink = rtlink
+    def __init__(self, spi_phy):
+        self.spi_phy = spi_phy
 
-        self.current_address = Signal.like(self.rtlink.o.address)
-        self.current_data = Signal.like(self.rtlink.o.data)
+        self.current_address = Signal.like(self.spi_phy.rtlink.o.address)
+        self.current_data = Signal.like(self.spi_phy.rtlink.o.data)
         self.cs = Signal(8)
         self.length = Signal(8)
         self.flags = Signal(8)
 
-        self.sync.rio += If(self.rtlink.o.stb, [
-            self.current_address.eq(self.rtlink.o.address),
-            self.current_data.eq(self.rtlink.o.data),
+        self.sync.rio += If(self.spi_phy.rtlink.o.stb, [
+            self.current_address.eq(self.spi_phy.rtlink.o.address),
+            self.current_data.eq(self.spi_phy.rtlink.o.data),
             If(self.current_address == SPI_CONFIG_ADDR, [
                 self.cs.eq(self.current_data[24:]),
                 self.length.eq(self.current_data[8:16] + 1),
@@ -32,7 +32,7 @@ class AD99XXMonitorGeneric(Module):
 
 
 class AD9910Monitor(AD99XXMonitorGeneric):
-    def __init__(self, rtlink, phy, nchannels=4):
+    def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
         buffer = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
 
@@ -41,7 +41,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(rtlink)
+        super().__init__(spi_phy)
 
         # 0 -> init, 1 -> start read value
         state = Signal()
@@ -66,7 +66,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(phy.rtlink.o.stb, [
+        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb, [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [
@@ -78,7 +78,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
 
 
 class AD9912Monitor(AD99XXMonitorGeneric):
-    def __init__(self, rtlink, phy, nchannels=4):
+    def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [
             {'register': Signal(24), 'value': Signal(48)} for i in range(nchannels)
         ]
@@ -91,7 +91,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(rtlink)
+        super().__init__(spi_phy)
 
         # 0 -> init, 1 -> start read value
         state = Signal(1)
@@ -113,7 +113,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(phy.rtlink.o.stb, [
+        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb, [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [

@@ -182,7 +182,7 @@ class Urukul(_EEM):
         pads = target.platform.request("urukul{}_io_update".format(eem))
         phy = ttl_out_cls(pads.p, pads.n)
 
-        dds_monitor = urukul_monitor.AD9912Monitor(spi_phy.rtlink, phy)
+        dds_monitor = urukul_monitor.AD9912Monitor(spi_phy, phy)
         target.submodules += dds_monitor
         spi_phy.probes.extend(dds_monitor.probes)
 
