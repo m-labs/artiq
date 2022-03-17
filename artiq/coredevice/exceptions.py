@@ -1,5 +1,5 @@
 from artiq.language.core import nac3
-
+from builtins import ZeroDivisionError, ValueError, IndexError, RuntimeError, AssertionError
 
 @nac3
 class RTIOUnderflow(Exception):
@@ -8,7 +8,7 @@ class RTIOUnderflow(Exception):
 
     The offending event is discarded and the RTIO core keeps operating.
     """
-    pass
+    artiq_builtin = True
 
 
 @nac3
@@ -20,7 +20,7 @@ class RTIOOverflow(Exception):
     read attempt and discarding some events. Reading can be reattempted after
     the exception is caught, and events will be partially retrieved.
     """
-    pass
+    artiq_builtin = True
 
 
 @nac3
@@ -28,34 +28,35 @@ class RTIODestinationUnreachable(Exception):
     """Raised with a RTIO operation could not be completed due to a DRTIO link
     being down.
     """
-    pass
+    artiq_builtin = True
 
 
 @nac3
 class CacheError(Exception):
     """Raised when putting a value into a cache row would violate memory safety."""
-    pass
+    artiq_builtin = True
 
 
 @nac3
 class DMAError(Exception):
     """Raised when performing an invalid DMA operation."""
-    pass
+    artiq_builtin = True
 
 
 @nac3
 class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
-    pass
+    artiq_builtin = True
 
 
 @nac3
 class I2CError(Exception):
     """Raised when a I2C transaction fails."""
-    pass
+    artiq_builtin = True
 
 
 @nac3
 class SPIError(Exception):
     """Raised when a SPI transaction fails."""
-    pass
+    artiq_builtin = True
+
