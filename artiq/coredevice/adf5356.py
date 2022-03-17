@@ -20,13 +20,6 @@ from artiq.coredevice.spi2 import *
 from artiq.coredevice.adf5356_reg import *
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
-
 SPI_CONFIG = (
     0 * SPI_OFFLINE
     | 0 * SPI_END

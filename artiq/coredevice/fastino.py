@@ -10,15 +10,6 @@ from artiq.language.units import ns
 from artiq.coredevice.core import Core
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-@nac3
-class NotImplementedError(Exception):
-    pass
-
-
 @nac3
 class Fastino:
     """Fastino 32-channel, 16-bit, 2.5 MS/s per channel streaming DAC

@@ -9,12 +9,6 @@ from artiq.coredevice.dac34h84 import DAC34H84
 from artiq.coredevice.trf372017 import TRF372017
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 PHASER_BOARD_ID = 19
 PHASER_ADDR_BOARD_ID = 0x00
 PHASER_ADDR_HW_REV = 0x01

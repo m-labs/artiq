@@ -14,13 +14,6 @@ from artiq.coredevice.core import Core
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
-
 __all__ = [
     "SPI_DATA_ADDR", "SPI_CONFIG_ADDR",
     "SPI_OFFLINE", "SPI_END", "SPI_INPUT",

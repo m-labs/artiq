@@ -10,12 +10,6 @@ from artiq.coredevice.ad9910 import AD9910
 from artiq.coredevice.sampler import adc_mu_to_volt as sampler_adc_mu_to_volt, SPI_CONFIG as SAMPLER_SPI_CONFIG, SPI_CS_PGIA as SAMPLER_SPI_CS_PGIA
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 COEFF_WIDTH = 18
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 COEFF_DEPTH = 10 + 1

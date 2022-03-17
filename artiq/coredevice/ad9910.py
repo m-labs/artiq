@@ -10,12 +10,6 @@ from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.kasli_i2c import KasliEEPROM  # NAC3TODO
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 __all__ = [
     "AD9910",
     "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING",

@@ -10,12 +10,6 @@ from artiq.coredevice.rtio import rtio_output
 from artiq.coredevice.core import Core
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 __all__ = [
     "AD9914",
     "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING"

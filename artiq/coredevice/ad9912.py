@@ -10,12 +10,6 @@ from artiq.coredevice.urukul import *
 from artiq.coredevice.ttl import TTLOut
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 @nac3
 class AD9912:
     """

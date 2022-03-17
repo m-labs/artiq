@@ -17,12 +17,6 @@ from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.spi2 import *
 
 
-# NAC3TODO work around https://git.m-labs.hk/M-Labs/nac3/issues/189
-@nac3
-class ValueError(Exception):
-    pass
-
-
 SPI_AD53XX_CONFIG = (0*SPI_OFFLINE | 1*SPI_END |
                      0*SPI_INPUT | 0*SPI_CS_POLARITY |
                      0*SPI_CLK_POLARITY | 1*SPI_CLK_PHASE |
