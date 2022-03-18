@@ -66,7 +66,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb, [
+        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb & io_update_phy.rtlink.o.data, [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [
@@ -113,7 +113,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb, [
+        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb & io_update_phy.rtlink.o.data, [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [
