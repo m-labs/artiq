@@ -70,6 +70,65 @@ class DIO(_EEM):
                     target.rtio_channels.append(rtio.Channel.from_phy(counter))
 
 
+class DIO_SPI(_EEM):
+    @staticmethod
+    def io(eem, spi, ttl, iostandard):
+        def spi_subsignals(clk, mosi, miso, cs, pol):
+            signals = [Subsignal("clk", Pins(_eem_pin(eem, clk, pol)))]
+            if mosi is not None:
+                signals.append(Subsignal("mosi",
+                                         Pins(_eem_pin(eem, mosi, pol))))
+            if miso is not None:
+                signals.append(Subsignal("miso",
+                                         Pins(_eem_pin(eem, miso, pol))))
+            if cs:
+                signals.append(Subsignal("cs_n", Pins(
+                    *(_eem_pin(eem, pin, pol) for pin in cs))))
+            return signals
+
+        spi = [
+            ("dio{}_spi{}_{}".format(eem, i, pol), i,
+             *spi_subsignals(clk, mosi, miso, cs, pol),
+             iostandard(eem))
+            for i, (clk, mosi, miso, cs) in enumerate(spi) for pol in "pn"
+        ]
+        ttl = [
+            ("dio{}".format(eem), i,
+             Subsignal("p", Pins(_eem_pin(eem, pin, "p"))),
+             Subsignal("n", Pins(_eem_pin(eem, pin, "n"))),
+             iostandard(eem))
+            for i, (pin, _, _) in enumerate(ttl)
+        ]
+        return spi + ttl
+
+    @classmethod
+    def add_std(cls, target, eem, spi, ttl, iostandard=default_iostandard):
+        cls.add_extension(target, eem, spi, ttl, iostandard=iostandard)
+
+        for i in range(len(spi)):
+            phy = spi2.SPIMaster(
+                target.platform.request("dio{}_spi{}_p".format(eem, i)),
+                target.platform.request("dio{}_spi{}_n".format(eem, i))
+            )
+            target.submodules += phy
+            target.rtio_channels.append(
+                rtio.Channel.from_phy(phy, ififo_depth=4))
+
+        dci = iostandard(eem).name == "LVDS"
+        for i, (_, ttl_cls, edge_counter_cls) in enumerate(ttl):
+            pads = target.platform.request("dio{}".format(eem), i)
+            phy = ttl_cls(pads.p, pads.n, dci=dci)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+            if edge_counter_cls is not None:
+                state = getattr(phy, "input_state", None)
+                if state is not None:
+                    counter = edge_counter_cls(state)
+                    target.submodules += counter
+                    target.rtio_channels.append(rtio.Channel.from_phy(counter))
+
+
 class Urukul(_EEM):
     @staticmethod
     def io(eem, eem_aux, iostandard):

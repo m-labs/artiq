@@ -33,6 +33,11 @@ def i2c_read(busno: TInt32, ack: TBool) -> TInt32:
     raise NotImplementedError("syscall not simulated")
 
 
+@syscall(flags={"nounwind", "nowrite"})
+def i2c_switch_select(busno: TInt32, address: TInt32, mask: TInt32) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
+
 @kernel
 def i2c_poll(busno, busaddr):
     """Poll I2C device at address.
@@ -137,8 +142,10 @@ def i2c_read_many(busno, busaddr, addr, data):
         i2c_stop(busno)
 
 
-class PCA9548:
-    """Driver for the PCA9548 I2C bus switch.
+class I2CSwitch:
+    """Driver for the I2C bus switch.
+
+    PCA954X (or other) type detection is done by the CPU during I2C init.
 
     I2C transactions not real-time, and are performed by the CPU without
     involving RTIO.
@@ -152,24 +159,17 @@ class PCA9548:
         self.address = address
 
     @kernel
-    def select(self, mask):
-        """Enable/disable channels.
-
-        :param mask: Bit mask of enabled channels
-        """
-        i2c_write_byte(self.busno, self.address, mask)
-
-    @kernel
     def set(self, channel):
         """Enable one channel.
-
         :param channel: channel number (0-7)
         """
-        self.select(1 << channel)
+        i2c_switch_select(self.busno, self.address >> 1, 1 << channel)
 
     @kernel
-    def readback(self):
-        return i2c_read_byte(self.busno, self.address)
+    def unset(self):
+        """Disable output of the I2C switch.
+        """
+        i2c_switch_select(self.busno, self.address >> 1, 0)
 
 
 class TCA6424A:
@@ -207,3 +207,46 @@ class TCA6424A:
 
         self._write24(0x8c, 0)  # set all directions to output
         self._write24(0x84, outputs_le)  # set levels
+
+class PCF8574A:
+    """Driver for the PCF8574 I2C remote 8-bit I/O expander.
+
+    I2C transactions not real-time, and are performed by the CPU without
+    involving RTIO.
+    """
+    def __init__(self, dmgr, busno=0, address=0x7c, core_device="core"):
+        self.core = dmgr.get(core_device)
+        self.busno = busno
+        self.address = address
+
+    @kernel
+    def set(self, data):
+        """Drive data on the quasi-bidirectional pins.
+
+        :param data: Pin data. High bits are weakly driven high
+            (and thus inputs), low bits are strongly driven low.
+        """
+        i2c_start(self.busno)
+        try:
+            if not i2c_write(self.busno, self.address):
+                raise I2CError("PCF8574A failed to ack address")
+            if not i2c_write(self.busno, data):
+                raise I2CError("PCF8574A failed to ack data")
+        finally:
+            i2c_stop(self.busno)
+
+    @kernel
+    def get(self):
+        """Retrieve quasi-bidirectional pin input data.
+
+        :return: Pin data
+        """
+        i2c_start(self.busno)
+        ret = 0
+        try:
+            if not i2c_write(self.busno, self.address | 1):
+                raise I2CError("PCF8574A failed to ack address")
+            ret = i2c_read(self.busno, False)
+        finally:
+            i2c_stop(self.busno)
+        return ret

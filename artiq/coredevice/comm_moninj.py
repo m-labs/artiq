@@ -84,9 +84,8 @@ class CommMonInj:
                 if not ty:
                     return
                 if ty == b"\x00":
-                    payload = await self._reader.readexactly(9)
-                    channel, probe, value = struct.unpack(
-                        self.endian + "lbl", payload)
+                    payload = await self._reader.readexactly(13)
+                    channel, probe, value = struct.unpack(self.endian + "lbq", payload)
                     self.monitor_cb(channel, probe, value)
                 elif ty == b"\x01":
                     payload = await self._reader.readexactly(6)

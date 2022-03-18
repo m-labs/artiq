@@ -20,6 +20,28 @@ class CheckLog(EnvExperiment):
         core_log("test_artiq_compile")
 
 
+
+class _Precompile(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        self.x = 1
+        self.y = 2
+        self.z = 3
+
+    def set_attr(self, value):
+        self.x = value
+
+    @kernel
+    def the_kernel(self, arg):
+        self.set_attr(arg + self.y)
+        self.z = 23
+
+    def run(self):
+        precompiled = self.core.precompile(self.the_kernel, 40)
+        self.y = 0
+        precompiled()
+
+
 class TestCompile(ExperimentCase):
     def test_compile(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
@@ -34,3 +56,9 @@ class TestCompile(ExperimentCase):
         log = mgmt.get_log()
         self.assertIn("test_artiq_compile", log)
         mgmt.close()
+
+    def test_precompile(self):
+        exp = self.create(_Precompile)
+        exp.run()
+        self.assertEqual(exp.x, 42)
+        self.assertEqual(exp.z, 3)

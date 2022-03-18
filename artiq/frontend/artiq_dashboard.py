@@ -109,7 +109,7 @@ def main():
 
     # create connections to master
     rpc_clients = dict()
-    for target in "schedule", "experiment_db", "dataset_db":
+    for target in "schedule", "experiment_db", "dataset_db", "device_db":
         client = AsyncioClient()
         loop.run_until_complete(client.connect_rpc(
             args.server, args.port_control, "master_" + target))
@@ -171,7 +171,8 @@ def main():
                                        sub_clients["explist"],
                                        sub_clients["explist_status"],
                                        rpc_clients["schedule"],
-                                       rpc_clients["experiment_db"])
+                                       rpc_clients["experiment_db"],
+                                       rpc_clients["device_db"])
     smgr.register(d_explorer)
 
     d_datasets = datasets.DatasetsDock(sub_clients["datasets"],

@@ -70,16 +70,17 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
         Tag::List(it) => {
             #[repr(C)]
             struct List { elements: *mut (), length: u32 }
-            consume_value!(List, |ptr| {
-                (*ptr).length = reader.read_u32()?;
-                let length = (*ptr).length as usize;
-
+            consume_value!(*mut List, |ptr| {
                 let tag = it.clone().next().expect("truncated tag");
                 let padding = if let Tag::Int64 | Tag::Float64 = tag { 4 } else { 0 };
-                let mut data = alloc(tag.size() * length + padding)?;
 
-                data = data.offset(alignment_offset(tag.alignment() as isize, data as isize));
+                let length = reader.read_u32()? as usize;
+                let data = alloc(tag.size() * length + padding + 8)? as *mut u8;
+                *ptr = data as *mut List;
+                let ptr = data as *mut List;
+                let mut data = data.offset(8 + alignment_offset(tag.alignment() as isize, data as isize)) as *mut ();
 
+                (*ptr).length = length as u32;
                 (*ptr).elements = data;
                 match tag {
                     Tag::Bool => {
@@ -221,11 +222,11 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         Tag::List(it) => {
             #[repr(C)]
             struct List { elements: *const (), length: u32 }
-            consume_value!(List, |ptr| {
-                let length = (*ptr).length as usize;
-                writer.write_u32((*ptr).length)?;
+            consume_value!(&List, |ptr| {
+                let length = (**ptr).length as usize;
+                writer.write_u32((**ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
-                let mut data = (*ptr).elements;
+                let mut data = (**ptr).elements;
                 writer.write_u8(tag.as_u8())?;
                 match tag {
                     // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,

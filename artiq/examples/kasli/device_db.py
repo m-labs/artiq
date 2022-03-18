@@ -29,13 +29,13 @@ device_db = {
     "i2c_switch0": {
         "type": "local",
         "module": "artiq.coredevice.i2c",
-        "class": "PCA9548",
+        "class": "I2CSwitch",
         "arguments": {"address": 0xe0}
     },
     "i2c_switch1": {
         "type": "local",
         "module": "artiq.coredevice.i2c",
-        "class": "PCA9548",
+        "class": "I2CSwitch",
         "arguments": {"address": 0xe2}
     },
 }

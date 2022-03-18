@@ -418,7 +418,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_send(io, &kern::CacheGetReply {
                     // Zing! This transmute is only safe because we dynamically track
                     // whether the kernel has borrowed any values from the cache.
-                    value: unsafe { mem::transmute::<*const [i32], &'static [i32]>(value) }
+                    value: unsafe { mem::transmute(value) }
                 })
             }
 

@@ -1,4 +1,5 @@
 use core::fmt;
+use cslice::CSlice;
 use dyld;
 
 pub const KERNELCPU_EXEC_ADDRESS:    usize = 0x45000000;
@@ -53,7 +54,7 @@ pub enum Message<'a> {
     RpcFlush,
 
     CacheGetRequest { key: &'a str },
-    CacheGetReply   { value: &'static [i32] },
+    CacheGetReply   { value: *const CSlice<'static, i32> },
     CachePutRequest { key: &'a str, value: &'a [i32] },
     CachePutReply   { succeeded: bool },
 
@@ -65,6 +66,7 @@ pub enum Message<'a> {
     I2cReadRequest { busno: u32, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
+    I2cSwitchSelectRequest { busno: u32, address: u8, mask: u8 },
 
     SpiSetConfigRequest { busno: u32, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { busno: u32, data: u32 },

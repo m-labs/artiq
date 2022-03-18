@@ -159,7 +159,7 @@ class WaitingPanel(LayoutWidget):
 class ExplorerDock(QtWidgets.QDockWidget):
     def __init__(self, exp_manager, d_shortcuts,
                  explist_sub, explist_status_sub,
-                 schedule_ctl, experiment_db_ctl):
+                 schedule_ctl, experiment_db_ctl, device_db_ctl):
         QtWidgets.QDockWidget.__init__(self, "Explorer")
         self.setObjectName("Explorer")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -250,6 +250,12 @@ class ExplorerDock(QtWidgets.QDockWidget):
             asyncio.ensure_future(experiment_db_ctl.scan_repository_async())
         scan_repository_action.triggered.connect(scan_repository)
         self.el.addAction(scan_repository_action)
+
+        scan_ddb_action = QtWidgets.QAction("Scan device database", self.el)
+        def scan_ddb():
+            asyncio.ensure_future(device_db_ctl.scan())
+        scan_ddb_action.triggered.connect(scan_ddb)
+        self.el.addAction(scan_ddb_action)
 
         self.current_directory = ""
         open_file_action = QtWidgets.QAction("Open file outside repository",

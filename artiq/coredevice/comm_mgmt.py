@@ -169,7 +169,7 @@ class CommMgmt:
         self._write_bytes(value)
         ty = self._read_header()
         if ty == Reply.Error:
-            raise IOError("Flash storage is full")
+            raise IOError("Device failed to write config. More information may be available in the log.")
         elif ty != Reply.Success:
             raise IOError("Incorrect reply from device: {} (expected {})".
                           format(ty, Reply.Success))

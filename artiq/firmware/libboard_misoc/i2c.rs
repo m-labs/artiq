@@ -188,12 +188,15 @@ mod imp {
         Ok(data)
     }
 
-    pub fn pca9548_select(busno: u8, address: u8, channels: u8) -> Result<(), &'static str> {
+    pub fn switch_select(busno: u8, address: u8, mask: u8) -> Result<(), &'static str> {
+        // address in 7-bit form
+        // mask in format of 1 << channel (or 0 for disabling output)
+        // PCA9548 support only for now
         start(busno)?;
         if !write(busno, address << 1)? {
             return Err("PCA9548 failed to ack write address")
         }
-        if !write(busno, channels)? {
+        if !write(busno, mask)? {
             return Err("PCA9548 failed to ack control word")
         }
         stop(busno)?;
@@ -210,7 +213,7 @@ mod imp {
     pub fn stop(_busno: u8) -> Result<(), &'static str> { Err(NO_I2C) }
     pub fn write(_busno: u8, _data: u8) -> Result<bool, &'static str> { Err(NO_I2C) }
     pub fn read(_busno: u8, _ack: bool) -> Result<u8, &'static str> { Err(NO_I2C) }
-    pub fn pca9548_select(_busno: u8, _address: u8, _channels: u8) -> Result<(), &'static str> { Err(NO_I2C) }
+    pub fn switch_select(_busno: u8, _address: u8, _mask: u8) -> Result<(), &'static str> { Err(NO_I2C) }
 }
 
 pub use self::imp::*;

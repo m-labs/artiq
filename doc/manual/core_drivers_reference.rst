@@ -65,13 +65,6 @@ Digital I/O drivers
 .. automodule:: artiq.coredevice.i2c
     :members:
 
-:mod:`artiq.coredevice.pcf8574a` module
-+++++++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.pcf8574a
-    :members:
-
-
 RF generation drivers
 ---------------------
 

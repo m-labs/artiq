@@ -34,7 +34,7 @@ pub enum Packet {
     RoutingAck,
 
     MonitorRequest { destination: u8, channel: u16, probe: u8 },
-    MonitorReply { value: u32 },
+    MonitorReply { value: u64 },
     InjectionRequest { destination: u8, channel: u16, overrd: u8, value: u8 },
     InjectionStatusRequest { destination: u8, channel: u16, overrd: u8 },
     InjectionStatusReply { value: u8 },
@@ -47,6 +47,7 @@ pub enum Packet {
     I2cReadRequest { destination: u8, busno: u8, ack: bool },
     I2cReadReply { succeeded: bool, data: u8 },
     I2cBasicReply { succeeded: bool },
+    I2cSwitchSelectRequest { destination: u8, busno: u8, address: u8, mask: u8 },
 
     SpiSetConfigRequest { destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
     SpiWriteRequest { destination: u8, busno: u8, data: u32 },
@@ -104,7 +105,7 @@ impl Packet {
                 probe: reader.read_u8()?
             },
             0x41 => Packet::MonitorReply {
-                value: reader.read_u32()?
+                value: reader.read_u64()?
             },
             0x50 => Packet::InjectionRequest {
                 destination: reader.read_u8()?,
@@ -153,6 +154,12 @@ impl Packet {
             },
             0x87 => Packet::I2cBasicReply {
                 succeeded: reader.read_bool()?
+            },
+            0x88 => Packet::I2cSwitchSelectRequest {
+                destination: reader.read_u8()?,
+                busno: reader.read_u8()?,
+                address: reader.read_u8()?,
+                mask: reader.read_u8()?,
             },
 
             0x90 => Packet::SpiSetConfigRequest {
@@ -252,7 +259,7 @@ impl Packet {
             },
             Packet::MonitorReply { value } => {
                 writer.write_u8(0x41)?;
-                writer.write_u32(value)?;
+                writer.write_u64(value)?;
             },
             Packet::InjectionRequest { destination, channel, overrd, value } => {
                 writer.write_u8(0x50)?;
@@ -312,6 +319,13 @@ impl Packet {
             Packet::I2cBasicReply { succeeded } => {
                 writer.write_u8(0x87)?;
                 writer.write_bool(succeeded)?;
+            },
+            Packet::I2cSwitchSelectRequest { destination, busno, address, mask } => {
+                writer.write_u8(0x88)?;
+                writer.write_u8(destination)?;
+                writer.write_u8(busno)?;
+                writer.write_u8(address)?;
+                writer.write_u8(mask)?;
             },
 
             Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {

@@ -31,7 +31,7 @@ device_db = {
     "i2c_switch": {
         "type": "local",
         "module": "artiq.coredevice.i2c",
-        "class": "PCA9548"
+        "class": "I2CSwitch"
     },
 
     # Generic TTL

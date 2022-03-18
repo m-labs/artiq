@@ -115,6 +115,11 @@ static mut API: &'static [(&'static str, *const ())] = &[
 
     /* exceptions */
     api!(_Unwind_Resume = ::unwind::_Unwind_Resume),
+    api!(__nac3_personality = ::eh_artiq::personality),
+    api!(__nac3_raise = ::eh_artiq::raise),
+    api!(__nac3_resume = ::eh_artiq::resume),
+    api!(__nac3_end_catch = ::eh_artiq::end_catch),
+    /* legacy exception symbols */
     api!(__artiq_personality = ::eh_artiq::personality),
     api!(__artiq_raise = ::eh_artiq::raise),
     api!(__artiq_resume = ::eh_artiq::resume),
@@ -154,6 +159,7 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(i2c_stop = ::nrt_bus::i2c::stop),
     api!(i2c_write = ::nrt_bus::i2c::write),
     api!(i2c_read = ::nrt_bus::i2c::read),
+    api!(i2c_switch_select = ::nrt_bus::i2c::switch_select),
 
     api!(spi_set_config = ::nrt_bus::spi::set_config),
     api!(spi_write = ::nrt_bus::spi::write),

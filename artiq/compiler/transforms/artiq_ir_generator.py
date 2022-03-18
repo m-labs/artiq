@@ -113,7 +113,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.return_target = None
         self.unwind_target = None
         self.catch_clauses = []
-        self.outer_final = None
         self.final_branch = None
         self.function_map = dict()
         self.variable_map = dict()
@@ -706,9 +705,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 value = return_action.append(ir.GetLocal(self.current_private_env, "$return"))
                 return_action.append(ir.Return(value))
                 final_branch(return_action, return_proxy)
-
-            old_outer_final, self.outer_final = self.outer_final, final_branch
-        elif self.outer_final is None:
+        else:
             landingpad.has_cleanup = False
 
         # we should propagate the clauses to nested try catch blocks
@@ -773,7 +770,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.continue_target = old_continue
             self.return_target = old_return
 
-        if any(node.finalbody) or self.outer_final is not None:
+        if any(node.finalbody):
             # create new unwind target for cleanup
             final_dispatcher = self.add_block("try.final.dispatch")
             final_landingpad = ir.LandingPad(cleanup)
@@ -783,9 +780,9 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_unwind, self.unwind_target = self.unwind_target, final_dispatcher
 
         if any(node.finalbody):
+            # if we have a while:try/finally continue must execute finally
+            # before continuing the while
             redirect = final_branch
-        elif self.outer_final is not None:
-            redirect = self.outer_final
         else:
             redirect = lambda dest, proxy: proxy.append(ir.Branch(dest))
 
@@ -846,7 +843,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if any(node.finalbody):
             # Finalize and continue after try statement.
-            self.outer_final = old_outer_final
             self.unwind_target = old_unwind
             # Exception path
             finalizer_reraise = self.add_block("finally.resume")
@@ -896,8 +892,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                         block.append(ir.SetLocal(final_state, "$cont", tail))
                         block.append(ir.Branch(finalizer))
         else:
-            if self.outer_final is not None:
-                self.unwind_target = old_unwind
             self.current_block = tail = self.add_block("try.tail")
             if not body.is_terminated():
                 body.append(ir.Branch(tail))

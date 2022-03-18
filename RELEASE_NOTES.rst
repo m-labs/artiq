@@ -33,6 +33,11 @@ Highlights:
   warning is logged. The warning is additional to the one already printed in the core device log upon
   detection of the error.
 * Removed worker DB warning for writing a dataset that is also in the archive
+* Extended Kasli gateware JSON description with configuration for SPI over DIO.
+  See: https://github.com/m-labs/artiq/pull/1800
+* ``PCA9548`` I2C switch class renamed to ``I2CSwitch``, to accomodate support for PCA9547, and
+  possibly other switches in future. Readback has been removed, and now only one channel per 
+  switch is supported. 
 
 Breaking changes:
 

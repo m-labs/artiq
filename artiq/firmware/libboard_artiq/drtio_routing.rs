@@ -64,12 +64,14 @@ pub fn config_routing_table(default_n_links: usize) -> RoutingTable {
                     }
                 }
                 return true;
+            } else {
+                warn!("length of the configured routing table is incorrect");
             }
         }
         false
     });
     if !ok {
-        warn!("could not read routing table from configuration, using default");
+        info!("could not read routing table from configuration, using default");
     }
     info!("routing table: {}", ret);
     ret

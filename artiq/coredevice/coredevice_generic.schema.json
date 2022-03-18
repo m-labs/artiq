@@ -134,7 +134,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
                 },
                 "board": {
                     "type": "string"
@@ -178,6 +178,89 @@
                         }
                     },
                     "required": ["ports", "bank_direction_low", "bank_direction_high"]
+                }
+            }, {
+                "title": "DIO_SPI",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "dio_spi"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 1,
+                            "maxItems": 1
+                        },
+                        "spi": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "clk": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 7
+                                    },
+                                    "mosi": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 7
+                                    },
+                                    "miso": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 7
+                                    },
+                                    "cs": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "integer",
+                                            "minimum": 0,
+                                            "maximum": 7
+                                        }
+                                    }
+                                },
+                                "required": ["clk"]
+                            },
+                            "minItems": 1
+                        },
+                        "ttl": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "name": {
+                                        "type": "string"
+                                    },
+                                    "pin": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 7
+                                    },
+                                    "direction": {
+                                        "type": "string",
+                                        "enum": ["input", "output"]
+                                    },
+                                    "edge_counter": {
+                                        "type": "boolean",
+                                        "default": false
+                                    }
+                                },
+                                "required": ["pin", "direction"]
+                            }
+                        }
+                    },
+                    "required": ["ports", "spi"]
                 }
             }, {
                 "title": "Urukul",
