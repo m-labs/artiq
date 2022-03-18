@@ -222,7 +222,7 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None, iostandard=default_iostandard):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None, iostandard=default_iostandard, dds=None):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         spi_phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
@@ -240,13 +240,20 @@ class Urukul(_EEM):
 
         pads = target.platform.request("urukul{}_io_update".format(eem))
         phy = ttl_out_cls(pads.p, pads.n)
-
-        dds_monitor = urukul_monitor.AD9912Monitor(spi_phy, phy)
-        target.submodules += dds_monitor
-        spi_phy.probes.extend(dds_monitor.probes)
-
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        dds_monitor_cls = None
+        if dds == 'ad9910':
+            dds_monitor_cls = urukul_monitor.AD9910Monitor
+        if dds == 'ad9912':
+            dds_monitor_cls = urukul_monitor.AD9912Monitor
+
+        if dds_monitor_cls is not None:
+            dds_monitor = dds_monitor_cls(spi_phy, phy)
+            target.submodules += dds_monitor
+            spi_phy.probes.extend(dds_monitor.probes)
+
         if eem_aux is not None:
             for signal in "sw0 sw1 sw2 sw3".split():
                 pads = target.platform.request("urukul{}_{}".format(eem, signal))
