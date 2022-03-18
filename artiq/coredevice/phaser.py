@@ -3,7 +3,7 @@ from numpy import int32, int64
 from artiq.language.core import kernel, delay_mu, delay
 from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
 from artiq.language.units import us, ns, ms, MHz
-from artiq.language.types import TInt32
+from artiq.language.types import TInt32, TBool
 from artiq.coredevice.dac34h84 import DAC34H84
 from artiq.coredevice.trf372017 import TRF372017
 
@@ -407,6 +407,45 @@ class Phaser:
         :param leds: LED settings (6 bit)
         """
         self.write8(PHASER_ADDR_LED, leds)
+
+    @kernel
+    def get_leds(self) -> TInt32:
+        """Get the state of the front panel LEDs.
+
+        :return: LED settings (6 bit)
+        """
+        state = self.read8(PHASER_ADDR_LED)
+        delay(20*us)  # slack
+        return state
+
+    @kernel
+    def set_led(self, led: TInt32, on: TBool = True):
+        """Set the state of one front panel LED.
+
+        :param led: index of the LED to set (0-5)
+        :param on: whether to turn the LED on or off
+        """
+        if led < 0 or led > 6:
+            raise ValueError("LED index out of bounds")
+
+        state = self.get_leds()
+        state &= ~(1 << led)
+        if on:
+            state |= (1 << led)
+        self.set_leds(state)
+
+    @kernel
+    def get_led(self, led: TInt32) -> TBool:
+        """Get the state of one front panel LED.
+
+        :param led: index of the LED to query (0-5)
+        :return: whether the LED is on
+        """
+        if led < 0 or led > 6:
+            raise ValueError("LED index out of bounds")
+
+        state = self.get_leds()
+        return bool((state >> led) & 1)
 
     @kernel
     def set_fan_mu(self, pwm):
