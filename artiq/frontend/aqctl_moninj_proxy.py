@@ -88,7 +88,7 @@ class MonitorMux:
         for listener in listeners:
             if event[0] == EventType.PROBE:
                 listener.monitor_cb(event[1], event[2], value)
-            elif event[1] == EventType.MONITOR:
+            elif event[0] == EventType.INJECTION:
                 listener.injection_status_cb(event[1], event[2], value)
             else:
                 raise ValueError
@@ -129,19 +129,19 @@ class ProxyConnection:
                 ty = await self.reader.read(1)
                 if not ty:
                     return
-                if ty == "\x00":     # MonitorProbe
+                if ty == b"\x00":     # MonitorProbe
                     packet = await self.reader.readexactly(6)
                     enable, channel, probe = struct.unpack("<blb", packet)
                     self.monitor_mux.monitor_probe(self, enable, channel, probe)
-                elif ty == "\x01":   # Inject
+                elif ty == b"\x01":   # Inject
                     packet = await self.reader.readexactly(6)
                     channel, overrd, value = struct.unpack("<lbb", packet)
                     self.monitor_mux.comm_moninj.inject(channel, overrd, value)
-                elif ty == "\x02":   # GetInjectionStatus
+                elif ty == b"\x02":   # GetInjectionStatus
                     packet = await self.reader.readexactly(5)
                     channel, overrd = struct.unpack("<lb", packet)
                     self.monitor_mux.comm_moninj.get_injection_status(channel, overrd)
-                elif ty == "\x03":   # MonitorInjection
+                elif ty == b"\x03":   # MonitorInjection
                     packet = await self.reader.readexactly(6)
                     enable, channel, overrd = struct.unpack("<blb", packet)
                     self.monitor_mux.monitor_injection(self, enable, channel, overrd)
@@ -155,7 +155,7 @@ class ProxyConnection:
         self.writer.write(packet)
 
     def injection_status_cb(self, channel, override, value):
-        packet = struct.pack("<blbl", 1, channel, override, value)
+        packet = struct.pack("<blbb", 1, channel, override, value)
         self.writer.write(packet)
 
 
@@ -195,7 +195,7 @@ def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
 
-    bind_adress = common_args.bind_address_from_args(args)
+    bind_address = common_args.bind_address_from_args(args)
 
     loop = asyncio.get_event_loop()
     try:
