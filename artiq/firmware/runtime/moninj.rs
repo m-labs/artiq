@@ -123,7 +123,6 @@ fn connection_worker(io: &Io, _aux_mutex: &Mutex, _routing_table: &drtio_routing
     let mut next_check = 0;
 
     read_magic(&mut stream)?;
-    stream.write_all("e".as_bytes())?;
     info!("new connection from {}", stream.remote_endpoint());
 
     loop {

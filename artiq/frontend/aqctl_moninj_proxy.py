@@ -169,7 +169,6 @@ class ProxyServer(AsyncioServer):
         if line != b"ARTIQ moninj\n":
             logger.error("incorrect magic")
             return
-        writer.write(b"e")
         await ProxyConnection(self.monitor_mux, reader, writer).handle()
 
 
