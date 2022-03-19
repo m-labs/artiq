@@ -211,9 +211,7 @@ def setup_from_ddb(ddb):
             if isinstance(v, dict):
                 comment = v.get("comment")
                 if v["type"] == "local":
-                    if k == "core":
-                        mi_addr = v["arguments"]["host"]
-                    elif v["module"] == "artiq.coredevice.ttl":
+                    if v["module"] == "artiq.coredevice.ttl":
                         channel = v["arguments"]["channel"]
                         force_out = v["class"] == "TTLOut"
                         widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
@@ -235,6 +233,8 @@ def setup_from_ddb(ddb):
                         for channel in range(32):
                             widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
                             description.add(widget)
+                elif v["type"] == "controller" and k == "core_moninj":
+                    mi_addr = v["host"]
         except KeyError:
             pass
     return mi_addr, dds_sysclk, description
