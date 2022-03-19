@@ -207,35 +207,34 @@ def setup_from_ddb(ddb):
     description = set()
 
     for k, v in ddb.items():
-        comment = None
-        if "comment" in v:
-            comment = v["comment"]
         try:
-            if isinstance(v, dict) and v["type"] == "local":
-                if k == "core":
-                    core_addr = v["arguments"]["host"]
-                elif v["module"] == "artiq.coredevice.ttl":
-                    channel = v["arguments"]["channel"]
-                    force_out = v["class"] == "TTLOut"
-                    widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
-                    description.add(widget)
-                elif (v["module"] == "artiq.coredevice.ad9914"
-                        and v["class"] == "AD9914"):
-                    bus_channel = v["arguments"]["bus_channel"]
-                    channel = v["arguments"]["channel"]
-                    dds_sysclk = v["arguments"]["sysclk"]
-                    widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
-                    description.add(widget)
-                elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
-                      or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
-                    spi_device = v["arguments"]["spi_device"]
-                    spi_device = ddb[spi_device]
-                    while isinstance(spi_device, str):
-                        spi_device = ddb[spi_device]
-                    spi_channel = spi_device["arguments"]["channel"]
-                    for channel in range(32):
-                        widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+            if isinstance(v, dict):
+                comment = v.get("comment")
+                if v["type"] == "local":
+                    if k == "core":
+                        core_addr = v["arguments"]["host"]
+                    elif v["module"] == "artiq.coredevice.ttl":
+                        channel = v["arguments"]["channel"]
+                        force_out = v["class"] == "TTLOut"
+                        widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
                         description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.ad9914"
+                            and v["class"] == "AD9914"):
+                        bus_channel = v["arguments"]["bus_channel"]
+                        channel = v["arguments"]["channel"]
+                        dds_sysclk = v["arguments"]["sysclk"]
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
+                        description.add(widget)
+                    elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
+                          or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
+                        spi_device = v["arguments"]["spi_device"]
+                        spi_device = ddb[spi_device]
+                        while isinstance(spi_device, str):
+                            spi_device = ddb[spi_device]
+                        spi_channel = spi_device["arguments"]["channel"]
+                        for channel in range(32):
+                            widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+                            description.add(widget)
         except KeyError:
             pass
     return core_addr, dds_sysclk, description
