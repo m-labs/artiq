@@ -13,7 +13,8 @@ import inspect
 import logging
 import traceback
 from collections import OrderedDict
-import types
+import importlib.util
+import linecache
 
 import h5py
 
@@ -135,9 +136,31 @@ def get_experiment_from_file(file, class_name):
     return tools.get_experiment(module, class_name)
 
 
+class StringLoader:
+    def __init__(self, fake_filename, content):
+        self.fake_filename = fake_filename
+        self.content = content
+
+    def get_source(self, fullname):
+        return self.content
+
+    def create_module(self, spec):
+        return None
+
+    def exec_module(self, module):
+        code = compile(self.get_source(self.fake_filename), self.fake_filename, "exec")
+        exec(code, module.__dict__)
+
+
 def get_experiment_from_content(content, class_name):
-    module = types.ModuleType("expcontent")
-    exec(content, module.__dict__)
+    fake_filename = "expcontent"
+    spec = importlib.util.spec_from_loader(
+        "expmodule",
+        StringLoader(fake_filename, content)
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    linecache.lazycache(fake_filename, module.__dict__)
     return tools.get_experiment(module, class_name)
 
 
