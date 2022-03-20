@@ -13,6 +13,7 @@ import inspect
 import logging
 import traceback
 from collections import OrderedDict
+import types
 
 import h5py
 
@@ -129,8 +130,14 @@ class CCB:
     issue = staticmethod(make_parent_action("ccb_issue"))
 
 
-def get_experiment(file, class_name):
+def get_experiment_from_file(file, class_name):
     module = tools.file_import(file, prefix="artiq_worker_")
+    return tools.get_experiment(module, class_name)
+
+
+def get_experiment_from_content(content, class_name):
+    module = types.ModuleType("expcontent")
+    exec(content, module.__dict__)
     return tools.get_experiment(module, class_name)
 
 
@@ -271,15 +278,19 @@ def main():
                 start_time = time.time()
                 rid = obj["rid"]
                 expid = obj["expid"]
-                if obj["wd"] is not None:
-                    # Using repository
-                    experiment_file = os.path.join(obj["wd"], expid["file"])
-                    repository_path = obj["wd"]
+                if "file" in expid:
+                    if obj["wd"] is not None:
+                        # Using repository
+                        experiment_file = os.path.join(obj["wd"], expid["file"])
+                        repository_path = obj["wd"]
+                    else:
+                        experiment_file = expid["file"]
+                        repository_path = None
+                    setup_diagnostics(experiment_file, repository_path)
+                    exp = get_experiment_from_file(experiment_file, expid["class_name"])
                 else:
-                    experiment_file = expid["file"]
-                    repository_path = None
-                setup_diagnostics(experiment_file, repository_path)
-                exp = get_experiment(experiment_file, expid["class_name"])
+                    setup_diagnostics("<none>", None)
+                    exp = get_experiment_from_content(expid["content"], expid["class_name"])
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)

@@ -48,7 +48,7 @@ class Model(DictSyncModel):
             else:
                 return "Outside repo."
         elif column == 6:
-            return v["expid"]["file"]
+            return v["expid"].get("file", "<none>")
         elif column == 7:
             if v["expid"]["class_name"] is None:
                 return ""

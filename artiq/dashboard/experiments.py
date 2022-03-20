@@ -726,7 +726,7 @@ class ExperimentManager:
             else:
                 repo_match = "repo_rev" not in expid
             if (repo_match and
-                    expid["file"] == file and
+                    ("file" in expid and expid["file"] == file) and
                     expid["class_name"] == class_name):
                 rids.append(rid)
         asyncio.ensure_future(self._request_term_multiple(rids))
