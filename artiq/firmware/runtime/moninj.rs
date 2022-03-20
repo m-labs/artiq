@@ -2,7 +2,6 @@ use alloc::collections::btree_map::BTreeMap;
 use core::cell::RefCell;
 
 use io::Error as IoError;
-use io::Write;
 use moninj_proto::*;
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use urc::Urc;
