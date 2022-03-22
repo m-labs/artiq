@@ -52,6 +52,12 @@ class AD9910Monitor(AD99XXMonitorGeneric):
         ])
         super().__init__(spi_phy, io_update_phy)
 
+        def update_probe_data(i):
+            return If(self.selected(i + CS_DDS_CH0), [
+                data[i]['value'].eq(buffer[i]['value']),
+                data[i]['register'].eq(buffer[i]['register'])
+            ])
+
         # 0 -> init, 1 -> has remaining part
         state = Signal()
         for i in range(nchannels):
@@ -76,12 +82,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
 
         self.sync.rio_phy += If(self.is_io_update(), [
             state.eq(0),
-            If(self.master_is_data_and_not_input(), [
-                If(self.selected(i + CS_DDS_CH0), [
-                    data[i]['value'].eq(buffer[i]['value']),
-                    data[i]['register'].eq(buffer[i]['register'])
-                ]) for i in range(nchannels)
-            ])
+            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)])
         ])
 
 
@@ -100,6 +101,12 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             *[x['value'] for x in data]
         ])
         super().__init__(spi_phy, io_update_phy)
+
+        def update_probe_data(i):
+            return If(self.selected(i + CS_DDS_CH0), [
+                data[i]['value'].eq(buffer[i]['value']),
+                data[i]['register'].eq(buffer[i]['register'])
+            ])
 
         # 0 -> init, 1 -> has remaining part
         state = Signal(1)
@@ -126,10 +133,5 @@ class AD9912Monitor(AD99XXMonitorGeneric):
 
         self.sync.rio_phy += If(self.is_io_update(), [
             state.eq(0),
-            If(self.master_is_data_and_not_input(), [
-                If(self.selected(i + CS_DDS_CH0), [
-                    data[i]['register'].eq(buffer[i]['register']),
-                    data[i]['value'].eq(buffer[i]['value'])
-                ]) for i in range(nchannels)
-            ])
+            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)])
         ])
