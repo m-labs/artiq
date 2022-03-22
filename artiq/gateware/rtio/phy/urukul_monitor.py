@@ -52,7 +52,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
         ])
         super().__init__(spi_phy, io_update_phy)
 
-        # 0 -> init, 1 -> start read value
+        # 0 -> init, 1 -> has remaining part
         state = Signal()
         for i in range(nchannels):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
@@ -101,7 +101,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
         ])
         super().__init__(spi_phy, io_update_phy)
 
-        # 0 -> init, 1 -> start read value
+        # 0 -> init, 1 -> has remaining part
         state = Signal(1)
 
         for i in range(nchannels):
