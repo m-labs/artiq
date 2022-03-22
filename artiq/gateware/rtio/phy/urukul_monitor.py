@@ -58,13 +58,12 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
                 Case(state, {
                     0: [
-                        # write16
                         If(self.length == 24 & (self.flags & SPI_END), [
+                            # write16
                             buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
                             buffer[i]['value'].eq((self.current_data >> 8) & 0xffff),
-                        ]).
-                         # write32
-                         Elif(self.length == 8, [
+                        ]).Elif(self.length == 8, [
+                            # write32
                             buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
                             state.eq(1)
                         ])
@@ -116,8 +115,11 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                         ])
                     ],
                     1: [
-                        If(self.flags & SPI_END, buffer[i]['value'][:32].eq(self.current_data))
-                        .Else(buffer[i]['value'][32:48].eq(self.current_data[:16]))
+                        If(self.flags & SPI_END, [
+                            buffer[i]['value'][:32].eq(self.current_data)
+                        ]).Else([
+                            buffer[i]['value'][32:48].eq(self.current_data[:16])
+                        ])
                     ]
                 })
             ])
