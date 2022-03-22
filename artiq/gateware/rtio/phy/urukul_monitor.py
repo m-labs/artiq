@@ -1,12 +1,13 @@
 from migen import *
 
 from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END, SPI_INPUT
-from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI
+from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CS_CFG, CFG_IO_UPDATE
 
 
 class AD99XXMonitorGeneric(Module):
-    def __init__(self, spi_phy):
+    def __init__(self, spi_phy, io_update_phy):
         self.spi_phy = spi_phy
+        self.io_update_phy = io_update_phy
 
         self.current_address = Signal.like(self.spi_phy.rtlink.o.address)
         self.current_data = Signal.like(self.spi_phy.rtlink.o.data)
@@ -30,6 +31,14 @@ class AD99XXMonitorGeneric(Module):
     def master_is_data_and_not_input(self):
         return (self.current_address == SPI_DATA_ADDR) & ~(self.flags & SPI_INPUT)
 
+    def is_io_update(self):
+        # shifted 8 bits left for 32-bit bus
+        dest_cfg_reg_and_io_update_bit_set = self.cs == CS_CFG & self.current_data[8 + CFG_IO_UPDATE]
+        if self.io_update_phy is not None and self.io_update_phy.rtlink is not None:
+            io_update_strobe_set_and_high = self.io_update_phy.rtlink.o.stb & self.io_update_phy.rtlink.o.data
+            return io_update_strobe_set_and_high | dest_cfg_reg_and_io_update_bit_set
+        return dest_cfg_reg_and_io_update_bit_set
+
 
 class AD9910Monitor(AD99XXMonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
@@ -41,7 +50,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(spi_phy)
+        super().__init__(spi_phy, io_update_phy)
 
         # 0 -> init, 1 -> start read value
         state = Signal()
@@ -66,7 +75,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb & io_update_phy.rtlink.o.data, [
+        self.sync.rio_phy += If(self.is_io_update(), [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [
@@ -91,7 +100,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             *[x['register'] for x in data],
             *[x['value'] for x in data]
         ])
-        super().__init__(spi_phy)
+        super().__init__(spi_phy, io_update_phy)
 
         # 0 -> init, 1 -> start read value
         state = Signal(1)
@@ -113,7 +122,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                 })
             ])
 
-        self.sync.rio_phy += If(io_update_phy.rtlink.o.stb & io_update_phy.rtlink.o.data, [
+        self.sync.rio_phy += If(self.is_io_update(), [
             state.eq(0),
             If(self.master_is_data_and_not_input(), [
                 If(self.selected(i + CS_DDS_CH0), [
