@@ -66,11 +66,11 @@ class AD9910Monitor(AD99XXMonitorGeneric):
                     0: [
                         If(self.length == 24 & (self.flags & SPI_END), [
                             # write16
-                            buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
-                            buffer[i]['value'].eq((self.current_data >> 8) & 0xffff),
+                            buffer[i]['register'].eq(self.current_data[24:]),
+                            buffer[i]['value'].eq(self.current_data[8:24]),
                         ]).Elif(self.length == 8, [
                             # write32
-                            buffer[i]['register'].eq((self.current_data >> 24) & 0xff),
+                            buffer[i]['register'].eq(self.current_data[24:]),
                             state.eq(1)
                         ])
                     ],
