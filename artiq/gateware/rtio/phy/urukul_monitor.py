@@ -33,7 +33,7 @@ class AD99XXMonitorGeneric(Module):
 
     def is_io_update(self):
         # shifted 8 bits left for 32-bit bus
-        dest_cfg_reg_and_io_update_bit_set = self.cs == CS_CFG & self.current_data[8 + CFG_IO_UPDATE]
+        dest_cfg_reg_and_io_update_bit_set = (self.cs == CS_CFG) & self.current_data[8 + CFG_IO_UPDATE]
         if self.io_update_phy is not None and self.io_update_phy.rtlink is not None:
             io_update_strobe_set_and_high = self.io_update_phy.rtlink.o.stb & self.io_update_phy.rtlink.o.data
             return io_update_strobe_set_and_high | dest_cfg_reg_and_io_update_bit_set
