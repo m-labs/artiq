@@ -1618,6 +1618,13 @@ class LLVMIRGenerator:
                     llclosureptr = self.get_global_closure_ptr(typ, attr)
                     llclosureptr.initializer = llattrvalue
 
+        if llglobal is None:
+            if types.is_constructor(typ):
+                llglobal = self.get_class(typ)
+            else:
+                llglobal = ll.GlobalVariable(self.llmodule, llty.pointee,
+                                             name="O.{}".format(value_id))
+            self.llobject_map[value_id] = llglobal
         llglobal.global_constant = emit_as_constant
         llglobal.initializer = ll.Constant(llty.pointee, llfields)
         llglobal.linkage = "private"
