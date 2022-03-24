@@ -6,6 +6,27 @@ import asyncio
 from artiq.coredevice.comm_moninj import *
 
 
+class NumberRangeParser(argparse.Action):
+    def __call__(self, parser, namespace, values, option_strings=None):
+        output = set()
+        for arr in [data.strip().split('-') for value in values for data in value.strip().split(',')]:
+            if len(arr) == 0:
+                parser.error('no value in range')
+            elif len(arr) > 2:
+                parser.error('too many dashes')
+            elif len(arr[0]) > 0 and len(arr) == 1:
+                output.add(int(arr[0], 0))
+            elif len(arr[0]) > 0 and len(arr[1]) > 0:
+                start, end = int(arr[0], 0), int(arr[1], 0)
+                if start > end:
+                    start, end = end, start
+                output.update(range(start, end + 1))
+            else:
+                parser.error('not enough value in range')
+        if len(output) > 0:
+            setattr(namespace, self.dest, output)
+
+
 def get_argparser():
     parser = argparse.ArgumentParser(
         description="ARTIQ RTIO monitor")
@@ -13,9 +34,9 @@ def get_argparser():
                         help="hostname or IP address of the core device")
     parser.add_argument("channel", metavar="CHANNEL", type=lambda x: int(x, 0), nargs="+",
                         help="channel(s) to monitor")
-    parser.add_argument("--monitors", type=str, nargs="*", default=[0],
+    parser.add_argument("--monitors", type=str, nargs="*", default=[0], action=NumberRangeParser,
                         help="RTIO monitor probes of the channel to monitor")
-    parser.add_argument("--injections", type=str, nargs="*", default=[],
+    parser.add_argument("--injections", type=str, nargs="*", default=[], action=NumberRangeParser,
                         help="RTIO injection overrides of the channel to monitor")
     return parser
 
