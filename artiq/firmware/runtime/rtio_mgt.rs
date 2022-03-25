@@ -4,13 +4,18 @@ use board_misoc::csr;
 #[cfg(has_drtio)]
 use board_misoc::clock;
 use board_artiq::drtio_routing;
-use sched::Io;
+use sched::{Error, Io};
 use sched::Mutex;
 
 #[cfg(has_drtio)]
 pub mod drtio {
+    use core::sync::atomic::{AtomicBool, Ordering};
     use super::*;
     use drtioaux;
+    use sched::Error;
+
+    static SURVEY_NOW: AtomicBool = AtomicBool::new(false);
+    static SURVEY_DONE: AtomicBool = AtomicBool::new(false);
 
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
@@ -211,12 +216,18 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationDownReply) =>
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
-                            Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
+                            Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
                                 error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
-                            Ok(drtioaux::Packet::DestinationCollisionReply { channel }) =>
+                                set_async_error_bit(ASYNC_ERROR_SEQUENCE_ERROR);
+                            }
+                            Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
                                 error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
-                            Ok(drtioaux::Packet::DestinationBusyReply { channel }) =>
+                                set_async_error_bit(ASYNC_ERROR_COLLISION);
+                            }
+                            Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
                                 error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
+                                set_async_error_bit(ASYNC_ERROR_BUSY);
+                            }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
                         }
@@ -284,7 +295,16 @@ pub mod drtio {
                 }
             }
             destination_survey(&io, aux_mutex, routing_table, &up_links, up_destinations);
-            io.sleep(200).unwrap();
+            SURVEY_DONE.store(true, Ordering::Release);
+            match io.until_with_timeout(
+                clock::get_ms() + 200,
+                || SURVEY_NOW.load(Ordering::Acquire),
+            ) {
+                Ok(()) => {},
+                Err(Error::TimedOut) => {},
+                Err(e) => panic!("Unexpected error whilst sleeping in link thread: {}", e)
+            }
+            SURVEY_NOW.store(false, Ordering::Release);
         }
     }
 
@@ -314,24 +334,47 @@ pub mod drtio {
             }
         }
     }
+
+    pub fn wait_for_survey(io: &Io) -> Result<(), Error> {
+        SURVEY_DONE.store(false, Ordering::Release);
+        SURVEY_NOW.store(true, Ordering::Release);
+        io.until(|| SURVEY_DONE.load(Ordering::Acquire))
+    }
 }
 
 #[cfg(not(has_drtio))]
 pub mod drtio {
     use super::*;
+    use sched::Error;
 
     pub fn startup(_io: &Io, _aux_mutex: &Mutex,
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
+
+    pub fn wait_for_survey(_io: &Io) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
+const ASYNC_ERROR_COLLISION: u8 = 1;
+const ASYNC_ERROR_BUSY: u8 = 2;
+const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 4;
 static mut SEEN_ASYNC_ERRORS: u8 = 0;
 
-pub unsafe fn get_async_errors() -> u8 {
-    let errors = SEEN_ASYNC_ERRORS;
-    SEEN_ASYNC_ERRORS = 0;
-    errors
+pub fn get_async_errors(io: &Io) -> Result<u8, Error> {
+    drtio::wait_for_survey(io)?;
+    unsafe {
+        let errors = SEEN_ASYNC_ERRORS;
+        SEEN_ASYNC_ERRORS = 0;
+        Ok(errors)
+    }
+}
+
+fn set_async_error_bit(bit: u8) {
+    unsafe {
+        SEEN_ASYNC_ERRORS |= bit;
+    }
 }
 
 fn async_error_thread(io: Io) {
@@ -339,19 +382,19 @@ fn async_error_thread(io: Io) {
         unsafe {
             io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
             let errors = csr::rtio_core::async_error_read();
-            if errors & 1 != 0 {
+            if errors & ASYNC_ERROR_COLLISION != 0 {
                 error!("RTIO collision involving channel {}",
                        csr::rtio_core::collision_channel_read());
             }
-            if errors & 2 != 0 {
+            if errors & ASYNC_ERROR_BUSY != 0 {
                 error!("RTIO busy error involving channel {}",
                        csr::rtio_core::busy_channel_read());
             }
-            if errors & 4 != 0 {
+            if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 error!("RTIO sequence error involving channel {}",
                        csr::rtio_core::sequence_error_channel_read());
             }
-            SEEN_ASYNC_ERRORS = errors;
+            SEEN_ASYNC_ERRORS |= errors;
             csr::rtio_core::async_error_write(errors);
         }
     }

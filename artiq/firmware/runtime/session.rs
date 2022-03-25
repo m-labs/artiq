@@ -436,7 +436,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     None => return Ok(true),
                     Some(ref mut stream) =>
                         host_write(stream, host::Reply::KernelFinished {
-                            async_errors: unsafe { get_async_errors() }
+                            async_errors: get_async_errors(io)?,
                         }).map_err(|e| e.into())
                 }
             }
@@ -462,7 +462,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             exceptions: exceptions,
                             stack_pointers: stack_pointers,
                             backtrace: backtrace,
-                            async_errors: unsafe { get_async_errors() }
+                            async_errors: get_async_errors(io)?,
                         }).map_err(|e| e.into())
                     }
                 }
