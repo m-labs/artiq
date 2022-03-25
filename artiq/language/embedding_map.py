@@ -9,6 +9,7 @@ class EmbeddingMap:
         self.string_map = {}
         self.string_reverse_map = {}
         self.function_map = {}
+        self.globals_map = {}
 
         # preallocate exception names
         # must be kept in sync with EXCEPTION_ID_LOOKUP in artiq/firmware/ksupport/eh_artiq.rs,

@@ -6,6 +6,7 @@ import socket
 import re
 import linecache
 import os
+import json
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
@@ -657,7 +658,17 @@ class CommKernel:
         return_tags = self._read_bytes()
 
         if service_id == 0:
-            def service(obj, attr, value): return setattr(obj, attr, value)
+            def service(header, *values):
+                counter = 0
+                for obj in json.loads(header):
+                    old_val = embedding_map.globals_map[obj["id"]]
+                    if "fields" in obj:
+                        for name in obj["fields"]:
+                            setattr(old_val, name, values[counter])
+                            counter += 1
+                    else:
+                        old_val[:] = values[counter]
+                        counter += 1
         else:
             service = embedding_map.retrieve_function(service_id)
         logger.debug("rpc service: [%d]%r%s %r %r -> %s", service_id, service,
