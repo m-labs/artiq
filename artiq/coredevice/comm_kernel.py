@@ -6,7 +6,6 @@ import socket
 import re
 import linecache
 import os
-import json
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
