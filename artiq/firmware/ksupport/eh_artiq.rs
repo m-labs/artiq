@@ -333,7 +333,7 @@ extern fn stop_fn(_version: c_int,
     }
 }
 
-static EXCEPTION_ID_LOOKUP: [(&str, u32); 10] = [
+static EXCEPTION_ID_LOOKUP: [(&str, u32); 11] = [
     ("RuntimeError", 0),
     ("RTIOUnderflow", 1),
     ("RTIOOverflow", 2),
