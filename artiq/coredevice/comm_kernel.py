@@ -658,10 +658,10 @@ class CommKernel:
         return_tags = self._read_bytes()
 
         if service_id == 0:
-            def service(header, *values):
+            def service(*values):
                 counter = 0
-                for obj in json.loads(header):
-                    old_val = embedding_map.globals_map[obj["id"]]
+                for obj in embedding_map.attributes_writeback:
+                    old_val = obj["obj"]
                     if "fields" in obj:
                         for name in obj["fields"]:
                             setattr(old_val, name, values[counter])
