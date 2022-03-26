@@ -343,7 +343,8 @@ static EXCEPTION_ID_LOOKUP: [(&str, u32); 10] = [
     ("CacheError", 6),
     ("SPIError", 7),
     ("ZeroDivisionError", 8),
-    ("IndexError", 9)
+    ("IndexError", 9),
+    ("UnwrapNoneError", 10),
 ];
 
 pub fn get_exception_id(name: &str) -> u32 {
