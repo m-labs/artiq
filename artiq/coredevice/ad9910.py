@@ -158,7 +158,7 @@ class AD9910:
     ftw_per_hz: KernelInvariant[float]
     sysclk_per_mu: KernelInvariant[int32]
     sysclk: KernelInvariant[float]
-    sw: KernelInvariant[TTLOut]
+    sw: KernelInvariant[Option[TTLOut]]
     sync_data: KernelInvariant[SyncDataUser]
     phase_mode: Kernel[int32]
 
@@ -175,8 +175,9 @@ class AD9910:
         assert 3 <= chip_select <= 7
         self.chip_select = chip_select
         if sw_device:
-            self.sw = dmgr.get(sw_device)
-            # NAC3TODO: support no sw
+            self.sw = Some(dmgr.get(sw_device))
+        else:
+            self.sw = none
         clk = self.cpld.refclk / [4, 1, 2, 4][self.cpld.clk_div]
         self.pll_en = pll_en
         self.pll_n = pll_n

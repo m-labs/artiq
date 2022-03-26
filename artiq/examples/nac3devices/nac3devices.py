@@ -67,7 +67,7 @@ class NAC3Devices(EnvExperiment):
         self.core.break_realtime()
         self.urukul0_cpld.init()
         self.urukul0_ch0.init()
-        self.urukul0_ch0.sw.on()
+        self.urukul0_ch0.sw.unwrap().on()
         for i in range(10):
             self.urukul0_ch0.set((10. + float(i))*MHz)
             self.urukul0_ch0.set_att(6.)

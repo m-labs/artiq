@@ -1,6 +1,6 @@
 from numpy import int32, int64
 
-from artiq.language.core import KernelInvariant, nac3, kernel, portable
+from artiq.language.core import *
 from artiq.language.units import ms, us, ns
 from artiq.coredevice.ad9912_reg import *
 
@@ -35,7 +35,7 @@ class AD9912:
     chip_select: KernelInvariant[int32]
     pll_n: KernelInvariant[int32]
     ftw_per_hz: KernelInvariant[float]
-    sw: KernelInvariant[TTLOut]
+    sw: KernelInvariant[Option[TTLOut]]
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
                  pll_n=10):
@@ -45,8 +45,9 @@ class AD9912:
         assert 4 <= chip_select <= 7
         self.chip_select = chip_select
         if sw_device:
-            self.sw = dmgr.get(sw_device)
-            # NAC3TODO: support no sw
+            self.sw = Some(dmgr.get(sw_device))
+        else:
+            self.sw = none
         self.pll_n = pll_n
         sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
         assert sysclk <= 1e9
