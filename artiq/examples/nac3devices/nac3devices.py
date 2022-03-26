@@ -31,7 +31,7 @@ class NAC3Devices(EnvExperiment):
     ttl0_counter: KernelInvariant[EdgeCounter]
     grabber0: KernelInvariant[Grabber]
     fastino0: KernelInvariant[Fastino]
-    # NAC3TODO segfault phaser0: KernelInvariant[Phaser]
+    phaser0: KernelInvariant[Phaser]
 
     def build(self):
         self.setattr_device("core")
@@ -48,7 +48,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("ttl0_counter")
         self.setattr_device("grabber0")
         self.setattr_device("fastino0")
-        # NAC3TODO segfault self.setattr_device("phaser0")
+        self.setattr_device("phaser0")
 
     @kernel
     def run(self):
