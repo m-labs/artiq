@@ -57,7 +57,6 @@ class Core:
         self.comm.core = self
         self.target = target
         self.compiler = nac3artiq.NAC3(target)
-        self.embedding_map = EmbeddingMap()
 
     def close(self):
         self.comm.close()
@@ -80,7 +79,8 @@ class Core:
             self.compiler.compile_method_to_file(obj, name, args, file_output, embedding_map)
 
     def run(self, function, args, kwargs):
-        kernel_library = self.compile(function, args, kwargs, self.embedding_map)
+        embedding_map = EmbeddingMap()
+        kernel_library = self.compile(function, args, kwargs, embedding_map)
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
@@ -89,7 +89,7 @@ class Core:
 
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(self.embedding_map, symbolizer)
+        self.comm.serve(embedding_map, symbolizer)
 
     @portable
     def seconds_to_mu(self, seconds: float) -> int64:
