@@ -1,5 +1,6 @@
-from artiq.language.core import nac3
+from artiq.language.core import nac3, UnwrapNoneError
 from builtins import ZeroDivisionError, ValueError, IndexError, RuntimeError, AssertionError
+
 
 @nac3
 class RTIOUnderflow(Exception):

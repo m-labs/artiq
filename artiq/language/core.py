@@ -6,7 +6,6 @@ from typing import Generic, TypeVar
 from functools import wraps
 from inspect import getfullargspec, getmodule
 from types import SimpleNamespace
-from typing import TypeVar
 from math import floor, ceil
 
 from artiq.language import import_cache
@@ -16,9 +15,10 @@ __all__ = [
     "Kernel", "KernelInvariant", "virtual",
     "round64", "floor64", "ceil64",
     "extern", "kernel", "portable", "nac3", "rpc",
+    "print_rpc",
+    "Option", "Some", "none", "UnwrapNoneError",
     "parallel", "sequential",
     "set_watchdog_factory", "watchdog", "TerminationRequested",
-    "print_rpc"
 ]
 
 
@@ -109,11 +109,49 @@ def rpc(arg=None, flags={}):
     return arg
 
 
-T = TypeVar('T')
-
 @rpc
 def print_rpc(a: T):
     print(a)
+
+
+@nac3
+class UnwrapNoneError(Exception):
+    """Raised when unwrapping a none Option."""
+    artiq_builtin = True
+
+class Option(Generic[T]):
+    _nac3_option: T
+
+    def __init__(self, v: T):
+        self._nac3_option = v
+
+    def is_none(self):
+        return self._nac3_option is None
+
+    def is_some(self):
+        return self._nac3_option is not None
+
+    def unwrap(self):
+        if self.is_none():
+            raise UnwrapNoneError()
+        return self._nac3_option
+
+    def __repr__(self) -> str:
+        if self.is_none():
+            return "none"
+        else:
+            return "Some({})".format(repr(self._nac3_option))
+
+    def __str__(self) -> str:
+        if self.is_none():
+            return "none"
+        else:
+            return "Some({})".format(str(self._nac3_option))
+
+def Some(v: T) -> Option[T]:
+    return Option(v)
+
+none = Option(None)
 
 
 @nac3

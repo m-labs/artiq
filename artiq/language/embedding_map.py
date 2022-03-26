@@ -23,7 +23,8 @@ class EmbeddingMap:
                                           "CacheError",
                                           "SPIError",
                                           "0:ZeroDivisionError",
-                                          "0:IndexError"])
+                                          "0:IndexError",
+                                          "0:UnwrapNoneError"])
 
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):
