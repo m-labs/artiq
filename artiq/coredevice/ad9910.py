@@ -5,7 +5,6 @@ from artiq.language.units import us, ms
 
 from artiq.coredevice.spi2 import *
 from artiq.coredevice.urukul import *
-from artiq.coredevice.urukul import *
 from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.kasli_i2c import KasliEEPROM  # NAC3TODO
 
