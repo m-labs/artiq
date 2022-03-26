@@ -1,7 +1,3 @@
-__all__ = [
-    'EmbeddingMap'
-]
-
 class EmbeddingMap:
     def __init__(self):
         self.object_inverse_map = {}
@@ -62,5 +58,3 @@ class EmbeddingMap:
 
     def retrieve_str(self, key):
         return self.string_map[key]
-
-
