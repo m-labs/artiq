@@ -1,11 +1,11 @@
 from numpy import int32, int64
 
-from artiq.language.core import nac3, Kernel, KernelInvariant, kernel, portable
+from artiq.language.core import *
 from artiq.language.units import us, ms
 
 from artiq.coredevice.core import Core
 from artiq.coredevice.spi2 import *
-from artiq.coredevice.ttl import TTLOut
+from artiq.coredevice.ttl import TTLOut, TTLClockGen
 
 
 SPI_CONFIG = (0 * SPI_OFFLINE | 0 * SPI_END |
@@ -104,15 +104,6 @@ def urukul_sta_proto_rev(sta: int32) -> int32:
     """Return the PROTO_REV value from Urukul status register value."""
     return (sta >> STA_PROTO_REV) & 0x7f
 
-@nac3
-class _DummySync:
-    def __init__(self, cpld):
-        self.cpld = cpld
-
-    @kernel
-    def set_mu(self, ftw: int32):
-        pass
-
 
 @nac3
 class CPLD:
@@ -159,7 +150,8 @@ class CPLD:
     bus: KernelInvariant[SPIMaster]
     io_update: KernelInvariant[TTLOut]
     clk_div: KernelInvariant[int32]
-    sync: KernelInvariant[_DummySync]
+    dds_reset: KernelInvariant[Option[TTLOut]]
+    sync: KernelInvariant[Option[TTLClockGen]]
     cfg_reg: Kernel[int32]
     att_reg: Kernel[int32]
     sync_div: Kernel[int32]
@@ -183,15 +175,15 @@ class CPLD:
             # NAC3TODO
             raise NotImplementedError
         if dds_reset_device is not None:
-            self.dds_reset = dmgr.get(dds_reset_device)
+            self.dds_reset = Some(dmgr.get(dds_reset_device))
+        else:
+            self.dds_reset = none
         if sync_device is not None:
-            self.sync = dmgr.get(sync_device)
+            self.sync = Some(dmgr.get(sync_device))
             if sync_div is None:
                 sync_div = 2
-            # NAC3TODO
-            raise NotImplementedError
         else:
-            self.sync = _DummySync(self)
+            self.sync = none
             assert sync_div is None
             sync_div = 0
 
@@ -420,7 +412,8 @@ class CPLD:
         ftw_max = 1 << 4
         ftw = ftw_max // div
         # NAC3TODO assert ftw * div == ftw_max
-        self.sync.set_mu(ftw)
+        if self.sync.is_some():
+            self.sync.unwrap().set_mu(ftw)
 
     @kernel
     def set_profile(self, profile: int32):
