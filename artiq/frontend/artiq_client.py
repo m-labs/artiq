@@ -67,6 +67,9 @@ def get_argparser():
     parser_add.add_argument("-r", "--revision", default=None,
                             help="use a specific repository revision "
                                  "(defaults to head, ignored without -R)")
+    parser_add.add_argument("--content", default=False,
+                            action="store_true",
+                            help="submit by content")
     parser_add.add_argument("-c", "--class-name", default=None,
                             help="name of the class to run")
     parser_add.add_argument("file", metavar="FILE",
@@ -134,12 +137,18 @@ def _action_submit(remote, args):
 
     expid = {
         "log_level": logging.WARNING + args.quiet*10 - args.verbose*10,
-        "file": args.file,
         "class_name": args.class_name,
         "arguments": arguments,
     }
-    if args.repository:
-        expid["repo_rev"] = args.revision
+    if args.content:
+        with open(args.file, "r") as f:
+            expid["content"] = f.read()
+        if args.repository:
+            raise ValueError("Repository cannot be used when submitting by content")
+    else:
+        expid["file"] = args.file
+        if args.repository:
+            expid["repo_rev"] = args.revision
     if args.timed is None:
         due_date = None
     else:
@@ -207,7 +216,7 @@ def _show_schedule(schedule):
                 row.append(expid["repo_rev"])
             else:
                 row.append("Outside repo.")
-            row.append(expid["file"])
+            row.append(expid.get("file", "<none>"))
             if expid["class_name"] is None:
                 row.append("")
             else:

@@ -2,7 +2,6 @@ use alloc::collections::btree_map::BTreeMap;
 use core::cell::RefCell;
 
 use io::Error as IoError;
-use io::Write;
 use moninj_proto::*;
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use urc::Urc;
@@ -13,12 +12,12 @@ use board_artiq::drtio_routing;
 mod local_moninj {
     use board_misoc::csr;
 
-    pub fn read_probe(channel: u16, probe: u8) -> u32 {
+    pub fn read_probe(channel: u16, probe: u8) -> u64 {
         unsafe {
             csr::rtio_moninj::mon_chan_sel_write(channel as _);
             csr::rtio_moninj::mon_probe_sel_write(probe);
             csr::rtio_moninj::mon_value_update_write(1);
-            csr::rtio_moninj::mon_value_read() as u32
+            csr::rtio_moninj::mon_value_read() as u64
         }
     }
 
@@ -41,7 +40,7 @@ mod local_moninj {
 
 #[cfg(not(has_rtio_moninj))]
 mod local_moninj {
-    pub fn read_probe(_channel: u16, _probe: u8) -> u32 { 0 }
+    pub fn read_probe(_channel: u16, _probe: u8) -> u64 { 0 }
 
     pub fn inject(_channel: u16, _overrd: u8, _value: u8) { }
 
@@ -54,7 +53,7 @@ mod remote_moninj {
     use rtio_mgt::drtio;
     use sched::{Io, Mutex};
 
-    pub fn read_probe(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, channel: u16, probe: u8) -> u32 {
+    pub fn read_probe(io: &Io, aux_mutex: &Mutex, linkno: u8, destination: u8, channel: u16, probe: u8) -> u64 {
         let reply = drtio::aux_transact(io, aux_mutex, linkno, &drtioaux::Packet::MonitorRequest { 
             destination: destination,
             channel: channel,
@@ -123,7 +122,6 @@ fn connection_worker(io: &Io, _aux_mutex: &Mutex, _routing_table: &drtio_routing
     let mut next_check = 0;
 
     read_magic(&mut stream)?;
-    stream.write_all("e".as_bytes())?;
     info!("new connection from {}", stream.remote_endpoint());
 
     loop {

@@ -107,7 +107,7 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
                     v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
                          "class_name: {}\nrid: {}\nstart_time: {}").format(
                              h5["artiq_version"][()], expid["repo_rev"],
-                             expid["file"], expid["class_name"],
+                             expid.get("file", "<none>"), expid["class_name"],
                              h5["rid"][()], start_time)
                     return v
                 except:
@@ -179,7 +179,7 @@ class FilesDock(QtWidgets.QDockWidget):
                 v = {
                     "artiq_version": f["artiq_version"][()],
                     "repo_rev": expid["repo_rev"],
-                    "file": expid["file"],
+                    "file": expid.get("file", "<none>"),
                     "class_name": expid["class_name"],
                     "rid": f["rid"][()],
                     "start_time": start_time,

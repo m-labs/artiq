@@ -202,51 +202,50 @@ _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
 
 
 def setup_from_ddb(ddb):
-    core_addr = None
+    mi_addr = None
     dds_sysclk = None
     description = set()
 
     for k, v in ddb.items():
-        comment = None
-        if "comment" in v:
-            comment = v["comment"]
         try:
-            if isinstance(v, dict) and v["type"] == "local":
-                if k == "core":
-                    core_addr = v["arguments"]["host"]
-                elif v["module"] == "artiq.coredevice.ttl":
-                    channel = v["arguments"]["channel"]
-                    force_out = v["class"] == "TTLOut"
-                    widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
-                    description.add(widget)
-                elif (v["module"] == "artiq.coredevice.ad9914"
-                        and v["class"] == "AD9914"):
-                    bus_channel = v["arguments"]["bus_channel"]
-                    channel = v["arguments"]["channel"]
-                    dds_sysclk = v["arguments"]["sysclk"]
-                    widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
-                    description.add(widget)
-                elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
-                      or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
-                    spi_device = v["arguments"]["spi_device"]
-                    spi_device = ddb[spi_device]
-                    while isinstance(spi_device, str):
-                        spi_device = ddb[spi_device]
-                    spi_channel = spi_device["arguments"]["channel"]
-                    for channel in range(32):
-                        widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+            if isinstance(v, dict):
+                comment = v.get("comment")
+                if v["type"] == "local":
+                    if v["module"] == "artiq.coredevice.ttl":
+                        channel = v["arguments"]["channel"]
+                        force_out = v["class"] == "TTLOut"
+                        widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
                         description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.ad9914"
+                            and v["class"] == "AD9914"):
+                        bus_channel = v["arguments"]["bus_channel"]
+                        channel = v["arguments"]["channel"]
+                        dds_sysclk = v["arguments"]["sysclk"]
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
+                        description.add(widget)
+                    elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
+                          or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
+                        spi_device = v["arguments"]["spi_device"]
+                        spi_device = ddb[spi_device]
+                        while isinstance(spi_device, str):
+                            spi_device = ddb[spi_device]
+                        spi_channel = spi_device["arguments"]["channel"]
+                        for channel in range(32):
+                            widget = _WidgetDesc((k, channel), comment, _DACWidget, (spi_channel, channel, k))
+                            description.add(widget)
+                elif v["type"] == "controller" and k == "core_moninj":
+                    mi_addr = v["host"]
         except KeyError:
             pass
-    return core_addr, dds_sysclk, description
+    return mi_addr, dds_sysclk, description
 
 
 class _DeviceManager:
     def __init__(self):
-        self.core_addr = None
-        self.reconnect_core = asyncio.Event()
-        self.core_connection = None
-        self.core_connector_task = asyncio.ensure_future(self.core_connector())
+        self.mi_addr = None
+        self.reconnect_mi = asyncio.Event()
+        self.mi_connection = None
+        self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
 
         self.ddb = dict()
         self.description = set()
@@ -265,11 +264,11 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        core_addr, dds_sysclk, description = setup_from_ddb(self.ddb)
+        mi_addr, dds_sysclk, description = setup_from_ddb(self.ddb)
 
-        if core_addr != self.core_addr:
-            self.core_addr = core_addr
-            self.reconnect_core.set()
+        if mi_addr != self.mi_addr:
+            self.mi_addr = mi_addr
+            self.reconnect_mi.set()
 
         self.dds_sysclk = dds_sysclk
 
@@ -319,44 +318,44 @@ class _DeviceManager:
         self.description = description
 
     def ttl_set_mode(self, channel, mode):
-        if self.core_connection is not None:
+        if self.mi_connection is not None:
             widget = self.ttl_widgets[channel]
             if mode == "0":
                 widget.cur_override = True
                 widget.cur_level = False
-                self.core_connection.inject(channel, TTLOverride.level.value, 0)
-                self.core_connection.inject(channel, TTLOverride.oe.value, 1)
-                self.core_connection.inject(channel, TTLOverride.en.value, 1)
+                self.mi_connection.inject(channel, TTLOverride.level.value, 0)
+                self.mi_connection.inject(channel, TTLOverride.oe.value, 1)
+                self.mi_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "1":
                 widget.cur_override = True
                 widget.cur_level = True
-                self.core_connection.inject(channel, TTLOverride.level.value, 1)
-                self.core_connection.inject(channel, TTLOverride.oe.value, 1)
-                self.core_connection.inject(channel, TTLOverride.en.value, 1)
+                self.mi_connection.inject(channel, TTLOverride.level.value, 1)
+                self.mi_connection.inject(channel, TTLOverride.oe.value, 1)
+                self.mi_connection.inject(channel, TTLOverride.en.value, 1)
             elif mode == "exp":
                 widget.cur_override = False
-                self.core_connection.inject(channel, TTLOverride.en.value, 0)
+                self.mi_connection.inject(channel, TTLOverride.en.value, 0)
             else:
                 raise ValueError
             # override state may have changed
             widget.refresh_display()
 
     def setup_ttl_monitoring(self, enable, channel):
-        if self.core_connection is not None:
-            self.core_connection.monitor_probe(enable, channel, TTLProbe.level.value)
-            self.core_connection.monitor_probe(enable, channel, TTLProbe.oe.value)
-            self.core_connection.monitor_injection(enable, channel, TTLOverride.en.value)
-            self.core_connection.monitor_injection(enable, channel, TTLOverride.level.value)
+        if self.mi_connection is not None:
+            self.mi_connection.monitor_probe(enable, channel, TTLProbe.level.value)
+            self.mi_connection.monitor_probe(enable, channel, TTLProbe.oe.value)
+            self.mi_connection.monitor_injection(enable, channel, TTLOverride.en.value)
+            self.mi_connection.monitor_injection(enable, channel, TTLOverride.level.value)
             if enable:
-                self.core_connection.get_injection_status(channel, TTLOverride.en.value)
+                self.mi_connection.get_injection_status(channel, TTLOverride.en.value)
 
     def setup_dds_monitoring(self, enable, bus_channel, channel):
-        if self.core_connection is not None:
-            self.core_connection.monitor_probe(enable, bus_channel, channel)
+        if self.mi_connection is not None:
+            self.mi_connection.monitor_probe(enable, bus_channel, channel)
 
     def setup_dac_monitoring(self, enable, spi_channel, channel):
-        if self.core_connection is not None:
-            self.core_connection.monitor_probe(enable, spi_channel, channel)
+        if self.mi_connection is not None:
+            self.mi_connection.monitor_probe(enable, spi_channel, channel)
 
     def monitor_cb(self, channel, probe, value):
         if channel in self.ttl_widgets:
@@ -385,29 +384,29 @@ class _DeviceManager:
             widget.refresh_display()
 
     def disconnect_cb(self):
-        logger.error("lost connection to core device moninj")
-        self.reconnect_core.set()
+        logger.error("lost connection to moninj")
+        self.reconnect_mi.set()
 
-    async def core_connector(self):
+    async def mi_connector(self):
         while True:
-            await self.reconnect_core.wait()
-            self.reconnect_core.clear()
-            if self.core_connection is not None:
-                await self.core_connection.close()
-                self.core_connection = None
-            new_core_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
+            await self.reconnect_mi.wait()
+            self.reconnect_mi.clear()
+            if self.mi_connection is not None:
+                await self.mi_connection.close()
+                self.mi_connection = None
+            new_mi_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                     self.disconnect_cb)
             try:
-                await new_core_connection.connect(self.core_addr, 1383)
+                await new_mi_connection.connect(self.mi_addr, 1383)
             except asyncio.CancelledError:
-                logger.info("cancelled connection to core device moninj")
+                logger.info("cancelled connection to moninj")
                 break
             except:
-                logger.error("failed to connect to core device moninj", exc_info=True)
+                logger.error("failed to connect to moninj", exc_info=True)
                 await asyncio.sleep(10.)
-                self.reconnect_core.set()
+                self.reconnect_mi.set()
             else:
-                self.core_connection = new_core_connection
+                self.mi_connection = new_mi_connection
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
                 for bus_channel, channel in self.dds_widgets.keys():
@@ -416,13 +415,13 @@ class _DeviceManager:
                     self.setup_dac_monitoring(True, spi_channel, channel)
 
     async def close(self):
-        self.core_connector_task.cancel()
+        self.mi_connector_task.cancel()
         try:
-            await asyncio.wait_for(self.core_connector_task, None)
+            await asyncio.wait_for(self.mi_connector_task, None)
         except asyncio.CancelledError:
             pass
-        if self.core_connection is not None:
-            await self.core_connection.close()
+        if self.mi_connection is not None:
+            await self.mi_connection.close()
 
 
 class _MonInjDock(QtWidgets.QDockWidget):

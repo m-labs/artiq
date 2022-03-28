@@ -109,6 +109,14 @@ Core device logging controller
    :ref: artiq.frontend.aqctl_corelog.get_argparser
    :prog: aqctl_corelog
 
+Moninj proxy
+------------
+
+.. argparse::
+   :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
+   :prog: aqctl_moninj_proxy
+
+
 .. _core-device-rtio-analyzer-tool:
 
 Core device RTIO analyzer tool

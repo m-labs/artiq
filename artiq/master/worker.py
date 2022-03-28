@@ -74,7 +74,7 @@ class Worker:
             return None
 
     def _get_log_source(self):
-        return "worker({},{})".format(self.rid, self.filename)
+        return "worker({},{})".format(self.rid, self.filename if self.filename is not None else "<none>")
 
     async def _create_process(self, log_level):
         if self.ipc is not None:
@@ -260,7 +260,8 @@ class Worker:
     async def build(self, rid, pipeline_name, wd, expid, priority,
                     timeout=15.0):
         self.rid = rid
-        self.filename = os.path.basename(expid["file"])
+        if "file" in expid:
+            self.filename = os.path.basename(expid["file"])
         await self._create_process(expid["log_level"])
         await self._worker_action(
             {"action": "build",
