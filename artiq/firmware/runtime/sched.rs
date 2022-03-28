@@ -250,12 +250,24 @@ impl<'a> Io<'a> {
         })
     }
 
-    pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<(), Error> {
+    pub fn inner_until<F: FnMut() -> bool>(
+        &self,
+        timeout: Option<u64>,
+        mut f: F
+    ) -> Result<(), Error> {
         let f = unsafe { mem::transmute::<&mut dyn FnMut() -> bool, *mut dyn FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(f)
+            timeout,
+            event: Some(f),
         })
+    }
+
+    pub fn until<F: FnMut() -> bool>(&self, f: F) -> Result<(), Error> {
+        self.inner_until(None, f)
+    }
+
+    pub fn until_with_timeout<F: FnMut() -> bool>(&self, timeout: u64, f: F) -> Result<(), Error> {
+        self.inner_until(Some(timeout), f)
     }
 
     pub fn until_ok<T, E, F>(&self, mut f: F) -> Result<T, Error>
