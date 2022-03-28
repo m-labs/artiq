@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use core::sync::atomic::{AtomicU8, Ordering};
 use urc::Urc;
 use board_misoc::csr;
 #[cfg(has_drtio)]
@@ -218,15 +219,15 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
                                 error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
-                                set_async_error_bit(ASYNC_ERROR_SEQUENCE_ERROR);
+                                set_async_error_bits(ASYNC_ERROR_SEQUENCE_ERROR);
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
                                 error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
-                                set_async_error_bit(ASYNC_ERROR_COLLISION);
+                                set_async_error_bits(ASYNC_ERROR_COLLISION);
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
                                 error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
-                                set_async_error_bit(ASYNC_ERROR_BUSY);
+                                set_async_error_bits(ASYNC_ERROR_BUSY);
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -360,21 +361,15 @@ pub mod drtio {
 const ASYNC_ERROR_COLLISION: u8 = 1;
 const ASYNC_ERROR_BUSY: u8 = 2;
 const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 4;
-static mut SEEN_ASYNC_ERRORS: u8 = 0;
+static SEEN_ASYNC_ERRORS: AtomicU8 = AtomicU8::new(0);
 
 pub fn get_async_errors(io: &Io) -> Result<u8, Error> {
     drtio::wait_for_survey(io)?;
-    unsafe {
-        let errors = SEEN_ASYNC_ERRORS;
-        SEEN_ASYNC_ERRORS = 0;
-        Ok(errors)
-    }
+    Ok(SEEN_ASYNC_ERRORS.swap(0, Ordering::AcqRel))
 }
 
-fn set_async_error_bit(bit: u8) {
-    unsafe {
-        SEEN_ASYNC_ERRORS |= bit;
-    }
+fn set_async_error_bits(bit: u8) {
+    SEEN_ASYNC_ERRORS.fetch_or(bit, Ordering::AcqRel);
 }
 
 fn async_error_thread(io: Io) {
@@ -394,7 +389,7 @@ fn async_error_thread(io: Io) {
                 error!("RTIO sequence error involving channel {}",
                        csr::rtio_core::sequence_error_channel_read());
             }
-            SEEN_ASYNC_ERRORS |= errors;
+            set_async_error_bits(errors);
             csr::rtio_core::async_error_write(errors);
         }
     }
