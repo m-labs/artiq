@@ -1,5 +1,6 @@
 from migen import *
 
+from artiq.coredevice.ad9912_reg import AD9912_FTW0, AD9912_POW1
 from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END, SPI_INPUT
 from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CS_CFG, CFG_IO_UPDATE
 
@@ -41,74 +42,64 @@ class AD99XXMonitorGeneric(Module):
 
 
 class AD9910Monitor(AD99XXMonitorGeneric):
+    _AD9910_REG_FTW = 0x07
+
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
-        data = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
-        buffer = [{'register': Signal(8), 'value': Signal(32)} for i in range(nchannels)]
+        data = [Signal(32) for i in range(nchannels)]
+        buffer = [Signal(32) for i in range(nchannels)]
 
         # Flatten register first, then data
-        self.probes = Array([
-            *[x['register'] for x in data],
-            *[x['value'] for x in data]
-        ])
+        self.probes = Array(data)
         super().__init__(spi_phy, io_update_phy)
 
         def update_probe_data(i):
             return If(self.selected(i + CS_DDS_CH0), [
-                data[i]['value'].eq(buffer[i]['value']),
-                data[i]['register'].eq(buffer[i]['register'])
+                data[i].eq(buffer[i])
             ])
 
-        # 0 -> init, 1 -> has remaining part
+        # 0 -> init, 1 -> start reading
         state = Signal()
         for i in range(nchannels):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
                 Case(state, {
                     0: [
-                        If(self.length == 24 & (self.flags & SPI_END), [
-                            # write16
-                            buffer[i]['register'].eq(self.current_data[24:]),
-                            buffer[i]['value'].eq(self.current_data[8:24]),
-                        ]).Elif(self.length == 8, [
-                            # write32
-                            buffer[i]['register'].eq(self.current_data[24:]),
-                            state.eq(1)
+                        If(self.current_data[24:] == self._AD9910_REG_FTW, [
+                            If(self.length == 24 & (self.flags & SPI_END), [
+                                # write16
+                                buffer[i].eq(self.current_data[8:24]),
+                            ]).Elif(self.length == 8, [
+                                # write32
+                                state.eq(1)
+                            ])
                         ])
                     ],
                     1: [
-                        If(self.flags & SPI_END, buffer[i]['value'].eq(self.current_data))
+                        If(self.flags & SPI_END, buffer[i].eq(self.current_data))
                     ]
                 })
             ])
 
         self.sync.rio_phy += If(self.is_io_update(), [
-            state.eq(0),
-            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)])
+            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)]),
+            state.eq(0)
         ])
 
 
 class AD9912Monitor(AD99XXMonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
-        data = [
-            {'register': Signal(24), 'value': Signal(48)} for i in range(nchannels)
-        ]
-        buffer = [
-            {'register': Signal(24), 'value': Signal(48)} for i in range(nchannels)
-        ]
+        data = [Signal(48) for i in range(nchannels)]
+        buffer = [Signal(64) for i in range(nchannels)]
 
         # Flatten register first, then data
-        self.probes = Array([
-            *[x['register'] for x in data],
-            *[x['value'] for x in data]
-        ])
+        self.probes = Array(data)
         super().__init__(spi_phy, io_update_phy)
 
         def update_probe_data(i):
             return If(self.selected(i + CS_DDS_CH0), [
-                data[i]['value'].eq(buffer[i]['value']),
-                data[i]['register'].eq(buffer[i]['register'])
+                data[i].eq(buffer[i])
             ])
 
-        # 0 -> init, 1 -> has remaining part
+        # 0 -> init, 1 -> start reading
         state = Signal(1)
 
         for i in range(nchannels):
@@ -116,22 +107,21 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                 Case(state, {
                     0: [
                         # write/set_mu
-                        If(self.length == 16, [
-                            buffer[i]['register'].eq(self.current_data[16:28]),
+                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1), [
                             state.eq(1)
                         ])
                     ],
                     1: [
                         If(self.flags & SPI_END, [
-                            buffer[i]['value'][:32].eq(self.current_data)
+                            buffer[i][:32].eq(self.current_data)
                         ]).Else([
-                            buffer[i]['value'][32:48].eq(self.current_data[:16])
+                            buffer[i][32:].eq(self.current_data)
                         ])
                     ]
                 })
             ])
 
         self.sync.rio_phy += If(self.is_io_update(), [
-            state.eq(0),
-            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)])
+            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)]),
+            state.eq(0)
         ])
