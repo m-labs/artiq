@@ -381,8 +381,8 @@ class AD53xx:
         gain_err = voltage_to_mu(vfs, self.offset_dacs, self.vref) - (
             offset_err + 0xffff)
 
-        # NAC3TODO assert offset_err <= 0
-        # NAC3TODO assert gain_err >= 0
+        assert offset_err <= 0
+        assert gain_err >= 0
 
         self.core.break_realtime()
         self.write_offset_mu(channel, 0x8000-offset_err)

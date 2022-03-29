@@ -274,7 +274,7 @@ class Fastino:
         while gain > 1 << gain_exponent:
             gain_exponent += 1
         gain_exponent += order*rate_exponent
-        # NAC3TODO assert gain_exponent <= order*16
+        assert gain_exponent <= order*16
         self.stage_cic_mu(rate_mantissa - 1, rate_exponent, gain_exponent)
         return rate_mantissa << rate_exponent
 

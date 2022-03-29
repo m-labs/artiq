@@ -411,7 +411,7 @@ class CPLD:
         """
         ftw_max = 1 << 4
         ftw = ftw_max // div
-        # NAC3TODO assert ftw * div == ftw_max
+        assert ftw * div == ftw_max
         if self.sync.is_some():
             self.sync.unwrap().set_mu(ftw)
 

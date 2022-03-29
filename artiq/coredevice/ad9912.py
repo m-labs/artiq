@@ -62,8 +62,8 @@ class AD9912:
         :param data: Data to be written: int32
         :param length: Length in bytes (1-4)
         """
-        # NAC3TODO assert length > 0
-        # NAC3TODO assert length <= 4
+        assert length > 0
+        assert length <= 4
         self.bus.set_config_mu(SPI_CONFIG, 16,
                                SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13)) << 16)
@@ -80,8 +80,8 @@ class AD9912:
         :param length: Length in bytes (1-4)
         :return: Data read
         """
-        # NAC3TODO assert length > 0
-        # NAC3TODO assert length <= 4
+        assert length > 0
+        assert length <= 4
         self.bus.set_config_mu(SPI_CONFIG, 16,
                                SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | ((length - 1) << 13) | 0x8000) << 16)
