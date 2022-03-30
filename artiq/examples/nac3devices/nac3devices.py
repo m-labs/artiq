@@ -55,7 +55,7 @@ class NAC3Devices(EnvExperiment):
         self.core.reset()
         self.zotino0.init()
         self.zotino0.set_leds(0x15)
-        self.zotino0.set_dac([1.2, -5.3, 3.4, 4.5], [0, 1, 2, 3])
+        self.zotino0.set_dac([1.2, -5.3, 3.4, 4.5])
 
         self.core.break_realtime()
         self.mirny0_cpld.init()

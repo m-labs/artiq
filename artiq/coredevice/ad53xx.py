@@ -10,7 +10,7 @@ time is an error.
 
 from numpy import int32, int64
 
-from artiq.language.core import nac3, kernel, portable, Kernel, KernelInvariant
+from artiq.language.core import *
 from artiq.language.units import ns, us
 from artiq.coredevice.core import Core
 from artiq.coredevice.ttl import TTLOut
@@ -313,7 +313,7 @@ class AD53xx:
         self.ldac.on()
 
     @kernel
-    def set_dac_mu(self, values: list[int32], channels: list[int32]):  # NAC3TODO default list(range(40))
+    def set_dac_mu(self, values: list[int32], channels: Option[list[int32]] = none):
         """Program multiple DAC channels and pulse LDAC to update the DAC
         outputs.
 
@@ -335,14 +335,15 @@ class AD53xx:
         t_10 = self.core.seconds_to_mu(1500.*ns)
         # compensate all delays that will be applied
         delay_mu(-t_10-int64(len(values))*self.bus.xfer_duration_mu)
+        channels_list = channels.unwrap() if channels.is_some() else [i for i in range(40)]
         for i in range(len(values)):
-            self.write_dac_mu(channels[i], values[i])
+            self.write_dac_mu(channels_list[i], values[i])
         delay_mu(t_10)
         self.load()
         at_mu(t0)
 
     @kernel
-    def set_dac(self, voltages: list[float], channels: list[int32]):  # NAC3TODO default list(range(40))
+    def set_dac(self, voltages: list[float], channels: Option[list[int32]] = none):
         """Program multiple DAC channels and pulse LDAC to update the DAC
         outputs.
 
