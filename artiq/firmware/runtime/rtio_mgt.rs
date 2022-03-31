@@ -218,15 +218,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel);
                                 set_async_error_bits(ASYNC_ERROR_SEQUENCE_ERROR);
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
+                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel);
                                 set_async_error_bits(ASYNC_ERROR_COLLISION);
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel);
                                 set_async_error_bits(ASYNC_ERROR_BUSY);
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -358,9 +358,9 @@ pub mod drtio {
     }
 }
 
-const ASYNC_ERROR_COLLISION: u8 = 1;
-const ASYNC_ERROR_BUSY: u8 = 2;
-const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 4;
+const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
+const ASYNC_ERROR_BUSY: u8 = 1 << 1;
+const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
 static SEEN_ASYNC_ERRORS: AtomicU8 = AtomicU8::new(0);
 
 pub fn get_async_errors(io: &Io) -> Result<u8, Error> {
@@ -368,8 +368,8 @@ pub fn get_async_errors(io: &Io) -> Result<u8, Error> {
     Ok(SEEN_ASYNC_ERRORS.swap(0, Ordering::AcqRel))
 }
 
-fn set_async_error_bits(bit: u8) {
-    SEEN_ASYNC_ERRORS.fetch_or(bit, Ordering::AcqRel);
+fn set_async_error_bits(bitmask: u8) {
+    SEEN_ASYNC_ERRORS.fetch_or(bitmask, Ordering::AcqRel);
 }
 
 fn async_error_thread(io: Io) {
