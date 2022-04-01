@@ -1,8 +1,28 @@
 import unittest
 import asyncio
+import re
+import numpy
+from contextlib import asynccontextmanager
+from unittest import IsolatedAsyncioTestCase
 
 from artiq.coredevice.comm_moninj import *
 from artiq.test.hardware_testbench import ExperimentCase
+from artiq.experiment import *
+
+
+def async_test(coro):
+    def wrapper(*args, **kwargs):
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(coro(*args, **kwargs))
+        finally:
+            loop.close()
+
+    return wrapper
+
+
+def get_last_integers(str):
+    return int(re.search(r'(\d+)$', str).group(0))
 
 
 class MonInjTest(ExperimentCase):
@@ -66,3 +86,175 @@ class MonInjTest(ExperimentCase):
             (loop_out_channel, TTLOverride.en.value, 1),
             (loop_out_channel, TTLOverride.en.value, 1)
         ])
+
+
+class _UrukulExperiment(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+        
+    @kernel
+    def init_channel(self, channel):
+        self.core.reset()
+        self.core.break_realtime()
+        channel.cpld.init()
+        channel.init()
+
+    @kernel
+    def read_raw(self, channel):
+        self.init_channel(channel)
+        return channel.get_mu()
+
+    @kernel
+    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0):
+        self.init_channel(channel)
+        channel.set_mu(ftw, pow)
+
+    @kernel
+    def read(self, channel):
+        self.init_channel(channel)
+        return channel.get()
+
+    @kernel
+    def write(self, channel, freq: TFloat, phase: TFloat = 0.0):
+        self.init_channel(channel)
+        channel.set(freq, phase)
+
+
+class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
+    def get_urukuls(self):
+        urukuls = dict()
+        ddb = self.device_db.get_device_db()
+        for name, desc in ddb.items():
+            if isinstance(desc, dict) and desc["type"] == "local":
+                module, cls = desc["module"], desc["class"]
+                if (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
+                    urukuls[name] = self.device_mgr.get(name)
+                if (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
+                    urukuls[name] = self.device_mgr.get(name)
+        return urukuls
+
+    def setUp(self):
+        super().setUp()
+        try:
+            self.core = self.device_mgr.get_desc("core")
+            self.urukuls = self.get_urukuls()
+            self.kernel = self.create(_UrukulExperiment)
+        except KeyError as e:
+            # skip if ddb does not match requirements
+            raise unittest.SkipTest(
+                "test device not available: `{}`".format(*e.args))
+
+    @asynccontextmanager
+    async def open_comm_session(self, notifications=None, core_host=None, auto_monitor=True):
+        if notifications is None:
+            notifications = []
+        if core_host is None:
+            core_host = self.core["arguments"]["host"]
+
+        def monitor_cb(channel, probe, value):
+            notifications.append((channel, probe, value))
+
+        moninj_comm = CommMonInj(monitor_cb, lambda x, y, z: None)
+        try:
+            await moninj_comm.connect(core_host)
+            if auto_monitor:
+                self.setup_monitor(moninj_comm)
+            yield moninj_comm
+        finally:
+            self.setup_monitor(moninj_comm, teardown=True)
+            await moninj_comm._writer.drain()
+            await asyncio.sleep(0.5)
+            await moninj_comm.close()
+
+    def setup_monitor(self, moninj_comm, *, teardown=False, reset_zero=True):
+        for name, dev in self.urukuls.items():
+            moninj_comm.monitor_probe(not teardown, dev.bus.channel, get_last_integers(name))
+            if reset_zero and not teardown:
+                self.kernel.write_raw(dev, 0)
+                ftw, _ = self.kernel.read_raw(dev)
+                assert ftw == 0
+
+    @async_test
+    async def test_double_read(self):
+        target_ftw = 0xff00ff00
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            # anyone of them is okay
+            name, urukul = next(iter(self.urukuls.items()))
+            self.kernel.write_raw(urukul, target_ftw)
+            for i in range(2):
+                ftw, _ = self.kernel.read_raw(urukul)
+        final_values = {probe: value for _, probe, value in notifications_out}
+        assert final_values[get_last_integers(name)] == ftw == target_ftw
+
+    @async_test
+    async def test_ftw_int32(self):
+        target_ftws = {
+            0: 0xaabbccdd,
+            1: 0xabababab,
+            2: 0xabcdabcd,
+            3: 0x900f009
+        }
+        ftws = {}
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            for name, urukul in self.urukuls.items():
+                idx = get_last_integers(name)
+                self.kernel.write_raw(urukul, target_ftws[idx])
+                ftws[idx], _ = self.kernel.read_raw(urukul)
+        final_values = {probe: value for _, probe, value in notifications_out}
+        assert final_values == ftws == target_ftws
+
+    @async_test
+    async def test_ftw_int48(self):
+        target_ftws = {
+            0: 0xffeeffeeffee,
+            1: 0xfeedfeedfeed,
+            2: 0xabababababab,
+            3: 0xf00ba12ba2
+        }
+        ftws = {}
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            for name, urukul in self.urukuls.items():
+                idx = get_last_integers(name)
+                self.kernel.write_raw(urukul, target_ftws[idx])
+                ftws[idx], _ = self.kernel.read_raw(urukul)
+        final_values = {probe: value for _, probe, value in notifications_out}
+        assert final_values == ftws == target_ftws
+
+    @async_test
+    async def test_frequency(self):
+        target_freqs = {
+            0: 15 * MHz,
+            1: 42.5 * MHz,
+            2: 98.765 * MHz,
+            3: 128.128 * MHz
+        }
+        freqs = {}
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            for name, urukul in self.urukuls.items():
+                idx = get_last_integers(name)
+                self.kernel.write(urukul, target_freqs[idx])
+                freqs[idx], _ = self.kernel.read(urukul)
+        for key, value in freqs.items():
+            assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
+
+    @async_test
+    async def test_frequency_with_turns(self):
+        target_freqs = {
+            0: 15 * MHz,
+            1: 42.5 * MHz,
+            2: 98.765 * MHz,
+            3: 128.128 * MHz
+        }
+        freqs = {}
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            for name, urukul in self.urukuls.items():
+                idx = get_last_integers(name)
+                self.kernel.write(urukul, target_freqs[idx], 123.4)
+                freqs[idx], _ = self.kernel.read(urukul)
+        for key, value in freqs.items():
+            assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
