@@ -104,7 +104,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
                 Case(state[i], {
                     0: [
-                        # Bit 16: read op
+                        # Bit 15: read op
                         If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1) & ~self.current_data[15 + 16], [
                             state[i].eq(1)
                         ])
