@@ -29,9 +29,6 @@ class AD99XXMonitorGeneric(Module):
     def selected(self, c):
         return (self.cs == CS_DDS_MULTI) | (self.cs == c)
 
-    def master_is_data_and_not_input(self):
-        return (self.current_address == SPI_DATA_ADDR) & ~(self.flags & SPI_INPUT)
-
     def is_io_update(self):
         # shifted 8 bits left for 32-bit bus
         dest_cfg_reg_and_io_update_bit_set = (self.cs == CS_CFG) & self.current_data[8 + CFG_IO_UPDATE]
@@ -58,18 +55,19 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             ])
 
         # 0 -> init, 1 -> start reading
-        state = Signal()
+        state = [Signal(1) for i in range(nchannels)]
         for i in range(nchannels):
-            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
-                Case(state, {
+            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
+                Case(state[i], {
                     0: [
-                        If(self.current_data[24:] == self._AD9910_REG_FTW, [
-                            If(self.length == 24 & (self.flags & SPI_END), [
+                        # Bit 7: read op
+                        If(self.current_data[24:] == self._AD9910_REG_FTW & ~self.current_data[7 + 24], [
+                            If((self.length == 24) & (self.flags & SPI_END), [
                                 # write16
                                 buffer[i].eq(self.current_data[8:24]),
                             ]).Elif(self.length == 8, [
                                 # write32
-                                state.eq(1)
+                                state[i].eq(1)
                             ])
                         ])
                     ],
@@ -80,8 +78,8 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             ])
 
         self.sync.rio_phy += If(self.is_io_update(), [
-            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)]),
-            state.eq(0)
+            If(self.current_address == SPI_DATA_ADDR, [update_probe_data(i) for i in range(nchannels)]),
+            [state[i].eq(0) for i in range(nchannels)]
         ])
 
 
@@ -96,19 +94,19 @@ class AD9912Monitor(AD99XXMonitorGeneric):
 
         def update_probe_data(i):
             return If(self.selected(i + CS_DDS_CH0), [
-                data[i].eq(buffer[i])
+                data[i].eq(buffer[i][:48])
             ])
 
         # 0 -> init, 1 -> start reading
-        state = Signal(1)
+        state = [Signal(1) for i in range(nchannels)]
 
         for i in range(nchannels):
-            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & self.master_is_data_and_not_input(), [
-                Case(state, {
+            self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
+                Case(state[i], {
                     0: [
-                        # write/set_mu
-                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1), [
-                            state.eq(1)
+                        # Bit 16: read op
+                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1) & ~self.current_data[15 + 16], [
+                            state[i].eq(1)
                         ])
                     ],
                     1: [
@@ -122,6 +120,6 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             ])
 
         self.sync.rio_phy += If(self.is_io_update(), [
-            If(self.master_is_data_and_not_input(), [update_probe_data(i) for i in range(nchannels)]),
-            state.eq(0)
+            If(self.current_address == SPI_DATA_ADDR, [update_probe_data(i) for i in range(nchannels)]),
+            [state[i].eq(0) for i in range(nchannels)]
         ])
