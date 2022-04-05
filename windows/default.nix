@@ -53,6 +53,7 @@ in rec {
       cd $out
       ln -s ${sipyco-pkg}/*.pkg.tar.zst .
       ln -s ${artiq-comtools-pkg}/*.pkg.tar.zst .
+      ln -s ${nac3.packages.x86_64-w64-mingw32.nac3artiq-pkg}/*.pkg.tar.zst .
       ln -s ${artiq-pkg}/*.pkg.tar.zst .
       repo-add artiq.db.tar.gz *.pkg.tar.zst
       '';
