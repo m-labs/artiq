@@ -12,6 +12,7 @@ build() {
   cd source
   wine-msys2-build python setup.py install --prefix=../mingw64
   cd ..
+  rm mingw64/lib/python3.9/site-packages/easy-install.pth
 }
 
 package() {
