@@ -1,13 +1,7 @@
 Installing ARTIQ
 ================
 
-ARTIQ can be installed using the Nix (on Linux) or Conda (on Windows or Linux) package managers.
-
-Nix is an innovative, robust, fast, and high-quality solution that comes with a larger collection of packages and features than Conda. However, Windows support is poor (using it with Windows Subsystem for Linux still has many problems) and Nix can be harder to learn.
-
-Conda has a more traditional approach to package management, is much more limited, slow, and lower-quality than Nix, but it supports Windows and it is simpler to use when it functions correctly.
-
-In the current state of affairs, we recommend that Linux users install ARTIQ via Nix and Windows users install it via Conda.
+ARTIQ can be installed using the Nix package manager on Linux, and using the MSYS2 software distribution on Windows.
 
 .. _installing-nix-users:
 
@@ -90,39 +84,24 @@ You can create directories containing each a ``flake.nix`` that correspond to di
 
 If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
-Installing via Conda (Windows, Linux)
--------------------------------------
+Installing with MSYS2 (Windows)
+-------------------------------
 
-.. warning::
-  For Linux users, the Nix package manager is preferred, as it is more reliable and faster than Conda.
+Install `MSYS2 <https://www.msys2.org>`, and open "MSYS2 MinGW x64". Edit ``/etc/pacman.conf`` to add:
+```
+[artiq]
+SigLevel = Optional TrustAll
+Server = https://lab.m-labs.hk/msys2
+```
 
-First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
-
-After installing either Anaconda or Miniconda, open a new terminal (also known as command line, console, or shell and denoted here as lines starting with ``$``) and verify the following command works::
-
-    $ conda
-
-Executing just ``conda`` should print the help of the ``conda`` command. If your shell does not find the ``conda`` command, make sure that the Conda binaries are in your ``$PATH``. If ``$ echo $PATH`` does not show the Conda directories, add them: execute ``$ export PATH=$HOME/miniconda3/bin:$PATH`` if you installed Conda into ``~/miniconda3``.
-
-Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with this script. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages, and list them at the beginning of the script.
-
-Set up the Conda channel and install ARTIQ into a new Conda environment: ::
-
-    $ conda config --prepend channels https://conda.m-labs.hk/artiq-beta
-    $ conda config --append channels conda-forge
-    $ conda create -n artiq artiq
+Then run the following commands:
+```
+pacman -Syu
+pacman -S mingw-w64-x86_64-artiq
+```
 
 .. note::
-  If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board, and you should not install them unless you are reflashing an FPGA board. Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with Conda. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages.
-
-After the installation, activate the newly created environment by name. ::
-
-    $ conda activate artiq
-
-This activation has to be performed in every new shell you open to make the ARTIQ tools from that environment available.
-
-.. note::
-    Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in Conda.
+    Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in MSYS2.
 
 Upgrading ARTIQ (with Nix)
 --------------------------
@@ -133,21 +112,14 @@ To rollback to the previous version, respectively use ``$ nix profile rollback``
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
 
-Upgrading ARTIQ (with Conda)
+Upgrading ARTIQ (with MSYS2)
 ----------------------------
 
-When upgrading ARTIQ or when testing different versions it is recommended that new Conda environments are created instead of upgrading the packages in existing environments.
-Keep previous environments around until you are certain that they are not needed anymore and a new environment is known to work correctly.
+Run this command to update the entire MSYS2 environment including ARTIQ: ::
 
-To install the latest version, just select a different environment name and run the installation command again.
-
-Switching between Conda environments using commands such as ``$ conda deactivate artiq-6`` and ``$ conda activate artiq-5`` is the recommended way to roll back to previous versions of ARTIQ.
+    $ pacman -Syu
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
-
-You can list the environments you have created using::
-
-    $ conda env list
 
 Flashing gateware and firmware into the core device
 ---------------------------------------------------
@@ -169,11 +141,14 @@ Installing OpenOCD
 
 OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
 
-With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
+With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages.
+Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not contain the bscanspi bitstreams necessary to flash ARTIQ boards.
 
-With Conda, install ``openocd`` as follows::
+With MSYS2, install ``openocd`` as follows::
 
-    $ conda install -c m-labs openocd
+    $ pacman -S mingw-w64-x86_64-openocd
+
+and manually copy the bscanspi bitstreams where OpenOCD will find them.
 
 .. _configuring-openocd:
 
@@ -195,11 +170,6 @@ If you installed OpenOCD on Linux using Nix, use the ``which`` command to determ
   $ sudo udevadm trigger
 
 NixOS users should of course configure OpenOCD through ``/etc/nixos/configuration.nix`` instead.
-
-If you installed OpenOCD on Linux using Conda and are using the Conda environment ``artiq``, then execute the statements below. If you are using a different environment, you will have to replace ``artiq`` with the name of your environment::
-
-  $ sudo cp ~/.conda/envs/artiq/share/openocd/contrib/60-openocd.rules /etc/udev/rules.d
-  $ sudo udevadm trigger
 
 On Windows, a third-party tool, `Zadig <http://zadig.akeo.ie/>`_, is necessary. Use it as follows:
 
