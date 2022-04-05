@@ -12,7 +12,19 @@ build() {
   cd source
   wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../mingw64 --record=setuptools-sucks.txt
   cd ..
+
+  # setuptools creates this file if it doesn't already exist, which causes conflicts between pacman packages
+  # see: https://corte.si/posts/code/setuptoolssucks/
   rm -f mingw64/lib/python3.9/site-packages/easy-install.pth
+  # patch broken shebangs (Z:/nix/store/...)
+  for entrypoint in mingw64/bin/*-script.py; do
+    [ -f "$entrypoint" ] || continue
+    sed -i "1s|#!.*|#!python|" $entrypoint
+  done
+  for entrypoint in mingw64/bin/*-script.pyw; do
+    [ -f "$entrypoint" ] || continue
+    sed -i "1s|#!.*|#!pythonw|" $entrypoint
+  done
 }
 
 package() {
