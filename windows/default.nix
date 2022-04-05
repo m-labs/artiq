@@ -28,6 +28,11 @@ let
       '';
   };
 in rec {
+  pyqtgraph-pkg = makeMsys2 {
+    name = "pyqtgraph";
+    src = pkgs.python3Packages.pyqtgraph.src;
+    inherit (pkgs.python3Packages.pyqtgraph) version;
+  };
   sipyco-pkg = makeMsys2 {
     name = "sipyco";
     src = sipyco;
@@ -51,6 +56,7 @@ in rec {
       ''
       mkdir $out
       cd $out
+      ln -s ${pyqtgraph-pkg}/*.pkg.tar.zst .
       ln -s ${sipyco-pkg}/*.pkg.tar.zst .
       ln -s ${artiq-comtools-pkg}/*.pkg.tar.zst .
       ln -s ${nac3.packages.x86_64-w64-mingw32.nac3artiq-pkg}/*.pkg.tar.zst .

@@ -1,0 +1,11 @@
+pkgbase="mingw-w64-python-pyqtgraph"
+pkgname="mingw-w64-x86_64-python-pyqtgraph"
+pkgrel=1
+pkgdesc="Fast data visualization and GUI tools for scientific / engineering applications"
+license=("MIT")
+depends=(
+  "mingw-w64-x86_64-python"
+  "mingw-w64-x86_64-python-pyqt5"
+)
+
+source PKGBUILD.common

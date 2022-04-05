@@ -8,7 +8,7 @@ depends=(
   "mingw-w64-x86_64-python-h5py"
   "mingw-w64-x86_64-python-pyqt5"
   # TODO "mingw-w64-x86_64-python-qasync"
-  # TODO "mingw-w64-x86_64-python-pyqtgraph"
+  "mingw-w64-x86_64-python-pyqtgraph"
   "mingw-w64-x86_64-python-numpy"
   "mingw-w64-x86_64-python-scipy"
   "mingw-w64-x86_64-python-dateutil"
