@@ -1,0 +1,8 @@
+pkgbase="mingw-w64-artiq"
+pkgname="mingw-w64-x86_64-artiq"
+pkgrel=1
+pkgdesc="A leading-edge control system for quantum information experiments"
+license=("LGPL")
+depends=("mingw-w64-x86_64-python")
+
+source PKGBUILD.common

@@ -1,0 +1,8 @@
+pkgbase="mingw-w64-sipyco"
+pkgname="mingw-w64-x86_64-sipyco"
+pkgrel=1
+pkgdesc="Simple Python Communications"
+license=("LGPL")
+depends=("mingw-w64-x86_64-python")
+
+source PKGBUILD.common

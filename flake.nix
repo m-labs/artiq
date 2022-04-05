@@ -336,6 +336,8 @@
         };
       };
 
+      packages.x86_64-w64-mingw32 = import ./windows { inherit sipyco nac3 artiq-comtools; artiq = self; };
+
       inherit makeArtiqBoardPackage;
 
       defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
@@ -361,6 +363,9 @@
 
       hydraJobs = {
         inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
+        sipyco-msys2-pkg = packages.x86_64-w64-mingw32.sipyco-pkg;
+        artiq-comtools-msys2-pkg = packages.x86_64-w64-mingw32.artiq-comtools-pkg;
+        artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;
       };
     };
 

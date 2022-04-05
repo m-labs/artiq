@@ -1,0 +1,19 @@
+arch=("any")
+mingw_arch=("mingw64")
+pkgver=${DRV_VERSION}
+url="https://m-labs.hk"
+source=("source.tar")
+sha256sums=("SKIP")
+
+build() {
+  mkdir mingw64
+  export PYTHONPATH=`pwd`/mingw64/lib/python3.9/site-packages
+  chmod +w -R source
+  cd source
+  wine-msys2-build python setup.py install --prefix=../mingw64
+  cd ..
+}
+
+package() {
+  cp -R mingw64 ${pkgdir}
+}
