@@ -10,7 +10,7 @@ build() {
   export PYTHONPATH=`pwd`/mingw64/lib/python3.9/site-packages
   chmod +w -R source
   cd source
-  wine-msys2-build python setup.py install --single-version-externally-managed --root=Z:\\`pwd`/../mingw64
+  wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../mingw64 --record=setuptools-sucks.txt
   cd ..
   rm -f mingw64/lib/python3.9/site-packages/easy-install.pth
 }
