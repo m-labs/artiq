@@ -27,7 +27,7 @@ let
       echo file msys2 $out/*.pkg.tar.zst >> $out/nix-support/hydra-build-products
       '';
   };
-in {
+in rec {
   sipyco-pkg = makeMsys2 {
     name = "sipyco";
     src = sipyco;
@@ -42,5 +42,19 @@ in {
     name = "artiq";
     src = artiq;
     inherit (artiq.packages.x86_64-linux.artiq) version;
+  };
+  msys2-repos = pkgs.stdenvNoCC.mkDerivation {
+    name = "msys2-repos";
+    nativeBuildInputs = [ pkgs.pacman ];
+    phases = [ "buildPhase" ];
+    buildPhase =
+      ''
+      mkdir $out
+      cd $out
+      ln -s ${sipyco-pkg}/*.pkg.tar.zst .
+      ln -s ${artiq-comtools-pkg}/*.pkg.tar.zst .
+      ln -s ${artiq-pkg}/*.pkg.tar.zst .
+      repo-add artiq.db.tar.gz *.pkg.tar.zst
+      '';
   };
 }
