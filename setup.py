@@ -10,16 +10,6 @@ if sys.version_info[:2] < (3, 9):
     raise Exception("You need Python 3.9+")
 
 
-# Depends on PyQt5, but setuptools cannot check for it.
-requirements = [
-    "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py",
-    "qasync", "pyqtgraph", "pygit2",
-    # FIXME: figure out how to get the setuptools crap to find nac3artiq. Python imports it just fine.
-    # See: https://github.com/PyO3/setuptools-rust
-    # Alternatively, stop using setuptools, it sucks.
-]
-
 console_scripts = [
     "artiq_client = artiq.frontend.artiq_client:main",
     "artiq_compile = artiq.frontend.artiq_compile:main",
@@ -66,8 +56,6 @@ Programming Language :: Python :: 3.9
 Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
-    install_requires=requirements,
-    extras_require={},
     packages=find_packages(),
     namespace_packages=[],
     include_package_data=True,
