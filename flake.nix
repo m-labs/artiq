@@ -366,6 +366,7 @@
         sipyco-msys2-pkg = packages.x86_64-w64-mingw32.sipyco-pkg;
         artiq-comtools-msys2-pkg = packages.x86_64-w64-mingw32.artiq-comtools-pkg;
         artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;
+        msys2-repos = packages.x86_64-w64-mingw32.msys2-repos;
       };
     };
 
