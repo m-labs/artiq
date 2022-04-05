@@ -1,8 +1,12 @@
-pkgbase="mingw-w64-sipyco"
-pkgname="mingw-w64-x86_64-sipyco"
+pkgbase="mingw-w64-python-sipyco"
+pkgname="mingw-w64-x86_64-python-sipyco"
 pkgrel=1
 pkgdesc="Simple Python Communications"
 license=("LGPL")
-depends=("mingw-w64-x86_64-python")
+depends=(
+    "mingw-w64-x86_64-python"
+    "mingw-w64-x86_64-python-numpy"
+    # TODO "mingw-w64-x86_64-python-pybase64"
+)
 
 source PKGBUILD.common

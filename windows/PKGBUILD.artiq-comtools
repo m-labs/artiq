@@ -3,6 +3,11 @@ pkgname="mingw-w64-x86_64-artiq-comtools"
 pkgrel=1
 pkgdesc="Lightweight ARTIQ communication tools"
 license=("LGPL")
-depends=("mingw-w64-x86_64-python")
+depends=(
+  "mingw-w64-x86_64-python"
+  "mingw-w64-x86_64-python-sipyco"
+  "mingw-w64-x86_64-python-numpy"
+  "mingw-w64-x86_64-python-aiohttp"
+)
 
 source PKGBUILD.common
