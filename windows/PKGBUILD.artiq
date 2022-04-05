@@ -16,6 +16,7 @@ depends=(
   "mingw-w64-x86_64-python-pygit2"
   "mingw-w64-x86_64-python-sipyco"
   "mingw-w64-x86_64-nac3artiq"
+  "mingw-w64-x86_64-artiq-comtools"
 )
 
 source PKGBUILD.common
