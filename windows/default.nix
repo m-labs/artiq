@@ -28,6 +28,11 @@ let
       '';
   };
 in rec {
+  qasync-pkg = makeMsys2 {
+    name = "qasync";
+    src = artiq.packages.x86_64-linux.qasync.src;
+    inherit (artiq.packages.x86_64-linux.qasync) version;
+  };
   pyqtgraph-pkg = makeMsys2 {
     name = "pyqtgraph";
     src = pkgs.python3Packages.pyqtgraph.src;
@@ -56,6 +61,7 @@ in rec {
       ''
       mkdir $out
       cd $out
+      ln -s ${qasync-pkg}/*.pkg.tar.zst .
       ln -s ${pyqtgraph-pkg}/*.pkg.tar.zst .
       ln -s ${sipyco-pkg}/*.pkg.tar.zst .
       ln -s ${artiq-comtools-pkg}/*.pkg.tar.zst .
