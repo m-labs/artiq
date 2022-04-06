@@ -197,8 +197,9 @@ class FilesDock(QtWidgets.QDockWidget):
                         logger.warning("dataset '%s' is both in archive and "
                                        "outputs", k)
                     rd[k] = (True, v[()])
-            if rd:
-                self.datasets.init(rd)
+
+            self.datasets.init(rd)
+
         self.dataset_changed.emit(info.filePath())
 
     def list_activated(self, idx):
