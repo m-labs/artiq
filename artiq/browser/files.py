@@ -188,15 +188,24 @@ class FilesDock(QtWidgets.QDockWidget):
             except:
                 logger.warning("unable to read metadata from %s",
                                info.filePath(), exc_info=True)
-            rd = dict()
+
+            rd = {}
             if "archive" in f:
-                rd = {k: (True, v[()]) for k, v in f["archive"].items()}
+                def visitor(k, v):
+                    if isinstance(v, h5py.Dataset):
+                        rd[k] = (True, v[()])
+
+                f["archive"].visititems(visitor)
+
             if "datasets" in f:
-                for k, v in f["datasets"].items():
-                    if k in rd:
-                        logger.warning("dataset '%s' is both in archive and "
-                                       "outputs", k)
-                    rd[k] = (True, v[()])
+                def visitor(k, v):
+                    if isinstance(v, h5py.Dataset):
+                        if k in rd:
+                            logger.warning("dataset '%s' is both in archive "
+                                           "and outputs", k)
+                        rd[k] = (True, v[()])
+
+                f["datasets"].visititems(visitor)
 
             self.datasets.init(rd)
 
