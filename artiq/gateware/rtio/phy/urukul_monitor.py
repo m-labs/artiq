@@ -60,8 +60,8 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
                 Case(state[i], {
                     0: [
-                        # Bit 7: read op
-                        If(self.current_data[24:] == self._AD9910_REG_FTW & ~self.current_data[7 + 24], [
+                        # Bit 7 (+24): read op
+                        If(self.current_data[24:] == self._AD9910_REG_FTW & ~self.current_data[31], [
                             If((self.length == 24) & (self.flags & SPI_END), [
                                 # write16
                                 buffer[i].eq(self.current_data[8:24]),
@@ -104,8 +104,8 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
                 Case(state[i], {
                     0: [
-                        # Bit 15: read op
-                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1) & ~self.current_data[15 + 16], [
+                        # Bit 15 (+16): read op
+                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1) & ~self.current_data[31], [
                             state[i].eq(1)
                         ])
                     ],
