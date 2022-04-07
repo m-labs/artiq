@@ -106,9 +106,12 @@ class _UrukulExperiment(EnvExperiment):
         return channel.get_mu()
 
     @kernel
-    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0):
+    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0, asf: TInt32 = 0):
         self.init_channel(channel)
-        channel.set_mu(ftw, pow)
+        if asf > 0:
+            channel.set_mu(ftw, pow, asf)
+        else:
+            channel.set_mu(ftw, pow)
 
     @kernel
     def read(self, channel):
@@ -116,9 +119,12 @@ class _UrukulExperiment(EnvExperiment):
         return channel.get()
 
     @kernel
-    def write(self, channel, freq: TFloat, phase: TFloat = 0.0):
+    def write(self, channel, freq: TFloat, phase: TFloat = 0.0, amplitude: TFloat = 0.0):
         self.init_channel(channel)
-        channel.set(freq, phase)
+        if amplitude > 0:
+            channel.set(freq, phase, amplitude)
+        else:
+            channel.set(freq, phase)
 
 
 class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
@@ -273,3 +279,22 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         for key, value in freqs.items():
             assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
 
+    @async_test
+    async def test_ad9910_set_all(self):
+        self.ensure_ad9910_only()
+
+        target_freqs = {
+            0: 10 * MHz,
+            1: 11 * MHz,
+            2: 12 * MHz,
+            3: 13 * MHz
+        }
+        freqs = {}
+        notifications_out = []
+        async with self.open_comm_session(notifications_out):
+            for name, urukul in self.urukuls_all().items():
+                idx = get_last_integers(name)
+                self.kernel.write(urukul, target_freqs[idx], 123.4, 0.25)
+                freqs[idx], _, _ = self.kernel.read(urukul)
+        for key, value in freqs.items():
+            assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
