@@ -101,12 +101,14 @@ class _UrukulExperiment(EnvExperiment):
         return channel.get_mu()
 
     @kernel
-    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0, asf: TInt32 = 0):
+    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0):
         self.init_channel(channel)
-        if asf > 0:
-            channel.set_mu(ftw, pow, asf)
-        else:
-            channel.set_mu(ftw, pow)
+        channel.set_mu(ftw, pow)
+
+    @kernel
+    def write_raw_with_asf(self, channel, ftw: TInt64, pow: TInt32 = 0, asf: TInt32 = 0):
+        self.init_channel(channel)
+        channel.set_mu(ftw, pow, asf)
 
     @kernel
     def read(self, channel):
@@ -114,12 +116,14 @@ class _UrukulExperiment(EnvExperiment):
         return channel.get()
 
     @kernel
-    def write(self, channel, freq: TFloat, phase: TFloat = 0.0, amplitude: TFloat = 0.0):
+    def write(self, channel, freq: TFloat, phase: TFloat = 0.0):
         self.init_channel(channel)
-        if amplitude > 0:
-            channel.set(freq, phase, amplitude)
-        else:
-            channel.set(freq, phase)
+        channel.set(freq, phase)
+
+    @kernel
+    def write_with_amp(self, channel, freq: TFloat, phase: TFloat = 0.0, amplitude: TFloat = 0.0):
+        self.init_channel(channel)
+        channel.set(freq, phase, amplitude)
 
 
 class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
@@ -194,7 +198,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             name, urukul = next(iter(self.urukuls_all().items()))
             self.kernel.write_raw(urukul, target_ftw)
             for i in range(2):
-                ftw, _ = self.kernel.read_raw(urukul)
+                ftw = self.kernel.read_raw(urukul)[0]
         final_values = {probe: value for _, probe, value in notifications_out}
         assert final_values[urukul.chip_select - 4] == ftw == target_ftw
 
@@ -212,7 +216,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             for name, urukul in self.urukuls_all().items():
                 idx = urukul.chip_select - 4
                 self.kernel.write_raw(urukul, target_ftws[idx])
-                ftws[idx], _ = self.kernel.read_raw(urukul)
+                ftws[idx] = self.kernel.read_raw(urukul)[0]
         final_values = {probe: value for _, probe, value in notifications_out}
         assert final_values == ftws == target_ftws
 
@@ -232,7 +236,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             for name, urukul in self.urukuls["AD9912"].items():
                 idx = urukul.chip_select - 4
                 self.kernel.write_raw(urukul, target_ftws[idx])
-                ftws[idx], _ = self.kernel.read_raw(urukul)
+                ftws[idx] = self.kernel.read_raw(urukul)[0]
         final_values = {probe: value for _, probe, value in notifications_out}
         assert final_values == ftws == target_ftws
 
@@ -250,7 +254,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             for name, urukul in self.urukuls_all().items():
                 idx = urukul.chip_select - 4
                 self.kernel.write(urukul, target_freqs[idx])
-                freqs[idx], _ = self.kernel.read(urukul)
+                freqs[idx] = self.kernel.read(urukul)[0]
         for key, value in freqs.items():
             assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
 
@@ -268,7 +272,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             for name, urukul in self.urukuls_all().items():
                 idx = urukul.chip_select - 4
                 self.kernel.write(urukul, target_freqs[idx], 123.4)
-                freqs[idx], _ = self.kernel.read(urukul)
+                freqs[idx] = self.kernel.read(urukul)[0]
         for key, value in freqs.items():
             assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
 
@@ -287,7 +291,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls_all().items():
                 idx = urukul.chip_select - 4
-                self.kernel.write(urukul, target_freqs[idx], 123.4, 0.25)
-                freqs[idx], _, _ = self.kernel.read(urukul)
+                self.kernel.write_with_amp(urukul, target_freqs[idx], 123.4, 0.25)
+                freqs[idx] = self.kernel.read(urukul)[0]
         for key, value in freqs.items():
             assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
