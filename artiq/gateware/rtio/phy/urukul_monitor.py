@@ -1,5 +1,6 @@
 from migen import *
 
+from artiq.coredevice.ad9910 import AD9910_REG_FTW
 from artiq.coredevice.ad9912_reg import AD9912_FTW0, AD9912_POW1
 from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END, SPI_INPUT
 from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CS_CFG, CFG_IO_UPDATE
@@ -39,8 +40,6 @@ class AD99XXMonitorGeneric(Module):
 
 
 class AD9910Monitor(AD99XXMonitorGeneric):
-    _AD9910_REG_FTW = 0x07
-
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [Signal(32) for i in range(nchannels)]
         buffer = [Signal(32) for i in range(nchannels)]
@@ -61,7 +60,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
                 Case(state[i], {
                     0: [
                         # Bit 7 (+24): read op
-                        If(self.current_data[24:] == self._AD9910_REG_FTW & ~self.current_data[31], [
+                        If(self.current_data[24:] == AD9910_REG_FTW & ~self.current_data[31], [
                             If((self.length == 24) & (self.flags & SPI_END), [
                                 # write16
                                 buffer[i].eq(self.current_data[8:24]),
