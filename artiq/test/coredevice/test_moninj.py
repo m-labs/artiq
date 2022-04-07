@@ -1,6 +1,5 @@
 import unittest
 import asyncio
-import re
 import numpy
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -20,10 +19,6 @@ def async_test(coro):
             loop.close()
 
     return wrapper
-
-
-def get_last_integers(str):
-    return int(re.search(r'(\d+)$', str).group(0))
 
 
 class MonInjTest(ExperimentCase):
@@ -186,7 +181,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
 
     def setup_monitor(self, moninj_comm, *, reset_zero=True):
         for name, dev in self.urukuls_all().items():
-            moninj_comm.monitor_probe(True, dev.bus.channel, get_last_integers(name))
+            moninj_comm.monitor_probe(True, dev.bus.channel, dev.chip_select - 4)
             if reset_zero:
                 self.kernel.write_raw(dev, 0)
 
@@ -201,7 +196,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             for i in range(2):
                 ftw, _ = self.kernel.read_raw(urukul)
         final_values = {probe: value for _, probe, value in notifications_out}
-        assert final_values[get_last_integers(name)] == ftw == target_ftw
+        assert final_values[urukul.chip_select - 4] == ftw == target_ftw
 
     @async_test
     async def test_ftw_int32(self):
@@ -215,7 +210,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls_all().items():
-                idx = get_last_integers(name)
+                idx = urukul.chip_select - 4
                 self.kernel.write_raw(urukul, target_ftws[idx])
                 ftws[idx], _ = self.kernel.read_raw(urukul)
         final_values = {probe: value for _, probe, value in notifications_out}
@@ -235,7 +230,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls["AD9912"].items():
-                idx = get_last_integers(name)
+                idx = urukul.chip_select - 4
                 self.kernel.write_raw(urukul, target_ftws[idx])
                 ftws[idx], _ = self.kernel.read_raw(urukul)
         final_values = {probe: value for _, probe, value in notifications_out}
@@ -253,7 +248,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls_all().items():
-                idx = get_last_integers(name)
+                idx = urukul.chip_select - 4
                 self.kernel.write(urukul, target_freqs[idx])
                 freqs[idx], _ = self.kernel.read(urukul)
         for key, value in freqs.items():
@@ -271,7 +266,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls_all().items():
-                idx = get_last_integers(name)
+                idx = urukul.chip_select - 4
                 self.kernel.write(urukul, target_freqs[idx], 123.4)
                 freqs[idx], _ = self.kernel.read(urukul)
         for key, value in freqs.items():
@@ -291,7 +286,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             for name, urukul in self.urukuls_all().items():
-                idx = get_last_integers(name)
+                idx = urukul.chip_select - 4
                 self.kernel.write(urukul, target_freqs[idx], 123.4, 0.25)
                 freqs[idx], _, _ = self.kernel.read(urukul)
         for key, value in freqs.items():
