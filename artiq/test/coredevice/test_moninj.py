@@ -189,8 +189,6 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             moninj_comm.monitor_probe(True, dev.bus.channel, get_last_integers(name))
             if reset_zero:
                 self.kernel.write_raw(dev, 0)
-                ftw, _ = self.kernel.read_raw(dev)
-                assert ftw == 0
 
     @async_test
     async def test_double_read(self):
