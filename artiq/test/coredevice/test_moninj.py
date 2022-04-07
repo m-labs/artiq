@@ -152,15 +152,9 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
 
     def setUp(self):
         super().setUp()
-        try:
-            self.core = self.device_mgr.get_desc("core")
-        except KeyError as e:
-            # skip if ddb does not match requirements
-            raise unittest.SkipTest(
-                "test device not available: `{}`".format(*e.args))
-        else:
-            self.urukuls = self.get_urukuls()
-            self.kernel = self.create(_UrukulExperiment)
+        self.core = self.device_mgr.get_desc("core")
+        self.urukuls = self.get_urukuls()
+        self.kernel = self.create(_UrukulExperiment)
 
     @asynccontextmanager
     async def open_comm_session(self, notifications=None, core_host=None, auto_monitor=True):
