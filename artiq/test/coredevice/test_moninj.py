@@ -2,12 +2,13 @@ import unittest
 import asyncio
 import re
 import numpy
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from unittest import IsolatedAsyncioTestCase
 
 from artiq.coredevice.comm_moninj import *
-from artiq.test.hardware_testbench import ExperimentCase
 from artiq.experiment import *
+from artiq.test.hardware_testbench import ExperimentCase
 
 
 def async_test(coro):
@@ -122,16 +123,27 @@ class _UrukulExperiment(EnvExperiment):
 
 class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
     def get_urukuls(self):
-        urukuls = dict()
+        urukuls = defaultdict(dict)
         ddb = self.device_db.get_device_db()
         for name, desc in ddb.items():
             if isinstance(desc, dict) and desc["type"] == "local":
                 module, cls = desc["module"], desc["class"]
                 if (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
-                    urukuls[name] = self.device_mgr.get(name)
+                    urukuls[cls][name] = self.device_mgr.get(name)
                 if (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
-                    urukuls[name] = self.device_mgr.get(name)
+                    urukuls[cls][name] = self.device_mgr.get(name)
         return urukuls
+
+    def urukuls_all(self):
+        return dict(*self.urukuls.values())
+
+    def ensure_ad9910_only(self):
+        if len(self.urukuls["AD9910"]) < 1:
+            raise unittest.SkipTest("test device not available: no ad9910 devices")
+
+    def ensure_ad9912_only(self):
+        if len(self.urukuls["AD9912"]) < 1:
+            raise unittest.SkipTest("test device not available: no ad9912 devices")
 
     def setUp(self):
         super().setUp()
@@ -167,7 +179,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             await moninj_comm.close()
 
     def setup_monitor(self, moninj_comm, *, teardown=False, reset_zero=True):
-        for name, dev in self.urukuls.items():
+        for name, dev in self.urukuls_all().items():
             moninj_comm.monitor_probe(not teardown, dev.bus.channel, get_last_integers(name))
             if reset_zero and not teardown:
                 self.kernel.write_raw(dev, 0)
@@ -180,7 +192,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         notifications_out = []
         async with self.open_comm_session(notifications_out):
             # anyone of them is okay
-            name, urukul = next(iter(self.urukuls.items()))
+            name, urukul = next(iter(self.urukuls_all().items()))
             self.kernel.write_raw(urukul, target_ftw)
             for i in range(2):
                 ftw, _ = self.kernel.read_raw(urukul)
@@ -198,7 +210,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         ftws = {}
         notifications_out = []
         async with self.open_comm_session(notifications_out):
-            for name, urukul in self.urukuls.items():
+            for name, urukul in self.urukuls_all().items():
                 idx = get_last_integers(name)
                 self.kernel.write_raw(urukul, target_ftws[idx])
                 ftws[idx], _ = self.kernel.read_raw(urukul)
@@ -207,6 +219,8 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
 
     @async_test
     async def test_ftw_int48(self):
+        self.ensure_ad9912_only()
+
         target_ftws = {
             0: 0xffeeffeeffee,
             1: 0xfeedfeedfeed,
@@ -216,7 +230,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         ftws = {}
         notifications_out = []
         async with self.open_comm_session(notifications_out):
-            for name, urukul in self.urukuls.items():
+            for name, urukul in self.urukuls["AD9912"].items():
                 idx = get_last_integers(name)
                 self.kernel.write_raw(urukul, target_ftws[idx])
                 ftws[idx], _ = self.kernel.read_raw(urukul)
@@ -234,7 +248,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         freqs = {}
         notifications_out = []
         async with self.open_comm_session(notifications_out):
-            for name, urukul in self.urukuls.items():
+            for name, urukul in self.urukuls_all().items():
                 idx = get_last_integers(name)
                 self.kernel.write(urukul, target_freqs[idx])
                 freqs[idx], _ = self.kernel.read(urukul)
@@ -252,9 +266,10 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         freqs = {}
         notifications_out = []
         async with self.open_comm_session(notifications_out):
-            for name, urukul in self.urukuls.items():
+            for name, urukul in self.urukuls_all().items():
                 idx = get_last_integers(name)
                 self.kernel.write(urukul, target_freqs[idx], 123.4)
                 freqs[idx], _ = self.kernel.read(urukul)
         for key, value in freqs.items():
             assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
+
