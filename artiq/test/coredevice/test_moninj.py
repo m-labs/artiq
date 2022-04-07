@@ -173,15 +173,14 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                 self.setup_monitor(moninj_comm)
             yield moninj_comm
         finally:
-            self.setup_monitor(moninj_comm, teardown=True)
             await moninj_comm._writer.drain()
             await asyncio.sleep(0.5)
             await moninj_comm.close()
 
-    def setup_monitor(self, moninj_comm, *, teardown=False, reset_zero=True):
+    def setup_monitor(self, moninj_comm, *, reset_zero=True):
         for name, dev in self.urukuls_all().items():
-            moninj_comm.monitor_probe(not teardown, dev.bus.channel, get_last_integers(name))
-            if reset_zero and not teardown:
+            moninj_comm.monitor_probe(True, dev.bus.channel, get_last_integers(name))
+            if reset_zero:
                 self.kernel.write_raw(dev, 0)
                 ftw, _ = self.kernel.read_raw(dev)
                 assert ftw == 0
