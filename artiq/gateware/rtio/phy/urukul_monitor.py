@@ -85,7 +85,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
 class AD9912Monitor(AD99XXMonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [Signal(48) for i in range(nchannels)]
-        buffer = [Signal(64) for i in range(nchannels)]
+        buffer = [Signal(48) for i in range(nchannels)]
 
         # Flatten register first, then data
         self.probes = Array(data)
@@ -93,7 +93,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
 
         def update_probe_data(i):
             return If(self.selected(i + CS_DDS_CH0), [
-                data[i].eq(buffer[i][:48])
+                data[i].eq(buffer[i])
             ])
 
         # 0 -> init, 1 -> start reading
@@ -112,7 +112,7 @@ class AD9912Monitor(AD99XXMonitorGeneric):
                         If(self.flags & SPI_END, [
                             buffer[i][:32].eq(self.current_data)
                         ]).Else([
-                            buffer[i][32:].eq(self.current_data)
+                            buffer[i][32:].eq(self.current_data[:16])
                         ])
                     ]
                 })
