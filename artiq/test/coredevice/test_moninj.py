@@ -285,7 +285,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         freqs = {}
         notifications_out = []
         async with self.open_comm_session(notifications_out):
-            for name, urukul in self.urukuls_all().items():
+            for name, urukul in self.urukuls["AD9910"].items():
                 idx = urukul.chip_select - 4
                 self.kernel.write_with_amp(urukul, target_freqs[idx], 123.4, 0.25)
                 freqs[idx] = self.kernel.read(urukul)[0]
