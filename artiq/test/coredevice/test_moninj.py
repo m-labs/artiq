@@ -154,6 +154,8 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         super().setUp()
         self.core = self.device_mgr.get_desc("core")
         self.urukuls = self.get_urukuls()
+        if len(self.urukuls) < 1:
+            raise unittest.SkipTest("test device not available: no urukul devices")
         self.kernel = self.create(_UrukulExperiment)
 
     @asynccontextmanager
