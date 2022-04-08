@@ -172,8 +172,9 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             if auto_monitor:
                 self.setup_monitor(moninj_comm)
             yield moninj_comm
+            await asyncio.sleep(0.5)
         finally:
-            await asyncio.gather(moninj_comm._writer.drain())
+            await moninj_comm._writer.drain()
             await moninj_comm.close()
 
     def setup_monitor(self, moninj_comm, *, reset_zero=True):
