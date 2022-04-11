@@ -3,7 +3,7 @@
 
   inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.11;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
-  inputs.sipyco.url = github:m-labs/sipyco;
+  inputs.sipyco.url = github:OxIonics/m-labs-sipyco/tcp_keepalive;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
   inputs.src-pythonparser = { url = github:m-labs/pythonparser; flake = false; };
   inputs.artiq-comtools.url = github:m-labs/artiq-comtools;

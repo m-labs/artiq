@@ -10,11 +10,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1649124276,
-        "narHash": "sha256-l1+vk7cvj4cjl83wRx/y1Jwdds4e8xAzpxHrXusEZ5A=",
+        "lastModified": 1644743100,
+        "narHash": "sha256-XqxMq2l2DXSovV7r2k/FXjYRM3bvVl3Mjy+C1koVAx4=",
         "owner": "m-labs",
         "repo": "artiq-comtools",
-        "rev": "e2d85f2e51ecdac463da752ef754e59572f9e119",
+        "rev": "8a126dd7d0a3f2d50ae151ec633cd52587d98796",
         "type": "github"
       },
       "original": {
@@ -26,11 +26,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1645464064,
-        "narHash": "sha256-YeN4bpPvHkVOpQzb8APTAfE7/R+MFMwJUMkqmfvytSk=",
+        "lastModified": 1643634764,
+        "narHash": "sha256-EcFlgzZnZSHwZixELYV1pa267t+u5mCeLhSNBeAA/+c=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "15b7a05f20aab51c4ffbefddb1b448e862dccb7d",
+        "rev": "f233fdc4ff6ba2ffeb1e3e3cd6d63bb1297d6996",
         "type": "github"
       },
       "original": {
@@ -41,11 +41,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1649313840,
-        "narHash": "sha256-d23rAnhL08BCc88PxWAhEs/D+Kz3fMW2OTGDXWZSFMI=",
+        "lastModified": 1644472683,
+        "narHash": "sha256-sP6iM4NksOYO6NFfTJ96cg+ClPnq6cdY30xKA1iYtyU=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "e387bb3a4d0d63446086abbfbe2117e80fe3522a",
+        "rev": "7adc9c14ec74b27358a8df9b973087e351425a79",
         "type": "github"
       },
       "original": {
@@ -73,16 +73,17 @@
         ]
       },
       "locked": {
-        "lastModified": 1649151322,
-        "narHash": "sha256-CwTpGx2Vx/m3bMbeWMculOSsvGmg+OD/hd69dxBwU48=",
-        "owner": "m-labs",
-        "repo": "sipyco",
-        "rev": "4a4a04988206db8821c3c8fa33dca478c738677c",
+        "lastModified": 1649687097,
+        "narHash": "sha256-GonYaGCGQGCMhRYEei02Ay99Pdu/TIxJvFVFHgKWWlE=",
+        "owner": "OxIonics",
+        "repo": "m-labs-sipyco",
+        "rev": "fd395be4c72ecf32ed73a87b423cc509d531fc9c",
         "type": "github"
       },
       "original": {
-        "owner": "m-labs",
-        "repo": "sipyco",
+        "owner": "OxIonics",
+        "ref": "tcp_keepalive",
+        "repo": "m-labs-sipyco",
         "type": "github"
       }
     },
@@ -105,11 +106,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1649324486,
-        "narHash": "sha256-Mw/fQS3lHFvCm7L1k63joRkz5uyijQfywcOq+X2+o2s=",
+        "lastModified": 1641889368,
+        "narHash": "sha256-0Ai25lry9ju1HxFmfMRNKG8mamBqvw+kvDfpuK8Dtjo=",
         "ref": "master",
-        "rev": "f1dc58d2b8c222ba41c25cee4301626625f46e43",
-        "revCount": 2420,
+        "rev": "7242dc5a41732135425acc4871487461dfae6c66",
+        "revCount": 2419,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
