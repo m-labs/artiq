@@ -1,4 +1,6 @@
 use core::fmt;
+use core::fmt::{Display, Formatter};
+use core::str::FromStr;
 
 use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address};
 
@@ -7,12 +9,36 @@ use config;
 use i2c_eeprom;
 
 
-pub const USE_DHCP: IpAddress = IpAddress::Ipv4(Ipv4Address::UNSPECIFIED);
+pub enum Ipv4AddrConfig {
+    UseDhcp,
+    Static(Ipv4Address),
+}
+
+impl FromStr for Ipv4AddrConfig {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(if s == "use_dhcp" {
+            Ipv4AddrConfig::UseDhcp
+        } else {
+            Ipv4AddrConfig::Static(Ipv4Address::from_str(s)?)
+        })
+    }
+}
+
+impl Display for Ipv4AddrConfig {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Ipv4AddrConfig::UseDhcp => write!(f, "use_dhcp"),
+            Ipv4AddrConfig::Static(ipv4) => write!(f, "{}", ipv4)
+        }
+    }
+}
 
 
 pub struct NetAddresses {
     pub hardware_addr: EthernetAddress,
-    pub ipv4_addr: IpAddress,
+    pub ipv4_addr: Ipv4AddrConfig,
     pub ipv6_ll_addr: IpAddress,
     pub ipv6_addr: Option<IpAddress>
 }
@@ -52,15 +78,9 @@ pub fn get_adresses() -> NetAddresses {
     }
 
     let ipv4_addr;
-    match config::read_str("ip", |r| r.map(|s| {
-        if s == "use_dhcp" {
-            Ok(USE_DHCP)
-        } else {
-            s.parse()
-        }
-    })) {
+    match config::read_str("ip", |r| r.map(|s| s.parse())) {
         Ok(Ok(addr)) => ipv4_addr = addr,
-        _ => ipv4_addr = USE_DHCP,
+        _ => ipv4_addr = Ipv4AddrConfig::UseDhcp,
     }
 
     let ipv6_ll_addr = IpAddress::v6(

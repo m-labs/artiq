@@ -19,7 +19,7 @@ use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
 use smoltcp::iface::SocketStorage;
-use smoltcp::wire::HardwareAddress;
+use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address};
 
 fn check_integrity() -> bool {
     extern {
@@ -410,10 +410,13 @@ fn network_boot() {
     let net_addresses = net_settings::get_adresses();
     println!("Network addresses: {}", net_addresses);
     let mut ip_addrs = [
-        IpCidr::new(net_addresses.ipv4_addr, 0),
+        IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0),
         IpCidr::new(net_addresses.ipv6_ll_addr, 0),
         IpCidr::new(net_addresses.ipv6_ll_addr, 0)
     ];
+    if let net_settings::Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
+        ip_addrs[0] = IpCidr::new(IpAddress::Ipv4(ipv4), 0);
+    }
     let mut interface = match net_addresses.ipv6_addr {
         Some(addr) => {
             ip_addrs[2] = IpCidr::new(addr, 0);
