@@ -17,7 +17,9 @@ __all__ = [
     "extern", "kernel", "portable", "nac3", "rpc",
     "print_rpc",
     "Option", "Some", "none", "UnwrapNoneError",
+    "set_time_manager",
     "parallel", "sequential",
+    "delay_mu", "now_mu", "at_mu",
     "set_watchdog_factory", "watchdog", "TerminationRequested",
 ]
 
@@ -154,19 +156,84 @@ def Some(v: T) -> Option[T]:
 none = Option(None)
 
 
+class _DummyTimeManager:
+    def _not_implemented(self, *args, **kwargs):
+        raise NotImplementedError(
+            "Attempted to interpret kernel without a time manager")
+
+    enter_sequential = _not_implemented
+    enter_parallel = _not_implemented
+    exit = _not_implemented
+    take_time_mu = _not_implemented
+    get_time_mu = _not_implemented
+    set_time_mu = _not_implemented
+    take_time = _not_implemented
+
+_time_manager = _DummyTimeManager()
+
+def set_time_manager(time_manager):
+    """Set the time manager used for simulating kernels by running them
+    directly inside the Python interpreter. The time manager responds to the
+    entering and leaving of interleave/parallel/sequential blocks, delays, etc. and
+    provides a time-stamped logging facility for events.
+    """
+    global _time_manager
+    _time_manager = time_manager
+
+
 @nac3
-class KernelContextManager:
-    @kernel
+class _ParallelContextManager:
+    """In a parallel block, all statements start their execution at
+    the same time.
+    The execution time of a parallel block is the execution time of its longest
+    statement. A parallel block may contain sequential blocks, which themselves
+    may contain parallel blocks, etc.
+    """
+    # Those methods are not actual RPCs, but they need to be registered with
+    # NAC3 for the context manager to typecheck.
+    # In the codegen phase, NAC3ARTIQ detects those special context managers
+    # and takes over, without generating the RPC calling code.
+    @rpc
     def __enter__(self):
-        pass
+        _time_manager.enter_parallel()
 
-    @kernel
-    def __exit__(self):
-        pass
+    @rpc
+    def __exit__(self, *exc_info):
+        _time_manager.exit()
 
-parallel = KernelContextManager()
-sequential = KernelContextManager()
+@nac3
+class _SequentialContextManager:
+    """In a sequential block, statements are executed one after another, with
+    the time increasing as one moves down the statement list."""
+    @rpc
+    def __enter__(self):
+        _time_manager.enter_sequential()
 
+    @rpc
+    def __exit__(self, *exc_info):
+        _time_manager.exit()
+
+parallel = _ParallelContextManager()
+sequential = _SequentialContextManager()
+
+
+def delay_mu(duration):
+    """Increases the RTIO time by the given amount (in machine units)."""
+    _time_manager.take_time_mu(duration)
+
+
+def now_mu():
+    """Retrieve the current RTIO timeline cursor, in machine units.
+    Note the conceptual difference between this and the current value of the
+    hardware RTIO counter; see e.g.
+    :meth:`artiq.coredevice.core.Core.get_rtio_counter_mu` for the latter.
+    """
+    return _time_manager.get_time_mu()
+
+
+def at_mu(time):
+    """Sets the RTIO time to the specified absolute value, in machine units."""
+    _time_manager.set_time_mu(time)
 
 
 class _DummyWatchdog:

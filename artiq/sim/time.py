@@ -70,4 +70,4 @@ class Manager:
         return r
 
 manager = Manager()
-# NAC3TODO core_language.set_time_manager(manager)
+core_language.set_time_manager(manager)
