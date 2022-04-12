@@ -2,7 +2,7 @@ from migen import *
 
 from artiq.coredevice.ad9910 import AD9910_REG_FTW
 from artiq.coredevice.ad9912_reg import AD9912_FTW0, AD9912_POW1
-from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END, SPI_INPUT
+from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END
 from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CS_CFG, CFG_IO_UPDATE
 
 
@@ -59,8 +59,8 @@ class AD9910Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
                 Case(state[i], {
                     0: [
-                        # Bit 7 (+24): read op
-                        If(self.current_data[24:] == AD9910_REG_FTW & ~self.current_data[31], [
+                        # Bit D0-D4: address, Bit D7: read/write, 8 bits total, need to pad 24 bits
+                        If(self.current_data[24:29] == AD9910_REG_FTW & ~self.current_data[31], [
                             If((self.length == 24) & (self.flags & SPI_END), [
                                 # write16
                                 buffer[i].eq(self.current_data[8:24]),
@@ -103,8 +103,8 @@ class AD9912Monitor(AD99XXMonitorGeneric):
             self.sync.rio_phy += If(self.selected(i + CS_DDS_CH0) & (self.current_address == SPI_DATA_ADDR), [
                 Case(state[i], {
                     0: [
-                        # Bit 15 (+16): read op
-                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:28]) & (self.current_data[16:28] <= AD9912_POW1) & ~self.current_data[31], [
+                        # Bits A0-A12: address, Bit D15: read write, total 16 bits, need to pad 16 bits
+                        If((self.length == 16) & (AD9912_FTW0 <= self.current_data[16:29]) & (self.current_data[16:29] <= AD9912_POW1) & ~self.current_data[31], [
                             state[i].eq(1)
                         ])
                     ],
