@@ -650,6 +650,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                         error!("session aborted: {}", err);
                     }
                 }
+                stream.close().expect("session: close socket");
             });
         }
 
