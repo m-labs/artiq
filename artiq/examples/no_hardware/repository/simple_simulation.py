@@ -27,7 +27,7 @@ def main():
     dmgr["core"] = devices.Core(dmgr)
     for wo in "abcd":
         dmgr[wo] = devices.WaveOutput(dmgr, wo)
-    exp = SimpleSimulation(dmgr)
+    exp = SimpleSimulation((dmgr, None, None, {}))
     exp.run()
 
 if __name__ == "__main__":
