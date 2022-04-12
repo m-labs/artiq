@@ -93,7 +93,7 @@ class WaveOutput:
 
     @kernel
     def pulse(self, frequency, duration):
-        time.manager.event(("pulse", self.name, frequency, duration))
+        time.manager.event(("pulse", self.name, frequency, self.core.seconds_to_mu(duration)))
         delay(duration)
 
 

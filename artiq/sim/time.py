@@ -62,7 +62,7 @@ class Manager:
         r = ""
         prev_time = 0*s
         for time, description in sorted(self.timeline, key=itemgetter(0)):
-            r += "@{:.9f} (+{:.9f}) ".format(time, time-prev_time)
+            r += "{:35}".format("@{:.9f} (+{:.9f}) ".format(time, time-prev_time))
             for item in description:
                 r += "{:16}".format(str(item))
             r += "\n"
