@@ -6,7 +6,7 @@ from artiq.coredevice.spi2 import SPI_CONFIG_ADDR, SPI_DATA_ADDR, SPI_END
 from artiq.coredevice.urukul import CS_DDS_CH0, CS_DDS_MULTI, CS_CFG, CFG_IO_UPDATE
 
 
-class AD99XXMonitorGeneric(Module):
+class _AD9910_AD9912MonitorGeneric(Module):
     def __init__(self, spi_phy, io_update_phy):
         self.spi_phy = spi_phy
         self.io_update_phy = io_update_phy
@@ -39,7 +39,7 @@ class AD99XXMonitorGeneric(Module):
         return dest_cfg_reg_and_io_update_bit_set
 
 
-class AD9910Monitor(AD99XXMonitorGeneric):
+class AD9910Monitor(_AD9910_AD9912MonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [Signal(32) for i in range(nchannels)]
         buffer = [Signal(32) for i in range(nchannels)]
@@ -82,7 +82,7 @@ class AD9910Monitor(AD99XXMonitorGeneric):
         ])
 
 
-class AD9912Monitor(AD99XXMonitorGeneric):
+class AD9912Monitor(_AD9910_AD9912MonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
         data = [Signal(48) for i in range(nchannels)]
         buffer = [Signal(48) for i in range(nchannels)]
