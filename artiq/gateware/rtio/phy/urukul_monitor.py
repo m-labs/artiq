@@ -60,7 +60,7 @@ class AD9910Monitor(_AD9910_AD9912MonitorGeneric):
                 Case(state[i], {
                     0: [
                         # Bit D0-D4: address, Bit D7: read/write, 8 bits total, need to pad 24 bits
-                        If(self.current_data[24:29] == AD9910_REG_FTW & ~self.current_data[31], [
+                        If((self.current_data[24:29] == AD9910_REG_FTW) & ~self.current_data[31], [
                             If((self.length == 24) & (self.flags & SPI_END), [
                                 # write16
                                 buffer[i].eq(self.current_data[8:24]),
