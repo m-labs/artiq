@@ -75,6 +75,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1650244918,
+        "narHash": "sha256-DsS5nxjTpnoUC4pNXJI1rit7TnDTij8vQDa5PtcDCD0=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "7b38b03d76ab71bdc8dc325e3f6338d984cc35ca",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-21.11",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
     "root": {
       "inputs": {
         "artiq-comtools": "artiq-comtools",
@@ -87,10 +103,7 @@
     },
     "sipyco": {
       "inputs": {
-        "nixpkgs": [
-          "nac3",
-          "nixpkgs"
-        ]
+        "nixpkgs": "nixpkgs_2"
       },
       "locked": {
         "lastModified": 1649724535,
