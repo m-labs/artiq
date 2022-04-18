@@ -85,7 +85,7 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_13 pkgs.lld_13 nac3.packages.x86_64-linux.nac3artiq sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+        propagatedBuildInputs = [ pkgs.llvm_13 pkgs.lld_13 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
