@@ -1,7 +1,7 @@
 # This is an example device database that needs to be adapted to your setup.
 # The list of devices here is not exhaustive.
 
-core_addr = "192.168.1.50"
+core_addr = "localhost"
 
 device_db = {
     # Core device
