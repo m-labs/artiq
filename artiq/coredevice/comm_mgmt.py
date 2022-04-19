@@ -2,8 +2,7 @@ from enum import Enum
 import logging
 import struct
 
-from artiq.coredevice.comm import initialize_connection
-
+from sipyco.keepalive import create_connection
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,7 @@ class CommMgmt:
     def open(self):
         if hasattr(self, "socket"):
             return
-        self.socket = initialize_connection(self.host, self.port)
+        self.socket = create_connection(self.host, self.port)
         self.socket.sendall(b"ARTIQ management\n")
         endian = self._read(1)
         if endian == b"e":
