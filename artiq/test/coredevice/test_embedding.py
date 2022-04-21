@@ -538,3 +538,19 @@ class _Alignment(EnvExperiment):
 class AlignmentTest(ExperimentCase):
     def test_tuple(self):
         self.create(_Alignment).run()
+
+
+class _NumpyQuoting(EnvExperiment):
+    def build(self):
+        self.setattr_device("core")
+
+    @kernel
+    def run(self):
+        a = np.array([10, 20])
+        b = np.sqrt(4.0)
+
+
+class NumpyQuotingTest(ExperimentCase):
+    def test_issue_1871(self):
+        """Ensure numpy.array() does not break NumPy math functions"""
+        self.create(_NumpyQuoting).run()
