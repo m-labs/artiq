@@ -546,8 +546,8 @@ class _NumpyQuoting(EnvExperiment):
 
     @kernel
     def run(self):
-        a = np.array([10, 20])
-        b = np.sqrt(4.0)
+        a = numpy.array([10, 20])
+        b = numpy.sqrt(4.0)
 
 
 class NumpyQuotingTest(ExperimentCase):
