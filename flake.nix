@@ -426,6 +426,10 @@
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
+          # To manually run compiler tests:
+          pkgs.lit
+          outputcheck
+          libartiq-support
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
@@ -433,6 +437,9 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
+        shellHook = ''
+          export LIBARTIQ_SUPPORT=`libartiq-support`
+        '';
       };
 
       hydraJobs = {
