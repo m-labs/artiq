@@ -16,7 +16,7 @@ use board_misoc::clock;
 use urc::Urc;
 use board_misoc::ethmac::EthernetDevice;
 use smoltcp::phy::Tracer;
-use board_misoc::net_settings::InterfaceEx;
+use ip_addr_storage::InterfaceEx;
 
 #[derive(Fail, Debug)]
 pub enum Error {
