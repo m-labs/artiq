@@ -8,7 +8,7 @@ use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::time::Duration;
 use smoltcp::Error as NetworkError;
-use smoltcp::wire::{IpEndpoint, Ipv4Cidr, IpCidr};
+use smoltcp::wire::{IpEndpoint, Ipv4Cidr};
 use smoltcp::iface::{Interface, SocketHandle};
 
 use io::{Read, Write};
@@ -16,7 +16,7 @@ use board_misoc::clock;
 use urc::Urc;
 use board_misoc::ethmac::EthernetDevice;
 use smoltcp::phy::Tracer;
-use IPV4_INDEX;
+use board_misoc::net_settings::InterfaceEx;
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -276,9 +276,7 @@ impl<'a> Io<'a> {
     }
 
     pub fn set_ipv4_address(&self, addr: &Ipv4Cidr) {
-        self.network.borrow_mut().update_ip_addrs(|addrs| {
-            addrs.as_mut()[IPV4_INDEX] = IpCidr::Ipv4(*addr);
-        })
+        self.network.borrow_mut().update_ipv4_addr(addr)
     }
 }
 

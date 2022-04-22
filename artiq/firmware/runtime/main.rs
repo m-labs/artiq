@@ -27,12 +27,12 @@ extern crate riscv;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
-use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
+use smoltcp::wire::HardwareAddress;
 
 use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
-use board_misoc::net_settings::{NetAddresses, Ipv4AddrConfig};
+use board_misoc::net_settings::{Ipv4AddrConfig, InterfaceBuilderEx};
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
 use board_artiq::drtio_routing;
@@ -61,13 +61,6 @@ mod moninj;
 mod analyzer;
 mod dhcp;
 
-// Fixed indexes for the IP addresses so that they can be modified with some
-// semblance of confidence
-pub const IPV4_INDEX: usize = 0;
-pub const IPV6_LL_INDEX: usize = 1;
-pub const IPV6_INDEX: usize = 2;
-const IP_ADDRESS_STORAGE_SIZE: usize = 3;
-
 #[cfg(has_grabber)]
 fn grabber_thread(io: sched::Io) {
     loop {
@@ -94,20 +87,6 @@ fn setup_log_levels() {
         }
         _ => info!("UART log level set to INFO by default")
     }
-}
-
-pub fn get_ip_addrs(net_addresses: &NetAddresses) -> [IpCidr; IP_ADDRESS_STORAGE_SIZE] {
-    let mut storage = [
-        IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0);  IP_ADDRESS_STORAGE_SIZE
-    ];
-    if let Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
-        storage[IPV4_INDEX] = IpCidr::new(IpAddress::Ipv4(ipv4), 0);
-    }
-    storage[IPV6_LL_INDEX] = IpCidr::new(net_addresses.ipv6_ll_addr, 0);
-    if let Some(ipv6) = net_addresses.ipv6_addr {
-        storage[IPV6_INDEX] = IpCidr::new(ipv6, 0);
-    }
-    storage
 }
 
 fn startup() {
@@ -172,7 +151,7 @@ fn startup() {
     };
     let interface = smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
         .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
-        .ip_addrs(get_ip_addrs(&net_addresses))
+        .init_ip_addrs(&net_addresses)
         .neighbor_cache(neighbor_cache)
         .finalize();
 
