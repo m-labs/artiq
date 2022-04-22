@@ -333,13 +333,13 @@ class SinaraTester(EnvExperiment):
         print("Press ENTER when done.")
         input()
 
-        sw = [channel_dev for channel_name, channel_dev in self.urukuls if hasattr(channel_dev, "sw")]
+        sw = [channel_dev for channel_name, channel_dev in self.urukuls if channel_dev.sw.is_some()]
         if sw:
             print("Testing RF switch control. Check LEDs at urukul RF ports.")
             print("Press ENTER when done.")
             for swi in sw:
                 self.cfg_sw_off_urukul(swi)
-            self.rf_switch_wave([swi.sw for swi in sw])
+            self.rf_switch_wave([swi.sw.unwrap() for swi in sw])
 
     @kernel
     def init_mirny(self, cpld: Mirny):
