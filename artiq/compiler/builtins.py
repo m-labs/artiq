@@ -169,9 +169,7 @@ def fn_list():
     return types.TConstructor(TList())
 
 def fn_array():
-    # numpy.array() is actually a "magic" macro that is expanded in-place, but
-    # just as for builtin functions, we do not want to quote it, etc.
-    return types.TBuiltinFunction("array")
+    return types.TConstructor(TArray())
 
 def fn_Exception():
     return types.TExceptionConstructor(TException("Exception"))
