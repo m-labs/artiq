@@ -90,12 +90,12 @@ class _UrukulExperiment(EnvExperiment):
         return channel.get_mu()
 
     @kernel
-    def write_raw(self, channel, ftw: TInt64, pow: TInt32 = 0):
+    def write_raw(self, channel, ftw, pow: TInt32 = 0):
         self.init_channel(channel)
         channel.set_mu(ftw, pow)
 
     @kernel
-    def write_raw_with_asf(self, channel, ftw: TInt64, pow: TInt32 = 0, asf: TInt32 = 0):
+    def write_raw_with_asf(self, channel, ftw, pow: TInt32 = 0, asf: TInt32 = 0):
         self.init_channel(channel)
         channel.set_mu(ftw, pow, asf)
 
