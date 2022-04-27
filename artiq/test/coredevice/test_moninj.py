@@ -129,7 +129,10 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         return urukuls
 
     def urukuls_all(self):
-        return dict(*self.urukuls.values())
+        ret = {}
+        for x in self.urukuls.values():
+            ret.update(x)
+        return ret
 
     def ensure_ad9910_only(self):
         if len(self.urukuls["AD9910"]) < 1:
