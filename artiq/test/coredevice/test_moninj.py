@@ -1,6 +1,5 @@
 import unittest
 import asyncio
-import numpy
 from collections import defaultdict
 from contextlib import contextmanager
 from unittest import IsolatedAsyncioTestCase
@@ -189,7 +188,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                 for i in range(2):
                     ftw = self.kernel.read_raw(urukul)[0] & (2**32-1)
             final_values = {probe: value for _, probe, value in notifications_out}
-            assert final_values[urukul.chip_select - 4] == ftw == target_ftw
+            self.assertTrue(final_values[urukul.chip_select - 4] == ftw == target_ftw)
         finally:
             loop.close()
 
@@ -211,7 +210,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                     self.kernel.write_raw(urukul, target_ftws[idx])
                     ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**32-1)
             final_values = {probe: value for _, probe, value in notifications_out}
-            assert final_values == ftws == target_ftws
+            self.assertTrue(final_values == ftws == target_ftws)
         finally:
             loop.close()
 
@@ -234,7 +233,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                     self.kernel.write_raw(urukul, target_ftws[idx])
                     ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**48 - 1)
             final_values = {probe: value for _, probe, value in notifications_out}
-            assert final_values == ftws == target_ftws
+            self.assertTrue(final_values == ftws == target_ftws)
         finally:
             loop.close()
 
@@ -256,7 +255,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                     self.kernel.write(urukul, target_freqs[idx])
                     freqs[idx] = self.kernel.read(urukul)[0]
             for key, value in freqs.items():
-                assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
+                self.assertAlmostEqual(value, target_freqs[key])
         finally:
             loop.close()
 
@@ -278,7 +277,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                     self.kernel.write(urukul, target_freqs[idx], 123.4)
                     freqs[idx] = self.kernel.read(urukul)[0]
             for key, value in freqs.items():
-                assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
+                self.assertAlmostEqual(value, target_freqs[key])
         finally:
             loop.close()
 
@@ -302,6 +301,6 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                     self.kernel.write_with_amp(urukul, target_freqs[idx], 123.4, 0.25)
                     freqs[idx] = self.kernel.read(urukul)[0]
             for key, value in freqs.items():
-                assert numpy.isclose(value, target_freqs[key], rtol=1e-06)
+                self.assertAlmostEqual(value, target_freqs[key])
         finally:
             loop.close()
