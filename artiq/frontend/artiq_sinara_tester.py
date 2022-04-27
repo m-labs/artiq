@@ -318,7 +318,7 @@ class SinaraTester(EnvExperiment):
                 offset = channel_dev.sync_data.eeprom_offset
                 sync_delay_seed, io_update_delay = self.calibrate_urukul(channel_dev)
                 print("{}\t{} {}".format(channel_name, sync_delay_seed, io_update_delay))
-                eeprom_word = (sync_delay_seed << 24) | (io_update_delay << 16)
+                eeprom_word = int32((sync_delay_seed << 24) | (io_update_delay << 16))
                 eeprom.write_i32(offset, eeprom_word)
         print("...done")
 
