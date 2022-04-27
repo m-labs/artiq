@@ -423,7 +423,7 @@ class SinaraTester(EnvExperiment):
             input()
             print("RF ON, all attenuators OFF. Press ENTER when done.")
             for i in range(4):
-                self.almazny_set_attenuators(almazny, i, 0)
+                self.almazny_set_attenuators(almazny, i, 0.)
             input()
             print("SR outputs are OFF. Press ENTER when done.")
             self.almazny_toggle_output(almazny, False)

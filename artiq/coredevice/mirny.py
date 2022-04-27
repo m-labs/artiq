@@ -193,7 +193,6 @@ class Almazny:
     :param host_mirny - Mirny device Almazny is connected to
     """
 
-    core: KernelInvariant[Core]
     mirny_cpld: KernelInvariant[Mirny]
     att_mu: Kernel[list[int32]]
     channel_sw: Kernel[list[int32]]
