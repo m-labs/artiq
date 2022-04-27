@@ -192,7 +192,8 @@ class Almazny:
 
     :param host_mirny - Mirny device Almazny is connected to
     """
-
+    
+    core: KernelInvariant[Core]
     mirny_cpld: KernelInvariant[Mirny]
     att_mu: Kernel[list[int32]]
     channel_sw: Kernel[list[int32]]
@@ -200,6 +201,7 @@ class Almazny:
 
     def __init__(self, dmgr, host_mirny):
         self.mirny_cpld = dmgr.get(host_mirny)
+        self.core = self.mirny_cpld.core
         self.att_mu = [0x3f] * 4
         self.channel_sw = [0] * 4
         self.output_enable = False
