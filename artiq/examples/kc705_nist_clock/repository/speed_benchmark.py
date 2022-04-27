@@ -1,6 +1,9 @@
 import time
 
+from numpy import int32
+
 from artiq.experiment import *
+from artiq.coredevice.core import Core
 
 
 class _PayloadNOP(EnvExperiment):
@@ -11,7 +14,10 @@ class _PayloadNOP(EnvExperiment):
         pass
 
 
+@nac3
 class _PayloadCoreNOP(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
@@ -20,11 +26,15 @@ class _PayloadCoreNOP(EnvExperiment):
         pass
 
 
+@nac3
 class _PayloadCoreSend100Ints(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    def devnull(self, d):
+    @rpc
+    def devnull(self, d: int32):
         pass
 
     @kernel
@@ -33,11 +43,15 @@ class _PayloadCoreSend100Ints(EnvExperiment):
             self.devnull(42)
 
 
+@nac3
 class _PayloadCoreSend1MB(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    def devnull(self, d):
+    @rpc
+    def devnull(self, d: list[int32]):
         pass
 
     @kernel
@@ -46,11 +60,15 @@ class _PayloadCoreSend1MB(EnvExperiment):
         self.devnull(data)
 
 
+@nac3
 class _PayloadCorePrimes(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
-    def devnull(self, d):
+    @rpc
+    def devnull(self, d: int32):
         pass
 
     @kernel
@@ -104,9 +122,14 @@ class SpeedBenchmark(EnvExperiment):
     def run_without_scheduler(self, pause):
         payload = globals()["_Payload" + self.payload](self)
 
+
         start_time = time.monotonic()
         for i in range(int(self.nruns)):
-            payload.run()
+            try:
+                payload.run()
+            except:
+                import traceback
+                print(traceback.format_exc())
             if pause:
                 self.core.comm.close()
                 self.scheduler.pause()

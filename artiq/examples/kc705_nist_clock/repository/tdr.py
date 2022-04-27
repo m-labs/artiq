@@ -1,24 +1,30 @@
 # Copyright (C) 2014, 2015 Robert Jordens <jordens@gmail.com>
 
+from numpy import int32, int64
+
 from artiq.experiment import *
+from artiq.coredevice.core import Core
+from artiq.coredevice.ttl import TTLOut, TTLInOut
 
 
+@nac3
 class PulseNotReceivedError(Exception):
     pass
 
 
+@nac3
 class TDR(EnvExperiment):
     """Time domain reflectometer.
 
-    From ttl2 an impedance matched pulse is send onto a coax
-    cable with an open end. pmt0 (very short stub, high impedance) also
-    listens on the transmission line near ttl2.
+    From ttl0 an impedance matched pulse is send onto a coax
+    cable with an open end. ttl3 (very short stub, high impedance) also
+    listens on the transmission line near ttl0.
 
-    When the forward propagating pulse passes pmt0, the voltage is half of the
+    When the forward propagating pulse passes ttl3, the voltage is half of the
     logic voltage and does not register as a rising edge. Once the
-    rising edge is reflected at an open end (same sign) and passes by pmt0 on
-    its way back to ttl2, it is detected. Analogously, hysteresis leads to
-    detection of the falling edge once the reflection reaches pmt0 after
+    rising edge is reflected at an open end (same sign) and passes by ttl3 on
+    its way back to ttl0, it is detected. Analogously, hysteresis leads to
+    detection of the falling edge once the reflection reaches ttl3 after
     one round trip time.
 
     This works marginally and is just a proof of principle: it relies on
@@ -30,10 +36,17 @@ class TDR(EnvExperiment):
 
     This is also equivalent to a loopback tester or a delay measurement.
     """
+
+    core: KernelInvariant[Core]
+    ttl3: KernelInvariant[TTLInOut]
+    ttl0: KernelInvariant[TTLOut]
+
+    t: Kernel[list[int32]]
+
     def build(self):
         self.setattr_device("core")
-        self.setattr_device("pmt0")
-        self.setattr_device("ttl2")
+        self.setattr_device("ttl3")
+        self.setattr_device("ttl0")
 
     def run(self):
         self.core.reset()
@@ -54,20 +67,20 @@ class TDR(EnvExperiment):
                 t_rise/1e-9, t_fall/1e-9))
 
     @kernel
-    def many(self, n, p):
+    def many(self, n: int32, p: int64):
         self.core.break_realtime()
         for i in range(n):
             self.one(p)
 
     @kernel
-    def one(self, p):
+    def one(self, p: int64):
         t0 = now_mu()
         with parallel:
-            self.pmt0.gate_both_mu(2*p)
-            self.ttl2.pulse_mu(p)
+            self.ttl3.gate_both_mu(int64(2)*p)
+            self.ttl0.pulse_mu(p)
         for i in range(len(self.t)):
-            ti = self.pmt0.timestamp_mu(now_mu())
-            if ti <= 0:
+            ti = self.ttl3.timestamp_mu(now_mu())
+            if ti <= int64(0):
                 raise PulseNotReceivedError()
-            self.t[i] = int(self.t[i] + ti - t0)
-        self.pmt0.count(now_mu())  # flush
+            self.t[i] = int32(int64(self.t[i]) + ti - t0)
+        self.ttl3.count(now_mu())  # flush

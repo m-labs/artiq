@@ -1,10 +1,16 @@
 from operator import itemgetter
 
 from artiq.experiment import *
+from artiq.coredevice.core import Core
+from artiq.coredevice.ad9914 import AD9914
 
 
+@nac3
 class DDSSetter(EnvExperiment):
     """DDS Setter"""
+
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
@@ -24,10 +30,10 @@ class DDSSetter(EnvExperiment):
                 }
 
     @kernel
-    def set_dds(self, dds, frequency):
+    def set_dds(self, dds: AD9914, frequency: float):
         self.core.break_realtime()
         dds.set(frequency)
-        delay(200*ms)
+        self.core.delay(200.*ms)
 
     def run(self):
         for k, v in self.dds.items():
