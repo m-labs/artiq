@@ -187,7 +187,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                 name, urukul = next(iter(self.urukuls_all().items()))
                 self.kernel.write_raw(urukul, target_ftw)
                 for i in range(2):
-                    ftw = self.kernel.read_raw(urukul)[0]
+                    ftw = self.kernel.read_raw(urukul)[0] & (2**32-1)
             final_values = {probe: value for _, probe, value in notifications_out}
             assert final_values[urukul.chip_select - 4] == ftw == target_ftw
         finally:
@@ -209,7 +209,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                 for name, urukul in self.urukuls_all().items():
                     idx = urukul.chip_select - 4
                     self.kernel.write_raw(urukul, target_ftws[idx])
-                    ftws[idx] = self.kernel.read_raw(urukul)[0]
+                    ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**32-1)
             final_values = {probe: value for _, probe, value in notifications_out}
             assert final_values == ftws == target_ftws
         finally:
@@ -232,7 +232,7 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
                 for name, urukul in self.urukuls["AD9912"].items():
                     idx = urukul.chip_select - 4
                     self.kernel.write_raw(urukul, target_ftws[idx])
-                    ftws[idx] = self.kernel.read_raw(urukul)[0]
+                    ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**48 - 1)
             final_values = {probe: value for _, probe, value in notifications_out}
             assert final_values == ftws == target_ftws
         finally:
