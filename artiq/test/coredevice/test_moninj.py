@@ -185,7 +185,7 @@ class AD9910_AD9912_MonitorTest_Base(ExperimentCase):
             freqs[idx] = self.kernel.read(urukul)[0]
         self.flush_moninj()
         for key, value in freqs.items():
-            self.assertAlmostEqual(value, target_freqs[key], places=2)
+            self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
 
     def test_frequency_with_turns(self):
         target_freqs = {
@@ -202,7 +202,7 @@ class AD9910_AD9912_MonitorTest_Base(ExperimentCase):
             freqs[idx] = self.kernel.read(urukul)[0]
         self.flush_moninj()
         for key, value in freqs.items():
-            self.assertAlmostEqual(value, target_freqs[key], places=2)
+            self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
 
 
 class AD9912MonitorTest(AD9910_AD9912_MonitorTest_Base):
@@ -260,4 +260,4 @@ class AD9910MonitorTest(AD9910_AD9912_MonitorTest_Base):
             freqs[idx] = self.kernel.read(urukul)[0]
         self.flush_moninj()
         for key, value in freqs.items():
-            self.assertAlmostEqual(value, target_freqs[key], places=2)
+            self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
