@@ -1,8 +1,5 @@
 import unittest
 import asyncio
-from collections import defaultdict
-from contextlib import contextmanager
-from unittest import IsolatedAsyncioTestCase
 
 from artiq.coredevice.comm_moninj import *
 from artiq.experiment import *
@@ -75,7 +72,7 @@ class MonInjTest(ExperimentCase):
 class _UrukulExperiment(EnvExperiment):
     def build(self):
         self.setattr_device("core")
-        
+
     @kernel
     def init_channel(self, channel):
         self.core.reset()
@@ -114,32 +111,9 @@ class _UrukulExperiment(EnvExperiment):
         channel.set(freq, phase, amplitude)
 
 
-class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
+class AD9910_AD9912_MonitorTest_Base(ExperimentCase):
     def get_urukuls(self):
-        urukuls = defaultdict(dict)
-        ddb = self.device_db.get_device_db()
-        for name, desc in ddb.items():
-            if isinstance(desc, dict) and desc["type"] == "local":
-                module, cls = desc["module"], desc["class"]
-                if (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
-                    urukuls[cls][name] = self.device_mgr.get(name)
-                if (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
-                    urukuls[cls][name] = self.device_mgr.get(name)
-        return urukuls
-
-    def urukuls_all(self):
-        ret = {}
-        for x in self.urukuls.values():
-            ret.update(x)
-        return ret
-
-    def ensure_ad9910_only(self):
-        if len(self.urukuls["AD9910"]) < 1:
-            raise unittest.SkipTest("test device not available: no ad9910 devices")
-
-    def ensure_ad9912_only(self):
-        if len(self.urukuls["AD9912"]) < 1:
-            raise unittest.SkipTest("test device not available: no ad9912 devices")
+        raise NotImplementedError
 
     def setUp(self):
         super().setUp()
@@ -148,49 +122,37 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
         if len(self.urukuls) < 1:
             raise unittest.SkipTest("test device not available: no urukul devices")
         self.kernel = self.create(_UrukulExperiment)
-
-    @contextmanager
-    def open_comm_session(self, loop, notifications=None, core_host=None, auto_monitor=True):
-        if notifications is None:
-            notifications = []
-        if core_host is None:
-            core_host = self.core["arguments"]["host"]
+        self.loop = asyncio.new_event_loop()
+        self.notifications = []
 
         def monitor_cb(channel, probe, value):
-            notifications.append((channel, probe, value))
+            self.notifications.append((channel, probe, value))
 
-        moninj_comm = CommMonInj(monitor_cb, lambda x, y, z: None)
-        try:
-            loop.run_until_complete(moninj_comm.connect(core_host))
-            if auto_monitor:
-                self.setup_monitor(moninj_comm)
-            yield moninj_comm
-        finally:
-            loop.run_until_complete(moninj_comm._writer.drain())
-            loop.run_until_complete(moninj_comm.close())
+        self.moninj_comm = CommMonInj(monitor_cb, lambda x, y, z: None)
+        self.loop.run_until_complete(self.moninj_comm.connect(self.core["arguments"]["host"]))
+        for name, dev in self.urukuls.items():
+            self.moninj_comm.monitor_probe(True, dev.bus.channel, dev.chip_select - 4)
+            self.kernel.write_raw(dev, 0)
 
-    def setup_monitor(self, moninj_comm, *, reset_zero=True):
-        for name, dev in self.urukuls_all().items():
-            moninj_comm.monitor_probe(True, dev.bus.channel, dev.chip_select - 4)
-            if reset_zero:
-                self.kernel.write_raw(dev, 0)
+    def flush_moninj(self):
+        self.loop.run_until_complete(self.moninj_comm._writer.drain())
+
+    def tearDown(self):
+        super().tearDown()
+        self.loop.run_until_complete(self.moninj_comm.close())
+        self.loop.close()
 
     def test_double_read(self):
         target_ftw = 0xff00ff00
-        notifications_out = []
 
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                # anyone of them is okay
-                name, urukul = next(iter(self.urukuls_all().items()))
-                self.kernel.write_raw(urukul, target_ftw)
-                for i in range(2):
-                    ftw = self.kernel.read_raw(urukul)[0] & (2**32-1)
-            final_values = {probe: value for _, probe, value in notifications_out}
-            self.assertTrue(final_values[urukul.chip_select - 4] == ftw == target_ftw)
-        finally:
-            loop.close()
+        # anyone of them is okay
+        _, urukul = next(iter(self.urukuls.items()))
+        self.kernel.write_raw(urukul, target_ftw)
+        for i in range(2):
+            ftw = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
+        self.flush_moninj()
+        final_values = {probe: value for _, probe, value in self.notifications}
+        self.assertTrue(final_values[urukul.chip_select - 4] == ftw == target_ftw)
 
     def test_ftw_int32(self):
         target_ftws = {
@@ -200,42 +162,14 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             3: 0x900f009
         }
         ftws = {}
-        notifications_out = []
 
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                for name, urukul in self.urukuls_all().items():
-                    idx = urukul.chip_select - 4
-                    self.kernel.write_raw(urukul, target_ftws[idx])
-                    ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**32-1)
-            final_values = {probe: value for _, probe, value in notifications_out}
-            self.assertTrue(final_values == ftws == target_ftws)
-        finally:
-            loop.close()
-
-    def test_ftw_int48(self):
-        self.ensure_ad9912_only()
-        target_ftws = {
-            0: 0xffeeffeeffee,
-            1: 0xfeedfeedfeed,
-            2: 0xabababababab,
-            3: 0xf00ba12ba2
-        }
-        ftws = {}
-        notifications_out = []
-
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                for name, urukul in self.urukuls["AD9912"].items():
-                    idx = urukul.chip_select - 4
-                    self.kernel.write_raw(urukul, target_ftws[idx])
-                    ftws[idx] = self.kernel.read_raw(urukul)[0] & (2**48 - 1)
-            final_values = {probe: value for _, probe, value in notifications_out}
-            self.assertTrue(final_values == ftws == target_ftws)
-        finally:
-            loop.close()
+        for name, urukul in self.urukuls.items():
+            idx = urukul.chip_select - 4
+            self.kernel.write_raw(urukul, target_ftws[idx])
+            ftws[idx] = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
+        self.flush_moninj()
+        final_values = {probe: value for _, probe, value in self.notifications}
+        self.assertTrue(final_values == ftws == target_ftws)
 
     def test_frequency(self):
         target_freqs = {
@@ -245,19 +179,13 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             3: 128.128 * MHz
         }
         freqs = {}
-        notifications_out = []
-
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                for name, urukul in self.urukuls_all().items():
-                    idx = urukul.chip_select - 4
-                    self.kernel.write(urukul, target_freqs[idx])
-                    freqs[idx] = self.kernel.read(urukul)[0]
-            for key, value in freqs.items():
-                self.assertAlmostEqual(value, target_freqs[key])
-        finally:
-            loop.close()
+        for name, urukul in self.urukuls.items():
+            idx = urukul.chip_select - 4
+            self.kernel.write(urukul, target_freqs[idx])
+            freqs[idx] = self.kernel.read(urukul)[0]
+        self.flush_moninj()
+        for key, value in freqs.items():
+            self.assertAlmostEqual(value, target_freqs[key], places=2)
 
     def test_frequency_with_turns(self):
         target_freqs = {
@@ -267,23 +195,57 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             3: 128.128 * MHz
         }
         freqs = {}
-        notifications_out = []
 
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                for name, urukul in self.urukuls_all().items():
-                    idx = urukul.chip_select - 4
-                    self.kernel.write(urukul, target_freqs[idx], 123.4)
-                    freqs[idx] = self.kernel.read(urukul)[0]
-            for key, value in freqs.items():
-                self.assertAlmostEqual(value, target_freqs[key])
-        finally:
-            loop.close()
+        for name, urukul in self.urukuls.items():
+            idx = urukul.chip_select - 4
+            self.kernel.write(urukul, target_freqs[idx], 123.4)
+            freqs[idx] = self.kernel.read(urukul)[0]
+        self.flush_moninj()
+        for key, value in freqs.items():
+            self.assertAlmostEqual(value, target_freqs[key], places=2)
 
-    def test_ad9910_set_freq_phase_amp(self):
-        self.ensure_ad9910_only()
 
+class AD9912MonitorTest(AD9910_AD9912_MonitorTest_Base):
+    def get_urukuls(self):
+        urukuls = dict()
+        ddb = self.device_db.get_device_db()
+        for name, desc in ddb.items():
+            if isinstance(desc, dict) and desc["type"] == "local":
+                module, cls = desc["module"], desc["class"]
+                if (module, cls) == ("artiq.coredevice.ad9912", "AD9912"):
+                    urukuls[name] = self.device_mgr.get(name)
+        return urukuls
+
+    def test_ftw_int48(self):
+        target_ftws = {
+            0: 0xffeeffeeffee,
+            1: 0xfeedfeedfeed,
+            2: 0xabababababab,
+            3: 0xf00ba12ba2
+        }
+        ftws = {}
+
+        for name, urukul in self.urukuls.items():
+            idx = urukul.chip_select - 4
+            self.kernel.write_raw(urukul, target_ftws[idx])
+            ftws[idx] = self.kernel.read_raw(urukul)[0] & (2 ** 48 - 1)
+        self.flush_moninj()
+        final_values = {probe: value for _, probe, value in self.notifications}
+        self.assertTrue(final_values == ftws == target_ftws)
+
+
+class AD9910MonitorTest(AD9910_AD9912_MonitorTest_Base):
+    def get_urukuls(self):
+        urukuls = dict()
+        ddb = self.device_db.get_device_db()
+        for name, desc in ddb.items():
+            if isinstance(desc, dict) and desc["type"] == "local":
+                module, cls = desc["module"], desc["class"]
+                if (module, cls) == ("artiq.coredevice.ad9910", "AD9910"):
+                    urukuls[name] = self.device_mgr.get(name)
+        return urukuls
+
+    def test_set_freq_phase_amp(self):
         target_freqs = {
             0: 10 * MHz,
             1: 11 * MHz,
@@ -291,16 +253,11 @@ class AD991XMonitorTest(ExperimentCase, IsolatedAsyncioTestCase):
             3: 13 * MHz
         }
         freqs = {}
-        notifications_out = []
 
-        loop = asyncio.new_event_loop()
-        try:
-            with self.open_comm_session(loop, notifications_out):
-                for name, urukul in self.urukuls["AD9910"].items():
-                    idx = urukul.chip_select - 4
-                    self.kernel.write_with_amp(urukul, target_freqs[idx], 123.4, 0.25)
-                    freqs[idx] = self.kernel.read(urukul)[0]
-            for key, value in freqs.items():
-                self.assertAlmostEqual(value, target_freqs[key])
-        finally:
-            loop.close()
+        for name, urukul in self.urukuls.items():
+            idx = urukul.chip_select - 4
+            self.kernel.write_with_amp(urukul, target_freqs[idx], 123.4, 0.25)
+            freqs[idx] = self.kernel.read(urukul)[0]
+        self.flush_moninj()
+        for key, value in freqs.items():
+            self.assertAlmostEqual(value, target_freqs[key], places=2)
