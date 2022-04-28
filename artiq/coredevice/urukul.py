@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from numpy import int32, int64
 
 from artiq.language.core import *
@@ -427,6 +429,8 @@ class CPLD:
         cfg |= (profile & 7) << CFG_PROFILE
         self.cfg_write(cfg)
 
+
+@nac3
 class _RegIOUpdate:
     core: KernelInvariant[Core]
     cpld: KernelInvariant[CPLD]
@@ -436,8 +440,12 @@ class _RegIOUpdate:
         self.cpld = cpld
 
     @kernel
-    def pulse(self, t: float):
+    def pulse_mu(self, t: int64):
         cfg = self.cpld.cfg_reg
         self.cpld.cfg_write(cfg | (1 << CFG_IO_UPDATE))
-        delay(t)
+        delay_mu(t)
         self.cpld.cfg_write(cfg)
+
+    @kernel
+    def pulse(self, t: float):
+        self.pulse_mu(self.core.seconds_to_mu(t))
