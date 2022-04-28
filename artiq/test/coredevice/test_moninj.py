@@ -111,101 +111,102 @@ class _UrukulExperiment(EnvExperiment):
         channel.set(freq, phase, amplitude)
 
 
-class AD9910_AD9912_MonitorTest_Base(ExperimentCase):
-    def get_urukuls(self):
-        raise NotImplementedError
+class AD9910_AD9912_MonitorTest:
+    class Base(ExperimentCase):
+        def get_urukuls(self):
+            raise NotImplementedError
 
-    def setUp(self):
-        super().setUp()
-        self.core = self.device_mgr.get_desc("core")
-        self.urukuls = self.get_urukuls()
-        if len(self.urukuls) < 1:
-            raise unittest.SkipTest("test device not available: no urukul devices")
-        self.kernel = self.create(_UrukulExperiment)
-        self.loop = asyncio.new_event_loop()
-        self.notifications = []
+        def setUp(self):
+            super().setUp()
+            self.core = self.device_mgr.get_desc("core")
+            self.urukuls = self.get_urukuls()
+            if len(self.urukuls) < 1:
+                raise unittest.SkipTest("test device not available: no urukul devices")
+            self.kernel = self.create(_UrukulExperiment)
+            self.loop = asyncio.new_event_loop()
+            self.notifications = []
 
-        def monitor_cb(channel, probe, value):
-            self.notifications.append((channel, probe, value))
+            def monitor_cb(channel, probe, value):
+                self.notifications.append((channel, probe, value))
 
-        self.moninj_comm = CommMonInj(monitor_cb, lambda x, y, z: None)
-        self.loop.run_until_complete(self.moninj_comm.connect(self.core["arguments"]["host"]))
-        for name, dev in self.urukuls.items():
-            self.moninj_comm.monitor_probe(True, dev.bus.channel, dev.chip_select - 4)
-            self.kernel.write_raw(dev, 0)
+            self.moninj_comm = CommMonInj(monitor_cb, lambda x, y, z: None)
+            self.loop.run_until_complete(self.moninj_comm.connect(self.core["arguments"]["host"]))
+            for name, dev in self.urukuls.items():
+                self.moninj_comm.monitor_probe(True, dev.bus.channel, dev.chip_select - 4)
+                self.kernel.write_raw(dev, 0)
 
-    def flush_moninj(self):
-        self.loop.run_until_complete(self.moninj_comm._writer.drain())
+        def flush_moninj(self):
+            self.loop.run_until_complete(self.moninj_comm._writer.drain())
 
-    def tearDown(self):
-        super().tearDown()
-        self.loop.run_until_complete(self.moninj_comm.close())
-        self.loop.close()
+        def tearDown(self):
+            super().tearDown()
+            self.loop.run_until_complete(self.moninj_comm.close())
+            self.loop.close()
 
-    def test_double_read(self):
-        target_ftw = 0xff00ff00
+        def test_double_read(self):
+            target_ftw = 0xff00ff00
 
-        # anyone of them is okay
-        _, urukul = next(iter(self.urukuls.items()))
-        self.kernel.write_raw(urukul, target_ftw)
-        for i in range(2):
-            ftw = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
-        self.flush_moninj()
-        final_values = {probe: value for _, probe, value in self.notifications}
-        self.assertTrue(final_values[urukul.chip_select - 4] == ftw == target_ftw)
+            # anyone of them is okay
+            _, urukul = next(iter(self.urukuls.items()))
+            self.kernel.write_raw(urukul, target_ftw)
+            for i in range(2):
+                ftw = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
+            self.flush_moninj()
+            final_values = {probe: value for _, probe, value in self.notifications}
+            self.assertTrue(final_values[urukul.chip_select - 4] == ftw == target_ftw)
 
-    def test_ftw_int32(self):
-        target_ftws = {
-            0: 0xaabbccdd,
-            1: 0xabababab,
-            2: 0xabcdabcd,
-            3: 0x900f009
-        }
-        ftws = {}
+        def test_ftw_int32(self):
+            target_ftws = {
+                0: 0xaabbccdd,
+                1: 0xabababab,
+                2: 0xabcdabcd,
+                3: 0x900f009
+            }
+            ftws = {}
 
-        for name, urukul in self.urukuls.items():
-            idx = urukul.chip_select - 4
-            self.kernel.write_raw(urukul, target_ftws[idx])
-            ftws[idx] = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
-        self.flush_moninj()
-        final_values = {probe: value for _, probe, value in self.notifications}
-        self.assertTrue(final_values == ftws == target_ftws)
+            for name, urukul in self.urukuls.items():
+                idx = urukul.chip_select - 4
+                self.kernel.write_raw(urukul, target_ftws[idx])
+                ftws[idx] = self.kernel.read_raw(urukul)[0] & (2 ** 32 - 1)
+            self.flush_moninj()
+            final_values = {probe: value for _, probe, value in self.notifications}
+            self.assertTrue(final_values == ftws == target_ftws)
 
-    def test_frequency(self):
-        target_freqs = {
-            0: 15 * MHz,
-            1: 42.5 * MHz,
-            2: 98.765 * MHz,
-            3: 128.128 * MHz
-        }
-        freqs = {}
-        for name, urukul in self.urukuls.items():
-            idx = urukul.chip_select - 4
-            self.kernel.write(urukul, target_freqs[idx])
-            freqs[idx] = self.kernel.read(urukul)[0]
-        self.flush_moninj()
-        for key, value in freqs.items():
-            self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
+        def test_frequency(self):
+            target_freqs = {
+                0: 15 * MHz,
+                1: 42.5 * MHz,
+                2: 98.765 * MHz,
+                3: 128.128 * MHz
+            }
+            freqs = {}
+            for name, urukul in self.urukuls.items():
+                idx = urukul.chip_select - 4
+                self.kernel.write(urukul, target_freqs[idx])
+                freqs[idx] = self.kernel.read(urukul)[0]
+            self.flush_moninj()
+            for key, value in freqs.items():
+                self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
 
-    def test_frequency_with_turns(self):
-        target_freqs = {
-            0: 15 * MHz,
-            1: 42.5 * MHz,
-            2: 98.765 * MHz,
-            3: 128.128 * MHz
-        }
-        freqs = {}
+        def test_frequency_with_turns(self):
+            target_freqs = {
+                0: 15 * MHz,
+                1: 42.5 * MHz,
+                2: 98.765 * MHz,
+                3: 128.128 * MHz
+            }
+            freqs = {}
 
-        for name, urukul in self.urukuls.items():
-            idx = urukul.chip_select - 4
-            self.kernel.write(urukul, target_freqs[idx], 123.4)
-            freqs[idx] = self.kernel.read(urukul)[0]
-        self.flush_moninj()
-        for key, value in freqs.items():
-            self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
+            for name, urukul in self.urukuls.items():
+                idx = urukul.chip_select - 4
+                self.kernel.write(urukul, target_freqs[idx], 123.4)
+                freqs[idx] = self.kernel.read(urukul)[0]
+            self.flush_moninj()
+            for key, value in freqs.items():
+                self.assertTrue(abs(value - target_freqs[key]) / abs(target_freqs[key]) <= 1e-06)
 
 
-class AD9912MonitorTest(AD9910_AD9912_MonitorTest_Base):
+class AD9912MonitorTest(AD9910_AD9912_MonitorTest.Base):
     def get_urukuls(self):
         urukuls = dict()
         ddb = self.device_db.get_device_db()
@@ -234,7 +235,7 @@ class AD9912MonitorTest(AD9910_AD9912_MonitorTest_Base):
         self.assertTrue(final_values == ftws == target_ftws)
 
 
-class AD9910MonitorTest(AD9910_AD9912_MonitorTest_Base):
+class AD9910MonitorTest(AD9910_AD9912_MonitorTest.Base):
     def get_urukuls(self):
         urukuls = dict()
         ddb = self.device_db.get_device_db()
