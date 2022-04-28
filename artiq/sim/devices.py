@@ -1,6 +1,6 @@
 from random import Random
 
-from artiq.language.core import kernel, sequential, delay_mu
+from artiq.language.core import kernel, sequential, at_mu, delay_mu
 from artiq.sim import time
 
 
