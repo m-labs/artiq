@@ -15,11 +15,6 @@ class AD9912Monitor(AD9910_AD9912MonitorGeneric):
         self.probes = Array(data)
         super().__init__(spi_phy, io_update_phy)
 
-        def update_probe_data(i):
-            return If(self.selected(i + CS_DDS_CH0), [
-                data[i].eq(buffer[i])
-            ])
-
         # 0 -> init, 1 -> start reading
         state = [Signal(1) for i in range(nchannels)]
 
@@ -45,6 +40,11 @@ class AD9912Monitor(AD9910_AD9912MonitorGeneric):
             ])
 
         self.sync.rio_phy += If(self.is_io_update(), [
-            If(self.current_address == SPI_DATA_ADDR, [update_probe_data(i) for i in range(nchannels)]),
+            If(self.current_address == SPI_DATA_ADDR, [
+                If(self.selected(i + CS_DDS_CH0), [
+                    data[i].eq(buffer[i])
+                ])
+                for i in range(nchannels)
+            ]),
             [state[i].eq(0) for i in range(nchannels)]
         ])
