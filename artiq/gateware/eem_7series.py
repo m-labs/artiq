@@ -45,8 +45,8 @@ def peripheral_urukul(module, peripheral, **kwargs):
         sync_gen_cls = ttl_simple.ClockGen
     else:
         sync_gen_cls = None
-    eem.Urukul.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X,
-        sync_gen_cls, dds=peripheral["dds"], **kwargs)
+    eem.Urukul.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X, peripheral["dds"],
+        sync_gen_cls, **kwargs)
 
 
 def peripheral_novogorny(module, peripheral, **kwargs):

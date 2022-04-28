@@ -222,7 +222,7 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None, iostandard=default_iostandard, dds=None):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, dds, sync_gen_cls=None, iostandard=default_iostandard):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
         spi_phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
