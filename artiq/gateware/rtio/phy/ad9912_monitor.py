@@ -8,11 +8,10 @@ from artiq.gateware.rtio.phy.urukul_monitor import AD9910_AD9912MonitorGeneric
 
 class AD9912Monitor(AD9910_AD9912MonitorGeneric):
     def __init__(self, spi_phy, io_update_phy, nchannels=4):
-        data = [Signal(48) for i in range(nchannels)]
-        buffer = [Signal(48) for i in range(nchannels)]
+        ftw_current = [Signal(48) for i in range(nchannels)]
+        ftw_pending = [Signal(48) for i in range(nchannels)]
 
-        # Flatten register first, then data
-        self.probes = Array(data)
+        self.probes = Array(ftw_current)
         super().__init__(spi_phy, io_update_phy)
 
         # 0 -> init, 1 -> start reading
@@ -30,10 +29,10 @@ class AD9912Monitor(AD9910_AD9912MonitorGeneric):
                     ],
                     1: [
                         If(self.flags & SPI_END, [
-                            buffer[i][:32].eq(self.current_data),
+                            ftw_pending[i][:32].eq(self.current_data),
                             state[i].eq(0)
                         ]).Else([
-                            buffer[i][32:].eq(self.current_data[:16])
+                            ftw_pending[i][32:].eq(self.current_data[:16])
                         ])
                     ]
                 })
@@ -42,7 +41,7 @@ class AD9912Monitor(AD9910_AD9912MonitorGeneric):
         self.sync.rio_phy += If(self.is_io_update(), [
             If(self.current_address == SPI_DATA_ADDR, [
                 If(self.selected(i + CS_DDS_CH0), [
-                    data[i].eq(buffer[i])
+                    ftw_current[i].eq(ftw_pending[i])
                 ])
                 for i in range(nchannels)
             ]),
