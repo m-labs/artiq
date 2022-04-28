@@ -214,6 +214,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex, routing_table: &Urc<RefCell<drtio_routi
                 Ok(()) => {},
                 Err(err) => error!("moninj aborted: {}", err)
             }
+            stream.close().expect("moninj: close socket");
         });
     }
 }

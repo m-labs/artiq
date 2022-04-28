@@ -176,10 +176,11 @@
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
-          cargoDeps = rustPlatform.fetchCargoTarball {
-            name = "artiq-firmware-cargo-deps";
-            src = "${self}/artiq/firmware";
-            sha256 = "sha256-YyycMsDzR+JRcMZJd6A/CRi2J9nKmaWY/KXUnAQaZ00=";
+          cargoDeps = rustPlatform.importCargoLock {
+            lockFile = ./artiq/firmware/Cargo.lock;
+            outputHashes = {
+              "fringe-1.2.1" = "sha256-m4rzttWXRlwx53LWYpaKuU5AZe4GSkbjHS6oINt5d3Y=";
+            };
           };
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
@@ -359,6 +360,9 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
+        shellHook = ''
+          export LIBARTIQ_SUPPORT=`libartiq-support`
+        '';
       };
 
       hydraJobs = {
