@@ -22,17 +22,17 @@ class AluminumSpectroscopy(EnvExperiment):
         for count in range(100):
             self.mains_sync.gate_rising(1*s/60)
             at_mu(self.mains_sync.timestamp_mu(now_mu()) + 100*us)
-            delay(10*us)
+            self.core.delay(10.*us)
             self.laser_cooling.pulse(100*MHz, 100*us)
-            delay(5*us)
+            self.core.delay(5.*us)
             with parallel:
                 self.spectroscopy.pulse(self.spectroscopy_freq, 100*us)
                 with sequential:
-                    delay(50*us)
+                    self.core.delay(50.*us)
                     self.spectroscopy_b.set(200)
-            delay(5*us)
+            self.core.delay(5.*us)
             while True:
-                delay(5*us)
+                self.core.delay(5.*us)
                 with parallel:
                     self.state_detection.pulse(100*MHz, 10*us)
                     photon_count = self.pmt.count(self.pmt.gate_rising(10*us))
