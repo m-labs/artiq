@@ -3,7 +3,7 @@ from migen.build.generic_platform import *
 from migen.genlib.io import DifferentialOutput
 
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber, urukul_monitor
+from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber, ad9910_monitor, ad9912_monitor
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
 
@@ -245,9 +245,9 @@ class Urukul(_EEM):
 
         dds_monitor_cls = None
         if dds == 'ad9910':
-            dds_monitor_cls = urukul_monitor.AD9910Monitor
+            dds_monitor_cls = ad9910_monitor.AD9910Monitor
         if dds == 'ad9912':
-            dds_monitor_cls = urukul_monitor.AD9912Monitor
+            dds_monitor_cls = ad9912_monitor.AD9912Monitor
 
         if dds_monitor_cls is not None:
             dds_monitor = dds_monitor_cls(spi_phy, phy)
