@@ -253,10 +253,11 @@
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
-          cargoDeps = rustPlatform.fetchCargoTarball {
-            name = "artiq-firmware-cargo-deps";
-            src = "${self}/artiq/firmware";
-            sha256 = "sha256-YyycMsDzR+JRcMZJd6A/CRi2J9nKmaWY/KXUnAQaZ00=";
+          cargoDeps = rustPlatform.importCargoLock {
+            lockFile = ./artiq/firmware/Cargo.lock;
+            outputHashes = {
+              "fringe-1.2.1" = "sha256-m4rzttWXRlwx53LWYpaKuU5AZe4GSkbjHS6oINt5d3Y=";
+            };
           };
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
@@ -426,6 +427,10 @@
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
+          # To manually run compiler tests:
+          pkgs.lit
+          outputcheck
+          libartiq-support
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
@@ -433,6 +438,9 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
+        shellHook = ''
+          export LIBARTIQ_SUPPORT=`libartiq-support`
+        '';
       };
 
       hydraJobs = {
