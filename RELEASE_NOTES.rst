@@ -12,6 +12,7 @@ Highlights:
    - Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotinos
    - Almazny mezzanine board for Mirny
+* TTL device output can be now configured to work as a clock generator.
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * Gateware FPU is supported on KC705 and Kasli 2.0.
 * Faster compilation for large arrays/lists.
