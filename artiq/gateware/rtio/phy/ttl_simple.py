@@ -154,9 +154,7 @@ class ClockGen(Module):
         if pad_n is None:
             self.comb += pad.eq(pad_o)
         else:
-            self.specials += Instance("IOBUFDS",
-                i_I=pad_o,
-                io_IO=pad, io_IOB=pad_n)
+            self.specials += DifferentialOutput(pad_o, pad, pad_n)
         ftw = Signal(ftw_width)
         acc = Signal(ftw_width)
         self.sync.rio += If(self.rtlink.o.stb, ftw.eq(self.rtlink.o.data))
