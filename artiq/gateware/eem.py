@@ -232,7 +232,7 @@ class Urukul(_EEM):
 
         pads = target.platform.request("urukul{}_dds_reset_sync_in".format(eem))
         if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
-            phy = sync_gen_cls(pad=pads.p, pad_n = pads.n, ftw_width=4)
+            phy = sync_gen_cls(pad=pads.p, pad_n=pads.n, ftw_width=4)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
 
