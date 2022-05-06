@@ -170,11 +170,11 @@
                         },
                         "bank_direction_low": {
                             "type": "string",
-                            "enum": ["input", "output"]
+                            "enum": ["input", "output", "clkgen"]
                         },
                         "bank_direction_high": {
                             "type": "string",
-                            "enum": ["input", "output"]
+                            "enum": ["input", "output", "clkgen"]
                         }
                     },
                     "required": ["ports", "bank_direction_low", "bank_direction_high"]

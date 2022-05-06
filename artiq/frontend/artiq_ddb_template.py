@@ -94,7 +94,8 @@ class PeripheralManager:
     def process_dio(self, rtio_offset, peripheral, num_channels=8):
         class_names = {
             "input": "TTLInOut",
-            "output": "TTLOut"
+            "output": "TTLOut",
+            "clkgen": "TTLClockGen"
         }
         classes = [
             class_names[peripheral["bank_direction_low"]],
