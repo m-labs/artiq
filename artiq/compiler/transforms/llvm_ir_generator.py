@@ -1409,7 +1409,10 @@ class LLVMIRGenerator:
                 llfun.args[idx].add_attribute(attr)
             if 'nounwind' in insn.target_function().type.flags:
                 llfun.attributes.add('nounwind')
-            if 'nowrite' in insn.target_function().type.flags:
+            if 'nowrite' in insn.target_function().type.flags and not is_sret:
+                # Even if "nowrite" is correct from the user's perspective (doesn't
+                # access any other memory observable to ARTIQ Python), this isn't
+                # true on the LLVM IR level for sret return values.
                 llfun.attributes.add('inaccessiblememonly')
 
         return llfun, list(llargs), llarg_attrs, llcallstackptr
