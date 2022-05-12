@@ -203,6 +203,7 @@ _WidgetDesc = namedtuple("_WidgetDesc", "uid comment cls arguments")
 
 def setup_from_ddb(ddb):
     mi_addr = None
+    mi_port = None
     dds_sysclk = None
     description = set()
 
@@ -235,14 +236,16 @@ def setup_from_ddb(ddb):
                             description.add(widget)
                 elif v["type"] == "controller" and k == "core_moninj":
                     mi_addr = v["host"]
+                    mi_port = v.get("port_proxy", 1383)
         except KeyError:
             pass
-    return mi_addr, dds_sysclk, description
+    return mi_addr, mi_port, dds_sysclk, description
 
 
 class _DeviceManager:
     def __init__(self):
         self.mi_addr = None
+        self.mi_port = None
         self.reconnect_mi = asyncio.Event()
         self.mi_connection = None
         self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
@@ -264,10 +267,11 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        mi_addr, dds_sysclk, description = setup_from_ddb(self.ddb)
+        mi_addr, mi_port, dds_sysclk, description = setup_from_ddb(self.ddb)
 
-        if mi_addr != self.mi_addr:
+        if (mi_addr, mi_port) != (self.mi_addr, self.mi_port):
             self.mi_addr = mi_addr
+            self.mi_port = mi_port
             self.reconnect_mi.set()
 
         self.dds_sysclk = dds_sysclk
@@ -397,7 +401,7 @@ class _DeviceManager:
             new_mi_connection = CommMonInj(self.monitor_cb, self.injection_status_cb,
                     self.disconnect_cb)
             try:
-                await new_mi_connection.connect(self.mi_addr, 1383)
+                await new_mi_connection.connect(self.mi_addr, self.mi_port)
             except asyncio.CancelledError:
                 logger.info("cancelled connection to moninj")
                 break
