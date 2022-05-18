@@ -14,6 +14,12 @@ from artiq.gui.scientific_spinbox import ScientificSpinBox
 logger = logging.getLogger(__name__)
 
 
+async def rename(key, newkey, value, dataset_ctl):
+    if key != newkey:
+        await dataset_ctl.delete(key)
+    await dataset_ctl.set(newkey, value)
+
+
 class Editor(QtWidgets.QDialog):
     def __init__(self, parent, dataset_ctl, key, value):
         QtWidgets.QDialog.__init__(self, parent=parent)
@@ -26,10 +32,10 @@ class Editor(QtWidgets.QDialog):
         self.setLayout(grid)
 
         grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
-        
+
         self.name_widget = QtWidgets.QLineEdit()
         self.name_widget.setText(key)
-        
+
         grid.addWidget(self.name_widget, 0, 1)
 
         grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
@@ -42,14 +48,10 @@ class Editor(QtWidgets.QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
-    async def rename(self, value):
-        if self.name_widget.text() != self.key:
-            await self.dataset_ctl.delete(self.key)
-        await self.dataset_ctl.set(self.name_widget.text(), value)
-
     def accept(self):
-        value = self.initial_type(self.get_edit_widget_value())        
-        asyncio.ensure_future(self.rename(value))
+        newkey = self.name_widget.text()
+        value = self.initial_type(self.get_edit_widget_value())
+        asyncio.ensure_future(rename(self.key, newkey, value, self.dataset_ctl))
         QtWidgets.QDialog.accept(self)
 
     def get_edit_widget(self, initial_value):
