@@ -42,10 +42,14 @@ class Editor(QtWidgets.QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
 
+    async def rename(self, value):
+        if self.name_widget.text() != self.key:
+            await self.dataset_ctl.delete(self.key)
+        await self.dataset_ctl.set(self.name_widget.text(), value)
+
     def accept(self):
-        value = self.initial_type(self.get_edit_widget_value())
-        asyncio.ensure_future(self.dataset_ctl.delete(self.key))
-        asyncio.ensure_future(self.dataset_ctl.set(self.name_widget.text(), value))
+        value = self.initial_type(self.get_edit_widget_value())        
+        asyncio.ensure_future(self.rename(value))
         QtWidgets.QDialog.accept(self)
 
     def get_edit_widget(self, initial_value):
