@@ -26,7 +26,11 @@ class Editor(QtWidgets.QDialog):
         self.setLayout(grid)
 
         grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
-        grid.addWidget(QtWidgets.QLabel(key), 0, 1)
+        
+        self.name_widget = QtWidgets.QLineEdit()
+        self.name_widget.setText(key)
+        
+        grid.addWidget(self.name_widget, 0, 1)
 
         grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
         grid.addWidget(self.get_edit_widget(value), 1, 1)
@@ -40,7 +44,8 @@ class Editor(QtWidgets.QDialog):
 
     def accept(self):
         value = self.initial_type(self.get_edit_widget_value())
-        asyncio.ensure_future(self.dataset_ctl.set(self.key, value))
+        asyncio.ensure_future(self.dataset_ctl.delete(self.key))
+        asyncio.ensure_future(self.dataset_ctl.set(self.name_widget.text(), value))
         QtWidgets.QDialog.accept(self)
 
     def get_edit_widget(self, initial_value):
