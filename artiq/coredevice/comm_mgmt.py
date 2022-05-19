@@ -110,9 +110,10 @@ class CommMgmt:
         return ty
 
     def _read_expect(self, ty):
-        if self._read_header() != ty:
+        header = self._read_header()
+        if header != ty:
             raise IOError("Incorrect reply from device: {} (expected {})".
-                          format(self._read_type, ty))
+                          format(header, ty))
 
     def _read_int32(self):
         (value, ) = struct.unpack(self.endian + "l", self._read(4))
