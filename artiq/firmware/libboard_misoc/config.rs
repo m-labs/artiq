@@ -9,6 +9,7 @@ pub enum Error {
     MissingSeparator { offset: usize },
     Utf8Error(str::Utf8Error),
     NoFlash,
+    KeyNotFound
 }
 
 impl fmt::Display for Error {
@@ -28,6 +29,8 @@ impl fmt::Display for Error {
                 write!(f, "{}", err),
             &Error::NoFlash =>
                 write!(f, "flash memory is not present"),
+            &Error::KeyNotFound =>
+                write!(f, "key not found")
         }
     }
 }
@@ -156,14 +159,16 @@ mod imp {
         f(Lock::take().and_then(|lock| {
             let mut iter = Iter::new(lock.data());
             let mut value = &[][..];
+            let mut found = false;
             while let Some(result) = iter.next() {
                 let (record_key, record_value) = result?;
                 if key.as_bytes() == record_key {
+                    found = true;
                     // last write wins
                     value = record_value
                 }
             }
-            Ok(value)
+            if found { Ok(value) } else { Err(Error::KeyNotFound) }
         }))
     }
 
