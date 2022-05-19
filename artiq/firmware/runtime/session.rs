@@ -529,7 +529,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
 
     config::read(config_key, |result| {
         match result {
-            Ok(kernel) if kernel.len() > 0 => unsafe {
+            Ok(kernel) => unsafe {
                 // kernel CPU cannot access the SPI flash address space directly,
                 // so make a copy.
                 kern_load(io, &mut session, Vec::from(kernel).as_ref())
