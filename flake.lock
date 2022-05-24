@@ -45,11 +45,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1652760312,
-        "narHash": "sha256-CPbFV/V3qBPFv34EcmjVGAslS824ECyg2fIizlH6BWQ=",
+        "lastModified": 1653361829,
+        "narHash": "sha256-0V7jQ3q6CAW7V7PySRA6wbsrAQ+0/EUML9+pfToE52o=",
         "ref": "master",
-        "rev": "0ec2ed4d915e38f73c834c9f40147a3f601f3d8c",
-        "revCount": 770,
+        "rev": "b04631e935ac3264b0a5ef4ebba7141f3e0d2d0c",
+        "revCount": 772,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
@@ -60,16 +60,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1652559422,
-        "narHash": "sha256-jPVTNImBTUIFdtur+d4IVot6eXmsvtOcBm0TzxmhWPk=",
+        "lastModified": 1653354321,
+        "narHash": "sha256-AMUhX1Ch0KMDWCze6KAntwlJ1iFp0fLK2TTW9Mj85WY=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "8b3398bc7587ebb79f93dfeea1b8c574d3c6dba1",
+        "rev": "b80531b35cbcddcaf74ceb685b3a0847c134cbe1",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-21.11",
+        "ref": "release-22.05",
         "repo": "nixpkgs",
         "type": "github"
       }
