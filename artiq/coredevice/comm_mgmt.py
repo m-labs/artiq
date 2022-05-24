@@ -110,9 +110,10 @@ class CommMgmt:
         return ty
 
     def _read_expect(self, ty):
-        if self._read_header() != ty:
+        header = self._read_header()
+        if header != ty:
             raise IOError("Incorrect reply from device: {} (expected {})".
-                          format(self._read_type, ty))
+                          format(header, ty))
 
     def _read_int32(self):
         (value, ) = struct.unpack(self.endian + "l", self._read(4))
@@ -159,7 +160,12 @@ class CommMgmt:
     def config_read(self, key):
         self._write_header(Request.ConfigRead)
         self._write_string(key)
-        self._read_expect(Reply.ConfigData)
+        ty = self._read_header()
+        if ty == Reply.Error:
+            raise IOError("Device failed to read config. The key may not exist.")
+        elif ty != Reply.ConfigData:
+            raise IOError("Incorrect reply from device: {} (expected {})".
+                          format(ty, Reply.ConfigData))
         return self._read_string()
 
     def config_write(self, key, value):

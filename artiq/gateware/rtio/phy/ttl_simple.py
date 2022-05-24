@@ -145,11 +145,16 @@ class InOut(Module):
 
 
 class ClockGen(Module):
-    def __init__(self, pad, ftw_width=24):
+    def __init__(self, pad, pad_n=None, ftw_width=24, dci=False):
         self.rtlink = rtlink.Interface(rtlink.OInterface(ftw_width))
 
         # # #
 
+        pad_o = Signal()
+        if pad_n is None:
+            self.comb += pad.eq(pad_o)
+        else:
+            self.specials += DifferentialOutput(pad_o, pad, pad_n)
         ftw = Signal(ftw_width)
         acc = Signal(ftw_width)
         self.sync.rio += If(self.rtlink.o.stb, ftw.eq(self.rtlink.o.data))
@@ -165,5 +170,5 @@ class ClockGen(Module):
                     acc.eq(0)
                 )
             ),
-            pad.eq(acc[-1])
+            pad_o.eq(acc[-1])
         ]

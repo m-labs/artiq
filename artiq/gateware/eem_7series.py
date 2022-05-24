@@ -5,7 +5,8 @@ from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 def peripheral_dio(module, peripheral, **kwargs):
     ttl_classes = {
         "input": ttl_serdes_7series.InOut_8X,
-        "output": ttl_serdes_7series.Output_8X
+        "output": ttl_serdes_7series.Output_8X,
+        "clkgen": ttl_simple.ClockGen
     }
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
