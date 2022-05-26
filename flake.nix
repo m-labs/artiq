@@ -448,8 +448,8 @@
         kc705-hitl = pkgs.stdenv.mkDerivation {
           name = "kc705-hitl";
 
-          # requires patched Nix
-          __networked = true;
+          __networked = true;  # compatibility with old patched Nix
+          __impure = true;     # Nix 2.8+
 
           buildInputs = [
             (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
