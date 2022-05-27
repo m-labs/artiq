@@ -9,6 +9,7 @@ import re
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logging_tools import log_with_name
+from sipyco.asyncio_tools import SignalHandler
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
@@ -77,21 +78,30 @@ def main():
 
     loop = asyncio.get_event_loop()
     try:
-        get_logs_task = asyncio.ensure_future(
-            get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr))
+        signal_handler = SignalHandler()
+        signal_handler.setup()
         try:
-            server = Server({"corelog": PingTarget()}, None, True)
-            loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
+            get_logs_task = asyncio.ensure_future(
+                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr))
             try:
-                loop.run_until_complete(server.wait_terminate())
+                server = Server({"corelog": PingTarget()}, None, True)
+                loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
+                try:
+                    _, pending = loop.run_until_complete(asyncio.wait(
+                        [signal_handler.wait_terminate(), server.wait_terminate()],
+                        return_when=asyncio.FIRST_COMPLETED))
+                    for task in pending:
+                        task.cancel()
+                finally:
+                    loop.run_until_complete(server.stop())
             finally:
-                loop.run_until_complete(server.stop())
+                get_logs_task.cancel()
+                try:
+                    loop.run_until_complete(get_logs_task)
+                except asyncio.CancelledError:
+                    pass
         finally:
-            get_logs_task.cancel()
-            try:
-                loop.run_until_complete(get_logs_task)
-            except asyncio.CancelledError:
-                pass
+            signal_handler.teardown()
     finally:
         loop.close()
 

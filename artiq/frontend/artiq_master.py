@@ -10,7 +10,7 @@ from sipyco.sync_struct import Publisher
 from sipyco.logging_tools import Server as LoggingServer
 from sipyco.broadcast import Broadcaster
 from sipyco import common_args
-from sipyco.asyncio_tools import atexit_register_coroutine
+from sipyco.asyncio_tools import atexit_register_coroutine, SignalHandler
 
 from artiq import __version__ as artiq_version
 from artiq.master.log import log_args, init_log
@@ -76,6 +76,9 @@ def main():
     log_forwarder = init_log(args)
     loop = asyncio.get_event_loop()
     atexit.register(loop.close)
+    signal_handler = SignalHandler()
+    signal_handler.setup()
+    atexit.register(signal_handler.teardown)
     bind = common_args.bind_address_from_args(args)
 
     server_broadcast = Broadcaster()
@@ -155,7 +158,7 @@ def main():
     atexit_register_coroutine(server_logging.stop)
 
     print("ARTIQ master is now ready.")
-    loop.run_forever()
+    loop.run_until_complete(signal_handler.wait_terminate())
 
 if __name__ == "__main__":
     main()
