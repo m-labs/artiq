@@ -6,7 +6,7 @@ license=("LGPL")
 depends=(
     "mingw-w64-x86_64-python"
     "mingw-w64-x86_64-python-numpy"
-    # TODO "mingw-w64-x86_64-python-pybase64"
+    "mingw-w64-x86_64-python-pybase64"
 )
 
 source PKGBUILD.common
