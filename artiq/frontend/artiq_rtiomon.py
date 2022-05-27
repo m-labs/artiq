@@ -3,6 +3,8 @@
 import argparse
 import asyncio
 
+from sipyco.asyncio_tools import SignalHandler
+
 from artiq.coredevice.comm_moninj import *
 
 
@@ -18,19 +20,24 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    
+
     loop = asyncio.get_event_loop()
     try:
-        comm = CommMonInj(
-            lambda channel, probe, value: print("0x{:06x}: {}".format(channel, value)),
-            lambda channel, override, value: None)
-        loop.run_until_complete(comm.connect(args.core_addr))
+        signal_handler = SignalHandler()
+        signal_handler.setup()
         try:
-            for channel in args.channel:
-                comm.monitor_probe(True, channel, 0)
-            loop.run_forever()
+            comm = CommMonInj(
+                lambda channel, probe, value: print("0x{:06x}: {}".format(channel, value)),
+                lambda channel, override, value: None)
+            loop.run_until_complete(comm.connect(args.core_addr))
+            try:
+                for channel in args.channel:
+                    comm.monitor_probe(True, channel, 0)
+                loop.run_until_complete(signal_handler.wait_terminate())
+            finally:
+                loop.run_until_complete(comm.close())
         finally:
-            loop.run_until_complete(comm.close())
+            signal_handler.teardown()
     finally:
         loop.close()
 

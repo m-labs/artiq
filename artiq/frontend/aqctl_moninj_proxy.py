@@ -6,7 +6,7 @@ import asyncio
 import struct
 from enum import Enum
 
-from sipyco.asyncio_tools import AsyncioServer
+from sipyco.asyncio_tools import AsyncioServer, SignalHandler
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
@@ -198,24 +198,33 @@ def main():
 
     loop = asyncio.get_event_loop()
     try:
-        monitor_mux = MonitorMux()
-        comm_moninj = CommMonInj(monitor_mux.monitor_cb, monitor_mux.injection_status_cb)
-        monitor_mux.comm_moninj = comm_moninj
-        loop.run_until_complete(comm_moninj.connect(args.core_addr))
+        signal_handler = SignalHandler()
+        signal_handler.setup()
         try:
-            proxy_server = ProxyServer(monitor_mux)
-            loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
+            monitor_mux = MonitorMux()
+            comm_moninj = CommMonInj(monitor_mux.monitor_cb, monitor_mux.injection_status_cb)
+            monitor_mux.comm_moninj = comm_moninj
+            loop.run_until_complete(comm_moninj.connect(args.core_addr))
             try:
-                server = Server({"moninj_proxy": PingTarget()}, None, True)
-                loop.run_until_complete(server.start(bind_address, args.port_control))
+                proxy_server = ProxyServer(monitor_mux)
+                loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
                 try:
-                    loop.run_until_complete(server.wait_terminate())
+                    server = Server({"moninj_proxy": PingTarget()}, None, True)
+                    loop.run_until_complete(server.start(bind_address, args.port_control))
+                    try:
+                        _, pending = loop.run_until_complete(asyncio.wait(
+                            [signal_handler.wait_terminate(), server.wait_terminate()],
+                            return_when=asyncio.FIRST_COMPLETED))
+                        for task in pending:
+                            task.cancel()
+                    finally:
+                        loop.run_until_complete(server.stop())
                 finally:
-                    loop.run_until_complete(server.stop())
+                    loop.run_until_complete(proxy_server.stop())
             finally:
-                loop.run_until_complete(proxy_server.stop())
+                loop.run_until_complete(comm_moninj.close())
         finally:
-            loop.run_until_complete(comm_moninj.close())
+            signal_handler.teardown()
     finally:
         loop.close()
 
