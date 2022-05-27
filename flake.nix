@@ -367,8 +367,6 @@
 
       hydraJobs = {
         inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
-        qasync-msys2-pkg = packages.x86_64-w64-mingw32.qasync-pkg;
-        pyqtgraph-msys2-pkg = packages.x86_64-w64-mingw32.pyqtgraph-pkg;
         sipyco-msys2-pkg = packages.x86_64-w64-mingw32.sipyco-pkg;
         artiq-comtools-msys2-pkg = packages.x86_64-w64-mingw32.artiq-comtools-pkg;
         artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;
