@@ -49,7 +49,7 @@ class ScanWidget(QtWidgets.QWidget):
         return self.minimumSizeHint()
 
     def minimumSizeHint(self):
-        return QtCore.QSize(2.5*3*self._labelSize.width(),
+        return QtCore.QSize(int(2.5*3*self._labelSize.width()),
                             4*self._labelSize.height())
 
     def _axisToPixel(self, val):
@@ -214,7 +214,7 @@ class ScanWidget(QtWidgets.QWidget):
         self._setView(left, scale)
 
     def wheelEvent(self, ev):
-        y = ev.angleDelta().y()/120.
+        y = round(ev.angleDelta().y()/120.)
         if not y:
             return
         if ev.modifiers() & QtCore.Qt.ShiftModifier:
@@ -252,22 +252,22 @@ class ScanWidget(QtWidgets.QWidget):
 
         for t, l in zip(ticks, labels):
             t = self._axisToPixel(t)
-            painter.drawText(t - len(l)/2*avgCharWidth, 0, l)
-            painter.drawLine(t, descent, t, lineSpacing/2)
-        painter.translate(0, lineSpacing/2)
+            painter.drawText(int(t - len(l)/2*avgCharWidth), 0, l)
+            painter.drawLine(int(t), descent, int(t), int(lineSpacing/2))
+        painter.translate(0, int(lineSpacing/2))
 
         painter.drawLine(0, 0, self.width(), 0)
 
         for p in np.linspace(self._axisToPixel(self._start),
                              self._axisToPixel(self._stop),
                              self._num):
-            painter.drawLine(p, 0, p, lineSpacing/2)
-        painter.translate(0, lineSpacing/2)
+            painter.drawLine(int(p), 0, int(p), int(lineSpacing/2))
+        painter.translate(0, int(lineSpacing/2))
 
         for x, c in (self._start, QtCore.Qt.blue), (self._stop, QtCore.Qt.red):
             x = self._axisToPixel(x)
             painter.setPen(c)
             painter.setBrush(c)
             painter.drawPolygon(*(QtCore.QPointF(*i) for i in [
-                (x, 0), (x - lineSpacing/2, lineSpacing),
-                (x + lineSpacing/2, lineSpacing)]))
+                (int(x), 0), (int(x - lineSpacing/2), lineSpacing),
+                (int(x + lineSpacing/2), lineSpacing)]))

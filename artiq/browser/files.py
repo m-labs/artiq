@@ -71,7 +71,7 @@ class ZoomIconView(QtWidgets.QListView):
         self._char_width = QtGui.QFontMetrics(self.font()).averageCharWidth()
         self.setViewMode(self.IconMode)
         w = self._char_width*self.default_size
-        self.setIconSize(QtCore.QSize(w, w*self.aspect))
+        self.setIconSize(QtCore.QSize(w, int(w*self.aspect)))
         self.setFlow(self.LeftToRight)
         self.setResizeMode(self.Adjust)
         self.setWrapping(True)
