@@ -122,6 +122,13 @@ class RunPool:
         self.notifier = notifier
         self.experiment_db = experiment_db
 
+    def log_tuples(self, rid, expid):
+        self.rid = rid
+        self.expid = expid
+        start_time = time()
+        with open("rid_time_path.txt", "a") as f:
+            f.write("{} {} {}\n".format(self.rid, start_time, self.expid["file"]))
+
     def submit(self, expid, priority, due_date, flush, pipeline_name):
         # mutates expid to insert head repository revision if None.
         # called through scheduler.
@@ -135,6 +142,7 @@ class RunPool:
             wd, repo_msg = None, None
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self, repo_msg=repo_msg)
+        self.log_tuples(rid, expid)
         self.runs[rid] = run
         self.state_changed.notify()
         return rid

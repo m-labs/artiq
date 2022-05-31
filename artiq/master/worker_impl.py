@@ -286,10 +286,6 @@ def main():
             f["run_time"] = run_time
             f["expid"] = pyon.encode(expid)
 
-    def log_tuples():
-        with open("tuples.txt", "a") as f:
-            f.write("%s %s %s\n" %(rid, start_time, expid["file"]))
-
     device_mgr = DeviceManager(ParentDeviceDB,
                                virtual_devices={"scheduler": Scheduler(),
                                                 "ccb": CCB()})
@@ -335,7 +331,6 @@ def main():
             elif action == "run":
                 run_time = time.time()
                 try:
-                    log_tuples()
                     exp_inst.run()
                 except:
                     # Only write results in run() on failure; on success wait
@@ -347,7 +342,7 @@ def main():
                 try:
                     exp_inst.analyze()
                     put_completed()
-                finally:   
+                finally:
                     write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
