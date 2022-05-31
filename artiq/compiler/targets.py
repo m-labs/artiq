@@ -74,6 +74,8 @@ class Target:
         LLVM target data layout, e.g. ``"E-m:e-p:32:32-i64:32-f64:32-v64:32-v128:32-a:0:32-n32"``
     :var features: (list of string)
         LLVM target CPU features, e.g. ``["mul", "div", "ffl1"]``
+    :var additional_linker_options: (list of string)
+        Linker options for the target in addition to the target-independent ones, e.g. ``["--target2=rel"]``
     :var print_function: (string)
         Name of a formatted print functions (with the signature of ``printf``)
         provided by the target, e.g. ``"printf"``.
@@ -83,6 +85,7 @@ class Target:
     triple = "unknown"
     data_layout = ""
     features = []
+    additional_linker_options = []
     print_function = "printf"
     now_pinning = True
 
@@ -181,6 +184,7 @@ class Target:
     def link(self, objects):
         """Link the relocatable objects into a shared library for this target."""
         with RunTool([self.tool_ld, "-shared", "--eh-frame-hdr"] +
+                     self.additional_linker_options +
                      ["-T" + os.path.join(os.path.dirname(__file__), "kernel.ld")] +
                      ["{{obj{}}}".format(index) for index in range(len(objects))] +
                      ["-x"] +
@@ -265,6 +269,7 @@ class RV32IMATarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a"]
+    additional_linker_options = []
     print_function = "core_log"
     now_pinning = True
 
@@ -277,6 +282,7 @@ class RV32GTarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a", "f", "d"]
+    additional_linker_options = []
     print_function = "core_log"
     now_pinning = True
 
@@ -289,6 +295,7 @@ class CortexA9Target(Target):
     triple = "armv7-unknown-linux-gnueabihf"
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
+    additional_linker_options = ["--target2=rel"]
     print_function = "core_log"
     now_pinning = False
 
