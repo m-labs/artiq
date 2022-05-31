@@ -245,7 +245,8 @@ def _show_datasets(datasets):
 
 
 def _run_subscriber(host, port, subscriber):
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(subscriber.connect(host, port))
         try:

@@ -76,7 +76,8 @@ def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         signal_handler = SignalHandler()
         signal_handler.setup()

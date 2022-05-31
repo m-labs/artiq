@@ -74,7 +74,8 @@ class MasterConfig:
 def main():
     args = get_argparser().parse_args()
     log_forwarder = init_log(args)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     atexit.register(loop.close)
     signal_handler = SignalHandler()
     signal_handler.setup()
