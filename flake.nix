@@ -1,7 +1,7 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-21.11;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.05;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
@@ -331,7 +331,7 @@
             sha256 = "sha256-YgUsl4/FohfsOncM4uiz/3c6g2ZN4oZ0y5vV/2Skwqg=";
             fetchSubmodules = true;
           };
-          patches = oa.patches or [] ++ [
+          patches = [
             (pkgs.fetchurl {
               url = "https://git.m-labs.hk/M-Labs/nix-scripts/raw/commit/575ef05cd554c239e4cc8cb97ae4611db458a80d/artiq-fast/pkgs/openocd-jtagspi.diff";
               sha256 = "0g3crk8gby42gm661yxdcgapdi8sp050l5pb2d0yjfic7ns9cw81";
