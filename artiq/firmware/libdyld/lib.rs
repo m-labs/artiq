@@ -179,6 +179,16 @@ impl<'a> Library<'a> {
                     }
                 }
 
+                R_RISCV_CALL_PLT => {
+                    let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
+                                         .ok_or("symbol out of bounds of symbol table")?;
+                    let sym_name = self.name_starting_at(sym.st_name as usize)?;
+
+                    if sym_name == name {
+                        self.update_rela(rela, addr - (self.image_off + rela.r_offset))?
+                    }
+                }
+
                 // No associated symbols for other relocation types.
                 _ => ()
             }
