@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import csv
 from enum import Enum
 from time import time
 
@@ -113,7 +114,7 @@ class Run:
 
 
 class RunPool:
-    def __init__(self, ridc, worker_handlers, notifier, experiment_db):
+    def __init__(self, ridc, worker_handlers, notifier, experiment_db, log_filename):
         self.runs = dict()
         self.state_changed = Condition()
 
@@ -121,13 +122,15 @@ class RunPool:
         self.worker_handlers = worker_handlers
         self.notifier = notifier
         self.experiment_db = experiment_db
+        self.log_filename = log_filename
 
-    def log_tuples(self, rid, expid):
+    def log_submissions(self, rid, expid):
         self.rid = rid
         self.expid = expid
         start_time = time()
-        with open("rid_time_path.txt", "a") as f:
-            f.write("{} {} {}\n".format(self.rid, start_time, self.expid["file"]))
+        with open(self.log_filename, 'a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([self.rid, start_time, self.expid["file"]])
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
         # mutates expid to insert head repository revision if None.
@@ -142,7 +145,7 @@ class RunPool:
             wd, repo_msg = None, None
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self, repo_msg=repo_msg)
-        self.log_tuples(rid, expid)
+        self.log_submissions(rid, expid)
         self.runs[rid] = run
         self.state_changed.notify()
         return rid
@@ -319,8 +322,8 @@ class AnalyzeStage(TaskObject):
 
 
 class Pipeline:
-    def __init__(self, ridc, deleter, worker_handlers, notifier, experiment_db):
-        self.pool = RunPool(ridc, worker_handlers, notifier, experiment_db)
+    def __init__(self, ridc, deleter, worker_handlers, notifier, experiment_db, log_filename):
+        self.pool = RunPool(ridc, worker_handlers, notifier, experiment_db, log_filename)
         self._prepare = PrepareStage(self.pool, deleter.delete)
         self._run = RunStage(self.pool, deleter.delete)
         self._analyze = AnalyzeStage(self.pool, deleter.delete)
@@ -391,7 +394,7 @@ class Deleter(TaskObject):
 
 
 class Scheduler:
-    def __init__(self, ridc, worker_handlers, experiment_db):
+    def __init__(self, ridc, worker_handlers, experiment_db, log_filename):
         self.notifier = Notifier(dict())
 
         self._pipelines = dict()
@@ -401,6 +404,7 @@ class Scheduler:
 
         self._ridc = ridc
         self._deleter = Deleter(self._pipelines)
+        self._log_filename = log_filename
 
     def start(self):
         self._deleter.start()
@@ -431,7 +435,7 @@ class Scheduler:
             logger.debug("creating pipeline '%s'", pipeline_name)
             pipeline = Pipeline(self._ridc, self._deleter,
                                 self._worker_handlers, self.notifier,
-                                self._experiment_db)
+                                self._experiment_db, self._log_filename)
             self._pipelines[pipeline_name] = pipeline
             pipeline.start()
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)
