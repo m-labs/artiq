@@ -133,7 +133,36 @@ impl<'a> Library<'a> {
         }
 
         let ptr = (self.image_off + rela.r_offset) as *mut Elf32_Addr;
-        Ok(unsafe { *ptr = value })
+
+        match ELF32_R_TYPE(rela.r_info) {
+            R_RISCV_RELATIVE | R_RISCV_32 | R_RISCV_JUMP_SLOT => Ok(unsafe { *ptr = value }),
+
+            R_RISCV_CALL_PLT => {
+                Ok(unsafe {
+                    *ptr = (*ptr & 0xFFF) | ((value + 0x800) & 0xFFFFF000);
+                    *(ptr.offset(1)) = (*(ptr.offset(1)) & 0xFFFFF) | ((value & 0xFFF) << 20);
+                })
+            }
+
+            R_RISCV_GOT_HI20 => {
+                Ok(unsafe {
+                    *ptr = (*ptr & 0xFFF) | ((value + 0x800) & 0xFFFFF000)
+                })
+            }
+
+            // We will not use indirect addressing here
+            // So, just put in the direct address instead of the GOT
+            // The lower instruction must be changed to addi (typically from lw)
+            // to make the value treated as the direct address
+            // Hex encoding of addi (opcode/funct3): 0x13/0
+            R_RISCV_PCREL_LO12_I => {
+                Ok(unsafe {
+                    *ptr = (*ptr & 0xF8F80) | 0x13 | ((value & 0xFFF) << 20);
+                })
+            }
+
+            _ => Err(Error::Parsing("Unsupported relocation"))
+        }
     }
 
     // This is unsafe because it mutates global data (instructions).
@@ -157,35 +186,28 @@ impl<'a> Library<'a> {
         Ok(())
     }
 
-    fn resolve_rela(&self, rela: &Elf32_Rela, resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
+    fn resolve_rela(&self, relas: &[Elf32_Rela], resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
             -> Result<(), Error<'a>> {
-        let sym;
-        if ELF32_R_SYM(rela.r_info) == 0 {
-            sym = None;
-        } else {
-            sym = Some(self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
-                                  .ok_or("symbol out of bounds of symbol table")?)
-        }
+        for rela in relas {
+            let sym;
+            if ELF32_R_SYM(rela.r_info) == 0 {
+                sym = None;
+            } else {
+                sym = Some(self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
+                                    .ok_or("symbol out of bounds of symbol table")?)
+            }
 
-        let value;
-        match ELF32_R_TYPE(rela.r_info) {
-            R_RISCV_NONE =>
-                return Ok(()),
-
-            R_RISCV_RELATIVE =>
-                value = self.image_off + rela.r_addend as Elf32_Word,
-
-            R_RISCV_32 | R_RISCV_JUMP_SLOT => {
+            let get_symbol_value = |sym: Option<&Elf32_Sym>| {
                 let sym = sym.ok_or("relocation requires an associated symbol")?;
                 let sym_name = self.name_starting_at(sym.st_name as usize)?;
 
                 // First, try to resolve against itself.
                 match self.lookup(sym_name) {
-                    Some(addr) => value = addr,
+                    Some(addr) => Ok(addr),
                     None => {
                         // Second, call the user-provided function.
                         match resolve(sym_name) {
-                            Some(addr) => value = addr,
+                            Some(addr) => Ok(addr),
                             None => {
                                 // We couldn't find it anywhere.
                                 return Err(Error::Lookup(sym_name))
@@ -193,12 +215,40 @@ impl<'a> Library<'a> {
                         }
                     }
                 }
-            }
+            };
 
-            _ => return Err("unsupported relocation type")?
+            let value = match ELF32_R_TYPE(rela.r_info) {
+                R_RISCV_NONE =>
+                    return Ok(()),
+
+                R_RISCV_RELATIVE =>
+                    self.image_off + rela.r_addend as Elf32_Word,
+
+                R_RISCV_32 | R_RISCV_JUMP_SLOT => {
+                    get_symbol_value(sym)?
+                }
+
+                R_RISCV_CALL_PLT | R_RISCV_GOT_HI20 => {
+                    let reloc_value = get_symbol_value(sym)?;
+                    reloc_value + rela.r_addend as Elf32_Word - (self.image_off + rela.r_offset)
+                }
+
+                R_RISCV_PCREL_LO12_I => {
+                    let hi20_reloc_addr = get_symbol_value(sym)?;
+                    let hi20_rela = relas.iter().find(|rela| rela.r_offset == (hi20_reloc_addr - self.image_off))
+                        .ok_or("corresponding HI20 relocation not found")?;
+
+                    let hi20_sym = self.symtab.get(ELF32_R_SYM(hi20_rela.r_info) as usize);
+                    get_symbol_value(hi20_sym)? - hi20_reloc_addr
+                }
+
+                _ => return Err("unsupported relocation type")?
+            };
+
+            self.update_rela(rela, value)?;
         }
 
-        self.update_rela(rela, value)
+        Ok(())
     }
 
     pub fn load(data: &[u8], image: &'a mut [u8], resolve: &dyn Fn(&[u8]) -> Option<Elf32_Word>)
@@ -343,8 +393,8 @@ impl<'a> Library<'a> {
         // we never write to the memory they refer to, so it's safe.
         mem::drop(image);
 
-        for r in rela   { library.resolve_rela(r, resolve)? }
-        for r in pltrel { library.resolve_rela(r, resolve)? }
+        library.resolve_rela(rela, resolve)?;
+        library.resolve_rela(pltrel, resolve)?;
 
         Ok(library)
     }
