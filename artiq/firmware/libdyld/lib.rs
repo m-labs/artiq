@@ -86,7 +86,7 @@ pub struct Library<'a> {
     image_sz:    usize,
     strtab:      &'a [u8],
     symtab:      &'a [Elf32_Sym],
-    pltrel:      &'a [Elf32_Rela],
+    jmprel:      &'a [Elf32_Rela],
     hash_bucket: &'a [Elf32_Word],
     hash_chain:  &'a [Elf32_Word],
 }
@@ -136,9 +136,9 @@ impl<'a> Library<'a> {
         Ok(unsafe { *ptr = value })
     }
 
-    // This is unsafe because it mutates global data (the PLT).
+    // This is unsafe because it mutates global data (instructions).
     pub unsafe fn rebind(&self, name: &[u8], addr: Elf32_Word) -> Result<(), Error<'a>> {
-        for rela in self.pltrel.iter() {
+        for rela in self.jmprel.iter() {
             match ELF32_R_TYPE(rela.r_info) {
                 R_RISCV_32 | R_RISCV_JUMP_SLOT => {
                     let sym = self.symtab.get(ELF32_R_SYM(rela.r_info) as usize)
@@ -328,7 +328,7 @@ impl<'a> Library<'a> {
             image_sz:    image.len(),
             strtab:      strtab,
             symtab:      symtab,
-            pltrel:      pltrel,
+            jmprel:      if pltrel.is_empty() { rela } else { pltrel },
             hash_bucket: &hash[..nbucket],
             hash_chain:  &hash[nbucket..nbucket + nchain],
         };
