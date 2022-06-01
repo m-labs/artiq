@@ -40,7 +40,8 @@ mock_modules = ["artiq.gui.waitingspinnerwidget",
                 "llvmlite", "Levenshtein", "pythonparser",
                 "sipyco", "sipyco.pc_rpc", "sipyco.sync_struct",
                 "sipyco.asyncio_tools", "sipyco.logging_tools",
-                "sipyco.broadcast", "sipyco.packed_exceptions"]
+                "sipyco.broadcast", "sipyco.packed_exceptions",
+                "sipyco.keepalive"]
 
 for module in mock_modules:
     sys.modules[module] = Mock()
