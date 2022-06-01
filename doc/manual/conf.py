@@ -311,3 +311,4 @@ texinfo_documents = [
 # -- Options for sphinxcontrib-wavedrom -----------------------------------
 offline_skin_js_path = '_static/default.js'
 offline_wavedrom_js_path = '_static/WaveDrom.js'
+render_using_wavedrompy = True
