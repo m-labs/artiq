@@ -264,7 +264,7 @@ class SchedulerCase(unittest.TestCase):
         def notify(mod):
             nonlocal expect_idx
             try:
-                if isinstance(expect[expect_idx]["value"],dict):
+                if isinstance(expect[expect_idx]["value"], dict):
                     self.assertEqual(mod, expect[expect_idx])
             except KeyError:
                 pass
