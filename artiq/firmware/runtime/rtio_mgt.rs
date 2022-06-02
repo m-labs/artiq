@@ -212,11 +212,11 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
-                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
+                                SEEN_ASYNC_ERRORS |= 4;
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) =>
-                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
+                                SEEN_ASYNC_ERRORS |= 1;
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) =>
-                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
+                                SEEN_ASYNC_ERRORS |= 2;
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
                         }
