@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import textwrap
 from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -168,15 +169,134 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
         raise NotImplementedError
 
 
-class _DDSWidget(_SimpleDisplayWidget):
-    def __init__(self, dm, bus_channel, channel, title):
+class _DDSWidget(QtWidgets.QFrame):
+    def __init__(self, dm, title, bus_channel=0, channel=0, cpld=None):
+        self.dm = dm
         self.bus_channel = bus_channel
         self.channel = channel
+        self.dds_name = title
+        self.cpld = cpld
         self.cur_frequency = 0
-        _SimpleDisplayWidget.__init__(self, title)
+        self.hovering = False
+
+
+        QtWidgets.QFrame.__init__(self)
+
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+
+        grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
+        self.setLayout(grid)
+        label = QtWidgets.QLabel(title)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(label, 1, 1)
+
+        # BUTTONS
+        self.button_stack = QtWidgets.QStackedWidget()
+        # page 1: empty (will switch on hover)
+        self.button_stack.addWidget(LayoutWidget())
+
+        # page 2: OVR button
+        override_grid = LayoutWidget()
+
+        self.override = QtWidgets.QToolButton()
+        self.override.setText("OVR")
+        self.override.setCheckable(True)
+        self.override.setToolTip("Override")
+        override_grid.addWidget(self.override, 0, 1, 1, 1)
+        self.button_stack.addWidget(override_grid)
+
+        # page 3: apply button
+        apply_grid = LayoutWidget()
+        self.apply = QtWidgets.QToolButton()
+        self.apply.setText("Apply")
+        self.apply.setCheckable(True)
+        self.apply.setToolTip("Apply changes")
+        apply_grid.addWidget(self.apply, 0, 1, 1, 1)
+        self.button_stack.addWidget(apply_grid)
+        grid.addWidget(self.button_stack, 2, 1)
+
+        # FREQ DATA/EDIT FIELD
+        self.data_stack = QtWidgets.QStackedWidget()
+
+        # page 1: display data
+        grid_disp = LayoutWidget()
+        grid_disp.layout.setContentsMargins(0, 0, 0, 0)
+        grid_disp.layout.setHorizontalSpacing(0)
+        grid_disp.layout.setVerticalSpacing(0)
+
+        self.value_label = QtWidgets.QLabel()
+        self.value_label.setAlignment(QtCore.Qt.AlignCenter)
+        grid_disp.addWidget(self.value_label, 0, 1, 1, 1)
+
+        unit = QtWidgets.QLabel("MHz")
+        unit.setAlignment(QtCore.Qt.AlignCenter)
+        grid_disp.addWidget(unit, 0, 3, 1, 1)
+
+        self.data_stack.addWidget(grid_disp)
+
+        # page 2: edit data
+        grid_edit = LayoutWidget()
+        grid_edit.layout.setContentsMargins(0, 0, 0, 0)
+        grid_edit.layout.setHorizontalSpacing(0)
+        grid_edit.layout.setVerticalSpacing(0)
+
+        self.value_edit = QtWidgets.QLineEdit(self)
+        self.value_edit.setAlignment(QtCore.Qt.AlignLeft)
+        grid_edit.addWidget(self.value_edit, 0, 1, 1, 1)
+        unit = QtWidgets.QLabel("MHz")
+        unit.setAlignment(QtCore.Qt.AlignLeft)
+        grid_edit.addWidget(unit, 0, 2, 1, 1)
+        self.data_stack.addWidget(grid_edit)
+
+        grid.addWidget(self.data_stack, 3, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 1)
+        grid.setRowStretch(3, 1)
+
+        self.override.clicked.connect(self.override_clicked)
+        self.apply.clicked.connect(self.apply_changes)
+        self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
+
+        self.refresh_display()
+
+    def enterEvent(self, event):
+        if not self.override.isChecked():
+            self.button_stack.setCurrentIndex(1)
+        self.hovering = True
+        QtWidgets.QFrame.enterEvent(self, event)
+
+    def leaveEvent(self, event):
+        if not self.override.isChecked():
+            self.button_stack.setCurrentIndex(0)
+        self.hovering = False
+        QtWidgets.QFrame.leaveEvent(self, event)
+
+    def override_clicked(self, override):
+        self.data_stack.setCurrentIndex(1)
+        self.button_stack.setCurrentIndex(2)
+        self.value_edit.setText("{:.7f}"
+                .format(self.cur_frequency/1e6))
+        self.value_edit.setFocus()
+        self.value_edit.selectAll()
+    
+    def apply_changes(self, apply):
+        self.override.setChecked(False)
+        self.data_stack.setCurrentIndex(0)
+        if self.hovering:
+            self.button_stack.setCurrentIndex(1)
+        else:
+            self.button_stack.setCurrentIndex(0)
+        self.cur_frequency = float(self.value_edit.text())*1e6
 
     def refresh_display(self):
-        self.value.setText("<font size=\"4\">{:.7f}</font><font size=\"2\"> MHz</font>"
+        self.value_label.setText("<font size=\"4\">{:.7f}</font>"
+                           .format(self.cur_frequency/1e6))
+        self.value_edit.setText("{:.7f}"
                            .format(self.cur_frequency/1e6))
 
     def sort_key(self):
@@ -222,8 +342,20 @@ def setup_from_ddb(ddb):
                         bus_channel = v["arguments"]["bus_channel"]
                         channel = v["arguments"]["channel"]
                         dds_sysclk = v["arguments"]["sysclk"]
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel))
                         description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.ad9910"
+                                and v["class"] == "AD9910") or \
+                            (v["module"] == "artiq.coredevice.ad9912"
+                                and v["class"] == "AD9912"):
+                        channel = v["arguments"]["chip_select"] - 4
+                        if channel < 0:
+                            continue
+                        dds_cpld = v["arguments"]["cpld_device"]
+                        spi_dev = ddb[dds_cpld]["arguments"]["spi_device"]
+                        bus_channel = ddb[spi_dev]["arguments"]["channel"]
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, dds_cpld))
+                        description.add(widget)       
                     elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
                           or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
                         spi_device = v["arguments"]["spi_device"]
@@ -346,6 +478,38 @@ class _DeviceManager:
             # override state may have changed
             widget.refresh_display()
 
+    def dds_set_frequency(self, dds_channel, dds_cpld, freq):
+        # create kernel and fill it in and send-by-content
+        if dds_cpld:
+            # urukuls need CPLD init and switch to on
+            cpld_dev = 'self.setattr_device("{}")'.format(dds_cpld)
+            cpld_init = "self.{}.init()".format(dds_cpld)
+            cfg_sw = "self.{}.cfg_sw(True)".format(dds_channel)
+        else:
+            cpld_dev = ""
+            cpld_init = ""
+            cfg_sw = ""
+        dds_exp = textwrap.dedent("""
+        from artiq.experiment import *
+
+        class SetDDS(EnvExperiment):
+            def build(self):
+                self.setattr_device("core")
+                self.setattr_device("{dds_channel}")
+                {cpld_dev}
+                
+            @kernel
+            def run(self):
+                self.core.break_realtime()
+                {cpld_init}
+                self.{dds_channel}.init()
+                self.{dds_channel}.set({freq})
+                {cfg_sw}
+        """.format(dds_channel=dds_channel, freq=freq,
+                   cpld_dev=cpld_dev, cpld_init=cpld_init,
+                   cfg_sw=cfg_sw))
+        self.expmgr.submit_by_content(dds_exp, "SetDDS")
+
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
             self.mi_connection.monitor_probe(enable, channel, TTLProbe.level.value)
@@ -453,12 +617,12 @@ class _MonInjDock(QtWidgets.QDockWidget):
 
 
 class MonInj:
-    def __init__(self):
+    def __init__(self, expmgr):
         self.ttl_dock = _MonInjDock("TTL")
         self.dds_dock = _MonInjDock("DDS")
         self.dac_dock = _MonInjDock("DAC")
 
-        self.dm = _DeviceManager()
+        self.dm = _DeviceManager(expmgr)
         self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
                             self.dm.ttl_widgets.values())
         self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
