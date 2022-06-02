@@ -128,9 +128,10 @@ class RunPool:
         self.rid = rid
         self.expid = expid
         start_time = time()
-        with open(self.log_filename, 'a', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([self.rid, start_time, self.expid["file"]])
+        if self.log_filename != None:
+            with open(self.log_filename, 'a', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow([self.rid, start_time, self.expid["file"]])
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
         # mutates expid to insert head repository revision if None.

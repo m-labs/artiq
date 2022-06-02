@@ -54,9 +54,8 @@ def get_argparser():
         help=("path to the experiment folder from the repository root "
               "(default: '%(default)s')"))
     group.add_argument(
-        "--log-filename", default="experiment_submissions.csv", 
-        help=("set the filename of the experiment subimission "
-            "(default: '%(default)s')"))
+        "--log-filename", default=None, 
+        help=("(optional) set the filename to create the experiment subimission "))
     log_args(parser)
 
     parser.add_argument("--name",
