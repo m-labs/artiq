@@ -243,12 +243,14 @@ def setup_from_ddb(ddb):
 
 
 class _DeviceManager:
-    def __init__(self):
+    def __init__(self, expmgr):
         self.mi_addr = None
         self.mi_port = None
         self.reconnect_mi = asyncio.Event()
         self.mi_connection = None
         self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
+
+        self.expmgr = expmgr
 
         self.ddb = dict()
         self.description = set()
