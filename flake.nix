@@ -449,7 +449,8 @@
           name = "kc705-hitl";
 
           __networked = true;  # compatibility with old patched Nix
-          __impure = true;     # Nix 2.8+
+          # breaks hydra, https://github.com/NixOS/hydra/issues/1216
+          #__impure = true;     # Nix 2.8+
 
           buildInputs = [
             (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
