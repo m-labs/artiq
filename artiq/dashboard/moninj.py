@@ -170,6 +170,16 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
 
 
 class _DDSWidget(QtWidgets.QFrame):
+    class CancellableLineEdit(QtWidgets.QLineEdit):
+        def escapePressedConnect(self, cb):
+            self.esc_cb = cb
+
+        def keyPressEvent(self, event):
+            key = event.key()
+            if key == QtCore.Qt.Key_Escape:
+                self.esc_cb(event)
+            QtWidgets.QLineEdit.keyPressEvent(self, event)
+
     def __init__(self, dm, title, bus_channel=0, channel=0, cpld=None):
         self.dm = dm
         self.bus_channel = bus_channel
@@ -204,18 +214,20 @@ class _DDSWidget(QtWidgets.QFrame):
 
         self.override = QtWidgets.QToolButton()
         self.override.setText("OVR")
-        self.override.setCheckable(True)
         self.override.setToolTip("Override")
         override_grid.addWidget(self.override, 0, 1, 1, 1)
         self.button_stack.addWidget(override_grid)
 
-        # page 3: apply button
+        # page 3: apply/cancel buttons
         apply_grid = LayoutWidget()
         self.apply = QtWidgets.QToolButton()
         self.apply.setText("Apply")
-        self.apply.setCheckable(True)
         self.apply.setToolTip("Apply changes")
         apply_grid.addWidget(self.apply, 0, 1, 1, 1)
+        cancel = QtWidgets.QToolButton()
+        cancel.setText("Cancel")
+        cancel.setToolTip("Cancel changes")
+        apply_grid.addWidget(cancel, 0, 2, 1, 1)
         self.button_stack.addWidget(apply_grid)
         grid.addWidget(self.button_stack, 2, 1)
 
@@ -230,7 +242,7 @@ class _DDSWidget(QtWidgets.QFrame):
 
         self.value_label = QtWidgets.QLabel()
         self.value_label.setAlignment(QtCore.Qt.AlignCenter)
-        grid_disp.addWidget(self.value_label, 0, 1, 1, 1)
+        grid_disp.addWidget(self.value_label, 0, 1, 1, 2)
 
         unit = QtWidgets.QLabel("MHz")
         unit.setAlignment(QtCore.Qt.AlignCenter)
@@ -244,12 +256,12 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_edit.layout.setHorizontalSpacing(0)
         grid_edit.layout.setVerticalSpacing(0)
 
-        self.value_edit = QtWidgets.QLineEdit(self)
-        self.value_edit.setAlignment(QtCore.Qt.AlignLeft)
-        grid_edit.addWidget(self.value_edit, 0, 1, 1, 1)
+        self.value_edit = self.CancellableLineEdit(self)
+        self.value_edit.setAlignment(QtCore.Qt.AlignRight)
+        grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
         unit = QtWidgets.QLabel("MHz")
-        unit.setAlignment(QtCore.Qt.AlignLeft)
-        grid_edit.addWidget(unit, 0, 2, 1, 1)
+        unit.setAlignment(QtCore.Qt.AlignCenter)
+        grid_edit.addWidget(unit, 0, 3, 1, 1)
         self.data_stack.addWidget(grid_edit)
 
         grid.addWidget(self.data_stack, 3, 1)
@@ -261,17 +273,19 @@ class _DDSWidget(QtWidgets.QFrame):
         self.override.clicked.connect(self.override_clicked)
         self.apply.clicked.connect(self.apply_changes)
         self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
+        self.value_edit.escapePressedConnect(self.cancel_changes)
+        cancel.clicked.connect(self.cancel_changes)
 
         self.refresh_display()
 
     def enterEvent(self, event):
-        if not self.override.isChecked():
+        if self.button_stack.currentIndex() == 0:
             self.button_stack.setCurrentIndex(1)
         self.hovering = True
         QtWidgets.QFrame.enterEvent(self, event)
 
     def leaveEvent(self, event):
-        if not self.override.isChecked():
+        if not self.button_stack.currentIndex() == 2:
             self.button_stack.setCurrentIndex(0)
         self.hovering = False
         QtWidgets.QFrame.leaveEvent(self, event)
@@ -285,13 +299,20 @@ class _DDSWidget(QtWidgets.QFrame):
         self.value_edit.selectAll()
     
     def apply_changes(self, apply):
-        self.override.setChecked(False)
         self.data_stack.setCurrentIndex(0)
         if self.hovering:
             self.button_stack.setCurrentIndex(1)
         else:
             self.button_stack.setCurrentIndex(0)
-        self.cur_frequency = float(self.value_edit.text())*1e6
+        frequency = float(self.value_edit.text())*1e6
+        self.dm.dds_set_frequency(self.dds_name, self.cpld, frequency)
+
+    def cancel_changes(self, cancel):
+        self.data_stack.setCurrentIndex(0)
+        if self.hovering:
+            self.button_stack.setCurrentIndex(1)
+        else:
+            self.button_stack.setCurrentIndex(0)
 
     def refresh_display(self):
         self.value_label.setText("<font size=\"4\">{:.7f}</font>"
