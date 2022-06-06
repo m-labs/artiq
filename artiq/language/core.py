@@ -46,18 +46,15 @@ def ceil64(x):
     return ceil(x)
 
 
-_allow_registration = True
 # Delay NAC3 analysis until all referenced variables are supposed to exist on the CPython side.
 _registered_functions = set()
 _registered_classes = set()
 
 def _register_function(fun):
-    assert _allow_registration
     import_cache.add_module_to_cache(getmodule(fun))
     _registered_functions.add(fun)
 
 def _register_class(cls):
-    assert _allow_registration
     import_cache.add_module_to_cache(getmodule(cls))
     _registered_classes.add(cls)
 

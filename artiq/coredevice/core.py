@@ -56,15 +56,16 @@ class Core:
         self.core = self
         self.comm.core = self
         self.target = target
+        self.analyzed = False
         self.compiler = nac3artiq.NAC3(target)
 
     def close(self):
         self.comm.close()
 
     def compile(self, method, args, kwargs, embedding_map, file_output=None):
-        if core_language._allow_registration:
+        if not self.analyzed:
             self.compiler.analyze(core_language._registered_functions, core_language._registered_classes)
-            core_language._allow_registration = False
+            self.analyzed = True
 
         if hasattr(method, "__self__"):
             obj = method.__self__
