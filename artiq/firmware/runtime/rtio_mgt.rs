@@ -212,11 +212,11 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
-                                SEEN_ASYNC_ERRORS |= 4;
+                                unsafe{SEEN_ASYNC_ERRORS |= 4},
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) =>
-                                SEEN_ASYNC_ERRORS |= 1;
+                                unsafe{SEEN_ASYNC_ERRORS |= 1},
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) =>
-                                SEEN_ASYNC_ERRORS |= 2;
+                                unsafe{SEEN_ASYNC_ERRORS |= 2},
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
                         }
