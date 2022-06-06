@@ -275,7 +275,7 @@
           sha256 = "sha256-ukZd3ajt0Sx3LByof4R80S31F5t1yo+L8QUADrMMm2A=";
         };
         buildInputs = [ pkgs.python3Packages.setuptools_scm ];
-        propagatedBuildInputs = [ pkgs.nodejs pkgs.nodePackages.wavedrom-cli ] ++ (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
+        propagatedBuildInputs = (with pkgs.python3Packages; [ wavedrom sphinx xcffib cairosvg ]);
       };
       latex-artiq-manual = pkgs.texlive.combine {
         inherit (pkgs.texlive)
@@ -371,6 +371,7 @@
         artiq-comtools-msys2-pkg = packages.x86_64-w64-mingw32.artiq-comtools-pkg;
         artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;
         msys2-repos = packages.x86_64-w64-mingw32.msys2-repos;
+        inherit (packages.x86_64-linux) artiq-manual-html artiq-manual-pdf;
       };
     };
 

@@ -28,7 +28,8 @@ class MonInjTest(ExperimentCase):
         def injection_status_cb(channel, override, value):
             injection_statuses.append((channel, override, value))
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         try:
             moninj_comm = CommMonInj(monitor_cb, injection_status_cb)
             loop.run_until_complete(moninj_comm.connect(core_host))

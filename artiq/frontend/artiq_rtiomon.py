@@ -21,7 +21,8 @@ def get_argparser():
 def main():
     args = get_argparser().parse_args()
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         signal_handler = SignalHandler()
         signal_handler.setup()
