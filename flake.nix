@@ -84,8 +84,8 @@
           '';
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
-        # keep llvm_x and lld_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_13 pkgs.lld_13 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+        # keep llvm_x in sync with nac3
+        propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
 
         dontWrapQtApps = true;
@@ -102,8 +102,8 @@
           "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
         ];
 
-        # FIXME: automatically propagate lld_13 llvm_13 dependencies
-        checkInputs = [ pkgs.lld_13 pkgs.llvm_13 ];
+        # FIXME: automatically propagate llvm_x dependency
+        checkInputs = [ pkgs.llvm_14 ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
           '';
@@ -183,12 +183,12 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc artiq]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
-            pkgs.llvmPackages_13.clang-unwrapped
-            pkgs.llvm_13
-            pkgs.lld_13
+            pkgs.llvmPackages_14.clang-unwrapped
+            pkgs.llvm_14
+            pkgs.lld_14
             vivado
             rustPlatform.cargoSetupHook
             cargo-xbuild
@@ -350,9 +350,9 @@
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
           cargo-xbuild
-          pkgs.llvmPackages_13.clang-unwrapped
-          pkgs.llvm_13
-          pkgs.lld_13
+          pkgs.llvmPackages_14.clang-unwrapped
+          pkgs.llvm_14
+          pkgs.lld_14
           # use the vivado-env command to enter a FHS shell that lets you run the Vivado installer
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
