@@ -1,11 +1,22 @@
+import unittest
+
+from numpy import int64
+
 from artiq.experiment import *
 from artiq.coredevice.comm_analyzer import (decode_dump, StoppedMessage,
                                             OutputMessage, InputMessage,
                                            _extract_log_chars, get_analyzer_dump)
+from artiq.coredevice.core import Core
+from artiq.coredevice.ttl import TTLOut, TTLInOut
 from artiq.test.hardware_testbench import ExperimentCase
 
 
+@nac3
 class CreateTTLPulse(EnvExperiment):
+    core: KernelInvariant[Core]
+    loop_in: KernelInvariant[TTLInOut]
+    loop_out: KernelInvariant[TTLOut]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("loop_in")
@@ -16,7 +27,7 @@ class CreateTTLPulse(EnvExperiment):
         self.core.reset()
         self.loop_in.input()
         self.loop_out.output()
-        delay(1*us)
+        self.core.delay(1.*us)
         self.loop_out.off()
 
     @kernel
@@ -24,22 +35,26 @@ class CreateTTLPulse(EnvExperiment):
         self.core.break_realtime()
         with parallel:
             with sequential:
-                delay_mu(100)
-                self.loop_out.pulse_mu(1000)
-            self.loop_in.count(self.loop_in.gate_both_mu(1200))
+                delay_mu(int64(100))
+                self.loop_out.pulse_mu(int64(1000))
+            self.loop_in.count(self.loop_in.gate_both_mu(int64(1200)))
 
 
+@nac3
 class WriteLog(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
     @kernel
     def run(self):
         self.core.reset()
-        rtio_log("foo", 32)
+        # NAC3TODO rtio_log("foo", 32)
 
 
 class AnalyzerTest(ExperimentCase):
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/298")
     def test_ttl_pulse(self):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
@@ -65,6 +80,7 @@ class AnalyzerTest(ExperimentCase):
             abs(input_messages[0].timestamp - input_messages[1].timestamp),
             1000, delta=4)
 
+    @unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/297")
     def test_rtio_log(self):
         core_host = self.device_mgr.get_desc("core")["arguments"]["host"]
 
