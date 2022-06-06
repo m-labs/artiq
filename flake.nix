@@ -360,9 +360,6 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
-        shellHook = ''
-          export LIBARTIQ_SUPPORT=`libartiq-support`
-        '';
       };
 
       hydraJobs = {
