@@ -9,6 +9,8 @@ from math import sqrt
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice import exceptions
+from artiq.coredevice.core import Core
+from artiq.coredevice.ttl import TTLOut
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.coredevice.comm_analyzer import (StoppedMessage, OutputMessage, InputMessage,
                                             decode_dump, get_analyzer_dump)
@@ -118,27 +120,36 @@ class ClockGeneratorLoopback(EnvExperiment):
         self.set_dataset("count", self.loop_clock_in.count(now_mu()))
 
 
+@nac3
 class PulseRate(EnvExperiment):
+    core: KernelInvariant[Core]
+    ttl_out: KernelInvariant[TTLOut]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("ttl_out")
 
+    @rpc
+    def set_pulse_rate(self, pulse_rate: float):
+        self.set_dataset("pulse_rate", pulse_rate)
+
     @kernel
     def run(self):
         self.core.reset()
-        dt = self.core.seconds_to_mu(300*ns)
-        while True:
-            for i in range(10000):
-                try:
-                    self.ttl_out.pulse_mu(dt)
-                    delay_mu(dt)
-                except RTIOUnderflow:
-                    dt += 1
-                    self.core.break_realtime()
-                    break
+        dt = self.core.seconds_to_mu(300.*ns)
+        i = 10000
+        while i > 0:
+            try:
+                self.ttl_out.pulse_mu(dt)
+                delay_mu(dt)
+            except RTIOUnderflow:
+                dt += int64(1)
+                i = 10000
+                self.core.break_realtime()
             else:
-                self.set_dataset("pulse_rate", self.core.mu_to_seconds(dt))
-                return
+                i -= 1
+        self.set_pulse_rate(self.core.mu_to_seconds(dt))
+
 
 
 class PulseRateAD9914DDS(EnvExperiment):
