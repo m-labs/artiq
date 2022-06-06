@@ -3,6 +3,8 @@ import sys
 import subprocess
 import unittest
 import tempfile
+
+from artiq.coredevice.core import Core
 from artiq.coredevice.comm_mgmt import CommMgmt
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.experiment import *
@@ -11,7 +13,16 @@ from artiq.experiment import *
 artiq_root = os.getenv("ARTIQ_ROOT")
 
 
+# NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/297
+@extern
+def core_log(s: str):
+    ...
+
+
+@nac3
 class CheckLog(EnvExperiment):
+    core: KernelInvariant[Core]
+
     def build(self):
         self.setattr_device("core")
 
@@ -20,6 +31,7 @@ class CheckLog(EnvExperiment):
         core_log("test_artiq_compile")
 
 
+@unittest.skip("NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/300")
 class TestCompile(ExperimentCase):
     def test_compile(self):
         core_addr = self.device_mgr.get_desc("core")["arguments"]["host"]
