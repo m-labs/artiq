@@ -3,13 +3,22 @@ import os, unittest
 from artiq.experiment import *
 from artiq.test.hardware_testbench import ExperimentCase
 from artiq.coredevice.exceptions import I2CError
+from artiq.coredevice.core import Core
 from artiq.coredevice.i2c import I2CSwitch, i2c_read_byte
 
 
+@nac3
 class I2CSwitchTest(EnvExperiment):
+    core: KernelInvariant[Core]
+    i2c_switch: KernelInvariant[I2CSwitch]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("i2c_switch")
+
+    @rpc
+    def set_passed(self, passed: bool):
+        self.set_dataset("passed", passed)
 
     @kernel
     def run(self):
@@ -20,10 +29,14 @@ class I2CSwitchTest(EnvExperiment):
             # otherwise we cannot guarantee exact readback values
             if i2c_read_byte(self.i2c_switch.busno, self.i2c_switch.address) != 1 << i:
                 passed = False
-        self.set_dataset("passed", passed)
+        self.set_passed(passed)
 
 
+@nac3
 class NonexistentI2CBus(EnvExperiment):
+    core: KernelInvariant[Core]
+    broken_switch: KernelInvariant[I2CSwitch]
+
     def build(self):
         self.setattr_device("core")
         self.setattr_device("i2c_switch")  # HACK: only run this test on boards with I2C
