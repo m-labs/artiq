@@ -53,14 +53,13 @@ def get_argparser():
         "--experiment-subdir", default="",
         help=("path to the experiment folder from the repository root "
               "(default: '%(default)s')"))
-    group.add_argument(
-        "--log-filename", default=None, 
-        help=("(optional) set the filename to create the experiment subimission "))
     log_args(parser)
 
     parser.add_argument("--name",
         help="friendly name, displayed in dashboards "
              "to identify master instead of server address")
+    parser.add_argument("--log-submissions", default=None, 
+        help="set the filename to create the experiment subimission")
 
     return parser
 
@@ -109,7 +108,7 @@ def main():
         repo_backend, worker_handlers, args.experiment_subdir)
     atexit.register(experiment_db.close)
 
-    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db, args.log_filename)
+    scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db, args.log_submissions)
     scheduler.start()
     atexit_register_coroutine(scheduler.stop)
 
