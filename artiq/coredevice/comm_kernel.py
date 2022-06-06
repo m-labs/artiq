@@ -168,7 +168,7 @@ class CommKernelDummy:
     def run(self):
         pass
 
-    def serve(self, embedding_map, symbolizer, demangler):
+    def serve(self, embedding_map, symbolizer):
         pass
 
     def check_system_info(self):

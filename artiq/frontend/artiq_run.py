@@ -33,7 +33,7 @@ class FileRunner(EnvExperiment):
 
         self.core.comm.load(kernel_library)
         self.core.comm.run()
-        self.core.comm.serve(None, None, None)
+        self.core.comm.serve(None, None)
 
 
 class ELFRunner(FileRunner):
