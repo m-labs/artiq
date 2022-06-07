@@ -703,7 +703,7 @@ class ExperimentManager:
             scheduling["priority"], scheduling["due_date"],
             scheduling["flush"]))
 
-    def submit_by_content(self, content, class_name):
+    def submit_by_content(self, content, class_name, description=None):
         expid = {
             "log_level": logging.WARNING,
             "content": content,
@@ -717,7 +717,7 @@ class ExperimentManager:
             "flush": False
         }
         asyncio.ensure_future(self._submit_task(
-            "Content",
+            description or expid["class_name"],
             scheduling["pipeline_name"],
             expid,
             scheduling["priority"], scheduling["due_date"],

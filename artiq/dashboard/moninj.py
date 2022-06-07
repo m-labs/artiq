@@ -507,7 +507,7 @@ class _DeviceManager:
         """.format(dds_channel=dds_channel, freq=freq,
                    cpld_dev=cpld_dev, cpld_init=cpld_init,
                    cfg_sw=cfg_sw))
-        self.expmgr.submit_by_content(dds_exp, "SetDDS")
+        self.expmgr.submit_by_content(dds_exp, "SetDDS", "Set DDS")
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
