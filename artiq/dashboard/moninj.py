@@ -486,13 +486,13 @@ class _DeviceManager:
             # keep previous config if it was set already
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_cpld)
-            cpld_init = """cfg = self.core_cache.get("_urukulcfg")
+            cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
                     self.{cpld}.init()
-                    self.core_cache.put("_urukulcfg", [self.{cpld}.cfg_reg])
-                    cfg = self.core_cache.get("_urukulcfg")
+                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
+                    cfg = self.core_cache.get("_{cpld}_cfg")
             """.format(cpld=dds_cpld)
             cfg_sw = """self.{}.cfg_sw(True)
                 cfg[0] = self.{}.cfg_reg
