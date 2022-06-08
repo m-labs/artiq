@@ -243,18 +243,26 @@ class _DDSWidget(QtWidgets.QFrame):
         # page 1: SET button
         set_grid = LayoutWidget()
 
-        self.set = QtWidgets.QToolButton()
-        self.set.setText("Set")
-        self.set.setToolTip("Set frequency")
-        set_grid.addWidget(self.set, 0, 1, 1, 1)
+        set_btn = QtWidgets.QToolButton()
+        set_btn.setText("Set")
+        set_btn.setToolTip("Set frequency")
+        set_grid.addWidget(set_btn, 0, 1, 1, 1)
+        
+        # for urukuls also allow switching off RF
+        if self.cpld:
+            off_btn = QtWidgets.QToolButton()
+            off_btn.setText("Off")
+            off_btn.setToolTip("Switch off the output")
+            set_grid.addWidget(off_btn, 0, 2, 1, 1)
+
         self.button_stack.addWidget(set_grid)
 
         # page 2: apply/cancel buttons
         apply_grid = LayoutWidget()
-        self.apply = QtWidgets.QToolButton()
-        self.apply.setText("Apply")
-        self.apply.setToolTip("Apply changes")
-        apply_grid.addWidget(self.apply, 0, 1, 1, 1)
+        apply = QtWidgets.QToolButton()
+        apply.setText("Apply")
+        apply.setToolTip("Apply changes")
+        apply_grid.addWidget(apply, 0, 1, 1, 1)
         cancel = QtWidgets.QToolButton()
         cancel.setText("Cancel")
         cancel.setToolTip("Cancel changes")
@@ -266,8 +274,10 @@ class _DDSWidget(QtWidgets.QFrame):
         grid.setRowStretch(2, 1)
         grid.setRowStretch(3, 1)
 
-        self.set.clicked.connect(self.set_clicked)
-        self.apply.clicked.connect(self.apply_changes)
+        set_btn.clicked.connect(self.set_clicked)
+        apply.clicked.connect(self.apply_changes)
+        if self.cpld:
+            off_btn.clicked.connect(self.off_clicked)
         self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
         self.value_edit.escapePressedConnect(self.cancel_changes)
         cancel.clicked.connect(self.cancel_changes)
@@ -281,6 +291,9 @@ class _DDSWidget(QtWidgets.QFrame):
                 .format(self.cur_frequency/1e6))
         self.value_edit.setFocus()
         self.value_edit.selectAll()
+
+    def off_clicked(self, set):
+        self.dm.dds_channel_toggle(self.dds_name, self.cpld, sw=False)
     
     def apply_changes(self, apply):
         self.data_stack.setCurrentIndex(0)
@@ -522,6 +535,38 @@ class _DeviceManager:
                    cpld_dev=cpld_dev, cpld_init=cpld_init,
                    cfg_sw=cfg_sw))
         self.expmgr.submit_by_content(dds_exp, "SetDDS", "Set DDS {}".format(dds_channel))
+
+    def dds_channel_toggle(self, dds_channel, dds_cpld, sw=True):
+        # urukul only
+        toggle_exp = textwrap.dedent("""
+        from artiq.experiment import *
+
+        class ToggleDDS(EnvExperiment):
+            def build(self):
+                self.setattr_device("core")
+                self.setattr_device("{ch}")
+                self.setattr_device("core_cache")
+                self.setattr_device("{cpld}")
+                
+            @kernel
+            def run(self):
+                self.core.break_realtime()
+                delay(2*ms)
+                cfg = self.core_cache.get("_{cpld}_cfg")
+                if len(cfg) > 0:
+                    self.{cpld}.cfg_reg = cfg[0]
+                else:
+                    self.{cpld}.init()
+                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
+                    cfg = self.core_cache.get("_{cpld}_cfg")
+                self.{ch}.init()
+                self.{ch}.cfg_sw({sw})
+                cfg[0] = self.{cpld}.cfg_reg
+        """.format(ch=dds_channel, cpld=dds_cpld, sw=sw))
+        self.expmgr.submit_by_content(
+            toggle_exp, 
+            "ToggleDDS", 
+            "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
