@@ -701,12 +701,12 @@ class _MonInjDock(QtWidgets.QDockWidget):
 
 
 class MonInj:
-    def __init__(self, expmgr):
+    def __init__(self, schedule_ctl):
         self.ttl_dock = _MonInjDock("TTL")
         self.dds_dock = _MonInjDock("DDS")
         self.dac_dock = _MonInjDock("DAC")
 
-        self.dm = _DeviceManager(expmgr)
+        self.dm = _DeviceManager(schedule_ctl)
         self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
                             self.dm.ttl_widgets.values())
         self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
