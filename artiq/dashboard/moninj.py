@@ -14,6 +14,16 @@ from artiq.gui.flowlayout import FlowLayout
 
 logger = logging.getLogger(__name__)
 
+class _CancellableLineEdit(QtWidgets.QLineEdit):
+    def escapePressedConnect(self, cb):
+        self.esc_cb = cb
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == QtCore.Qt.Key_Escape:
+            self.esc_cb(event)
+        QtWidgets.QLineEdit.keyPressEvent(self, event)
+
 
 class _TTLWidget(QtWidgets.QFrame):
     def __init__(self, dm, channel, force_out, title):
@@ -170,16 +180,6 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
 
 
 class _DDSWidget(QtWidgets.QFrame):
-    class CancellableLineEdit(QtWidgets.QLineEdit):
-        def escapePressedConnect(self, cb):
-            self.esc_cb = cb
-
-        def keyPressEvent(self, event):
-            key = event.key()
-            if key == QtCore.Qt.Key_Escape:
-                self.esc_cb(event)
-            QtWidgets.QLineEdit.keyPressEvent(self, event)
-
     def __init__(self, dm, title, bus_channel=0, channel=0, cpld=None):
         self.dm = dm
         self.bus_channel = bus_channel
@@ -227,7 +227,7 @@ class _DDSWidget(QtWidgets.QFrame):
         grid_edit.layout.setHorizontalSpacing(0)
         grid_edit.layout.setVerticalSpacing(0)
 
-        self.value_edit = self.CancellableLineEdit(self)
+        self.value_edit = _CancellableLineEdit(self)
         self.value_edit.setAlignment(QtCore.Qt.AlignRight)
         grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
         unit = QtWidgets.QLabel("MHz")
@@ -389,14 +389,14 @@ def setup_from_ddb(ddb):
 
 
 class _DeviceManager:
-    def __init__(self, expmgr):
+    def __init__(self, schedule_ctl):
         self.mi_addr = None
         self.mi_port = None
         self.reconnect_mi = asyncio.Event()
         self.mi_connection = None
         self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
 
-        self.expmgr = expmgr
+        self.schedule_ctl = schedule_ctl
 
         self.ddb = dict()
         self.description = set()
@@ -492,6 +492,26 @@ class _DeviceManager:
             # override state may have changed
             widget.refresh_display()
 
+    async def _submit_by_content(self, content, class_name, title):
+        expid = {
+            "log_level": logging.WARNING,
+            "content": content,
+            "class_name": class_name,
+            "arguments": []
+        }
+        scheduling = {
+            "pipeline_name": "main",
+            "priority": 0,
+            "due_date": None,
+            "flush": False
+        }
+        rid = await self.schedule_ctl.submit(
+            scheduling["pipeline_name"],
+            expid,
+            scheduling["priority"], scheduling["due_date"],
+            scheduling["flush"])
+        logger.info("Submitted '%s', RID is %d", title, rid)
+
     def dds_set_frequency(self, dds_channel, dds_cpld, freq):
         # create kernel and fill it in and send-by-content
         if dds_cpld:
@@ -534,7 +554,11 @@ class _DeviceManager:
         """.format(dds_channel=dds_channel, freq=freq,
                    cpld_dev=cpld_dev, cpld_init=cpld_init,
                    cfg_sw=cfg_sw))
-        self.expmgr.submit_by_content(dds_exp, "SetDDS", "Set DDS {}".format(dds_channel))
+        asyncio.ensure_future(
+            self._submit_by_content(
+                dds_exp, 
+                "SetDDS", 
+                "Set DDS {} {}MHz".format(dds_channel, freq/1e6)))
 
     def dds_channel_toggle(self, dds_channel, dds_cpld, sw=True):
         # urukul only
@@ -563,10 +587,12 @@ class _DeviceManager:
                 self.{ch}.cfg_sw({sw})
                 cfg[0] = self.{cpld}.cfg_reg
         """.format(ch=dds_channel, cpld=dds_cpld, sw=sw))
-        self.expmgr.submit_by_content(
-            toggle_exp, 
-            "ToggleDDS", 
-            "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
+        asyncio.ensure_future(
+            self._submit_by_content(
+                toggle_exp, 
+                "ToggleDDS", 
+                "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
+        )
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:

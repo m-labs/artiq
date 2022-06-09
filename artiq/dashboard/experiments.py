@@ -703,26 +703,6 @@ class ExperimentManager:
             scheduling["priority"], scheduling["due_date"],
             scheduling["flush"]))
 
-    def submit_by_content(self, content, class_name, description=None):
-        expid = {
-            "log_level": logging.WARNING,
-            "content": content,
-            "class_name": class_name,
-            "arguments": []
-        }
-        scheduling = {
-            "pipeline_name": "main",
-            "priority": 0,
-            "due_date": None,
-            "flush": False
-        }
-        asyncio.ensure_future(self._submit_task(
-            description or expid["class_name"],
-            scheduling["pipeline_name"],
-            expid,
-            scheduling["priority"], scheduling["due_date"],
-            scheduling["flush"]))
-
     async def _request_term_multiple(self, rids):
         for rid in rids:
             try:
