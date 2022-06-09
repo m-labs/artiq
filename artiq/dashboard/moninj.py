@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import textwrap
 from collections import namedtuple
 
 from PyQt5 import QtCore, QtWidgets, QtGui
@@ -12,6 +13,16 @@ from artiq.gui.flowlayout import FlowLayout
 
 
 logger = logging.getLogger(__name__)
+
+class _CancellableLineEdit(QtWidgets.QLineEdit):
+    def escapePressedConnect(self, cb):
+        self.esc_cb = cb
+
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == QtCore.Qt.Key_Escape:
+            self.esc_cb(event)
+        QtWidgets.QLineEdit.keyPressEvent(self, event)
 
 
 class _TTLWidget(QtWidgets.QFrame):
@@ -168,15 +179,136 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
         raise NotImplementedError
 
 
-class _DDSWidget(_SimpleDisplayWidget):
-    def __init__(self, dm, bus_channel, channel, title):
+class _DDSWidget(QtWidgets.QFrame):
+    def __init__(self, dm, title, bus_channel=0, channel=0, cpld=None):
+        self.dm = dm
         self.bus_channel = bus_channel
         self.channel = channel
+        self.dds_name = title
+        self.cpld = cpld
         self.cur_frequency = 0
-        _SimpleDisplayWidget.__init__(self, title)
+
+        QtWidgets.QFrame.__init__(self)
+
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setFrameShadow(QtWidgets.QFrame.Raised)
+
+        grid = QtWidgets.QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
+        grid.setHorizontalSpacing(0)
+        grid.setVerticalSpacing(0)
+        self.setLayout(grid)
+        label = QtWidgets.QLabel(title)
+        label.setAlignment(QtCore.Qt.AlignCenter)
+        grid.addWidget(label, 1, 1)
+
+        # FREQ DATA/EDIT FIELD
+        self.data_stack = QtWidgets.QStackedWidget()
+
+        # page 1: display data
+        grid_disp = LayoutWidget()
+        grid_disp.layout.setContentsMargins(0, 0, 0, 0)
+        grid_disp.layout.setHorizontalSpacing(0)
+        grid_disp.layout.setVerticalSpacing(0)
+
+        self.value_label = QtWidgets.QLabel()
+        self.value_label.setAlignment(QtCore.Qt.AlignCenter)
+        grid_disp.addWidget(self.value_label, 0, 1, 1, 2)
+
+        unit = QtWidgets.QLabel("MHz")
+        unit.setAlignment(QtCore.Qt.AlignCenter)
+        grid_disp.addWidget(unit, 0, 3, 1, 1)
+
+        self.data_stack.addWidget(grid_disp)
+
+        # page 2: edit data
+        grid_edit = LayoutWidget()
+        grid_edit.layout.setContentsMargins(0, 0, 0, 0)
+        grid_edit.layout.setHorizontalSpacing(0)
+        grid_edit.layout.setVerticalSpacing(0)
+
+        self.value_edit = _CancellableLineEdit(self)
+        self.value_edit.setAlignment(QtCore.Qt.AlignRight)
+        grid_edit.addWidget(self.value_edit, 0, 1, 1, 2)
+        unit = QtWidgets.QLabel("MHz")
+        unit.setAlignment(QtCore.Qt.AlignCenter)
+        grid_edit.addWidget(unit, 0, 3, 1, 1)
+        self.data_stack.addWidget(grid_edit)
+
+        grid.addWidget(self.data_stack, 2, 1)
+
+        # BUTTONS
+        self.button_stack = QtWidgets.QStackedWidget()
+
+        # page 1: SET button
+        set_grid = LayoutWidget()
+
+        set_btn = QtWidgets.QToolButton()
+        set_btn.setText("Set")
+        set_btn.setToolTip("Set frequency")
+        set_grid.addWidget(set_btn, 0, 1, 1, 1)
+        
+        # for urukuls also allow switching off RF
+        if self.cpld:
+            off_btn = QtWidgets.QToolButton()
+            off_btn.setText("Off")
+            off_btn.setToolTip("Switch off the output")
+            set_grid.addWidget(off_btn, 0, 2, 1, 1)
+
+        self.button_stack.addWidget(set_grid)
+
+        # page 2: apply/cancel buttons
+        apply_grid = LayoutWidget()
+        apply = QtWidgets.QToolButton()
+        apply.setText("Apply")
+        apply.setToolTip("Apply changes")
+        apply_grid.addWidget(apply, 0, 1, 1, 1)
+        cancel = QtWidgets.QToolButton()
+        cancel.setText("Cancel")
+        cancel.setToolTip("Cancel changes")
+        apply_grid.addWidget(cancel, 0, 2, 1, 1)
+        self.button_stack.addWidget(apply_grid)
+        grid.addWidget(self.button_stack, 3, 1)
+
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 1)
+        grid.setRowStretch(3, 1)
+
+        set_btn.clicked.connect(self.set_clicked)
+        apply.clicked.connect(self.apply_changes)
+        if self.cpld:
+            off_btn.clicked.connect(self.off_clicked)
+        self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
+        self.value_edit.escapePressedConnect(self.cancel_changes)
+        cancel.clicked.connect(self.cancel_changes)
+
+        self.refresh_display()
+
+    def set_clicked(self, set):
+        self.data_stack.setCurrentIndex(1)
+        self.button_stack.setCurrentIndex(1)
+        self.value_edit.setText("{:.7f}"
+                .format(self.cur_frequency/1e6))
+        self.value_edit.setFocus()
+        self.value_edit.selectAll()
+
+    def off_clicked(self, set):
+        self.dm.dds_channel_toggle(self.dds_name, self.cpld, sw=False)
+    
+    def apply_changes(self, apply):
+        self.data_stack.setCurrentIndex(0)
+        self.button_stack.setCurrentIndex(0)
+        frequency = float(self.value_edit.text())*1e6
+        self.dm.dds_set_frequency(self.dds_name, self.cpld, frequency)
+
+    def cancel_changes(self, cancel):
+        self.data_stack.setCurrentIndex(0)
+        self.button_stack.setCurrentIndex(0)
 
     def refresh_display(self):
-        self.value.setText("<font size=\"4\">{:.7f}</font><font size=\"2\"> MHz</font>"
+        self.value_label.setText("<font size=\"4\">{:.7f}</font>"
+                           .format(self.cur_frequency/1e6))
+        self.value_edit.setText("{:.7f}"
                            .format(self.cur_frequency/1e6))
 
     def sort_key(self):
@@ -213,6 +345,8 @@ def setup_from_ddb(ddb):
                 comment = v.get("comment")
                 if v["type"] == "local":
                     if v["module"] == "artiq.coredevice.ttl":
+                        if "ttl_urukul" in k:
+                            continue
                         channel = v["arguments"]["channel"]
                         force_out = v["class"] == "TTLOut"
                         widget = _WidgetDesc(k, comment, _TTLWidget, (channel, force_out, k))
@@ -222,8 +356,20 @@ def setup_from_ddb(ddb):
                         bus_channel = v["arguments"]["bus_channel"]
                         channel = v["arguments"]["channel"]
                         dds_sysclk = v["arguments"]["sysclk"]
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (bus_channel, channel, k))
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel))
                         description.add(widget)
+                    elif (v["module"] == "artiq.coredevice.ad9910"
+                                and v["class"] == "AD9910") or \
+                            (v["module"] == "artiq.coredevice.ad9912"
+                                and v["class"] == "AD9912"):
+                        channel = v["arguments"]["chip_select"] - 4
+                        if channel < 0:
+                            continue
+                        dds_cpld = v["arguments"]["cpld_device"]
+                        spi_dev = ddb[dds_cpld]["arguments"]["spi_device"]
+                        bus_channel = ddb[spi_dev]["arguments"]["channel"]
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, dds_cpld))
+                        description.add(widget)       
                     elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
                           or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
                         spi_device = v["arguments"]["spi_device"]
@@ -243,12 +389,14 @@ def setup_from_ddb(ddb):
 
 
 class _DeviceManager:
-    def __init__(self):
+    def __init__(self, schedule_ctl):
         self.mi_addr = None
         self.mi_port = None
         self.reconnect_mi = asyncio.Event()
         self.mi_connection = None
         self.mi_connector_task = asyncio.ensure_future(self.mi_connector())
+
+        self.schedule_ctl = schedule_ctl
 
         self.ddb = dict()
         self.description = set()
@@ -343,6 +491,108 @@ class _DeviceManager:
                 raise ValueError
             # override state may have changed
             widget.refresh_display()
+
+    async def _submit_by_content(self, content, class_name, title):
+        expid = {
+            "log_level": logging.WARNING,
+            "content": content,
+            "class_name": class_name,
+            "arguments": []
+        }
+        scheduling = {
+            "pipeline_name": "main",
+            "priority": 0,
+            "due_date": None,
+            "flush": False
+        }
+        rid = await self.schedule_ctl.submit(
+            scheduling["pipeline_name"],
+            expid,
+            scheduling["priority"], scheduling["due_date"],
+            scheduling["flush"])
+        logger.info("Submitted '%s', RID is %d", title, rid)
+
+    def dds_set_frequency(self, dds_channel, dds_cpld, freq):
+        # create kernel and fill it in and send-by-content
+        if dds_cpld:
+            # urukuls need CPLD init and switch to on
+            # keep previous config if it was set already
+            cpld_dev = """self.setattr_device("core_cache")
+                self.setattr_device("{}")""".format(dds_cpld)
+            cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
+                if len(cfg) > 0:
+                    self.{cpld}.cfg_reg = cfg[0]
+                else:
+                    self.{cpld}.init()
+                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
+                    cfg = self.core_cache.get("_{cpld}_cfg")
+            """.format(cpld=dds_cpld)
+            cfg_sw = """self.{}.cfg_sw(True)
+                cfg[0] = self.{}.cfg_reg
+            """.format(dds_channel, dds_cpld)
+        else:
+            cpld_dev = ""
+            cpld_init = ""
+            cfg_sw = ""
+        dds_exp = textwrap.dedent("""
+        from artiq.experiment import *
+
+        class SetDDS(EnvExperiment):
+            def build(self):
+                self.setattr_device("core")
+                self.setattr_device("{dds_channel}")
+                {cpld_dev}
+                
+            @kernel
+            def run(self):
+                self.core.break_realtime()
+                delay(2*ms)
+                {cpld_init}
+                self.{dds_channel}.init()
+                self.{dds_channel}.set({freq})
+                {cfg_sw}
+        """.format(dds_channel=dds_channel, freq=freq,
+                   cpld_dev=cpld_dev, cpld_init=cpld_init,
+                   cfg_sw=cfg_sw))
+        asyncio.ensure_future(
+            self._submit_by_content(
+                dds_exp, 
+                "SetDDS", 
+                "Set DDS {} {}MHz".format(dds_channel, freq/1e6)))
+
+    def dds_channel_toggle(self, dds_channel, dds_cpld, sw=True):
+        # urukul only
+        toggle_exp = textwrap.dedent("""
+        from artiq.experiment import *
+
+        class ToggleDDS(EnvExperiment):
+            def build(self):
+                self.setattr_device("core")
+                self.setattr_device("{ch}")
+                self.setattr_device("core_cache")
+                self.setattr_device("{cpld}")
+                
+            @kernel
+            def run(self):
+                self.core.break_realtime()
+                delay(2*ms)
+                cfg = self.core_cache.get("_{cpld}_cfg")
+                if len(cfg) > 0:
+                    self.{cpld}.cfg_reg = cfg[0]
+                else:
+                    self.{cpld}.init()
+                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
+                    cfg = self.core_cache.get("_{cpld}_cfg")
+                self.{ch}.init()
+                self.{ch}.cfg_sw({sw})
+                cfg[0] = self.{cpld}.cfg_reg
+        """.format(ch=dds_channel, cpld=dds_cpld, sw=sw))
+        asyncio.ensure_future(
+            self._submit_by_content(
+                toggle_exp, 
+                "ToggleDDS", 
+                "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
+        )
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:
@@ -451,12 +701,12 @@ class _MonInjDock(QtWidgets.QDockWidget):
 
 
 class MonInj:
-    def __init__(self):
+    def __init__(self, schedule_ctl):
         self.ttl_dock = _MonInjDock("TTL")
         self.dds_dock = _MonInjDock("DDS")
         self.dac_dock = _MonInjDock("DAC")
 
-        self.dm = _DeviceManager()
+        self.dm = _DeviceManager(schedule_ctl)
         self.dm.ttl_cb = lambda: self.ttl_dock.layout_widgets(
                             self.dm.ttl_widgets.values())
         self.dm.dds_cb = lambda: self.dds_dock.layout_widgets(
