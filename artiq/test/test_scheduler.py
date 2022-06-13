@@ -141,132 +141,25 @@ class SchedulerCase(unittest.TestCase):
         high_priority = 3
         middle_priority = 2
         low_priority = 1
-        late = time() + 100000
+        late = time() + 2
         early = time() + 1
 
-        expect = [
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": low_priority,
-                    "pipeline": "main",
-                    "due_date": None,
-                    "status": "pending",
-                    "expid": expid_bg,
-                    "flush": False
-                },
-                "key": 0
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": high_priority,
-                    "pipeline": "main",
-                    "due_date": late,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 1
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": middle_priority,
-                    "pipeline": "main",
-                    "due_date": early,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 2
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "paused",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "run_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "analyzing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "deleting",
-                "key": "status"
-            },
-            {
-                "path": [],
-                "action": "delitem",
-                "key": 2
-            },
-        ]
         done = asyncio.Event()
-        expect_idx = 0
+        expected_rids = [2, 1]
+        finished_rids = []
+        finished_item = 0
+
         def notify(mod):
-            nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
-            expect_idx += 1
-            if expect_idx >= len(expect):
+            nonlocal finished_rids
+            nonlocal finished_item
+            # Record rid when it has gone through all stage and deleted
+            if mod["action"] == "delitem":
+                finished_rids.append(mod["key"])
+                finished_item += 1
+            if finished_item == len(expected_rids):
+                self.assertEqual(finished_rids, expected_rids)
                 done.set()
+
         scheduler.notifier.publish = notify
 
         scheduler.start()
