@@ -263,7 +263,9 @@ class SchedulerCase(unittest.TestCase):
         expect_idx = 0
         def notify(mod):
             nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
+            if "value" in mod:
+                if "due_date" in mod["value"]:
+                    self.assertEqual(mod, expect[expect_idx])
             expect_idx += 1
             if expect_idx >= len(expect):
                 done.set()
