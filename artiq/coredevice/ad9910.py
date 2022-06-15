@@ -15,6 +15,7 @@ urukul_sta_smp_err = urukul.urukul_sta_smp_err
 
 __all__ = [
     "AD9910",
+    "AD9910_REG_FTW", "AD9910_REG_ASF", "AD9910_REG_PROFILE0", "AD9910_REG_PROFILE7",
     "PHASE_MODE_CONTINUOUS", "PHASE_MODE_ABSOLUTE", "PHASE_MODE_TRACKING",
     "RAM_DEST_FTW", "RAM_DEST_POW", "RAM_DEST_ASF", "RAM_DEST_POWASF",
     "RAM_MODE_DIRECTSWITCH", "RAM_MODE_RAMPUP", "RAM_MODE_BIDIR_RAMP",
@@ -63,6 +64,22 @@ RAM_MODE_CONT_RAMPUP = 4
 
 # Default profile for RAM mode
 _DEFAULT_PROFILE_RAM = 0
+
+
+def AD9910_REG_FTW():
+    return _AD9910_REG_FTW
+
+
+def AD9910_REG_ASF():
+    return _AD9910_REG_ASF
+
+
+def AD9910_REG_PROFILE0():
+    return _AD9910_REG_PROFILE0
+
+
+def AD9910_REG_PROFILE7():
+    return _AD9910_REG_PROFILE7
 
 
 class SyncDataUser:
