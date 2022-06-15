@@ -1073,7 +1073,7 @@ class PhaserChannel:
     def set_servo_profile(self, profile):
         """Set the servo profile.
 
-        :param profile: [0:3] profile index to select for channel
+        :param profile: profile index to select for channel (0 to 3)
         """
         if profile not in range(4):
             raise ValueError("invalid profile index")
@@ -1086,17 +1086,24 @@ class PhaserChannel:
 
     @kernel
     def load_servo_profile(self, profile, ab, offset):
-        """Set the servo enable to True or False.
+        """Load a servo profile consiting of the three filter coefficients and an output offset.
+
+        :param profile: profile to load (0 to 3)
+        :param ab: 3 entry coefficient vector (16 bit)
+        :param offset: output offset (16 bit)
         """
         if profile not in range(4):
             raise ValueError("invalid profile index")
-        # Should I check here if the profile I want to load is selected? What do I do if it is?
+        if len(ab) != 3:
+            raise ValueError("invalid number of coefficients")
+        # Should I check here if the profile I want to load is selected? Aka read the register. What do I do if it is?
         addr = PHASER_ADDR_SERVO_AB_BASE + (6 * profile) + (self.index * 24)
         for coef in ab:
             self.phaser.write16(addr, coef)
             addr +=2
         addr = PHASER_ADDR_SERVO_OFFSET_BASE + (2 * profile) + (self.index * 8)
         self.phaser.write16(addr, offset)
+
 
 class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
