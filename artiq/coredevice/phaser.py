@@ -40,6 +40,16 @@ PHASER_ADDR_DUC1_P = 0x26
 PHASER_ADDR_DAC1_DATA = 0x28
 PHASER_ADDR_DAC1_TEST = 0x2c
 
+# servo registers
+PHASER_ADDR_SERVO_CFG0 = 0x30
+PHASER_ADDR_SERVO_CFG1 = 0x31
+
+# 0x32 - 0x61 ab regs
+PHASER_ADDR_SERVO_AB_BASE = 0x32
+# 0x62 - 0x71 offset regs
+PHASER_ADDR_SERVO_OFFSET_BASE = 0x62
+
+
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
 PHASER_SEL_TRF1 = 1 << 2
@@ -381,6 +391,14 @@ class Phaser:
         rtio_output((self.channel_base << 8) | (addr & 0x7f), 0)
         response = rtio_input_data(self.channel_base)
         return response >> self.miso_delay
+
+    @kernel
+    def write16(self, addr, data: TInt32):
+        """Write 16 bit to a sequence of FPGA registers."""
+        for offset in range(2):
+            byte = data >> 8
+            self.write8(addr + offset, byte)
+            data <<= 8
 
     @kernel
     def write32(self, addr, data: TInt32):
@@ -1039,6 +1057,46 @@ class PhaserChannel:
             data = data ^ ((1 << 12) | (1 << 13))
         self.trf_write(data)
 
+    @kernel
+    def set_servo_enable(self, en=1):
+        """Set the servo enable to True or False.
+
+        :param en: 1 to enable servo, 0 to disable
+        """
+        addr = PHASER_ADDR_SERVO_CFG1 if self.index == 1 else PHASER_ADDR_SERVO_CFG0
+        content = self.phaser.read8(addr)
+        delay(.1*ms)
+        content = (content | 1) & en
+        self.phaser.write8(addr, content)
+
+    @kernel
+    def set_servo_profile(self, profile):
+        """Set the servo profile.
+
+        :param profile: [0:3] profile index to select for channel
+        """
+        if profile not in range(4):
+            raise ValueError("invalid profile index")
+        addr = PHASER_ADDR_SERVO_CFG1 if self.index == 1 else PHASER_ADDR_SERVO_CFG0
+        content = self.phaser.read8(addr)
+        delay(.1*ms)
+        # shift one left and leave en bit
+        content = (profile << 1) | (content & 1)
+        self.phaser.write8(addr, content)
+
+    @kernel
+    def load_servo_profile(self, profile, ab, offset):
+        """Set the servo enable to True or False.
+        """
+        if profile not in range(4):
+            raise ValueError("invalid profile index")
+        # Should I check here if the profile I want to load is selected? What do I do if it is?
+        addr = PHASER_ADDR_SERVO_AB_BASE + (6 * profile) + (self.index * 24)
+        for coef in ab:
+            self.phaser.write16(addr, coef)
+            addr +=2
+        addr = PHASER_ADDR_SERVO_OFFSET_BASE + (2 * profile) + (self.index * 8)
+        self.phaser.write16(addr, offset)
 
 class PhaserOscillator:
     """Phaser IQ channel oscillator (NCO/DDS).
