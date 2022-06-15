@@ -3,7 +3,7 @@ from migen.build.generic_platform import *
 from migen.genlib.io import DifferentialOutput
 
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, grabber
+from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, urukul_monitor, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
 
@@ -230,6 +230,10 @@ class Urukul(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
+        dds_monitor = urukul_monitor.UrukulMonitor(phy.rtlink)
+        target.submodules += dds_monitor
+        phy.probes.extend(dds_monitor.probes)
+
         pads = target.platform.request("urukul{}_dds_reset_sync_in".format(eem))
         if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
             phy = sync_gen_cls(pad=pads.p, pad_n=pads.n, ftw_width=4)
@@ -246,6 +250,8 @@ class Urukul(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
+        
+
 
 class Sampler(_EEM):
     @staticmethod
