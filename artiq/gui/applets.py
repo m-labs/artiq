@@ -25,6 +25,7 @@ class AppletIPCServer(AsyncioParentComm):
         AsyncioParentComm.__init__(self)
         self.datasets_sub = datasets_sub
         self.datasets = set()
+        self.dataset_prefixes = []
 
     def write_pyon(self, obj):
         self.write(pyon.encode(obj).encode() + b"\n")
@@ -33,8 +34,16 @@ class AppletIPCServer(AsyncioParentComm):
         line = await self.readline()
         return pyon.decode(line.decode())
 
+    def _is_dataset_subscribed(self, key):
+        if key in self.datasets:
+            return True
+        for prefix in self.dataset_prefixes:
+            if key.startswith(prefix):
+                return True
+        return False
+
     def _synthesize_init(self, data):
-        struct = {k: v for k, v in data.items() if k in self.datasets}
+        struct = {k: v for k, v in data.items() if self._is_dataset_subscribed(k)}
         return {"action": "init",
                 "struct": struct}
 
@@ -43,10 +52,10 @@ class AppletIPCServer(AsyncioParentComm):
             mod = self._synthesize_init(mod["struct"])
         else:
             if mod["path"]:
-                if mod["path"][0] not in self.datasets:
+                if not self._is_dataset_subscribed(mod["path"][0]):
                     return
             elif mod["action"] in {"setitem", "delitem"}:
-                if mod["key"] not in self.datasets:
+                if not self._is_dataset_subscribed(mod["key"]):
                     return
         self.write_pyon({"action": "mod", "mod": mod})
 
@@ -64,6 +73,7 @@ class AppletIPCServer(AsyncioParentComm):
                         fix_initial_size_cb()
                     elif action == "subscribe":
                         self.datasets = obj["datasets"]
+                        self.dataset_prefixes = obj["dataset_prefixes"]
                         if self.datasets_sub.model is not None:
                             mod = self._synthesize_init(
                                 self.datasets_sub.model.backing_store)
