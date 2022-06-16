@@ -64,9 +64,10 @@ class AppletIPCClient(AsyncioChildComm):
                              exc_info=True)
                 self.close_cb()
 
-    def subscribe(self, datasets, init_cb, mod_cb):
+    def subscribe(self, datasets, init_cb, mod_cb, dataset_prefixes=[]):
         self.write_pyon({"action": "subscribe",
-                         "datasets": datasets})
+                         "datasets": datasets,
+                         "dataset_prefixes": dataset_prefixes})
         self.init_cb = init_cb
         self.mod_cb = mod_cb
         asyncio.ensure_future(self.listen())
@@ -113,6 +114,9 @@ class SimpleApplet:
         self.embed = os.getenv("ARTIQ_APPLET_EMBED")
         self.datasets = {getattr(self.args, arg.replace("-", "_"))
                          for arg in self.dataset_args}
+        # Optional prefixes (dataset sub-trees) to match subscriptions against;
+        # currently only used by out-of-tree subclasses (ndscan).
+        self.dataset_prefixes = []
 
     def qasync_init(self):
         app = QtWidgets.QApplication([])
@@ -162,6 +166,14 @@ class SimpleApplet:
         self.data = data
         return data
 
+    def is_dataset_subscribed(self, key):
+        if key in self.datasets:
+            return True
+        for prefix in self.dataset_prefixes:
+            if key.startswith(prefix):
+                return True
+        return False
+
     def filter_mod(self, mod):
         if self.embed is not None:
             # the parent already filters for us
@@ -170,9 +182,9 @@ class SimpleApplet:
         if mod["action"] == "init":
             return True
         if mod["path"]:
-            return mod["path"][0] in self.datasets
+            return self.is_dataset_subscribed(mod["path"][0])
         elif mod["action"] in {"setitem", "delitem"}:
-            return mod["key"] in self.datasets
+            return self.is_dataset_subscribed(mod["key"])
         else:
             return False
 
