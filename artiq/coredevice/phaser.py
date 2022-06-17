@@ -1058,41 +1058,32 @@ class PhaserChannel:
         self.trf_write(data)
 
     @kernel
-    def set_servo_enable(self, en=1):
-        """Set the servo enable to True or False.
+    def set_servo(self, bypass=1, hold=0, profile=0):
+        """Set the servo configuration.
 
-        :param en: 1 to enable servo, 0 to disable
-        """
-        addr = PHASER_ADDR_SERVO_CFG1 if self.index == 1 else PHASER_ADDR_SERVO_CFG0
-        content = self.phaser.read8(addr)
-        delay(.1*ms)
-        content = (content | 1) & en
-        self.phaser.write8(addr, content)
-
-    @kernel
-    def set_servo_profile(self, profile):
-        """Set the servo profile.
-
+        :param bypass: 1 to enable bypass (default), 0 to engage servo
+        :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation
         :param profile: profile index to select for channel (0 to 3)
         """
-        if profile not in range(4):
+        if (profile < 0) | (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG1 if self.index == 1 else PHASER_ADDR_SERVO_CFG0
-        content = self.phaser.read8(addr)
-        delay(.1*ms)
-        # shift one left and leave en bit
-        content = (profile << 1) | (content & 1)
-        self.phaser.write8(addr, content)
+        if bypass == 0:
+            data = 1
+        if hold == 1:
+            data = data | (1 << 1)
+        data = data | (profile << 2)
+        self.phaser.write8(addr, data)
 
     @kernel
-    def load_servo_profile(self, profile, ab, offset):
+    def set_iir_mu(self, profile, ab, offset):
         """Load a servo profile consiting of the three filter coefficients and an output offset.
 
         :param profile: profile to load (0 to 3)
         :param ab: 3 entry coefficient vector (16 bit)
         :param offset: output offset (16 bit)
         """
-        if profile not in range(4):
+        if (profile < 0) | (profile > 3):
             raise ValueError("invalid profile index")
         if len(ab) != 3:
             raise ValueError("invalid number of coefficients")
