@@ -1067,7 +1067,7 @@ class PhaserChannel:
         """
         if (profile < 0) | (profile > 3):
             raise ValueError("invalid profile index")
-        addr = PHASER_ADDR_SERVO_CFG1 if self.index == 1 else PHASER_ADDR_SERVO_CFG0
+        addr = PHASER_ADDR_SERVO_CFG0 + self.index
         if bypass == 0:
             data = 1
         if hold == 1:
