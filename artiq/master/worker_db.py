@@ -5,8 +5,10 @@ standalone command line tools).
 """
 
 from operator import setitem
+import h5py
 import importlib
 import logging
+import numpy
 
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
@@ -177,6 +179,10 @@ def _write(group, k, v):
     # Add context to exception message when the user writes a dataset that is
     # not representable in HDF5.
     try:
+        if isinstance(v, list):
+            v = numpy.asarray(v)
+            if v.dtype.type == numpy.unicode_:
+                v = numpy.array(v, dtype=h5py.special_dtype(vlen=str))
         group[k] = v
     except TypeError as e:
         raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
