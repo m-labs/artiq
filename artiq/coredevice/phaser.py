@@ -395,10 +395,10 @@ class Phaser:
     @kernel
     def write16(self, addr, data: TInt32):
         """Write 16 bit to a sequence of FPGA registers."""
-        for offset in range(2):
-            byte = data >> 8
-            self.write8(addr + offset, byte)
-            data <<= 8
+        byte = data >> 8
+        self.write8(addr, byte)
+        byte = data & 0xFF
+        self.write8(addr + 1, byte)
 
     @kernel
     def write32(self, addr, data: TInt32):
@@ -1065,35 +1065,34 @@ class PhaserChannel:
         :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation
         :param profile: profile index to select for channel (0 to 3)
         """
-        if (profile < 0) | (profile > 3):
+        if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
         if bypass == 0:
             data = 1
         if hold == 1:
-            data = data | (1 << 1)
+            data = data or (1 << 1)
         if bypass:
             hold = 1
-        data = (profile << 2) | (hold << 1) | (bypass << 0)
+        data = (profile << 2) or (hold << 1) or (bypass << 0)
         self.phaser.write8(addr, data)
 
     @kernel
-    def set_iir_mu(self, profile, ab, offset):
+    def set_iir_mu(self, profile, b0, b1, a1, offset):
         """Load a servo profile consiting of the three filter coefficients and an output offset.
 
         :param profile: profile to load (0 to 3)
         :param ab: 3 entry coefficient vector (16 bit)
         :param offset: output offset (16 bit)
         """
-        if (profile < 0) | (profile > 3):
+        if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
-        if len(ab) != 3:
-            raise ValueError("invalid number of coefficients")
-        # Should I check here if the profile I want to load is selected? Aka read the register. What do I do if it is?
+        # 24 byte-sized ab registers per channel and 6 (2 bytes * 3 coefficients) registers per profile
         addr = PHASER_ADDR_SERVO_AB_BASE + (6 * profile) + (self.index * 24)
-        for coef in ab:
+        for coef in [b0, b1, a1]:
             self.phaser.write16(addr, coef)
-            addr +=2
+            addr += 2
+        # 8 offset registers per channel and 2 registers per offset
         addr = PHASER_ADDR_SERVO_OFFSET_BASE + (2 * profile) + (self.index * 8)
         self.phaser.write16(addr, offset)
 
