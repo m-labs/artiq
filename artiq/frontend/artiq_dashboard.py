@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import atexit
+import importlib
 import os
 import logging
 import sys
@@ -43,6 +44,9 @@ def get_argparser():
     parser.add_argument(
         "--db-file", default=None,
         help="database file for local GUI settings")
+    parser.add_argument(
+        "-p", "--load-plugin", dest="plugin_modules", action="append",
+        help="Python module to load on startup")
     common_args.verbosity_args(parser)
     return parser
 
@@ -94,6 +98,11 @@ def main():
     # initialize application
     args = get_argparser().parse_args()
     widget_log_handler = log.init_log(args, "dashboard")
+
+    # load any plugin modules first (to register argument_ui classes, etc.)
+    if args.plugin_modules:
+        for mod in args.plugin_modules:
+            importlib.import_module(mod)
 
     if args.db_file is None:
         args.db_file = os.path.join(get_user_config_dir(),
