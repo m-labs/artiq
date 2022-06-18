@@ -216,6 +216,15 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
                 pass
         self.verticalScrollBar().setValue(state["scroll"])
 
+    # Hooks that allow user-supplied argument editors to react to imminent user
+    # actions. Here, we always keep the manager-stored submission arguments
+    # up-to-date, so no further action is required.
+    def about_to_submit(self):
+        pass
+
+    def about_to_close(self):
+        pass
+
 
 log_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 
@@ -370,6 +379,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         self.hdf5_load_directory = os.path.expanduser("~")
 
     def submit_clicked(self):
+        self.argeditor.about_to_submit()
         try:
             self.manager.submit(self.expurl)
         except:
@@ -475,6 +485,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         await self._recompute_arguments_task(arguments)
 
     def closeEvent(self, event):
+        self.argeditor.about_to_close()
         self.sigClosed.emit()
         QtWidgets.QMdiSubWindow.closeEvent(self, event)
 
@@ -552,7 +563,7 @@ class ExperimentManager:
     #: editor will be used.
     argument_ui_classes = dict()
 
-    def __init__(self, main_window,
+    def __init__(self, main_window, dataset_sub,
                  explist_sub, schedule_sub,
                  schedule_ctl, experiment_db_ctl):
         self.main_window = main_window
@@ -565,6 +576,8 @@ class ExperimentManager:
         self.submission_arguments = dict()
         self.argument_ui_names = dict()
 
+        self.datasets = dict()
+        dataset_sub.add_setmodel_callback(self.set_dataset_model)
         self.explist = dict()
         explist_sub.add_setmodel_callback(self.set_explist_model)
         self.schedule = dict()
@@ -578,6 +591,9 @@ class ExperimentManager:
             main_window)
         quick_open_shortcut.setContext(QtCore.Qt.ApplicationShortcut)
         quick_open_shortcut.activated.connect(self.show_quick_open)
+
+    def set_dataset_model(self, model):
+        self.datasets = model
 
     def set_explist_model(self, model):
         self.explist = model.backing_store
