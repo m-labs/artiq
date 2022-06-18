@@ -179,7 +179,13 @@ def main():
                                        rpc_clients["dataset_db"])
     smgr.register(d_datasets)
 
-    d_applets = applets_ccb.AppletsCCBDock(main_window, sub_clients["datasets"])
+    d_applets = applets_ccb.AppletsCCBDock(main_window,
+                                           sub_clients["datasets"],
+                                           extra_substitutes={
+                                               "server": args.server,
+                                               "port_notify": args.port_notify,
+                                               "port_control": args.port_control,
+                                           })
     atexit_register_coroutine(d_applets.stop)
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)

@@ -93,7 +93,7 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
-    def __init__(self, datasets_sub, uid, name, spec):
+    def __init__(self, datasets_sub, uid, name, spec, extra_substitutes):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -104,6 +104,7 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.datasets_sub = datasets_sub
         self.applet_name = name
         self.spec = spec
+        self.extra_substitutes = extra_substitutes
 
         self.starting_stopping = False
 
@@ -152,7 +153,8 @@ class _AppletDock(QDockWidgetCloseDetect):
             python = sys.executable.replace("\\", "\\\\")
             command = command_tpl.safe_substitute(
                 python=python,
-                artiq_applet=python + " -m artiq.applets."
+                artiq_applet=python + " -m artiq.applets.",
+                **self.extra_substitutes
             )
             logger.debug("starting command %s for %s", command, self.applet_name)
             await self.start_process(shlex.split(command), None)
@@ -315,7 +317,11 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, datasets_sub):
+    def __init__(self, main_window, datasets_sub, extra_substitutes={}):
+        """
+        :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
+            commands to their respective values.
+        """
         QtWidgets.QDockWidget.__init__(self, "Applets")
         self.setObjectName("Applets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -323,6 +329,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.main_window = main_window
         self.datasets_sub = datasets_sub
+        self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
         self.table = QtWidgets.QTreeWidget()
@@ -421,7 +428,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.itemChanged.connect(self.item_changed)
 
     def create(self, item, name, spec):
-        dock = _AppletDock(self.datasets_sub, item.applet_uid, name, spec)
+        dock = _AppletDock(self.datasets_sub, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start())
