@@ -160,6 +160,7 @@ def main():
 
     # create UI components
     expmgr = experiments.ExperimentManager(main_window,
+                                           sub_clients["datasets"],
                                            sub_clients["explist"],
                                            sub_clients["schedule"],
                                            rpc_clients["schedule"],
