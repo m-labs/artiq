@@ -216,7 +216,8 @@ class SimpleApplet:
             self.loop.run_until_complete(self.subscriber.connect(
                 self.args.server, self.args.port))
         else:
-            self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod)
+            self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod,
+                               dataset_prefixes=self.dataset_prefixes)
 
     def unsubscribe(self):
         if self.embed is None:
