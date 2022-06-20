@@ -25,6 +25,7 @@ class MonitorMux:
     def __init__(self):
         self.listeners = dict()
         self.comm_moninj = None
+        self.termination_event = asyncio.Event()
 
     def _monitor(self, listener, event):
         try:
@@ -116,6 +117,12 @@ class MonitorMux:
                 else:
                     raise ValueError
 
+    def disconnect_cb(self):
+        self.termination_event.set()
+
+    async def wait_terminate(self):
+        await self.termination_event.wait()
+
 
 class ProxyConnection:
     def __init__(self, monitor_mux, reader, writer):
@@ -203,7 +210,7 @@ def main():
         signal_handler.setup()
         try:
             monitor_mux = MonitorMux()
-            comm_moninj = CommMonInj(monitor_mux.monitor_cb, monitor_mux.injection_status_cb)
+            comm_moninj = CommMonInj(monitor_mux.monitor_cb, monitor_mux.injection_status_cb, monitor_mux.disconnect_cb)
             monitor_mux.comm_moninj = comm_moninj
             loop.run_until_complete(comm_moninj.connect(args.core_addr))
             try:
@@ -214,7 +221,7 @@ def main():
                     loop.run_until_complete(server.start(bind_address, args.port_control))
                     try:
                         _, pending = loop.run_until_complete(asyncio.wait(
-                            [signal_handler.wait_terminate(), server.wait_terminate()],
+                            [signal_handler.wait_terminate(), server.wait_terminate(), monitor_mux.wait_terminate()],
                             return_when=asyncio.FIRST_COMPLETED))
                         for task in pending:
                             task.cancel()
