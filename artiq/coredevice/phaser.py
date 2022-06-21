@@ -1073,9 +1073,7 @@ class PhaserChannel:
             data = 1
         if hold == 1:
             data = data | (1 << 1)
-        if bypass:
-            hold = 1
-        data = (profile << 2) | (hold << 1) | (bypass << 0)
+        data = data | (profile << 2)
         self.phaser.write8(addr, data)
 
     @kernel
