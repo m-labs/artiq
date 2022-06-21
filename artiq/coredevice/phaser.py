@@ -320,6 +320,9 @@ class Phaser:
             delay(.1*ms)
             channel.set_att_mu(0x00)  # minimum attenuation
 
+            # disable servo, set iir profile to 0 and disable iir hold 
+            channel.set_servo(0, 1, 0)
+
             # test oscillators and DUC
             for i in range(len(channel.oscillator)):
                 oscillator = channel.oscillator[i]
