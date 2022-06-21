@@ -620,8 +620,9 @@ class _DeviceManager:
                 
             @kernel
             def run(self):
+                self.core.reset()
                 self.core.break_realtime()
-                delay(500*ms)
+                delay(2*ms)
                 {cpld_init}
                 self.{dds_channel}.init()
                 self.{dds_channel}.set({freq})
@@ -649,8 +650,9 @@ class _DeviceManager:
                 
             @kernel
             def run(self):
+                self.core.reset()
                 self.core.break_realtime()
-                delay(50*ms)
+                delay(2*ms)
                 cfg = self.core_cache.get("_{cpld}_cfg")
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
