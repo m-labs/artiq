@@ -250,7 +250,6 @@ class Urukul(_EEM):
                 phy = ttl_out_cls(pads.p, pads.n)
                 target.submodules += phy
                 target.rtio_channels.append(rtio.Channel.from_phy(phy))
-        
 
 
 class Sampler(_EEM):
