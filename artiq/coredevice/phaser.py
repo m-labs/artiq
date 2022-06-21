@@ -138,7 +138,7 @@ class Phaser:
     update the y0, y1 output registers. The servo can also be bypassed.
 
     After power-up the servo is bypassed, in profile 0, with coefficients [0, 0, 0]
-    and hold is disabled. If older gateware without ther servo is loaded onto the
+    and hold is enabled. If older gateware without ther servo is loaded onto the
     Phaser FPGA, the device simply behaves as if the servo is bypassed and none of
     the servo functions have any effect.
 
@@ -340,8 +340,7 @@ class Phaser:
             delay(.1*ms)
             channel.set_att_mu(0x00)  # minimum attenuation
 
-            # disable servo, set iir profile to 0 and disable iir hold 
-            channel.set_servo(0, 1, 0)
+            channel.set_servo(profile=0, bypass=1, hold=1)
 
             # test oscillators and DUC
             for i in range(len(channel.oscillator)):
@@ -1082,14 +1081,16 @@ class PhaserChannel:
     def set_servo(self, profile=0, bypass=1, hold=0):
         """Set the servo configuration.
 
-        :param bypass: 1 to enable bypass (default), 0 to engage servo
+        :param bypass: 1 to enable bypass (default), 0 to engage servo. If bypassed, hold
+            is forced since the control loop is broken.
         :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation
         :param profile: profile index to select for channel (0 to 3)
         """
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
-        data = (profile << 2) | ((hold & 1) << 1) | (~bypass & 1)
+        # enforce hold if the servo is bypassed
+        data = (profile << 2) | (((hold | bypass) & 1) << 1) | (~bypass & 1)
         self.phaser.write8(addr, data)
 
     @kernel
