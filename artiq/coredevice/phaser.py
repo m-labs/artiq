@@ -122,6 +122,26 @@ class Phaser:
     configured through a shared SPI bus that is accessed and controlled via
     FPGA registers.
 
+    Each phaser output channel features a servo to control the RF output amplitude
+    using feedback from an ADC. The servo consists of a first order IIR (infinite
+    impulse response) filter fed by the ADC and a multiplier that scales the I
+    and Q datastreams from the DUC by the IIR output.
+
+    Each channels IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
+    coefficients as well as an output offset. The coefficients and offset can be
+    set for each profile individually and the profiles each have their own filter
+    state. To avoid transient effects, care should be taken to not update the
+    coefficents in the currently selected profile.
+
+    The IIR output can be put on hold for each channel. In hold mode, the filter
+    still ingests samples and updates its input x0 and x1 registers, but does not
+    update the y0, y1 output registers. The servo can also be bypassed.
+
+    After power-up the servo is bypassed, in profile 0, with coefficients [0, 0, 0]
+    and hold is disabled. If older gateware without ther servo is loaded onto the
+    Phaser FPGA, the device simply behaves as if the servo is bypassed and none of
+    the servo functions have any effect.
+
     .. note:: Various register settings of the DAC and the quadrature
         upconverters are available to be modified through the `dac`, `trf0`,
         `trf1` dictionaries. These can be set through the device database
