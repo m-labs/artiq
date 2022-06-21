@@ -1071,12 +1071,7 @@ class PhaserChannel:
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
-        data = 0
-        if bypass == 0:
-            data = 1
-        if hold == 1:
-            data = data | (1 << 1)
-        data = data | (profile << 2)
+        data = (profile << 2) | ((hold & 1) << 1) | (~bypass & 1)
         self.phaser.write8(addr, data)
 
     @kernel
