@@ -10,7 +10,7 @@ from sipyco.sync_struct import Subscriber
 from artiq.coredevice.comm_moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
-
+from artiq import __artiq_dir__ as artiq_dir, __version__ as artiq_version
 
 logger = logging.getLogger(__name__)
 
@@ -660,6 +660,8 @@ class _DeviceManager:
                 await asyncio.sleep(10.)
                 self.reconnect_mi.set()
             else:
+                logger.info("ARTIQ dashboard %s connected to %s",
+                    artiq_version, self.mi_addr)
                 self.mi_connection = new_mi_connection
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
