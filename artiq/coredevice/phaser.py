@@ -1058,7 +1058,7 @@ class PhaserChannel:
         self.trf_write(data)
 
     @kernel
-    def set_servo(self, bypass=1, hold=0, profile=0):
+    def set_servo(self, profile=0, bypass=1, hold=0):
         """Set the servo configuration.
 
         :param bypass: 1 to enable bypass (default), 0 to engage servo
@@ -1068,13 +1068,14 @@ class PhaserChannel:
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
+        data = 0
         if bypass == 0:
             data = 1
         if hold == 1:
-            data = data or (1 << 1)
+            data = data | (1 << 1)
         if bypass:
             hold = 1
-        data = (profile << 2) or (hold << 1) or (bypass << 0)
+        data = (profile << 2) | (hold << 1) | (bypass << 0)
         self.phaser.write8(addr, data)
 
     @kernel
