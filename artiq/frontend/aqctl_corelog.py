@@ -79,8 +79,8 @@ async def get_logs(host):
                 name = 'firmware.' + m.group(2).replace('::', '.')
                 text = m.group(3)
                 log_with_name(name, level, text)
-    except:
-        pass
+    except TimeoutError:
+        log_with_name("core_log", logging.ERROR, "Terminated due to connection failure")
 
 
 def main():

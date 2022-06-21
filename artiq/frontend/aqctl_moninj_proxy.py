@@ -122,6 +122,7 @@ class MonitorMux:
 
     async def wait_terminate(self):
         await self.termination_event.wait()
+        logger.error("Terminated due to connection failure")
 
 
 class ProxyConnection:
