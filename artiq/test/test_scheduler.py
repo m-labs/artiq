@@ -199,18 +199,30 @@ class SchedulerCase(unittest.TestCase):
                 "value": "prepare_done",
                 "key": "status"
             },
-            {
+            [{
                 "path": [0],
                 "action": "setitem",
                 "value": "running",
                 "key": "status"
-            },
-            {
+             },
+             {
                 "path": [2],
                 "action": "setitem",
                 "value": "preparing",
                 "key": "status"
-            },
+            }],
+            [{
+                "path": [0],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
+             },
+             {
+                "path": [2],
+                "action": "setitem",
+                "value": "preparing",
+                "key": "status"
+            }],
             {
                 "path": [2],
                 "action": "setitem",
@@ -235,18 +247,30 @@ class SchedulerCase(unittest.TestCase):
                 "value": "run_done",
                 "key": "status"
             },
-            {
+            [{
                 "path": [0],
                 "action": "setitem",
                 "value": "running",
                 "key": "status"
-            },
-            {
+             },
+             {
                 "path": [2],
                 "action": "setitem",
                 "value": "analyzing",
                 "key": "status"
-            },
+            }],
+            [{
+                "path": [0],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
+             },
+             {
+                "path": [2],
+                "action": "setitem",
+                "value": "analyzing",
+                "key": "status"
+            }],
             {
                 "path": [2],
                 "action": "setitem",
@@ -259,11 +283,19 @@ class SchedulerCase(unittest.TestCase):
                 "key": 2
             },
         ]
+        alternative_case = [5, 6, 11, 12]
         done = asyncio.Event()
         expect_idx = 0
+
         def notify(mod):
             nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
+            if expect_idx in alternative_case:
+                if mod == expect[expect_idx][0]:
+                    self.assertEqual(mod, expect[expect_idx][0])
+                else:
+                    self.assertEqual(mod, expect[expect_idx][1])
+            else:
+                self.assertEqual(mod, expect[expect_idx])
             expect_idx += 1
             if expect_idx >= len(expect):
                 done.set()
