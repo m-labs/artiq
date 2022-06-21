@@ -45,7 +45,7 @@ PHASER_ADDR_SERVO_CFG0 = 0x30
 PHASER_ADDR_SERVO_CFG1 = 0x31
 
 # 0x32 - 0x61 ab regs
-PHASER_ADDR_SERVO_AB_BASE = 0x32
+PHASER_ADDR_SERVO_COEFFICIENTS_BASE = 0x32
 # 0x62 - 0x71 offset regs
 PHASER_ADDR_SERVO_OFFSET_BASE = 0x62
 
@@ -418,10 +418,8 @@ class Phaser:
     @kernel
     def write16(self, addr, data: TInt32):
         """Write 16 bit to a sequence of FPGA registers."""
-        byte = data >> 8
-        self.write8(addr, byte)
-        byte = data & 0xFF
-        self.write8(addr + 1, byte)
+        self.write8(addr, data >> 8)
+        self.write8(addr + 1, data)
 
     @kernel
     def write32(self, addr, data: TInt32):
