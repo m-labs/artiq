@@ -69,6 +69,7 @@ PHASER_DAC_SEL_TEST = 1
 PHASER_HW_REV_VARIANT = 1 << 4
 
 SERVO_COEFF_WIDTH = 16
+SERVO_DATA_WIDTH = 16
 SERVO_COEFF_SHIFT = 14
 SERVO_T_CYCLE = (32+12+192+24+4)*ns  # Must match gateware ADC parameters
 
@@ -1121,6 +1122,7 @@ class PhaserChannel:
 
         NORM = 1 << SERVO_COEFF_SHIFT
         COEFF_MAX = 1 << SERVO_COEFF_WIDTH - 1
+        DATA_MAX = 1 << SERVO_DATA_WIDTH - 1
 
         kp *= NORM
         if ki == 0.:
@@ -1146,8 +1148,8 @@ class PhaserChannel:
                 b1 >= COEFF_MAX or b1 < -COEFF_MAX):
             raise ValueError("high gains")
 
-        forward_gain = b0 + b1
-        effective_offset = y_offset + forward_gain * x_offset
+        forward_gain = (b0 + b1) * (DATA_MAX - NORM)
+        effective_offset = int(round(DATA_MAX * y_offset + forward_gain * x_offset))
 
         self.set_iir_mu(profile, b0, b1, a1, effective_offset)
 
