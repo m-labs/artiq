@@ -50,11 +50,11 @@ def _get_expid(name):
     }
 
 
-def _get_basic_steps(rid, expid, priority=0, flush=False):
+def _get_basic_steps(rid, expid, priority=0, flush=False, due_date=None):
     return [
         {"action": "setitem", "key": rid, "value":
             {"pipeline": "main", "status": "pending", "priority": priority,
-             "expid": expid, "due_date": None, "flush": flush,
+             "expid": expid, "due_date": due_date, "flush": flush,
              "repo_msg": None},
             "path": []},
         {"action": "setitem", "key": "status", "value": "preparing",
@@ -144,121 +144,23 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        expect = [
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": low_priority,
-                    "pipeline": "main",
-                    "due_date": None,
-                    "status": "pending",
-                    "expid": expid_bg,
-                    "flush": False
-                },
-                "key": 0
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": high_priority,
-                    "pipeline": "main",
-                    "due_date": late,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 1
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": middle_priority,
-                    "pipeline": "main",
-                    "due_date": early,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 2
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "paused",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "run_done",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "analyzing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "deleting",
-                "key": "status"
-            },
-            {
-                "path": [],
-                "action": "delitem",
-                "key": 2
-            },
-        ]
+        expectRID0 = _get_basic_steps(0, expid_bg, low_priority)
+        expectRID1 = _get_basic_steps(1, expid_empty, high_priority, late)
+        expectRID2 = _get_basic_steps(2, expid_empty, middle_priority, early)
+        expectRID0.insert(4,
+            {"action": "setitem", "key": "status", "value": "pasued",
+             "path": [0]})
+        expectRID0.insert(5,
+            {"action": "setitem", "key": "status", "value": "running",
+             "path": [0]})
+             
+        expect = [expectRID0, expectRID1, expectRID2]
+        
+        last_state_RID0 = {"action": "setitem", "key": "status",
+                           "value": "run_done", "path": [0]}
+        last_state_RID1 = {"action": "setitem", "key": "status",
+                           "value": "preparing", "path": [1]}
+
         done = asyncio.Event()
         expect_idx = 0
         def notify(mod):
