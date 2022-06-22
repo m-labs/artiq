@@ -50,7 +50,7 @@ def _get_expid(name):
     }
 
 
-def _get_basic_steps(rid, expid, priority=0, due_date=None, flush = False):
+def _get_basic_steps(rid, expid, priority=0, flush = False, due_date=None):
     return [
         {"action": "setitem", "key": rid, "value":
             {"pipeline": "main", "status": "pending", "priority": priority,
@@ -145,8 +145,10 @@ class SchedulerCase(unittest.TestCase):
         early = time() + 1
 
         expectRID0 = _get_basic_steps(0, expid_bg, low_priority)
-        expectRID1 = _get_basic_steps(1, expid_empty, high_priority, late)
-        expectRID2 = _get_basic_steps(2, expid_empty, middle_priority, early)
+        expectRID1 = _get_basic_steps(1, expid_empty, high_priority,
+                                      due_date=late)
+        expectRID2 = _get_basic_steps(2, expid_empty, middle_priority,
+                                      due_date=early)
         expectRID0.insert(4,
             {"action": "setitem", "key": "status", "value": "paused",
              "path": [0]})
