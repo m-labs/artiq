@@ -8,8 +8,8 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from sipyco.sync_struct import Subscriber
 
 from artiq.coredevice.comm_moninj import *
-from artiq.coredevice.ad9910 import *
-from artiq.coredevice.ad9912_reg import *
+from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, _AD9910_REG_FTW
+from artiq.coredevice.ad9912_reg import AD9912_POW1
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
@@ -218,8 +218,8 @@ class UrukulModel:
 
     def _update_data_low(self, value):
         if self.dds_type == "AD9910":
-            if (AD9910_REG_PROFILE0() <= self.cur_reg <= AD9910_REG_PROFILE7() or
-                    self.cur_reg == AD9910_REG_FTW()):
+            if (_AD9910_REG_PROFILE0 <= self.cur_reg <= _AD9910_REG_PROFILE7 or
+                    self.cur_reg == _AD9910_REG_FTW):
                 self.cur_frequency_low = self._ftw_to_freq(value)
         else: # AD9912
             if self.cur_reg == AD9912_POW1:
