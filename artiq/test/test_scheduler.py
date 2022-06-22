@@ -50,7 +50,7 @@ def _get_expid(name):
     }
 
 
-def _get_basic_steps(rid, expid, priority=0, flush = False, due_date=None):
+def _get_basic_steps(rid, expid, priority=0, flush=False, due_date=None):
     return [
         {"action": "setitem", "key": rid, "value":
             {"pipeline": "main", "status": "pending", "priority": priority,
