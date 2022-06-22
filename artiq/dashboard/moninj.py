@@ -660,8 +660,8 @@ class _DeviceManager:
                 await asyncio.sleep(10.)
                 self.reconnect_mi.set()
             else:
-                logger.info("ARTIQ dashboard %s connected to %s",
-                    artiq_version, self.mi_addr)
+                logger.info("ARTIQ dashboard connected to moninj proxy (%s)",
+                            self.mi_addr)
                 self.mi_connection = new_mi_connection
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
