@@ -184,10 +184,15 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
 class UrukulModel:
     def __init__(self, cpld, dds_type, ref_clk, pll, clk_div=0):
         self.cpld = cpld
-        self.cur_frequency_low = 0
-        self.cur_frequency_high = 0
+        self.cur_frequency = 0
         self.cur_reg = 0
         self.dds_type = dds_type
+
+        # AD9912 only: broken up freq
+        self._ad9912_low = 0
+        self._ad9912_low_updated = False
+        self._ad9912_high = 0
+        self._ad9912_high_updated = False
 
         if dds_type == "AD9910":
             max_freq = 1 << 32
@@ -199,7 +204,7 @@ class UrukulModel:
         self.ftw_per_hz = 1 / sysclk * max_freq
 
     def get_frequency(self):
-        return self.cur_frequency_low + self.cur_frequency_high
+        return self.cur_frequency
 
     def monitor_update(self, probe, value):
         probe_type = probe // 4
@@ -220,20 +225,32 @@ class UrukulModel:
         if self.dds_type == "AD9910":
             if (_AD9910_REG_PROFILE0 <= self.cur_reg <= _AD9910_REG_PROFILE7 or
                     self.cur_reg == _AD9910_REG_FTW):
-                self.cur_frequency_low = self._ftw_to_freq(value)
+                self.cur_frequency = self._ftw_to_freq(value)
         else: # AD9912
             if self.cur_reg == AD9912_POW1:
                 # mask to avoid improper sign extension
-                ftw = self._ftw_to_freq(value & 0xffffffff)
-                self.cur_frequency_low = ftw
+                freq = self._ftw_to_freq(value & 0xffffffff)
+                self._ad9912_update_freq(freq, high=False)
     
     def _update_data_high(self, value):
         if self.dds_type == "AD9912" and self.cur_reg == AD9912_POW1:
-            ftw = self._ftw_to_freq((value & 0xffff) << 32)
-            self.cur_frequency_high = ftw
+            freq = self._ftw_to_freq((value & 0xffff) << 32)
+            self._ad9912_update_freq(freq, high=True)
     
     def _ftw_to_freq(self, ftw):
         return ftw / self.ftw_per_hz
+
+    def _ad9912_update_freq(self, freq, high):
+        if high:
+            self._ad9912_high = freq
+            self._ad9912_high_updated = True
+        else:
+            self._ad9912_low = freq
+            self._ad9912_low_updated = True
+        if self._ad9912_low_updated and self._ad9912_high_updated:
+            self._ad9912_low_updated = False
+            self._ad9912_high_updated = False
+            self.cur_frequency = self._ad9912_high + self._ad9912_low
 
 class _DDSWidget(QtWidgets.QFrame):
     def __init__(self, dm, title, bus_channel=0, channel=0, dds_type="AD9914", urukul_model=None):
