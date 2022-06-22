@@ -188,7 +188,6 @@ class UrukulModel:
         self.cur_frequency_high = 0
         self.cur_reg = 0
         self.dds_type = dds_type
-        self.cur_amp = 0
 
         if dds_type == "AD9910":
             max_freq = 1 << 32
@@ -222,8 +221,6 @@ class UrukulModel:
             if (AD9910_REG_PROFILE0() <= self.cur_reg <= AD9910_REG_PROFILE7() or
                     self.cur_reg == AD9910_REG_FTW()):
                 self.cur_frequency_low = self._ftw_to_freq(value)
-            elif self.cur_reg == AD9910_REG_ASF():
-                self.cur_amp = self._asf_to_amp(value)
         else: # AD9912
             if self.cur_reg == AD9912_POW1:
                 # mask to avoid improper sign extension
@@ -231,19 +228,10 @@ class UrukulModel:
                 self.cur_frequency_low = ftw
     
     def _update_data_high(self, value):
-        if self.dds_type == "AD9910":
-            if AD9910_REG_PROFILE0() <= self.cur_reg <= AD9910_REG_PROFILE7():
-                asf = (value >> 16) & 0xffff
-                self.cur_amp = self._asf_to_amp(asf)
-        else: # AD9912
-            if self.cur_reg == AD9912_POW1:
-                ftw = self._ftw_to_freq((value & 0xffff) << 32)
-                self.cur_frequency_high = ftw
+        if self.dds_type == "AD9912" and self.cur_reg == AD9912_POW1:
+            ftw = self._ftw_to_freq((value & 0xffff) << 32)
+            self.cur_frequency_high = ftw
     
-    @staticmethod
-    def _asf_to_amp(asf):
-        return asf / float(0x3ffe)
-
     def _ftw_to_freq(self, ftw):
         return ftw / self.ftw_per_hz
 
