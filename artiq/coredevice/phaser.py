@@ -68,6 +68,10 @@ PHASER_DAC_SEL_TEST = 1
 
 PHASER_HW_REV_VARIANT = 1 << 4
 
+SERVO_COEFF_WIDTH = 16
+SERVO_COEFF_SHIFT = 14
+SERVO_T_CYCLE = (32+12+192+24+4)*ns  # Must match gateware ADC parameters
+
 
 class Phaser:
     """Phaser 4-channel, 16-bit, 1 GS/s DAC coredevice driver.
@@ -127,7 +131,7 @@ class Phaser:
     impulse response) filter fed by the ADC and a multiplier that scales the I
     and Q datastreams from the DUC by the IIR output.
 
-    Each channels IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
+    Each channel IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
     coefficients as well as an output offset. The coefficients and offset can be
     set for each profile individually and the profiles each have their own filter
     state. To avoid transient effects, care should be taken to not update the
@@ -1104,13 +1108,49 @@ class PhaserChannel:
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         # 24 byte-sized ab registers per channel and 6 (2 bytes * 3 coefficients) registers per profile
-        addr = PHASER_ADDR_SERVO_AB_BASE + (6 * profile) + (self.index * 24)
+        addr = PHASER_ADDR_SERVO_COEFFICIENTS_BASE + (6 * profile) + (self.index * 24)
         for coef in [b0, b1, a1]:
             self.phaser.write16(addr, coef)
             addr += 2
         # 8 offset registers per channel and 2 registers per offset
         addr = PHASER_ADDR_SERVO_OFFSET_BASE + (2 * profile) + (self.index * 8)
         self.phaser.write16(addr, offset)
+    
+    @kernel
+    def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
+
+        NORM = 1 << SERVO_COEFF_SHIFT
+        COEFF_MAX = 1 << SERVO_COEFF_WIDTH - 1
+
+        kp *= NORM
+        if ki == 0.:
+            # pure P
+            a1 = 0
+            b1 = 0
+            b0 = int(round(kp))
+        else:
+            # I or PI
+            ki *= NORM*SERVO_T_CYCLE/2.
+            if g == 0.:
+                c = 1.
+                a1 = NORM
+            else:
+                c = 1./(1. + ki/(g*NORM))
+                a1 = int(round((2.*c - 1.)*NORM))
+            b0 = int(round(kp + ki*c))
+            b1 = int(round(kp + (ki - 2.*kp)*c))
+            if b1 == -b0:
+                raise ValueError("low integrator gain and/or gain limit")
+
+        if (b0 >= COEFF_MAX or b0 < -COEFF_MAX or
+                b1 >= COEFF_MAX or b1 < -COEFF_MAX):
+            raise ValueError("high gains")
+
+        forward_gain = b0 + b1
+        effective_offset = y_offset + forward_gain * x_offset
+
+        self.set_iir_mu(profile, b0, b1, a1, effective_offset)
+
 
 
 class PhaserOscillator:
