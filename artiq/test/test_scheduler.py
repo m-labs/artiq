@@ -149,23 +149,30 @@ class SchedulerCase(unittest.TestCase):
                                       due_date=late)
         expectRID2 = _get_basic_steps(2, expid_empty, middle_priority,
                                       due_date=early)
+        #RID0 paused because RID2 reach due_date and has higher priority
         expectRID0.insert(4,
             {"action": "setitem", "key": "status", "value": "paused",
              "path": [0]})
+        #RID0 resume running after RID finish running
         expectRID0.insert(5,
             {"action": "setitem", "key": "status", "value": "running",
              "path": [0]})
 
         expect = [expectRID0, expectRID1, expectRID2]
 
-        last_state_RID0 = {"action": "setitem", "key": "status",
+        #RID0 will never finish running
+        expect_next_state_RID0 = {"action": "setitem", "key": "status",
                            "value": "run_done", "path": [0]}
-        last_state_RID1 = {"action": "setitem", "key": "status",
+        #RID1 will never be preparing
+        expect_next_state_RID1 = {"action": "setitem", "key": "status",
                            "value": "preparing", "path": [1]}
+        #RID2 will go through all stages so it doesn't have expect_next_state
 
         done = asyncio.Event()
 
         def notify(mod):
+            #Identify the rid
+            #   Two possible location of rid, 1) "key"  2) "path"[0]
             if type(mod["key"]) is int:
                 rid = mod["key"]
             else:
@@ -173,8 +180,8 @@ class SchedulerCase(unittest.TestCase):
             self.assertEqual(mod, expect[rid].pop(0))
             if len(expect[rid]) == 0:
                 self.assertEqual(rid, 2)
-                self.assertEqual(expect[0][0], last_state_RID0)
-                self.assertEqual(expect[1][0], last_state_RID1)
+                self.assertEqual(expect[0][0], expect_next_state_RID0)
+                self.assertEqual(expect[1][0], expect_next_state_RID1)
                 done.set()
 
         scheduler.notifier.publish = notify
