@@ -149,29 +149,29 @@ class SchedulerCase(unittest.TestCase):
                                       due_date=late)
         expectRID2 = _get_basic_steps(2, expid_empty, middle_priority,
                                       due_date=early)
-        #RID0 paused because RID2 reach due_date and has higher priority
+        # RID0 paused because RID2 reach due_date and has higher priority
         expectRID0.insert(4,
-            {"action": "setitem", "key": "status", "value": "paused",
-             "path": [0]})
-        #RID0 resume running after RID finish running
+                          {"action": "setitem", "key": "status",
+                           "value": "paused", "path": [0]})
+        # RID0 resume running after RID finish running
         expectRID0.insert(5,
-            {"action": "setitem", "key": "status", "value": "running",
-             "path": [0]})
+                          {"action": "setitem", "key": "status",
+                           "value": "running", "path": [0]})
 
         expect = [expectRID0, expectRID1, expectRID2]
 
-        #RID0 will never finish running
+        # RID0 will never finish running
         expect_next_state_RID0 = {"action": "setitem", "key": "status",
-                           "value": "run_done", "path": [0]}
-        #RID1 will never be preparing
+                                  "value": "run_done", "path": [0]}
+        # RID1 will never be preparing
         expect_next_state_RID1 = {"action": "setitem", "key": "status",
-                           "value": "preparing", "path": [1]}
-        #RID2 will go through all stages so it doesn't have expect_next_state
+                                  "value": "preparing", "path": [1]}
+        # RID2 will go through all stages so it doesn't have expect_next_state
 
         done = asyncio.Event()
 
         def notify(mod):
-            #Identify the rid
+            # Identify the rid
             #   Two possible location of rid, 1) "key"  2) "path"[0]
             if type(mod["key"]) is int:
                 rid = mod["key"]
