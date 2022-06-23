@@ -1145,8 +1145,8 @@ class PhaserChannel:
         Gains are given in units of output full per scale per input full scale.
 
         .. note:: Due to inherent constraints of the fixed point datatypes and IIR
-        filters, the setpoint resolution depends on the selected gains. This is
-        especially the case for low ``ki`` gains.
+        filters, the ``x_offset`` (setpoint) resolution depends on the selected gains. 
+        Low ``ki`` gains will lead to a low ``x_offset`` resolution.
 
         The transfer function is (up to time discretization and
         coefficient quantization errors):
