@@ -133,13 +133,15 @@ class Phaser:
 
     Each channel IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
     coefficients as well as an output offset. The coefficients and offset can be
-    set for each profile individually and the profiles each have their own filter
-    state. To avoid transient effects, care should be taken to not update the
-    coefficents in the currently selected profile.
+    set for each profile individually and the profiles each have their own ``y0``,
+    ``y1`` output registers (the ``x0``, ``x1`` inputs are shared). To avoid
+    transient effects, care should be taken to not update the coefficents in the
+    currently selected profile.
 
     The IIR output can be put on hold for each channel. In hold mode, the filter
-    still ingests samples and updates its input x0 and x1 registers, but does not
-    update the y0, y1 output registers. The servo can also be bypassed.
+    still ingests samples and updates its input ``x0`` and ``x1`` registers, but
+    does not update the ``y0``, ``y1`` output registers. The servo can also be
+    bypassed.
 
     After power-up the servo is bypassed, in profile 0, with coefficients [0, 0, 0]
     and hold is enabled. If older gateware without ther servo is loaded onto the
