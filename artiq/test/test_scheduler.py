@@ -6,6 +6,7 @@ from time import time, sleep
 
 from artiq.experiment import *
 from artiq.master.scheduler import Scheduler
+from sipyco.sync_struct import process_mod
 
 
 class EmptyExperiment(EnvExperiment):
@@ -144,44 +145,20 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        expectRID0 = _get_basic_steps(0, expid_bg, low_priority)
-        expectRID1 = _get_basic_steps(1, expid_empty, high_priority,
-                                      due_date=late)
-        expectRID2 = _get_basic_steps(2, expid_empty, middle_priority,
-                                      due_date=early)
-        # RID0 paused because RID2 reach due_date and has higher priority
-        expectRID0.insert(4,
-                          {"action": "setitem", "key": "status",
-                           "value": "paused", "path": [0]})
-        # RID0 resume running after RID finish running
-        expectRID0.insert(5,
-                          {"action": "setitem", "key": "status",
-                           "value": "running", "path": [0]})
-
-        expect = [expectRID0, expectRID1, expectRID2]
-
-        # RID0 will never finish running
-        expect_next_state_RID0 = {"action": "setitem", "key": "status",
-                                  "value": "run_done", "path": [0]}
-        # RID1 will never be preparing
-        expect_next_state_RID1 = {"action": "setitem", "key": "status",
-                                  "value": "preparing", "path": [1]}
-        # RID2 will go through all stages so it doesn't have expect_next_state
-
         done = asyncio.Event()
 
+        schedule = {}
+        pending_to_preparing = []
+
         def notify(mod):
-            # Identify the rid
-            #   Two possible location of rid, 1) "key"  2) "path"[0]
-            if type(mod["key"]) is int:
-                rid = mod["key"]
-            else:
-                rid = mod["path"][0]
-            self.assertEqual(mod, expect[rid].pop(0))
-            if len(expect[rid]) == 0:
-                self.assertEqual(rid, 2)
-                self.assertEqual(expect[0][0], expect_next_state_RID0)
-                self.assertEqual(expect[1][0], expect_next_state_RID1)
+            process_mod(schedule, mod)
+            for key in schedule:
+                if schedule[key]["status"] == "preparing":
+                    if key not in pending_to_preparing:
+                        pending_to_preparing.append(key)
+            # Expect only two rid would go to preparing
+            if len(pending_to_preparing) == 2:
+                self.assertEqual(pending_to_preparing, [0, 2])
                 done.set()
 
         scheduler.notifier.publish = notify
