@@ -63,7 +63,11 @@ async def get_logs(host):
             length, = struct.unpack(endian + "l", await reader.readexactly(4))
             log = await reader.readexactly(length)
         except TimeoutError:
-            log_with_name("core_log", logging.ERROR, "Terminated due to connection failure")
+            log_with_name("core_log", logging.ERROR, "Terminated due to core device "\
+                          "connection failure")
+            break
+        except Exception as e:
+            log_with_name("core_log", logging.ERROR, "Terminated due to: %s", e)
             break
 
         for line in log.decode("utf-8").splitlines():
