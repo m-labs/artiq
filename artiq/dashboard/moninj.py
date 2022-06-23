@@ -10,7 +10,6 @@ from sipyco.sync_struct import Subscriber
 from artiq.coredevice.comm_moninj import *
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
-from artiq import __version__ as artiq_version
 
 logger = logging.getLogger(__name__)
 
