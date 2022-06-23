@@ -1094,7 +1094,7 @@ class PhaserChannel:
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
         # enforce hold if the servo is bypassed
-        data = (profile << 2) | (((hold | bypass) & 1) << 1) | (bypass & 1)
+        data = (profile << 2) | (((hold | bypass) & 1) << 1) | (~bypass & 1)
         self.phaser.write8(addr, data)
 
     @kernel
