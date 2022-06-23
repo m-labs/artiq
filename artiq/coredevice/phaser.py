@@ -130,7 +130,8 @@ class Phaser:
     Each phaser output channel features a servo to control the RF output amplitude
     using feedback from an ADC. The servo consists of a first order IIR (infinite
     impulse response) filter fed by the ADC and a multiplier that scales the I
-    and Q datastreams from the DUC by the IIR output.
+    and Q datastreams from the DUC by the IIR output. The IIR state is updated at
+    the 3.788 MHz ADC sampling rate.
 
     Each channel IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
     coefficients as well as an output offset. The coefficients and offset can be
@@ -1088,8 +1089,8 @@ class PhaserChannel:
 
         :param bypass: 1 to enable bypass (default), 0 to engage servo. If bypassed, hold
             is forced since the control loop is broken.
-        :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation
-        :param profile: profile index to select for channel (0 to 3)
+        :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation.
+        :param profile: Profile index to select for channel. (0 to 3)
         """
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
@@ -1102,9 +1103,32 @@ class PhaserChannel:
     def set_iir_mu(self, profile, b0, b1, a1, offset):
         """Load a servo profile consiting of the three filter coefficients and an output offset.
 
-        :param profile: profile to load (0 to 3)
-        :param ab: 3 entry coefficient vector (16 bit)
-        :param offset: output offset (16 bit)
+        Avoid setting the IIR parameters of the currently active profile.
+
+        The recurrence relation is (all data signed and MSB aligned):
+
+        .. math::
+            a_0 y_n = a_1 y_{n - 1} + b_0 x_n + b_1 x_{n - 1} + o
+
+        Where:
+
+            * :math:`y_n` and :math:`y_{n-1}` are the current and previous
+              filter outputs, clipped to :math:`[0, 1[`.
+            * :math:`x_n` and :math:`x_{n-1}` are the current and previous
+              filter inputs in :math:`[-1, 1[`.
+            * :math:`o` is the offset
+            * :math:`a_0` is the normalization factor :math:`2^{14}`
+            * :math:`a_1` is the feedback gain
+            * :math:`b_0` and :math:`b_1` are the feedforward gains for the two
+              delays
+
+        .. seealso:: :meth:`set_iir`
+
+        :param profile: Profile to set (0 to 3)
+        :param b0: b0 filter coefficient (16 bit signed)
+        :param b1: b1 filter coefficient (16 bit signed)
+        :param a1: a1 filter coefficient (16 bit signed)
+        :param offset: Output offset (16 bit signed)
         """
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
@@ -1119,7 +1143,38 @@ class PhaserChannel:
     
     @kernel
     def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
+        """Set servo profile IIR coefficients.
 
+        Avoid setting the IIR parameters of the currently active profile.
+
+        Gains are given in units of output full per scale per input full scale.
+
+        The transfer function is (up to time discretization and
+        coefficient quantization errors):
+
+        .. math::
+            H(s) = k_p + \\frac{k_i}{s + \\frac{k_i}{g}}
+
+        Where:
+            * :math:`s = \\sigma + i\\omega` is the complex frequency
+            * :math:`k_p` is the proportional gain
+            * :math:`k_i` is the integrator gain
+            * :math:`g` is the integrator gain limit
+
+        :param profile: Profile number (0-3)
+        :param kp: Proportional gain. This is usually negative (closed
+            loop, positive ADC voltage, positive setpoint). When 0, this
+            implements a pure I controller.
+        :param ki: Integrator gain (rad/s). Equivalent to the gain at 1 Hz.
+            When 0 (the default) this implements a pure P controller.
+            Same sign as ``kp``.
+        :param g: Integrator gain limit (1). When 0 (the default) the
+            integrator gain limit is infinite. Same sign as ``ki``.
+        :param x_offset: IIR input offset. Used as the negative
+            setpoint when stabilizing to a desired input setpoint. Will
+            be converted to an equivalent output offset and added to y_offset.
+        :param y_offset: IIR output offset.
+        """
         NORM = 1 << SERVO_COEFF_SHIFT
         COEFF_MAX = 1 << SERVO_COEFF_WIDTH - 1
         DATA_MAX = 1 << SERVO_DATA_WIDTH - 1
