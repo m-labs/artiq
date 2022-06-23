@@ -79,8 +79,9 @@ async def get_logs(host):
                 name = 'firmware.' + m.group(2).replace('::', '.')
                 text = m.group(3)
                 log_with_name(name, level, text)
-    except:
-        pass
+    finally:
+        log_with_name("core log", logging.ERROR, "Terminated due to core device "\
+                      "connection failure")
 
 
 def main():
