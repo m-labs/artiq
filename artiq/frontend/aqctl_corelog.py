@@ -58,29 +58,30 @@ async def get_logs(host):
     writer.write(struct.pack("B", Request.PullLog.value))
     await writer.drain()
 
-    try:
-        while True:
+    while True:
+        try:
             length, = struct.unpack(endian + "l", await reader.readexactly(4))
             log = await reader.readexactly(length)
+        except TimeoutError:
+            log_with_name("core_log", logging.ERROR, "Terminated due to connection failure")
+            break
 
-            for line in log.decode("utf-8").splitlines():
-                m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
-                levelname = m.group(1)
-                if levelname == 'TRACE':
-                    level = logging.TRACE
-                elif levelname == 'DEBUG':
-                    level = logging.DEBUG
-                elif levelname == ' INFO':
-                    level = logging.INFO
-                elif levelname == ' WARN':
-                    level = logging.WARN
-                elif levelname == 'ERROR':
-                    level = logging.ERROR
-                name = 'firmware.' + m.group(2).replace('::', '.')
-                text = m.group(3)
-                log_with_name(name, level, text)
-    except TimeoutError:
-        log_with_name("core_log", logging.ERROR, "Terminated due to connection failure")
+        for line in log.decode("utf-8").splitlines():
+            m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
+            levelname = m.group(1)
+            if levelname == 'TRACE':
+                level = logging.TRACE
+            elif levelname == 'DEBUG':
+                level = logging.DEBUG
+            elif levelname == ' INFO':
+                level = logging.INFO
+            elif levelname == ' WARN':
+                level = logging.WARN
+            elif levelname == 'ERROR':
+                level = logging.ERROR
+            name = 'firmware.' + m.group(2).replace('::', '.')
+            text = m.group(3)
+            log_with_name(name, level, text)
 
 
 def main():
