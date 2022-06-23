@@ -232,7 +232,7 @@ def main():
         server_description = server_name + " ({})".format(args.server)
     else:
         server_description = args.server
-    logging.info("ARTIQ dashboard version: " + artiq_version)
+    logging.info("ARTIQ dashboard version: %s", artiq_version)
     logging.info("ARTIQ dashboard connected to master (%s)", server_description)
 
     # run
