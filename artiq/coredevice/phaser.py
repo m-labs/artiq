@@ -44,10 +44,8 @@ PHASER_ADDR_DAC1_TEST = 0x2c
 PHASER_ADDR_SERVO_CFG0 = 0x30
 PHASER_ADDR_SERVO_CFG1 = 0x31
 
-# 0x32 - 0x61 ab regs
-PHASER_ADDR_SERVO_COEFFICIENTS_BASE = 0x32
-# 0x62 - 0x71 offset regs
-PHASER_ADDR_SERVO_OFFSET_BASE = 0x62
+# 0x32 - 0x71 servo coefficients + offset data
+PHASER_ADDR_SERVO_DATA_BASE = 0x32
 
 
 PHASER_SEL_DAC = 1 << 0
@@ -1133,13 +1131,10 @@ class PhaserChannel:
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         # 24 byte-sized ab registers per channel and 6 (2 bytes * 3 coefficients) registers per profile
-        addr = PHASER_ADDR_SERVO_COEFFICIENTS_BASE + (6 * profile) + (self.index * 24)
-        for coef in [b0, b1, a1]:
-            self.phaser.write16(addr, coef)
+        addr = PHASER_ADDR_SERVO_DATA_BASE + (8 * profile) + (self.index * 32)
+        for data in [b0, b1, a1, offset]:
+            self.phaser.write16(addr, data)
             addr += 2
-        # 8 offset registers per channel and 2 registers per offset
-        addr = PHASER_ADDR_SERVO_OFFSET_BASE + (2 * profile) + (self.index * 8)
-        self.phaser.write16(addr, offset)
     
     @kernel
     def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
