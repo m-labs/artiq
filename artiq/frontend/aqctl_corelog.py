@@ -10,6 +10,7 @@ from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logging_tools import log_with_name
 from sipyco.asyncio_tools import SignalHandler
+from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
@@ -38,7 +39,13 @@ async def get_logs_sim(host):
 
 
 async def get_logs(host):
-    reader, writer = await asyncio.open_connection(host, 1380)
+    reader, writer = await async_open_connection(
+        host,
+        1380,
+        after_idle=1,
+        interval=1,
+        max_fails=3,
+    )
     writer.write(b"ARTIQ management\n")
     endian = await reader.readexactly(1)
     if endian == b"e":
@@ -51,8 +58,12 @@ async def get_logs(host):
     await writer.drain()
 
     while True:
-        length, = struct.unpack(endian + "l", await reader.readexactly(4))
-        log = await reader.readexactly(length)
+        try:
+            length, = struct.unpack(endian + "l", await reader.readexactly(4))
+            log = await reader.readexactly(length)
+        except IOError:
+            logger.error("Core log Terminated due to core device connection error")
+            raise
 
         for line in log.decode("utf-8").splitlines():
             m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
@@ -89,7 +100,10 @@ def main():
                 loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
                 try:
                     _, pending = loop.run_until_complete(asyncio.wait(
-                        [signal_handler.wait_terminate(), server.wait_terminate()],
+                        [signal_handler.wait_terminate(),
+                         server.wait_terminate(),
+                         get_logs_task
+                        ],
                         return_when=asyncio.FIRST_COMPLETED))
                     for task in pending:
                         task.cancel()
