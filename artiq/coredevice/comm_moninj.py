@@ -91,6 +91,8 @@ class CommMonInj:
                     self.injection_status_cb(channel, override, value)
                 else:
                     raise ValueError("Unknown packet type", ty)
+        except IOError:
+            logger.error("Terminated due to connection lost with %s", self.host)
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()
