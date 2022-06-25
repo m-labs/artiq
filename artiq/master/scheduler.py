@@ -490,3 +490,11 @@ class Scheduler:
                     return False
                 return r.priority_key() > run.priority_key()
         raise KeyError("RID not found")
+
+    def get_wd(self, rid):
+        """Returns the ``wd`` attribute of the run with the specified RID."""
+        for pipeline in self._pipelines.values():
+            if rid in pipeline.pool.runs:
+                run = pipeline.pool.runs[rid]
+                return run.wd
+        raise KeyError("RID not found")

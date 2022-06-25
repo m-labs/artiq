@@ -126,6 +126,13 @@ class Scheduler:
         make_parent_action("scheduler_request_termination"))
     get_status = staticmethod(make_parent_action("scheduler_get_status"))
 
+    _get_wd = staticmethod(make_parent_action("scheduler_get_wd"))
+    @host_only
+    def get_wd(self, rid=None):
+        if rid is None:
+            rid = self.rid
+        return self._get_wd(rid)
+
 
 class CCB:
     issue = staticmethod(make_parent_action("ccb_issue"))
