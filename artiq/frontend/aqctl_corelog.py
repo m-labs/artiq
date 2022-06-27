@@ -14,7 +14,6 @@ from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
-logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -63,7 +62,7 @@ async def get_logs(host):
             length, = struct.unpack(endian + "l", await reader.readexactly(4))
             log = await reader.readexactly(length)
         except IOError:
-            logger.error("Terminated due to connection lost with %s", host)
+            logger.error("Core log Terminated due to core device connection error")
             raise
 
         for line in log.decode("utf-8").splitlines():
