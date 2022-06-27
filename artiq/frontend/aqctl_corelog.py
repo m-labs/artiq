@@ -113,9 +113,8 @@ def main():
                     loop.run_until_complete(get_logs_task)
                 except asyncio.CancelledError:
                     pass
-        except Exception as e:
-            logger.error(e)
-            logger.error("Lost connection to the core device")
+        except:
+            logger.error("Lost connection to the core device due to: ", exc_info = True)
         finally:
             signal_handler.teardown()
     finally:
