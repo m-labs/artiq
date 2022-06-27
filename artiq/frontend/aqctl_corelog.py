@@ -14,6 +14,7 @@ from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
+logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -58,12 +59,9 @@ async def get_logs(host):
     await writer.drain()
 
     while True:
-        try:
-            length, = struct.unpack(endian + "l", await reader.readexactly(4))
-            log = await reader.readexactly(length)
-        except IOError:
-            logger.error("Core log Terminated due to core device connection error")
-            raise
+
+        length, = struct.unpack(endian + "l", await reader.readexactly(4))
+        log = await reader.readexactly(length)
 
         for line in log.decode("utf-8").splitlines():
             m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
@@ -115,6 +113,9 @@ def main():
                     loop.run_until_complete(get_logs_task)
                 except asyncio.CancelledError:
                     pass
+        except Exception as e:
+            logger.error(e)
+            logger.error("Lost connection to the core device")
         finally:
             signal_handler.teardown()
     finally:
