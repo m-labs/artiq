@@ -59,7 +59,6 @@ async def get_logs(host):
     await writer.drain()
 
     while True:
-
         length, = struct.unpack(endian + "l", await reader.readexactly(4))
         log = await reader.readexactly(length)
 
@@ -101,20 +100,16 @@ def main():
                         [signal_handler.wait_terminate(),
                          server.wait_terminate(),
                          get_logs_task
-                        ],
+                         ],
                         return_when=asyncio.FIRST_COMPLETED))
                     for task in pending:
                         task.cancel()
                 finally:
                     loop.run_until_complete(server.stop())
             finally:
-                get_logs_task.cancel()
-                try:
-                    loop.run_until_complete(get_logs_task)
-                except asyncio.CancelledError:
-                    pass
-        except:
-            logger.error("Lost connection to the core device due to: ", exc_info = True)
+                pass
+        except Exception:
+            logger.error("Termination due to exception", exc_info=True)
         finally:
             signal_handler.teardown()
     finally:
