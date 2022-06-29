@@ -229,7 +229,7 @@ class ProcessArgumentManager:
                 if args == "":
                     args += str(key)
                 else:
-                    args += (" ,"+str(key))
+                    args += (", "+str(key))
             raise Exception("Unused argument(s): " + args)
 
 class HasEnvironment:
