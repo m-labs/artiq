@@ -217,10 +217,20 @@ class ProcessArgumentManager:
     def get(self, key, processor, group, tooltip):
         if key in self.unprocessed_arguments:
             r = processor.process(self.unprocessed_arguments[key])
+            self.unprocessed_arguments.pop(key)
         else:
             r = processor.default()
         return r
 
+    def check_unused_arguments(self):
+        if len(self.unprocessed_arguments) > 0:
+            args = ""
+            for key in self.unprocessed_arguments.keys():
+                if args == "":
+                    args += str(key)
+                else:
+                    args += (" ,"+str(key))
+            raise Exception("Unused argument(s): " + args)
 
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
@@ -242,6 +252,8 @@ class HasEnvironment:
         self.__in_build = True
         self.build(*args, **kwargs)
         self.__in_build = False
+        if isinstance(self.__argument_mgr, ProcessArgumentManager):
+            self.__argument_mgr.check_unused_arguments()
 
     def register_child(self, child):
         self.children.append(child)
