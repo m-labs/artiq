@@ -3,7 +3,7 @@ from migen.build.generic_platform import *
 from migen.genlib.io import DifferentialOutput
 
 from artiq.gateware import rtio
-from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, urukul_monitor, grabber
+from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, dds, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
 
@@ -222,17 +222,13 @@ class Urukul(_EEM):
         return ios
 
     @classmethod
-    def add_std(cls, target, eem, eem_aux, ttl_out_cls, sync_gen_cls=None, iostandard=default_iostandard):
+    def add_std(cls, target, eem, eem_aux, ttl_out_cls, dds_type, sync_gen_cls=None, iostandard=default_iostandard):
         cls.add_extension(target, eem, eem_aux, iostandard=iostandard)
 
-        phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
+        spi_phy = spi2.SPIMaster(target.platform.request("urukul{}_spi_p".format(eem)),
             target.platform.request("urukul{}_spi_n".format(eem)))
-        target.submodules += phy
-        target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-
-        dds_monitor = urukul_monitor.UrukulMonitor(phy.rtlink)
-        target.submodules += dds_monitor
-        phy.probes.extend(dds_monitor.probes)
+        target.submodules += spi_phy
+        target.rtio_channels.append(rtio.Channel.from_phy(spi_phy, ififo_depth=4))
 
         pads = target.platform.request("urukul{}_dds_reset_sync_in".format(eem))
         if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
@@ -241,9 +237,14 @@ class Urukul(_EEM):
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         pads = target.platform.request("urukul{}_io_update".format(eem))
-        phy = ttl_out_cls(pads.p, pads.n)
-        target.submodules += phy
-        target.rtio_channels.append(rtio.Channel.from_phy(phy))
+        io_upd_phy = ttl_out_cls(pads.p, pads.n)
+        target.submodules += io_upd_phy
+        target.rtio_channels.append(rtio.Channel.from_phy(io_upd_phy))
+
+        dds_monitor = dds.UrukulMonitor(spi_phy, io_upd_phy, dds_type)
+        target.submodules += dds_monitor
+        spi_phy.probes.extend(dds_monitor.probes)
+
         if eem_aux is not None:
             for signal in "sw0 sw1 sw2 sw3".split():
                 pads = target.platform.request("urukul{}_{}".format(eem, signal))

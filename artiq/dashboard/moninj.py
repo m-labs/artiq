@@ -191,9 +191,11 @@ class UrukulModel:
         if dds_type == "AD9910":
             max_freq = 1 << 32
             clk_mult = [4, 1, 2, 4]
-        else:  # AD9912
+        elif dds_type == "AD9912":  # AD9912
             max_freq = 1 << 48
             clk_mult = [1, 1, 2, 4]
+        else:
+            raise NotImplementedError
         sysclk = ref_clk / clk_mult[clk_div] * pll
         self.ftw_per_hz = 1 / sysclk * max_freq
 
@@ -201,31 +203,12 @@ class UrukulModel:
         return self.cur_frequency
 
     def monitor_update(self, probe, value):
-        probe_type = probe // 4
-        if probe_type == 0:  # probes 0-3: register addresses
-            self._update_reg(value)
-        elif probe_type == 1:  # probes 4-7: data_high (for 64 bit transfer)
-            self._update_data_high(value)
-        elif probe_type == 2:  # probes 8-11: data_low (for 64 bit) or just data (32 bit)
-            self._update_data_low(value)
+        print("dds_type: {} got probe: {} val: 0x{:08x}".format(self.dds_type, probe, value))
+        if self.dds_type == "AD9912":
+            value = value << 16
+        print("val: 0x{:x}".format(value))
+        self.cur_frequency = self._ftw_to_freq(value)
 
-    def _update_reg(self, reg):
-        if self.dds_type == "AD9910":
-            self.cur_reg = (reg >> 24) & 0xff
-        else: # AD9912
-            self.cur_reg = ((reg >> 16) & ~(3 << 13)) & 0xffff
-
-    def _update_data_low(self, value):
-        if self.dds_type == "AD9910":
-            if (_AD9910_REG_PROFILE0 <= self.cur_reg <= _AD9910_REG_PROFILE7 or
-                    self.cur_reg == _AD9910_REG_FTW):
-                self.cur_frequency = self._ftw_to_freq(value)
-        # ignore AD9912 low data
-    
-    def _update_data_high(self, value):
-        if self.dds_type == "AD9912" and self.cur_reg == AD9912_POW1:
-            self.cur_frequency = self._ftw_to_freq((value & 0xffff) << 32)
-    
     def _ftw_to_freq(self, ftw):
         return ftw / self.ftw_per_hz
 
@@ -664,9 +647,6 @@ class _DeviceManager:
     def setup_dds_monitoring(self, enable, bus_channel, channel, is_urukul):
         if self.mi_connection is not None:
             self.mi_connection.monitor_probe(enable, bus_channel, channel)
-            if is_urukul:
-                self.mi_connection.monitor_probe(enable, bus_channel, channel + 4)
-                self.mi_connection.monitor_probe(enable, bus_channel, channel + 8)
 
     def setup_dac_monitoring(self, enable, spi_channel, channel):
         if self.mi_connection is not None:
