@@ -245,7 +245,7 @@ def put_completed():
     put_object({"action": "completed"})
 
 
-def put_exception_report():
+def put_exception_report(device_mgr):
     _, exc, _ = sys.exc_info()
     # When we get CompileError, a more suitable diagnostic has already
     # been printed.
@@ -254,6 +254,9 @@ def put_exception_report():
         exc_str = str(exc)
         if exc_str:
             short_exc_info += ": " + exc_str.splitlines()[0]
+        for channel_num, replacer in device_mgr.lib.items():
+            if channel_num in short_exc_info:
+                short_exc_info = short_exc_info.replace(channel_num, replacer)
         lines = ["Terminating with exception ("+short_exc_info+")\n"]
         if hasattr(exc, "artiq_core_exception"):
             lines.append(str(exc.artiq_core_exception))
@@ -353,7 +356,7 @@ def main():
             elif action == "terminate":
                 break
     except:
-        put_exception_report()
+        put_exception_report(device_mgr)
     finally:
         device_mgr.close_devices()
         ipc.close()
