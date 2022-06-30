@@ -60,6 +60,7 @@ class DeviceManager:
         self.ddb = ddb
         self.virtual_devices = virtual_devices
         self.active_devices = []
+        self.lib = {}
 
     def get_device_db(self):
         """Returns the full contents of the device database."""
@@ -90,6 +91,11 @@ class DeviceManager:
             raise DeviceError("Failed to create device '{}'"
                               .format(name)) from e
         self.active_devices.append((desc, dev))
+
+        if "channel" in desc["arguments"]:
+            key = "channel " + str(desc["arguments"]["channel"])
+            self.lib[key] = key + " (" + name + ")"
+
         return dev
 
     def close_devices(self):
