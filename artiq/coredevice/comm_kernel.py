@@ -526,6 +526,9 @@ class CommKernel:
             self._skip_rpc_value(tags)
         elif tag == "r":
             self._skip_rpc_value(tags)
+        elif tag == "a":
+            _ndims = tags.pop(0)
+            self._skip_rpc_value(tags)
         else:
             pass
 

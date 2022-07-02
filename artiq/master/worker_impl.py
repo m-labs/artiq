@@ -205,7 +205,10 @@ def examine(device_mgr, dataset_mgr, file):
                 (k, (proc.describe(), group, tooltip))
                 for k, (proc, group, tooltip) in argument_mgr.requested_args.items()
             )
-            register_experiment(class_name, name, arginfo, scheduler_defaults)
+            argument_ui = None
+            if hasattr(exp_class, "argument_ui"):
+                argument_ui = exp_class.argument_ui
+            register_experiment(class_name, name, arginfo, argument_ui, scheduler_defaults)
     finally:
         new_keys = set(sys.modules.keys())
         for key in new_keys - previous_keys:

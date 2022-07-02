@@ -6,6 +6,9 @@ use board_misoc::clock;
 use board_artiq::drtio_routing;
 use sched::Io;
 use sched::Mutex;
+const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
+const ASYNC_ERROR_BUSY: u8 = 1 << 1;
+const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
 
 #[cfg(has_drtio)]
 pub mod drtio {
@@ -211,12 +214,18 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationDownReply) =>
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
-                            Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) =>
-                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel),
-                            Ok(drtioaux::Packet::DestinationCollisionReply { channel }) =>
-                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel),
-                            Ok(drtioaux::Packet::DestinationBusyReply { channel }) =>
-                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel),
+                            Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel);
+                                unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
+                            }
+                            Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
+                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel);
+                                unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
+                            }
+                            Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel);
+                                unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
+                            }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
                         }
@@ -339,15 +348,15 @@ fn async_error_thread(io: Io) {
         unsafe {
             io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
             let errors = csr::rtio_core::async_error_read();
-            if errors & 1 != 0 {
+            if errors & ASYNC_ERROR_COLLISION != 0 {
                 error!("RTIO collision involving channel {}",
                        csr::rtio_core::collision_channel_read());
             }
-            if errors & 2 != 0 {
+            if errors & ASYNC_ERROR_BUSY != 0 {
                 error!("RTIO busy error involving channel {}",
                        csr::rtio_core::busy_channel_read());
             }
-            if errors & 4 != 0 {
+            if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 error!("RTIO sequence error involving channel {}",
                        csr::rtio_core::sequence_error_channel_read());
             }

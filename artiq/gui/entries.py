@@ -427,9 +427,10 @@ class ScanEntry(LayoutWidget):
             "selected": "NoScan",
             "NoScan": {"value": 0.0, "repetitions": 1},
             "RangeScan": {"start": 0.0, "stop": 100.0*scale, "npoints": 10,
-                          "randomize": False},
+                          "randomize": False, "seed": None},
             "CenterScan": {"center": 0.*scale, "span": 100.*scale,
-                           "step": 10.*scale, "randomize": False},
+                           "step": 10.*scale, "randomize": False,
+                           "seed": None},
             "ExplicitScan": {"sequence": []}
         }
         if "default" in procdesc:
