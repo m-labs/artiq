@@ -39,19 +39,22 @@ class CommMonInj:
 
         try:
             self._writer.write(b"ARTIQ moninj\n")
-            self.receive_task = asyncio.ensure_future(self._receive_cr())
+            self._receive_task = asyncio.ensure_future(self._receive_cr())
         except:
             self._writer.close()
             del self._reader
             del self._writer
             raise
 
+    def wait_terminate(self):
+        return self._receive_task
+
     async def close(self):
         self.disconnect_cb = None
         try:
-            self.receive_task.cancel()
+            self._receive_task.cancel()
             try:
-                await asyncio.wait_for(self.receive_task, None)
+                await asyncio.wait_for(self._receive_task, None)
             except asyncio.CancelledError:
                 pass
         finally:
