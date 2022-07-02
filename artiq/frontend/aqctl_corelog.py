@@ -40,44 +40,49 @@ async def get_logs_sim(host):
 
 
 async def get_logs(host):
-    reader, writer = await async_open_connection(
-        host,
-        1380,
-        after_idle=1,
-        interval=1,
-        max_fails=3,
-    )
-    writer.write(b"ARTIQ management\n")
-    endian = await reader.readexactly(1)
-    if endian == b"e":
-        endian = "<"
-    elif endian == b"E":
-        endian = ">"
-    else:
-        raise IOError("Incorrect reply from device: expected e/E.")
-    writer.write(struct.pack("B", Request.PullLog.value))
-    await writer.drain()
+    try:
+        reader, writer = await async_open_connection(
+            host,
+            1380,
+            after_idle=1,
+            interval=1,
+            max_fails=3,
+        )
+        writer.write(b"ARTIQ management\n")
+        endian = await reader.readexactly(1)
+        if endian == b"e":
+            endian = "<"
+        elif endian == b"E":
+            endian = ">"
+        else:
+            raise IOError("Incorrect reply from device: expected e/E.")
+        writer.write(struct.pack("B", Request.PullLog.value))
+        await writer.drain()
 
-    while True:
-        length, = struct.unpack(endian + "l", await reader.readexactly(4))
-        log = await reader.readexactly(length)
+        while True:
+            length, = struct.unpack(endian + "l", await reader.readexactly(4))
+            log = await reader.readexactly(length)
 
-        for line in log.decode("utf-8").splitlines():
-            m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
-            levelname = m.group(1)
-            if levelname == 'TRACE':
-                level = logging.TRACE
-            elif levelname == 'DEBUG':
-                level = logging.DEBUG
-            elif levelname == ' INFO':
-                level = logging.INFO
-            elif levelname == ' WARN':
-                level = logging.WARN
-            elif levelname == 'ERROR':
-                level = logging.ERROR
-            name = 'firmware.' + m.group(2).replace('::', '.')
-            text = m.group(3)
-            log_with_name(name, level, text)
+            for line in log.decode("utf-8").splitlines():
+                m = re.match(r"^\[.+?\] (TRACE|DEBUG| INFO| WARN|ERROR)\((.+?)\): (.+)$", line)
+                levelname = m.group(1)
+                if levelname == 'TRACE':
+                    level = logging.TRACE
+                elif levelname == 'DEBUG':
+                    level = logging.DEBUG
+                elif levelname == ' INFO':
+                    level = logging.INFO
+                elif levelname == ' WARN':
+                    level = logging.WARN
+                elif levelname == 'ERROR':
+                    level = logging.ERROR
+                name = 'firmware.' + m.group(2).replace('::', '.')
+                text = m.group(3)
+                log_with_name(name, level, text)
+    except asyncio.CancelledError:
+        raise
+    except:
+        logger.error("Logging connection terminating with exception", exc_info=True)
 
 
 def main():
@@ -99,8 +104,7 @@ def main():
                     _, pending = loop.run_until_complete(asyncio.wait(
                         [signal_handler.wait_terminate(),
                          server.wait_terminate(),
-                         get_logs_task
-                         ],
+                         get_logs_task],
                         return_when=asyncio.FIRST_COMPLETED))
                     for task in pending:
                         task.cancel()
@@ -108,8 +112,6 @@ def main():
                     loop.run_until_complete(server.stop())
             finally:
                 pass
-        except Exception:
-            logger.error("Termination due to exception", exc_info=True)
         finally:
             signal_handler.teardown()
     finally:
