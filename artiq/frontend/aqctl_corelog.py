@@ -10,9 +10,11 @@ from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logging_tools import log_with_name
 from sipyco.asyncio_tools import SignalHandler
+from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
+logger = logging.getLogger(__name__)
 
 def get_argparser():
     parser = argparse.ArgumentParser(
@@ -38,7 +40,13 @@ async def get_logs_sim(host):
 
 
 async def get_logs(host):
-    reader, writer = await asyncio.open_connection(host, 1380)
+    reader, writer = await async_open_connection(
+        host,
+        1380,
+        after_idle=1,
+        interval=1,
+        max_fails=3,
+    )
     writer.write(b"ARTIQ management\n")
     endian = await reader.readexactly(1)
     if endian == b"e":
@@ -89,18 +97,19 @@ def main():
                 loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
                 try:
                     _, pending = loop.run_until_complete(asyncio.wait(
-                        [signal_handler.wait_terminate(), server.wait_terminate()],
+                        [signal_handler.wait_terminate(),
+                         server.wait_terminate(),
+                         get_logs_task
+                         ],
                         return_when=asyncio.FIRST_COMPLETED))
                     for task in pending:
                         task.cancel()
                 finally:
                     loop.run_until_complete(server.stop())
             finally:
-                get_logs_task.cancel()
-                try:
-                    loop.run_until_complete(get_logs_task)
-                except asyncio.CancelledError:
-                    pass
+                pass
+        except Exception:
+            logger.error("Termination due to exception", exc_info=True)
         finally:
             signal_handler.teardown()
     finally:
