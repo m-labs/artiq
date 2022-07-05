@@ -87,7 +87,7 @@ class Core:
         if host is None:
             self.comm = CommKernelDummy()
         else:
-            self.comm = CommKernel(host)
+            self.comm = CommKernel(host, dmgr = dmgr)
 
         self.first_run = True
         self.dmgr = dmgr
