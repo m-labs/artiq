@@ -6,12 +6,8 @@ import socket
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
-import os
-import re
 
 from artiq.coredevice import exceptions
-from artiq.master.worker_db import DeviceManager
-from artiq.master.databases import DeviceDB
 from artiq import __version__ as software_version
 from sipyco.keepalive import create_connection
 
