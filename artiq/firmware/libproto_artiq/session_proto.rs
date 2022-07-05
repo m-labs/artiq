@@ -80,6 +80,8 @@ pub enum Request {
         column:   u32,
         function: u32,
     },
+
+    ChannelNameReply { channel_name: str}
 }
 
 #[derive(Debug)]
@@ -104,6 +106,8 @@ pub enum Reply<'a> {
     },
 
     RpcRequest { async: bool },
+
+    ChannelNameRequest { channel_number: u32},
 
     ClockFailure,
 }
@@ -132,6 +136,9 @@ impl Request {
                 line:     reader.read_u32()?,
                 column:   reader.read_u32()?,
                 function: reader.read_u32()?
+            },
+            9 => Request::ChannelNameReply {
+                channel_name: reader.read_string()?
             },
 
             ty  => return Err(Error::UnknownPacket(ty))
@@ -217,6 +224,10 @@ impl<'a> Reply<'a> {
             Reply::RpcRequest { async } => {
                 writer.write_u8(10)?;
                 writer.write_u8(async as u8)?;
+            },
+
+            Reply::ChannelNameRequest { channel_number } => {
+                writer.write_u32(channel_number);
             },
 
             Reply::ClockFailure => {
