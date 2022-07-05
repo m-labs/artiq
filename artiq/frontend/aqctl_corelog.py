@@ -5,12 +5,15 @@ import asyncio
 import struct
 import logging
 import re
+import os
 
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logging_tools import log_with_name
 from sipyco.asyncio_tools import SignalHandler
 from sipyco.keepalive import async_open_connection
+from artiq.master.worker_db import DeviceManager
+from artiq.master.databases import DeviceDB
 
 from artiq.coredevice.comm_mgmt import Request, Reply
 
@@ -78,6 +81,26 @@ async def get_logs(host):
                     level = logging.ERROR
                 name = 'firmware.' + m.group(2).replace('::', '.')
                 text = m.group(3)
+
+                # Add Channel name if any
+                n = re.match(r".+?(channel\s(\d+))", text)
+                if n:
+                    cwd = os.getcwd()
+                    path = re.match(r".+?/artiq/\w+", cwd)
+                    new_path = path.group(0) + "/device_db.py"
+                    device_mgr = DeviceManager(DeviceDB(new_path))
+                    device_db = device_mgr.get_device_db()
+                    channel_number = int(n.group(2))
+                    for device_name, value in device_db.items():
+                        try:
+                            if value["arguments"]["channel"] == channel_number:
+                                channel_name = n.group(1) + \
+                                              " (" + device_name + ")"
+                                break
+                        except KeyError:
+                            pass
+                    text = re.sub(n.group(1), channel_name, text)
+
                 log_with_name(name, level, text)
     except asyncio.CancelledError:
         raise
