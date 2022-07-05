@@ -654,17 +654,9 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            if "RTIOOverflow" in name:
-                channel_number = params[0]
-                format_number = 0
-            elif "RTIOUnderflow" in name:
-                channel_number = params[1]
-                format_number = 1
-            else:
-                channel_number = params[0]
-                format_number = 0
+            channel_number = params[1]
             channel_name = self.channel_name_map(channel_number)
-            params[format_number] = str(channel_number) + channel_name
+            params[1] = str(channel_number) + channel_name
 
             filename = read_exception_string()
             line = self._read_int32()
