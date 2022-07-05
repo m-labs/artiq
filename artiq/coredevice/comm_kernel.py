@@ -40,6 +40,8 @@ class Reply(Enum):
 
     RPCRequest = 10
 
+    ChannelNameRequest = 11
+
     ClockFailure = 15
 
 
@@ -730,6 +732,11 @@ class CommKernel:
         logger.warning("No device with channel %s is found.", channel_name)
         return ""
 
+    def _serve_channel_name_request(self):
+        channel_number = self._read_int32()
+        channel_name = self.channel_name_map(channel_number)
+        self._write_string(channel_name)
+
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
             self._read_header()
@@ -739,6 +746,8 @@ class CommKernel:
                 self._serve_exception(embedding_map, symbolizer, demangler)
             elif self._read_type == Reply.ClockFailure:
                 raise exceptions.ClockFailure
+            elif self._read_type == Reply.ChannelNameRequest:
+                self._serve_channel_name_request()
             else:
                 self._read_expect(Reply.KernelFinished)
                 self._process_async_error()
