@@ -187,12 +187,13 @@ def incompatible_versions(v1, v2):
 class CommKernel:
     warned_of_mismatch = False
 
-    def __init__(self, host, port=1381):
+    def __init__(self, host, port=1381, dmgr="device_db.py"):
         self._read_type = None
         self.host = host
         self.port = port
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
+        self.dmgr = dmgr
 
 
     def open(self):
@@ -655,25 +656,17 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            # Add Channel name if any
-            m = re.match(r".+?(channel)\s{(\d+)}", message)
-            if m:
-                format_number = int(m.group(2))
-                channel_number = params[format_number]
-
-                cwd = os.getcwd()
-                path = re.match(r".+?/artiq/\w+", cwd)
-                new_path = path.group(0) + "/device_db.py"
-                device_mgr = DeviceManager(DeviceDB(new_path))
-                device_db = device_mgr.get_device_db()
-                for device_name, value in device_db.items():
-                    try:
-                        if value["arguments"]["channel"] == channel_number:
-                            channel_name = " (" + device_name + ")"
-                            break
-                    except KeyError:
-                        pass
-                params[format_number] = str(channel_number) + channel_name
+            if "RTIOOverflow" in name:
+                channel_number = params[0]
+                format_number = 0
+            elif "RTIOUnderflow" in name:
+                channel_number = params[1]
+                format_number = 1
+            else:
+                channel_number = params[0]
+                format_number = 0
+            channel_name = self.channel_name_map(channel_number)
+            params[format_number] = str(channel_number) + channel_name
 
             filename = read_exception_string()
             line = self._read_int32()
@@ -724,6 +717,18 @@ class CommKernel:
                      map_name("sequence error", errors & 2 ** 2)
             logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
                            f"reported during kernel execution")
+
+    def channel_name_map(self, channel_number):
+        device_db = self.dmgr.get_device_db()
+        for device_name, value in device_db.items():
+            try:
+                if value["arguments"]["channel"] == channel_number:
+                    channel_name = " (" + device_name + ")"
+                    return channel_name
+            except KeyError:
+                pass
+        logger.warning("No device with channel %s is found.", channel_name)
+        return ""
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
