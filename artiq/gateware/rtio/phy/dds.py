@@ -61,7 +61,6 @@ class AD9914(Module):
             for c, (probe, ftw) in enumerate(zip(self.probes, ftws))])
 
 
-
 class UrukulMonitor(Module):
     def __init__(self, spi_phy, io_update_phy, dds, nchannels=4):
         self.spi_phy = spi_phy
@@ -75,10 +74,13 @@ class UrukulMonitor(Module):
         data_length = Signal(8)
         flags = Signal(8)
 
-        self.sync.rio += If(self.spi_phy.rtlink.o.stb, [
+        self.comb += [
             current_address.eq(self.spi_phy.rtlink.o.address),
             self.current_data.eq(self.spi_phy.rtlink.o.data),
-            If(current_address == SPI_CONFIG_ADDR, [
+        ]
+
+        self.sync.rio += If(self.spi_phy.rtlink.o.stb, [
+            If(self.spi_phy.rtlink.o.address == SPI_CONFIG_ADDR, [
                 self.cs.eq(self.current_data[24:]),
                 data_length.eq(self.current_data[8:16] + 1),
                 flags.eq(self.current_data[0:8])
@@ -87,15 +89,18 @@ class UrukulMonitor(Module):
 
         for i in range(nchannels):
             ch_sel = Signal()
-            self.comb += [
-                ch_sel.eq(self.selected(i + CS_DDS_CH0) & (current_address == SPI_DATA_ADDR))
-            ]
+            self.comb += ch_sel.eq(
+                ((self.cs == CS_DDS_MULTI) | (self.cs == i + CS_DDS_CH0)) 
+                & (current_address == SPI_DATA_ADDR)
+            )
+
             if dds == "ad9912":
                 mon_cls = _AD9912Monitor
             elif dds == "ad9910":
                 mon_cls = _AD9910Monitor
             else:
                 raise NotImplementedError
+
             monitor = mon_cls(self.current_data, data_length, flags, ch_sel)
             self.submodules += monitor
 
@@ -103,8 +108,6 @@ class UrukulMonitor(Module):
                 If(ch_sel & self.is_io_update(), self.probes[i].eq(monitor.ftw))
             ]
 
-    def selected(self, c):
-        return (self.cs == CS_DDS_MULTI) | (self.cs == c)
 
     def is_io_update(self):
         # shifted 8 bits left for 32-bit bus
@@ -116,36 +119,38 @@ class UrukulMonitor(Module):
 
 
 class _AD9912Monitor(Module):
-    def __init__(self, current_data, data_length, flags, ch_selected):
+    def __init__(self, current_data, data_length, flags, ch_sel):
         
         self.ftw = Signal(32, reset_less=True)
 
         fsm = ClockDomainsRenamer("rio_phy")(FSM(reset_state="START"))
         self.submodules += fsm
 
-        reg_addr = Signal(14)
-        self.comb += reg_addr.eq(current_data[16:29])
+        reg_addr = current_data[16:29]
 
         fsm.act("START", 
-            If(ch_selected & (data_length == 16) & (reg_addr == AD9912_POW1),
-                NextValue(self.ftw[16:32], current_data[0:16]),
-                NextState("READ"))
+            If(ch_sel,
+                If((data_length == 16) & (reg_addr == AD9912_POW1),
+                    NextState("READ")
+                )
+            )
         )
 
         fsm.act("READ",
-            If(ch_selected,
+            If(ch_sel,
                 If(flags & SPI_END,
-                # lower 16 bits (16-32 from 48-bit transfer)
-                NextState("START")
-            ).Else(
-                # upper 16 bits (32-48 from 48-bit transfer)
-                NextValue(self.ftw[0:16], current_data[16:32])
+                    # lower 16 bits (16-32 from 48-bit transfer)
+                    NextValue(self.ftw[0:16], current_data[16:32]),
+                    NextState("START")
+                ).Else(
+                    # upper 16 bits (32-48 from 48-bit transfer)
+                    NextValue(self.ftw[16:32], current_data[0:16]),
             ))
         )
 
 
 class _AD9910Monitor(Module):
-    def __init__(self, current_data, data_length, flags, ch_selected):
+    def __init__(self, current_data, data_length, flags, ch_sel):
         
         self.ftw = Signal(32, reset_less=True)
 
@@ -155,12 +160,12 @@ class _AD9910Monitor(Module):
         reg_write = ~current_data[31]
 
         fsm.act("START", 
-            If(ch_selected & reg_write,
-                If((data_length == 8) & (_AD9910_REG_PROFILE0 >= reg_addr) & (reg_addr >= _AD9910_REG_PROFILE7),
+            If(ch_sel & reg_write,
+                If((data_length == 8) & (_AD9910_REG_PROFILE7 >= reg_addr) & (reg_addr >= _AD9910_REG_PROFILE0),
                     NextState("READ")
                 ).Elif(reg_addr == _AD9910_REG_FTW,
                     If((data_length == 24) & (flags & SPI_END),
-                        self.ftw[:16].eq(current_data[8:24])
+                        NextValue(self.ftw[:16], current_data[8:24])
                     ).Elif(data_length == 8,
                         NextState("READ")
                     )
@@ -168,9 +173,11 @@ class _AD9910Monitor(Module):
             )
         )
         fsm.act("READ",
-            If(ch_selected & (flags & SPI_END),
-                self.ftw[:32].eq(current_data),
-                NextState("START")
+            If(ch_sel,
+                If(flags & SPI_END,
+                    NextValue(self.ftw, current_data),
+                    NextState("START")
+                )
             )
         )
 
