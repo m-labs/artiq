@@ -6,8 +6,12 @@ import socket
 from enum import Enum
 from fractions import Fraction
 from collections import namedtuple
+import os
+import re
 
 from artiq.coredevice import exceptions
+from artiq.master.worker_db import DeviceManager
+from artiq.master.databases import DeviceDB
 from artiq import __version__ as software_version
 from sipyco.keepalive import create_connection
 
@@ -650,6 +654,26 @@ class CommKernel:
             name = embedding_map.retrieve_str(self._read_int32())
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
+
+            # Add Channel name if any
+            m = re.match(r".+?(channel)\s{(\d+)}", message)
+            if m:
+                format_number = int(m.group(2))
+                channel_number = params[format_number]
+
+                cwd = os.getcwd()
+                path = re.match(r".+?/artiq/\w+", cwd)
+                new_path = path.group(0) + "/device_db.py"
+                device_mgr = DeviceManager(DeviceDB(new_path))
+                device_db = device_mgr.get_device_db()
+                for device_name, value in device_db.items():
+                    try:
+                        if value["arguments"]["channel"] == channel_number:
+                            channel_name = " (" + device_name + ")"
+                            break
+                    except KeyError:
+                        pass
+                params[format_number] = str(channel_number) + channel_name
 
             filename = read_exception_string()
             line = self._read_int32()
