@@ -185,7 +185,7 @@ def incompatible_versions(v1, v2):
 class CommKernel:
     warned_of_mismatch = False
 
-    def __init__(self, host, port=1381, dmgr="device_db.py"):
+    def __init__(self, host, port=1381, dmgr=None):
         self._read_type = None
         self.host = host
         self.port = port
