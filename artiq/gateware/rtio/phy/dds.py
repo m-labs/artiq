@@ -108,7 +108,6 @@ class UrukulMonitor(Module):
                 If(ch_sel & self.is_io_update(), self.probes[i].eq(monitor.ftw))
             ]
 
-
     def is_io_update(self):
         # shifted 8 bits left for 32-bit bus
         reg_io_upd = (self.cs == CS_CFG) & self.current_data[8 + CFG_IO_UPDATE]
@@ -131,6 +130,8 @@ class _AD9912Monitor(Module):
         fsm.act("START", 
             If(ch_sel,
                 If((data_length == 16) & (reg_addr == AD9912_POW1),
+                    # clear upper half ftw in case it's actually 0
+                    NextValue(self.ftw[16:], 0),
                     NextState("READ")
                 )
             )
@@ -140,12 +141,12 @@ class _AD9912Monitor(Module):
             If(ch_sel,
                 If(flags & SPI_END,
                     # lower 16 bits (16-32 from 48-bit transfer)
-                    NextValue(self.ftw[0:16], current_data[16:32]),
+                    NextValue(self.ftw[:16], current_data[16:]),
                     NextState("START")
-                ).Else(
-                    # upper 16 bits (32-48 from 48-bit transfer)
-                    NextValue(self.ftw[16:32], current_data[0:16]),
-            ))
+                ).Elif(current_data != 0,
+                    NextValue(self.ftw[16:], current_data[:16])
+                )
+            )
         )
 
 

@@ -203,10 +203,8 @@ class UrukulModel:
         return self.cur_frequency
 
     def monitor_update(self, probe, value):
-        print("dds_type: {} got probe: {} val: 0x{:08x}".format(self.dds_type, probe, value))
         if self.dds_type == "AD9912":
             value = value << 16
-        print("val: 0x{:x}".format(value))
         self.cur_frequency = self._ftw_to_freq(value)
 
     def _ftw_to_freq(self, ftw):
