@@ -66,9 +66,9 @@ class UrukulMonitor(Module):
         self.spi_phy = spi_phy
         self.io_update_phy = io_update_phy
 
-        self.cs = Signal(8)
         self.probes = [Signal(32) for i in range(nchannels)]
 
+        self.cs = Signal(8)
         self.current_data = Signal.like(self.spi_phy.rtlink.o.data)
         current_address = Signal.like(self.spi_phy.rtlink.o.address)
         data_length = Signal(8)
@@ -116,16 +116,16 @@ class UrukulMonitor(Module):
 
 class _AD9912Monitor(Module):
     def __init__(self, current_data, data_length, flags, ch_sel):
-        
         self.ftw = Signal(32, reset_less=True)
 
-        fsm = ClockDomainsRenamer("rio_phy")(FSM(reset_state="START"))
+        fsm = ClockDomainsRenamer("rio_phy")(FSM(reset_state="IDLE"))
         self.submodules += fsm
 
         reg_addr = current_data[16:29]
+        reg_write = ~current_data[31]
 
-        fsm.act("START", 
-            If(ch_sel,
+        fsm.act("IDLE", 
+            If(ch_sel & reg_write,
                 If((data_length == 16) & (reg_addr == AD9912_POW1),
                     NextState("READ")
                 )
@@ -137,7 +137,7 @@ class _AD9912Monitor(Module):
                 If(flags & SPI_END,
                     # lower 16 bits (16-32 from 48-bit transfer)
                     NextValue(self.ftw[:16], current_data[16:]),
-                    NextState("START")
+                    NextState("IDLE")
                 ).Else(
                     NextValue(self.ftw[16:], current_data[:16])
                 )
@@ -147,15 +147,15 @@ class _AD9912Monitor(Module):
 
 class _AD9910Monitor(Module):
     def __init__(self, current_data, data_length, flags, ch_sel):
-        
         self.ftw = Signal(32, reset_less=True)
 
-        fsm = ClockDomainsRenamer("rio_phy")(FSM(reset_state="START"))
+        fsm = ClockDomainsRenamer("rio_phy")(FSM(reset_state="IDLE"))
+        self.submodules += fsm
 
         reg_addr = current_data[24:29]
         reg_write = ~current_data[31]
 
-        fsm.act("START", 
+        fsm.act("IDLE", 
             If(ch_sel & reg_write,
                 If((data_length == 8) & (_AD9910_REG_PROFILE7 >= reg_addr) & (reg_addr >= _AD9910_REG_PROFILE0),
                     NextState("READ")
@@ -168,13 +168,12 @@ class _AD9910Monitor(Module):
                 )
             )
         )
+
         fsm.act("READ",
             If(ch_sel,
                 If(flags & SPI_END,
                     NextValue(self.ftw, current_data),
-                    NextState("START")
+                    NextState("IDLE")
                 )
             )
         )
-
-        self.submodules += fsm
