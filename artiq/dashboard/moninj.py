@@ -181,26 +181,27 @@ class _SimpleDisplayWidget(QtWidgets.QFrame):
         raise NotImplementedError
 
 
-class UrukulModel:
-    def __init__(self, cpld, dds_type, ref_clk, pll, clk_div=0):
+class _DDSModel:
+    def __init__(self, dds_type, ref_clk, cpld=None, pll=1, clk_div=0):
         self.cpld = cpld
         self.cur_frequency = 0
         self.cur_reg = 0
         self.dds_type = dds_type
-
-        if dds_type == "AD9910":
-            max_freq = 1 << 32
-            clk_mult = [4, 1, 2, 4]
-        elif dds_type == "AD9912":  # AD9912
-            max_freq = 1 << 48
-            clk_mult = [1, 1, 2, 4]
+        self.is_urukul = dds_type in ["AD9910", "AD9912"]
+    
+        if dds_type == "AD9914":
+            self.ftw_per_hz = 2**32 / ref_clk
         else:
-            raise NotImplementedError
-        sysclk = ref_clk / clk_mult[clk_div] * pll
-        self.ftw_per_hz = 1 / sysclk * max_freq
-
-    def get_frequency(self):
-        return self.cur_frequency
+            if dds_type == "AD9910":
+                max_freq = 1 << 32
+                clk_mult = [4, 1, 2, 4]
+            elif dds_type == "AD9912":  # AD9912
+                max_freq = 1 << 48
+                clk_mult = [1, 1, 2, 4]
+            else:
+                raise NotImplementedError
+            sysclk = ref_clk / clk_mult[clk_div] * pll
+            self.ftw_per_hz = 1 / sysclk * max_freq
 
     def monitor_update(self, probe, value):
         if self.dds_type == "AD9912":
@@ -212,14 +213,13 @@ class UrukulModel:
 
 
 class _DDSWidget(QtWidgets.QFrame):
-    def __init__(self, dm, title, bus_channel=0, channel=0, dds_type="AD9914", urukul_model=None):
+    def __init__(self, dm, title, bus_channel=0, channel=0, dds_model=None):
         self.dm = dm
         self.bus_channel = bus_channel
         self.channel = channel
         self.dds_name = title
         self.cur_frequency = 0
-        self.is_urukul = dds_type in ["AD9910", "AD9912"]
-        self.urukul_model = urukul_model
+        self.dds_model = dds_model
 
         QtWidgets.QFrame.__init__(self)
 
@@ -282,7 +282,7 @@ class _DDSWidget(QtWidgets.QFrame):
         set_grid.addWidget(set_btn, 0, 1, 1, 1)
         
         # for urukuls also allow switching off RF
-        if self.is_urukul:
+        if self.dds_model.is_urukul:
             off_btn = QtWidgets.QToolButton()
             off_btn.setText("Off")
             off_btn.setToolTip("Switch off the output")
@@ -309,7 +309,7 @@ class _DDSWidget(QtWidgets.QFrame):
 
         set_btn.clicked.connect(self.set_clicked)
         apply.clicked.connect(self.apply_changes)
-        if self.is_urukul:
+        if self.dds_model.is_urukul:
             off_btn.clicked.connect(self.off_clicked)
         self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
         self.value_edit.escapePressedConnect(self.cancel_changes)
@@ -326,21 +326,20 @@ class _DDSWidget(QtWidgets.QFrame):
         self.value_edit.selectAll()
 
     def off_clicked(self, set):
-        self.dm.dds_channel_toggle(self.dds_name, self.urukul_model, sw=False)
+        self.dm.dds_channel_toggle(self.dds_name, self.dds_model, sw=False)
     
     def apply_changes(self, apply):
         self.data_stack.setCurrentIndex(0)
         self.button_stack.setCurrentIndex(0)
         frequency = float(self.value_edit.text())*1e6
-        self.dm.dds_set_frequency(self.dds_name, self.urukul_model, frequency)
+        self.dm.dds_set_frequency(self.dds_name, self.dds_model, frequency)
 
     def cancel_changes(self, cancel):
         self.data_stack.setCurrentIndex(0)
         self.button_stack.setCurrentIndex(0)
 
     def refresh_display(self):
-        if self.is_urukul:
-            self.cur_frequency = self.urukul_model.get_frequency()
+        self.cur_frequency = self.dds_model.cur_frequency
         self.value_label.setText("<font size=\"4\">{:.7f}</font>"
                            .format(self.cur_frequency/1e6))
         self.value_edit.setText("{:.7f}"
@@ -391,7 +390,8 @@ def setup_from_ddb(ddb):
                         bus_channel = v["arguments"]["bus_channel"]
                         channel = v["arguments"]["channel"]
                         dds_sysclk = v["arguments"]["sysclk"]
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel))
+                        model = _DDSModel(v["class"], dds_sysclk)
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, model))
                         description.add(widget)
                     elif (v["module"] == "artiq.coredevice.ad9910"
                                 and v["class"] == "AD9910") or \
@@ -406,8 +406,8 @@ def setup_from_ddb(ddb):
                         pll = v["arguments"]["pll_n"]
                         refclk = ddb[dds_cpld]["arguments"]["refclk"]
                         clk_div = v["arguments"].get("clk_div", 0)
-                        model = UrukulModel(dds_cpld, v["class"], refclk, pll, clk_div)
-                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, v["class"], model))
+                        model = _DDSModel( v["class"], refclk, dds_cpld, pll, clk_div)
+                        widget = _WidgetDesc(k, comment, _DDSWidget, (k, bus_channel, channel, model))
                         description.add(widget)       
                     elif (   (v["module"] == "artiq.coredevice.ad53xx" and v["class"] == "AD53xx")
                           or (v["module"] == "artiq.coredevice.zotino" and v["class"] == "Zotino")):
@@ -424,7 +424,7 @@ def setup_from_ddb(ddb):
                     mi_port = v.get("port_proxy", 1383)
         except KeyError:
             pass
-    return mi_addr, mi_port, dds_sysclk, description
+    return mi_addr, mi_port, description
 
 
 class _DeviceManager:
@@ -454,14 +454,12 @@ class _DeviceManager:
         return ddb
 
     def notify(self, mod):
-        mi_addr, mi_port, dds_sysclk, description = setup_from_ddb(self.ddb)
+        mi_addr, mi_port, description = setup_from_ddb(self.ddb)
 
         if (mi_addr, mi_port) != (self.mi_addr, self.mi_port):
             self.mi_addr = mi_addr
             self.mi_port = mi_port
             self.reconnect_mi.set()
-
-        self.dds_sysclk = dds_sysclk
 
         for to_remove in self.description - description:
             widget = self.widgets_by_uid[to_remove.uid]
@@ -473,7 +471,7 @@ class _DeviceManager:
                 del self.ttl_widgets[widget.channel]
                 self.ttl_cb()
             elif isinstance(widget, _DDSWidget):
-                self.setup_dds_monitoring(False, widget.bus_channel, widget.channel, widget.is_urukul)
+                self.setup_dds_monitoring(False, widget.bus_channel, widget.channel)
                 widget.deleteLater()
                 del self.dds_widgets[(widget.bus_channel, widget.channel)]
                 self.dds_cb()
@@ -498,7 +496,7 @@ class _DeviceManager:
             elif isinstance(widget, _DDSWidget):
                 self.dds_widgets[(widget.bus_channel, widget.channel)] = widget
                 self.dds_cb()
-                self.setup_dds_monitoring(True, widget.bus_channel, widget.channel, widget.is_urukul)
+                self.setup_dds_monitoring(True, widget.bus_channel, widget.channel)
             elif isinstance(widget, _DACWidget):
                 self.dac_widgets[(widget.spi_channel, widget.channel)] = widget
                 self.dac_cb()
@@ -551,13 +549,13 @@ class _DeviceManager:
             scheduling["flush"])
         logger.info("Submitted '%s', RID is %d", title, rid)
 
-    def dds_set_frequency(self, dds_channel, urukul_model, freq):
+    def dds_set_frequency(self, dds_channel, dds_model, freq):
         # create kernel and fill it in and send-by-content
-        if urukul_model:
+        if dds_model.is_urukul:
             # urukuls need CPLD init and switch to on
             # keep previous config if it was set already
             cpld_dev = """self.setattr_device("core_cache")
-                self.setattr_device("{}")""".format(urukul_model.cpld)
+                self.setattr_device("{}")""".format(dds_model.cpld)
             cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
@@ -566,10 +564,10 @@ class _DeviceManager:
                     self.{cpld}.init()
                     self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
                     cfg = self.core_cache.get("_{cpld}_cfg")
-            """.format(cpld=urukul_model.cpld)
+            """.format(cpld=dds_model.cpld)
             cfg_sw = """self.{}.cfg_sw(True)
                 cfg[0] = self.{}.cfg_reg
-            """.format(dds_channel, urukul_model.cpld)
+            """.format(dds_channel, dds_model.cpld)
         else:
             cpld_dev = ""
             cpld_init = ""
@@ -600,7 +598,7 @@ class _DeviceManager:
                 "SetDDS", 
                 "Set DDS {} {}MHz".format(dds_channel, freq/1e6)))
 
-    def dds_channel_toggle(self, dds_channel, urukul_model, sw=True):
+    def dds_channel_toggle(self, dds_model, sw=True):
         # urukul only
         toggle_exp = textwrap.dedent("""
         from artiq.experiment import *
@@ -626,7 +624,7 @@ class _DeviceManager:
                 self.{ch}.init()
                 self.{ch}.cfg_sw({sw})
                 cfg[0] = self.{cpld}.cfg_reg
-        """.format(ch=dds_channel, cpld=urukul_model.cpld, sw=sw))
+        """.format(ch=dds_channel, cpld=dds_model.cpld, sw=sw))
         asyncio.ensure_future(
             self._submit_by_content(
                 toggle_exp, 
@@ -643,7 +641,7 @@ class _DeviceManager:
             if enable:
                 self.mi_connection.get_injection_status(channel, TTLOverride.en.value)
 
-    def setup_dds_monitoring(self, enable, bus_channel, channel, is_urukul):
+    def setup_dds_monitoring(self, enable, bus_channel, channel):
         if self.mi_connection is not None:
             self.mi_connection.monitor_probe(enable, bus_channel, channel)
 
@@ -659,12 +657,9 @@ class _DeviceManager:
             elif probe == TTLProbe.oe.value:
                 widget.cur_oe = bool(value)
             widget.refresh_display()
-        elif (channel, probe % 4) in self.dds_widgets:
-            widget = self.dds_widgets[(channel, probe % 4)]
-            if widget.is_urukul:
-                widget.urukul_model.monitor_update(probe, value)
-            else:  # AD9914
-                widget.cur_frequency = value*self.dds_sysclk/2**32
+        elif (channel, probe) in self.dds_widgets:
+            widget = self.dds_widgets[(channel, probe)]
+            widget.dds_model.monitor_update(probe, value)
             widget.refresh_display()
         elif (channel, probe) in self.dac_widgets:
             widget = self.dac_widgets[(channel, probe)]
@@ -708,8 +703,7 @@ class _DeviceManager:
                 for ttl_channel in self.ttl_widgets.keys():
                     self.setup_ttl_monitoring(True, ttl_channel)
                 for bus_channel, channel in self.dds_widgets.keys():
-                    is_urukul = self.dds_widgets[(bus_channel, channel)].is_urukul
-                    self.setup_dds_monitoring(True, bus_channel, channel, is_urukul)
+                    self.setup_dds_monitoring(True, bus_channel, channel)
                 for spi_channel, channel in self.dac_widgets.keys():
                     self.setup_dac_monitoring(True, spi_channel, channel)
 
