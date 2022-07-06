@@ -74,16 +74,13 @@ class UrukulMonitor(Module):
         data_length = Signal(8)
         flags = Signal(8)
 
-        self.comb += [
+        self.sync.rio += If(self.spi_phy.rtlink.o.stb, [
             current_address.eq(self.spi_phy.rtlink.o.address),
             self.current_data.eq(self.spi_phy.rtlink.o.data),
-        ]
-
-        self.sync.rio += If(self.spi_phy.rtlink.o.stb, [
             If(self.spi_phy.rtlink.o.address == SPI_CONFIG_ADDR, [
-                self.cs.eq(self.current_data[24:]),
-                data_length.eq(self.current_data[8:16] + 1),
-                flags.eq(self.current_data[0:8])
+                self.cs.eq(self.spi_phy.rtlink.o.data[24:]),
+                data_length.eq(self.spi_phy.rtlink.o.data[8:16] + 1),
+                flags.eq(self.spi_phy.rtlink.o.data[0:8])
             ])
         ])
 
@@ -130,8 +127,6 @@ class _AD9912Monitor(Module):
         fsm.act("START", 
             If(ch_sel,
                 If((data_length == 16) & (reg_addr == AD9912_POW1),
-                    # clear upper half ftw in case it's actually 0
-                    NextValue(self.ftw[16:], 0),
                     NextState("READ")
                 )
             )
@@ -143,7 +138,7 @@ class _AD9912Monitor(Module):
                     # lower 16 bits (16-32 from 48-bit transfer)
                     NextValue(self.ftw[:16], current_data[16:]),
                     NextState("START")
-                ).Elif(current_data != 0,
+                ).Else(
                     NextValue(self.ftw[16:], current_data[:16])
                 )
             )
