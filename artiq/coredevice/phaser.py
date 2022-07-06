@@ -138,14 +138,16 @@ class Phaser:
     transient effects, care should be taken to not update the coefficents in the
     currently selected profile.
 
+    The servo can be en- or disabled for each channel. When disabled, the servo
+    output multiplier is simply bypassed and the datastream reaches the DAC unscaled.
+
     The IIR output can be put on hold for each channel. In hold mode, the filter
     still ingests samples and updates its input ``x0`` and ``x1`` registers, but
-    does not update the ``y0``, ``y1`` output registers. The servo can also be
-    bypassed.
+    does not update the ``y0``, ``y1`` output registers.
 
-    After power-up the servo is bypassed, in profile 0, with coefficients [0, 0, 0]
+    After power-up the servo is disabled, in profile 0, with coefficients [0, 0, 0]
     and hold is enabled. If older gateware without ther servo is loaded onto the
-    Phaser FPGA, the device simply behaves as if the servo is bypassed and none of
+    Phaser FPGA, the device simply behaves as if the servo is disabled and none of
     the servo functions have any effect.
 
     .. note:: Various register settings of the DAC and the quadrature
@@ -346,7 +348,7 @@ class Phaser:
             delay(.1*ms)
             channel.set_att_mu(0x00)  # minimum attenuation
 
-            channel.set_servo(profile=0, bypass=1, hold=1)
+            channel.set_servo(profile=0, enable=0, hold=1)
 
             # test oscillators and DUC
             for i in range(len(channel.oscillator)):
@@ -1084,19 +1086,19 @@ class PhaserChannel:
         self.trf_write(data)
 
     @kernel
-    def set_servo(self, profile=0, bypass=1, hold=0):
+    def set_servo(self, profile=0, enable=0, hold=0):
         """Set the servo configuration.
 
-        :param bypass: 1 to enable bypass (default), 0 to engage servo. If bypassed, hold
-            is forced since the control loop is broken.
+        :param enable: 1 to enable servo, 0 to disable servo (default). If disabled,
+            the servo is bypassed and hold is enforced since the control loop is broken.
         :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation.
         :param profile: Profile index to select for channel. (0 to 3)
         """
         if (profile < 0) or (profile > 3):
             raise ValueError("invalid profile index")
         addr = PHASER_ADDR_SERVO_CFG0 + self.index
-        # enforce hold if the servo is bypassed
-        data = (profile << 2) | (((hold | bypass) & 1) << 1) | (~bypass & 1)
+        # enforce hold if the servo is disabled
+        data = (profile << 2) | (((hold | ~enable) & 1) << 1) | (enable & 1)
         self.phaser.write8(addr, data)
 
     @kernel
