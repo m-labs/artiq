@@ -628,11 +628,17 @@ class CommKernel:
         else:
             logger.debug("rpc service: %d %r %r = %r",
                          service_id, args, kwargs, result)
-            self._write_header(Request.RPCReply)
-            self._write_bytes(return_tags)
-            self._send_rpc_value(bytearray(return_tags),
-                                 result, result, service)
-            self._flush()
+            try:
+                self._write_header(Request.RPCReply)
+                self._write_bytes(return_tags)
+                self._send_rpc_value(bytearray(return_tags),
+                                     result, result, service)
+                self._flush()
+            except Exception as ex:
+                raise RuntimeError(
+                    f"Failed to return RPC value for RPC [{service_id}]{service!r} "
+                    f"return_tags={return_tags}: {ex}"
+                ) from ex
 
     def _serve_exception(self, embedding_map, symbolizer, demangler):
         exception_count = self._read_int32()
