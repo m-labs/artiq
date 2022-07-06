@@ -562,6 +562,7 @@ class _DeviceManager:
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
+                    delay(3*ms)
                     self.{cpld}.init()
                     self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
                     cfg = self.core_cache.get("_{cpld}_cfg")
