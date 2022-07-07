@@ -73,6 +73,11 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
+    p_write_channel_name = subparsers.add_parser("write_channel_name",
+                                                 help="write channel number to "
+                                                 "channel name stated in "
+                                                 "device_db.py")
+
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
     p_remove.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
@@ -132,6 +137,14 @@ def main():
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
+        if args.action == "write_channel_name":
+            ddb = DeviceDB(args.device_db).get_device_db()
+            for device, value in ddb.items():
+                try:
+                    channel = value["arguments"]["channel"]
+                    mgmt.config_write("channel "+str(channel), device)
+                except:
+                    pass
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
