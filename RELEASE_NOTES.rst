@@ -45,6 +45,7 @@ Highlights:
   switch is supported.
 * The "ip" config option can now be set to "use_dhcp" in order to use DHCP to obtain an IP address.
   DHCP will also be used if no "ip" config option is set.
+* Urukul monitoring and frequency setting (through dashboard) is now supported.
 
 Breaking changes:
 

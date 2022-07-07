@@ -111,6 +111,12 @@ class Scheduler:
             rid = self.rid
         return self._check_pause(rid)
 
+    _check_termination = staticmethod(make_parent_action("scheduler_check_termination"))
+    def check_termination(self, rid=None) -> TBool:
+        if rid is None:
+            rid = self.rid
+        return self._check_termination(rid)
+
     _submit = staticmethod(make_parent_action("scheduler_submit"))
     def submit(self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False):
         if pipeline_name is None:
@@ -205,7 +211,10 @@ def examine(device_mgr, dataset_mgr, file):
                 (k, (proc.describe(), group, tooltip))
                 for k, (proc, group, tooltip) in argument_mgr.requested_args.items()
             )
-            register_experiment(class_name, name, arginfo, scheduler_defaults)
+            argument_ui = None
+            if hasattr(exp_class, "argument_ui"):
+                argument_ui = exp_class.argument_ui
+            register_experiment(class_name, name, arginfo, argument_ui, scheduler_defaults)
     finally:
         new_keys = set(sys.modules.keys())
         for key in new_keys - previous_keys:
