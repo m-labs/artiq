@@ -499,3 +499,4 @@ class Scheduler:
                 if run.termination_requested:
                     return True
         return False
+        
