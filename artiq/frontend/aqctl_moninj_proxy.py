@@ -117,7 +117,8 @@ class MonitorMux:
                     raise ValueError
 
     def _disconnect_cb(self):
-        self.listeners = dict()
+        self.listeners.clear()
+
 
 class ProxyConnection:
     def __init__(self, monitor_mux, reader, writer):
@@ -205,7 +206,9 @@ def main():
         signal_handler.setup()
         try:
             monitor_mux = MonitorMux()
-            comm_moninj = CommMonInj(monitor_mux.monitor_cb, monitor_mux.injection_status_cb)
+            comm_moninj = CommMonInj(monitor_mux.monitor_cb,
+                                     monitor_mux.injection_status_cb,
+                                     monitor_mux._disconnect_cb)
             monitor_mux.comm_moninj = comm_moninj
             loop.run_until_complete(comm_moninj.connect(args.core_addr))
             try:
