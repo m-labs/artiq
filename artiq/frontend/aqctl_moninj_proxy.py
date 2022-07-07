@@ -116,6 +116,8 @@ class MonitorMux:
                 else:
                     raise ValueError
 
+    def _disconnect_cb(self):
+        self.listeners = dict()
 
 class ProxyConnection:
     def __init__(self, monitor_mux, reader, writer):
@@ -148,9 +150,7 @@ class ProxyConnection:
                 else:
                     raise ValueError
         finally:
-            # receive_task.done() is True when comm_moninj is disconnected.
-            if not self.monitor_mux.comm_moninj.receive_task.done():
-                self.monitor_mux.remove_listener(self)
+            self.monitor_mux.remove_listener(self)
 
     def monitor_cb(self, channel, probe, value):
         packet = struct.pack("<blbq", 0, channel, probe, value)
