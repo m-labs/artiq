@@ -21,7 +21,7 @@ Highlights:
    - Expose the DAC coarse mixer and ``sif_sync``
    - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
    - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
-   - Implemented Phaser-servo.
+   - Implemented Phaser-servo. This requires recent gateware on Phaser.
 * Core device moninj is now proxied via the ``aqctl_moninj_proxy`` controller.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
