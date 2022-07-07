@@ -560,7 +560,7 @@ class _DeviceManager:
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
-                    delay(10*ms)
+                    delay(15*ms)
                     self.{cpld}.init()
                     self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
                     cfg = self.core_cache.get("_{cpld}_cfg")
@@ -584,8 +584,8 @@ class _DeviceManager:
             @kernel
             def run(self):
                 self.core.reset()
-                delay(5*ms)
                 {cpld_init}
+                delay(5*ms)
                 self.{dds_channel}.init()
                 self.{dds_channel}.set({freq})
                 {cfg_sw}
@@ -598,7 +598,7 @@ class _DeviceManager:
                 "SetDDS", 
                 "Set DDS {} {}MHz".format(dds_channel, freq/1e6)))
 
-    def dds_channel_toggle(self, dds_model, sw=True):
+    def dds_channel_toggle(self, dds_channel, dds_model, sw=True):
         # urukul only
         toggle_exp = textwrap.dedent("""
         from artiq.experiment import *
@@ -612,16 +612,16 @@ class _DeviceManager:
                 
             @kernel
             def run(self):
-                self.core.break_realtime()
-                delay(5*ms)
+                self.core.reset()
                 cfg = self.core_cache.get("_{cpld}_cfg")
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
-                    delay(10*ms)
+                    delay(15*ms)
                     self.{cpld}.init()
                     self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
                     cfg = self.core_cache.get("_{cpld}_cfg")
+                delay(5*ms)
                 self.{ch}.init()
                 self.{ch}.cfg_sw({sw})
                 cfg[0] = self.{cpld}.cfg_reg
