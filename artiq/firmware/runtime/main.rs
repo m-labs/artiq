@@ -27,12 +27,11 @@ extern crate riscv;
 
 use core::cell::RefCell;
 use core::convert::TryFrom;
-use smoltcp::wire::{HardwareAddress, IpAddress, IpCidr, Ipv4Address};
+use smoltcp::wire::{IpCidr, HardwareAddress};
 
 use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
-use board_misoc::net_settings::{NetAddresses, USE_DHCP};
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
 use board_artiq::drtio_routing;
@@ -59,14 +58,6 @@ mod session;
 mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
-mod dhcp;
-
-// Fixed indexes for the IP addresses so that they can be modified with some
-// semblance of confidence
-pub const IPV4_INDEX: usize = 0;
-pub const IPV6_LL_INDEX: usize = 1;
-pub const IPV6_INDEX: usize = 2;
-const IP_ADDRESS_STORAGE_SIZE: usize = 3;
 
 #[cfg(has_grabber)]
 fn grabber_thread(io: sched::Io) {
@@ -94,18 +85,6 @@ fn setup_log_levels() {
         }
         _ => info!("UART log level set to INFO by default")
     }
-}
-
-pub fn get_ip_addrs(net_addresses: &NetAddresses) -> [IpCidr; IP_ADDRESS_STORAGE_SIZE] {
-    let mut storage = [
-        IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0);  IP_ADDRESS_STORAGE_SIZE
-    ];
-    storage[IPV4_INDEX] = IpCidr::new(net_addresses.ipv4_addr, 0);
-    storage[IPV6_LL_INDEX] = IpCidr::new(net_addresses.ipv6_ll_addr, 0);
-    if let Some(ipv6) = net_addresses.ipv6_addr {
-        storage[IPV6_INDEX] = IpCidr::new(ipv6, 0);
-    }
-    storage
 }
 
 fn startup() {
@@ -162,17 +141,31 @@ fn startup() {
         smoltcp::iface::NeighborCache::new(alloc::collections::btree_map::BTreeMap::new());
     let net_addresses = net_settings::get_adresses();
     info!("network addresses: {}", net_addresses);
-    let use_dhcp = if net_addresses.ipv4_addr == USE_DHCP {
-        info!("Will try to acquire an IPv4 address with DHCP");
-        true
-    } else {
-        false
+    let interface = match net_addresses.ipv6_addr {
+        Some(addr) => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0),
+                IpCidr::new(addr, 0)
+            ];
+            smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
+                       .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
+        None => {
+            let ip_addrs = [
+                IpCidr::new(net_addresses.ipv4_addr, 0),
+                IpCidr::new(net_addresses.ipv6_ll_addr, 0)
+            ];
+            smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
+                       .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
+                       .ip_addrs(ip_addrs)
+                       .neighbor_cache(neighbor_cache)
+                       .finalize()
+        }
     };
-    let interface = smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
-        .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
-        .ip_addrs(get_ip_addrs(&net_addresses))
-        .neighbor_cache(neighbor_cache)
-        .finalize();
 
     #[cfg(has_drtio)]
     let drtio_routing_table = urc::Urc::new(RefCell::new(
@@ -188,10 +181,6 @@ fn startup() {
 
     let mut scheduler = sched::Scheduler::new(interface);
     let io = scheduler.io();
-
-    if use_dhcp {
-        io.spawn(4096, dhcp::dhcp_thread);
-    }
 
     rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations);
 
