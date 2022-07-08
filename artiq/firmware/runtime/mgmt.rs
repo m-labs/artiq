@@ -131,7 +131,6 @@ pub fn thread(io: Io) {
                 Err(Error::Io(IoError::UnexpectedEnd)) => (),
                 Err(err) => error!("aborted: {}", err)
             }
-            stream.close().expect("mgmt: close socket");
         });
     }
 }

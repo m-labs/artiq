@@ -79,7 +79,5 @@ pub fn thread(io: Io) {
             Ok(())   => (),
             Err(err) => error!("analyzer aborted: {}", err)
         }
-
-        stream.close().expect("analyzer: close socket")
     }
 }

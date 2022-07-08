@@ -250,12 +250,24 @@ impl<'a> Io<'a> {
         })
     }
 
-    pub fn until<F: FnMut() -> bool>(&self, mut f: F) -> Result<(), Error> {
+    pub fn inner_until<F: FnMut() -> bool>(
+        &self,
+        timeout: Option<u64>,
+        mut f: F
+    ) -> Result<(), Error> {
         let f = unsafe { mem::transmute::<&mut dyn FnMut() -> bool, *mut dyn FnMut() -> bool>(&mut f) };
         self.suspend(WaitRequest {
-            timeout: None,
-            event:   Some(f)
+            timeout,
+            event: Some(f),
         })
+    }
+
+    pub fn until<F: FnMut() -> bool>(&self, f: F) -> Result<(), Error> {
+        self.inner_until(None, f)
+    }
+
+    pub fn until_with_timeout<F: FnMut() -> bool>(&self, timeout: u64, f: F) -> Result<(), Error> {
+        self.inner_until(Some(timeout), f)
     }
 
     pub fn until_ok<T, E, F>(&self, mut f: F) -> Result<T, Error>
@@ -313,7 +325,15 @@ macro_rules! until {
             let $var = network.get_socket::<$ty>(handle);
             $cond
         })
-    })
+    });
+    ($socket:expr, $ty:ty, timeout=$timeout:expr, |$var:ident| $cond:expr) => ({
+        let (network, handle) = ($socket.io.network.clone(), $socket.handle);
+        $socket.io.until_with_timeout($timeout, move || {
+            let mut network = network.borrow_mut();
+            let $var = network.get_socket::<$ty>(handle);
+            $cond
+        })
+    });
 }
 
 type TcpSocketBuffer = ::smoltcp::socket::TcpSocketBuffer<'static>;
@@ -377,10 +397,6 @@ impl<'a> TcpListener<'a> {
             .map_err(|err| err.into())
     }
 
-    /// Accept a TCP connection
-    ///
-    /// When the returned TcpStream is dropped it is immediately forgotten about. In order to
-    /// ensure that pending data is sent and the far end is notified, `close` must be called.
     pub fn accept(&self) -> Result<TcpStream<'a>, Error> {
         // We're waiting until at least one half of the connection becomes open.
         // This handles the case where a remote socket immediately sends a FIN--
@@ -570,20 +586,28 @@ impl<'a> Write for TcpStream<'a> {
 
 impl<'a> Drop for TcpStream<'a> {
     fn drop(&mut self) {
-        // There's no point calling the lower close here unless we also defer the removal of the
-        // socket from smoltcp until it's had a chance to process the event
-        let (unsent_bytes, is_open) = self.with_lower(
-            |s| (s.send_queue(), s.is_open())
+        self.with_lower(|s| s.close());
+        let result = until!(
+            self, TcpSocketLower, timeout=clock::get_ms() + 1000, |s| !s.is_active()
         );
-        if is_open {
-            warn!(
-                "Dropping open TcpStream in state {}, with {} unsent bytes",
-                self.with_lower(|s| s.state()), unsent_bytes
-            )
-        } else if unsent_bytes != 0 {
-            debug!("Dropping socket with {} bytes unsent", unsent_bytes)
+        let unsent_bytes = self.with_lower(|s| s.send_queue());
+        match result{
+            Ok(()) => {
+                if unsent_bytes != 0 {
+                    // This is normal if we received a reset whilst sending
+                    debug!("Dropping socket with {} bytes unsent", unsent_bytes)
+                }
+            }
+            Err(Error::TimedOut) => {
+                warn!(
+                    "Timed out whilst waiting for socket to close during drop, with {} unsent bytes",
+                    unsent_bytes
+                );
+            }
+            Err(e) => {
+                error!("Unexpected error whilst waiting for socket to close during drop: {:?}", e)
+            }
         }
-
         self.io.network.borrow_mut().remove_socket(self.handle);
     }
 }
