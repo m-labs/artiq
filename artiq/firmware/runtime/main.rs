@@ -32,7 +32,7 @@ use smoltcp::wire::HardwareAddress;
 use board_misoc::{csr, ident, clock, spiflash, config, net_settings, pmp, boot};
 #[cfg(has_ethmac)]
 use board_misoc::ethmac;
-use board_misoc::net_settings::{Ipv4AddrConfig};
+use board_misoc::net_settings::{Ipv4AddrConfig, InterfaceBuilderEx};
 #[cfg(has_drtio)]
 use board_artiq::drtioaux;
 use board_artiq::drtio_routing;
@@ -42,7 +42,6 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 use proto_artiq::analyzer_proto;
 
 use riscv::register::{mcause, mepc, mtval};
-use ip_addr_storage::InterfaceBuilderEx;
 
 mod rtio_clocking;
 mod rtio_mgt;
@@ -61,7 +60,6 @@ mod moninj;
 #[cfg(has_rtio_analyzer)]
 mod analyzer;
 mod dhcp;
-mod ip_addr_storage;
 
 #[cfg(has_grabber)]
 fn grabber_thread(io: sched::Io) {
