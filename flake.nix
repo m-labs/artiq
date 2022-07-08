@@ -16,6 +16,7 @@
   outputs = { self, nixpkgs, mozilla-overlay, sipyco, src-pythonparser, artiq-comtools, src-migen, src-misoc }:
     let
       pkgs = import nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs-aarch64 = import nixpkgs { system = "aarch64-linux"; };
 
       artiqVersionMajor = 7;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
@@ -305,7 +306,7 @@
           dontFixup = true;
         };
 
-      openocd-bscanspi = let
+      openocd-bscanspi-f = pkgs: let
         bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
           name = "bscan_spi_bitstreams";
           src = pkgs.fetchFromGitHub {
@@ -362,8 +363,9 @@
       };
     in rec {
       packages.x86_64-linux = {
-        inherit pythonparser qasync openocd-bscanspi artiq;
+        inherit pythonparser qasync artiq;
         inherit migen misoc asyncserial microscope vivadoEnv vivado;
+        openocd-bscanspi = openocd-bscanspi-f pkgs;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
@@ -441,6 +443,10 @@
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
         '';
+      };
+
+      packages.aarch64-linux = {
+        openocd-bscanspi = openocd-bscanspi-f pkgs-aarch64;
       };
 
       hydraJobs = {
