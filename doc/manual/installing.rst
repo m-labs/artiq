@@ -261,18 +261,18 @@ If you purchased a Kasli device from M-Labs, it usually comes with the IP addres
 
 and then reboot the device (with ``artiq_flash start`` or a power cycle).
 
-If the ip config field is not set, or set to "use_dhcp" then the device will attempt to obtain an IP address using
-DHCP. If a static IP address is wanted, install OpenOCD as before, and flash the IP (and, if necessary, MAC) addresses
-directly: ::
+In other cases, install OpenOCD as before, and flash the IP (and, if necessary, MAC) addresses directly: ::
 
   $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 For Kasli devices, flashing a MAC address is not necessary as they can obtain it from their EEPROM.
 
-If DHCP has been used the address can be found in the console output, which can be viewed using: ::
+Alternatively you can set the "ip" config field to "use_dhcp" to have the device use DHCP to obtain an IP address on
+boot. e.g. ::
 
-  $ python -m misoc.tools.flterm /dev/ttyUSB2
+  $ artiq_mkfs flash_storage.img -s ip use_dhcp
+  $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware.
 

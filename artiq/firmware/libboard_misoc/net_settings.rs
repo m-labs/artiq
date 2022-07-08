@@ -60,7 +60,16 @@ pub fn get_adresses() -> NetAddresses {
         }
     })) {
         Ok(Ok(addr)) => ipv4_addr = addr,
-        _ => ipv4_addr = USE_DHCP,
+        _ => {
+            #[cfg(soc_platform = "kasli")]
+            { ipv4_addr = IpAddress::v4(192, 168, 1, 70); }
+            #[cfg(soc_platform = "sayma_amc")]
+            { ipv4_addr = IpAddress::v4(192, 168, 1, 60); }
+            #[cfg(soc_platform = "metlino")]
+            { ipv4_addr = IpAddress::v4(192, 168, 1, 65); }
+            #[cfg(soc_platform = "kc705")]
+            { ipv4_addr = IpAddress::v4(192, 168, 1, 50); }
+        }
     }
 
     let ipv6_ll_addr = IpAddress::v6(
