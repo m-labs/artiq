@@ -21,7 +21,7 @@ Once Nix is installed, enable Flakes: ::
   $ mkdir -p ~/.config/nix
   $ echo "experimental-features = nix-command flakes" > ~/.config/nix/nix.conf
 
-The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix profile install git+https://github.com/m-labs/artiq.git``. Answer "Yes" to the questions about setting Nix configuration options. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
+The easiest way to obtain ARTIQ is then to install it into the user environment with ``$ nix profile install git+https://github.com/m-labs/artiq.git\?ref=release-7``. Answer "Yes" to the questions about setting Nix configuration options. This provides a minimal installation of ARTIQ where the usual commands (``artiq_master``, ``artiq_dashboard``, ``artiq_run``, etc.) are available.
 
 This installation is however quite limited, as Nix creates a dedicated Python environment for the ARTIQ commands alone. This means that other useful Python packages that you may want (pandas, matplotlib, ...) are not available to them.
 
@@ -30,8 +30,8 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
 ::
 
   {
-    inputs.artiq.url = "git+https://github.com/m-labs/artiq.git";
-    inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
+    inputs.artiq.url = "git+https://github.com/m-labs/artiq.git?ref=release-7";
+    inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git?ref=release-7";
     inputs.extrapkg.inputs.artiq.follows = "artiq";
     outputs = { self, artiq, extrapkg }:
       let
