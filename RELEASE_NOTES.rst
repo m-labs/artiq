@@ -3,50 +3,66 @@
 Release notes
 =============
 
+Unreleased
+----------
+
+Highlights:
+
+* Implemented Phaser-servo. This requires recent gateware on Phaser.
+
+
 ARTIQ-7
 -------
 
 Highlights:
 
 * New hardware support:
-   - Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution.
+   - Kasli-SoC, a new EEM carrier based on a Zynq SoC, enabling much faster kernel execution
+     (see: https://arxiv.org/abs/2111.15290).
+   - DRTIO support on Zynq-based devices (Kasli-SoC and ZC706).
+   - DRTIO support on KC705.
    - HVAMP_8CH 8 channel HV amplifier for Fastino / Zotinos
    - Almazny mezzanine board for Mirny
-* TTL device output can be now configured to work as a clock generator.
+   - Phaser: improved documentation, exposed the DAC coarse mixer and ``sif_sync``, exposed upconverter calibration
+     and enabling/disabling of upconverter LO & RF outputs, added helpers to align Phaser updates to the
+     RTIO timeline (``get_next_frame_mu()``
+   - Urukul: ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912.
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * Gateware FPU is supported on KC705 and Kasli 2.0.
 * Faster compilation for large arrays/lists.
-* Phaser:
-   - Improved documentation
-   - Expose the DAC coarse mixer and ``sif_sync``
-   - Exposes upconverter calibration and enabling/disabling of upconverter LO & RF outputs.
-   - Add helpers to align Phaser updates to the RTIO timeline (``get_next_frame_mu()``)
-   - Implemented Phaser-servo. This requires recent gateware on Phaser.
-* Core device moninj is now proxied via the ``aqctl_moninj_proxy`` controller.
+* Faster exception handling.
+* Several exception handling bugs fixed.
+* Support for a simpler shared library system with faster calls into the runtime. This is only used by the NAC3
+  compiler (nac3ld) and improves RTIO output performance (test_pulse_rate) by 9-10%.
+* Moninj improvements:
+  - Urukul monitoring and frequency setting (through dashboard) is now supported.
+  - Core device moninj is now proxied via the ``aqctl_moninj_proxy`` controller.
 * The configuration entry ``rtio_clock`` supports multiple clocking settings, deprecating the usage
   of compile-time options.
-* Packaging via Nix Flakes.
-* Firmware and gateware can now be built on-demand on the M-Labs server using ``afws_client``
-  (subscribers only).
+* Added support for 100MHz RTIO clock in DRTIO.
+* Previously detected RTIO async errors are reported to the host after each kernel terminates and a
+  warning is logged. The warning is additional to the one already printed in the core device log
+  immediately upon detection of the error.
 * Extended Kasli gateware JSON description with configuration for SPI over DIO.
-* ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912.
+* TTL outputs can be now configured to work as a clock generator from the JSON.
 * On Kasli, the number of FIFO lanes in the scalable events dispatcher (SED) can now be configured in
-  the JSON hardware description file.
+  the JSON.
 * ``artiq_ddb_template`` generates edge-counter keys that start with the key of the corresponding
   TTL device (e.g. ``ttl_0_counter`` for the edge counter on TTL device ``ttl_0``).
 * ``artiq_master`` now has an ``--experiment-subdir`` option to scan only a subdirectory of the
   repository when building the list of experiments.
-* Added support for 100MHz RTIO clock in DRTIO.
-* Previously detected RTIO async errors are reported to the host after each kernel terminates and a
-  warning is logged. The warning is additional to the one already printed in the core device log upon
-  detection of the error.
+* Experiments can now be submitted by-content.
+* The master can now optionally log all experiments submitted into a CSV file.
 * Removed worker DB warning for writing a dataset that is also in the archive.
-* ``PCA9548`` I2C switch class renamed to ``I2CSwitch``, to accomodate support for PCA9547, and
-  possibly other switches in future. Readback has been removed, and now only one channel per 
-  switch is supported.
-* The "ip" config option can now be set to "use_dhcp" in order to use DHCP to obtain an IP address.
-  DHCP will also be used if no "ip" config option is set.
-* Urukul monitoring and frequency setting (through dashboard) is now supported.
+* Experiments can now call ``scheduler.check_termination()`` to test if the user
+  has requested graceful termination.
+* ARTIQ command-line programs and controllers now exit cleanly on Ctrl-C.
+* ``artiq_coremgmt reboot`` now reloads gateware as well, providing a more thorough and reliable
+  device reset (7-series FPGAs only).
+* Firmware and gateware can now be built on-demand on the M-Labs server using ``afws_client``
+  (subscribers only). Self-compilation remains possible.
+* Easier-to-use packaging via Nix Flakes.
+* Python 3.10 support (experimental).
 
 Breaking changes:
 
@@ -61,6 +77,10 @@ Breaking changes:
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
   calling `ADF5356.init()`.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
+* The ``PCA9548`` I2C switch class was renamed to ``I2CSwitch``, to accomodate support for PCA9547,
+  and possibly other switches in future. Readback has been removed, and now only one channel per
+  switch is supported.
+
 
 ARTIQ-6
 -------
