@@ -180,6 +180,7 @@ mod imp {
 
     pub fn read_channel_name<F: FnOnce(Result<&str, Error>) -> R, R>(channel: &str, f: F) -> R {
         read_str(channel, |result| f(match result {
+            Ok("") => Ok("No Name"),
             Ok(name) => Ok(name),
             _ => Ok("No Name")
         }))
