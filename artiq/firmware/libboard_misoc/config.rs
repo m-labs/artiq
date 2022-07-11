@@ -178,14 +178,6 @@ mod imp {
         })
     }
 
-    pub fn read_channel_name<F: FnOnce(Result<&str, Error>) -> R, R>(channel: &str, f: F) -> R {
-        read_str(channel, |result| f(match result {
-            Ok("") => Ok("No Name"),
-            Ok(name) => Ok(name),
-            _ => Ok("No Name")
-        }))
-    }
-
     unsafe fn append_at(data: &[u8], mut offset: usize,
                         key: &[u8], value: &[u8]) -> Result<usize, Error> {
         let record_size = 4 + key.len() + 1 + value.len();

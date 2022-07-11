@@ -380,8 +380,14 @@ fn async_error_thread(io: Io) {
     }
 }
 
-fn channel_number_str(channel: u16) -> String{
-    format!("channel {}", channel)
+fn read_channel_name(channel: u16) -> String {
+    let ch_name = String::new()
+    config::read_str(&format!("channel {}", channel), |r| match r{
+        Ok("") => ch_name = "No Name".to_string(),
+        Ok(name) => ch_name = name.to_string(),
+        _ => ch_name = "No Name".to_string()
+    });
+    ch_name
 }
 
 pub fn startup(io: &Io, aux_mutex: &Mutex,
