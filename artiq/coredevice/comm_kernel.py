@@ -686,8 +686,14 @@ class CommKernel:
         else:
             python_exn_type = embedding_map.retrieve_object(core_exn.id)
 
-        python_exn = python_exn_type(
-            nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
+        try:
+            python_exn = python_exn_type(
+                nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
+        except Exception as ex:
+            python_exn = RuntimeError(
+                f"Exception type={python_exn_type}, which couldn't be "
+                f"reconstructed ({ex})"
+            )
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
