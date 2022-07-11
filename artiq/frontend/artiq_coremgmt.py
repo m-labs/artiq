@@ -73,13 +73,13 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    subparsers.add_parser("write_channel_name",
+    subparsers.add_parser("write_ch_name",
                           help="store channel number and corresponding device "
-                               "name information from device_db.py")
+                               "name from device_db.py to core device config")
 
-    subparsers.add_parser("remove_channel_name",
+    subparsers.add_parser("remove_ch_name",
                           help="remove channel number and corresponding "
-                               "device name information")
+                               "device name from core deivce config")
 
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
@@ -105,6 +105,16 @@ def get_argparser():
 
     return parser
 
+def channel_number_to_name(ddb):
+    number_to_name = {}
+    for device, value in ddb.items():
+        try:
+            channel = value["arguments"]["channel"]
+        except:
+            pass
+        else:
+            number_to_name[channel] = device
+    return number_to_name
 
 def main():
     args = get_argparser().parse_args()
@@ -140,25 +150,29 @@ def main():
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
-        if args.action == "write_channel_name":
+        if args.action == "write_ch_name":
             ddb = DeviceDB(args.device_db).get_device_db()
-            for device, value in ddb.items():
-                try:
-                    channel = value["arguments"]["channel"]
-                    mgmt.config_write("channel "+str(channel), device.encode("utf-8"))
-                except:
-                    pass
+            channel_ntn = channel_number_to_name(ddb)
+            if len(channel_ntn) == 0:
+                print("No device with channel number is found in device_db.py")
+            else:
+                print("Write:")
+                for ch_num, ch_name in channel_ntn.items():
+                    print(f"channel {ch_num}: {ch_name}")
+                    mgmt.config_write("channel "+str(ch_num), ch_name.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
-        if args.action == "remove_channel_name":
+        if args.action == "remove_ch_name":
             ddb = DeviceDB(args.device_db).get_device_db()
-            for value in ddb.values():
-                try:
-                    channel = value["arguments"]["channel"]
-                    mgmt.config_remove("channel "+str(channel))
-                except:
-                    pass            
+            channel_ntn = channel_number_to_name(ddb)
+            if len(channel_ntn) == 0:
+                print("No device with channel number is found in device_db.py")
+            else:
+                print("Remove:")
+                for ch_num in channel_ntn.keys():
+                    print(f"channel {ch_num}")
+                    mgmt.config_remove("channel "+str(ch_num))
         if args.action == "erase":
             mgmt.config_erase()
 
