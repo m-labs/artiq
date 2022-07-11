@@ -74,12 +74,12 @@ def get_argparser():
                               "core device config")
 
     subparsers.add_parser("write_channel_name",
-                          help="write channel number to channel name stated in "
-                               "device_db.py")
+                          help="store channel number and corresponding device "
+                               "name information from device_db.py")
 
     subparsers.add_parser("remove_channel_name",
-                          help="remove channel number to channel name stated in "
-                               "device_db.py")
+                          help="remove channel number and corresponding "
+                               "device name information")
 
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
