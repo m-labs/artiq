@@ -3,6 +3,14 @@
 Release notes
 =============
 
+Unreleased
+----------
+
+Highlights:
+
+* Implemented Phaser-servo. This requires recent gateware on Phaser.
+
+
 ARTIQ-7
 -------
 

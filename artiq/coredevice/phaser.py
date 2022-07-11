@@ -40,6 +40,14 @@ PHASER_ADDR_DUC1_P = 0x26
 PHASER_ADDR_DAC1_DATA = 0x28
 PHASER_ADDR_DAC1_TEST = 0x2c
 
+# servo registers
+PHASER_ADDR_SERVO_CFG0 = 0x30
+PHASER_ADDR_SERVO_CFG1 = 0x31
+
+# 0x32 - 0x71 servo coefficients + offset data
+PHASER_ADDR_SERVO_DATA_BASE = 0x32
+
+
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
 PHASER_SEL_TRF1 = 1 << 2
@@ -57,6 +65,11 @@ PHASER_DAC_SEL_DUC = 0
 PHASER_DAC_SEL_TEST = 1
 
 PHASER_HW_REV_VARIANT = 1 << 4
+
+SERVO_COEFF_WIDTH = 16
+SERVO_DATA_WIDTH = 16
+SERVO_COEFF_SHIFT = 14
+SERVO_T_CYCLE = (32+12+192+24+4)*ns  # Must match gateware ADC parameters
 
 
 class Phaser:
@@ -111,6 +124,31 @@ class Phaser:
     The DAC, the analog quadrature upconverters and the attenuators are
     configured through a shared SPI bus that is accessed and controlled via
     FPGA registers.
+
+    Each phaser output channel features a servo to control the RF output amplitude
+    using feedback from an ADC. The servo consists of a first order IIR (infinite
+    impulse response) filter fed by the ADC and a multiplier that scales the I
+    and Q datastreams from the DUC by the IIR output. The IIR state is updated at
+    the 3.788 MHz ADC sampling rate.
+
+    Each channel IIR features 4 profiles, each consisting of the [b0, b1, a1] filter
+    coefficients as well as an output offset. The coefficients and offset can be
+    set for each profile individually and the profiles each have their own ``y0``,
+    ``y1`` output registers (the ``x0``, ``x1`` inputs are shared). To avoid
+    transient effects, care should be taken to not update the coefficents in the
+    currently selected profile.
+
+    The servo can be en- or disabled for each channel. When disabled, the servo
+    output multiplier is simply bypassed and the datastream reaches the DAC unscaled.
+
+    The IIR output can be put on hold for each channel. In hold mode, the filter
+    still ingests samples and updates its input ``x0`` and ``x1`` registers, but
+    does not update the ``y0``, ``y1`` output registers.
+
+    After power-up the servo is disabled, in profile 0, with coefficients [0, 0, 0]
+    and hold is enabled. If older gateware without ther servo is loaded onto the
+    Phaser FPGA, the device simply behaves as if the servo is disabled and none of
+    the servo functions have any effect.
 
     .. note:: Various register settings of the DAC and the quadrature
         upconverters are available to be modified through the `dac`, `trf0`,
@@ -310,6 +348,8 @@ class Phaser:
             delay(.1*ms)
             channel.set_att_mu(0x00)  # minimum attenuation
 
+            channel.set_servo(profile=0, enable=0, hold=1)
+
             # test oscillators and DUC
             for i in range(len(channel.oscillator)):
                 oscillator = channel.oscillator[i]
@@ -381,6 +421,12 @@ class Phaser:
         rtio_output((self.channel_base << 8) | (addr & 0x7f), 0)
         response = rtio_input_data(self.channel_base)
         return response >> self.miso_delay
+
+    @kernel
+    def write16(self, addr, data: TInt32):
+        """Write 16 bit to a sequence of FPGA registers."""
+        self.write8(addr, data >> 8)
+        self.write8(addr + 1, data)
 
     @kernel
     def write32(self, addr, data: TInt32):
@@ -1038,6 +1084,133 @@ class PhaserChannel:
         if lo == 1:
             data = data ^ ((1 << 12) | (1 << 13))
         self.trf_write(data)
+
+    @kernel
+    def set_servo(self, profile=0, enable=0, hold=0):
+        """Set the servo configuration.
+
+        :param enable: 1 to enable servo, 0 to disable servo (default). If disabled,
+            the servo is bypassed and hold is enforced since the control loop is broken.
+        :param hold: 1 to hold the servo IIR filter output constant, 0 for normal operation.
+        :param profile: Profile index to select for channel. (0 to 3)
+        """
+        if (profile < 0) or (profile > 3):
+            raise ValueError("invalid profile index")
+        addr = PHASER_ADDR_SERVO_CFG0 + self.index
+        # enforce hold if the servo is disabled
+        data = (profile << 2) | (((hold | ~enable) & 1) << 1) | (enable & 1)
+        self.phaser.write8(addr, data)
+
+    @kernel
+    def set_iir_mu(self, profile, b0, b1, a1, offset):
+        """Load a servo profile consiting of the three filter coefficients and an output offset.
+
+        Avoid setting the IIR parameters of the currently active profile.
+
+        The recurrence relation is (all data signed and MSB aligned):
+
+        .. math::
+            a_0 y_n = a_1 y_{n - 1} + b_0 x_n + b_1 x_{n - 1} + o
+
+        Where:
+
+            * :math:`y_n` and :math:`y_{n-1}` are the current and previous
+              filter outputs, clipped to :math:`[0, 1[`.
+            * :math:`x_n` and :math:`x_{n-1}` are the current and previous
+              filter inputs in :math:`[-1, 1[`.
+            * :math:`o` is the offset
+            * :math:`a_0` is the normalization factor :math:`2^{14}`
+            * :math:`a_1` is the feedback gain
+            * :math:`b_0` and :math:`b_1` are the feedforward gains for the two
+              delays
+
+        .. seealso:: :meth:`set_iir`
+
+        :param profile: Profile to set (0 to 3)
+        :param b0: b0 filter coefficient (16 bit signed)
+        :param b1: b1 filter coefficient (16 bit signed)
+        :param a1: a1 filter coefficient (16 bit signed)
+        :param offset: Output offset (16 bit signed)
+        """
+        if (profile < 0) or (profile > 3):
+            raise ValueError("invalid profile index")
+        # 32 byte-sized data registers per channel and 8 (2 bytes * (3 coefficients + 1 offset)) registers per profile
+        addr = PHASER_ADDR_SERVO_DATA_BASE + (8 * profile) + (self.index * 32)
+        for data in [b0, b1, a1, offset]:
+            self.phaser.write16(addr, data)
+            addr += 2
+    
+    @kernel
+    def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
+        """Set servo profile IIR coefficients.
+
+        Avoid setting the IIR parameters of the currently active profile.
+
+        Gains are given in units of output full per scale per input full scale.
+
+        .. note:: Due to inherent constraints of the fixed point datatypes and IIR
+        filters, the ``x_offset`` (setpoint) resolution depends on the selected gains. 
+        Low ``ki`` gains will lead to a low ``x_offset`` resolution.
+
+        The transfer function is (up to time discretization and
+        coefficient quantization errors):
+
+        .. math::
+            H(s) = k_p + \\frac{k_i}{s + \\frac{k_i}{g}}
+
+        Where:
+            * :math:`s = \\sigma + i\\omega` is the complex frequency
+            * :math:`k_p` is the proportional gain
+            * :math:`k_i` is the integrator gain
+            * :math:`g` is the integrator gain limit
+
+        :param profile: Profile number (0-3)
+        :param kp: Proportional gain. This is usually negative (closed
+            loop, positive ADC voltage, positive setpoint). When 0, this
+            implements a pure I controller.
+        :param ki: Integrator gain (rad/s). Equivalent to the gain at 1 Hz.
+            When 0 (the default) this implements a pure P controller.
+            Same sign as ``kp``.
+        :param g: Integrator gain limit (1). When 0 (the default) the
+            integrator gain limit is infinite. Same sign as ``ki``.
+        :param x_offset: IIR input offset. Used as the negative
+            setpoint when stabilizing to a desired input setpoint. Will
+            be converted to an equivalent output offset and added to y_offset.
+        :param y_offset: IIR output offset.
+        """
+        NORM = 1 << SERVO_COEFF_SHIFT
+        COEFF_MAX = 1 << SERVO_COEFF_WIDTH - 1
+        DATA_MAX = 1 << SERVO_DATA_WIDTH - 1
+
+        kp *= NORM
+        if ki == 0.:
+            # pure P
+            a1 = 0
+            b1 = 0
+            b0 = int(round(kp))
+        else:
+            # I or PI
+            ki *= NORM*SERVO_T_CYCLE/2.
+            if g == 0.:
+                c = 1.
+                a1 = NORM
+            else:
+                c = 1./(1. + ki/(g*NORM))
+                a1 = int(round((2.*c - 1.)*NORM))
+            b0 = int(round(kp + ki*c))
+            b1 = int(round(kp + (ki - 2.*kp)*c))
+            if b1 == -b0:
+                raise ValueError("low integrator gain and/or gain limit")
+
+        if (b0 >= COEFF_MAX or b0 < -COEFF_MAX or
+                b1 >= COEFF_MAX or b1 < -COEFF_MAX):
+            raise ValueError("high gains")
+
+        forward_gain = (b0 + b1) * (1 << SERVO_DATA_WIDTH - 1 - SERVO_COEFF_SHIFT)
+        effective_offset = int(round(DATA_MAX * y_offset + forward_gain * x_offset))
+
+        self.set_iir_mu(profile, b0, b1, a1, effective_offset)
+
 
 
 class PhaserOscillator:
