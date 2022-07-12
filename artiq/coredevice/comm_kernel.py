@@ -653,7 +653,7 @@ class CommKernel:
             params = [self._read_int64() for _ in range(3)]
 
             # Add channel name
-            params[1] = str(params[1]) + self.channel_name_map(params[1])
+            params[1] = str(params[1]) + self.config_channel_name(params[1])
 
             filename = read_exception_string()
             line = self._read_int32()
@@ -705,15 +705,17 @@ class CommKernel:
             logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
                            f"reported during kernel execution")
 
-    def channel_name_map(self, channel_number):
+    def config_channel_name(self, channel_number):
         device_db = self.dmgr.get_device_db()
         for device_name, value in device_db.items():
             try:
-                if value["arguments"]["channel"] == channel_number:
-                    channel_name = " (" + device_name + ")"
-                    return channel_name
-            except KeyError:
+                device_channel_number = value["arguments"]["channel"]
+            except:
                 pass
+            else:
+                if device_channel_number == channel_number:
+                    channel_name = " (" + device_name + ")"
+                        return channel_name
         logger.warning("No device with channel %s is found.", channel_name)
         return ""
 
