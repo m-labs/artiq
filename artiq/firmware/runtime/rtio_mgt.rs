@@ -216,22 +216,19 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                config::read_channel_name(&channel_number_str(channel), |r|
-                                    error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x} ({})", 
-                                           destination, channel, r.unwrap()));
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x} ({})", 
+                                       destination, channel, config_channel_name(channel));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                config::read_channel_name(&channel_number_str(channel), |r|
-                                    error!("[DEST#{}] RTIO collision error involving channel 0x{:04x} ({})", 
-                                           destination, channel, r.unwrap()));
-                                    unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
+                                error!("[DEST#{}] RTIO collision error involving channel 0x{:04x} ({})", 
+                                       destination, channel, config_channel_name(channel));
+                                unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                config::read_channel_name(&channel_number_str(channel), |r|
-                                    error!("[DEST#{}] RTIO busy error involving channel 0x{:04x} ({})", 
-                                        destination, channel, r.unwrap()));
-                                    unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x} ({})", 
+                                       destination, channel, config_channel_name(channel));
+                                unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -357,32 +354,29 @@ fn async_error_thread(io: Io) {
             let errors = csr::rtio_core::async_error_read();
             if errors & ASYNC_ERROR_COLLISION != 0 {
                 let channel = csr::rtio_core::collision_channel_read();
-                config::read_channel_name(&channel_number_str(channel), |r|
-                    error!("RTIO collision involving channel {} ({})",
-                           channel, r.unwrap()));
+                error!("RTIO collision error involving channel {} ({})",
+                       channel, config_channel_name(channel));
                 
             }
             if errors & ASYNC_ERROR_BUSY != 0 {
                 let channel = csr::rtio_core::busy_channel_read();
-                config::read_channel_name(&channel_number_str(channel), |r|
-                    error!("RTIO busy error involving channel {} ({})",
-                           channel, r.unwrap()));
-                }
+                error!("RTIO busy error involving channel {} ({})",
+                       channel, config_channel_name(channel));
+            }
             if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 let channel = csr::rtio_core::sequence_error_channel_read();
-                config::read_channel_name(&channel_number_str(channel), |r|
-                    error!("RTIO sequence error involving channel {} ({})",
-                           channel, r.unwrap()));
-                }
+                error!("RTIO sequence error involving channel {} ({})",
+                       channel, config_channel_name(channel));
+            }
             SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);
         }
     }
 }
 
-fn read_channel_name(channel: u16) -> String {
+fn config_channel_name(ch_number: u16) -> String {
     let ch_name = String::new()
-    config::read_str(&format!("channel {}", channel), |r| match r{
+    config::read_str(&format!("channel {}", ch_number), |r| match r{
         Ok("") => ch_name = "No Name".to_string(),
         Ok(name) => ch_name = name.to_string(),
         _ => ch_name = "No Name".to_string()
