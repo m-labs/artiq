@@ -1,5 +1,5 @@
 use core::cell::RefCell;
-use alloc::string::String;
+use alloc::string:: {String, ToString};
 use urc::Urc;
 use board_misoc:: {csr, config};
 #[cfg(has_drtio)]
@@ -375,11 +375,10 @@ fn async_error_thread(io: Io) {
 }
 
 fn config_channel_name(ch_number: u16) -> String {
-    let ch_name = String::new()
-    config::read_str(&format!("channel {}", ch_number), |r| match r{
-        Ok("") => ch_name = "No Name".to_string(),
-        Ok(name) => ch_name = name.to_string(),
-        _ => ch_name = "No Name".to_string()
+    let ch_name = config::read_str(&format!("channel {}", ch_number), |r| match r {
+        Ok("") => "No Name".to_string(),
+        Ok(name) => name.to_string(),
+        _ => "No Name".to_string()
     });
     ch_name
 }
