@@ -145,20 +145,46 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        done = asyncio.Event()
-
         schedule = {}
-        pending_to_preparing = []
+
+        expect = [
+            {0: "pending"},
+            {0: "pending", 1: "pending"},
+            {0: "pending", 1: "pending", 2: "pending"},
+            {0: "preparing", 1: "pending", 2: "pending"},
+            {0: "prepare_done", 1: "pending", 2: "pending"},
+            {0: "running", 1: "pending", 2: "preparing"},
+            {0: "running", 1: "pending", 2: "prepare_done"},
+            {0: "paused", 1: "pending", 2: "running"},
+            {0: "paused", 1: "pending", 2: "run_done"},
+            {0: "running", 1: "pending", 2: "analyzing"},
+            {0: "running", 1: "pending", 2: "deleting"},
+        ]
+
+        done = asyncio.Event()
+        expect_idx = 0
+        skip_next = False
 
         def notify(mod):
+            nonlocal expect_idx, skip_next
             process_mod(schedule, mod)
-            for key in schedule:
-                if schedule[key]["status"] == "preparing":
-                    if key not in pending_to_preparing:
-                        pending_to_preparing.append(key)
-            # Expect only two rid would go to preparing
-            if len(pending_to_preparing) == 2:
-                self.assertEqual(pending_to_preparing, [0, 2])
+            
+            # gather status of each RID
+            current_status = {}
+            for rid, info in schedule.items():
+                current_status[rid] = info["status"]
+
+            # skip once after prepare_done or run_done
+            if skip_next:
+                skip_next = False
+            else:
+                self.assertEqual(current_status, expect[expect_idx])
+                expect_idx += 1
+                if "prepare_done" in current_status.values() or\
+                    "run_done" in current_status.values():
+                    skip_next = True
+
+            if expect_idx >= len(expect):
                 done.set()
 
         scheduler.notifier.publish = notify
