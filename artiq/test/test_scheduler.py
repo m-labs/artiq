@@ -86,15 +86,15 @@ class _RIDCounter:
 class SchedulerMonitor():
     def __init__(self, expect_status):
         self.expect_status = expect_status
-        self.schedulers = {}
+        self.experiments = {}
         self.current_status = {}
 
     def check_status(self, test):
-        for key, value in self.schedulers.items():
+        for key, value in self.experiments.items():
             if key not in self.current_status.keys():
                 self.current_status[key] = ""
-            if self.schedulers[key]["status"] != self.current_status[key]:
-                test.assertEqual(self.schedulers[key]["status"], self.expect_status[key][0])
+            if self.experiments[key]["status"] != self.current_status[key]:
+                test.assertEqual(self.experiments[key]["status"], self.expect_status[key][0])
                 self.current_status[key] = self.expect_status[key].pop(0)
 
     def finished(self, test):
@@ -178,7 +178,7 @@ class SchedulerCase(unittest.TestCase):
         done = asyncio.Event()
 
         def notify(mod):
-            process_mod(scheduler_mon.schedulers, mod)
+            process_mod(scheduler_mon.experiments, mod)
             scheduler_mon.check_status(self)
 
             if scheduler_mon.finished(self):
