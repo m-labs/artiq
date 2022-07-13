@@ -83,6 +83,26 @@ class _RIDCounter:
         self._next_rid += 1
         return rid
 
+class SchedulerMonitor():
+    def __init__(self, expect_status):
+        self.expect_status = expect_status
+        self.schedulers = {}
+        self.current_status = {}
+
+    def check_status(self, test):
+        for key, value in self.schedulers.items():
+            if key not in self.current_status.keys():
+                self.current_status[key] = ""
+            if self.schedulers[key]["status"] != self.current_status[key]:
+                test.assertEqual(self.schedulers[key]["status"], self.expect_status[key][0])
+                self.current_status[key] = self.expect_status[key].pop(0)
+
+    def finished(self, test):
+        for value in self.expect_status.values():
+            if value:
+                return False
+        return True
+
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
@@ -145,46 +165,23 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        schedule = {}
+        expect_status = {
+            0: ["pending", "preparing", "prepare_done",
+                "running", "paused", "running"],
+            1: ["pending"],
+            2: ["pending", "preparing", "prepare_done",
+                "running", "run_done", "analyzing", "deleting"],
+        }
 
-        expect = [
-            {0: "pending"},
-            {0: "pending", 1: "pending"},
-            {0: "pending", 1: "pending", 2: "pending"},
-            {0: "preparing", 1: "pending", 2: "pending"},
-            {0: "prepare_done", 1: "pending", 2: "pending"},
-            {0: "running", 1: "pending", 2: "preparing"},
-            {0: "running", 1: "pending", 2: "prepare_done"},
-            {0: "paused", 1: "pending", 2: "running"},
-            {0: "paused", 1: "pending", 2: "run_done"},
-            {0: "running", 1: "pending", 2: "analyzing"},
-            {0: "running", 1: "pending", 2: "deleting"},
-        ]
+        scheduler_mon = SchedulerMonitor(expect_status)
 
         done = asyncio.Event()
-        expect_idx = 0
-        skip_next = False
 
         def notify(mod):
-            nonlocal expect_idx, skip_next
-            process_mod(schedule, mod)
-            
-            # gather status of each RID
-            current_status = {}
-            for rid, info in schedule.items():
-                current_status[rid] = info["status"]
+            process_mod(scheduler_mon.schedulers, mod)
+            scheduler_mon.check_status(self)
 
-            # skip once after prepare_done or run_done
-            if skip_next:
-                skip_next = False
-            else:
-                self.assertEqual(current_status, expect[expect_idx])
-                expect_idx += 1
-                if "prepare_done" in current_status.values() or\
-                    "run_done" in current_status.values():
-                    skip_next = True
-
-            if expect_idx >= len(expect):
+            if scheduler_mon.finished(self):
                 done.set()
 
         scheduler.notifier.publish = notify
