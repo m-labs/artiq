@@ -36,9 +36,9 @@ class InputCollector(Module):
             sync_io = self.sync
             sync_cri = self.sync
         elif mode == "async":
-            fifo_factory = lambda *args: ClockDomainsRenamer({"write": "rio", "read": "rsys"})(AsyncFIFO(*args))
+            fifo_factory = lambda *args: ClockDomainsRenamer({"write": "rio", "read": "sys"})(AsyncFIFO(*args))
             sync_io = self.sync.rio
-            sync_cri = self.sync.rsys
+            sync_cri = self.sync.sys
         else:
             raise ValueError
 
@@ -85,7 +85,7 @@ class InputCollector(Module):
             if mode == "sync":
                 overflow_trigger = overflow_io
             elif mode == "async":
-                overflow_transfer = BlindTransfer("rio", "rsys")
+                overflow_transfer = BlindTransfer("rio", "sys")
                 self.submodules += overflow_transfer
                 self.comb += overflow_transfer.i.eq(overflow_io)
                 overflow_trigger = overflow_transfer.o
