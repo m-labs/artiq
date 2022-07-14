@@ -88,6 +88,16 @@ class SchedulerMonitor():
         self.experiments = {}
         self.last_status = {}
         self.records = {}
+        self.status_records = {
+            "pending": [],
+            "preparing": [],
+            "prepare_done": [],
+            "running": [],
+            "run_done": [],
+            "analyzing": [],
+            "deleting": [],
+            "paused": []
+       }
         self.finished = False
 
     def record(self):
@@ -100,6 +110,7 @@ class SchedulerMonitor():
                 self.last_status[key] = current_status
                 self.records[key].append(time())
                 self.records[key].append(current_status)
+                self.status_records[current_status].append(key)
             if current_status == "deleting":
                 self.finished = True
 
@@ -111,6 +122,10 @@ class SchedulerMonitor():
             return "never"
         else:
             return self.records[rid][self.records[rid].index(status) + 1]
+
+    def get_exp_order(self, status):
+        return self.status_records[status]
+
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
@@ -125,6 +140,7 @@ class SchedulerCase(unittest.TestCase):
         expect = _get_basic_steps(1, expid)
         done = asyncio.Event()
         expect_idx = 0
+
         def notify(mod):
             nonlocal expect_idx
             self.assertEqual(mod, expect[expect_idx])
@@ -197,8 +213,8 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(scheduler.stop())
 
         # Assert
-        self.assertTrue(scheduler_mon.get_out_time(1, "pending") == "never")
-        self.assertTrue(scheduler_mon.get_out_time(2, "pending") >= early)
+        self.assertEqual(scheduler_mon.get_exp_order("preparing"), [0, 2])
+        self.assertEqual(scheduler_mon.get_out_time(1, "pending"), "never")
 
     def test_pause(self):
         loop = self.loop
