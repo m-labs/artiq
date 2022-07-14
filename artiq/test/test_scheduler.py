@@ -8,6 +8,8 @@ from artiq.experiment import *
 from artiq.master.scheduler import Scheduler
 from sipyco.sync_struct import process_mod
 
+basic_flow = ["pending", "preparing", "prepare_done", "running",
+                "run_done", "analyzing", "deleting"]
 
 class EmptyExperiment(EnvExperiment):
     def build(self):
@@ -84,7 +86,7 @@ class _RIDCounter:
         return rid
 
 class SchedulerMonitor():
-    def __init__(self):
+    def __init__(self, end_condition = "deleting"):
         self.experiments = {}
         self.last_status = {}
         self.exp_flow = {}
@@ -99,6 +101,7 @@ class SchedulerMonitor():
             "paused": []
        }
         self.finished = False
+        self.end_condition = end_condition
 
     def record(self):
         for key, value in self.experiments.items():
@@ -111,8 +114,10 @@ class SchedulerMonitor():
                 self.exp_flow[key].append(time())
                 self.exp_flow[key].append(current_status)
                 self.status_records[current_status].append(key)
-            if current_status == "deleting":
-                self.finished = True
+
+                if current_status == self.end_condition:
+                    self.finished = True
+                return
 
     def get_in_time(self, rid, status):
         return self.exp_flow[rid][self.exp_flow[rid].index(status)-1]
