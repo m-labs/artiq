@@ -84,25 +84,33 @@ class _RIDCounter:
         return rid
 
 class SchedulerMonitor():
-    def __init__(self, expect_status):
-        self.expect_status = expect_status
+    def __init__(self):
         self.experiments = {}
-        self.current_status = {}
+        self.last_status = {}
+        self.records = {}
+        self.finished = False
 
-    def check_status(self, test):
+    def record(self):
         for key, value in self.experiments.items():
-            if key not in self.current_status.keys():
-                self.current_status[key] = ""
-            if self.experiments[key]["status"] != self.current_status[key]:
-                test.assertEqual(self.experiments[key]["status"], self.expect_status[key][0])
-                self.current_status[key] = self.expect_status[key].pop(0)
+            if key not in self.last_status.keys():
+                self.last_status[key] = ""
+                self.records[key] = []
+            current_status = self.experiments[key]["status"]
+            if current_status != self.last_status[key]:
+                self.last_status[key] = current_status
+                self.records[key].append(time())
+                self.records[key].append(current_status)
+            if current_status == "deleting":
+                self.finished = True
 
-    def finished(self, test):
-        for value in self.expect_status.values():
-            if value:
-                return False
-        return True
+    def get_in_time(self, rid, status):
+        return self.records[rid][self.records[rid].index(status)-1]
 
+    def get_out_time(self, rid, status)
+        if self.records[rid][-1] == status:
+            return "never"
+        else:
+            return self.records[rid][self.records[rid].index(status) + 1]
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
@@ -165,23 +173,15 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        expect_status = {
-            0: ["pending", "preparing", "prepare_done",
-                "running", "paused", "running"],
-            1: ["pending"],
-            2: ["pending", "preparing", "prepare_done",
-                "running", "run_done", "analyzing", "deleting"],
-        }
-
-        scheduler_mon = SchedulerMonitor(expect_status)
+        scheduler_mon = SchedulerMonitor()
 
         done = asyncio.Event()
 
         def notify(mod):
             process_mod(scheduler_mon.experiments, mod)
-            scheduler_mon.check_status(self)
+            scheduler_mon.record()
 
-            if scheduler_mon.finished(self):
+            if scheduler_mon.finished:
                 done.set()
 
         scheduler.notifier.publish = notify
@@ -195,6 +195,10 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(done.wait())
         scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
+
+        # Assert
+        self.assertTrue(scheduler_mon.get_out_time(1, "pending") == "never")
+        self.assertTrue(scheduler_mon.get_out_time(2, "pending") >= early)
 
     def test_pause(self):
         loop = self.loop
