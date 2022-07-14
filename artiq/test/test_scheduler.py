@@ -126,6 +126,13 @@ class SchedulerMonitor():
     def get_exp_order(self, status):
         return self.status_records[status]
 
+    def get_status_order(self, rid):
+        result_list = self.exp_flow[rid].copy()
+        for item in result_list:
+            if isinstance(item, float):
+                result_list.remove(item)
+        return result_list
+
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
@@ -214,7 +221,12 @@ class SchedulerCase(unittest.TestCase):
 
         # Assert
         self.assertEqual(monitor.get_exp_order("preparing"), [0, 2])
-        self.assertEqual(monitor.get_out_time(1, "pending"), "never")
+        self.assertEqual(monitor.get_out_time(1, "pending"), "never",
+                         "RID 1 has left pending")
+        basic_flow = ["pending", "preparing", "prepare_done", "running",
+                      "run_done", "analyzing", "deleting"]
+        self.assertEqual(monitor.get_status_order(2), basic_flow,
+                         "RID 2 did not go through all stage")
 
     def test_pause(self):
         loop = self.loop
