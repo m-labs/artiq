@@ -106,7 +106,7 @@ class SchedulerMonitor():
     def get_in_time(self, rid, status):
         return self.records[rid][self.records[rid].index(status)-1]
 
-    def get_out_time(self, rid, status)
+    def get_out_time(self, rid, status):
         if self.records[rid][-1] == status:
             return "never"
         else:
