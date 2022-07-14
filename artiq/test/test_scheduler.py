@@ -87,7 +87,7 @@ class SchedulerMonitor():
     def __init__(self):
         self.experiments = {}
         self.last_status = {}
-        self.records = {}
+        self.exp_flow = {}
         self.status_records = {
             "pending": [],
             "preparing": [],
@@ -104,24 +104,24 @@ class SchedulerMonitor():
         for key, value in self.experiments.items():
             if key not in self.last_status.keys():
                 self.last_status[key] = ""
-                self.records[key] = []
+                self.exp_flow[key] = []
             current_status = self.experiments[key]["status"]
             if current_status != self.last_status[key]:
                 self.last_status[key] = current_status
-                self.records[key].append(time())
-                self.records[key].append(current_status)
+                self.exp_flow[key].append(time())
+                self.exp_flow[key].append(current_status)
                 self.status_records[current_status].append(key)
             if current_status == "deleting":
                 self.finished = True
 
     def get_in_time(self, rid, status):
-        return self.records[rid][self.records[rid].index(status)-1]
+        return self.exp_flow[rid][self.exp_flow[rid].index(status)-1]
 
     def get_out_time(self, rid, status):
-        if self.records[rid][-1] == status:
+        if self.exp_flow[rid][-1] == status:
             return "never"
         else:
-            return self.records[rid][self.records[rid].index(status) + 1]
+            return self.exp_flow[rid][self.exp_flow[rid].index(status) + 1]
 
     def get_exp_order(self, status):
         return self.status_records[status]
@@ -189,15 +189,15 @@ class SchedulerCase(unittest.TestCase):
         late = time() + 100000
         early = time() + 1
 
-        scheduler_mon = SchedulerMonitor()
+        monitor = SchedulerMonitor()
 
         done = asyncio.Event()
 
         def notify(mod):
-            process_mod(scheduler_mon.experiments, mod)
-            scheduler_mon.record()
+            process_mod(monitor.experiments, mod)
+            monitor.record()
 
-            if scheduler_mon.finished:
+            if monitor.finished:
                 done.set()
 
         scheduler.notifier.publish = notify
@@ -213,8 +213,8 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(scheduler.stop())
 
         # Assert
-        self.assertEqual(scheduler_mon.get_exp_order("preparing"), [0, 2])
-        self.assertEqual(scheduler_mon.get_out_time(1, "pending"), "never")
+        self.assertEqual(monitor.get_exp_order("preparing"), [0, 2])
+        self.assertEqual(monitor.get_out_time(1, "pending"), "never")
 
     def test_pause(self):
         loop = self.loop
