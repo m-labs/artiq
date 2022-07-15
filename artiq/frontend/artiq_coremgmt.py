@@ -108,12 +108,9 @@ def get_argparser():
 def channel_number_to_name(ddb):
     number_to_name = {}
     for device, value in ddb.items():
-        try:
-            channel = value["arguments"]["channel"]
-        except:
-            pass
-        else:
-            number_to_name[channel] = device
+        if "arguments" in value:
+            if "channel" in value["arguments"]:
+                number_to_name[value["arguments"]["channel"]] = device
     return number_to_name
 
 def main():
