@@ -67,13 +67,13 @@ mod imp {
         }
         if status & RTIO_O_STATUS_UNDERFLOW != 0 {
             raise!("RTIOUnderflow",
-                "RTIO underflow at {0} mu, channel {1}, slack {2} mu",
-                timestamp, channel as i64, timestamp - get_counter());
+                "RTIO underflow at {0} mu, channel {1} ({3}), slack {2} mu",
+                timestamp, channel as i64, timestamp - get_counter(), "");
         }
         if status & RTIO_O_STATUS_DESTINATION_UNREACHABLE != 0 {
             raise!("RTIODestinationUnreachable",
-                "RTIO destination unreachable, output, at {0} mu, channel {1}",
-                timestamp, channel as i64, 0);
+                "RTIO destination unreachable, output, at {0} mu, channel {1} ({3})",
+                timestamp, channel as i64, 0, "");
         }
     }
 
@@ -115,16 +115,16 @@ mod imp {
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
-                    "RTIO input overflow on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO input overflow on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return -1
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, input, on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO destination unreachable, input, on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
 
             csr::rtio::i_timestamp_read() as i64
@@ -143,13 +143,13 @@ mod imp {
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
-                    "RTIO input overflow on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO input overflow on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, input, on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO destination unreachable, input, on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
 
             rtio_i_data_read(0) as i32
@@ -168,16 +168,16 @@ mod imp {
 
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
-                    "RTIO input overflow on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO input overflow on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return TimestampedData { timestamp: -1, data: 0 }
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, input, on channel {1}",
-                    0, channel as i64, 0);
+                    "RTIO destination unreachable, input, on channel {1} ({3})",
+                    0, channel as i64, 0, "");
             }
 
             TimestampedData {

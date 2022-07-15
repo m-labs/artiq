@@ -72,12 +72,13 @@ fn terminate(exceptions: &'static [Option<eh_artiq::Exception<'static>>],
     println!("{}", exceptions.len());
     for exception in exceptions.iter() {
         let exception = exception.as_ref().unwrap();
-        println!("Uncaught {}: {} ({}, {}, {})",
+        println!("Uncaught {}: {} ({}, {}, {}, {})",
                  exception.id,
                  str::from_utf8(exception.message.as_ref()).unwrap(),
-                 exception.param[0],
-                 exception.param[1],
-                 exception.param[2]);
+                 exception.param.0,
+                 exception.param.1,
+                 exception.param.2,
+                 exception.param.3);
         println!("at {}:{}:{}",
                  str::from_utf8(exception.file.as_ref()).unwrap(),
                  exception.line,

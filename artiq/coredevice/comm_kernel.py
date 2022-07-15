@@ -651,9 +651,10 @@ class CommKernel:
             name = embedding_map.retrieve_str(self._read_int32())
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
+            params.append(self._read_string())
 
             # Add channel name
-            params[1] = str(params[1]) + self.config_channel_name(params[1])
+            params[3] = self.config_channel_name(params[1])
 
             filename = read_exception_string()
             line = self._read_int32()
@@ -711,8 +712,8 @@ class CommKernel:
             if "arguments" in value:
                 if "channel" in value["arguments"]:
                     if value["arguments"]["channel"] == channel_number:
-                        return " (" + device_name + ")"
-        return " (No Name)"
+                        return device_name
+        return "No Name"
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
