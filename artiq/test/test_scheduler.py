@@ -85,7 +85,7 @@ class _RIDCounter:
         self._next_rid += 1
         return rid
 
-class SchedulerMonitor():
+class SchedulerMonitor:
     def __init__(self, end_condition = "deleting"):
         self.experiments = {}
         self.last_status = {}
