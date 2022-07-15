@@ -111,8 +111,13 @@ class SchedulerMonitor:
             current_status = self.experiments[key]["status"]
             if current_status != self.last_status[key]:
                 self.last_status[key] = current_status
-                self.exp_flow[key].append(time())
-                self.exp_flow[key].append(current_status)
+                if self.exp_flow[key]:
+                    self.exp_flow[key][-1]["out_time"] = time()
+                self.exp_flow[key].append({
+                    "status": current_status,
+                    "in_time": time(),
+                    "out_time": "never"
+                })
                 self.status_records[current_status].append(key)
 
                 if current_status == self.end_condition:
@@ -120,23 +125,20 @@ class SchedulerMonitor:
                 return
 
     def get_in_time(self, rid, status):
-        return self.exp_flow[rid][self.exp_flow[rid].index(status)-1]
+        for step in self.exp_flow[rid]:
+            if step["status"] == status:
+                return step["in_time"]
 
     def get_out_time(self, rid, status):
-        if self.exp_flow[rid][-1] == status:
-            return "never"
-        else:
-            return self.exp_flow[rid][self.exp_flow[rid].index(status) + 1]
+        for step in self.exp_flow[rid]:
+            if step["status"] == status:
+                return step["out_time"]
 
     def get_exp_order(self, status):
         return self.status_records[status]
 
     def get_status_order(self, rid):
-        result_list = self.exp_flow[rid].copy()
-        for item in result_list:
-            if isinstance(item, float):
-                result_list.remove(item)
-        return result_list
+        return [step["status"] for step in self.exp_flow[rid]]
 
 
 class SchedulerCase(unittest.TestCase):
