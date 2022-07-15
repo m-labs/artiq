@@ -708,16 +708,11 @@ class CommKernel:
     def config_channel_name(self, channel_number):
         device_db = self.dmgr.get_device_db()
         for device_name, value in device_db.items():
-            try:
-                device_channel_number = value["arguments"]["channel"]
-            except:
-                pass
-            else:
-                if device_channel_number == channel_number:
-                    channel_name = " (" + device_name + ")"
-                        return channel_name
-        logger.warning("No device with channel %s is found.", channel_name)
-        return ""
+            if "arguments" in value:
+                if "channel" in value["arguments"]:
+                    if value["arguments"]["channel"] == channel_number:
+                        return " (" + device_name + ")"
+        return " (No Name)"
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
