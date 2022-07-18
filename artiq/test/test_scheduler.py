@@ -98,7 +98,8 @@ class SchedulerMonitor:
             "run_done": [],
             "analyzing": [],
             "deleting": [],
-            "paused": []
+            "paused": [],
+            "flushing": []
         }
         self.finished = False
         self.end_condition = end_condition
@@ -178,17 +179,11 @@ class SchedulerCase(unittest.TestCase):
         loop = self.loop
         scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
         expid = _get_expid("EmptyExperiment")
-
-        expect = _get_basic_steps(1, expid)
-        done = asyncio.Event()
-        expect_idx = 0
+        monitor = SchedulerMonitor()
 
         def notify(mod):
-            nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
-            expect_idx += 1
-            if expect_idx >= len(expect):
-                done.set()
+            process_mod(monitor.experiments, mod)
+            monitor.record()
         scheduler.notifier.publish = notify
 
         scheduler.start()
@@ -196,18 +191,14 @@ class SchedulerCase(unittest.TestCase):
         # Verify that a timed experiment far in the future does not
         # get run, even if it has high priority.
         late = time() + 100000
-        expect.insert(0,
-            {"action": "setitem", "key": 0, "value":
-                {"pipeline": "main", "status": "pending", "priority": 99,
-                 "expid": expid, "due_date": late, "flush": False,
-                 "repo_msg": None},
-             "path": []})
         scheduler.submit("main", expid, 99, late, False)
 
         # This one (RID 1) gets run instead.
         scheduler.submit("main", expid, 0, None, False)
 
-        loop.run_until_complete(done.wait())
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "deleting"))
+        self.assertEqual(monitor.get_status_order(1), basic_flow)
+        self.assertEqual(monitor.last_status[0], "pending")
         scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
 
@@ -273,52 +264,29 @@ class SchedulerCase(unittest.TestCase):
         expid_bg = _get_expid("BackgroundExperiment")
         expid = _get_expid("EmptyExperiment")
 
-        expect = _get_basic_steps(1, expid)
-        background_running = asyncio.Event()
-        empty_ready = asyncio.Event()
-        empty_completed = asyncio.Event()
-        background_completed = asyncio.Event()
-        expect_idx = 0
+        monitor = SchedulerMonitor()
         def notify(mod):
-            nonlocal expect_idx
-            if mod == {"path": [0],
-                       "value": "running",
-                       "key": "status",
-                       "action": "setitem"}:
-                background_running.set()
-            if mod == {"path": [0],
-                       "value": "deleting",
-                       "key": "status",
-                       "action": "setitem"}:
-                background_completed.set()
-            if mod == {"path": [1],
-                       "value": "prepare_done",
-                       "key": "status",
-                       "action": "setitem"}:
-                empty_ready.set()
-            if mod["path"] == [1] or (mod["path"] == [] and mod["key"] == 1):
-                self.assertEqual(mod, expect[expect_idx])
-                expect_idx += 1
-                if expect_idx >= len(expect):
-                    empty_completed.set()
+            process_mod(monitor.experiments, mod)
+            monitor.record()
         scheduler.notifier.publish = notify
 
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
-        loop.run_until_complete(background_running.wait())
+        loop.run_until_complete(monitor.wait_until(0, "arrive", "running"))
         self.assertFalse(scheduler.check_pause(0))
         scheduler.submit("main", expid, 0, None, False)
         self.assertFalse(scheduler.check_pause(0))
-        loop.run_until_complete(empty_ready.wait())
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "prepare_done"))
         self.assertTrue(scheduler.check_pause(0))
-        loop.run_until_complete(empty_completed.wait())
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "deleting"))
         self.assertFalse(scheduler.check_pause(0))
 
         self.assertFalse(termination_ok)
         scheduler.request_termination(0)
         self.assertTrue(scheduler.check_pause(0))
-        loop.run_until_complete(background_completed.wait())
+        loop.run_until_complete(monitor.wait_until(0, "arrive", "deleting"))
         self.assertTrue(termination_ok)
+        self.assertEqual(monitor.get_status_order(1), basic_flow)
 
         loop.run_until_complete(scheduler.stop())
 
@@ -331,35 +299,21 @@ class SchedulerCase(unittest.TestCase):
         expid_bg = _get_expid("BackgroundExperiment")
         # Suppress the SystemExit backtrace when worker process is killed.
         expid_bg["log_level"] = logging.CRITICAL
+        monitor = SchedulerMonitor()
         expid = _get_expid("EmptyExperiment")
 
-        background_running = asyncio.Event()
-        empty_ready = asyncio.Event()
-        background_completed = asyncio.Event()
         def notify(mod):
-            if mod == {"path": [0],
-                       "value": "running",
-                       "key": "status",
-                       "action": "setitem"}:
-                background_running.set()
-            if mod == {"path": [0],
-                       "value": "deleting",
-                       "key": "status",
-                       "action": "setitem"}:
-                background_completed.set()
-            if mod == {"path": [1],
-                       "value": "prepare_done",
-                       "key": "status",
-                       "action": "setitem"}:
-                empty_ready.set()
+            process_mod(monitor.experiments, mod)
+            monitor.record()
+
         scheduler.notifier.publish = notify
 
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
-        loop.run_until_complete(background_running.wait())
+        loop.run_until_complete(monitor.wait_until(0, "arrive", "running"))
 
         scheduler.submit("main", expid, 0, None, False)
-        loop.run_until_complete(empty_ready.wait())
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "prepare_done"))
 
         # At this point, (at least) BackgroundExperiment is still running; make
         # sure we can stop the scheduler without hanging.
@@ -369,34 +323,23 @@ class SchedulerCase(unittest.TestCase):
         loop = self.loop
         scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
         expid = _get_expid("EmptyExperiment")
+        monitor = SchedulerMonitor()
+        
+        expect_flow = basic_flow.copy()
+        expect_flow.insert(1, "flushing")
 
-        expect = _get_basic_steps(1, expid, 1, True)
-        expect.insert(1, {"key": "status",
-                          "path": [1],
-                          "value": "flushing",
-                          "action": "setitem"})
-        first_preparing = asyncio.Event()
-        done = asyncio.Event()
-        expect_idx = 0
         def notify(mod):
-            nonlocal expect_idx
-            if mod == {"path": [0],
-                       "value": "preparing",
-                       "key": "status",
-                       "action": "setitem"}:
-                first_preparing.set()
-            if mod["path"] == [1] or (mod["path"] == [] and mod["key"] == 1):
-                self.assertEqual(mod, expect[expect_idx])
-                expect_idx += 1
-                if expect_idx >= len(expect):
-                    done.set()
+            process_mod(monitor.experiments, mod)
+            monitor.record()
+
         scheduler.notifier.publish = notify
 
         scheduler.start()
         scheduler.submit("main", expid, 0, None, False)
-        loop.run_until_complete(first_preparing.wait())
+        loop.run_until_complete(monitor.wait_until(0, "arrive", "prepare_done"))
         scheduler.submit("main", expid, 1, None, True)
-        loop.run_until_complete(done.wait())
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "deleting"))
+        self.assertEqual(monitor.get_status_order(1), expect_flow)
         loop.run_until_complete(scheduler.stop())
 
     def tearDown(self):
