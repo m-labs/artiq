@@ -99,9 +99,10 @@ class SchedulerMonitor:
             "analyzing": [],
             "deleting": [],
             "paused": []
-       }
+        }
         self.finished = False
         self.end_condition = end_condition
+        self.flags = {"arrive": {}, "leave": {}}
 
     def record(self):
         for key, value in self.experiments.items():
@@ -119,6 +120,15 @@ class SchedulerMonitor:
                     "out_time": "never"
                 })
                 self.status_records[current_status].append(key)
+
+                if key in self.flags["arrive"].keys():
+                    if current_status in self.flags["arrive"][key].keys():
+                        self.flags["arrive"][key][current_status].set()
+                        self.remove_flag(key, "arrive", current_status)
+                if key in self.flags["leave"].keys():
+                    if self.last_status[key] in self.flags["leave"][key].keys():
+                        self.flags["leave"][key][current_status].set()
+                        self.remove_flag(key, "leave", current_status)
 
                 if current_status == self.end_condition:
                     self.finished = True
@@ -140,6 +150,24 @@ class SchedulerMonitor:
     def get_status_order(self, rid):
         return [step["status"] for step in self.exp_flow[rid]]
 
+    async def wait_until(self, rid, condition, status):
+        # condition : "arrive", "leave"
+        if self.last_status[rid] == status:
+            return
+        if rid not in self.flags[condition] or\
+            status not in self.flags[condition][rid]:
+            self.add_flag(rid, condition, status)
+        await self.flags[condition][rid][status].wait()
+    
+    def add_flag(self, rid, condition, status):
+        if rid not in self.flags[condition]:
+            self.flags[condition][rid] = {}
+        self.flags[condition][rid][status] = asyncio.Event()
+
+    def remove_flag(self, rid, condition, status):
+        del self.flags[condition][rid][status]
+        if not self.flags[condition][rid]:
+            del self.flags[condition][rid]
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
