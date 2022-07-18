@@ -17,7 +17,7 @@ class RTIOClockMultiplier(Module, AutoCSR):
         self.specials += [
             Instance("MMCME2_BASE",
                      p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                     i_CLKIN1=ClockSignal("rtio"),
+                     i_CLKIN1=ClockSignal("sys"),
                      i_RST=self.pll_reset.storage,
                      o_LOCKED=pll_locked,
 

@@ -215,7 +215,7 @@ class JDCGPattern(Module, AutoCSR):
         self.sawgs = []
 
         ramp = Signal(4)
-        self.sync.rtio += ramp.eq(ramp + 1)
+        self.sync += ramp.eq(ramp + 1)
 
         samples = [[Signal(16) for i in range(4)] for j in range(4)]
         self.comb += [
@@ -233,7 +233,7 @@ class JDCGPattern(Module, AutoCSR):
         data = [int(round(cos(i/12*2*pi)*((1 << 15) - 1)))
                 for i in range(12)]
         k = Signal(2)
-        self.sync.rtio += If(k == 2, k.eq(0)).Else(k.eq(k + 1))
+        self.sync += If(k == 2, k.eq(0)).Else(k.eq(k + 1))
         self.comb += [
             Case(k, {
                 i: [samples[1][j].eq(data[i*4 + j]) for j in range(4)]
@@ -261,14 +261,14 @@ class JDCGSyncDDS(Module, AutoCSR):
         mul_1 = Signal.like(self.coarse_ts)
         mul_2 = Signal.like(self.coarse_ts)
         mul_3 = Signal.like(self.coarse_ts)
-        self.sync.rtio += [
+        self.sync += [
             mul_1.eq(self.coarse_ts*ftw*parallelism),
             mul_2.eq(mul_1),
             mul_3.eq(mul_2)
         ]
 
         phases = [Signal.like(self.coarse_ts) for i in range(parallelism)]
-        self.sync.rtio += [phases[i].eq(mul_3 + i*ftw) for i in range(parallelism)]
+        self.sync += [phases[i].eq(mul_3 + i*ftw) for i in range(parallelism)]
 
         resolution = 10
         steps = 2**resolution
@@ -278,14 +278,14 @@ class JDCGSyncDDS(Module, AutoCSR):
         samples = [Signal(16) for i in range(4)]
         for phase, sample in zip(phases, samples):
             table = Memory(16, steps, init=data)
-            table_port = table.get_port(clock_domain="rtio")
+            table_port = table.get_port()
             self.specials += table, table_port
             self.comb += [
                 table_port.adr.eq(phase >> (len(self.coarse_ts) - resolution)),
                 sample.eq(table_port.dat_r)
             ]
 
-        self.sync.rtio += [sink.eq(Cat(samples))
+        self.sync += [sink.eq(Cat(samples))
                            for sink in self.jesd.core.sink.flatten()]
 
 

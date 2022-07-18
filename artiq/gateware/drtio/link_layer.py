@@ -232,7 +232,7 @@ class LinkLayer(Module, AutoCSR):
         # receiver locked, comma aligned, receiving valid 8b10b symbols
         self.rx_ready = Signal()
 
-        tx = ClockDomainsRenamer("rtio")(LinkLayerTX(encoder))
+        tx = ClockDomainsRenamer("sys")(LinkLayerTX(encoder))
         rx = ClockDomainsRenamer("rtio_rx")(LinkLayerRX(decoders))
         self.submodules += tx, rx
 
@@ -256,7 +256,7 @@ class LinkLayer(Module, AutoCSR):
 
         rx_up = Signal()
         rx_up_r = Signal()
-        self.sync.rtio += rx_up_r.eq(rx_up)
+        self.sync += rx_up_r.eq(rx_up)
         rx_up_rx = Signal()
         rx_up_r.attr.add("no_retiming")
         self.specials += [
@@ -268,8 +268,8 @@ class LinkLayer(Module, AutoCSR):
         self.tx_force_aux_zero.storage.attr.add("no_retiming")
         self.tx_force_rt_zero.storage.attr.add("no_retiming")
         self.specials += [
-            MultiReg(self.tx_force_aux_zero.storage, tx_force_aux_zero_rtio, "rtio"),
-            MultiReg(self.tx_force_rt_zero.storage, tx_force_rt_zero_rtio, "rtio")]
+            MultiReg(self.tx_force_aux_zero.storage, tx_force_aux_zero_rtio),
+            MultiReg(self.tx_force_rt_zero.storage, tx_force_rt_zero_rtio)]
 
         rx_disable_rx = Signal()
         self.rx_disable.storage.attr.add("no_retiming")
@@ -294,10 +294,10 @@ class LinkLayer(Module, AutoCSR):
             self.rx_rt_data.eq(rx.rt_data)
         ]
 
-        wait_scrambler = ClockDomainsRenamer("rtio")(WaitTimer(15))
+        wait_scrambler = ClockDomainsRenamer("sys")(WaitTimer(15))
         self.submodules += wait_scrambler
 
-        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="WAIT_RX_READY"))
+        fsm = ClockDomainsRenamer("sys")(FSM(reset_state="WAIT_RX_READY"))
         self.submodules += fsm
 
         fsm.act("WAIT_RX_READY",

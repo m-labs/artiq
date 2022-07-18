@@ -10,7 +10,7 @@ class Phy(Module):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=32, address_width=4,
                               enable_replace=True))
-        self.sync.rtio += [
+        self.sync += [
             If(self.rtlink.o.stb,
                 Array(regs)[self.rtlink.o.address].eq(self.rtlink.o.data)
             )
@@ -70,7 +70,7 @@ class Phaser(Module):
         self.comb += self.serializer.payload.eq(Cat(header.raw_bits(), body))
 
         re_dly = Signal(3)  # stage, send, respond
-        self.sync.rtio += [
+        self.sync += [
             header.type.eq(1),  # body type is baseband data
             If(self.serializer.stb,
                 self.ch0.dds.stb.eq(1),  # synchronize

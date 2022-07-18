@@ -65,7 +65,7 @@ class SyncRTIO(Module):
                 enable_spread=False, report_buffer_space=True,
                 interface=self.cri))
         self.comb += self.outputs.coarse_timestamp.eq(tsc.coarse_ts)
-        self.sync.rtio += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
+        self.sync += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
 
         self.submodules.inputs = ClockDomainsRenamer("rio")(
             InputCollector(tsc, channels, "sync", interface=self.cri))
@@ -86,8 +86,8 @@ class DRTIOSatellite(Module):
         self.clock_domains.cd_rio = ClockDomain()
         self.clock_domains.cd_rio_phy = ClockDomain()
         self.comb += [
-            self.cd_rio.clk.eq(ClockSignal("rtio")),
-            self.cd_rio_phy.clk.eq(ClockSignal("rtio"))
+            self.cd_rio.clk.eq(ClockSignal("sys")),
+            self.cd_rio_phy.clk.eq(ClockSignal("sys"))
         ]
         reset = Signal()
         reset_phy = Signal()
@@ -125,9 +125,9 @@ class DRTIOSatellite(Module):
             rx_rt_frame_perm=rx_synchronizer.resync(self.link_layer.rx_rt_frame_perm),
             rx_rt_data=rx_synchronizer.resync(self.link_layer.rx_rt_data)
         )
-        self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync, "rtio")
-        self.submodules.rt_packet = ClockDomainsRenamer("rtio")(
-            rt_packet_satellite.RTPacketSatellite(link_layer_sync, interface=self.cri))
+        self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync)
+        self.submodules.rt_packet = rt_packet_satellite.RTPacketSatellite(
+            link_layer_sync, interface=self.cri)
         self.comb += self.rt_packet.reset.eq(self.cd_rio.rst)
 
         self.comb += [
@@ -135,7 +135,7 @@ class DRTIOSatellite(Module):
             tsc.load_value.eq(self.rt_packet.tsc_load_value)
         ]
 
-        ps_tsc_load = PulseSynchronizer("rtio", "sys")
+        ps_tsc_load = PulseSynchronizer("sys", "sys")
         self.submodules += ps_tsc_load
         self.comb += ps_tsc_load.i.eq(self.rt_packet.tsc_load)
         self.sync += [

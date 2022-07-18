@@ -294,7 +294,7 @@ class _MasterBase(MiniSoC, AMPSoC):
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
-            platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
+            platform.request("user_sma_clock_n").eq(ClockSignal("sys"))
         ]
 
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq
@@ -447,7 +447,7 @@ class _SatelliteBase(BaseSoC):
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
-            platform.request("user_sma_clock_n").eq(ClockSignal("rtio"))
+            platform.request("user_sma_clock_n").eq(ClockSignal("sys"))
         ]
 
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq

@@ -120,7 +120,7 @@ class Fastino(Module):
             ),
         ]
 
-        self.sync.rtio += [
+        self.sync += [
             self.rtlink.i.stb.eq(self.rtlink.o.stb &
                 self.rtlink.o.address[-1]),
             self.rtlink.i.data.eq(

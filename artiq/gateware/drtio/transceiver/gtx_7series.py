@@ -259,7 +259,7 @@ class GTX_20X(Module):
         # RX clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         if rx_mode == "single" or rx_mode == "master":
             self.specials += Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),

@@ -97,12 +97,12 @@ class SiPhaser7Series(Module, AutoCSR):
         toggle_out = rx_synchronizer.resync(toggle_in)
 
         toggle_out_expected = Signal()
-        self.sync.rtio += toggle_out_expected.eq(~toggle_out)
+        self.sync += toggle_out_expected.eq(~toggle_out)
 
         error = Signal()
-        error_clear = PulseSynchronizer("sys", "rtio")
+        error_clear = PulseSynchronizer("sys", "sys")
         self.submodules += error_clear
-        self.sync.rtio += [
+        self.sync += [
             If(toggle_out != toggle_out_expected, error.eq(1)),
             If(error_clear.o, error.eq(0))
         ]

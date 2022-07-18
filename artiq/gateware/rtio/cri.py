@@ -158,7 +158,7 @@ class CRIDecoder(Module):
             if mode == "async":
                 rtp_decoder = self.routing_table.get_port()
             elif mode == "sync":
-                rtp_decoder = self.routing_table.get_port(clock_domain="rtio")
+                rtp_decoder = self.routing_table.get_port(clock_domain="sys")
             else:
                 raise ValueError
             self.specials += rtp_decoder
@@ -204,7 +204,7 @@ class CRISwitch(Module, AutoCSR):
         elif mode == "sync":
             self.selected.storage.attr.add("no_retiming")
             selected = Signal.like(self.selected.storage)
-            self.specials += MultiReg(self.selected.storage, selected, "rtio")
+            self.specials += MultiReg(self.selected.storage, selected)
         else:
             raise ValueError
 

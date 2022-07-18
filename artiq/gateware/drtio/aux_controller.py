@@ -22,7 +22,7 @@ class Transmitter(Module, AutoCSR):
         self.aux_tx = CSR()
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
-        converter = ClockDomainsRenamer("rtio")(
+        converter = ClockDomainsRenamer("sys")(
             stream.Converter(mem_dw, ll_dw))
         self.submodules += converter
 
@@ -36,7 +36,7 @@ class Transmitter(Module, AutoCSR):
         seen_eop_rst = Signal()
         frame_r = Signal()
         seen_eop = Signal()
-        self.sync.rtio += [
+        self.sync += [
             If(link_layer.tx_aux_ack,
                 frame_r.eq(link_layer.tx_aux_frame),
                 If(frame_r & ~link_layer.tx_aux_frame, seen_eop.eq(1))
@@ -44,12 +44,12 @@ class Transmitter(Module, AutoCSR):
             If(seen_eop_rst, seen_eop.eq(0))
         ]
 
-        mem_port = self.mem.get_port(clock_domain="rtio")
+        mem_port = self.mem.get_port()
         self.specials += mem_port
 
         self.aux_tx_length.storage.attr.add("no_retiming")
         tx_length = Signal(bits_for(max_packet))
-        self.specials += MultiReg(self.aux_tx_length.storage, tx_length, "rtio")
+        self.specials += MultiReg(self.aux_tx_length.storage, tx_length)
 
         frame_counter_nbits = bits_for(max_packet) - log2_int(mem_dw//8)
         frame_counter = Signal(frame_counter_nbits)
@@ -66,10 +66,11 @@ class Transmitter(Module, AutoCSR):
             mem_port.adr.eq(frame_counter_next),
             converter.sink.data.eq(mem_port.dat_r)
         ]
-        self.sync.rtio += frame_counter.eq(frame_counter_next)
+        self.sync += frame_counter.eq(frame_counter_next)
 
-        start_tx = PulseSynchronizer("sys", "rtio")
-        tx_done = PulseSynchronizer("rtio", "sys")
+        # ?
+        start_tx = PulseSynchronizer("sys", "sys")
+        tx_done = PulseSynchronizer("sys", "sys")
         self.submodules += start_tx, tx_done
         self.comb += start_tx.i.eq(self.aux_tx.re)
         self.sync += [
@@ -77,7 +78,7 @@ class Transmitter(Module, AutoCSR):
             If(self.aux_tx.re, self.aux_tx.w.eq(1))
         ]
 
-        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
+        fsm = ClockDomainsRenamer("sys")(FSM(reset_state="IDLE"))
         self.submodules += fsm
 
         fsm.act("IDLE",

@@ -144,7 +144,7 @@ class OutputsTestbench:
 
 
 class TestFullStack(unittest.TestCase):
-    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
+    clocks = {"sys": 8, "rtio_rx": 5,
               "rio": 5, "rio_phy": 5}
 
     def test_pulses(self):
@@ -169,7 +169,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.check_ttls(ttl_changes)}, self.clocks)
+            {"sys": test()}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_underflow(self):
@@ -214,7 +214,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.check_ttls(ttl_changes)}, self.clocks)
+            {"sys": test()}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_write_underflow(self):
@@ -284,7 +284,7 @@ class TestFullStack(unittest.TestCase):
             yield dut.phy2.rtlink.i.stb.eq(0)
 
         run_simulation(dut,
-            {"sys": test(), "rtio": generate_input()}, self.clocks)
+            {"sys": test()}, self.clocks)
 
     def test_echo(self):
         dut = DUT(2)

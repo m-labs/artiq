@@ -39,11 +39,7 @@ class UltrascaleCRG(Module, AutoCSR):
             AsyncResetSynchronizer(self.cd_jesd, self.jreset.storage),
         ]
 
-        if use_rtio_clock:
-            self.cd_jesd.clk.attr.add("keep")
-            self.comb += self.cd_jesd.clk.eq(ClockSignal("rtio"))
-        else:
-            self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
+        self.specials += Instance("BUFG_GT", i_I=refclk2, o_O=self.cd_jesd.clk)
 
 
 PhyPads = namedtuple("PhyPads", "txp txn")
@@ -185,7 +181,7 @@ class DDMTD(Module, AutoCSR):
         self.specials += [
             Instance("MMCME2_BASE",
                 p_CLKIN1_PERIOD=1e9/rtio_clk_freq,
-                i_CLKIN1=ClockSignal("rtio"),
+                i_CLKIN1=ClockSignal("sys"),
                 i_RST=self.reset.storage,
                 o_LOCKED=helper_locked,
 
@@ -203,7 +199,7 @@ class DDMTD(Module, AutoCSR):
             Instance("BUFG", i_I=helper_output, o_O=self.cd_helper.clk),
             Instance("IBUFDS", i_I=input_pads.p, i_IB=input_pads.n, o_O=input_se),
             Instance("FD", i_C=self.cd_helper.clk, i_D=input_se, o_Q=beat1, attr={("IOB", "TRUE")}),
-            Instance("FD", i_C=self.cd_helper.clk, i_D=ClockSignal("rtio"), o_Q=beat2),
+            Instance("FD", i_C=self.cd_helper.clk, i_D=ClockSignal("sys"), o_Q=beat2),
         ]
 
         ed1 = DDMTDEdgeDetector(beat1)
@@ -257,18 +253,18 @@ class SysrefSampler(Module, AutoCSR):
                 p_DATA_WIDTH=4,
 
                 i_D=sysref_se,
-                i_RST=ResetSignal("rtio"),
+                i_RST=ResetSignal("sys"),
                 i_FIFO_RD_EN=0,
                 i_CLK=ClockSignal("rtiox"),
                 i_CLK_B=ClockSignal("rtiox"), # locally inverted
-                i_CLKDIV=ClockSignal("rtio"),
+                i_CLKDIV=ClockSignal("sys"),
                 o_Q=sysref_oversample)
         ]
 
         self.comb += self.jref.eq(sysref_oversample[1])
         sh_error = Signal()
         sh_error_reset = Signal()
-        self.sync.rtio += [
+        self.sync += [
             If(~(  (sysref_oversample[0] == sysref_oversample[1])
                  & (sysref_oversample[1] == sysref_oversample[2])),
                 sh_error.eq(1)
@@ -276,13 +272,13 @@ class SysrefSampler(Module, AutoCSR):
             If(sh_error_reset, sh_error.eq(0))
         ]
         self.specials += [
-            MultiReg(self.sh_error_reset.storage, sh_error_reset, "rtio"),
+            MultiReg(self.sh_error_reset.storage, sh_error_reset),
             MultiReg(sh_error, self.sh_error.status)
         ]
 
         jref_r = Signal()
         sysref_phase_rtio = Signal(sysref_phase_bits)
-        self.sync.rtio += [
+        self.sync += [
             jref_r.eq(self.jref),
             If(self.jref & ~jref_r, sysref_phase_rtio.eq(coarse_ts))
         ]

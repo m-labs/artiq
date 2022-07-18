@@ -9,7 +9,7 @@ from artiq.gateware.drtio.wrpll import thls, filters
 
 
 class FrequencyCounter(Module, AutoCSR):
-    def __init__(self, timer_width=23, counter_width=23, domains=["helper", "rtio", "rtio_rx0"]):
+    def __init__(self, timer_width=23, counter_width=23, domains=["helper", "sys", "rtio_rx0"]):
         for domain in domains:
             name = "counter_" + domain
             counter = CSRStatus(counter_width, name=name)
