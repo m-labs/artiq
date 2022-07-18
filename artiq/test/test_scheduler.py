@@ -233,14 +233,9 @@ class SchedulerCase(unittest.TestCase):
 
         monitor = SchedulerMonitor()
 
-        done = asyncio.Event()
-
         def notify(mod):
             process_mod(monitor.experiments, mod)
             monitor.record()
-
-            if monitor.finished:
-                done.set()
 
         scheduler.notifier.publish = notify
 
@@ -250,7 +245,7 @@ class SchedulerCase(unittest.TestCase):
         scheduler.submit("main", expid_empty, high_priority, late)
         scheduler.submit("main", expid_empty, middle_priority, early)
 
-        loop.run_until_complete(done.wait())
+        loop.run_until_complete(monitor.wait_until(2, "arrive", "deleting"))
         scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
 
@@ -258,10 +253,6 @@ class SchedulerCase(unittest.TestCase):
         self.assertEqual(monitor.get_exp_order("preparing"), [0, 2])
         self.assertEqual(monitor.get_out_time(1, "pending"), "never",
                          "RID 1 has left pending")
-        basic_flow = ["pending", "preparing", "prepare_done", "running",
-                      "run_done", "analyzing", "deleting"]
-        self.assertEqual(monitor.get_status_order(2), basic_flow,
-                         "RID 2 did not go through all stage")
 
     def test_pause(self):
         loop = self.loop
