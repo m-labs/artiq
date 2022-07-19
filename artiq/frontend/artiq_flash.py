@@ -116,13 +116,14 @@ class Programmer:
             "gdb_port disabled",
             "tcl_port disabled",
             "telnet_port disabled",
+        ] + preinit_script
+        self._loaded = defaultdict(lambda: None)
+        self._script = [
             "set error_msg \"Trying to use configured scan chain anyway\"",
             "if {[string first $error_msg [capture \"init\"]] != -1} {",
             "puts \"Found error and exiting\"",
             "exit}" 
-        ] + preinit_script
-        self._loaded = defaultdict(lambda: None)
-        self._script = ["init"]
+        ]
 
     def _transfer_script(self, script):
         if isinstance(self._client, LocalClient):
