@@ -53,29 +53,6 @@ def _get_expid(name):
     }
 
 
-def _get_basic_steps(rid, expid, priority=0, flush=False, due_date=None):
-    return [
-        {"action": "setitem", "key": rid, "value":
-            {"pipeline": "main", "status": "pending", "priority": priority,
-             "expid": expid, "due_date": due_date, "flush": flush,
-             "repo_msg": None},
-            "path": []},
-        {"action": "setitem", "key": "status", "value": "preparing",
-            "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "prepare_done",
-            "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "running",
-            "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "run_done",
-            "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "analyzing",
-            "path": [rid]},
-        {"action": "setitem", "key": "status", "value": "deleting",
-            "path": [rid]},
-        {"action": "delitem", "key": rid, "path": []}
-    ]
-
-
 class _RIDCounter:
     def __init__(self, next_rid):
         self._next_rid = next_rid
@@ -159,7 +136,7 @@ class SchedulerMonitor:
             status not in self.flags[condition][rid]:
             self.add_flag(rid, condition, status)
         await self.flags[condition][rid][status].wait()
-    
+
     def add_flag(self, rid, condition, status):
         if rid not in self.flags[condition]:
             self.flags[condition][rid] = {}
@@ -324,7 +301,7 @@ class SchedulerCase(unittest.TestCase):
         scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
         expid = _get_expid("EmptyExperiment")
         monitor = SchedulerMonitor()
-        
+
         expect_flow = basic_flow.copy()
         expect_flow.insert(1, "flushing")
 
