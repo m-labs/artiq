@@ -9,7 +9,10 @@ from artiq.master.scheduler import Scheduler
 from sipyco.sync_struct import process_mod
 
 basic_flow = ["pending", "preparing", "prepare_done", "running",
-                "run_done", "analyzing", "deleting"]
+              "run_done", "analyzing", "deleting"]
+
+flush_flow = ["pending", "flushing", "preparing", "prepare_done",
+              "running", "run_done", "analyzing", "deleting"]
 
 class EmptyExperiment(EnvExperiment):
     def build(self):
@@ -63,7 +66,7 @@ class _RIDCounter:
         return rid
 
 class SchedulerMonitor:
-    def __init__(self, end_condition = "deleting"):
+    def __init__(self, end_condition="deleting"):
         self.experiments = {}
         self.last_status = {}
         self.exp_flow = {}
@@ -298,12 +301,13 @@ class SchedulerCase(unittest.TestCase):
 
     def test_flush(self):
         loop = self.loop
-        scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
+        handlers = {}
+        scheduler = Scheduler(_RIDCounter(0), handlers, None, None)
+        handlers["scheduler_check_pause"] = scheduler.check_pause
         expid = _get_expid("EmptyExperiment")
+        expid_bg = _get_expid("CheckPauseBackgroundExperiment")
+        expid_bg["log_level"] = logging.CRITICAL
         monitor = SchedulerMonitor()
-
-        expect_flow = basic_flow.copy()
-        expect_flow.insert(1, "flushing")
 
         def notify(mod):
             process_mod(monitor.experiments, mod)
@@ -312,11 +316,24 @@ class SchedulerCase(unittest.TestCase):
         scheduler.notifier.publish = notify
 
         scheduler.start()
+        # Flush with same priority
         scheduler.submit("main", expid, 0, None, False)
-        loop.run_until_complete(monitor.wait_until(0, "arrive", "prepare_done"))
-        scheduler.submit("main", expid, 1, None, True)
+        scheduler.submit("main", expid, 0, None, True)
+        loop.run_until_complete(monitor.wait_until(1, "arrive", "preparing"))
+        self.assertEqual(monitor.last_status[0], "deleting")
         loop.run_until_complete(monitor.wait_until(1, "arrive", "deleting"))
-        self.assertEqual(monitor.get_status_order(1), expect_flow)
+        self.assertEqual(monitor.get_status_order(0), basic_flow)
+        self.assertEqual(monitor.get_status_order(1), flush_flow)
+
+        # Flush with higher priority
+        scheduler.submit("main", expid_bg, 0, None, False)
+        # Make sure RID 2 go into preparing stage first
+        loop.run_until_complete(monitor.wait_until(2, "arrive", "preparing"))
+        scheduler.submit("main", expid, 1, None, True)
+        loop.run_until_complete(monitor.wait_until(3, "arrive", "deleting"))
+        self.assertEqual(monitor.last_status[2], "running")
+        self.assertEqual(monitor.get_status_order(3), flush_flow)
+
         loop.run_until_complete(scheduler.stop())
 
     def tearDown(self):
