@@ -115,7 +115,7 @@ class Programmer:
         self._preinit_script = [
             "gdb_port disabled",
             "tcl_port disabled",
-            "telnet_port disabled",
+            "telnet_port disabled"
         ] + preinit_script
         self._loaded = defaultdict(lambda: None)
         self._script = [
