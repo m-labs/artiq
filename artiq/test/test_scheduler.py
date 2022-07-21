@@ -251,6 +251,7 @@ class SchedulerCase(unittest.TestCase):
         scheduler.notifier.publish = notify
 
         scheduler.start()
+        # check_pause is True when rid with higher priority is prepare_done
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(monitor.wait_until(0, "arrive", "running"))
         self.assertFalse(scheduler.check_pause(0))
@@ -260,13 +261,15 @@ class SchedulerCase(unittest.TestCase):
         self.assertTrue(scheduler.check_pause(0))
         loop.run_until_complete(monitor.wait_until(1, "arrive", "deleting"))
         self.assertFalse(scheduler.check_pause(0))
+        self.assertEqual(monitor.get_status_order(1), basic_flow)
 
+        # check_pause is True when request_termination is called
         self.assertFalse(termination_ok)
+        self.assertFalse(scheduler.check_pause(0))
         scheduler.request_termination(0)
         self.assertTrue(scheduler.check_pause(0))
         loop.run_until_complete(monitor.wait_until(0, "arrive", "deleting"))
         self.assertTrue(termination_ok)
-        self.assertEqual(monitor.get_status_order(1), basic_flow)
 
         loop.run_until_complete(scheduler.stop())
 
