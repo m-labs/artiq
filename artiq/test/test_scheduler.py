@@ -92,7 +92,6 @@ class SchedulerMonitor:
                 self.exp_flow[key] = []
             current_status = self.experiments[key]["status"]
             if current_status != self.last_status[key]:
-                self.last_status[key] = current_status
                 if self.exp_flow[key]:
                     self.exp_flow[key][-1]["out_time"] = time()
                 self.exp_flow[key].append({
@@ -105,14 +104,13 @@ class SchedulerMonitor:
                 if key in self.flags["arrive"].keys():
                     if current_status in self.flags["arrive"][key].keys():
                         self.flags["arrive"][key][current_status].set()
-                        self.remove_flag(key, "arrive", current_status)
                 if key in self.flags["leave"].keys():
                     if self.last_status[key] in self.flags["leave"][key].keys():
-                        self.flags["leave"][key][current_status].set()
-                        self.remove_flag(key, "leave", current_status)
+                        self.flags["leave"][key][self.last_status[key]].set()
 
                 if current_status == self.end_condition:
                     self.finished = True
+                self.last_status[key] = current_status
                 return
 
     def get_in_time(self, rid, status):
@@ -133,12 +131,13 @@ class SchedulerMonitor:
 
     async def wait_until(self, rid, condition, status):
         # condition : "arrive", "leave"
-        if self.last_status[rid] == status:
+        if self.last_status[rid] == status and condition == "arrive":
             return
         if rid not in self.flags[condition] or\
-            status not in self.flags[condition][rid]:
+                status not in self.flags[condition][rid]:
             self.add_flag(rid, condition, status)
         await self.flags[condition][rid][status].wait()
+        self.remove_flag(rid, condition, status)
 
     def add_flag(self, rid, condition, status):
         if rid not in self.flags[condition]:
@@ -146,9 +145,11 @@ class SchedulerMonitor:
         self.flags[condition][rid][status] = asyncio.Event()
 
     def remove_flag(self, rid, condition, status):
-        del self.flags[condition][rid][status]
-        if not self.flags[condition][rid]:
-            del self.flags[condition][rid]
+        if rid in self.flags[condition].keys():
+            if status in self.flags[condition][rid].keys():
+                del self.flags[condition][rid][status]
+            if not self.flags[condition][rid]:
+                del self.flags[condition][rid]
 
 class SchedulerCase(unittest.TestCase):
     def setUp(self):
@@ -216,14 +217,21 @@ class SchedulerCase(unittest.TestCase):
         scheduler.submit("main", expid_empty, high_priority, late)
         scheduler.submit("main", expid_empty, middle_priority, early)
 
+        wait_RID1_leave = loop.create_task(
+            monitor.wait_until(1, "leave", "pending"))
+        wait_RID2_leave = loop.create_task(
+            monitor.wait_until(2, "leave", "pending"))
+        done, pending = loop.run_until_complete(asyncio.wait(
+            [wait_RID1_leave, wait_RID2_leave],
+            return_when=asyncio.FIRST_COMPLETED))
+        self.assertIn(wait_RID2_leave, done)
+        for task in pending:
+            task.cancel()
+
         loop.run_until_complete(monitor.wait_until(2, "arrive", "deleting"))
+        self.assertEqual(monitor.get_status_order(2), basic_flow)
         scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
-
-        # Assert
-        self.assertEqual(monitor.get_exp_order("preparing"), [0, 2])
-        self.assertEqual(monitor.get_out_time(1, "pending"), "never",
-                         "RID 1 has left pending")
 
     def test_pause(self):
         loop = self.loop
