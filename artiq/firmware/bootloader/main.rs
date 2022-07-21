@@ -7,6 +7,8 @@ extern crate smoltcp;
 #[macro_use]
 extern crate board_misoc;
 extern crate riscv;
+#[cfg(soc_platform = "kasli")]
+extern crate board_artiq;
 
 use core::{ptr, slice, convert::TryFrom};
 use crc::crc32;
@@ -20,6 +22,8 @@ use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
 use smoltcp::iface::SocketStorage;
 use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address};
+#[cfg(soc_platform = "kasli")]
+use board_artiq::si5324;
 
 fn check_integrity() -> bool {
     extern {
@@ -86,6 +90,36 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
     *wrong == 0
 }
 
+#[cfg(soc_platform = "kasli")]
+fn set_clocks() {
+    unsafe { 
+        // 125mhz ref (no si5324) - default 
+        board_misoc::csr::crg::clock_sel_write(0);
+    }
+    //set up 125mhz clock from internal oscillator (base option)
+    let setting = si5324::FrequencySettings {
+        n1_hs  : 10,
+        nc1_ls : 4,
+        n2_hs  : 10,
+        n2_ls  : 19972,
+        n31    : 4565,
+        n32    : 4565,
+        bwsel  : 4,
+        crystal_ref: true
+    };
+    let si5324_ref_input = si5324::Input::Ckin2;
+    let _ = si5324::setup(&setting, si5324_ref_input, true);
+    // switch clk again
+    println!("switching to si5324!");
+    unsafe {
+        board_misoc::csr::crg::clock_sel_write(1);
+        // wait for pll to lock
+        while board_misoc::csr::crg::pll_locked_read() == 0 {}
+    }
+    println!("clock switched!");
+
+}
+
 fn startup() -> bool {
     if check_integrity() {
         println!("Bootloader CRC passed");
@@ -95,6 +129,13 @@ fn startup() -> bool {
     }
 
     println!("Gateware ident {}", ident::read(&mut [0; 64]));
+    
+    #[cfg(soc_platform = "kasli")]
+    {
+        println!("Setting up Si5324 clock...");
+        set_clocks();
+        println!("PLL locked!");
+    }
 
     println!("Initializing SDRAM...");
 

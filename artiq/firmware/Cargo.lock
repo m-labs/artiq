@@ -66,6 +66,7 @@ dependencies = [
 name = "bootloader"
 version = "0.0.0"
 dependencies = [
+ "board_artiq",
  "board_misoc",
  "build_misoc",
  "byteorder",
