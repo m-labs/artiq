@@ -226,8 +226,8 @@ class ProcessArgumentManager:
     def check_unprocessed_arguments(self):
         unprocessed = set(self.unprocessed_arguments.keys()) -\
                       set(self._processed_arguments)
-        args = ", ".join(list(unprocessed))
         if unprocessed:
+            args = ", ".join(list(unprocessed))
             raise AttributeError("Unprocessed argument(s): " + args)
 
 class HasEnvironment:
