@@ -77,10 +77,6 @@ def get_argparser():
                           help="store channel number and corresponding device "
                                "name from device_db.py to core device config")
 
-    subparsers.add_parser("remove_ch_name",
-                          help="remove channel number and corresponding "
-                               "device name from core deivce config")
-
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
     p_remove.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
@@ -160,16 +156,6 @@ def main():
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
-        if args.action == "remove_ch_name":
-            ddb = DeviceDB(args.device_db).get_device_db()
-            channel_ntn = channel_number_to_name(ddb)
-            if len(channel_ntn) == 0:
-                print("No device with channel number is found in device_db.py")
-            else:
-                print("Remove:")
-                for ch_num in channel_ntn.keys():
-                    print(f"channel {ch_num}")
-                    mgmt.config_remove("channel "+str(ch_num))
         if args.action == "erase":
             mgmt.config_erase()
 
