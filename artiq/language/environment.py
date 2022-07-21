@@ -485,7 +485,7 @@ def is_experiment(o):
 
 
 def is_public_experiment(o):
-    """Checks if a Pyhton object is a top-level,
+    """Checks if a Python object is a top-level,
     non underscore-prefixed, experiment class.
     """
     return is_experiment(o) and not o.__name__.startswith("_")
