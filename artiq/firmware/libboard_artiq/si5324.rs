@@ -173,10 +173,7 @@ fn monitor_lock() -> Result<()> {
     Ok(())
 }
 
-fn init() -> Result<()> {
-    #[cfg(not(si5324_soft_reset))]
-    hard_reset();
-
+fn i2c_select() -> Result<()> {
     #[cfg(soc_platform = "kasli")]
     {
         i2c::switch_select(BUSNO, 0x70, 0)?;
@@ -191,62 +188,87 @@ fn init() -> Result<()> {
     #[cfg(soc_platform = "kc705")]
     i2c::switch_select(BUSNO, 0x74, 1 << 7)?;
 
+    Ok(())
+}
+
+fn si5324_init() -> Result<()> {
+    #[cfg(not(si5324_soft_reset))]
+    hard_reset();
+
+    i2c_select()?;
+
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");
     }
 
     #[cfg(si5324_soft_reset)]
     soft_reset()?;
+
+    //write common config
+    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
+    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
+    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
+    write(137, read(137)? | 0x01)?;                       // FASTLOCK=1
+    write(19,  read(19)? & 0xe7 | (0b01 << 3))?;          // VALTIME=b01 (100ms)
     Ok(())
 }
 
-pub fn bypass(input: Input) -> Result<()> {
+pub fn bypass(input: Input, do_init: bool) -> Result<()> {
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
-    init()?;
-    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
+
+    i2c_select()?;
+
+    if do_init { 
+        si5324_init()?;
+    }
+
     write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;    // CKSEL_REG
-    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
-    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
     write(0,   (read(0)? & 0xfd) | 0x02)?;                // BYPASS_REG=1
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
+pub fn setup(settings: &FrequencySettings, input: Input, do_init: bool) -> Result<()> {
     let s = map_frequency_settings(settings)?;
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
 
-    init()?;
+    i2c_select()?;
+
+    if do_init {
+        si5324_init()?;
+    }
     if settings.crystal_ref {
         write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
     }
     write(2,   (read(2)? & 0x0f) | (s.bwsel << 4))?;
-    write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
-    write(3,   (read(3)? & 0x2f) | (cksel_reg << 6) | 0x10)?;  // CKSEL_REG, SQ_ICAL=1
-    write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
-    write(6,   (read(6)? & 0xc0) | 0b111111)?;            // SFOUT2_REG=b111 SFOUT1_REG=b111
-    write(25,  (s.n1_hs  << 5 ) as u8)?;
-    write(31,  (s.nc1_ls >> 16) as u8)?;
-    write(32,  (s.nc1_ls >> 8 ) as u8)?;
-    write(33,  (s.nc1_ls)       as u8)?;
-    write(34,  (s.nc1_ls >> 16) as u8)?;                  // write to NC2_LS as well
-    write(35,  (s.nc1_ls >> 8 ) as u8)?;
-    write(36,  (s.nc1_ls)       as u8)?;
-    write(40,  (s.n2_hs  << 5 ) as u8 | (s.n2_ls  >> 16) as u8)?;
-    write(41,  (s.n2_ls  >> 8 ) as u8)?;
-    write(42,  (s.n2_ls)        as u8)?;
-    write(43,  (s.n31    >> 16) as u8)?;
-    write(44,  (s.n31    >> 8)  as u8)?;
-    write(45,  (s.n31)          as u8)?;
-    write(46,  (s.n32    >> 16) as u8)?;
-    write(47,  (s.n32    >> 8)  as u8)?;
-    write(48,  (s.n32)          as u8)?;
-    write(137, read(137)? | 0x01)?;                       // FASTLOCK=1
+    write(3,   (read(3)? & 0x2f) | (cksel_reg << 6))?;  // CKSEL_REG - no squander for hitless switch!
+    match input  {
+        Input::Ckin1 => {  // only update channel-relevant settings
+            write(25,  (s.n1_hs  << 5 ) as u8)?;
+            write(31,  (s.nc1_ls >> 16) as u8)?;
+            write(32,  (s.nc1_ls >> 8 ) as u8)?;
+            write(33,  (s.nc1_ls)       as u8)?;
+            write(43,  (s.n31    >> 16) as u8)?;
+            write(44,  (s.n31    >> 8)  as u8)?;
+            write(45,  (s.n31)          as u8)?;
+        },
+        Input::Ckin2 => {
+        write(34,  (s.nc1_ls >> 16) as u8)?;                  // write to NC2_LS as well
+        write(35,  (s.nc1_ls >> 8 ) as u8)?;
+        write(36,  (s.nc1_ls)       as u8)?;
+        write(40,  (s.n2_hs  << 5 ) as u8 | (s.n2_ls  >> 16) as u8)?;
+        write(41,  (s.n2_ls  >> 8 ) as u8)?;
+        write(42,  (s.n2_ls)        as u8)?;
+        write(46,  (s.n32    >> 16) as u8)?;
+        write(47,  (s.n32    >> 8)  as u8)?;
+        write(48,  (s.n32)          as u8)?;
+        }
+    }
     write(136, read(136)? | 0x40)?;                       // ICAL=1
 
     if !has_xtal()? {
@@ -265,6 +287,7 @@ pub fn select_input(input: Input) -> Result<()> {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
+    i2c_select()?;
     write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;
     if !has_ckin(input)? {
         return Err("Si5324 misses clock input signal");

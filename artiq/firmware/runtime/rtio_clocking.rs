@@ -54,9 +54,9 @@ fn get_rtio_clock_cfg() -> RtioClock {
             return RtioClock::Ext0_Synth0_125to125;
             #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
             return RtioClock::Int_125;
-            #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref)))]
+            #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref), not(soc_platform = "kasli")))]
             return RtioClock::Int_150;
-            #[cfg(all(rtio_frequency = "100.0", not(si5324_ext_ref)))]
+            #[cfg(all(rtio_frequency = "100.0", not(si5324_ext_ref), not(soc_platform = "kasli")))]
             return RtioClock::Int_100;
             //in case nothing is set
             return RtioClock::Int_125;
@@ -197,6 +197,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                 bwsel  : 4,
                 crystal_ref: true
             }
+            // on kasli return (bootloader already set up 125MHz)
         }
         _ => { // 125MHz output like above, default (if chosen option is not supported)
             warn!("rtio_clock setting '{:?}' is not supported. Falling back to default internal 125MHz RTIO clock.", cfg);
@@ -222,13 +223,31 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "kc705")]
     let si5324_ref_input = si5324::Input::Ckin2;
-    si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
+    si5324::setup(&si5324_settings, si5324_ref_input, false).expect("cannot initialize Si5324");
 }
 
 pub fn init() {
     let clock_cfg = get_rtio_clock_cfg();
     #[cfg(si5324_as_synthesizer)]
     {
+        // on older kasli before bypassing, switch to bootstrap clock as ref
+        // for hitless change to bypassed clock
+        #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
+        {
+            let settings = si5324::FrequencySettings {
+                n1_hs  : 5,
+                nc1_ls : 8,
+                n2_hs  : 7,
+                n2_ls  : 360,
+                n31    : 63,
+                n32    : 63,
+                bwsel  : 4,
+                crystal_ref: false
+            };
+            let input = si5324::Input::Ckin2;
+            si5324::setup(&settings, input, false).expect("cannot initialize Si5324");
+        }
+
         #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
         let si5324_ext_input = si5324::Input::Ckin1;
         #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
@@ -240,7 +259,7 @@ pub fn init() {
         match clock_cfg {
             RtioClock::Ext0_Bypass => {
                 info!("using external RTIO clock with PLL bypass");
-                si5324::bypass(si5324_ext_input).expect("cannot bypass Si5324")
+                si5324::bypass(si5324_ext_input, false).expect("cannot bypass Si5324")
             },
             _ => setup_si5324_as_synthesizer(clock_cfg),
         }
