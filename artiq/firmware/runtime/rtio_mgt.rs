@@ -1,4 +1,5 @@
 use core::cell::RefCell;
+use alloc::vec::Vec;
 use alloc::string:: {String, ToString};
 use urc::Urc;
 use board_misoc:: {csr, config};
@@ -375,10 +376,19 @@ fn async_error_thread(io: Io) {
 }
 
 fn config_channel_name(ch_number: u16) -> String {
-    let ch_name = config::read_str(&format!("channel {}", ch_number), |r| match r {
-        Ok("") => "No Name".to_string(),
-        Ok(name) => name.to_string(),
-        _ => "No Name".to_string()
+    let mut ch_name = String::from("unknown");
+    config::read_str("ch_number_to_ch_name", |r| match r {
+        Ok(ch_database) => {
+            let sp1 = ch_database.split(",");
+            for sp in sp1 {
+                let sp2: Vec<&str>  = sp.split(":").collect();
+                if sp2[0] == format!("{}", ch_number) {
+                    ch_name = sp2[1].to_string();
+                    break
+                }
+            };
+        },
+        _ => ()
     });
     ch_name
 }
