@@ -73,9 +73,9 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    subparsers.add_parser("write_ch_name",
-                          help="store channel number and corresponding device "
-                               "name from device_db.py to core device config")
+    subparsers.add_parser("write_ch_names",
+                          help="store channel numbers and corresponding device "
+                               "names from device database to core device config")
 
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
@@ -143,16 +143,21 @@ def main():
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
-        if args.action == "write_ch_name":
+        if args.action == "write_ch_names":
             ddb = DeviceDB(args.device_db).get_device_db()
             channel_ntn = channel_number_to_name(ddb)
-            if len(channel_ntn) == 0:
+            if not channel_ntn:
                 print("No device with channel number is found in device_db.py")
             else:
+                channel_database = []
                 print("Write:")
                 for ch_num, ch_name in channel_ntn.items():
+                    if "," in ch_name or ":" in ch_name:
+                        raise AttributeError(f"channel name cannot contain ',' or ':' in {ch_name}")
                     print(f"channel {ch_num}: {ch_name}")
-                    mgmt.config_write("channel "+str(ch_num), ch_name.encode("utf-8"))
+                    channel_database.append(f"{ch_num}:{ch_name}")
+                channel_database = ",".join(channel_database)
+                mgmt.config_write("ch_number_to_ch_name", channel_database.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
