@@ -108,12 +108,12 @@ Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Atte
 
 Set up the Conda channel and install ARTIQ into a new Conda environment: ::
 
-    $ conda config --prepend channels https://conda.m-labs.hk/artiq-beta
+    $ conda config --prepend channels https://conda.m-labs.hk/artiq
     $ conda config --append channels conda-forge
     $ conda create -n artiq artiq
 
 .. note::
-  If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board, and you should not install them unless you are reflashing an FPGA board. Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with Conda. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages.
+  The board-specific files containing bitstream and firmware for the FPGA board can be obtained through AFWS, and are only required when flashing. Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with Conda. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages.
 
 After the installation, activate the newly created environment by name. ::
 
