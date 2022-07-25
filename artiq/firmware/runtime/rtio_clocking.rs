@@ -134,7 +134,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
             }
         },
         RtioClock::Ext0_Synth0_100to125 => { // 125MHz output, from 100MHz CLKINx reference, 586 Hz loop bandwidth
-            info!("using 10MHz reference to make 125MHz RTIO clock with PLL");
+            info!("using 100MHz reference to make 125MHz RTIO clock with PLL");
             si5324::FrequencySettings {
                 n1_hs  : 10,
                 nc1_ls : 4,
@@ -147,42 +147,16 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
             }
         },
         RtioClock::Ext0_Synth0_125to125 => { // 125MHz output, from 125MHz CLKINx reference, 606 Hz loop bandwidth
-            info!("using 10MHz reference to make 125MHz RTIO clock with PLL");
+            info!("using 125MHz reference to make 125MHz RTIO clock with PLL");
             si5324::FrequencySettings {
-                n1_hs  : 5,
-                nc1_ls : 8,
-                n2_hs  : 7,
-                n2_ls  : 360,
+                n1_hs  : 10,
+                nc1_ls : 4,
+                n2_hs  : 10,
+                n2_ls  : 252,
                 n31    : 63,
                 n32    : 63,
                 bwsel  : 4,
                 crystal_ref: false
-            }
-        },
-        RtioClock::Int_150 => { // 150MHz output, from crystal
-            info!("using internal 150MHz RTIO clock");
-            si5324::FrequencySettings {
-                n1_hs  : 9,
-                nc1_ls : 4,
-                n2_hs  : 10,
-                n2_ls  : 33732,
-                n31    : 7139,
-                n32    : 7139,
-                bwsel  : 3,
-                crystal_ref: true
-            }
-        },
-        RtioClock::Int_100 => { // 100MHz output, from crystal. Also used as reference for Sayma HMC830.
-            info!("using internal 100MHz RTIO clock");
-            si5324::FrequencySettings {
-                n1_hs  : 9,
-                nc1_ls : 6,
-                n2_hs  : 10,
-                n2_ls  : 33732,
-                n31    : 7139,
-                n32    : 7139,
-                bwsel  : 3,
-                crystal_ref: true
             }
         },
         RtioClock::Int_125 => { // 125MHz output, from crystal, 7 Hz
@@ -197,8 +171,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                 bwsel  : 4,
                 crystal_ref: true
             }
-            // on kasli return (bootloader already set up 125MHz)
-        }
+        },
         _ => { // 125MHz output like above, default (if chosen option is not supported)
             warn!("rtio_clock setting '{:?}' is not supported. Falling back to default internal 125MHz RTIO clock.", cfg);
             si5324::FrequencySettings {
@@ -230,24 +203,6 @@ pub fn init() {
     let clock_cfg = get_rtio_clock_cfg();
     #[cfg(si5324_as_synthesizer)]
     {
-        // on older kasli before bypassing, switch to bootstrap clock as ref
-        // for hitless change to bypassed clock
-        #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
-        {
-            let settings = si5324::FrequencySettings {
-                n1_hs  : 5,
-                nc1_ls : 8,
-                n2_hs  : 7,
-                n2_ls  : 360,
-                n31    : 63,
-                n32    : 63,
-                bwsel  : 4,
-                crystal_ref: false
-            };
-            let input = si5324::Input::Ckin2;
-            si5324::setup(&settings, input, false).expect("cannot initialize Si5324");
-        }
-
         #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
         let si5324_ext_input = si5324::Input::Ckin1;
         #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
