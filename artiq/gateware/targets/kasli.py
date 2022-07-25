@@ -94,14 +94,6 @@ class SMAClkinForward(Module):
             Instance("OBUFDS", i_I=cdr_clk_se, o_O=cdr_clk.p, o_OB=cdr_clk.n)
         ]
 
-class BootstrapForward(Module):
-    # Kasli 1.0/1.1 only
-    # route the bootstrap clock to provide a way for hitless switching to ext clk
-    def __init__(self, crg, platform):
-        si5324_in = platform.request("si5324_clkin")
-        self.specials += [
-            Instance("OBUFDS", i_I=crg.clk125_buf, o_O=si5324_in.p, o_OB=si5324_in.n)
-        ]
 
 class StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
@@ -135,9 +127,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(self.platform)
-        
-        elif self.platform.hw_rev in ["v1.1", "v1.0"]:
-            self.submodules += BootstrapForward(self.crg, self.platform)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
