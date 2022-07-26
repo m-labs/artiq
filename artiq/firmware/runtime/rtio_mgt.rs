@@ -378,12 +378,12 @@ fn async_error_thread(io: Io) {
 fn config_channel_name(ch_number: u16) -> String {
     let mut ch_name = String::from("unknown");
     config::read_str("ch_number_to_ch_name", |r| match r {
-        Ok(ch_database) => {
-            let sp1 = ch_database.split(",");
-            for sp in sp1 {
-                let sp2: Vec<&str>  = sp.split(":").collect();
-                if sp2[0] == format!("{}", ch_number) {
-                    ch_name = sp2[1].to_string();
+        Ok(ch_names) => {
+            let split_1 = ch_names.split(",");
+            for s in split_1 {
+                let mut split_2 = s.split(":").collect();
+                if split_2.next().unwrap() == format!("{}", ch_number) {
+                    ch_name = split_2.next().unwrap().to_string();
                     break
                 }
             };
