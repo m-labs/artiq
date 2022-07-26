@@ -229,8 +229,8 @@ class ProcessArgumentManager:
         unprocessed = set(self.unprocessed_arguments.keys()) -\
                       set(self._processed_arguments)
         if unprocessed:
-            args = ", ".join(list(unprocessed))
-            raise AttributeError("Unprocessed argument(s): " + args)
+            raise AttributeError("Unprocessed argument(s): " +
+                                 ", ".join(unprocessed))
 
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
