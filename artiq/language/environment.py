@@ -215,19 +215,19 @@ class TraceArgumentManager:
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
         self.unprocessed_arguments = unprocessed_arguments
-        self._processed_arguments = []
+        self._processed_arguments = set()
 
     def get(self, key, processor, group, tooltip):
         if key in self.unprocessed_arguments:
             r = processor.process(self.unprocessed_arguments[key])
-            self._processed_arguments.append(key)
+            self._processed_arguments.add(key)
         else:
             r = processor.default()
         return r
 
     def check_unprocessed_arguments(self):
         unprocessed = set(self.unprocessed_arguments.keys()) -\
-                      set(self._processed_arguments)
+                      self._processed_arguments
         if unprocessed:
             raise AttributeError("Unprocessed argument(s): " +
                                  ", ".join(unprocessed))
