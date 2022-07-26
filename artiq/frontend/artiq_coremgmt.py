@@ -147,7 +147,7 @@ def main():
             ddb = DeviceDB(args.device_db).get_device_db()
             channel_ntn = channel_number_to_name(ddb)
             if not channel_ntn:
-                print("No device with channel number is found in device_db.py")
+                print("No device with channel number is found in device database")
             else:
                 channel_database = []
                 print("Write:")
