@@ -1,5 +1,4 @@
 use core::cell::RefCell;
-use alloc::vec::Vec;
 use alloc::string:: {String, ToString};
 use urc::Urc;
 use board_misoc:: {csr, config};
