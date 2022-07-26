@@ -380,7 +380,7 @@ fn config_channel_name(ch_number: u16) -> String {
         Ok(ch_names) => {
             let split_1 = ch_names.split(",");
             for s in split_1 {
-                let mut split_2 = s.split(":").collect();
+                let mut split_2 = s.split(":");
                 if split_2.next().unwrap() == format!("{}", ch_number) {
                     ch_name = split_2.next().unwrap().to_string();
                     break
