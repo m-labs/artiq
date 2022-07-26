@@ -157,7 +157,7 @@ def main():
                     print(f"channel {ch_num}: {ch_name}")
                     channel_database.append(f"{ch_num}:{ch_name}")
                 channel_database = ",".join(channel_database)
-                mgmt.config_write("ch_number_to_ch_name", channel_database.encode("utf-8"))
+                mgmt.config_write("channel_names", channel_database.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)

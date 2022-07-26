@@ -79,7 +79,7 @@ def main():
                         print(f"channel {ch_num}: {ch_name}")
                         channel_database.append(f"{ch_num}:{ch_name}")
                     channel_database = ",".join(channel_database)
-                write_record(fo, "ch_number_to_ch_name", channel_database.encode())
+                write_record(fo, "channel_names", channel_database.encode())
         write_end_marker(fo)
 
 if __name__ == "__main__":
