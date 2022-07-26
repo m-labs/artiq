@@ -187,9 +187,9 @@ class CommKernel:
         self._read_type = None
         self.host = host
         self.port = port
+        self.dmgr = dmgr
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
-        self.dmgr = dmgr
 
 
     def open(self):
@@ -653,7 +653,8 @@ class CommKernel:
             params = [self._read_int64() for _ in range(3)]
 
             # Add channel name
-            params[1] = str(params[1]) + self.config_channel_name(params[1])
+            channel_involved = self.config_channel_name(params[1])
+            message = message.replace("{1}","{1}"+channel_involved)
 
             filename = read_exception_string()
             line = self._read_int32()
@@ -712,7 +713,7 @@ class CommKernel:
                 if "channel" in value["arguments"]:
                     if value["arguments"]["channel"] == channel_number:
                         return " (" + device_name + ")"
-        return " (No Name)"
+        return " (unknown)"
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
