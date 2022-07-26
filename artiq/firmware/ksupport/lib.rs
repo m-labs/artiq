@@ -78,7 +78,7 @@ macro_rules! println {
 }
 
 macro_rules! raise {
-    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr, $param3:expr) => ({
+    ($name:expr, $message:expr, $param0:expr, $param1:expr, $param2:expr) => ({
         use cslice::AsCSlice;
         let name_id = $crate::eh_artiq::get_exception_id($name);
         let exn = $crate::eh_artiq::Exception {
@@ -89,13 +89,13 @@ macro_rules! raise {
             // https://github.com/rust-lang/rfcs/pull/1719
             function: "(Rust function)".as_c_slice(),
             message:  $message.as_c_slice(),
-            param:    ($param0, $param1, $param2, $param3)
+            param:    [$param0, $param1, $param2]
         };
         #[allow(unused_unsafe)]
         unsafe { $crate::eh_artiq::raise(&exn) }
     });
     ($name:expr, $message:expr) => ({
-        raise!($name, $message, 0, 0, 0, "")
+        raise!($name, $message, 0, 0, 0)
     });
 }
 
@@ -399,13 +399,13 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             csr::rtio_dma::error_write(1);
             if error & 1 != 0 {
                 raise!("RTIOUnderflow",
-                    "RTIO underflow at {0} mu, channel {1} ({3})",
-                    timestamp as i64, channel as i64, 0, "");
+                    "RTIO underflow at {0} mu, channel {1}",
+                    timestamp as i64, channel as i64, 0);
             }
             if error & 2 != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, output, at {0} mu, channel {1} ({3})",
-                    timestamp as i64, channel as i64, 0, "");
+                    "RTIO destination unreachable, output, at {0} mu, channel {1}",
+                    timestamp as i64, channel as i64, 0);
             }
         }
     }

@@ -74,7 +74,7 @@ pub enum Request {
     RpcException {
         id:       u32,
         message:  u32,
-        param:    (i64, i64, i64, &'static str),
+        param:    [i64; 3],
         file:     u32,
         line:     u32,
         column:   u32,
@@ -125,10 +125,9 @@ impl Request {
             8  => Request::RpcException {
                 id:       reader.read_u32()?,
                 message:  reader.read_u32()?,
-                param:    (reader.read_u64()? as i64,
+                param:    [reader.read_u64()? as i64,
                            reader.read_u64()? as i64,
-                           reader.read_u64()? as i64,
-                           ""),
+                           reader.read_u64()? as i64],
                 file:     reader.read_u32()?,
                 line:     reader.read_u32()?,
                 column:   reader.read_u32()?,
@@ -192,10 +191,9 @@ impl<'a> Reply<'a> {
                     let exception = exception.as_ref().unwrap();
                     writer.write_u32(exception.id as u32)?;
                     write_exception_string(writer, &exception.message)?;
-                    writer.write_u64(exception.param.0 as u64)?;
-                    writer.write_u64(exception.param.1 as u64)?;
-                    writer.write_u64(exception.param.2 as u64)?;
-                    writer.write_string(exception.param.3)?;
+                    writer.write_u64(exception.param[0] as u64)?;
+                    writer.write_u64(exception.param[1] as u64)?;
+                    writer.write_u64(exception.param[2] as u64)?;
                     write_exception_string(writer, &exception.file)?;
                     writer.write_u32(exception.line)?;
                     writer.write_u32(exception.column)?;
