@@ -71,15 +71,15 @@ def main():
                 if not channel_ntn:
                     print("No device with channel number is found in device database")
                 else:
-                    channel_database = []
+                    channel_names = []
                     print("Write:")
                     for ch_num, ch_name in channel_ntn.items():
                         if "," in ch_name or ":" in ch_name:
                             raise AttributeError(f"channel name cannot contain ',' or ':' in {ch_name}")
                         print(f"channel {ch_num}: {ch_name}")
-                        channel_database.append(f"{ch_num}:{ch_name}")
-                    channel_database = ",".join(channel_database)
-                write_record(fo, "channel_names", channel_database.encode())
+                        channel_names.append(f"{ch_num}:{ch_name}")
+                    channel_names = ",".join(channel_names)
+                write_record(fo, "channel_names", channel_names.encode())
         write_end_marker(fo)
 
 if __name__ == "__main__":

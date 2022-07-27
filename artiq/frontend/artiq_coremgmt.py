@@ -149,15 +149,15 @@ def main():
             if not channel_ntn:
                 print("No device with channel number is found in device database")
             else:
-                channel_database = []
+                channel_names = []
                 print("Write:")
                 for ch_num, ch_name in channel_ntn.items():
                     if "," in ch_name or ":" in ch_name:
                         raise AttributeError(f"channel name cannot contain ',' or ':' in {ch_name}")
                     print(f"channel {ch_num}: {ch_name}")
-                    channel_database.append(f"{ch_num}:{ch_name}")
-                channel_database = ",".join(channel_database)
-                mgmt.config_write("channel_names", channel_database.encode("utf-8"))
+                    channel_names.append(f"{ch_num}:{ch_name}")
+                channel_names = ",".join(channel_names)
+                mgmt.config_write("channel_names", channel_names.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
