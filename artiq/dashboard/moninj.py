@@ -557,6 +557,7 @@ class _DeviceManager:
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_model.cpld)
             cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
+                delay(40*ms)
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
@@ -614,6 +615,7 @@ class _DeviceManager:
             def run(self):
                 self.core.reset()
                 cfg = self.core_cache.get("_{cpld}_cfg")
+                delay(40*ms)
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
