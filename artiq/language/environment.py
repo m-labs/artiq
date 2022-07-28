@@ -252,7 +252,7 @@ class HasEnvironment:
         self.__in_build = True
         self.build(*args, **kwargs)
         self.__in_build = False
-        if self.__argument_mgr:
+        if self.__argument_mgr is not None:
             self.__argument_mgr.check_unprocessed_arguments()
 
     def register_child(self, child):
