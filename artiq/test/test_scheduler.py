@@ -72,7 +72,8 @@ class SchedulerMonitor:
         self.exp_flow = {}
         self.flags = {"arrive": {}, "leave": {}}
 
-    def record(self):
+    def record(self, mod):
+        process_mod(self.experiments, mod)
         for key, value in self.experiments.items():
             if key not in self.last_status.keys():
                 self.last_status[key] = ""
@@ -132,12 +133,7 @@ class SchedulerCase(unittest.TestCase):
         scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
         expid = _get_expid("EmptyExperiment")
         monitor = SchedulerMonitor()
-
-        def notify(mod):
-            process_mod(monitor.experiments, mod)
-            monitor.record()
-        scheduler.notifier.publish = notify
-
+        scheduler.notifier.publish = monitor.record
         scheduler.start()
 
         # Verify that a timed experiment far in the future does not
@@ -175,13 +171,7 @@ class SchedulerCase(unittest.TestCase):
         early = time() + 1
 
         monitor = SchedulerMonitor()
-
-        def notify(mod):
-            process_mod(monitor.experiments, mod)
-            monitor.record()
-
-        scheduler.notifier.publish = notify
-
+        scheduler.notifier.publish = monitor.record
         scheduler.start()
 
         scheduler.submit("main", expid_bg, low_priority)
@@ -224,11 +214,7 @@ class SchedulerCase(unittest.TestCase):
         expid = _get_expid("EmptyExperiment")
 
         monitor = SchedulerMonitor()
-        def notify(mod):
-            process_mod(monitor.experiments, mod)
-            monitor.record()
-        scheduler.notifier.publish = notify
-
+        scheduler.notifier.publish = monitor.record
         scheduler.start()
         # check_pause is True when rid with higher priority is prepare_done
         scheduler.submit("main", expid_bg, -99, None, False)
@@ -264,12 +250,7 @@ class SchedulerCase(unittest.TestCase):
         monitor = SchedulerMonitor()
         expid = _get_expid("EmptyExperiment")
 
-        def notify(mod):
-            process_mod(monitor.experiments, mod)
-            monitor.record()
-
-        scheduler.notifier.publish = notify
-
+        scheduler.notifier.publish = monitor.record
         scheduler.start()
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(monitor.wait_until(0, "arrive", "running"))
@@ -291,12 +272,7 @@ class SchedulerCase(unittest.TestCase):
         expid_bg["log_level"] = logging.CRITICAL
         monitor = SchedulerMonitor()
 
-        def notify(mod):
-            process_mod(monitor.experiments, mod)
-            monitor.record()
-
-        scheduler.notifier.publish = notify
-
+        scheduler.notifier.publish = monitor.record
         scheduler.start()
         # Flush with same priority
         scheduler.submit("main", expid, 0, None, False)
