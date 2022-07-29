@@ -66,12 +66,10 @@ class _RIDCounter:
         return rid
 
 class SchedulerMonitor:
-    def __init__(self, end_condition="deleting"):
+    def __init__(self):
         self.experiments = {}
         self.last_status = {}
         self.exp_flow = {}
-        self.finished = False
-        self.end_condition = end_condition
         self.flags = {"arrive": {}, "leave": {}}
 
     def record(self):
@@ -96,8 +94,6 @@ class SchedulerMonitor:
                     if self.last_status[key] in self.flags["leave"][key].keys():
                         self.flags["leave"][key][self.last_status[key]].set()
 
-                if current_status == self.end_condition:
-                    self.finished = True
                 self.last_status[key] = current_status
                 return
 
