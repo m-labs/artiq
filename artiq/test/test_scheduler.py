@@ -70,17 +70,6 @@ class SchedulerMonitor:
         self.experiments = {}
         self.last_status = {}
         self.exp_flow = {}
-        self.status_records = {
-            "pending": [],
-            "preparing": [],
-            "prepare_done": [],
-            "running": [],
-            "run_done": [],
-            "analyzing": [],
-            "deleting": [],
-            "paused": [],
-            "flushing": []
-        }
         self.finished = False
         self.end_condition = end_condition
         self.flags = {"arrive": {}, "leave": {}}
@@ -99,7 +88,6 @@ class SchedulerMonitor:
                     "in_time": time(),
                     "out_time": "never"
                 })
-                self.status_records[current_status].append(key)
 
                 if key in self.flags["arrive"].keys():
                     if current_status in self.flags["arrive"][key].keys():
@@ -112,19 +100,6 @@ class SchedulerMonitor:
                     self.finished = True
                 self.last_status[key] = current_status
                 return
-
-    def get_in_time(self, rid, status):
-        for step in self.exp_flow[rid]:
-            if step["status"] == status:
-                return step["in_time"]
-
-    def get_out_time(self, rid, status):
-        for step in self.exp_flow[rid]:
-            if step["status"] == status:
-                return step["out_time"]
-
-    def get_exp_order(self, status):
-        return self.status_records[status]
 
     def get_status_order(self, rid):
         return [step["status"] for step in self.exp_flow[rid]]
