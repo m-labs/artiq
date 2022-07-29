@@ -81,21 +81,20 @@ class SchedulerMonitor:
 
     def record(self, mod):
         process_mod(self.experiments, mod)
-        for key, value in self.experiments.items():
-            if key not in self.last_status.keys():
-                self.last_status[key] = ""
-            current_status = self.experiments[key]["status"]
-            if current_status != self.last_status[key]:
-                self.test.assertIn(current_status, self.flow_map[self.last_status[key]])
+        for rid, exp_info in self.experiments.items():
+            if rid not in self.last_status.keys():
+                self.last_status[rid] = ""
+            if exp_info["status"] != self.last_status[rid]:
+                self.test.assertIn(exp_info["status"], self.flow_map[self.last_status[rid]])
 
-                if key in self.flags["arrive"].keys():
-                    if current_status in self.flags["arrive"][key].keys():
-                        self.flags["arrive"][key][current_status].set()
-                if key in self.flags["leave"].keys():
-                    if self.last_status[key] in self.flags["leave"][key].keys():
-                        self.flags["leave"][key][self.last_status[key]].set()
+                if rid in self.flags["arrive"].keys():
+                    if exp_info["status"] in self.flags["arrive"][rid].keys():
+                        self.flags["arrive"][rid][exp_info["status"]].set()
+                if rid in self.flags["leave"].keys():
+                    if self.last_status[rid] in self.flags["leave"][rid].keys():
+                        self.flags["leave"][rid][self.last_status[rid]].set()
 
-                self.last_status[key] = current_status
+                self.last_status[rid] = exp_info["status"]
                 return
 
     async def wait_until(self, rid, condition, status):
