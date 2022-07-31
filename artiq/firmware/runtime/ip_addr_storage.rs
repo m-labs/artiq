@@ -19,7 +19,7 @@ impl<'a, DeviceT: for<'d> Device<'d>> InterfaceBuilderEx for InterfaceBuilder<'a
             IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0);  IP_ADDRESS_STORAGE_SIZE
         ];
         if let Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
-            storage[IPV4_INDEX] = IpCidr::new(IpAddress::Ipv4(ipv4), 0);
+            storage[IPV4_INDEX] = IpCidr::Ipv4(ipv4);
         }
         storage[IPV6_LL_INDEX] = IpCidr::new(net_addresses.ipv6_ll_addr, 0);
         if let Some(ipv6) = net_addresses.ipv6_addr {

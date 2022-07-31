@@ -2,7 +2,7 @@ use core::fmt;
 use core::fmt::{Display, Formatter};
 use core::str::FromStr;
 
-use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address};
+use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address, Ipv4Cidr};
 
 use config;
 #[cfg(soc_platform = "kasli")]
@@ -10,18 +10,22 @@ use i2c_eeprom;
 
 pub enum Ipv4AddrConfig {
     UseDhcp,
-    Static(Ipv4Address),
+    Static(Ipv4Cidr),
 }
 
 impl FromStr for Ipv4AddrConfig {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(if s == "use_dhcp" {
-            Ipv4AddrConfig::UseDhcp
+        if s == "use_dhcp" {
+            Ok(Ipv4AddrConfig::UseDhcp)
+        } else if let Ok(cidr) = Ipv4Cidr::from_str(s) {
+            Ok(Ipv4AddrConfig::Static(cidr))
+        } else if let Ok(addr) = Ipv4Address::from_str(s) {
+            Ok(Ipv4AddrConfig::Static(Ipv4Cidr::new(addr, 0)))
         } else {
-            Ipv4AddrConfig::Static(Ipv4Address::from_str(s)?)
-        })
+            Err(())
+        }
     }
 }
 
@@ -39,7 +43,8 @@ pub struct NetAddresses {
     pub hardware_addr: EthernetAddress,
     pub ipv4_addr: Ipv4AddrConfig,
     pub ipv6_ll_addr: IpAddress,
-    pub ipv6_addr: Option<IpAddress>
+    pub ipv6_addr: Option<IpAddress>,
+    pub ipv4_default_route: Option<Ipv4Address>,
 }
 
 impl fmt::Display for NetAddresses {
@@ -72,11 +77,15 @@ pub fn get_adresses() -> NetAddresses {
         }
     }
 
-    let ipv4_addr;
-    match config::read_str("ip", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) => ipv4_addr = addr,
-        _ => ipv4_addr = Ipv4AddrConfig::UseDhcp,
-    }
+    let ipv4_addr = match config::read_str("ip", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) =>  addr,
+        _ => Ipv4AddrConfig::UseDhcp,
+    };
+
+    let default_route = match config::read_str("ipv4_default_route", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) => Some(addr),
+        _ => None,
+    };
 
     let ipv6_ll_addr = IpAddress::v6(
         0xfe80, 0x0000, 0x0000, 0x0000,
@@ -91,9 +100,10 @@ pub fn get_adresses() -> NetAddresses {
     };
 
     NetAddresses {
-        hardware_addr: hardware_addr,
-        ipv4_addr: ipv4_addr,
-        ipv6_ll_addr: ipv6_ll_addr,
-        ipv6_addr: ipv6_addr
+        hardware_addr,
+        ipv4_addr,
+        ipv6_ll_addr,
+        ipv6_addr,
+        ipv4_default_route: default_route,
     }
 }
