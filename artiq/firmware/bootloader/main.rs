@@ -18,7 +18,7 @@ use board_misoc::slave_fpga;
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
-use smoltcp::iface::SocketStorage;
+use smoltcp::iface::{Routes, SocketStorage};
 use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address};
 
 fn check_integrity() -> bool {
@@ -415,24 +415,22 @@ fn network_boot() {
         IpCidr::new(net_addresses.ipv6_ll_addr, 0)
     ];
     if let net_settings::Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
-        ip_addrs[0] = IpCidr::new(IpAddress::Ipv4(ipv4), 0);
+        ip_addrs[0] = IpCidr::Ipv4(ipv4);
     }
-    let mut interface = match net_addresses.ipv6_addr {
-        Some(addr) => {
-            ip_addrs[2] = IpCidr::new(addr, 0);
-            smoltcp::iface::InterfaceBuilder::new(net_device, &mut sockets[..])
-                       .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
-                       .ip_addrs(&mut ip_addrs[..])
-                       .neighbor_cache(neighbor_cache)
-                       .finalize()
-        }
-        None =>
-            smoltcp::iface::InterfaceBuilder::new(net_device, &mut sockets[..])
-                       .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
-                       .ip_addrs(&mut ip_addrs[..2])
-                       .neighbor_cache(neighbor_cache)
-                       .finalize()
+    if let Some(addr) =  net_addresses.ipv6_addr {
+        ip_addrs[2] = IpCidr::new(addr, 0);
     };
+    let mut routes = [None; 1];
+    let mut interface = smoltcp::iface::InterfaceBuilder::new(net_device, &mut sockets[..])
+        .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
+        .ip_addrs(&mut ip_addrs[..])
+        .neighbor_cache(neighbor_cache)
+        .routes(Routes::new(&mut routes[..]))
+        .finalize();
+
+    if let Some(default_route) = net_addresses.ipv4_default_route {
+        interface.routes_mut().add_default_ipv4_route(default_route).unwrap();
+    }
 
     let mut rx_storage = [0; 4096];
     let mut tx_storage = [0; 128];
