@@ -652,8 +652,8 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            channel_involved = self.config_channel_name(params[1])
-            message = message.replace("{1}", "{1}"+channel_involved)
+            channel_involved = self.get_channel_name(params[1])
+            message = message.replace("{1}", "{1}"+" ("+channel_involved+")")
 
             filename = read_exception_string()
             line = self._read_int32()
@@ -705,14 +705,14 @@ class CommKernel:
             logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
                            f"reported during kernel execution")
 
-    def config_channel_name(self, channel_number):
+    def get_channel_name(self, channel_number):
         device_db = self.dmgr.get_device_db()
         for device_name, value in device_db.items():
             if "arguments" in value:
                 if "channel" in value["arguments"]:
                     if value["arguments"]["channel"] == channel_number:
-                        return " (" + device_name + ")"
-        return " (unknown)"
+                        return device_name
+        return "unknown"
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:
