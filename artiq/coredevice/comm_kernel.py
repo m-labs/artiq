@@ -654,7 +654,7 @@ class CommKernel:
 
             # Add channel name
             channel_involved = self.config_channel_name(params[1])
-            message = message.replace("{1}","{1}"+channel_involved)
+            message = message.replace("{1}", "{1}"+channel_involved)
 
             filename = read_exception_string()
             line = self._read_int32()
