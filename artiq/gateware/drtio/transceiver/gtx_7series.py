@@ -295,7 +295,10 @@ class GTX(Module, TransceiverInterface):
             i_CEB=stable_clkin_n,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
-            o_O=refclk
+            o_O=refclk,
+            p_CLKCM_CFG="0b1",
+            p_CLKRCV_TRST="0b1",
+            p_CLKSWING_CFG="0b11"
         )
 
         rtio_tx_clk = Signal()
