@@ -61,12 +61,7 @@ class _RIDCounter:
         return rid
 
 class SchedulerMonitor:
-    def __init__(self, test):
-        self.test = test
-        self.experiments = {}
-        self.last_status = {}
-        self.flags = {"arrive": {}, "leave": {}}
-        self.flow_map = {   # current status -> possible move
+    flow_map = {   # current status -> possible move
             "": {"pending"},
             "pending": {"preparing", "flushing", "deleting"},
             "preparing": {"prepare_done", "deleting"},
@@ -78,6 +73,12 @@ class SchedulerMonitor:
             "paused": {"running"},
             "flushing": {"preparing"}
         }
+
+    def __init__(self, test):
+        self.test = test
+        self.experiments = {}
+        self.last_status = {}
+        self.flags = {"arrive": {}, "leave": {}}
 
     def record(self, mod):
         process_mod(self.experiments, mod)
