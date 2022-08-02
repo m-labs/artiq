@@ -534,7 +534,7 @@ class _DeviceManager:
             "log_level": logging.WARNING,
             "content": content,
             "class_name": class_name,
-            "arguments": []
+            "arguments": {}
         }
         scheduling = {
             "pipeline_name": "main",
