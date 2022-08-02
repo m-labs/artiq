@@ -2,7 +2,7 @@
 
 import argparse
 import struct
-from artiq.master.databases import DeviceDB
+from artiq.frontend.artiq_cntn import Cntn
 from argparse import RawTextHelpFormatter
 
 
@@ -24,11 +24,10 @@ def get_argparser():
                         "------------------\n"
                         "write_ch_names\n"
                         "    store channel numbers and corresponding device\n"
-                        "    names from device database to core device config\n"
-                        "    default path is 'device_db.py', update it with -d")
-    parser.add_argument("-d", "--device-db", default="device_db.py",
-                        help="path to device database\n"
-                        "default: '%(default)s')")
+                        "    names from channel names file to core device config\n"
+                        "    change location of the file by -c")
+    parser.add_argument("-c", "--channel-names", default="channel_ntn.txt",
+                        help="default: '%(default)s')")
 
     return parser
 
@@ -47,15 +46,6 @@ def write_end_marker(f):
     f.write(b"\xff\xff\xff\xff")
 
 
-def channel_number_to_name(ddb):
-    number_to_name = {}
-    for device, value in ddb.items():
-        if "arguments" in value:
-            if "channel" in value["arguments"]:
-                number_to_name[value["arguments"]["channel"]] = device
-    return number_to_name
-
-
 def main():
     args = get_argparser().parse_args()
     with open(args.output, "wb") as fo:
@@ -66,20 +56,8 @@ def main():
                 write_record(fo, key, fi.read())
         for action in args.e:
             if action == "write_ch_names":
-                ddb = DeviceDB(args.device_db).get_device_db()
-                channel_ntn = channel_number_to_name(ddb)
-                if not channel_ntn:
-                    print("No device with channel number is found in device database")
-                else:
-                    channel_names = []
-                    print("Write:")
-                    for ch_num, ch_name in channel_ntn.items():
-                        if "," in ch_name or ":" in ch_name:
-                            raise AttributeError(f"channel name cannot contain ',' or ':' in {ch_name}")
-                        print(f"channel {ch_num}: {ch_name}")
-                        channel_names.append(f"{ch_num}:{ch_name}")
-                    channel_names = ",".join(channel_names)
-                write_record(fo, "channel_names", channel_names.encode())
+                cntn = Cntn(args.channel_names).get_config_string()
+                write_record(fo, "channel_names", cntn.encode())
         write_end_marker(fo)
 
 if __name__ == "__main__":
