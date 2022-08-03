@@ -27,7 +27,7 @@ def get_argparser():
                         "    names from channel names file to core device config\n"
                         "    change location of the file by -c")
     parser.add_argument("-c", "--channel-names", default="channel_ntn.txt",
-                        help="default: '%(default)s')")
+                        help="channel names file (default: '%(default)s')")
 
     return parser
 

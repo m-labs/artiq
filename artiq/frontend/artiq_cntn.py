@@ -6,13 +6,12 @@ from artiq.master.databases import DeviceDB
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ channel_ntn.txt "
-                                     "template for config channel names")
+    parser = argparse.ArgumentParser(description="ARTIQ channel names file"
+                                     "template generator")
     parser.add_argument("-d", "--device-db", default="device_db.py",
-                        help="path to device database default: '%(default)s'")
+                        help="device database file (default: '%(default)s')")
     parser.add_argument("-o", "--output", default="channel_ntn.txt",
-                        help="output file, defaults to standard "
-                             "output if omitted")
+                        help="output file (default: '%(default)s')")
 
     return parser
 

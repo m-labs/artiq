@@ -80,9 +80,8 @@ def get_argparser():
                                      " channel names file to core device "
                                      "config")
 
-    ch_write.add_argument("-c", "--channel-ntn", default="channel_ntn.txt",
-                          help="channel names file (default: '%(default)s')",
-                          dest="cntn_path")
+    ch_write.add_argument("-c", "--channel-names", default="channel_ntn.txt",
+                          help="channel names file (default: '%(default)s')")
 
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
@@ -151,7 +150,7 @@ def main():
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
         if args.action == "write_ch_names":
-            cntn_value = Cntn(args.cntn_path).get_config_string()
+            cntn_value = Cntn(args.channel_names).get_config_string()
             mgmt.config_write("channel_names", cntn_value.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
