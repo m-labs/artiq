@@ -321,3 +321,23 @@ Other options include:
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+
+Show channel name in log message
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+First, create a channel names text file with ``channel_number  channel_name`` in the first line. Then write a new line for each channel with some space in between ``<channel number>`` and ``<channel name>``. For example, naming channel 0 as led0 can be written as ``0 led0``. Channel name should not contain any ``:``, ``,`` and space.
+
+You can also generate the text file according to the channel information in device database with:
+  
+  $ artiq_cntn -d device_db.py -o channel_ntn.txt
+
+Second, flash it to the core device with:
+
+  $ artiq_coremgmt config write_ch_names -c channel_ntn.txt
+
+or flash it directly with:
+
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx -e write_ch_names -c channel_ntn.txt 
+  $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
+
+If the channel name is not specified in channel name file, it will show as "unknown".
