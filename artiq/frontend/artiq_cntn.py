@@ -47,7 +47,6 @@ def main():
                 if "channel" in value["arguments"]:
                     print("{:<16}{}".format(
                         value["arguments"]["channel"], device), file=f)
-        f.close()
 
 
 if __name__ == "__main__":
