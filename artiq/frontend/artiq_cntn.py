@@ -24,10 +24,14 @@ class Cntn:
             if lines.pop(0) == "channel_number  channel_name\n":
                 lines = [line.split() for line in lines]
                 for element in lines:
-                    self.channel_names[element[0]] = element[1]
+                    if len(element) == 2:
+                        self.channel_names[element[0]] = element[1]
 
     def get_channel_name(self, ch_number):
-        return self.channel_names[str(ch_number)]
+        if str(ch_number) in self.channel_names:
+            return self.channel_names[str(ch_number)]
+        else:
+            return "unknown"
 
     def get_config_string(self):
         names = [ch_num+":"+ch_name for ch_num, ch_name in self.channel_names.items()]
