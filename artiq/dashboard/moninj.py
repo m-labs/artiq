@@ -557,7 +557,6 @@ class _DeviceManager:
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_model.cpld)
             cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
-                delay(40*ms)
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
@@ -584,7 +583,7 @@ class _DeviceManager:
                 
             @kernel
             def run(self):
-                self.core.reset()
+                self.core.break_realtime()
                 {cpld_init}
                 delay(5*ms)
                 self.{dds_channel}.init()
@@ -613,9 +612,8 @@ class _DeviceManager:
                 
             @kernel
             def run(self):
-                self.core.reset()
+                self.core.break_realtime()
                 cfg = self.core_cache.get("_{cpld}_cfg")
-                delay(40*ms)
                 if len(cfg) > 0:
                     self.{cpld}.cfg_reg = cfg[0]
                 else:
