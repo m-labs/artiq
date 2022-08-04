@@ -9,7 +9,6 @@ from artiq import __version__ as artiq_version
 from artiq.master.databases import DeviceDB
 from artiq.coredevice.comm_kernel import CommKernel
 from artiq.coredevice.comm_mgmt import CommMgmt
-from artiq.frontend.artiq_cntn import Cntn
 
 
 def get_argparser():
@@ -74,15 +73,6 @@ def get_argparser():
                          help="key and file whose content to be written to "
                               "core device config")
 
-    ch_write = subparsers.add_parser("write_ch_names",
-                                     help="store channel numbers and "
-                                     "corresponding device names from"
-                                     " channel names file to core device "
-                                     "config")
-
-    ch_write.add_argument("-c", "--channel-names", default="channel_ntn.txt",
-                          help="channel names file (default: '%(default)s')")
-
     p_remove = subparsers.add_parser("remove",
                                      help="remove key from core device config")
     p_remove.add_argument("key", metavar="KEY", nargs=argparse.REMAINDER,
@@ -107,13 +97,6 @@ def get_argparser():
 
     return parser
 
-def channel_number_to_name(ddb):
-    number_to_name = {}
-    for device, value in ddb.items():
-        if "arguments" in value:
-            if "channel" in value["arguments"]:
-                number_to_name[value["arguments"]["channel"]] = device
-    return number_to_name
 
 def main():
     args = get_argparser().parse_args()
@@ -149,9 +132,6 @@ def main():
             for key, filename in args.file:
                 with open(filename, "rb") as fi:
                     mgmt.config_write(key, fi.read())
-        if args.action == "write_ch_names":
-            cntn_value = Cntn(args.channel_names).get_config_string()
-            mgmt.config_write("channel_names", cntn_value.encode("utf-8"))
         if args.action == "remove":
             for key in args.key:
                 mgmt.config_remove(key)
