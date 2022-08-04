@@ -20,6 +20,7 @@ requirements = [
 
 console_scripts = [
     "artiq_client = artiq.frontend.artiq_client:main",
+    "artiq_ch_names = artiq.frontend.artiq_ch_names:main",
     "artiq_compile = artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
     "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
@@ -35,7 +36,6 @@ console_scripts = [
     "aqctl_corelog = artiq.frontend.aqctl_corelog:main",
     "aqctl_moninj_proxy = artiq.frontend.aqctl_moninj_proxy:main",
     "afws_client = artiq.frontend.afws_client:main",
-    "artiq_cntn = artiq.frontend.artiq_cntn:main",
 ]
 
 gui_scripts = [

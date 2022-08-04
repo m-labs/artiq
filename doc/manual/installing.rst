@@ -329,7 +329,7 @@ First, create a channel names text file with ``channel_number  channel_name`` in
 
 You can also generate the text file according to the channel information in device database with:
   
-  $ artiq_cntn -d device_db.py -o channel_ntn.txt
+  $ artiq_ch_names -d device_db.py -o channel_ntn.txt
 
 Second, flash it to the core device with:
 
