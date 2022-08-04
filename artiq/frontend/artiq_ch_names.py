@@ -16,17 +16,13 @@ def get_argparser():
 
 def main():
     args = get_argparser().parse_args()
-    channel_names = []
     ddb = DeviceDB(args.device_db).get_device_db()
-    for device, value in ddb.items():
-        if "arguments" in value:
-            if "channel" in value["arguments"]:
-                channel_names.append(":".join([
-                    str(value["arguments"]["channel"]),
-                    device
-                ]))
     with open(args.output, "w") as f:
-        print(",".join(channel_names), file=f)
+        for device, value in ddb.items():
+            if "arguments" in value:
+                if "channel" in value["arguments"]:
+                    print(":".join([str(value["arguments"]["channel"]),
+                                    device]), file=f)
 
 
 if __name__ == "__main__":
