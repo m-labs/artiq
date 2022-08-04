@@ -327,17 +327,17 @@ Show channel name in log message
 
 First, create a channel names text file with ``channel_number  channel_name`` in the first line. Then write a new line for each channel with some space in between ``<channel number>`` and ``<channel name>``. For example, naming channel 0 as led0 can be written as ``0 led0``. Channel name should not contain any ``:``, ``,`` and space.
 
-You can also generate the text file according to the channel information in device database with:
-  
-  $ artiq_ch_names -d device_db.py -o channel_ntn.txt
+You can also generate the text file according to the channel information in the device database with:
+
+  $ artiq_ch_names -d [device database] -o [channel names text file]
 
 Second, flash it to the core device with:
 
-  $ artiq_coremgmt config write_ch_names -c channel_ntn.txt
+  $ artiq_coremgmt config write -f channel_names <channel names text file>
 
 or flash it directly with:
 
-  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx -e write_ch_names -c channel_ntn.txt 
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx -f channel_names <channel names text file>
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 If the channel name is not specified in channel name file, it will show as "unknown".
