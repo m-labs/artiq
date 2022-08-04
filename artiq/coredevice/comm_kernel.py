@@ -652,8 +652,11 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            channel_involved = self.get_channel_name(params[0])
-            message = message.replace("{0}", "{0}"+" ("+channel_involved+")")
+            if any(err in name for err in ["RTIOUnderflow",
+                    "RTIOOverflow", "RTIODestinationUnreachable"]):
+                channel_involved = self.get_channel_name(params[0])
+                message = message.replace("{0}", "{0}"+
+                                          " ("+channel_involved+")")
 
             filename = read_exception_string()
             line = self._read_int32()
