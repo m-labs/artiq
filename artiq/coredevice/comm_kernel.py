@@ -652,8 +652,8 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            channel_involved = self.get_channel_name(params[1])
-            message = message.replace("{1}", "{1}"+" ("+channel_involved+")")
+            channel_involved = self.get_channel_name(params[0])
+            message = message.replace("{0}", "{0}"+" ("+channel_involved+")")
 
             filename = read_exception_string()
             line = self._read_int32()
