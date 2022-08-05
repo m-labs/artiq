@@ -7,7 +7,7 @@ sha256sums=("SKIP")
 
 build() {
   mkdir mingw64
-  export PYTHONPATH=`pwd`/mingw64/lib/python3.9/site-packages
+  export PYTHONPATH=`pwd`/mingw64/lib/python3.10/site-packages
   chmod +w -R source
   cd source
   wine-msys2-build python setup.py install --single-version-externally-managed --prefix=../mingw64 --record=setuptools-sucks.txt
@@ -15,7 +15,7 @@ build() {
 
   # setuptools creates this file if it doesn't already exist, which causes conflicts between pacman packages
   # see: https://corte.si/posts/code/setuptoolssucks/
-  rm -f mingw64/lib/python3.9/site-packages/easy-install.pth
+  rm -f mingw64/lib/python3.10/site-packages/easy-install.pth
   # patch broken shebangs (Z:/nix/store/...)
   for entrypoint in mingw64/bin/*-script.py; do
     [ -f "$entrypoint" ] || continue
