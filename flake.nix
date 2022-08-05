@@ -267,6 +267,21 @@
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
 
+      # https://github.com/ashb/sphinx-argparse/issues/5
+      sphinx-argparse = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "sphinx-argparse";
+        version = "0.3.1";
+        src = pkgs.python3Packages.fetchPypi {
+          inherit pname version;
+          sha256 = "82151cbd43ccec94a1530155f4ad34f251aaca6a0ffd5516d7fadf952d32dc1e";
+        };
+        checkInputs = [ pkgs.python3Packages.pytest ];
+        checkPhase =
+          ''
+          pytest -vv -k "not test_parse_nested and not test_parse_nested_with_alias and not test_parse_groups and not test_action_groups_with_subcommands"
+         '';
+        propagatedBuildInputs = [ pkgs.python3Packages.sphinx ];
+      };
       sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
         pname = "sphinxcontrib-wavedrom";
         version = "3.0.2";
@@ -292,14 +307,14 @@
           target = "kc705";
           variant = "nist_clock";
         };
-        inherit sphinxcontrib-wavedrom latex-artiq-manual;
+        inherit sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
           version = artiqVersion;
           src = self;
           buildInputs = [
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+            sphinx-argparse sphinxcontrib-wavedrom
           ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
@@ -319,7 +334,7 @@
           src = self;
           buildInputs = [
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
+            sphinx-argparse sphinxcontrib-wavedrom
             latex-artiq-manual
           ];
           buildPhase = ''
@@ -358,7 +373,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
+          sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
       };
 
