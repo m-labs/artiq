@@ -124,7 +124,40 @@ class SchedulerMonitor:
                 del self.flags[condition][rid]
 
 
-class SchedulerCase(unittest.TestCase):
+class AssertScheduler:
+    def assertStatusEqual(self, rid, status):
+        rid_status = self.monitor.last_status[rid]
+        if rid_status != status:
+            raise AssertionError(f"Status of rid {rid} should be "
+                                 f"{status}, instead of {rid_status}")
+
+    def assertArriveStatus(self, rid, status, time_out=10):
+        try:
+            self.loop.run_until_complete(asyncio.wait_for(
+                self.monitor.wait_until(rid, "arrive", status),
+                time_out))
+        except asyncio.TimeoutError:
+            raise AssertionError(f"rid {rid} did not arrive "
+                                 f"{status} within {time_out}s")
+
+    def assertStopped(self, task, time_out=10):
+        try:
+            self.loop.run_until_complete(asyncio.wait_for(task, time_out))
+        except asyncio.TimeoutError:
+            raise AssertionError(f"{task} did not complete within {time_out}s")
+
+    def assertFirstLeave(self, first_rid, rids, status):
+        done, pending = self.loop.run_until_complete(asyncio.wait(
+            [self.monitor.wait_until(rid, "leave", status) for rid in rids],
+            return_when=asyncio.FIRST_COMPLETED))
+        for task in pending:
+            task.cancel()
+        if done.pop().result() != first_rid:
+            raise AssertionError(f"rid {first_rid} did not leave"
+                                 f" {status} first")
+
+
+class SchedulerCase(unittest.TestCase, AssertScheduler):
     def setUp(self):
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
@@ -145,8 +178,8 @@ class SchedulerCase(unittest.TestCase):
         # This one (RID 1) gets run instead.
         self.scheduler.submit("main", expid, 0, None, False)
 
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "deleting"))
-        self.assertEqual(self.monitor.last_status[0], "pending")
+        self.assertArriveStatus(1, "deleting")
+        self.assertStatusEqual(0, "pending")
 
     def test_pending_priority(self):
         """Check due dates take precedence over priorities when waiting to
@@ -169,18 +202,8 @@ class SchedulerCase(unittest.TestCase):
         self.scheduler.submit("main", expid_empty, high_priority, late)
         self.scheduler.submit("main", expid_empty, middle_priority, early)
 
-        wait_RID1_leave = self.loop.create_task(
-            self.monitor.wait_until(1, "leave", "pending"))
-        wait_RID2_leave = self.loop.create_task(
-            self.monitor.wait_until(2, "leave", "pending"))
-        done, pending = self.loop.run_until_complete(asyncio.wait(
-            [wait_RID1_leave, wait_RID2_leave],
-            return_when=asyncio.FIRST_COMPLETED))
-        self.assertIn(wait_RID2_leave, done)
-        for task in pending:
-            task.cancel()
-
-        self.loop.run_until_complete(self.monitor.wait_until(2, "arrive", "deleting"))
+        self.assertFirstLeave(2, [1, 2], "pending")
+        self.assertArriveStatus(2, "deleting")
 
     def test_pause(self):
         termination_ok = False
@@ -199,13 +222,13 @@ class SchedulerCase(unittest.TestCase):
 
         # check_pause is True when rid with higher priority is prepare_done
         self.scheduler.submit("main", expid_bg, -99, None, False)
-        self.loop.run_until_complete(self.monitor.wait_until(0, "arrive", "running"))
+        self.assertArriveStatus(0, "running")
         self.assertFalse(self.scheduler.check_pause(0))
         self.scheduler.submit("main", expid, 0, None, False)
         self.assertFalse(self.scheduler.check_pause(0))
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "prepare_done"))
+        self.assertArriveStatus(1, "prepare_done")
         self.assertTrue(self.scheduler.check_pause(0))
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "deleting"))
+        self.assertArriveStatus(1, "deleting")
         self.assertFalse(self.scheduler.check_pause(0))
 
         # check_pause is True when request_termination is called
@@ -213,7 +236,7 @@ class SchedulerCase(unittest.TestCase):
         self.assertFalse(self.scheduler.check_pause(0))
         self.scheduler.request_termination(0)
         self.assertTrue(self.scheduler.check_pause(0))
-        self.loop.run_until_complete(self.monitor.wait_until(0, "arrive", "deleting"))
+        self.assertArriveStatus(0, "deleting")
         self.assertTrue(termination_ok)
 
     def test_close_with_active_runs(self):
@@ -224,10 +247,10 @@ class SchedulerCase(unittest.TestCase):
         expid = _get_expid("EmptyExperiment")
 
         self.scheduler.submit("main", expid_bg, -99, None, False)
-        self.loop.run_until_complete(self.monitor.wait_until(0, "arrive", "running"))
+        self.assertArriveStatus(0, "running")
 
         self.scheduler.submit("main", expid, 0, None, False)
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "prepare_done"))
+        self.assertArriveStatus(1, "prepare_done")
 
         # At this point, (at least) BackgroundExperiment is still running; make
         # sure we can stop the scheduler without hanging.
@@ -241,18 +264,18 @@ class SchedulerCase(unittest.TestCase):
         # Flush with same priority
         self.scheduler.submit("main", expid, 0, None, False)
         self.scheduler.submit("main", expid, 0, None, True)
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "preparing"))
-        self.assertEqual(self.monitor.last_status[0], "deleting")
-        self.loop.run_until_complete(self.monitor.wait_until(1, "arrive", "deleting"))
+        self.assertArriveStatus(1, "preparing")
+        self.assertStatusEqual(0, "deleting")
+        self.assertArriveStatus(1, "deleting")
 
         # Flush with higher priority
         self.scheduler.submit("main", expid_bg, 0, None, False)
         # Make sure RID 2 go into preparing stage first
-        self.loop.run_until_complete(self.monitor.wait_until(2, "arrive", "preparing"))
+        self.assertArriveStatus(2, "preparing")
         self.scheduler.submit("main", expid, 1, None, True)
-        self.loop.run_until_complete(self.monitor.wait_until(3, "arrive", "deleting"))
-        self.assertEqual(self.monitor.last_status[2], "running")
+        self.assertArriveStatus(3, "deleting")
+        self.assertStatusEqual(2, "running")
 
     def tearDown(self):
-        self.loop.run_until_complete(self.scheduler.stop())
+        self.assertStopped(self.scheduler.stop())
         self.loop.close()
