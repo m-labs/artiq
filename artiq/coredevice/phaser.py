@@ -797,7 +797,7 @@ class PhaserChannel:
         self.phaser = phaser
         self.index = index
         self.trf_mmap = TRF372017(trf).get_mmap()
-        self.trf_mmap = [int32(x) for x in self.trf_mmap]  # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/14
+        self.trf_mmap = [int32(uint32(x)) for x in self.trf_mmap]  # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/14
 
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
 
