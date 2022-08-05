@@ -1,5 +1,5 @@
 from __future__ import annotations
-from numpy import int32, int64
+from numpy import uint32, int32, int64
 
 from artiq.language.core import *
 from artiq.coredevice.core import Core
@@ -178,7 +178,7 @@ class Phaser:
         self.sync_dly = sync_dly
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
-        self.dac_mmap = [int32(x) for x in self.dac_mmap]  # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/14
+        self.dac_mmap = [int32(uint32(x)) for x in self.dac_mmap]  # NAC3TODO https://git.m-labs.hk/M-Labs/nac3/issues/14
 
         self.channel = [PhaserChannel(self, ch, trf)
                         for ch, trf in enumerate([trf0, trf1])]
