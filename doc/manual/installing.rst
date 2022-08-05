@@ -327,15 +327,15 @@ Show channel name in log message
 
 First, create a channel names text file. Then write a new line for each channel with format: ``<channel_number>:<channel_name>``. For example, naming channel 0 as led0 can be written as ``0:led0``. Channel name should not contain any ``:``, ``,`` and space.
 
-You can also generate the text file according to the channel information in the device database with:
+You can also generate the text file according to the channel information in the device database with: ::
 
   $ artiq_ch_names -d [device database] -o [channel names text file]
 
-Second, flash it to the core device with:
+Second, flash it to the core device with: ::
 
   $ artiq_coremgmt config write -s channel_names $(tr '\n' ',' < <channel names text file> | sed 's/,$/\n/')
 
-or flash it directly with:
+or flash it directly with: ::
 
   $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx -s channel_names $(tr '\n' ',' < <channel names text file> | sed 's/,$/\n/')
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
