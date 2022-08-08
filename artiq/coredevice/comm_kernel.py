@@ -652,12 +652,6 @@ class CommKernel:
             message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            if any(err in name for err in ["RTIOUnderflow",
-                    "RTIOOverflow", "RTIODestinationUnreachable"]):
-                channel_involved = self.get_channel_name(params[0])
-                message = message.replace("{0}", "{0}"+
-                                          " ("+channel_involved+")")
-
             filename = read_exception_string()
             line = self._read_int32()
             column = self._read_int32()
@@ -692,6 +686,14 @@ class CommKernel:
             python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])
         else:
             python_exn_type = embedding_map.retrieve_object(core_exn.id)
+
+        if any(python_exn_type == exn_type
+                for exn_type in [exceptions.RTIOUnderflow,
+                                 exceptions.RTIOOverflow,
+                                 exceptions.RTIODestinationUnreachable]):
+            channel_involved = self.get_channel_name(nested_exceptions[0][2][0])
+            nested_exceptions[-1][1] = nested_exceptions[-1][1].replace(
+                                        "{0}", "{0}"+" ("+channel_involved+")")
 
         python_exn = python_exn_type(
             nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
