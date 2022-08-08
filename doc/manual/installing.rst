@@ -322,8 +322,8 @@ Other options include:
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
 
-Show channel name in log message
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Show channel name in RTIO error report
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First, create a channel names text file. Then write a new line for each channel with format: ``<channel_number>:<channel_name>``. For example, naming channel 0 as led0 can be written as ``0:led0``. Channel name should not contain any ``:``, ``,`` and space.
 
@@ -331,13 +331,13 @@ You can also copy the text generated according to the channel information in the
 
   $ artiq_ch_names -d [device database]
 
-Second, flash it to the core device with: ::
+Second, flash it into the core device with: ::
 
   $ artiq_coremgmt config write -s channel_names $(tr '\n' ',' < <channel names text file> | sed 's/,$/\n/')
 
-or flash it directly with: ::
+or ::
 
   $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx -s channel_names $(tr '\n' ',' < <channel names text file> | sed 's/,$/\n/')
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
-If the channel name is not specified in channel name file, it will show as "unknown".
+The channel name of the channel involved in async error report would be "unknown" if the configuration is not flashed into the core device

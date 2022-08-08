@@ -9,7 +9,7 @@ Unreleased
 Highlights:
 
 * Implemented Phaser-servo. This requires recent gateware on Phaser.
-* Showing channel name next to the channel number in log message
+* Shows RTIO channel names in addition to the channel numbers in RTIO error reports.
 
 ARTIQ-7
 -------
