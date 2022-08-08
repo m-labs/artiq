@@ -376,18 +376,23 @@ fn async_error_thread(io: Io) {
 
 fn config_channel_name(ch_number: u16) -> String {
     let mut ch_name = String::from("unknown");
-    let ch_number = ch_number.to_string();
+    let ch_num_str = ch_number.to_string();
     config::read_str("channel_names", |r| match r {
         Ok(ch_names) => {
             let split_1 = ch_names.split(",");
             for s in split_1 {
                 let mut split_2 = s.split(":");
-                if split_2.next().unwrap_or("none") == ch_number {
-                    match split_2.next() {
-                        Some(n) => ch_name = n.to_string(),
-                        None => ()
-                    };
-                    break
+                match split_2.next() {
+                    Some(num) => {
+                        if num == ch_num_str {
+                            match split_2.next() {
+                                Some(n) => ch_name = n.to_string(),
+                                None => ()
+                            };
+                            break
+                        }
+                    },
+                    None => ()
                 }
             };
         },
