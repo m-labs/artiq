@@ -327,9 +327,9 @@ Show channel name in log message
 
 First, create a channel names text file. Then write a new line for each channel with format: ``<channel_number>:<channel_name>``. For example, naming channel 0 as led0 can be written as ``0:led0``. Channel name should not contain any ``:``, ``,`` and space.
 
-You can also generate the text file according to the channel information in the device database with: ::
+You can also copy the text generated according to the channel information in the device database with: ::
 
-  $ artiq_ch_names -d [device database] -o [channel names text file]
+  $ artiq_ch_names -d [device database]
 
 Second, flash it to the core device with: ::
 
