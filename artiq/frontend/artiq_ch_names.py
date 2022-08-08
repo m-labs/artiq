@@ -5,8 +5,8 @@ from artiq.master.databases import DeviceDB
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser(description="ARTIQ channel names file"
-                                     "template generator")
+    parser = argparse.ArgumentParser(description="ARTIQ channel names "
+                                     "configuration by device database")
     parser.add_argument("-d", "--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
 
