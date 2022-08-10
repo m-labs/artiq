@@ -282,6 +282,9 @@ class MasterBase(MiniSoC, AMPSoC):
         platform = self.platform
 
         if platform.hw_rev == "v2.0":
+            self.submodules.error_led = gpio.GPIOOut(Cat(
+                self.platform.request("error_led")))
+            self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(platform)
 
         i2c = self.platform.request("i2c")
