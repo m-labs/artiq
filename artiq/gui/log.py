@@ -18,6 +18,29 @@ class _ModelItem:
         self.children_by_row = []
 
 
+class _ProxyModel(QtCore.QSortFilterProxyModel):
+    def __init__(self):
+        super().__init__()
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.filter_level = 0
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        source = self.sourceModel()
+        index_0 = source.index(source_row, 0, source_parent)
+
+        entry = source.data(index_0, None)
+        if entry[0] >= self.filter_level:
+            regex = self.filterRegExp()
+            return (regex.indexIn(entry[1]) != -1 
+                or any(regex.indexIn(msg) != -1 for msg in entry[3]))
+        else:
+            return False
+
+    def apply_filter_level(self, filter_level):
+        self.filter_level = getattr(logging, filter_level)
+        self.invalidateFilter()
+
+
 class _Model(QtCore.QAbstractItemModel):
     def __init__(self):
         QtCore.QAbstractTableModel.__init__(self)
@@ -168,6 +191,8 @@ class _Model(QtCore.QAbstractItemModel):
             return (log_level_to_name(v[0]) + ", " +
                 time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])) +
                 "\n" + v[3][lineno])
+        elif role == None:
+            return self.entries[msgnum]
 
 
 class LogDock(QDockWidgetCloseDetect):
@@ -240,10 +265,23 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.header().resizeSection(0, 26*cw)
 
         self.model = _Model()
-        self.log.setModel(self.model)
+        self.proxy_model = _ProxyModel()
+        self.proxy_model.setSourceModel(self.model)
+        self.log.setModel(self.proxy_model)
+
         self.model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.model.rowsInserted.connect(self.rows_inserted_after)
         self.model.rowsRemoved.connect(self.rows_removed)
+
+        self.filter_freetext.textChanged.connect(self.apply_text_filter)
+        self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
+
+    def apply_text_filter(self):
+        text = self.filter_freetext.text()
+        self.proxy_model.setFilterRegExp(text)
+
+    def apply_level_filter(self):
+        self.proxy_model.apply_filter_level(self.filter_level.currentText())
 
     def append_message(self, msg):
         min_level = getattr(logging, self.filter_level.currentText())
