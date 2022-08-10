@@ -771,7 +771,7 @@ class AD9910:
             Suitable for :meth:`write_ram`.
         """
         for i in range(len(ram)):
-            ram[i] = self.amplitude_to_asf(amplitude[i]) << 18
+            ram[i] = int32(self.amplitude_to_asf(amplitude[i]) << 18)
 
     @portable(flags={"fast-math"})
     def turns_amplitude_to_ram(self, turns: TList(TFloat),
