@@ -43,11 +43,6 @@ class _FilterProxyModel(QtCore.QSortFilterProxyModel):
         self.filter_level = getattr(logging, filter_level)
         self.invalidateFilter()
 
-    def update_case_sensitivity(self, sensitive):
-        if bool(sensitive):
-            self.setFilterCaseSensitivity(QtCore.Qt.CaseSensitive)
-        else:
-            self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
 
 class _Model(QtCore.QAbstractItemModel):
     def __init__(self):
@@ -220,22 +215,18 @@ class LogDock(QDockWidgetCloseDetect):
         self.filter_freetext.setPlaceholderText("freetext filter...")
         self.filter_freetext.setToolTip("Receive entries containing this text")
         grid.addWidget(self.filter_freetext, 0, 2)
-        self.case_sensitive = QtWidgets.QCheckBox("Case Sensitive")
-        self.case_sensitive.setToolTip("Set case sensitivity when filtering"
-                                       "message in the panel's buffer")
-        grid.addWidget(self.case_sensitive, 0, 3)
 
         scrollbottom = QtWidgets.QToolButton()
         scrollbottom.setToolTip("Scroll to bottom")
         scrollbottom.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_ArrowDown))
-        grid.addWidget(scrollbottom, 0, 4)
+        grid.addWidget(scrollbottom, 0, 3)
         scrollbottom.clicked.connect(self.scroll_to_bottom)
 
         clear = QtWidgets.QToolButton()
         clear.setIcon(QtWidgets.QApplication.style().standardIcon(
             QtWidgets.QStyle.SP_DialogResetButton))
-        grid.addWidget(clear, 0, 5)
+        grid.addWidget(clear, 0, 4)
         clear.clicked.connect(lambda: self.model.clear())
 
         if manager:
@@ -245,7 +236,7 @@ class LogDock(QDockWidgetCloseDetect):
                 QtWidgets.QStyle.SP_FileDialogNewFolder))
             # note the lambda, the default parameter is overriden otherwise
             newdock.clicked.connect(lambda: manager.create_new_dock())
-            grid.addWidget(newdock, 0, 6)
+            grid.addWidget(newdock, 0, 5)
         grid.layout.setColumnStretch(2, 1)
 
         self.log = QtWidgets.QTreeView()
@@ -254,7 +245,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.setVerticalScrollMode(
             QtWidgets.QAbstractItemView.ScrollPerPixel)
         self.log.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        grid.addWidget(self.log, 1, 0, colspan=7 if manager else 6)
+        grid.addWidget(self.log, 1, 0, colspan=6 if manager else 5)
         self.scroll_at_bottom = False
         self.scroll_value = 0
 
@@ -284,7 +275,6 @@ class LogDock(QDockWidgetCloseDetect):
         self.model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.model.rowsInserted.connect(self.rows_inserted_after)
         self.model.rowsRemoved.connect(self.rows_removed)
-        self.case_sensitive.stateChanged.connect(self.proxy_model.update_case_sensitivity)
 
         self.filter_freetext.textChanged.connect(self.apply_text_filter)
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
@@ -348,7 +338,6 @@ class LogDock(QDockWidgetCloseDetect):
         return {
             "min_level_idx": self.filter_level.currentIndex(),
             "freetext_filter": self.filter_freetext.text(),
-            "case_sensitivity": bool(self.case_sensitive.checkState()),
             "header": bytes(self.log.header().saveState())
         }
 
@@ -366,13 +355,6 @@ class LogDock(QDockWidgetCloseDetect):
             pass
         else:
             self.filter_freetext.setText(freetext)
-
-        try:
-            sensitivity = state["case_sensitivity"]
-        except KeyError:
-            pass
-        else:
-            self.case_sensitive.setChecked(sensitivity)
 
         try:
             header = state["header"]
