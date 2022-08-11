@@ -465,6 +465,9 @@ class SatelliteBase(BaseSoC):
         disable_cdr_clk_ibuf = Signal(reset=1)
         disable_cdr_clk_ibuf.attr.add("no_retiming")
         if self.platform.hw_rev == "v2.0":
+            self.submodules.error_led = gpio.GPIOOut(Cat(
+                self.platform.request("error_led")))
+            self.csr_devices.append("error_led")
             cdr_clk_clean = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_clean = self.platform.request("si5324_clkout")
