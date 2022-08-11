@@ -27,13 +27,15 @@ class _FilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, source_parent):
         source = self.sourceModel()
-        index_0 = source.index(source_row, 0, source_parent)
+        src = source.index(source_row, 0, source_parent)
+        msg = source.index(source_row, 1, source_parent)
+        level = source.data(src, QtCore.Qt.UserRole)
 
-        entry = source.data(index_0, UserRole)
-        if entry[0] >= self.filter_level:
+        if level >= self.filter_level:
             regex = self.filterRegExp()
-            return (regex.indexIn(entry[1]) != -1 
-                or any(regex.indexIn(msg) != -1 for msg in entry[3]))
+            src_text = source.data(src, QtCore.Qt.DisplayRole)
+            msg_text = source.data(msg, QtCore.Qt.DisplayRole)
+            return (regex.indexIn(src_text) != -1 or regex.indexIn(msg_text) != -1)
         else:
             return False
 
