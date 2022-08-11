@@ -18,17 +18,18 @@ class _ModelItem:
         self.children_by_row = []
 
 
-class _ProxyModel(QtCore.QSortFilterProxyModel):
+class _FilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self):
         super().__init__()
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setRecursiveFilteringEnabled(True)
         self.filter_level = 0
 
     def filterAcceptsRow(self, source_row, source_parent):
         source = self.sourceModel()
         index_0 = source.index(source_row, 0, source_parent)
 
-        entry = source.data(index_0, None)
+        entry = source.data(index_0, UserRole)
         if entry[0] >= self.filter_level:
             regex = self.filterRegExp()
             return (regex.indexIn(entry[1]) != -1 
@@ -191,8 +192,8 @@ class _Model(QtCore.QAbstractItemModel):
             return (log_level_to_name(v[0]) + ", " +
                 time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])) +
                 "\n" + v[3][lineno])
-        elif role == None:
-            return self.entries[msgnum]
+        elif role == QtCore.Qt.UserRole:
+            return self.entries[msgnum][0]
 
 
 class LogDock(QDockWidgetCloseDetect):
@@ -265,7 +266,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.header().resizeSection(0, 26*cw)
 
         self.model = _Model()
-        self.proxy_model = _ProxyModel()
+        self.proxy_model = _FilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.log.setModel(self.proxy_model)
 
@@ -277,8 +278,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
 
     def apply_text_filter(self):
-        text = self.filter_freetext.text()
-        self.proxy_model.setFilterRegExp(text)
+        self.proxy_model.setFilterRegExp(self.filter_freetext.text())
 
     def apply_level_filter(self):
         self.proxy_model.apply_filter_level(self.filter_level.currentText())
