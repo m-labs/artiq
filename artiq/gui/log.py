@@ -18,7 +18,7 @@ class _ModelItem:
         self.children_by_row = []
 
 
-class _FilterProxyModel(QtCore.QSortFilterProxyModel):
+class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
     def __init__(self):
         super().__init__()
         self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
@@ -268,7 +268,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.header().resizeSection(0, 26*cw)
 
         self.model = _Model()
-        self.proxy_model = _FilterProxyModel()
+        self.proxy_model = _LogFilterProxyModel()
         self.proxy_model.setSourceModel(self.model)
         self.log.setModel(self.proxy_model)
 
