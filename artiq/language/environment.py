@@ -409,6 +409,10 @@ class HasEnvironment:
             else:
                 return default
 
+    def save_custom_groups(self, custom_grps):
+        """Store custom data as a dictionary before saving into output HDF5 file"""
+        self.__dataset_mgr.custom_grps = custom_grps
+
     def setattr_dataset(self, key, default=NoDefault, archive=True):
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""

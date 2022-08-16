@@ -111,6 +111,7 @@ class DatasetManager:
         self._broadcaster = Notifier(dict())
         self.local = dict()
         self.archive = dict()
+        self.custom_grps = dict()
 
         self.ddb = ddb
         self._broadcaster.publish = ddb.update
@@ -154,7 +155,7 @@ class DatasetManager:
     def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
-        
+
         data = self.ddb.get(key)
         if archive:
             if key in self.archive:
@@ -171,6 +172,17 @@ class DatasetManager:
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
             _write(archive_group, k, v)
+
+        def save_group(root, grp):
+            for k, v in grp.items():
+                if isinstance(v, dict):
+                    k_group = root.create_group(k)
+                    save_group(k_group, v)
+                else:
+                    _write(root, k, v)
+
+        if self.custom_grps:
+            save_group(f, {"custom_groups": self.custom_grps})
 
 
 def _write(group, k, v):
