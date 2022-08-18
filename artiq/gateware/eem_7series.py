@@ -47,7 +47,7 @@ def peripheral_urukul(module, peripheral, **kwargs):
     else:
         sync_gen_cls = None
     eem.Urukul.add_std(module, port, port_aux, ttl_serdes_7series.Output_8X,
-        sync_gen_cls, **kwargs)
+        peripheral["dds"], sync_gen_cls, **kwargs)
 
 
 def peripheral_sampler(module, peripheral, **kwargs):

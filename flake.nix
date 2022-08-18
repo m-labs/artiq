@@ -15,6 +15,7 @@
   outputs = { self, mozilla-overlay, sipyco, nac3, artiq-comtools, src-migen, src-misoc }:
     let
       pkgs = import nac3.inputs.nixpkgs { system = "x86_64-linux"; overlays = [ (import mozilla-overlay) ]; };
+      pkgs-aarch64 = import nac3.inputs.nixpkgs { system = "aarch64-linux"; };
 
       artiqVersionMajor = 9;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
@@ -76,6 +77,7 @@
         pname = "artiq";
         version = artiqVersion;
         src = self;
+        doCheck = false;
 
         preBuild =
           ''
@@ -228,7 +230,7 @@
           dontFixup = true;
         };
 
-      openocd-bscanspi = let
+      openocd-bscanspi-f = pkgs: let
         bscan_spi_bitstreams-pkg = pkgs.stdenv.mkDerivation {
           name = "bscan_spi_bitstreams";
           src = pkgs.fetchFromGitHub {
@@ -301,8 +303,9 @@
     in rec {
       packages.x86_64-linux = rec {
         inherit (nac3.packages.x86_64-linux) python3-mimalloc;
-        inherit qasync openocd-bscanspi artiq;
+        inherit qasync artiq;
         inherit migen misoc asyncserial microscope vivadoEnv vivado;
+        openocd-bscanspi = openocd-bscanspi-f pkgs;
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
@@ -375,6 +378,10 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
+      };
+
+      packages.aarch64-linux = {
+        openocd-bscanspi = openocd-bscanspi-f pkgs-aarch64;
       };
 
       hydraJobs = {

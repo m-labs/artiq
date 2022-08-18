@@ -111,6 +111,12 @@ class Scheduler:
             rid = self.rid
         return self._check_pause(rid)
 
+    _check_termination = staticmethod(make_parent_action("scheduler_check_termination"))
+    def check_termination(self, rid=None) -> bool:
+        if rid is None:
+            rid = self.rid
+        return self._check_termination(rid)
+
     _submit = staticmethod(make_parent_action("scheduler_submit"))
     def submit(self, pipeline_name=None, expid=None, priority=None, due_date=None, flush=False):
         if pipeline_name is None:
