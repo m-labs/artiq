@@ -77,7 +77,6 @@
         pname = "artiq";
         version = artiqVersion;
         src = self;
-        doCheck = false;
 
         preBuild =
           ''
