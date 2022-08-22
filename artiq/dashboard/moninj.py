@@ -554,9 +554,6 @@ class _DeviceManager:
 
         # initialize CPLD (if applicable)
         if dds_model.is_urukul:
-            # TODO: reimplement cache (simple "was init")
-            # 
-             
             # urukuls need CPLD init and switch to on
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_model.cpld)
@@ -564,8 +561,7 @@ class _DeviceManager:
             # `sta`/`rf_sw`` variables are guaranteed for urukuls 
             # so {action} can use it
             # if there's no RF enabled, CPLD may have not been initialized
-            # 
-            # but if there is, it has
+            # but if there is, it has been initialised - no need to do again
             cpld_init = """delay(15*ms)
                 was_init = self.core_cache.get("_{cpld}_init")
                 sta = self.{cpld}.sta_read()
@@ -583,16 +579,15 @@ class _DeviceManager:
         if dds_model.dds_type == "AD9912":
             # 0xFF before init, 0x99 after
             channel_init = """
-                delay(10*ms)
                 if self.{dds_channel}.read({cfgreg}, length=1) == 0xFF:
                     delay(10*ms)
                     self.{dds_channel}.init()
             """.format(dds_channel=dds_channel, cfgreg=AD9912_SER_CONF)
         elif dds_model.dds_type == "AD9910":
             # TODO: verify AD9910 behavior (when we have hardware)
-            channel_init = "self.{dds_channel}.init()".format(dds_channel)
+            channel_init = "self.{dds_channel}.init()".format(dds_channel=dds_channel)
         else:
-            channel_init = "self.{dds_channel}.init()".format(dds_channel)
+            channel_init = "self.{dds_channel}.init()".format(dds_channel=dds_channel)
 
         dds_exp = textwrap.dedent("""
         from artiq.experiment import *
@@ -608,6 +603,7 @@ class _DeviceManager:
             def run(self):
                 self.core.break_realtime()
                 {cpld_init}
+                delay(10*ms)
                 {channel_init}
                 delay(15*ms)
                 {action}
@@ -622,16 +618,13 @@ class _DeviceManager:
                 log_msg))
 
     def dds_set_frequency(self, dds_channel, dds_model, freq):
+        action = "self.{ch}.set({freq})".format(
+            freq=freq, ch=dds_channel)
         if dds_model.is_urukul:
-            ch_no = "ch_no = self.{ch}.chip_select - 4"
-        else:
-            ch_no = "ch_no = self.{ch}.channel"
-        action = """
-                {ch_no}
-                self.{ch}.set({freq})
+            action += """
+                ch_no = self.{ch}.chip_select - 4
                 self.{cpld}.cfg_switches(rf_sw | 1 << ch_no)
-        """.format(freq=freq, cpld=dds_model.cpld, 
-                   ch=dds_channel, ch_no=ch_no.format(ch=dds_channel))
+            """.format(ch=dds_channel, cpld=dds_model.cpld)
         self._dds_faux_injection(
             dds_channel,
             dds_model,
