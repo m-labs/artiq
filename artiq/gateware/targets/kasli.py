@@ -282,6 +282,9 @@ class MasterBase(MiniSoC, AMPSoC):
         platform = self.platform
 
         if platform.hw_rev == "v2.0":
+            self.submodules.error_led = gpio.GPIOOut(Cat(
+                self.platform.request("error_led")))
+            self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(platform)
 
         i2c = self.platform.request("i2c")
@@ -458,6 +461,11 @@ class SatelliteBase(BaseSoC):
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
+
+        if self.platform.hw_rev == "v2.0":
+            self.submodules.error_led = gpio.GPIOOut(Cat(
+                self.platform.request("error_led")))
+            self.csr_devices.append("error_led")
 
         disable_cdr_clk_ibuf = Signal(reset=1)
         disable_cdr_clk_ibuf.attr.add("no_retiming")
