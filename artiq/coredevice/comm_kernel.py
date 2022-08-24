@@ -8,6 +8,7 @@ from fractions import Fraction
 from collections import namedtuple
 
 from artiq.coredevice import exceptions
+from artiq.tools import device_map, channel_address_map
 from artiq import __version__ as software_version
 from sipyco.keepalive import create_connection
 
@@ -691,12 +692,19 @@ class CommKernel:
                 for exn_type in [exceptions.RTIOUnderflow,
                                  exceptions.RTIOOverflow,
                                  exceptions.RTIODestinationUnreachable]):
-            channel_involved = self.get_channel_name(nested_exceptions[0][2][0])
-            nested_exceptions[-1][1] = nested_exceptions[-1][1].replace(
-                                        "{0}", "{0}"+" ("+channel_involved+")")
+            exception_msg = nested_exceptions[-1][1]
+            params_0 = nested_exceptions[0][2]
 
-        python_exn = python_exn_type(
-            nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
+            device_name = device_map(self.dmgr, params_0[0])
+            exception_msg = exception_msg.replace(
+                                    "{0}", "{0}"+" ("+device_name+")")
+            if "{3}" in exception_msg and device_name != "unknown":
+                address_name = channel_address_map(self.dmgr, device_name, params_0[3])
+                exception_msg = exception_msg.replace("{3}", "{3}"+" ("+address_name+")")
+            python_exn = python_exn_type(exception_msg.format(*params_0))
+        else:
+            python_exn = python_exn_type(
+                nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
         python_exn.artiq_core_exception = core_exn
         raise python_exn
 
@@ -709,15 +717,6 @@ class CommKernel:
                      map_name("sequence error", errors & 2 ** 2)
             logger.warning(f"{(', '.join(errors[:-1]) + ' and ') if len(errors) > 1 else ''}{errors[-1]} "
                            f"reported during kernel execution")
-
-    def get_channel_name(self, channel_number):
-        device_db = self.dmgr.get_device_db()
-        for device_name, value in device_db.items():
-            if "arguments" in value:
-                if "channel" in value["arguments"]:
-                    if value["arguments"]["channel"] == channel_number:
-                        return device_name
-        return "unknown"
 
     def serve(self, embedding_map, symbolizer, demangler):
         while True:

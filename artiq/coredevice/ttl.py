@@ -110,6 +110,13 @@ class TTLInOut:
     kernel_invariants = {"core", "channel", "gate_latency_mu",
         "target_o", "target_oe", "target_sens", "target_sample"}
 
+    address_map = {
+        0: "Output level",
+        1: "Output enable",
+        2: "Set input sensitivity",
+        3: "Set input sensitivity and sample",
+    }
+
     def __init__(self, dmgr, channel, gate_latency_mu=None,
                  core_device="core"):
         self.core = dmgr.get(core_device)

@@ -1,6 +1,7 @@
 import asyncio
 import importlib.util
 import importlib.machinery
+import importlib
 import inspect
 import logging
 import os
@@ -147,3 +148,27 @@ def get_user_config_dir():
     dir = user_config_dir("artiq", "m-labs", major)
     os.makedirs(dir, exist_ok=True)
     return dir
+
+
+def device_map(dmgr, channel_number):
+    device_db = dmgr.get_device_db()
+    for k, v in device_db.items():
+        if v.get("arguments"):
+            if v["arguments"].get("channel") == channel_number:
+                if v["type"] == "local" and\
+                        v["module"].startswith("artiq.coredevice."):
+                    return k
+    return "unknown"
+
+
+def channel_address_map(dmgr, device_name, address_number):
+    device_db = dmgr.get_device_db()
+    desc = device_db[device_name]
+    module = importlib.import_module(desc["module"])
+    device_class = getattr(module, desc["class"])
+
+    if hasattr(device_class, "address_map") and\
+            address_number in device_class.address_map.keys():
+        return device_class.address_map[address_number]
+    else:
+        return "Not Specified"
