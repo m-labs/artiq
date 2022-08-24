@@ -74,7 +74,7 @@ pub enum Request {
     RpcException {
         id:       u32,
         message:  u32,
-        param:    [i64; 3],
+        param:    [i64; 4],
         file:     u32,
         line:     u32,
         column:   u32,
@@ -126,6 +126,7 @@ impl Request {
                 id:       reader.read_u32()?,
                 message:  reader.read_u32()?,
                 param:    [reader.read_u64()? as i64,
+                           reader.read_u64()? as i64,
                            reader.read_u64()? as i64,
                            reader.read_u64()? as i64],
                 file:     reader.read_u32()?,
@@ -194,6 +195,7 @@ impl<'a> Reply<'a> {
                     writer.write_u64(exception.param[0] as u64)?;
                     writer.write_u64(exception.param[1] as u64)?;
                     writer.write_u64(exception.param[2] as u64)?;
+                    writer.write_u64(exception.param[3] as u64)?;
                     write_exception_string(writer, &exception.file)?;
                     writer.write_u32(exception.line)?;
                     writer.write_u32(exception.column)?;

@@ -12,7 +12,7 @@ pub struct Exception<'a> {
     pub column:   u32,
     pub function: CSlice<'a, u8>,
     pub message:  CSlice<'a, u8>,
-    pub param:    [i64; 3]
+    pub param:    [i64; 4]
 }
 
 fn str_err(_: core::str::Utf8Error) -> core::fmt::Error {

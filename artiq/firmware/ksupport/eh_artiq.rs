@@ -209,7 +209,7 @@ pub unsafe extern fn raise(exception: *const Exception) -> ! {
                 // https://github.com/rust-lang/rfcs/pull/1719
                 function: "__artiq_raise".as_c_slice(),
                 message:  "too many nested exceptions".as_c_slice(),
-                param:    [0, 0, 0]
+                param:    [0, 0, 0, 0]
             };
             EXCEPTION_BUFFER.exceptions[MAX_INFLIGHT_EXCEPTIONS] = Some(mem::transmute(exception));
             EXCEPTION_BUFFER.stack_pointers[MAX_INFLIGHT_EXCEPTIONS] = Default::default();

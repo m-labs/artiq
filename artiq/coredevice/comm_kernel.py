@@ -650,7 +650,7 @@ class CommKernel:
         for _ in range(exception_count):
             name = embedding_map.retrieve_str(self._read_int32())
             message = read_exception_string()
-            params = [self._read_int64() for _ in range(3)]
+            params = [self._read_int64() for _ in range(4)]
 
             filename = read_exception_string()
             line = self._read_int32()

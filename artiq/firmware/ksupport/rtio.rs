@@ -60,20 +60,20 @@ mod imp {
     }
 
     #[inline(never)]
-    unsafe fn process_exceptional_status(channel: i32, status: u8) {
+    unsafe fn process_exceptional_status(channel: i32, addr: i32, status: u8) {
         let timestamp = ((csr::rtio::now_hi_read() as i64) << 32) | (csr::rtio::now_lo_read() as i64);
         if status & RTIO_O_STATUS_WAIT != 0 {
             while csr::rtio::o_status_read() & RTIO_O_STATUS_WAIT != 0 {}
         }
         if status & RTIO_O_STATUS_UNDERFLOW != 0 {
             raise!("RTIOUnderflow",
-                "RTIO underflow at {1} mu, channel {0}, slack {2} mu",
-                channel as i64, timestamp, timestamp - get_counter());
+                "RTIO underflow at {1} mu, channel {0} address {3}, slack {2} mu",
+                channel as i64, timestamp, timestamp - get_counter(), addr as i64);
         }
         if status & RTIO_O_STATUS_DESTINATION_UNREACHABLE != 0 {
             raise!("RTIODestinationUnreachable",
-                "RTIO destination unreachable, output, at {1} mu, channel {0}",
-                channel as i64, timestamp, 0);
+                "RTIO destination unreachable, output, at {1} mu, channel {0} address {3}",
+                channel as i64, timestamp, 0, addr as i64);
         }
     }
 
@@ -84,7 +84,7 @@ mod imp {
             rtio_o_data_write(0, data as _);
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(target >> 8, status);
+                process_exceptional_status(target >> 8, target & 0xff, status);
             }
         }
     }
@@ -98,7 +98,7 @@ mod imp {
             }
             let status = csr::rtio::o_status_read();
             if status != 0 {
-                process_exceptional_status(target >> 8, status);
+                process_exceptional_status(target >> 8, target & 0xff, status);
             }
         }
     }
@@ -116,7 +116,7 @@ mod imp {
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return -1
@@ -124,7 +124,7 @@ mod imp {
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
 
             csr::rtio::i_timestamp_read() as i64
@@ -144,12 +144,12 @@ mod imp {
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
 
             rtio_i_data_read(0) as i32
@@ -169,7 +169,7 @@ mod imp {
             if status & RTIO_I_STATUS_OVERFLOW != 0 {
                 raise!("RTIOOverflow",
                     "RTIO input overflow on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
             if status & RTIO_I_STATUS_WAIT_EVENT != 0 {
                 return TimestampedData { timestamp: -1, data: 0 }
@@ -177,7 +177,7 @@ mod imp {
             if status & RTIO_I_STATUS_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
                     "RTIO destination unreachable, input, on channel {0}",
-                    channel as i64, 0, 0);
+                    channel as i64, 0, 0, 0);
             }
 
             TimestampedData {
