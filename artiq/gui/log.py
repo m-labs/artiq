@@ -314,7 +314,8 @@ class LogDock(QDockWidgetCloseDetect):
     def copy_to_clipboard(self):
         idx = self.log.selectedIndexes()
         if idx:
-            entry = "\n".join(self.model.full_entry(idx[0]))
+            source_idx = self.proxy_model.mapToSource(idx[0])
+            entry = "\n".join(self.model.full_entry(source_idx))
             QtWidgets.QApplication.clipboard().setText(entry)
 
     def save_state(self):
