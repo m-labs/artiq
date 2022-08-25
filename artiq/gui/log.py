@@ -285,23 +285,6 @@ class LogDock(QDockWidgetCloseDetect):
     def apply_level_filter(self):
         self.proxy_model.apply_filter_level(self.filter_level.currentText())
 
-    def append_message(self, msg):
-        min_level = getattr(logging, self.filter_level.currentText())
-        freetext = self.filter_freetext.text()
-
-        accepted_level = msg[0] >= min_level
-
-        if freetext:
-            data_source = msg[1]
-            data_message = msg[3]
-            accepted_freetext = (freetext in data_source
-                or any(freetext in m for m in data_message))
-        else:
-            accepted_freetext = True
-
-        if accepted_level and accepted_freetext:
-            self.model.append(msg)
-
     def scroll_to_bottom(self):
         self.log.scrollToBottom()
 
@@ -371,7 +354,7 @@ class LogDockManager:
 
     def append_message(self, msg):
         for dock in self.docks.values():
-            dock.append_message(msg)
+            dock.model.append(msg)
 
     def create_new_dock(self, add_to_area=True):
         n = 0
