@@ -10,6 +10,7 @@ import numpy
 
 from artiq.language.core import *
 from artiq.language.types import *
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import (rtio_output, rtio_input_timestamp,
                                    rtio_input_data)
 from artiq.coredevice.exceptions import RTIOOverflow
@@ -22,7 +23,7 @@ from artiq.coredevice.exceptions import RTIOOverflow
 # 3 Set input sensitivity and sample
 
 
-class TTLOut:
+class TTLOut(HasAddress):
     """RTIO TTL output driver.
 
     This should be used with output-only channels.
@@ -30,6 +31,10 @@ class TTLOut:
     :param channel: channel number
     """
     kernel_invariants = {"core", "channel", "target_o"}
+
+    address_map = {
+        0: "output level"
+    }
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
@@ -81,7 +86,7 @@ class TTLOut:
         self.off()
 
 
-class TTLInOut:
+class TTLInOut(HasAddress):
     """RTIO TTL input/output driver.
 
     In output mode, provides functions to set the logic level on the signal.
@@ -111,10 +116,10 @@ class TTLInOut:
         "target_o", "target_oe", "target_sens", "target_sample"}
 
     address_map = {
-        0: "Output level",
-        1: "Output enable",
-        2: "Set input sensitivity",
-        3: "Set input sensitivity and sample",
+        0: "output level",
+        1: "output enable",
+        2: "set input sensitivity",
+        3: "set input sensitivity and sample",
     }
 
     def __init__(self, dmgr, channel, gate_latency_mu=None,
@@ -452,7 +457,7 @@ class TTLInOut:
         return success
 
 
-class TTLClockGen:
+class TTLClockGen(HasAddress):
     """RTIO TTL clock generator driver.
 
     This should be used with TTL channels that have a clock generator
@@ -464,6 +469,10 @@ class TTLClockGen:
     :param acc_width: accumulator width in bits
     """
     kernel_invariants = {"core", "channel", "target", "acc_width"}
+
+    address_map = {
+        0: "set frequency"
+    }
 
     def __init__(self, dmgr, channel, acc_width=24, core_device="core"):
         self.core = dmgr.get(core_device)

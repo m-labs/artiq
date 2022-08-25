@@ -53,6 +53,7 @@ See :mod:`artiq.gateware.rtio.phy.edge_counter` and
 
 from artiq.language.core import *
 from artiq.language.types import *
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import (rtio_output, rtio_input_data,
                                    rtio_input_timestamped_data)
 from numpy import int32, int64
@@ -69,7 +70,7 @@ class CounterOverflow(Exception):
     pass
 
 
-class EdgeCounter:
+class EdgeCounter(HasAddress):
     """RTIO TTL edge counter driver driver.
 
     Like for regular TTL inputs, timeline periods where the counter is
@@ -85,6 +86,10 @@ class EdgeCounter:
     """
 
     kernel_invariants = {"core", "channel", "counter_max"}
+
+    address_map = {
+        0: "set configuration"
+    }
 
     def __init__(self, dmgr, channel, gateware_width=31, core_device="core"):
         self.core = dmgr.get(core_device)

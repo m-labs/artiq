@@ -153,7 +153,17 @@ def get_user_config_dir():
 def device_map(dmgr, channel_number):
     device_db = dmgr.get_device_db()
     for k, v in device_db.items():
-        if v.get("arguments"):
+        if k == "Grabber":
+            g_channel_base = v["arguments"]["channel_base"]
+            if channel_number == g_channel_base:
+                return k+" RIO coordinates"
+            elif channel_number = g_channel_base+1:
+                return k+" RIO mask"
+        elif k == "Phaser":
+            p_channel_base = v["arguments"]["channel_base"]
+            if channel_number in range(p_channel_base, p_channel_base+5):
+                return k            
+        elif v.get("arguments"):
             if v["arguments"].get("channel") == channel_number:
                 if v["type"] == "local" and\
                         v["module"].startswith("artiq.coredevice."):
@@ -162,13 +172,12 @@ def device_map(dmgr, channel_number):
 
 
 def channel_address_map(dmgr, device_name, address_number):
-    device_db = dmgr.get_device_db()
-    desc = device_db[device_name]
+    desc = dmgr.get_device_db()[device_name]
     module = importlib.import_module(desc["module"])
     device_class = getattr(module, desc["class"])
 
-    if hasattr(device_class, "address_map") and\
-            address_number in device_class.address_map.keys():
-        return device_class.address_map[address_number]
-    else:
-        return "Not Specified"
+    if hasattr(device_class, "get_address_name"):
+        result = device_class.get_address_name(address_number)
+        if result is not None:
+            return result
+    return "Not Specified"

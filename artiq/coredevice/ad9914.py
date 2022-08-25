@@ -6,6 +6,7 @@ Driver for the AD9914 DDS (with parallel bus) on RTIO.
 from artiq.language.core import *
 from artiq.language.types import *
 from artiq.language.units import *
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import rtio_output
 
 from numpy import int32, int64
@@ -43,7 +44,7 @@ AD9914_FUD       = 0x80
 AD9914_GPIO      = 0x81
 
 
-class AD9914:
+class AD9914(HasAddress):
     """Driver for one AD9914 DDS channel.
 
     The time cursor is not modified by any function in this class.
@@ -61,6 +62,28 @@ class AD9914:
         "rtio_period_mu", "sysclk_per_mu", "write_duration_mu",
         "dac_cal_duration_mu", "init_duration_mu", "init_sync_duration_mu",
         "set_duration_mu", "set_x_duration_mu", "exit_x_duration_mu"}
+
+    address_map = {
+        AD9914_REG_CFR1L: "REG_CFR1L",
+        AD9914_REG_CFR1H: "REG_CFR1H",
+        AD9914_REG_CFR2L: "REG_CFR2L",
+        AD9914_REG_CFR2H: "REG_CFR2H",
+        AD9914_REG_CFR3L: "REG_CFR3L",
+        AD9914_REG_CFR3H: "REG_CFR3H",
+        AD9914_REG_CFR4L: "REG_CFR4L",
+        AD9914_REG_CFR4H: "REG_CFR4H",
+        AD9914_REG_DRGFL: "REG_DRGFL",
+        AD9914_REG_DRGFH: "REG_DRGFH",
+        AD9914_REG_DRGBL: "REG_DRGBL",
+        AD9914_REG_DRGBH: "REG_DRGBH",
+        AD9914_REG_DRGAL: "REG_DRGAL",
+        AD9914_REG_DRGAH: "REG_DRGAH",
+        AD9914_REG_POW: "REG_POW",
+        AD9914_REG_ASF: "REG_ASF",
+        AD9914_REG_USR0: "REG_USR0",
+        AD9914_FUD: "FUD",
+        AD9914_GPIO: "GPIO",
+    }
 
     def __init__(self, dmgr, sysclk, bus_channel, channel, core_device="core"):
         self.core        = dmgr.get(core_device)

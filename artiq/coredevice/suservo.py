@@ -1,5 +1,6 @@
 from artiq.language.core import kernel, delay, delay_mu, portable
 from artiq.language.units import us, ns
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul, sampler
@@ -31,7 +32,7 @@ def adc_mu_to_volts(x, gain):
     return sampler.adc_mu_to_volt(val, gain)
 
 
-class SUServo:
+class SUServo(HasAddress):
     """Sampler-Urukul Servo parent and configuration device.
 
     Sampler-Urukul Servo is a integrated device controlling one
@@ -236,8 +237,20 @@ class SUServo:
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain)
 
+    @staticmethod
+    def get_address_name(addr):
+        sub = addr & 0x7
+        profile = addr >> 3
+        if sub%2:
+            return f"set profile {profile} IIR"
+        elif sub == 4:
+            return f"set profile {profile} IIR offset"
+        else:
+            return f"set profile {profile} DDS coefficients"
+            
 
-class Channel:
+
+class Channel(HasAddress):
     """Sampler-Urukul Servo channel
 
     :param channel: RTIO channel number
@@ -552,3 +565,8 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+    @staticmethod
+    def get_address_name(addr):
+        profile = addr >> 2
+        return f"active profile {profile}"

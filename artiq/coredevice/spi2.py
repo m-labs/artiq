@@ -9,6 +9,7 @@ time is an error.
 
 from artiq.language.core import syscall, kernel, portable, delay_mu
 from artiq.language.types import TInt32, TNone
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
@@ -33,7 +34,7 @@ SPI_LSB_FIRST = 0x40
 SPI_HALF_DUPLEX = 0x80
 
 
-class SPIMaster:
+class SPIMaster(HasAddress):
     """Core device Serial Peripheral Interface (SPI) bus master.
 
     Owns one SPI bus.
@@ -63,6 +64,11 @@ class SPIMaster:
     :param core_device: Core device name
     """
     kernel_invariants = {"core", "ref_period_mu", "channel"}
+
+    address_map = {
+      SPI_DATA_ADDR: "write data",
+      SPI_CONFIG_ADDR: "set config"
+    }
 
     def __init__(self, dmgr, channel, div=0, length=0, core_device="core"):
         self.core = dmgr.get(core_device)

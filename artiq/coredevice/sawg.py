@@ -11,6 +11,7 @@ Output event replacement is supported except on the configuration channel.
 from artiq.language.types import TInt32, TFloat
 from numpy import int32, int64
 from artiq.language.core import kernel
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.spline import Spline
 from artiq.coredevice.rtio import rtio_output
 
@@ -26,7 +27,7 @@ _SAWG_DUC_MIN = 6
 _SAWG_DUC_MAX = 7
 
 
-class Config:
+class Config(HasAddress):
     """SAWG configuration.
 
     Exposes the configurable quantities of a single SAWG channel.
@@ -43,6 +44,16 @@ class Config:
     """
     kernel_invariants = {"channel", "core", "_out_scale", "_duc_scale",
             "_rtio_interval"}
+
+    address_map = {
+        _SAWG_DIV: "set divider"
+        _SAWG_CLR: "set clear mode"
+        _SAWG_IQ_EN: "set I/Q enable"
+        _SAWG_OUT_MIN: "set DAC output min"
+        _SAWG_OUT_MAX: "set DAC output max"
+        _SAWG_DUC_MIN: "set DUC min"
+        _SAWG_DUC_MAX: "set DUC max"
+    }
 
     def __init__(self, channel, core, cordic_gain=1.):
         self.channel = channel

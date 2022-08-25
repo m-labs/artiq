@@ -4,13 +4,14 @@ streaming DAC.
 from numpy import int32, int64
 
 from artiq.language.core import kernel, portable, delay, delay_mu
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import (rtio_output, rtio_output_wide,
                                    rtio_input_data)
 from artiq.language.units import ns
 from artiq.language.types import TInt32, TList
 
 
-class Fastino:
+class Fastino(HasAddress):
     """Fastino 32-channel, 16-bit, 2.5 MS/s per channel streaming DAC
 
     The RTIO PHY supports staging DAC data before transmitting them by writing
@@ -42,6 +43,16 @@ class Fastino:
         Value must match the corresponding value in the RTIO PHY (gateware).
     """
     kernel_invariants = {"core", "channel", "width", "t_frame"}
+
+    address_map = {
+        0x20: "update",
+        0x21: "set hold",
+        0x22: "set cfg",
+        0x23: "set leds",
+        0x25: "set continuous",
+        0x26: "stage cic",
+        0x27: "apply cic",
+    }
 
     def __init__(self, dmgr, channel, core_device="core", log2_width=0):
         self.channel = channel << 8
@@ -298,3 +309,11 @@ class Fastino:
         overall gain, there will be a corresponding output step.
         """
         self.write(0x27, channel_mask)
+    
+    @staticmethod
+    def get_address_name(addr):
+        """Override from HasAddress"""
+        if addr in range(0, 32):
+            return f"DAC channel {addr}"
+        else:
+            HasAddress.get_address_name(addr)

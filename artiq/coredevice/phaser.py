@@ -1,6 +1,7 @@
 from numpy import int32, int64
 
 from artiq.language.core import kernel, delay_mu, delay
+from artiq.coredevice.address_interface import *
 from artiq.coredevice.rtio import rtio_output, rtio_input_data, rtio_input_timestamp
 from artiq.language.units import us, ns, ms, MHz
 from artiq.language.types import TInt32
@@ -72,7 +73,7 @@ SERVO_COEFF_SHIFT = 14
 SERVO_T_CYCLE = (32+12+192+24+4)*ns  # Must match gateware ADC parameters
 
 
-class Phaser:
+class Phaser(HasAddress):
     """Phaser 4-channel, 16-bit, 1 GS/s DAC coredevice driver.
 
     Phaser contains a 4 channel, 1 GS/s DAC chip with integrated upconversion,
@@ -187,6 +188,40 @@ class Phaser:
     """
     kernel_invariants = {"core", "channel_base", "t_frame", "miso_delay",
                          "dac_mmap"}
+
+    address_map = {
+        PHASER_ADDR_BOARD_ID: "board ID",
+        PHASER_ADDR_HW_REV: "HW Rev"
+        PHASER_ADDR_GW_REV: "GW Rev"
+        PHASER_ADDR_CFG: "CFG"
+        PHASER_ADDR_STA: "STA"
+        PHASER_ADDR_CRC_ERR: "CRC ERR"
+        PHASER_ADDR_LED: "LED"
+        PHASER_ADDR_FAN: "Fan"
+        PHASER_ADDR_DUC_STB: "STB"
+        PHASER_ADDR_ADC_CFG: "ADC CFG"
+        PHASER_ADDR_SPI_CFG: "SPI CFG"
+        PHASER_ADDR_SPI_DIVLEN: "SPI Divider/Length"
+        PHASER_ADDR_SPI_SEL: "SPI SEL"
+        PHASER_ADDR_SPI_DATW: "SPI write data"
+        PHASER_ADDR_SPI_DATR: "SPI read data"
+        PHASER_ADDR_SYNC_DLY: "SYNC delay"
+        PHASER_ADDR_DUC0_CFG: "DUC0 config"
+        # PHASER_ADDR_DUC0_RESERVED0: "DUC0 reserved"
+        PHASER_ADDR_DUC0_F: "DUC0 Frequency"
+        PHASER_ADDR_DUC0_P: "DUC0 Phase offset"
+        PHASER_ADDR_DAC0_DATA: "get DUC0 data"
+        PHASER_ADDR_DAC0_TEST: "set DUC0 test"
+        PHASER_ADDR_DUC1_CFG: "DUC1 config"
+        # PHASER_ADDR_DUC1_RESERVED0: "DUC1 reserved"
+        PHASER_ADDR_DUC1_F: "DUC1 Frequency"
+        PHASER_ADDR_DUC1_P: "DUC1 Phase offset"
+        PHASER_ADDR_DAC1_DATA: "get DUC1 data"
+        PHASER_ADDR_DAC1_TEST: "set DUC1 test"
+        PHASER_ADDR_SERVO_CFG0: "SERVO config 0"
+        PHASER_ADDR_SERVO_CFG1: "SERVO config 1"
+        PHASER_ADDR_SERVO_DATA_BASE: "servo coefficients & offset data"
+    }
 
     def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
                  clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None,
@@ -785,6 +820,32 @@ class Phaser:
         best = ((sum // count) + offset) % 8
         self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
         return best
+
+    @staticmethod
+    def get_address_name(addr):
+        result = Phaser.address_map.get(addr)
+
+        if result is None:
+            if addr in range(0x12, 0x16):
+                return Phaser.address_map[PHASER_ADDR_DUC0_F]
+            elif addr in range(0x16, 0x18):
+                return Phaser.address_map[PHASER_ADDR_DUC0_P]
+            elif addr in range(0x18, 0x1c):
+                return Phaser.address_map[PHASER_ADDR_DAC0_DATA]
+            elif addr in range(0x1c, 0x20):
+                return Phaser.address_map[PHASER_ADDR_DAC0_TEST]
+            elif addr in range(0x22, 0x26):
+                return Phaser.address_map[PHASER_ADDR_DUC1_F]
+            elif addr in range(0x26, 0x28):
+                return Phaser.address_map[PHASER_ADDR_DUC1_P]
+            elif addr in range(0x28, 0x2c):
+                return Phaser.address_map[PHASER_ADDR_DAC1_DATA]
+            elif addr in range(0x2c, 0x30):
+                return Phaser.address_map[PHASER_ADDR_DAC1_TEST]
+            elif addr in range(0x32, 0x72):
+                return Phaser.address_map[PHASER_ADDR_SERVO_DATA_BASE]
+        else:
+            return result
 
 
 class PhaserChannel:
