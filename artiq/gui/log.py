@@ -27,15 +27,15 @@ class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
 
     def filterAcceptsRow(self, source_row, source_parent):
         source = self.sourceModel()
-        src = source.index(source_row, 0, source_parent)
-        msg = source.index(source_row, 1, source_parent)
-        level = source.data(src, QtCore.Qt.UserRole)
+        index0 = source.index(source_row, 0, source_parent)
+        index1 = source.index(source_row, 1, source_parent)
+        level = source.data(index0, QtCore.Qt.UserRole)
 
         if level >= self.filter_level:
             regex = self.filterRegExp()
-            src_text = source.data(src, QtCore.Qt.DisplayRole)
-            msg_text = source.data(msg, QtCore.Qt.DisplayRole)
-            return (regex.indexIn(src_text) != -1 or regex.indexIn(msg_text) != -1)
+            index0_text = source.data(index0, QtCore.Qt.DisplayRole)
+            msg_text = source.data(index1, QtCore.Qt.DisplayRole)
+            return (regex.indexIn(index0_text) != -1 or regex.indexIn(msg_text) != -1)
         else:
             return False
 
