@@ -49,10 +49,16 @@ class Editor(QtWidgets.QDialog):
         buttons.rejected.connect(self.reject)
 
     def accept(self):
-        newkey = self.name_widget.text()
-        value = self.initial_type(self.get_edit_widget_value())
-        asyncio.ensure_future(rename(self.key, newkey, value, self.dataset_ctl))
-        QtWidgets.QDialog.accept(self)
+        try:
+            newkey = self.name_widget.text()
+            value = self.initial_type(self.get_edit_widget_value())
+        except Exception as ex:
+            msgBox = QtWidgets.QMessageBox(self)
+            msgBox.setText(f"Failed to get new dataset value: {ex}")
+            msgBox.exec()
+        else:
+            asyncio.ensure_future(rename(self.key, newkey, value, self.dataset_ctl))
+            QtWidgets.QDialog.accept(self)
 
     def get_edit_widget(self, initial_value):
         raise NotImplementedError
