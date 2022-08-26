@@ -276,7 +276,7 @@ class LogDock(QDockWidgetCloseDetect):
         self.model.rowsInserted.connect(self.rows_inserted_after)
         self.model.rowsRemoved.connect(self.rows_removed)
 
-        self.filter_freetext.textChanged.connect(self.apply_text_filter)
+        self.filter_freetext.returnPressed.connect(self.apply_text_filter)
         self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
 
     def apply_text_filter(self):
