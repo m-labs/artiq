@@ -94,6 +94,16 @@ class StringEditor(Editor):
         return self.edit_widget.text()
 
 
+class PyonEditor(Editor):
+    def get_edit_widget(self, initial_value):
+        self.edit_widget = QtWidgets.QLineEdit()
+        self.edit_widget.setText(pyon.encode(initial_value))
+        return self.edit_widget
+
+    def get_edit_widget_value(self):
+        return pyon.decode(self.edit_widget.text())
+
+
 class Creator(QtWidgets.QDialog):
     def __init__(self, parent, dataset_ctl):
         QtWidgets.QDialog.__init__(self, parent=parent)
@@ -243,9 +253,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
                 elif np.issubdtype(t, np.unicode_):
                     dialog_cls = StringEditor
                 else:
-                    logger.error("Cannot edit dataset %s: "
-                                 "type %s is not supported", key, t)
-                    return
+                    dialog_cls = PyonEditor
                 dialog_cls(self, self.dataset_ctl, key, value).open()
 
     def delete_clicked(self):
