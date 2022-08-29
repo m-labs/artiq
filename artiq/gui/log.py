@@ -18,6 +18,32 @@ class _ModelItem:
         self.children_by_row = []
 
 
+class _LogFilterProxyModel(QtCore.QSortFilterProxyModel):
+    def __init__(self):
+        super().__init__()
+        self.setFilterCaseSensitivity(QtCore.Qt.CaseInsensitive)
+        self.setRecursiveFilteringEnabled(True)
+        self.filter_level = 0
+
+    def filterAcceptsRow(self, source_row, source_parent):
+        source = self.sourceModel()
+        index0 = source.index(source_row, 0, source_parent)
+        index1 = source.index(source_row, 1, source_parent)
+        level = source.data(index0, QtCore.Qt.UserRole)
+
+        if level >= self.filter_level:
+            regex = self.filterRegExp()
+            index0_text = source.data(index0, QtCore.Qt.DisplayRole)
+            msg_text = source.data(index1, QtCore.Qt.DisplayRole)
+            return (regex.indexIn(index0_text) != -1 or regex.indexIn(msg_text) != -1)
+        else:
+            return False
+
+    def apply_filter_level(self, filter_level):
+        self.filter_level = getattr(logging, filter_level)
+        self.invalidateFilter()
+
+
 class _Model(QtCore.QAbstractItemModel):
     def __init__(self):
         QtCore.QAbstractTableModel.__init__(self)
@@ -168,6 +194,8 @@ class _Model(QtCore.QAbstractItemModel):
             return (log_level_to_name(v[0]) + ", " +
                 time.strftime("%m/%d %H:%M:%S", time.localtime(v[2])) +
                 "\n" + v[3][lineno])
+        elif role == QtCore.Qt.UserRole:
+            return self.entries[msgnum][0]
 
 
 class LogDock(QDockWidgetCloseDetect):
@@ -240,27 +268,22 @@ class LogDock(QDockWidgetCloseDetect):
         self.log.header().resizeSection(0, 26*cw)
 
         self.model = _Model()
-        self.log.setModel(self.model)
+        self.proxy_model = _LogFilterProxyModel()
+        self.proxy_model.setSourceModel(self.model)
+        self.log.setModel(self.proxy_model)
+
         self.model.rowsAboutToBeInserted.connect(self.rows_inserted_before)
         self.model.rowsInserted.connect(self.rows_inserted_after)
         self.model.rowsRemoved.connect(self.rows_removed)
 
-    def append_message(self, msg):
-        min_level = getattr(logging, self.filter_level.currentText())
-        freetext = self.filter_freetext.text()
+        self.filter_freetext.returnPressed.connect(self.apply_text_filter)
+        self.filter_level.currentIndexChanged.connect(self.apply_level_filter)
 
-        accepted_level = msg[0] >= min_level
+    def apply_text_filter(self):
+        self.proxy_model.setFilterRegExp(self.filter_freetext.text())
 
-        if freetext:
-            data_source = msg[1]
-            data_message = msg[3]
-            accepted_freetext = (freetext in data_source
-                or any(freetext in m for m in data_message))
-        else:
-            accepted_freetext = True
-
-        if accepted_level and accepted_freetext:
-            self.model.append(msg)
+    def apply_level_filter(self):
+        self.proxy_model.apply_filter_level(self.filter_level.currentText())
 
     def scroll_to_bottom(self):
         self.log.scrollToBottom()
@@ -291,7 +314,8 @@ class LogDock(QDockWidgetCloseDetect):
     def copy_to_clipboard(self):
         idx = self.log.selectedIndexes()
         if idx:
-            entry = "\n".join(self.model.full_entry(idx[0]))
+            source_idx = self.proxy_model.mapToSource(idx[0])
+            entry = "\n".join(self.model.full_entry(source_idx))
             QtWidgets.QApplication.clipboard().setText(entry)
 
     def save_state(self):
@@ -331,7 +355,7 @@ class LogDockManager:
 
     def append_message(self, msg):
         for dock in self.docks.values():
-            dock.append_message(msg)
+            dock.model.append(msg)
 
     def create_new_dock(self, add_to_area=True):
         n = 0
