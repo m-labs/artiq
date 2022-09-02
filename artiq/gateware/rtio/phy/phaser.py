@@ -91,7 +91,7 @@ class Base(Module):
 
 
 class MiqroChannel(Module):
-    def __init__(self, regs):
+    def __init__(self):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=30, address_width=2, fine_ts_width=1,
                               enable_replace=False))
@@ -100,7 +100,7 @@ class MiqroChannel(Module):
         regs = [Signal(30, reset_less=True) for _ in range(3)]
         dt = Signal(7, reset_less=True)
         stb = Signal()
-        self.comb += self.pulase.payload.data.eq(Cat(stb, dt, regs))
+        self.comb += self.pulse.eq(Cat(stb, dt, regs))
         self.sync.rtio += [
             dt.eq(dt + 2),
             If(self.ack,
@@ -145,8 +145,8 @@ class Miqro(Module):
         self.comb += [
             self.serializer.payload.eq(Cat(
                 header.raw_bits(),
-                self.ch0.pulse.payload,
-                self.ch1.pulse.payload,
+                self.ch0.pulse,
+                self.ch1.pulse,
             )),
             self.ch0.ack.eq(self.serializer.stb),
             self.ch1.ack.eq(self.serializer.stb),

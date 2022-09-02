@@ -47,6 +47,9 @@ PHASER_ADDR_SERVO_CFG1 = 0x31
 # 0x32 - 0x71 servo coefficients + offset data
 PHASER_ADDR_SERVO_DATA_BASE = 0x32
 
+# 0x78 Miqro channel profile/window memories
+PHASER_ADDR_MIQRO_ADDR = 0x78
+PHASER_ADDR_MIQRO_DATA = 0x7a
 
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
@@ -1280,3 +1283,59 @@ class Miqro:
         self.channel = channel
         self.base_addr = (self.channel.phaser.channel_base + 1 +
                 self.channel.index) << 8
+
+    @kernel
+    def write8(self, addr, data):
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_ADDR,
+                (self.channel.index << 13) | addr)
+        self.channel.phaser.write8(PHASER_ADDR_MIQRO_DATA,
+                data)
+
+    @kernel
+    def write32(self, addr, data):
+        for i in range(4):
+            self.write8(addr + i, data >> (i * 8))
+
+    @kernel
+    def set_frequency_mu(self, oscillator, profile, ftw):
+        self.write32((1 << 12) | (oscillator << 8) | (profile << 3), ftw)
+
+    @kernel
+    def set_amplitude_phase_mu(self, oscillator, profile, asf, pow=0):
+        self.write32((1 << 12) | (oscillator << 8) | (profile << 3) | (1 << 2),
+            (asf & 0xffff) | (pow << 16))
+
+    @kernel
+    def set_window(self, start, data, rate=1, shift=0, order=3, head=1, tail=1):
+        if len(data) == 0 or len(data) >= (1 << 10):
+            raise ValueError("invalid window length")
+        if rate < 1 or rate > 1 << 12:
+            raise ValueError("rate out of bounds")
+        addr = start << 2
+        self.write32(addr,
+            ((start + 1 + len(data)) & 0x3ff)
+            | ((rate - 1) << 10)
+            | (shift << 22)
+            | (order << 28)
+            | (head << 30)
+            | (tail << 31)
+        )
+        for i in range(len(data)):
+            addr += 4
+            self.write32(addr, (data[i][0] & 0xffff) | (data[i][1] << 16))
+
+    @kernel
+    def pulse(self, window, profiles):
+        data = [window, 0, 0]
+        word = 0
+        idx = 10
+        for i in range(len(profiles)):
+            if idx >= 30:
+                word += 1
+                idx = 0
+            data[word] |= profiles[i] << (idx * 5)
+            idx += 5
+        while word >= 0:
+            rtio_output(self.base_addr + word, data[word])
+            delay_mu(8)
+            word -= 1
