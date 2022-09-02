@@ -92,11 +92,11 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
 
 #[cfg(soc_platform = "kasli")]
 fn set_clocks() {
-    unsafe { 
-        // 125mhz ref (no si5324) - default 
-        board_misoc::csr::crg::clock_sel_write(0);
+    unsafe {  
+        board_misoc::csr::crg::mmcm_reset_write(1);
     }
-    //set up 125mhz clock from internal oscillator (base option)
+    //set up 125mhz clock from internal oscillator (base option) - kasli 2.0+
+    #[cfg(hw_rev = "v2.0")]
     let setting = si5324::FrequencySettings {
         n1_hs  : 10,
         nc1_ls : 4,
@@ -107,17 +107,35 @@ fn set_clocks() {
         bwsel  : 4,
         crystal_ref: true
     };
-    let si5324_ref_input = si5324::Input::Ckin2;
-    let _ = si5324::setup(&setting, si5324_ref_input, true);
+    // 100mhz clock for kasli 1.0/1.1 (either internal or 100mhz bypass supported)
+    #[cfg(any(hw_rev = "v1.0", hw_rev = "v1.1"))]
+    let setting = si5324::FrequencySettings {
+        n1_hs  : 9,
+        nc1_ls : 6,
+        n2_hs  : 10,
+        n2_ls  : 33732,
+        n31    : 7139,
+        n32    : 7139,
+        bwsel  : 3,
+        crystal_ref: true
+    };
+    let res = si5324::setup(&setting, si5324::Input::Ckin2, true);
+    match res {
+        Ok(_) => { println!("si5324 clock locked!"); }
+        Err(x) => { println!("si5324 lock error! {}", x); }
+    };
     // switch clk again
     println!("switching to si5324!");
     unsafe {
-        board_misoc::csr::crg::clock_sel_write(1);
-        // wait for pll to lock
-        while board_misoc::csr::crg::pll_locked_read() == 0 {}
+        // wait for mmcm to lock
+        board_misoc::csr::crg::mmcm_reset_write(0);
+        clock::spin_us(10_000);
+        while board_misoc::csr::crg::mmcm_locked_read() == 0 {}
+        board_misoc::csr::crg::clock_sel_write(1); 
+        // clock::spin_us(20_000);
     }
+    // clock::spin_us(20_000);
     println!("clock switched!");
-
 }
 
 fn startup() -> bool {
@@ -560,7 +578,15 @@ pub extern fn main() -> i32 {
     }
 
     println!("No boot medium.");
-    loop {}
+    loop {
+        #[cfg(has_error_led)]
+        unsafe {
+            board_misoc::csr::error_led::out_write(1);
+            clock::spin_us(1_000_000);
+            board_misoc::csr::error_led::out_write(0);
+            clock::spin_us(1_000_000);
+        }    
+    }
 }
 
 #[no_mangle]
