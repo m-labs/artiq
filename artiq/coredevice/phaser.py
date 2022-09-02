@@ -48,8 +48,8 @@ PHASER_ADDR_SERVO_CFG1 = 0x31
 PHASER_ADDR_SERVO_DATA_BASE = 0x32
 
 # 0x78 Miqro channel profile/window memories
-PHASER_ADDR_MIQRO_ADDR = 0x78
-PHASER_ADDR_MIQRO_DATA = 0x7a
+PHASER_ADDR_MIQRO_MEM_ADDR = 0x78
+PHASER_ADDR_MIQRO_MEM_DATA = 0x7a
 
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
@@ -1286,9 +1286,9 @@ class Miqro:
 
     @kernel
     def write8(self, addr, data):
-        self.channel.phaser.write16(PHASER_ADDR_MIQRO_ADDR,
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
                 (self.channel.index << 13) | addr)
-        self.channel.phaser.write8(PHASER_ADDR_MIQRO_DATA, data)
+        self.channel.phaser.write8(PHASER_ADDR_MIQRO_MEM_DATA, data)
 
     @kernel
     def write32(self, addr, data):
