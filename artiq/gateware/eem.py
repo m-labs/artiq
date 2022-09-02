@@ -709,20 +709,33 @@ class Phaser(_EEM):
             ) for pol in "pn"]
 
     @classmethod
-    def add_std(cls, target, eem, iostandard=default_iostandard):
+    def add_std(cls, target, eem, mode, iostandard=default_iostandard):
         cls.add_extension(target, eem, iostandard=iostandard)
 
-        phy = phaser.Phaser(
-            target.platform.request("phaser{}_ser_p".format(eem)),
-            target.platform.request("phaser{}_ser_n".format(eem)))
-        target.submodules += phy
-        target.rtio_channels.extend([
-            rtio.Channel.from_phy(phy, ififo_depth=4),
-            rtio.Channel.from_phy(phy.ch0.frequency),
-            rtio.Channel.from_phy(phy.ch0.phase_amplitude),
-            rtio.Channel.from_phy(phy.ch1.frequency),
-            rtio.Channel.from_phy(phy.ch1.phase_amplitude),
-        ])
+        if mode == "phaser":
+            phy = phaser.Phaser(
+                target.platform.request("phaser{}_ser_p".format(eem)),
+                target.platform.request("phaser{}_ser_n".format(eem)))
+            target.submodules += phy
+            target.rtio_channels.extend([
+                rtio.Channel.from_phy(phy, ififo_depth=4),
+                rtio.Channel.from_phy(phy.ch0.frequency),
+                rtio.Channel.from_phy(phy.ch0.phase_amplitude),
+                rtio.Channel.from_phy(phy.ch1.frequency),
+                rtio.Channel.from_phy(phy.ch1.phase_amplitude),
+            ])
+        elif mode == "miqro":
+            phy = phaser.Miqro(
+                target.platform.request("phaser{}_ser_p".format(eem)),
+                target.platform.request("phaser{}_ser_n".format(eem)))
+            target.submodules += phy
+            target.rtio_channels.extend([
+                rtio.Channel.from_phy(phy, ififo_depth=4),
+                rtio.Channel.from_phy(phy.ch0),
+                rtio.Channel.from_phy(phy.ch1),
+            ])
+        else:
+            raise ValueError("invalid mode", mode)
 
 
 class HVAmp(_EEM):
