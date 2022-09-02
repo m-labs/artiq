@@ -111,6 +111,9 @@ class MiqroChannel(Module):
             If(self.ack,
                 dt[1:].eq(0),
                 stb.eq(0),
+                If(stb,
+                    [r.eq(0) for r in regs],
+                ),
             ),
             If(self.rtlink.o.stb,
                 Array(regs)[self.rtlink.o.address].eq(self.rtlink.o.data),
@@ -159,7 +162,7 @@ class Miqro(Module):
 
         re_dly = Signal(3)  # stage, send, respond
         self.sync.rtio += [
-            header.type.eq(1),  # body type is miqro pulse data
+            header.type.eq(3),  # body type is miqro pulse data
             If(self.serializer.stb,
                 header.we.eq(0),
                 re_dly.eq(re_dly[1:]),

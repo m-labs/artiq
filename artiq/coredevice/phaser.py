@@ -1351,6 +1351,7 @@ class Miqro:
                 idx = 0
             data[word] |= (profiles[i] & 0x1f) << idx
             idx += 5
+        delay_mu(-8*word)
         while word >= 0:
             rtio_output(self.base_addr + word, data[word])
             delay_mu(8)
