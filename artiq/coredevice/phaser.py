@@ -1288,8 +1288,7 @@ class Miqro:
     def write8(self, addr, data):
         self.channel.phaser.write16(PHASER_ADDR_MIQRO_ADDR,
                 (self.channel.index << 13) | addr)
-        self.channel.phaser.write8(PHASER_ADDR_MIQRO_DATA,
-                data)
+        self.channel.phaser.write8(PHASER_ADDR_MIQRO_DATA, data)
 
     @kernel
     def write32(self, addr, data):
@@ -1298,16 +1297,24 @@ class Miqro:
 
     @kernel
     def set_frequency_mu(self, oscillator, profile, ftw):
+        if oscillator >= 16:
+            raise ValueError("invalid oscillator index")
+        if profile >= 32:
+            raise ValueError("invalid profile index")
         self.write32((1 << 12) | (oscillator << 8) | (profile << 3), ftw)
 
     @kernel
     def set_amplitude_phase_mu(self, oscillator, profile, asf, pow=0):
+        if oscillator >= 16:
+            raise ValueError("invalid oscillator index")
+        if profile >= 32:
+            raise ValueError("invalid profile index")
         self.write32((1 << 12) | (oscillator << 8) | (profile << 3) | (1 << 2),
             (asf & 0xffff) | (pow << 16))
 
     @kernel
-    def set_window(self, start, data, rate=1, shift=0, order=3, head=1, tail=1):
-        if len(data) == 0 or len(data) >= (1 << 10):
+    def set_window(self, start, data, rate=1, shift=0, order=0, head=1, tail=1):
+        if len(data) >= 1 << 10:
             raise ValueError("invalid window length")
         if rate < 1 or rate > 1 << 12:
             raise ValueError("rate out of bounds")
@@ -1315,10 +1322,10 @@ class Miqro:
         self.write32(addr,
             ((start + 1 + len(data)) & 0x3ff)
             | ((rate - 1) << 10)
-            | (shift << 22)
-            | (order << 28)
-            | (head << 30)
-            | (tail << 31)
+            | ((shift & 0x3f) << 22)
+            | ((order & 3) << 28)
+            | ((head & 1) << 30)
+            | ((tail & 1) << 31)
         )
         for i in range(len(data)):
             addr += 4
@@ -1326,6 +1333,10 @@ class Miqro:
 
     @kernel
     def pulse(self, window, profiles):
+        if len(profiles) > 16:
+            raise ValueError("too many oscillators")
+        if window > 0x3ff:
+            raise ValueError("invalid window")
         data = [window, 0, 0]
         word = 0
         idx = 10
@@ -1333,7 +1344,7 @@ class Miqro:
             if idx >= 30:
                 word += 1
                 idx = 0
-            data[word] |= profiles[i] << (idx * 5)
+            data[word] |= (profiles[i] & 0x1f) << idx
             idx += 5
         while word >= 0:
             rtio_output(self.base_addr + word, data[word])

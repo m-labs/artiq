@@ -100,11 +100,16 @@ class MiqroChannel(Module):
         regs = [Signal(30, reset_less=True) for _ in range(3)]
         dt = Signal(7, reset_less=True)
         stb = Signal()
-        self.comb += self.pulse.eq(Cat(stb, dt, regs))
+        pulse = Cat(stb, dt, regs)
+        assert len(self.pulse) >= len(pulse)
+        self.comb += [
+            self.pulse.eq(pulse),
+            self.rtlink.o.busy.eq(stb & ~self.ack),
+        ]
         self.sync.rtio += [
             dt.eq(dt + 2),
             If(self.ack,
-                dt.eq(0),
+                dt[1:].eq(0),
                 stb.eq(0),
             ),
             If(self.rtlink.o.stb,
