@@ -48,8 +48,8 @@ PHASER_ADDR_SERVO_CFG1 = 0x31
 PHASER_ADDR_SERVO_DATA_BASE = 0x32
 
 # 0x78 Miqro channel profile/window memories
-PHASER_ADDR_MIQRO_MEM_ADDR = 0x78
-PHASER_ADDR_MIQRO_MEM_DATA = 0x7a
+PHASER_ADDR_MIQRO_MEM_ADDR = 0x72
+PHASER_ADDR_MIQRO_MEM_DATA = 0x74
 
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
@@ -1285,15 +1285,16 @@ class Miqro:
                 self.channel.index) << 8
 
     @kernel
-    def write8(self, addr, data):
+    def write32(self, addr, data):
         self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
-                (self.channel.index << 13) | addr)
-        self.channel.phaser.write8(PHASER_ADDR_MIQRO_MEM_DATA, data)
+                (self.channel.index << 15) | addr)
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, data)
 
     @kernel
-    def write32(self, addr, data):
-        for i in range(4):
-            self.write8(addr + i, data >> (i * 8))
+    def read32(self, addr):
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
+                (self.channel.index << 15) | addr)
+        return self.channel.phaser.read32(PHASER_ADDR_MIQRO_MEM_DATA)
 
     @kernel
     def set_frequency_mu(self, oscillator, profile, ftw):
@@ -1301,7 +1302,7 @@ class Miqro:
             raise ValueError("invalid oscillator index")
         if profile >= 32:
             raise ValueError("invalid profile index")
-        self.write32((1 << 12) | (oscillator << 8) | (profile << 3), ftw)
+        self.write32((1 << 14) | (oscillator << 6) | (profile << 1), ftw)
 
     @kernel
     def set_amplitude_phase_mu(self, oscillator, profile, asf, pow=0):
@@ -1309,26 +1310,30 @@ class Miqro:
             raise ValueError("invalid oscillator index")
         if profile >= 32:
             raise ValueError("invalid profile index")
-        self.write32((1 << 12) | (oscillator << 8) | (profile << 3) | (1 << 2),
+        self.write32((1 << 14) | (oscillator << 6) | (profile << 1) | 1,
             (asf & 0xffff) | (pow << 16))
 
     @kernel
-    def set_window(self, start, data, rate=1, shift=0, order=0, head=1, tail=1):
+    def set_window(self, start, data, rate=1, shift=0, order=0, head=0, tail=0):
         if len(data) >= 1 << 10:
             raise ValueError("invalid window length")
         if rate < 1 or rate > 1 << 12:
             raise ValueError("rate out of bounds")
-        addr = start << 2
+        if shift > 0x3f:
+            raise ValueError("shift out of bounds")
+        if order > 3:
+            raise ValueError("order out of bounds")
+        addr = start
         self.write32(addr,
             ((start + 1 + len(data)) & 0x3ff)
             | ((rate - 1) << 10)
-            | ((shift & 0x3f) << 22)
-            | ((order & 3) << 28)
+            | (shift << 22)
+            | (order << 28)
             | ((head & 1) << 30)
             | ((tail & 1) << 31)
         )
         for i in range(len(data)):
-            addr += 4
+            addr += 1
             self.write32(addr, (data[i][0] & 0xffff) | (data[i][1] << 16))
 
     @kernel
