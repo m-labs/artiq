@@ -1335,6 +1335,7 @@ class Miqro:
         for i in range(len(data)):
             addr += 1
             self.write32(addr, (data[i][0] & 0xffff) | (data[i][1] << 16))
+            delay(10*us)
 
     @kernel
     def pulse(self, window, profiles):
