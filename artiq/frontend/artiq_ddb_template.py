@@ -559,6 +559,7 @@ class PeripheralManager:
         return 1
 
     def process_phaser(self, rtio_offset, peripheral):
+        mode = peripheral.get("mode", "base")
         self.gen("""
             device_db["{name}"] = {{
                 "type": "local",
@@ -567,11 +568,14 @@ class PeripheralManager:
                 "arguments": {{
                     "channel_base": 0x{channel:06x},
                     "miso_delay": 1,
+                    "mode": "{mode}"
                 }}
             }}""",
             name=self.get_name("phaser"),
+            mode=mode,
             channel=rtio_offset)
-        return 5
+        rtio_channels = {"base": 5, "miqro": 3}[mode]
+        return rtio_channels
 
     def process_hvamp(self, rtio_offset, peripheral):
         hvamp_name = self.get_name("hvamp")

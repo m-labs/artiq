@@ -28,7 +28,7 @@ class DDSChannel(Module):
             [Cat(i.a, i.clr, i.p) for i in self.dds.i])
 
 
-class Phaser(Module):
+class Base(Module):
     def __init__(self, pins, pins_n):
         self.rtlink = rtlink.Interface(
             rtlink.OInterface(data_width=8, address_width=8,

@@ -190,7 +190,7 @@ class Phaser:
 
     def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
                  clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None,
-                 core_device="core"):
+                 mode="base", core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         # TODO: auto-align miso-delay in phy
@@ -230,6 +230,8 @@ class Phaser:
         if debug:
             print("gw_rev:", gw_rev)
             self.core.break_realtime()
+        is_base = gw_rev == 1
+        is_miqro = gw_rev == 2
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot
@@ -350,32 +352,33 @@ class Phaser:
 
             channel.set_servo(profile=0, enable=0, hold=1)
 
-            # test oscillators and DUC
-            for i in range(len(channel.oscillator)):
-                oscillator = channel.oscillator[i]
-                asf = 0
-                if i == 0:
-                    asf = 0x7fff
-                # 6pi/4 phase
-                oscillator.set_amplitude_phase_mu(asf=asf, pow=0xc000, clr=1)
+            if is_base:
+                # test oscillators and DUC
+                for i in range(len(channel.oscillator)):
+                    oscillator = channel.oscillator[i]
+                    asf = 0
+                    if i == 0:
+                        asf = 0x7fff
+                    # 6pi/4 phase
+                    oscillator.set_amplitude_phase_mu(asf=asf, pow=0xc000, clr=1)
+                    delay(1*us)
+                # 3pi/4
+                channel.set_duc_phase_mu(0x6000)
+                channel.set_duc_cfg(select=0, clr=1)
+                self.duc_stb()
+                delay(.1*ms)  # settle link, pipeline and impulse response
+                data = channel.get_dac_data()
                 delay(1*us)
-            # 3pi/4
-            channel.set_duc_phase_mu(0x6000)
-            channel.set_duc_cfg(select=0, clr=1)
-            self.duc_stb()
-            delay(.1*ms)  # settle link, pipeline and impulse response
-            data = channel.get_dac_data()
-            delay(1*us)
-            channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
-                                                         clr=1)
-            delay(.1*ms)
-            sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
-            data_i = data & 0xffff
-            data_q = (data >> 16) & 0xffff
-            # allow ripple
-            if (data_i < sqrt2 - 30 or data_i > sqrt2 or
-                    abs(data_i - data_q) > 2):
-                raise ValueError("DUC+oscillator phase/amplitude test failed")
+                channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
+                                                            clr=1)
+                delay(.1*ms)
+                sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
+                data_i = data & 0xffff
+                data_q = (data >> 16) & 0xffff
+                # allow ripple
+                if (data_i < sqrt2 - 30 or data_i > sqrt2 or
+                        abs(data_i - data_q) > 2):
+                    raise ValueError("DUC+oscillator phase/amplitude test failed")
 
             if is_baseband:
                 continue
@@ -826,6 +829,7 @@ class PhaserChannel:
         self.trf_mmap = TRF372017(trf).get_mmap()
 
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
+        self.miqro = Miqro(self)
 
     @kernel
     def get_dac_data(self) -> TInt32:
@@ -1139,7 +1143,7 @@ class PhaserChannel:
         for data in [b0, b1, a1, offset]:
             self.phaser.write16(addr, data)
             addr += 2
-    
+
     @kernel
     def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
         """Set servo profile IIR coefficients.
@@ -1269,3 +1273,10 @@ class PhaserOscillator:
             raise ValueError("amplitude out of bounds")
         pow = int32(round(phase*(1 << 16)))
         self.set_amplitude_phase_mu(asf, pow, clr)
+
+
+class Miqro:
+    def __init__(self, channel):
+        self.channel = channel
+        self.base_addr = (self.channel.phaser.channel_base + 1 +
+                self.channel.index) << 8

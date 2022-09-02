@@ -709,11 +709,11 @@ class Phaser(_EEM):
             ) for pol in "pn"]
 
     @classmethod
-    def add_std(cls, target, eem, mode, iostandard=default_iostandard):
+    def add_std(cls, target, eem, mode="base", iostandard=default_iostandard):
         cls.add_extension(target, eem, iostandard=iostandard)
 
-        if mode == "phaser":
-            phy = phaser.Phaser(
+        if mode == "base":
+            phy = phaser.Base(
                 target.platform.request("phaser{}_ser_p".format(eem)),
                 target.platform.request("phaser{}_ser_n".format(eem)))
             target.submodules += phy
