@@ -1291,55 +1291,37 @@ class Miqro:
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, data)
 
     @kernel
-    def read32(self, addr):
-        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
-                (self.channel.index << 15) | addr)
-        return self.channel.phaser.read32(PHASER_ADDR_MIQRO_MEM_DATA)
-
-    @kernel
     def reset(self):
         for osc in range(16):
             for pro in range(32):
-                self.set_frequency_mu(osc, pro, 0)
-                self.set_amplitude_phase_mu(osc, pro, 0, 0)
+                self.set_profile_mu(osc, pro, 0, 0, 0)
                 delay(20*us)
         self.set_window_mu(
                 start=0, data=[[0, 0]], rate=1, shift=0, order=0, head=0, tail=1)
-        # naive check that we are actually writing something
-        if self.read32(0) != (1 << 31) | 2 or self.read32(1) != 0:
-            raise ValueError("window write failed")
-        delay(100*us)
         self.pulse(window=0, profiles=[0])
 
     @kernel
-    def set_frequency_mu(self, oscillator, profile, ftw):
+    def set_profile_mu(self, oscillator, profile, ftw, asf, pow=0):
         if oscillator >= 16:
             raise ValueError("invalid oscillator index")
         if profile >= 32:
             raise ValueError("invalid profile index")
-        self.write32((1 << 14) | (oscillator << 6) | (profile << 1), ftw)
-
-    @kernel
-    def set_frequency(oscillator, profile, frequency):
-        ftw = int32(round(frequency*((1 << 30)/(62.5*MHz))))
-        self.set_frequency_mu(ftw)
-
-    @kernel
-    def set_amplitude_phase_mu(self, oscillator, profile, asf, pow=0):
-        if oscillator >= 16:
-            raise ValueError("invalid oscillator index")
-        if profile >= 32:
-            raise ValueError("invalid profile index")
-        self.write32((1 << 14) | (oscillator << 6) | (profile << 1) | 1,
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
+                (self.channel.index << 15) | (1 << 14) | (oscillator << 6) |
+                (profile << 1))
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, ftw)
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
             (asf & 0xffff) | (pow << 16))
 
     @kernel
-    def set_amplitude_phase(self, oscillator, profile, amplitude, phase=0):
+    def set_profile(oscillator, profile, frequency, amplitude, phase=0.):
+        # frequency is interpreted in the Nyquist sense, i.e. aliased
+        ftw = int32(round(frequency*((1 << 30)/(62.5*MHz))))
         asf = int32(round(amplitude*0xffff))
         if asf < 0 or asf > 0xffff:
             raise ValueError("amplitude out of bounds")
         pow = int32(round(phase*(1 << 16)))
-        self.set_amplitude_phase_mu(oscillator, profile, asf, pow)
+        self.set_profile_mu(oscillator, profile, ftw, asf, pow)
 
     @kernel
     def set_window_mu(self, start, data, rate=1, shift=0, order=0, head=0, tail=0):
@@ -1353,8 +1335,9 @@ class Miqro:
             raise ValueError("shift out of bounds")
         if order > 3:
             raise ValueError("order out of bounds")
-        addr = start
-        self.write32(addr,
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
+                (self.channel.index << 15) | start)
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
             ((start + 1 + len(data)) & 0x3ff)
             | ((rate - 1) << 10)
             | (shift << 22)
@@ -1362,10 +1345,11 @@ class Miqro:
             | ((head & 1) << 30)
             | ((tail & 1) << 31)
         )
-        for i in range(len(data)):
-            addr += 1
-            self.write32(addr, (data[i][0] & 0xffff) | (data[i][1] << 16))
+        for d in data:
+            self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
+                (d[0] & 0xffff) | (d[1] << 16))
             delay(10*us)
+        return (start + 1 + len(data)) & 0x3ff
 
     @kernel
     def pulse(self, window, profiles):
