@@ -1297,12 +1297,32 @@ class Miqro:
         return self.channel.phaser.read32(PHASER_ADDR_MIQRO_MEM_DATA)
 
     @kernel
+    def reset(self):
+        for osc in range(16):
+            for pro in range(32):
+                self.set_frequency_mu(osc, pro, 0)
+                self.set_amplitude_phase_mu(osc, pro, 0, 0)
+                delay(20*us)
+        self.set_window_mu(
+                start=0, data=[[0, 0]], rate=1, shift=0, order=0, head=0, tail=1)
+        # naive check that we are actually writing something
+        if self.read32(0) != (1 << 31) | 2 or self.read32(1) != 0:
+            raise ValueError("window write failed")
+        delay(100*us)
+        self.pulse(window=0, profiles=[0])
+
+    @kernel
     def set_frequency_mu(self, oscillator, profile, ftw):
         if oscillator >= 16:
             raise ValueError("invalid oscillator index")
         if profile >= 32:
             raise ValueError("invalid profile index")
         self.write32((1 << 14) | (oscillator << 6) | (profile << 1), ftw)
+
+    @kernel
+    def set_frequency(oscillator, profile, frequency):
+        ftw = int32(round(frequency*((1 << 30)/(62.5*MHz))))
+        self.set_frequency_mu(ftw)
 
     @kernel
     def set_amplitude_phase_mu(self, oscillator, profile, asf, pow=0):
@@ -1314,9 +1334,19 @@ class Miqro:
             (asf & 0xffff) | (pow << 16))
 
     @kernel
-    def set_window(self, start, data, rate=1, shift=0, order=0, head=0, tail=0):
+    def set_amplitude_phase(self, oscillator, profile, amplitude, phase=0):
+        asf = int32(round(amplitude*0xffff))
+        if asf < 0 or asf > 0xffff:
+            raise ValueError("amplitude out of bounds")
+        pow = int32(round(phase*(1 << 16)))
+        self.set_amplitude_phase_mu(oscillator, profile, asf, pow)
+
+    @kernel
+    def set_window_mu(self, start, data, rate=1, shift=0, order=0, head=0, tail=0):
+        if start >= 1 << 10:
+            raise ValueError("start out of bouncs")
         if len(data) >= 1 << 10:
-            raise ValueError("invalid window length")
+            raise ValueError("window length out of bounds")
         if rate < 1 or rate > 1 << 12:
             raise ValueError("rate out of bounds")
         if shift > 0x3f:
@@ -1342,11 +1372,13 @@ class Miqro:
         if len(profiles) > 16:
             raise ValueError("too many oscillators")
         if window > 0x3ff:
-            raise ValueError("invalid window")
+            raise ValueError("window start out of bounds")
         data = [window, 0, 0]
         word = 0
         idx = 10
         for i in range(len(profiles)):
+            if profiles[i] > 0x1f:
+                raise ValueError("profile out of bounds")
             if idx >= 30:
                 word += 1
                 idx = 0
