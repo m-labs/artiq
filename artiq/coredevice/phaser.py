@@ -383,6 +383,9 @@ class Phaser:
                         abs(data_i - data_q) > 2):
                     raise ValueError("DUC+oscillator phase/amplitude test failed")
 
+            if is_miqro:
+                channel.miqro.reset()
+
             if is_baseband:
                 continue
 
@@ -1485,4 +1488,4 @@ class Miqro:
         data = [0, 0, 0]
         words = self.encode(window, profiles, data)
         delay_mu(-8*words)
-        self.pulse_mu(data[:words])
+        self.pulse_mu(data[:words + 1])
