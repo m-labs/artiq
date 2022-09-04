@@ -1456,12 +1456,12 @@ class Miqro:
         return (start + 1 + len(data)) & 0x3ff
 
     @kernel
-    def pulse(self, window, profiles):
+    def encode(self, window, profiles, data):
         if len(profiles) > 16:
             raise ValueError("too many oscillators")
         if window > 0x3ff:
             raise ValueError("window start out of bounds")
-        data = [window, 0, 0]
+        data[0] = window
         word = 0
         idx = 10
         for i in range(len(profiles)):
@@ -1472,8 +1472,17 @@ class Miqro:
                 idx = 0
             data[word] |= (profiles[i] & 0x1f) << idx
             idx += 5
-        delay_mu(-8*word)
-        while word >= 0:
+        return word
+
+    @kernel
+    def pulse_mu(self, data):
+        for word in range(len(data) - 1, -1, -1):
             rtio_output(self.base_addr + word, data[word])
             delay_mu(8)
-            word -= 1
+
+    @kernel
+    def pulse(self, window, profiles):
+        data = [0, 0, 0]
+        words = self.encode(window, profiles, data)
+        delay_mu(-8*words)
+        self.pulse_mu(data[:words])
