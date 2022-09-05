@@ -791,6 +791,8 @@ class Phaser:
             if good & (1 << o):
                 sum += o
                 count += 1
+        if count == 0:
+            raise ValueError("no good fifo offset")
         best = ((sum // count) + offset) % 8
         self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
         return best
