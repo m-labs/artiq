@@ -134,7 +134,7 @@
         doCheck = false;  # FIXME
       };
 
-      artiq = pkgs.python3Packages.buildPythonPackage rec {
+      artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
         version = artiqVersion;
         src = self;
@@ -173,6 +173,11 @@
           cp --no-preserve=mode,ownership -R $src/artiq/test/lit $TESTDIR
           LIBARTIQ_SUPPORT=`libartiq-support` lit -v $TESTDIR/lit
           '';
+      };
+
+      artiq = artiq-upstream // {
+        withExperimentalFeatures = features: artiq-upstream.overrideAttrs(oa:
+            { patches = map (f: ./experimental-features/${f}.diff) features; });
       };
 
       migen = pkgs.python3Packages.buildPythonPackage rec {
@@ -250,7 +255,7 @@
         runScript = "vivado";
       };
 
-      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
+      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}", experimentalFeatures ? [] }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
@@ -261,7 +266,7 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_11.clang-unwrapped
