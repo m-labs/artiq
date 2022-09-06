@@ -1437,7 +1437,7 @@ class Miqro:
     @kernel
     def set_window_mu(self, start, iq, rate=1, shift=0, order=3, head=1, tail=1):
         if start >= 1 << 10:
-            raise ValueError("start out of bouncs")
+            raise ValueError("start out of bounds")
         if len(iq) >= 1 << 10:
             raise ValueError("window length out of bounds")
         if rate < 1 or rate > 1 << 12:
