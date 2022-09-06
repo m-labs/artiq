@@ -51,6 +51,9 @@ PHASER_ADDR_SERVO_DATA_BASE = 0x32
 PHASER_ADDR_MIQRO_MEM_ADDR = 0x72
 PHASER_ADDR_MIQRO_MEM_DATA = 0x74
 
+# Miqro profile memory select
+PHASER_MIQRO_SEL_PROFILE = 1 << 14
+
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
 PHASER_SEL_TRF1 = 1 << 2
@@ -1405,8 +1408,7 @@ class Miqro:
             for pro in range(32):
                 self.set_profile_mu(osc, pro, 0, 0, 0)
                 delay(20*us)
-        self.set_window_mu(
-                start=0, data=[[0, 0]], rate=1, shift=0, order=0, head=0, tail=1)
+        self.set_window_mu(start=0, iq=[0], rate=1, shift=0, order=0, head=0, tail=1)
         self.pulse(window=0, profiles=[0])
 
     @kernel
@@ -1416,8 +1418,8 @@ class Miqro:
         if profile >= 32:
             raise ValueError("invalid profile index")
         self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
-                (self.channel.index << 15) | (1 << 14) | (oscillator << 6) |
-                (profile << 1))
+                (self.channel.index << 15) | PHASER_MIQRO_SEL_PROFILE |
+                (oscillator << 6) | (profile << 1))
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, ftw)
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
             (asf & 0xffff) | (pow << 16))
@@ -1433,10 +1435,10 @@ class Miqro:
         self.set_profile_mu(oscillator, profile, ftw, asf, pow)
 
     @kernel
-    def set_window_mu(self, start, data, rate=1, shift=0, order=0, head=0, tail=0):
+    def set_window_mu(self, start, iq, rate=1, shift=0, order=3, head=1, tail=1):
         if start >= 1 << 10:
             raise ValueError("start out of bouncs")
-        if len(data) >= 1 << 10:
+        if len(iq) >= 1 << 10:
             raise ValueError("window length out of bounds")
         if rate < 1 or rate > 1 << 12:
             raise ValueError("rate out of bounds")
@@ -1447,18 +1449,35 @@ class Miqro:
         self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
                 (self.channel.index << 15) | start)
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
-            ((start + 1 + len(data)) & 0x3ff)
-            | ((rate - 1) << 10)
-            | (shift << 22)
-            | (order << 28)
-            | ((head & 1) << 30)
-            | ((tail & 1) << 31)
+            ((start + 1 + len(iq)) & 0x3ff) |
+            ((rate - 1) << 10) |
+            (shift << 22) |
+            (order << 28) |
+            ((head & 1) << 30) |
+            ((tail & 1) << 31)
         )
-        for d in data:
-            self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
-                (d[0] & 0xffff) | (d[1] << 16))
-            delay(10*us)
-        return (start + 1 + len(data)) & 0x3ff
+        for iqi in iq:
+            self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, iqi)
+            delay(10*us)  # slack for long windows
+        return (start + 1 + len(iq)) & 0x3ff
+
+    @kernel
+    def set_window(self, start, iq, period=4*ns, order=3, head=1, tail=1):
+        rate = int32(round(period/(4*ns)))
+        gain = 1.
+        for _ in range(order):
+            gain *= rate
+        shift = 0
+        while gain >= 2.:
+            shift += 1
+            gain *= .5
+        scale = ((1 << 15) - 1)/gain
+        iq_mu = [
+            (int32(round(iqi[0]*scale)) & 0xffff) |
+            (int32(round(iqi[1]*scale)) << 16)
+            for iqi in iq
+        ]
+        self.set_window_mu(start, iq_mu, rate, shift, order, head, tail)
 
     @kernel
     def encode(self, window, profiles, data):
@@ -1477,17 +1496,20 @@ class Miqro:
                 idx = 0
             data[word] |= profile << idx
             idx += 5
-        return word
+        return word + 1
 
     @kernel
     def pulse_mu(self, data):
-        for word in range(len(data) - 1, -1, -1):
-            rtio_output(self.base_addr + word, data[word])
+        word = len(data)
+        delay_mu(-8*word)  # back shift to align
+        while word > 0:
             delay_mu(8)
+            word -= 1
+            # final write sets pulse stb
+            rtio_output(self.base_addr + word, data[word])
 
     @kernel
     def pulse(self, window, profiles):
         data = [0, 0, 0]
         words = self.encode(window, profiles, data)
-        delay_mu(-8*words)
-        self.pulse_mu(data[:words + 1])
+        self.pulse_mu(data[:words])
