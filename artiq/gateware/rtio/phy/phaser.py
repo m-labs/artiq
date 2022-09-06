@@ -99,7 +99,6 @@ class MiqroChannel(Module):
         self.ack = Signal()
         regs = [Signal(30, reset_less=True) for _ in range(3)]
         dt = Signal(7, reset_less=True)
-        dt_frame = Signal(6, reset_less=True)
         stb = Signal()
         pulse = Cat(stb, dt, regs)
         assert len(self.pulse) >= len(pulse)
@@ -108,9 +107,11 @@ class MiqroChannel(Module):
             self.rtlink.o.busy.eq(stb & ~self.ack),
         ]
         self.sync.rtio += [
-            dt_frame.eq(dt_frame + 1),
+            If(~stb,
+                dt.eq(dt + 2),
+            ),
             If(self.ack,
-                dt_frame.eq(0),
+                dt.eq(0),
                 If(stb,
                     [r.eq(0) for r in regs],
                 ),
@@ -119,7 +120,7 @@ class MiqroChannel(Module):
             If(self.rtlink.o.stb,
                 Array(regs)[self.rtlink.o.address].eq(self.rtlink.o.data),
                 If(self.rtlink.o.address == 0,
-                    dt.eq(Cat(self.rtlink.o.fine_ts, dt_frame)),
+                    dt[0].eq(self.rtlink.o.fine_ts),
                     stb.eq(1),
                 ),
             ),
