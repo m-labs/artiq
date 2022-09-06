@@ -1469,13 +1469,13 @@ class Miqro:
         data[0] = window
         word = 0
         idx = 10
-        for i in range(len(profiles)):
-            if profiles[i] > 0x1f:
+        for profile in profiles:
+            if profile > 0x1f:
                 raise ValueError("profile out of bounds")
             if idx >= 30:
                 word += 1
                 idx = 0
-            data[word] |= (profiles[i] & 0x1f) << idx
+            data[word] |= profile << idx
             idx += 5
         return word
 
