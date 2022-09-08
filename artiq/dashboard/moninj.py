@@ -8,7 +8,10 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from sipyco.sync_struct import Subscriber
 
 from artiq.coredevice.comm_moninj import *
-from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, _AD9910_REG_FTW
+from artiq.coredevice.ad9910 import (
+    _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, 
+    _AD9910_REG_FTW, _AD9910_REG_CFR1
+)
 from artiq.coredevice.ad9912_reg import AD9912_POW1, AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
@@ -584,8 +587,12 @@ class _DeviceManager:
                     self.{dds_channel}.init()
             """.format(dds_channel=dds_channel, cfgreg=AD9912_SER_CONF)
         elif dds_model.dds_type == "AD9910":
-            # TODO: verify AD9910 behavior (when we have hardware)
-            channel_init = "self.{dds_channel}.init()".format(dds_channel=dds_channel)
+            # -1 before init, 2 after
+            channel_init = """
+                if self.{dds_channel}.read32({cfgreg}) == -1:
+                    delay(10*ms)
+                    self.{dds_channel}.init()
+            """.format(dds_channel=dds_channel, cfgreg=AD9912_SER_CONF)
         else:
             channel_init = "self.{dds_channel}.init()".format(dds_channel=dds_channel)
 
