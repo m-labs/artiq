@@ -1292,9 +1292,6 @@ class Miqro:
 
     Notes
     -----
-    * The `_mu` suffix in method names refers to parameters and data in "machine units",
-        i.e. integers. Conversion methods and wrappers to convert from SI units (Hz frequency,
-        full scale amplitude, turns phase, seconds time) are provided.
     * The annotation that some operation is "expensive" does not mean it is impossible, just
         that it may take a significant amount of time and resources to execute such that
         it may be impractical when used often or during fast pulse sequences.
@@ -1324,9 +1321,10 @@ class Miqro:
         phases, previous profiles, or oscillator history). It is "absolute" in the
         sense that frequency f and phase p fully determine oscillator
         output phase p' at time t. This is unlike typical DDS behavior.
-    * Frequency, phase and amplitude of each oscillator are configurable by selecting one of
+    * Frequency, phase, and amplitude of each oscillator are configurable by selecting one of
         n_profile = 32 profiles 0..n_profile-1. This selection is fast and can be done for
-        each pulse.
+        each pulse. The phase coherence defined above is guaranteed for each
+        profile individually.
     * Note: one profile per oscillator (usually profile index 0) should be reserved
         for the NOP (no operation, identity) profile, usually with zero
         amplitude.
@@ -1344,63 +1342,44 @@ class Miqro:
         triggerable shaper.
     * Triggering the shaper corresponds to passing a pulse from all
         oscillators to the RF output.
-    * Any previously staged profiles and phase offsets become active simultaneously
+    * Selected profiles become active simultaneously
         (on the same output sample) when triggering the shaper.
     * The shaper reads (replays) window samples from a memory of size n_window = 1 << 10 starting
         and stopping at memory locations specified.
     * Each window memory segment starts with a header determining segment
         length and interpolation parameters.
-    * The window samples are interpolated by a factor (rate change) r where log2(r) = 0..n_cic=12
-        selectable when triggering.
+    * The window samples are interpolated by a factor (rate change)
+        between 1 and r = 1 << 12.
     * The interpolation order is constant, linear, quadratic, or cubic. This
-    corresponds to interpolation modes from rectangular window (1st order CIC)
-        or zero order hold) and to Parzen window (4th order CIC, cubic spline),
-        selectable when triggering.
+        corresponds to interpolation modes from rectangular window (1st order CIC)
+        or zero order hold) and to Parzen window (4th order CIC, cubic spline).
     * This results in support for pulse lengths of between tau and a bit more than
-        (1 << 12 + 10) tau ~ 17 ms.
+        r * n_window * tau = (1 << 12 + 10) tau ~ 17 ms.
     * Windows can be configured to be head-less and/or tail-less, meaning, they
         do not feed zero-amplitude samples into the shaper before and after
         each window. This is used to implement pulses with arbitrary length or
         CW output.
     * The window memory can be segmented by choosing different start indices
-        to support different windows selectable when triggering.
-
-    ### DAC
-    * This section of the data flow is analogous to the `base` Phaser mode.
-    * The DAC receives the 250 MS/s I/Q data stream and interpolates it to 1 GS/s I/Q
-        (with a bandwidth 200 MHz).
-    * It then applies a (expensive to change) frequency offset of
-        f1 = -400 MHz..400 MHz.
-    * Then the DAC converts the data stream to 2 analog outputs I and Q.
-    * The signals go through two anti-aliasing filters with 340 MHz 3dB bandwidth.
-
-    ### IQ Mixer and PLL (Upconverter variant)
-    * The analog I and Q signals after the filter are upconverted in a single-sideband IQ
-        mixer with a f2 = 0.3 GHz..4.8 GHz LO (the "carrier").
-    * The output goes through a digitally switchable attenuator (0..31.5 dB attenuation) and
-        is available at an SMA output with a typical max signal level of 0 to -10 dBm (TBC).
+        to support different windows.
 
     ### Overall properties
-    * The resulting phase of that signal is
+    * The DAC may upconvert the signal by applying a frequency offset f1 with
+        phase p1.
+    * In the Upconverter Phaser variant, the analog quadrature upconverter
+        applies another frequency of f2 and phase p2.
+    * The resulting phase of the signal at the SMA output is
         (f + f1 + f2)*t + p + s(t - t0) + p1 + p2 (mod 1 turn)
-        where p1 and p2 are constant but arbitrary and undetermined phase offsets of the
-        two (common) upconversion stages, s(t - t0) is the phase of the interpolated
+        where s(t - t0) is the phase of the interpolated
         shaper output, and t0 is the trigger time (fiducial of the shaper).
         Unsurprisingly the frequency is the derivative of the phase.
     * The minimum time to change profiles and phase offsets is ~128 ns (estimate, TBC).
-        This is the minimum practical pulse interval.
+        This is the minimum pulse interval.
     """
 
     def __init__(self, channel):
         self.channel = channel
         self.base_addr = (self.channel.phaser.channel_base + 1 +
                 self.channel.index) << 8
-
-    @kernel
-    def write32(self, addr, data):
-        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
-                (self.channel.index << 15) | addr)
-        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, data)
 
     @kernel
     def reset(self):
