@@ -314,6 +314,10 @@ class _DDSWidget(QtWidgets.QFrame):
         apply.clicked.connect(self.apply_changes)
         if self.dds_model.is_urukul:
             off_btn.clicked.connect(self.off_clicked)
+            off_btn.setToolTip(textwrap.dedent(
+                """Note: If TTL RTIO sw for the channel is switched high,
+                this button will not disable the channel.
+                Use the TTL override instead."""))
         self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
         self.value_edit.escapePressedConnect(self.cancel_changes)
         cancel.clicked.connect(self.cancel_changes)
