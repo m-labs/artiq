@@ -277,6 +277,10 @@ class AD9910:
 
         :param addr: Register address
         """
+        return self.read32_impl(addr)
+
+    @kernel
+    def read32_impl(self, addr):
         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
                                urukul.SPIT_DDS_WR, self.chip_select)
         self.bus.write((addr | 0x80) << 24)
