@@ -3,17 +3,14 @@ from artiq.language.units import us, ns
 from artiq.coredevice.rtio import rtio_output, rtio_input_data
 from artiq.coredevice import spi2 as spi
 from artiq.coredevice import urukul, sampler
+from math import ceil, log2
 
 
-COEFF_WIDTH = 18
+COEFF_WIDTH = 18  # Must match gateware IIRWidths.coeff
 Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
-COEFF_DEPTH = 10 + 1
-WE = 1 << COEFF_DEPTH + 1
-STATE_SEL = 1 << COEFF_DEPTH
-CONFIG_SEL = 1 << COEFF_DEPTH - 1
-CONFIG_ADDR = CONFIG_SEL | STATE_SEL
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
-COEFF_SHIFT = 11
+COEFF_SHIFT = 11  # Must match gateware IIRWidths.shift
+PROFILE_WIDTH = 5  # Must match gateware IIRWidths.profile
 
 
 @portable
@@ -35,8 +32,8 @@ class SUServo:
     """Sampler-Urukul Servo parent and configuration device.
 
     Sampler-Urukul Servo is a integrated device controlling one
-    8-channel ADC (Sampler) and two 4-channel DDS (Urukuls) with a DSP engine
-    connecting the ADC data and the DDS output amplitudes to enable
+    8-channel ADC (Sampler) and any number of 4-channel DDS (Urukuls) with a
+    DSP engine connecting the ADC data and the DDS output amplitudes to enable
     feedback. SU Servo can for example be used to implement intensity
     stabilization of laser beams with an amplifier and AOM driven by Urukul
     and a photodetector connected to Sampler.
@@ -49,7 +46,7 @@ class SUServo:
         * See the SU Servo variant of the Kasli target for an example of how to
           connect the gateware and the devices. Sampler and each Urukul need
           two EEM connections.
-        * Ensure that both Urukuls are AD9910 variants and have the on-board
+        * Ensure that all Urukuls are AD9910 variants and have the on-board
           dip switches set to 1100 (first two on, last two off).
         * Refer to the Sampler and Urukul documentation and the SU Servo
           example device database for runtime configuration of the devices
@@ -65,7 +62,8 @@ class SUServo:
     :param core_device: Core device name
     """
     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
-                         "ref_period_mu"}
+                         "ref_period_mu", "num_channels", "coeff_sel",
+                         "state_sel", "config_addr", "write_enable"}
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
@@ -83,9 +81,19 @@ class SUServo:
             self.core.coarse_ref_period)
         assert self.ref_period_mu == self.core.ref_multiplier
 
+        # The width of parts of the servo memory address depends on the number
+        # of channels.
+        self.num_channels = 4 * len(dds_devices)
+        channel_width = ceil(log2(self.num_channels))
+        coeff_depth = PROFILE_WIDTH + channel_width + 3
+        self.state_sel = 2 << (coeff_depth - 2)
+        self.config_addr = 3 << (coeff_depth - 2)
+        self.coeff_sel = 1 << coeff_depth
+        self.write_enable = 1 << (coeff_depth + 1)
+
     @kernel
     def init(self):
-        """Initialize the servo, Sampler and both Urukuls.
+        """Initialize the servo, Sampler and all Urukuls.
 
         Leaves the servo disabled (see :meth:`set_config`), resets and
         configures all DDS.
@@ -122,7 +130,7 @@ class SUServo:
         :param addr: Memory location address.
         :param value: Data to be written.
         """
-        addr |= WE
+        addr |= self.write_enable
         value &= (1 << COEFF_WIDTH) - 1
         value |= (addr >> 8) << COEFF_WIDTH
         addr = addr & 0xff
@@ -158,7 +166,7 @@ class SUServo:
             Disabling takes up to two servo cycles (~2.3 µs) to clear the
             processing pipeline.
         """
-        self.write(CONFIG_ADDR, enable)
+        self.write(self.config_addr, enable)
 
     @kernel
     def get_status(self):
@@ -179,7 +187,7 @@ class SUServo:
         :return: Status. Bit 0: enabled, bit 1: done,
           bits 8-15: channel clip indicators.
         """
-        return self.read(CONFIG_ADDR)
+        return self.read(self.config_addr)
 
     @kernel
     def get_adc_mu(self, adc):
@@ -197,7 +205,8 @@ class SUServo:
         # State memory entries are 25 bits. Due to the pre-adder dynamic
         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
         # only returns the 18 MSBs (the width of the coefficient memory).
-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
+        return self.read(self.state_sel |
+                         (2 * adc + (1 << PROFILE_WIDTH) * self.num_channels))
 
     @kernel
     def set_pgia_mu(self, channel, gain):
@@ -285,10 +294,11 @@ class Channel:
         :param offs: IIR offset (17 bit signed)
         :param pow_: Phase offset word (16 bit)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 0, ftw >> 16)
         self.servo.write(base + 6, (ftw & 0xffff))
-        self.set_dds_offset_mu(profile, offs)
+        self.servo.write(base + 4, offs)
         self.servo.write(base + 2, pow_)
 
     @kernel
@@ -319,7 +329,8 @@ class Channel:
         :param profile: Profile number (0-31)
         :param offs: IIR offset (17 bit signed)
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 4, offs)
 
     @kernel
@@ -343,6 +354,30 @@ class Channel:
         be represented while ``offset=-1`` can.
         """
         return int(round(offset * (1 << COEFF_WIDTH - 1)))
+
+    @kernel
+    def set_dds_phase_mu(self, profile, pow_):
+        """Set only POW in profile DDS coefficients.
+
+        See :meth:`set_dds_mu` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param pow_: Phase offset word (16 bit)
+        """
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+        self.servo.write(base + 2, pow_)
+
+    @kernel
+    def set_dds_phase(self, profile, phase):
+        """Set only phase in profile DDS coefficients.
+
+        See :meth:`set_dds` for setting the complete DDS profile.
+
+        :param profile: Profile number (0-31)
+        :param phase: DDS phase in turns
+        """
+        self.set_dds_phase_mu(profile, self.dds.turns_to_pow(phase))
 
     @kernel
     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
@@ -378,7 +413,8 @@ class Channel:
         :param dly: IIR update suppression time. In units of IIR cycles
             (~1.2 µs, 0-255).
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         self.servo.write(base + 3, adc | (dly << 8))
         self.servo.write(base + 1, b1)
         self.servo.write(base + 5, a1)
@@ -470,7 +506,9 @@ class Channel:
         :param profile: Profile number (0-31)
         :param data: List of 8 integers to write the profile data into
         """
-        base = (self.servo_channel << 8) | (profile << 3)
+        assert len(data) == 8
+        base = self.servo.coeff_sel | (self.servo_channel <<
+                                       (3 + PROFILE_WIDTH)) | (profile << 3)
         for i in range(len(data)):
             data[i] = self.servo.read(base + i)
             delay(4*us)
@@ -491,7 +529,8 @@ class Channel:
         :param profile: Profile number (0-31)
         :return: 17 bit unsigned Y0
         """
-        return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
+        return self.servo.read(self.servo.state_sel | (
+                self.servo_channel << PROFILE_WIDTH) | profile)
 
     @kernel
     def get_y(self, profile):
@@ -529,7 +568,8 @@ class Channel:
         """
         # State memory is 25 bits wide and signed.
         # Reads interact with the 18 MSBs (coefficient memory width)
-        self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
+        self.servo.write(self.servo.state_sel | (
+                self.servo_channel << PROFILE_WIDTH) | profile, y)
 
     @kernel
     def set_y(self, profile, y):
