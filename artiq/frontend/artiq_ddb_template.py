@@ -424,6 +424,16 @@ class PeripheralManager:
         sampler_name = self.get_name("sampler")
         urukul_names = [self.get_name("urukul") for _ in range(2)]
         channel = count(0)
+        for urukul_name in urukul_names:
+            self.gen("""
+                device_db["ttl_{urukul_name}_io_update"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.ttl",
+                    "class": "TTLOut",
+                    "arguments": {{"channel": 0x{ttl_channel:06x}}}
+                }}""",
+                urukul_name=urukul_name,
+                ttl_channel=rtio_offset+next(channel))
         for i in range(8):
             self.gen("""
                 device_db["{suservo_name}_ch{suservo_chn}"] = {{
@@ -476,6 +486,8 @@ class PeripheralManager:
                     "class": "CPLD",
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
+                        "io_update_device": "ttl_{urukul_name}_io_update",
+                        "sync_device": "clkgen_{suservo_name}_dds_sync_in",
                         "refclk": {refclk},
                         "clk_sel": {clk_sel}
                     }}
@@ -490,12 +502,25 @@ class PeripheralManager:
                         "cpld_device": "{urukul_name}_cpld"{pll_vco}
                     }}
                 }}""",
+                suservo_name=suservo_name,
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
                 refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                 pll_n=peripheral["pll_n"])
+        self.gen("""
+            device_db["clkgen_{suservo_name}_dds_sync_in"] = {{
+                "type": "local",
+                "module": "artiq.coredevice.ttl",
+                "class": "TTLClockGen",
+                "arguments": {{
+                    "channel": 0x{clkgen_channel:06x},
+                    "acc_width": 4
+                }}
+            }}""",
+            suservo_name=suservo_name,
+            clkgen_channel=rtio_offset+next(channel))
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):

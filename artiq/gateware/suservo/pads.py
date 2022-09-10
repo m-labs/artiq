@@ -1,5 +1,7 @@
 from migen import *
 from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
+from artiq.gateware.rtio.phy import ttl_serdes_7series, ttl_serdes_generic
+from artiq.gateware.rtio import rtlink
 
 
 class SamplerPads(Module):
@@ -57,20 +59,79 @@ class SamplerPads(Module):
                 clk=dp.clkout, port=sdop)
 
 
+class OutIoUpdate_8X(Module):
+    def __init__(self, pad, invert=False):
+        serdes = ttl_serdes_7series._OSERDESE2_8X(invert=invert)
+        self.submodules += serdes
+
+        self.passthrough = Signal()
+        self.data = Signal()
+        self.fine_ts = Signal(3)
+
+        self.rtlink = rtlink.Interface(
+            rtlink.OInterface(1, fine_ts_width=3))
+        self.probes = [serdes.o[-1]]
+        override_en = Signal()
+        override_o = Signal()
+        self.overrides = [override_en, override_o]
+
+        # # #
+
+        self.specials += Instance("IOBUFDS",
+                                  i_I=serdes.ser_out,
+                                  i_T=serdes.t_out,
+                                  io_IO=pad.p,
+                                  io_IOB=pad.n)
+
+        # Just strobe always in non-passthrough mode, as self.data is supposed
+        # to be always valid.
+        self.submodules += ttl_serdes_generic._SerdesDriver(
+            serdes.o,
+            Mux(self.passthrough, self.rtlink.o.stb, 1),
+            Mux(self.passthrough, self.rtlink.o.data, self.data),
+            Mux(self.passthrough, self.rtlink.o.fine_ts, self.fine_ts),
+            override_en, override_o)
+
+        self.comb += self.rtlink.o.busy.eq(~self.passthrough)
+
+
 class UrukulPads(Module):
     def __init__(self, platform, *eems):
         spip, spin = [[
                 platform.request("{}_qspi_{}".format(eem, pol), 0)
                 for eem in eems] for pol in "pn"]
-        ioup = [platform.request("{}_io_update".format(eem), 0)
-                for eem in eems]
+
         self.cs_n = Signal()
         self.clk = Signal()
         self.io_update = Signal()
+        self.passthrough = Signal()
+        self.dds_reset_sync_in = Signal(reset=0)  # sync_in phy (one for all)
+
+        # # #
+
+        self.io_update_phys = []
+        for eem in eems:
+            phy = OutIoUpdate_8X(platform.request("{}_io_update".format(eem), 0))
+            self.io_update_phys.append(phy)
+            setattr(self.submodules, "{}_io_update_phy".format(eem), phy)
+            self.comb += [
+                phy.data.eq(self.io_update),
+                phy.passthrough.eq(self.passthrough),
+            ]
+
+            sync_in_pads = platform.request("{}_dds_reset_sync_in".format(eem))
+            sync_in_r = Signal()
+            self.sync.rio_phy += sync_in_r.eq(self.dds_reset_sync_in)
+            sync_in_o = Signal()
+            self.specials += Instance("ODDR",
+                p_DDR_CLK_EDGE="SAME_EDGE",
+                i_C=ClockSignal("rio_phy"), i_CE=1, i_S=0, i_R=0,
+                i_D1=sync_in_r, i_D2=sync_in_r, o_Q=sync_in_o)
+            self.specials += DifferentialOutput(sync_in_o, sync_in_pads.p, sync_in_pads.n)
+
         self.specials += [(
                 DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
-                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
-                DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
+                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk))
                 for i in range(len(eems))]
         for i in range(4 * len(eems)):
             mosi = Signal()

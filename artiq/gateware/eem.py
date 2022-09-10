@@ -6,6 +6,7 @@ from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, dds, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
+from artiq.gateware.rtio.phy import ttl_simple
 
 
 def _eem_signal(i):
@@ -545,6 +546,7 @@ class SUServo(_EEM):
     @classmethod
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
+                sync_gen_cls=ttl_simple.ClockGen,
                 iostandard=default_iostandard):
         """Add a 8-channel Sampler-Urukul Servo
 
@@ -572,6 +574,8 @@ class SUServo(_EEM):
         urukul_pads = servo_pads.UrukulPads(
             target.platform, *eem_urukul)
         target.submodules += sampler_pads, urukul_pads
+        target.rtio_channels.extend(
+            rtio.Channel.from_phy(phy) for phy in urukul_pads.io_update_phys)
         # timings in units of RTIO coarse period
         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
                                 # account for SCK DDR to CONV latency
@@ -591,7 +595,7 @@ class SUServo(_EEM):
         target.submodules += ctrls
         target.rtio_channels.extend(
             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
-        mem = rtservo.RTServoMem(iir_p, su)
+        mem = rtservo.RTServoMem(iir_p, su, urukul_pads.io_update_phys)
         target.submodules += mem
         target.rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
 
@@ -601,19 +605,20 @@ class SUServo(_EEM):
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
 
-        dds_sync = Signal(reset=0)
-        for j, eem_urukuli in enumerate(eem_urukul):
-            # connect quad-SPI
+        for eem_urukuli in eem_urukul:
             spi_p, spi_n = (
                 target.platform.request("{}_spi_p".format(eem_urukuli)),
                 target.platform.request("{}_spi_n".format(eem_urukuli)))
             phy = spi2.SPIMaster(spi_p, spi_n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-            # connect `reset_sync_in`
-            pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
-            target.specials += DifferentialOutput(dds_sync, pads.p, pads.n)
-            # connect RF switches
+
+        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
+            phy = sync_gen_cls(urukul_pads.dds_reset_sync_in, ftw_width=4)
+            target.submodules += phy
+            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        for j, eem_urukuli in enumerate(eem_urukul):
             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
                 target.specials += DifferentialOutput(

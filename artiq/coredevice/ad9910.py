@@ -985,7 +985,8 @@ class AD9910:
 
     @kernel
     def tune_sync_delay(self,
-                        search_seed: TInt32 = 15) -> TTuple([TInt32, TInt32]):
+                        search_seed: TInt32 = 15,
+                        cpld_channel_idx: TInt32 = -1) -> TTuple([TInt32, TInt32]):
         """Find a stable SYNC_IN delay.
 
         This method first locates a valid SYNC_IN delay at zero validation
@@ -1001,6 +1002,9 @@ class AD9910:
             Defaults to 15 (half range).
         :return: Tuple of optimal delay and window size.
         """
+        if cpld_channel_idx == -1:
+            cpld_channel_idx = self.chip_select - 4
+        assert 0 <= cpld_channel_idx < 4, "Invalid channel index"
         if not self.cpld.sync_div:
             raise ValueError("parent cpld does not drive SYNC")
         search_span = 31
@@ -1023,7 +1027,7 @@ class AD9910:
                 delay(100 * us)
                 err = urukul_sta_smp_err(self.cpld.sta_read())
                 delay(100 * us)  # slack
-                if not (err >> (self.chip_select - 4)) & 1:
+                if not (err >> cpld_channel_idx) & 1:
                     next_seed = in_delay
                     break
             if next_seed >= 0:  # valid delay found, scan next window

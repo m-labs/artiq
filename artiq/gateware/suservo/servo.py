@@ -95,6 +95,9 @@ class Servo(Module):
                     cnt.eq(t_restart - 1)
                 )
         ]
+
+        self.sync += dds_pads.passthrough.eq(active == 0)
+
         self.comb += [
                 cnt_done.eq(cnt == 0),
                 self.adc.start.eq(self.start & cnt_done),

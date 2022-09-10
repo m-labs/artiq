@@ -11,6 +11,7 @@ Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
 T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
 COEFF_SHIFT = 11  # Must match gateware IIRWidths.shift
 PROFILE_WIDTH = 5  # Must match gateware IIRWidths.profile
+FINE_TS_WIDTH = 3  # Must match gateware IIRWidths.ioup_dly
 
 
 @portable
@@ -86,6 +87,7 @@ class SUServo:
         self.num_channels = 4 * len(dds_devices)
         channel_width = ceil(log2(self.num_channels))
         coeff_depth = PROFILE_WIDTH + channel_width + 3
+        self.io_dly_addr = 1 << (coeff_depth - 2)
         self.state_sel = 2 << (coeff_depth - 2)
         self.config_addr = 3 << (coeff_depth - 2)
         self.coeff_sel = 1 << coeff_depth
@@ -119,7 +121,19 @@ class SUServo:
             prev_cpld_cfg = cpld.cfg_reg
             cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
             dds.init(blind=True)
+
+            if dds.sync_data.sync_delay_seed != -1:
+                for channel_idx in range(4):
+                    mask_nu_this = 1 << (urukul.CFG_MASK_NU + channel_idx)
+                    cpld.cfg_write(prev_cpld_cfg | mask_nu_this)
+                    delay(8 * us)
+                    dds.tune_sync_delay(dds.sync_data.sync_delay_seed,
+                                        cpld_channel_idx=channel_idx)
+                    delay(50 * us)
             cpld.cfg_write(prev_cpld_cfg)
+
+        self.set_io_update_delays(
+            [dds.sync_data.io_update_delay for dds in self.ddses])
 
     @kernel
     def write(self, addr, value):
@@ -244,6 +258,18 @@ class SUServo:
         val = self.get_adc_mu(channel)
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain)
+
+    @kernel
+    def set_io_update_delays(self, dlys):
+        """Set IO_UPDATE pulse alignment delays.
+
+        :param dlys: List of delays for each Urukul
+        """
+        bits = 0
+        mask_fine_ts = (1 << FINE_TS_WIDTH) - 1
+        for i in range(len(dlys)):
+            bits |= (dlys[i] & mask_fine_ts) << (FINE_TS_WIDTH * i)
+        self.write(self.io_dly_addr, bits)
 
 
 class Channel:
@@ -601,6 +627,16 @@ class CPLD(urukul.CPLD):
     back as the read-back buffer on the CPLD is 8 bits wide.
     """
 
+    def __init__(self, dmgr, spi_device, io_update_device=None,
+                 **kwargs):
+        # Separate IO_UPDATE TTL output device used by SUServo core,
+        # if active, else by artiq.coredevice.suservo.AD9910
+        # :meth:`measure_io_update_alignment`.
+        # The urukul.CPLD driver utilises the CPLD CFG register
+        # option instead for pulsing IO_UPDATE of masked DDSs.
+        self.io_update_ttl = dmgr.get(io_update_device)
+        urukul.CPLD.__init__(self, dmgr, spi_device, **kwargs)
+
     @kernel
     def enable_readback(self):
         """
@@ -746,3 +782,53 @@ class AD9910(ad9910.AD9910):
     def read_ram(self, data):
         # 3-wire SPI transactions consisting of multiple transfers are not supported.
         raise NotImplementedError
+
+    @kernel
+    def measure_io_update_alignment(self, delay_start, delay_stop):
+        """Use the digital ramp generator to locate the alignment between
+        IO_UPDATE and SYNC_CLK.
+
+        Refer to `artiq.coredevice.ad9910` :meth:`measure_io_update_alignment`.
+        In order that this method can operate the io_update_ttl also used by the SUServo
+        core, deactivate the servo before (see :meth:`set_config`).
+        """
+        # set up DRG
+        self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
+        # DRG -> FTW, DRG enable
+        self.write32(ad9910._AD9910_REG_CFR2, 0x01090000)
+        # no limits
+        self.write64(ad9910._AD9910_REG_RAMP_LIMIT, -1, 0)
+        # DRCTL=0, dt=1 t_SYNC_CLK
+        self.write32(ad9910._AD9910_REG_RAMP_RATE, 0x00010000)
+        # dFTW = 1, (work around negative slope)
+        self.write64(ad9910._AD9910_REG_RAMP_STEP, -1, 0)
+        # un-mask DDS
+        cfg_masked = self.cpld.cfg_reg
+        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
+        delay(70 * us)  # slack
+        # delay io_update after RTIO edge
+        t = now_mu() + 8 & ~7
+        at_mu(t + delay_start)
+        # assumes a maximum t_SYNC_CLK period
+        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_start))  # realign
+        # re-mask DDS
+        self.cpld.cfg_write(cfg_masked)
+        delay(10 * us)  # slack
+        # disable DRG autoclear and LRR on io_update
+        self.set_cfr1()
+        delay(10 * us)  # slack
+        # stop DRG
+        self.write64(ad9910._AD9910_REG_RAMP_STEP, 0, 0)
+        delay(10 * us)  # slack
+        # un-mask DDS
+        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
+        at_mu(t + 0x20000 + delay_stop)
+        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_stop))  # realign
+        # re-mask DDS
+        self.cpld.cfg_write(cfg_masked)
+        ftw = self.read32(ad9910._AD9910_REG_FTW)  # read out effective FTW
+        delay(100*us)  # slack
+        # disable DRG
+        self.write32(ad9910._AD9910_REG_CFR2, 0x01010000)
+        self.cpld.io_update.pulse(16 * ns)
+        return ftw & 1
