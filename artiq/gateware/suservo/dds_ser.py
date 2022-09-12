@@ -1,4 +1,5 @@
 import logging
+from collections import namedtuple
 
 from migen import *
 
@@ -6,11 +7,11 @@ from artiq.coredevice.urukul import DEFAULT_PROFILE
 
 from . import spi
 
-
 logger = logging.getLogger(__name__)
 
-
-DDSParams = spi.SPIParams
+DDSParams = namedtuple("DDSParams", spi.SPIParams._fields + (
+    "sysclk_per_clk",  # DDS_CLK per FPGA system clock
+))
 
 
 class DDS(spi.SPISimple):

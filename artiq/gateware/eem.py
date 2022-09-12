@@ -547,7 +547,7 @@ class SUServo(_EEM):
     def add_std(cls, target, eems_sampler, eems_urukul,
                 t_rtt=4, clk=1, shift=11, profile=5,
                 sync_gen_cls=ttl_simple.ClockGen,
-                iostandard=default_iostandard):
+                iostandard=default_iostandard, sysclk_per_clk=8):
         """Add a 8-channel Sampler-Urukul Servo
 
         :param t_rtt: upper estimate for clock round-trip propagation time from
@@ -563,6 +563,8 @@ class SUServo(_EEM):
             (default: 11)
         :param profile: log2 of the number of profiles for each DDS channel
             (default: 5)
+        :param sysclk_per_clk: DDS "sysclk" (4*refclk = 1GHz typ.) cycles per
+            FPGA "sys" clock (125MHz typ.) cycles (default: 8)
         """
         cls.add_extension(
             target, *(eems_sampler + sum(eems_urukul, [])),
@@ -583,15 +585,16 @@ class SUServo(_EEM):
                                 t_conv=57 - 4, t_rtt=t_rtt + 4)
         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
                                 accu=48, shift=shift, profile=profile, dly=8)
-        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
-                                channels=4 * len(eem_urukul), clk=clk)
+        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16, sysclk_per_clk=sysclk_per_clk,
+                                channels=4*len(eem_urukul), clk=clk)
         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
         su = ClockDomainsRenamer("rio_phy")(su)
         # explicitly name the servo submodule to enable the migen namer to derive
         # a name for the adc return clock domain
         setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
 
-        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
+        ctrls = [rtservo.RTServoCtrl(ctrl, ctrl_reftime)
+                 for ctrl, ctrl_reftime in zip(su.iir.ctrl, su.iir.ctrl_reftime)]
         target.submodules += ctrls
         target.rtio_channels.extend(
             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)

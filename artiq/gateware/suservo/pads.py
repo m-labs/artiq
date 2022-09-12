@@ -60,8 +60,8 @@ class SamplerPads(Module):
 
 
 class OutIoUpdate_8X(Module):
-    def __init__(self, pad, invert=False):
-        serdes = ttl_serdes_7series._OSERDESE2_8X(invert=invert)
+    def __init__(self, pad):
+        serdes = ttl_serdes_7series._OSERDESE2_8X()
         self.submodules += serdes
 
         self.passthrough = Signal()

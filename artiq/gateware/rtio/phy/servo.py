@@ -1,25 +1,32 @@
 from migen import *
-
 from artiq.gateware.rtio import rtlink
 
 
 class RTServoCtrl(Module):
     """Per channel RTIO control interface"""
-    def __init__(self, ctrl):
+    def __init__(self, ctrl, ctrl_reftime):
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(len(ctrl.profile) + 2))
+            rtlink.OInterface(
+                data_width=max(len(ctrl.profile) + 3,
+                               len(ctrl_reftime.sysclks_fine)),
+                address_width=1)
+            )
 
         # # #
 
+        sel_ref = self.rtlink.o.address[0]
         self.comb += [
-                ctrl.stb.eq(self.rtlink.o.stb),
-                self.rtlink.o.busy.eq(0)
+                ctrl.stb.eq(self.rtlink.o.stb & ~sel_ref),
+                self.rtlink.o.busy.eq(0),
+                ctrl_reftime.stb.eq(self.rtlink.o.stb & sel_ref),
         ]
+        ctrl_cases = {
+            0: Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(
+                            self.rtlink.o.data),
+            1: ctrl_reftime.sysclks_fine.eq(self.rtlink.o.data),
+        }
         self.sync.rio_phy += [
-                If(self.rtlink.o.stb,
-                    Cat(ctrl.en_out, ctrl.en_iir, ctrl.profile).eq(
-                            self.rtlink.o.data)
-                )
+                If(self.rtlink.o.stb, Case(self.rtlink.o.address, ctrl_cases))
         ]
 
 
@@ -110,9 +117,8 @@ class RTServoMem(Module):
         # # #
 
         config = Signal(w.coeff, reset=0)
-        status = Signal(8 + len(servo.iir.ctrl))
+        status = Signal(len(self.rtlink.i.data))
         pad = Signal(6)
-        assert len(status) <= len(self.rtlink.i.data)
         self.comb += [
                 Cat(servo.start).eq(config),
                 status.eq(Cat(servo.start, servo.done, pad,
