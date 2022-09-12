@@ -815,7 +815,7 @@ class AD9910(ad9910.AD9910):
         # set up DRG
         self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
         # DRG -> FTW, DRG enable
-        self.write32(ad9910._AD9910_REG_CFR2, 0x01090000)
+        self.set_cfr2(drg_enable=1)
         # no limits
         self.write64(ad9910._AD9910_REG_RAMP_LIMIT, -1, 0)
         # DRCTL=0, dt=1 t_SYNC_CLK
@@ -843,12 +843,12 @@ class AD9910(ad9910.AD9910):
         # un-mask DDS
         self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
         at_mu(t + 0x20000 + delay_stop)
-        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_stop))  # realign
+        self.cpld.io_update_ttl.pulse_mu(16 - delay_stop)  # realign
         # re-mask DDS
         self.cpld.cfg_write(cfg_masked)
         ftw = self.read32(ad9910._AD9910_REG_FTW)  # read out effective FTW
-        delay(100*us)  # slack
+        delay(100 * us)  # slack
         # disable DRG
-        self.write32(ad9910._AD9910_REG_CFR2, 0x01010000)
-        self.cpld.io_update.pulse(16 * ns)
+        self.set_cfr2(drg_enable=0)
+        self.cpld.io_update.pulse_mu(16)
         return ftw & 1
