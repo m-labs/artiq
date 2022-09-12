@@ -482,7 +482,7 @@ class PeripheralManager:
                 }}
                 device_db["{urukul_name}_cpld"] = {{
                     "type": "local",
-                    "module": "artiq.coredevice.urukul",
+                    "module": "artiq.coredevice.suservo",
                     "class": "CPLD",
                     "arguments": {{
                         "spi_device": "spi_{urukul_name}",
@@ -494,7 +494,7 @@ class PeripheralManager:
                 }}
                 device_db["{urukul_name}_dds"] = {{
                     "type": "local",
-                    "module": "artiq.coredevice.ad9910",
+                    "module": "artiq.coredevice.suservo",
                     "class": "AD9910",
                     "arguments": {{
                         "pll_n": {pll_n},
