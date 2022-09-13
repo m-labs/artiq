@@ -129,12 +129,9 @@ fn set_clocks() {
     unsafe {
         // wait for mmcm to lock
         board_misoc::csr::crg::mmcm_reset_write(0);
-        clock::spin_us(10_000);
         while board_misoc::csr::crg::mmcm_locked_read() == 0 {}
         board_misoc::csr::crg::clock_sel_write(1); 
-        // clock::spin_us(20_000);
     }
-    // clock::spin_us(20_000);
     println!("clock switched!");
 }
 

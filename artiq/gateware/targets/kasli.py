@@ -107,10 +107,10 @@ class StandaloneBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
-            clk_freq = 100.0e6
+            kwargs['clk_freq'] = 100.0e6
         else:
             cpu_bus_width = 64
-            clk_freq = kwargs.get("rtio_frequency", 125.0e6)
+            kwargs['clk_freq'] = kwargs.get("rtio_frequency", 125.0e6)
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
                          hw_rev=hw_rev,
@@ -120,7 +120,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
-                         clk_freq=clk_freq,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
