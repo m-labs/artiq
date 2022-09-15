@@ -29,7 +29,19 @@ def get_artiq_rev():
         import artiq
     except ImportError:
         return None
-    return artiq._version.get_rev()
+    rev = artiq._version.get_rev()
+    if rev == "unknown":
+        return None
+    return rev
+
+
+def get_artiq_major_version():
+    try:
+        import artiq
+    except ImportError:
+        return None
+    version = artiq._version.get_version()
+    return version.split(".")[0]
 
 
 def zip_unarchive(data, directory):
@@ -70,17 +82,20 @@ class Client:
         self.send_command("LOGIN", username, password)
         return self.read_reply() == ["HELLO"]
 
-    def build(self, rev, variant, log):
+    def build(self, major_ver, rev, variant, log):
         if not variant:
             variants = self.get_variants()
             if len(variants) != 1:
                 raise ValueError("User can build more than 1 variant - need to specify")
             variant = variants[0][0]
         print("Building variant: {}".format(variant))
-        if log:
-            self.send_command("BUILD", rev, variant, "LOG_ENABLE")
-        else:
-            self.send_command("BUILD", rev, variant)
+        build_args = (
+            rev,
+            variant,
+            "LOG_ENABLE" if log else "LOG_DISABLE",
+            major_ver,
+        )
+        self.send_command("BUILD", *build_args)
         reply = self.read_reply()[0]
         if reply != "BUILDING":
             return reply, None
@@ -134,6 +149,7 @@ def main():
     action = parser.add_subparsers(dest="action")
     action.required = True
     act_build = action.add_parser("build", help="build and download firmware")
+    act_build.add_argument("--major-ver", default=None, help="ARTIQ major version")
     act_build.add_argument("--rev", default=None, help="revision to build (default: currently installed ARTIQ revision)")
     act_build.add_argument("--log", action="store_true", help="Display the build log")
     act_build.add_argument("directory", help="output directory")
@@ -182,13 +198,19 @@ def main():
                 except NotADirectoryError:
                     print("A file with the same name as the output directory already exists. Please remove it and try again.")
                     sys.exit(1)
+            major_ver = args.major_ver
+            if major_ver is None:
+                major_ver = get_artiq_major_version()
+            if major_ver is None:
+                print("Unable to determine currently installed ARTIQ major version. Specify manually using --major-ver.")
+                sys.exit(1)
             rev = args.rev
             if rev is None:
                 rev = get_artiq_rev()
             if rev is None:
                 print("Unable to determine currently installed ARTIQ revision. Specify manually using --rev.")
                 sys.exit(1)
-            result, contents = client.build(rev, args.variant, args.log)
+            result, contents = client.build(major_ver, rev, args.variant, args.log)
             if result != "OK":
                 if result == "UNAUTHORIZED":
                     print("You are not authorized to build this variant. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
