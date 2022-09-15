@@ -1386,8 +1386,8 @@ class Miqro:
         for osc in range(16):
             for pro in range(32):
                 self.set_profile_mu(osc, pro, 0, 0, 0)
-                delay(20*us)
-        self.set_window_mu(start=0, iq=[0], rate=1, shift=0, order=0, head=0, tail=1)
+                delay(10*us)
+        self.set_window_mu(start=0, iq=[0], rate=1, shift=0, order=0, head=0, tail=0)
         self.pulse(window=0, profiles=[0])
 
     @kernel
@@ -1412,6 +1412,7 @@ class Miqro:
             raise ValueError("amplitude out of bounds")
         pow = int32(round(phase*(1 << 16)))
         self.set_profile_mu(oscillator, profile, ftw, asf, pow)
+        return ftw
 
     @kernel
     def set_window_mu(self, start, iq, rate=1, shift=0, order=3, head=1, tail=1):
@@ -1428,7 +1429,7 @@ class Miqro:
         self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
                 (self.channel.index << 15) | start)
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
-            ((start + 1 + len(iq)) & 0x3ff) |
+            (len(iq) & 0x3ff) |
             ((rate - 1) << 10) |
             (shift << 22) |
             (order << 28) |
@@ -1457,6 +1458,7 @@ class Miqro:
             for iqi in iq
         ]
         self.set_window_mu(start, iq_mu, rate, shift, order, head, tail)
+        return rate
 
     @kernel
     def encode(self, window, profiles, data):
@@ -1470,20 +1472,20 @@ class Miqro:
         for profile in profiles:
             if profile > 0x1f:
                 raise ValueError("profile out of bounds")
-            if idx >= 30:
-                word += 1
-                idx = 0
             data[word] |= profile << idx
             idx += 5
-        return word + 1
+            if idx > 32 - 5:
+                word += 1
+                idx = 0
+        return word
 
     @kernel
     def pulse_mu(self, data):
         word = len(data)
         delay_mu(-8*word)  # back shift to align
         while word > 0:
-            delay_mu(8)
             word -= 1
+            delay_mu(8)
             # final write sets pulse stb
             rtio_output(self.base_addr + word, data[word])
 
