@@ -82,7 +82,7 @@ class Client:
         self.send_command("LOGIN", username, password)
         return self.read_reply() == ["HELLO"]
 
-    def build(self, major_ver, rev, variant, log):
+    def build(self, major_ver, rev, variant, log, experimental_features):
         if not variant:
             variants = self.get_variants()
             if len(variants) != 1:
@@ -94,6 +94,7 @@ class Client:
             variant,
             "LOG_ENABLE" if log else "LOG_DISABLE",
             major_ver,
+            *experimental_features,
         )
         self.send_command("BUILD", *build_args)
         reply = self.read_reply()[0]
@@ -152,6 +153,7 @@ def main():
     act_build.add_argument("--major-ver", default=None, help="ARTIQ major version")
     act_build.add_argument("--rev", default=None, help="revision to build (default: currently installed ARTIQ revision)")
     act_build.add_argument("--log", action="store_true", help="Display the build log")
+    act_build.add_argument("--experimental", action="append", default=[], help="enable an experimental feature (can be repeatedly specified to enable multiple features)")
     act_build.add_argument("directory", help="output directory")
     act_build.add_argument("variant", nargs="?", default=None, help="variant to build (can be omitted if user is authorised to build only one)")
     act_passwd = action.add_parser("passwd", help="change password")
@@ -210,7 +212,7 @@ def main():
             if rev is None:
                 print("Unable to determine currently installed ARTIQ revision. Specify manually using --rev.")
                 sys.exit(1)
-            result, contents = client.build(major_ver, rev, args.variant, args.log)
+            result, contents = client.build(major_ver, rev, args.variant, args.log, args.experimental)
             if result != "OK":
                 if result == "UNAUTHORIZED":
                     print("You are not authorized to build this variant. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
