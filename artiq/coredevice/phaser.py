@@ -1492,7 +1492,7 @@ class Miqro:
             for iqi in iq
         ]
         self.set_window_mu(start, iq_mu, rate, shift, order, head, tail)
-        return rate*4*ns
+        return (len(iq) + order)*rate*4*ns
 
     @kernel
     def encode(self, window, profiles, data):
