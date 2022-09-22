@@ -92,11 +92,14 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
 
 #[cfg(soc_platform = "kasli")]
 fn set_clocks() {
-    unsafe {  
-        board_misoc::csr::crg::mmcm_reset_write(1);
+    let done = unsafe {  
+        board_misoc::csr::crg::switch_done_read()
+    };
+    if done != 0 {
+        println!("switch already done!");
+        return;
     }
     //set up 125mhz clock from internal oscillator (base option) - kasli 2.0+
-    #[cfg(hw_rev = "v2.0")]
     let setting = si5324::FrequencySettings {
         n1_hs  : 10,
         nc1_ls : 4,
@@ -107,18 +110,7 @@ fn set_clocks() {
         bwsel  : 4,
         crystal_ref: true
     };
-    // 100mhz clock for kasli 1.0/1.1 (either internal or 100mhz bypass supported)
-    #[cfg(any(hw_rev = "v1.0", hw_rev = "v1.1"))]
-    let setting = si5324::FrequencySettings {
-        n1_hs  : 9,
-        nc1_ls : 6,
-        n2_hs  : 10,
-        n2_ls  : 33732,
-        n31    : 7139,
-        n32    : 7139,
-        bwsel  : 3,
-        crystal_ref: true
-    };
+    //squashed to 100MHz by PLL on 1.0/1.1
     let res = si5324::setup(&setting, si5324::Input::Ckin2, true);
     match res {
         Ok(_) => { println!("si5324 clock locked!"); }
@@ -127,12 +119,9 @@ fn set_clocks() {
     // switch clk again
     println!("switching to si5324!");
     unsafe {
-        // wait for mmcm to lock
-        board_misoc::csr::crg::mmcm_reset_write(0);
-        while board_misoc::csr::crg::mmcm_locked_read() == 0 {}
         board_misoc::csr::crg::clock_sel_write(1); 
     }
-    println!("clock switched!");
+    // will cause a reboot at this point
 }
 
 fn startup() -> bool {
