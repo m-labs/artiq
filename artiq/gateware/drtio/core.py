@@ -124,7 +124,7 @@ class DRTIOSatellite(Module):
             rx_rt_frame_perm=rx_synchronizer.resync(self.link_layer.rx_rt_frame_perm),
             rx_rt_data=rx_synchronizer.resync(self.link_layer.rx_rt_data)
         )
-        self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync)
+        self.submodules.link_stats = link_layer.LinkLayerStats(link_layer_sync, "sys")
         self.submodules.rt_packet = rt_packet_satellite.RTPacketSatellite(
             link_layer_sync, interface=self.cri)
         self.comb += self.rt_packet.reset.eq(self.cd_rio.rst)

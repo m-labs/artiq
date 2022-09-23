@@ -518,7 +518,7 @@ pub extern fn main() -> i32 {
     }
 
     #[cfg(has_si5324)]
-    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1, false).expect("cannot initialize Si5324");
     #[cfg(has_wrpll)]
     wrpll::init();
 

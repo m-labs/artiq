@@ -398,6 +398,7 @@ class SatelliteBase(BaseSoC):
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
                  clk_freq=rtio_clk_freq,
+                 rtio_sys_merge=True,
                  **kwargs)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 

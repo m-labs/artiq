@@ -232,7 +232,7 @@ class LinkLayer(Module, AutoCSR):
         # receiver locked, comma aligned, receiving valid 8b10b symbols
         self.rx_ready = Signal()
 
-        tx = ClockDomainsRenamer("sys")(LinkLayerTX(encoder))
+        tx = LinkLayerTX(encoder)
         rx = ClockDomainsRenamer("rtio_rx")(LinkLayerRX(decoders))
         self.submodules += tx, rx
 
@@ -294,10 +294,10 @@ class LinkLayer(Module, AutoCSR):
             self.rx_rt_data.eq(rx.rt_data)
         ]
 
-        wait_scrambler = ClockDomainsRenamer("sys")(WaitTimer(15))
+        wait_scrambler = WaitTimer(15)
         self.submodules += wait_scrambler
 
-        fsm = ClockDomainsRenamer("sys")(FSM(reset_state="WAIT_RX_READY"))
+        fsm = FSM(reset_state="WAIT_RX_READY")
         self.submodules += fsm
 
         fsm.act("WAIT_RX_READY",

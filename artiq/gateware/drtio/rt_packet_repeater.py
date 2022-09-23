@@ -38,8 +38,8 @@ class RTPacketRepeater(Module):
         assert len(link_layer.tx_rt_data) % 8 == 0
         ws = len(link_layer.tx_rt_data)
         tx_plm = get_m2s_layouts(ws)
-        tx_dp = ClockDomainsRenamer("sys")(TransmitDatapath(
-            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        tx_dp = TransmitDatapath(
+                link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm)
         self.submodules += tx_dp
         rx_plm = get_s2m_layouts(ws)
         rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
@@ -200,7 +200,7 @@ class RTPacketRepeater(Module):
         ]
 
         # TX and CRI FSM
-        tx_fsm = ClockDomainsRenamer("sys")(FSM(reset_state="IDLE"))
+        tx_fsm = FSM(reset_state="IDLE")
         self.submodules += tx_fsm
 
         tx_fsm.act("IDLE",

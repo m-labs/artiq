@@ -76,8 +76,8 @@ class RTPacketMaster(Module):
         assert len(link_layer.tx_rt_data) % 8 == 0
         ws = len(link_layer.tx_rt_data)
         tx_plm = get_m2s_layouts(ws)
-        tx_dp = ClockDomainsRenamer("sys")(TransmitDatapath(
-            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        tx_dp = TransmitDatapath(
+            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm)
         self.submodules += tx_dp
         rx_plm = get_s2m_layouts(ws)
         rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
@@ -85,8 +85,7 @@ class RTPacketMaster(Module):
         self.submodules += rx_dp
 
         # Write FIFO and extra data count
-        sr_fifo = ClockDomainsRenamer({"write": "sys", "read": "sys"})(
-            AsyncFIFO(1+64+24+8+512, sr_fifo_depth))
+        sr_fifo = AsyncFIFO(1+64+24+8+512, sr_fifo_depth)
         self.submodules += sr_fifo
         sr_notwrite_d = Signal()
         sr_timestamp_d = Signal(64)

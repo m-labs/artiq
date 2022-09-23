@@ -568,10 +568,7 @@ pub extern fn main() -> i32 {
         #[cfg(has_error_led)]
         unsafe {
             board_misoc::csr::error_led::out_write(1);
-            clock::spin_us(1_000_000);
-            board_misoc::csr::error_led::out_write(0);
-            clock::spin_us(1_000_000);
-        }    
+        }
     }
 }
 

@@ -331,6 +331,7 @@ class GTX(Module, TransceiverInterface):
             ]
 
         # Connect master's `rtio_tx` clock to `rtio` clock
+        # remove?
         self.comb += [
             self.cd_rtio.clk.eq(self.gtxs[master].cd_rtio_tx.clk),
             self.cd_rtio.rst.eq(reduce(or_, [gtx.cd_rtio_tx.rst for gtx in self.gtxs]))
