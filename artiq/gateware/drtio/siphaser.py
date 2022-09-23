@@ -1,5 +1,5 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
@@ -9,7 +9,7 @@ from misoc.interconnect.csr import *
 
 class SiPhaser7Series(Module, AutoCSR):
     def __init__(self, si5324_clkin, rx_synchronizer,
-                 ref_clk=None, ref_div2=False, ultrascale=False, rtio_clk_freq=150e6):
+                 ref_clk=None, ref_div2=False, ultrascale=False, rtio_clk_freq=125e6):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus(reset=1)
@@ -100,14 +100,11 @@ class SiPhaser7Series(Module, AutoCSR):
         self.sync += toggle_out_expected.eq(~toggle_out)
 
         error = Signal()
-        error_clear = PulseSynchronizer("sys", "sys")
-        self.submodules += error_clear
         self.sync += [
             If(toggle_out != toggle_out_expected, error.eq(1)),
-            If(error_clear.o, error.eq(0))
+            If(self.error.re, error.eq(0))
         ]
         self.specials += MultiReg(error, self.error.w)
-        self.comb += error_clear.i.eq(self.error.re)
 
         # expose MMCM outputs - used for clock constraints
         self.mmcm_freerun_output = mmcm_freerun_output

@@ -22,8 +22,7 @@ class Transmitter(Module, AutoCSR):
         self.aux_tx = CSR()
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
-        converter = ClockDomainsRenamer("sys")(
-            stream.Converter(mem_dw, ll_dw))
+        converter = stream.Converter(mem_dw, ll_dw)
         self.submodules += converter
 
         # when continuously fed, the Converter outputs data continuously
@@ -66,25 +65,19 @@ class Transmitter(Module, AutoCSR):
             mem_port.adr.eq(frame_counter_next),
             converter.sink.data.eq(mem_port.dat_r)
         ]
-        self.sync += frame_counter.eq(frame_counter_next)
 
-        # ?
-        start_tx = PulseSynchronizer("sys", "sys")
-        tx_done = PulseSynchronizer("sys", "sys")
-        self.submodules += start_tx, tx_done
-        self.comb += start_tx.i.eq(self.aux_tx.re)
         self.sync += [
-            If(tx_done.o, self.aux_tx.w.eq(0)),
+            frame_counter.eq(frame_counter_next)
             If(self.aux_tx.re, self.aux_tx.w.eq(1))
         ]
 
-        fsm = ClockDomainsRenamer("sys")(FSM(reset_state="IDLE"))
+        fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
         fsm.act("IDLE",
             frame_counter_rst.eq(1),
             seen_eop_rst.eq(1),
-            If(start_tx.o, NextState("TRANSMIT"))
+            If(self.aux_tx.re, NextState("TRANSMIT"))
         )
         fsm.act("TRANSMIT",
             converter.sink.stb.eq(1),
@@ -95,7 +88,7 @@ class Transmitter(Module, AutoCSR):
         )
         fsm.act("WAIT_INTERFRAME",
             If(seen_eop,
-                tx_done.i.eq(1),
+                self.aux_tx.w.eq(0),
                 NextState("IDLE")
             )
         )

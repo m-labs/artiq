@@ -2,7 +2,6 @@ from types import SimpleNamespace
 
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import PulseSynchronizer
 from misoc.interconnect.csr import *
 
 from artiq.gateware.rtio import cri, rtlink
@@ -135,12 +134,9 @@ class DRTIOSatellite(Module):
             tsc.load_value.eq(self.rt_packet.tsc_load_value)
         ]
 
-        ps_tsc_load = PulseSynchronizer("sys", "sys")
-        self.submodules += ps_tsc_load
-        self.comb += ps_tsc_load.i.eq(self.rt_packet.tsc_load)
         self.sync += [
             If(self.tsc_loaded.re, self.tsc_loaded.w.eq(0)),
-            If(ps_tsc_load.o, self.tsc_loaded.w.eq(1))
+            If(self.rt_packet.tsc_load, self.tsc_loaded.w.eq(1))
         ]
 
         self.submodules.rt_errors = rt_errors_satellite.RTErrorsSatellite(
