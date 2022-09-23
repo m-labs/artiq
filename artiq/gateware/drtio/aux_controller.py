@@ -67,7 +67,7 @@ class Transmitter(Module, AutoCSR):
         ]
 
         self.sync += [
-            frame_counter.eq(frame_counter_next)
+            frame_counter.eq(frame_counter_next),
             If(self.aux_tx.re, self.aux_tx.w.eq(1))
         ]
 

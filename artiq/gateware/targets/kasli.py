@@ -66,6 +66,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
                          clk_freq=kwargs.get("rtio_frequency", 125.0e6),
+                         rtio_sys_merge=True,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -189,8 +190,6 @@ class SUServo(StandaloneBase):
         self.add_rtio(self.rtio_channels)
 
         pads = self.platform.lookup_request("sampler3_adc_data_p")
-        self.platform.add_false_path_constraints(
-            pads.clkout, self.rtio_crg.cd_rtio.clk)
         self.platform.add_false_path_constraints(
             pads.clkout, self.crg.cd_sys.clk)
 
