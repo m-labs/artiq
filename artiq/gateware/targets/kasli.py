@@ -27,59 +27,6 @@ from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
 
-# class _RTIOCRG(Module, AutoCSR):
-#     def __init__(self, platform):
-#         self.pll_reset = CSRStorage(reset=1)
-#         self.pll_locked = CSRStatus()
-#         self.clock_domains.cd_rtio = ClockDomain()
-#         self.clock_domains.cd_rtiox4 = ClockDomain(reset_less=True)
-
-#         if platform.hw_rev == "v2.0":
-#             clk_synth = platform.request("cdr_clk_clean_fabric")
-#         else:
-#             clk_synth = platform.request("si5324_clkout_fabric")
-#         clk_synth_se = Signal()
-#         platform.add_period_constraint(clk_synth.p, 8.0)
-#         self.specials += [
-#             Instance("IBUFGDS",
-#                 p_DIFF_TERM="TRUE", p_IBUF_LOW_PWR="FALSE",
-#                 i_I=clk_synth.p, i_IB=clk_synth.n, o_O=clk_synth_se),
-#         ]
-
-#         pll_locked = Signal()
-#         rtio_clk = Signal()
-#         rtiox4_clk = Signal()
-#         fb_clk = Signal()
-#         self.specials += [
-#             Instance("PLLE2_ADV",
-#                      p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-#                      p_BANDWIDTH="HIGH",
-#                      p_REF_JITTER1=0.001,
-#                      p_CLKIN1_PERIOD=8.0, p_CLKIN2_PERIOD=8.0,
-#                      i_CLKIN2=clk_synth_se,
-#                      # Warning: CLKINSEL=0 means CLKIN2 is selected
-#                      i_CLKINSEL=0,
-
-#                      # VCO @ 1.5GHz when using 125MHz input
-#                      p_CLKFBOUT_MULT=12, p_DIVCLK_DIVIDE=1,
-#                      i_CLKFBIN=fb_clk,
-#                      i_RST=self.pll_reset.storage,
-
-#                      o_CLKFBOUT=fb_clk,
-
-#                      p_CLKOUT0_DIVIDE=3, p_CLKOUT0_PHASE=0.0,
-#                      o_CLKOUT0=rtiox4_clk,
-
-#                      p_CLKOUT1_DIVIDE=12, p_CLKOUT1_PHASE=0.0,
-#                      o_CLKOUT1=rtio_clk),
-#             Instance("BUFG", i_I=rtio_clk, o_O=self.cd_rtio.clk),
-#             Instance("BUFG", i_I=rtiox4_clk, o_O=self.cd_rtiox4.clk),
-
-#             AsyncResetSynchronizer(self.cd_rtio, ~pll_locked),
-#             MultiReg(pll_locked, self.pll_locked.status)
-#         ]
-
-
 class SMAClkinForward(Module):
     def __init__(self, platform):
         sma_clkin = platform.request("sma_clkin")
@@ -107,10 +54,8 @@ class StandaloneBase(MiniSoC, AMPSoC):
     def __init__(self, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
-            kwargs['clk_freq'] = 100.0e6
         else:
             cpu_bus_width = 64
-            kwargs['clk_freq'] = kwargs.get("rtio_frequency", 125.0e6)
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
                          hw_rev=hw_rev,
@@ -120,6 +65,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
+                         clk_freq=kwargs.get("rtio_frequency", 125.0e6),
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -138,8 +84,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
         self.config["SI5324_SOFT_RESET"] = None
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
-        #self.submodules.rtio_crg = _RTIOCRG(self.platform)
-        #self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(self.platform)
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
         self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
@@ -158,10 +102,6 @@ class StandaloneBase(MiniSoC, AMPSoC):
         if any([len(c.probes) for c in rtio_channels]):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
-
-        # self.platform.add_false_path_constraints(
-        #     self.crg.cd_sys.clk,
-        #     self.rtio_crg.cd_rtio.clk)
 
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
@@ -268,10 +208,8 @@ class MasterBase(MiniSoC, AMPSoC):
     def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
-            clk_freq = 100.0
         else:
             cpu_bus_width = 64
-            clk_freq = rtio_clk_freq
         MiniSoC.__init__(self,
                          cpu_type="vexriscv",
                          hw_rev=hw_rev,
@@ -281,7 +219,7 @@ class MasterBase(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
-                         clk_freq=clk_freq,
+                         clk_freq=rtio_clk_freq,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -464,6 +402,7 @@ class SatelliteBase(BaseSoC):
                  cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 clk_freq=rtio_clk_freq,
                  **kwargs)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
