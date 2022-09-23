@@ -355,14 +355,10 @@ class MasterBase(MiniSoC, AMPSoC):
         # clock input, even while the PLL is held in reset.
         self.disable_cdr_clk_ibuf = Signal(reset=1)
         self.disable_cdr_clk_ibuf.attr.add("no_retiming")
-        if self.platform.hw_rev == "v2.0":
-            cdr_clk_clean = self.platform.request("cdr_clk_clean")
-        else:
-            cdr_clk_clean = self.platform.request("si5324_clkout")
         cdr_clk_clean_buf = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
+        self.specials += Instance("BUFGCE",
             i_CEB=self.disable_cdr_clk_ibuf,
-            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
+            i_I=self.crg.cdr_clk_buf,
             o_O=cdr_clk_clean_buf)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
@@ -414,14 +410,10 @@ class SatelliteBase(BaseSoC):
 
         disable_cdr_clk_ibuf = Signal(reset=1)
         disable_cdr_clk_ibuf.attr.add("no_retiming")
-        if self.platform.hw_rev == "v2.0":
-            cdr_clk_clean = self.platform.request("cdr_clk_clean")
-        else:
-            cdr_clk_clean = self.platform.request("si5324_clkout")
         cdr_clk_clean_buf = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
+        self.specials += Instance("BUFGCE",
             i_CEB=disable_cdr_clk_ibuf,
-            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
+            i_I=self.crg.cdr_clk_buf,
             o_O=cdr_clk_clean_buf)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
