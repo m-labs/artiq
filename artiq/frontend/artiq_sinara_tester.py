@@ -587,16 +587,18 @@ class SinaraTester(EnvExperiment):
                 delay(1*ms)
         elif phaser.gw_rev == 2:  # miqro
             for ch in range(2):
-                delay(1*ms)
                 phaser.channel[ch].set_att(6*dB)
-                phaser.channel[ch].miqro.set_window(
-                    start=0x00, iq=[[1., 0.]], order=0, tail=0)
+                phaser.channel[ch].set_duc_cfg(select=0)
                 sign = 1. - 2.*ch
                 for i in range(len(osc)):
-                    phaser.channel[ch].miqro.set_profile(osc, profile=1,
+                    phaser.channel[ch].miqro.set_profile(i, profile=1,
                         frequency=sign*(duc + osc[i]), amplitude=1./len(osc))
+                    delay(100*us)
+                phaser.channel[ch].miqro.set_window(
+                    start=0x000, iq=[[1., 0.]], order=0, tail=0)
                 phaser.channel[ch].miqro.pulse(
                     window=0x000, profiles=[1 for _ in range(len(osc))])
+                delay(1*ms)
 
     @kernel
     def phaser_led_wave(self, phasers):

@@ -383,7 +383,7 @@ class Phaser:
             if channel.get_att_mu() != 0x5a:
                 raise ValueError("attenuator test failed")
             delay(.1*ms)
-            channel.set_att_mu(0x00)  # minimum attenuation
+            channel.set_att_mu(0x00)  # maximum attenuation
 
             channel.set_servo(profile=0, enable=0, hold=1)
 
@@ -1487,8 +1487,8 @@ class Miqro:
         :param rate: Interpolation rate change (1 to 1 << 12)
         :param shift: Interpolator amplitude gain compensation in powers of 2 (0 to 63)
         :param order: Interpolation order from 0 (corresponding to
-            constant/zero-order-hold/1st order CIC interpolation) to 3 (corresponding
-            to cubic/Parzen/4th order CIC interpolation)
+            constant/rectangular window/zero-order-hold/1st order CIC interpolation)
+            to 3 (corresponding to cubic/Parzen window/4th order CIC interpolation)
         :param head: Update the interpolator settings and clear its state at the start
             of the window. This also implies starting the envelope from zero.
         :param tail: Feed zeros into the interpolator after the window samples.
@@ -1581,12 +1581,12 @@ class Miqro:
         for profile in profiles:
             if profile > 0x1f:
                 raise ValueError("profile out of bounds")
-            data[word] |= profile << idx
-            idx += 5
             if idx > 32 - 5:
                 word += 1
                 idx = 0
-        return word
+            data[word] |= profile << idx
+            idx += 5
+        return word + 1
 
     @kernel
     def pulse_mu(self, data):
