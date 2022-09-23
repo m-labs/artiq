@@ -9,6 +9,10 @@ from artiq.coredevice.trf372017 import TRF372017
 
 
 PHASER_BOARD_ID = 19
+
+PHASER_GW_BASE = 1
+PHASER_GW_MIQRO = 2
+
 PHASER_ADDR_BOARD_ID = 0x00
 PHASER_ADDR_HW_REV = 0x01
 PHASER_ADDR_GW_REV = 0x02
@@ -222,7 +226,7 @@ class Phaser:
 
     def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
                  clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None,
-                 mode="base", core_device="core"):
+                 core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
         # TODO: auto-align miso-delay in phy
@@ -235,6 +239,7 @@ class Phaser:
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
+        self.gw_rev = -1  # discovered in init()
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -258,12 +263,10 @@ class Phaser:
         delay(.1*ms)  # slack
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
-        gw_rev = self.read8(PHASER_ADDR_GW_REV)
+        self.gw_rev = self.read8(PHASER_ADDR_GW_REV)
         if debug:
-            print("gw_rev:", gw_rev)
+            print("gw_rev:", self.gw_rev)
             self.core.break_realtime()
-        is_base = gw_rev == 1
-        is_miqro = gw_rev == 2
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot
@@ -384,7 +387,7 @@ class Phaser:
 
             channel.set_servo(profile=0, enable=0, hold=1)
 
-            if is_base:
+            if self.gw_rev == PHASER_GW_BASE:
                 # test oscillators and DUC
                 for i in range(len(channel.oscillator)):
                     oscillator = channel.oscillator[i]
@@ -412,7 +415,7 @@ class Phaser:
                         abs(data_i - data_q) > 2):
                     raise ValueError("DUC+oscillator phase/amplitude test failed")
 
-            if is_miqro:
+            if self.gw_rev == PHASER_GW_MIQRO:
                 channel.miqro.reset()
 
             if is_baseband:

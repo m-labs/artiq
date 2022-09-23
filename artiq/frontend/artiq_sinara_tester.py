@@ -570,20 +570,33 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         phaser.init()
         delay(1*ms)
-        phaser.channel[0].set_duc_frequency(duc)
-        phaser.channel[0].set_duc_cfg()
-        phaser.channel[0].set_att(6*dB)
-        phaser.channel[1].set_duc_frequency(-duc)
-        phaser.channel[1].set_duc_cfg()
-        phaser.channel[1].set_att(6*dB)
-        phaser.duc_stb()
-        delay(1*ms)
-        for i in range(len(osc)):
-            phaser.channel[0].oscillator[i].set_frequency(osc[i])
-            phaser.channel[0].oscillator[i].set_amplitude_phase(.2)
-            phaser.channel[1].oscillator[i].set_frequency(-osc[i])
-            phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
+        if phaser.gw_rev == 1:  # base
+            phaser.channel[0].set_duc_frequency(duc)
+            phaser.channel[0].set_duc_cfg()
+            phaser.channel[0].set_att(6*dB)
+            phaser.channel[1].set_duc_frequency(-duc)
+            phaser.channel[1].set_duc_cfg()
+            phaser.channel[1].set_att(6*dB)
+            phaser.duc_stb()
             delay(1*ms)
+            for i in range(len(osc)):
+                phaser.channel[0].oscillator[i].set_frequency(osc[i])
+                phaser.channel[0].oscillator[i].set_amplitude_phase(.2)
+                phaser.channel[1].oscillator[i].set_frequency(-osc[i])
+                phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
+                delay(1*ms)
+        elif phaser.gw_rev == 2:  # miqro
+            for ch in range(2):
+                delay(1*ms)
+                phaser.channel[ch].set_att(6*dB)
+                phaser.channel[ch].miqro.set_window(
+                    start=0x00, iq=[[1., 0.]], order=0, tail=0)
+                sign = 1. - 2.*ch
+                for i in range(len(osc)):
+                    phaser.channel[ch].miqro.set_profile(osc, profile=1,
+                        frequency=sign*(duc + osc[i]), amplitude=1./len(osc))
+                phaser.channel[ch].miqro.pulse(
+                    window=0x000, profiles=[1 for _ in range(len(osc))])
 
     @kernel
     def phaser_led_wave(self, phasers):
