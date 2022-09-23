@@ -4,7 +4,7 @@ from migen.genlib.cdc import MultiReg, PulseSynchronizer
 from misoc.interconnect.csr import *
 
 
-# This code assumes 125/62.5MHz reference clock and 100MHz, 125MHz or 150MHz RTIO
+# This code assumes 125/62.5MHz reference clock and 100MHz or 125MHz RTIO
 # frequency.
 
 class SiPhaser7Series(Module, AutoCSR):
@@ -15,9 +15,9 @@ class SiPhaser7Series(Module, AutoCSR):
         self.phase_shift_done = CSRStatus(reset=1)
         self.error = CSR()
 
-        assert rtio_clk_freq in (100e6, 125e6, 150e6)
+        assert rtio_clk_freq in (100e6, 125e6)
 
-        # 125MHz/62.5MHz reference clock to 100MHz/125MHz/150MHz. VCO @ 750MHz.
+        # 125MHz/62.5MHz reference clock to 100MHz/125MHz. VCO @ 750MHz.
         # Used to provide a startup clock to the transceiver through the Si,
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
