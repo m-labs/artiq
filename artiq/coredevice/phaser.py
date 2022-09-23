@@ -1420,15 +1420,28 @@ class Miqro:
 
     @kernel
     def reset(self):
+        """Establish no-output profiles and no-output window and execute them.
+
+        This establishes the first profile (index 0) on all oscillators as zero
+        amplitude, creates a trivial window (one sample with zero amplitude,
+        minimal interpolation), and executes a corresponding pulse.
+        """
         for osc in range(16):
-            for pro in range(32):
-                self.set_profile_mu(osc, pro, 0, 0, 0)
-                delay(10*us)
-        self.set_window_mu(start=0, iq=[0], rate=1, shift=0, order=0, head=0, tail=0)
+            self.set_profile_mu(osc, profile=0, ftw=0, asf=0)
+            delay(10*us)
+        self.set_window_mu(start=0, iq=[0], order=0)
         self.pulse(window=0, profiles=[0])
 
     @kernel
-    def set_profile_mu(self, oscillator, profile, ftw, asf, pow=0):
+    def set_profile_mu(self, oscillator, profile, ftw, asf, pow_=0):
+        """Store an oscillator profile (machine units).
+
+        :param oscillator: Oscillator index (0 to 15)
+        :param profile: Profile index (0 to 31)
+        :param ftw: Frequency tuning word (32 bit signed integer on a 250 MHz clock)
+        :param asf: Amplitude scale factor (16 bit unsigned integer)
+        :param pow_: Phase offset word (16 bit integer)
+        """
         if oscillator >= 16:
             raise ValueError("invalid oscillator index")
         if profile >= 32:
@@ -1438,21 +1451,51 @@ class Miqro:
                 (oscillator << 6) | (profile << 1))
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, ftw)
         self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
-            (asf & 0xffff) | (pow << 16))
+            (asf & 0xffff) | (pow_ << 16))
 
     @kernel
     def set_profile(self, oscillator, profile, frequency, amplitude, phase=0.):
-        # frequency is interpreted in the Nyquist sense, i.e. aliased
+        """Store an oscillator profile.
+
+        :param oscillator: Oscillator index (0 to 15)
+        :param profile: Profile index (0 to 31)
+        :param frequency: Frequency in Hz (passband -100 to 100 MHz).
+            Interpreted in the Nyquist sense, i.e. aliased.
+        :param amplitude: Amplitude in units of full scale (0. to 1.)
+        :param phase: Phase in turns. See :class:`Miqro` for a definition of
+            phase in this context.
+        :return: The quantized 32 bit frequency tuning word
+        """
         ftw = int32(round(frequency*((1 << 30)/(62.5*MHz))))
         asf = int32(round(amplitude*0xffff))
         if asf < 0 or asf > 0xffff:
             raise ValueError("amplitude out of bounds")
-        pow = int32(round(phase*(1 << 16)))
-        self.set_profile_mu(oscillator, profile, ftw, asf, pow)
+        pow_ = int32(round(phase*(1 << 16)))
+        self.set_profile_mu(oscillator, profile, ftw, asf, pow_)
         return ftw
 
     @kernel
     def set_window_mu(self, start, iq, rate=1, shift=0, order=3, head=1, tail=1):
+        """Store a window segment (machine units)
+
+        :param start: Window start address (0 to 0x3ff)
+        :param iq: List of IQ window samples. Each window sample is an integer
+            containing the signed I part in the 16 LSB and the signed Q part in
+            the 16 MSB. The maximum window length is 0x3fe. The user must
+            ensure that this window does not overlap with other windows in the
+            memory.
+        :param rate: Interpolation rate change (1 to 1 << 12)
+        :param shift: Interpolator amplitude gain compensation in powers of 2 (0 to 63)
+        :param order: Interpolation order from 0 (corresponding to
+            constant/zero-order-hold/1st order CIC interpolation) to 3 (corresponding
+            to cubic/Parzen/4th order CIC interpolation)
+        :param head: Update the interpolator settings and clear its state at the start
+            of the window. This also implies starting the envelope from zero.
+        :param tail: Feed zeros into the interpolator after the window samples.
+            In the absence of further pulses this will return the output envelope
+            to zero with the chosen interpolation.
+        :return: Next available window memory address after this segment.
+        """
         if start >= 1 << 10:
             raise ValueError("start out of bounds")
         if len(iq) >= 1 << 10:
@@ -1480,6 +1523,24 @@ class Miqro:
 
     @kernel
     def set_window(self, start, iq, period=4*ns, order=3, head=1, tail=1):
+        """Store a window segment
+
+        :param start: Window start address (0 to 0x3ff)
+        :param iq: List of IQ window samples. Each window sample is a pair of
+            two float numbers -1 to 1, one for each I and Q in units of full scale.
+            The maximum window length is 0x3fe. The user must ensure that this window
+            does not overlap with other windows in the memory.
+        :param period: Desired window sample period in SI units (4*ns to (4 << 12)*ns).
+        :param order: Interpolation order from 0 (corresponding to
+            constant/zero-order-hold/1st order CIC interpolation) to 3 (corresponding
+            to cubic/Parzen/4th order CIC interpolation)
+        :param head: Update the interpolator settings and clear its state at the start
+            of the window. This also implies starting the envelope from zero.
+        :param tail: Feed zeros into the interpolator after the window samples.
+            In the absence of further pulses this will return the output envelope
+            to zero with the chosen interpolation.
+        :return: Actual sample period in SI units
+        """
         rate = int32(round(period/(4*ns)))
         gain = 1.
         for _ in range(order):
@@ -1499,6 +1560,17 @@ class Miqro:
 
     @kernel
     def encode(self, window, profiles, data):
+        """Encode window and profile selection
+
+        :param window: Window start address (0 to 0x3ff)
+        :param profiles: List of profile indices for the oscillators. Maximum
+            length 16. Unused oscillators will be set to profile 0.
+        :param data: List of integers to store the encoded data words into.
+            Unused entries will remain untouched. Must contain at least three
+            lements if all oscillators are used and should be initialized to
+            zeros.
+        :return: Number of words from `data` used.
+        """
         if len(profiles) > 16:
             raise ValueError("too many oscillators")
         if window > 0x3ff:
@@ -1518,6 +1590,13 @@ class Miqro:
 
     @kernel
     def pulse_mu(self, data):
+        """Emit a pulse (encoded)
+
+        The pulse fiducial timing resolution is 4 ns.
+
+        :param data: List of up to 3 words containing an encoded MIQRO pulse as
+            returned by :meth:`encode`.
+        """
         word = len(data)
         delay_mu(-8*word)  # back shift to align
         while word > 0:
@@ -1528,6 +1607,15 @@ class Miqro:
 
     @kernel
     def pulse(self, window, profiles):
+        """Emit a pulse
+
+        This encodes the window and profiles (see :meth:`encode`) and emits them
+        (see :meth:`pulse_mu`).
+
+        :param window: Window start address (0 to 0x3ff)
+        :param profiles: List of profile indices for the oscillators. Maximum
+            length 16. Unused oscillators will select profile 0.
+        """
         data = [0, 0, 0]
         words = self.encode(window, profiles, data)
         self.pulse_mu(data[:words])
