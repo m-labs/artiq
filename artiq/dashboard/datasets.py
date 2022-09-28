@@ -53,9 +53,9 @@ class Editor(QtWidgets.QDialog):
             newkey = self.name_widget.text()
             value = self.initial_type(self.get_edit_widget_value())
         except Exception as ex:
-            msgBox = QtWidgets.QMessageBox(self)
-            msgBox.setText(f"Failed to get new dataset value: {ex}")
-            msgBox.exec()
+            msg_box = QtWidgets.QMessageBox(self)
+            msg_box.setText(f"Failed to get new dataset value: {ex}")
+            msg_box.exec()
         else:
             asyncio.ensure_future(rename(self.key, newkey, value, self.dataset_ctl))
             QtWidgets.QDialog.accept(self)
