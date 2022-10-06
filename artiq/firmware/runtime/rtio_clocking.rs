@@ -231,9 +231,12 @@ fn setup_si5324(clock_cfg: RtioClock) {
 
     // switch sysclk source to si5324
     #[cfg(soc_platform = "kasli")]
-    unsafe {
-        info!("Switching system clock source to si5324, rebooting...");
-        csr::crg::clock_sel_write(1);
+    {
+        // excessive dots will be cut off by the reboot
+        info!("Switching sys clock, rebooting..................");
+        unsafe {
+            csr::crg::clock_sel_write(1);
+        }
     }
 }
 
