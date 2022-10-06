@@ -173,7 +173,10 @@ fn monitor_lock() -> Result<()> {
     Ok(())
 }
 
-fn select_si5324() -> Result<()> {
+fn init() -> Result<()> {
+    #[cfg(not(si5324_soft_reset))]
+    hard_reset();
+
     #[cfg(soc_platform = "kasli")]
     {
         i2c::switch_select(BUSNO, 0x70, 0)?;
@@ -188,15 +191,6 @@ fn select_si5324() -> Result<()> {
     #[cfg(soc_platform = "kc705")]
     i2c::switch_select(BUSNO, 0x74, 1 << 7)?;
 
-    Ok(())
-}
-
-fn init() -> Result<()> {
-    #[cfg(not(si5324_soft_reset))]
-    hard_reset();
-
-    select_si5324()?;
-
     if ident()? != 0x0182 {
         return Err("Si5324 does not have expected product number");
     }
@@ -206,17 +200,12 @@ fn init() -> Result<()> {
     Ok(())
 }
 
-pub fn bypass(input: Input, do_init: bool) -> Result<()> {
+pub fn bypass(input: Input) -> Result<()> {
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
-    if do_init {
-        init()?;
-    } else {
-        select_si5324()?;
-    }
-    
+    init()?;
     write(21,  read(21)? & 0xfe)?;                        // CKSEL_PIN=0
     write(3,   (read(3)? & 0x3f) | (cksel_reg << 6))?;    // CKSEL_REG
     write(4,   (read(4)? & 0x3f) | (0b00 << 6))?;         // AUTOSEL_REG=b00
@@ -225,19 +214,14 @@ pub fn bypass(input: Input, do_init: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings, input: Input, do_init: bool) -> Result<()> {
+pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
     let s = map_frequency_settings(settings)?;
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
     };
 
-    if do_init {
-        init()?;
-    } else {
-        select_si5324()?;
-    }
-    
+    init()?;
     if settings.crystal_ref {
         write(0,   read(0)? | 0x40)?;                     // FREE_RUN=1
     }
@@ -263,9 +247,7 @@ pub fn setup(settings: &FrequencySettings, input: Input, do_init: bool) -> Resul
     write(47,  (s.n32    >> 8)  as u8)?;
     write(48,  (s.n32)          as u8)?;
     write(137, read(137)? | 0x01)?;                       // FASTLOCK=1
-    if do_init {
-        write(136, read(136)? | 0x40)?;                       // ICAL=1
-    }
+    write(136, read(136)? | 0x40)?;                       // ICAL=1
 
     if !has_xtal()? {
         return Err("Si5324 misses XA/XB signal");

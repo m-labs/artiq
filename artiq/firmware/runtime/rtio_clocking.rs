@@ -1,8 +1,10 @@
 use board_misoc::config;
 #[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
+#[cfg(any(soc_platform = "kasli", has_drtio))]
+use board_misoc::csr;
 #[cfg(has_drtio)]
-use board_misoc::{csr, clock};
+use board_misoc::clock;
 
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -196,29 +198,50 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "kc705")]
     let si5324_ref_input = si5324::Input::Ckin2;
-    si5324::setup(&si5324_settings, si5324_ref_input, false).expect("cannot initialize Si5324");
+    si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
 }
+
+#[cfg(si5324_as_synthesizer)]
+fn setup_si5324(clock_cfg: RtioClock) {
+    #[cfg(soc_platform = "kasli")]
+    {
+        let switched = unsafe {
+            csr::crg::switch_done_read()
+        };
+        if switched == 1 {
+            info!("Clocking has already been set up.");
+            return;
+        }
+    }
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
+    let si5324_ext_input = si5324::Input::Ckin1;
+    #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
+    let si5324_ext_input = si5324::Input::Ckin2;
+    #[cfg(soc_platform = "metlino")]
+    let si5324_ext_input = si5324::Input::Ckin2;
+    #[cfg(soc_platform = "kc705")]
+    let si5324_ext_input = si5324::Input::Ckin2;
+    match clock_cfg {
+        RtioClock::Ext0_Bypass => {
+            info!("using external RTIO clock with PLL bypass");
+            si5324::bypass(si5324_ext_input).expect("cannot bypass Si5324")
+        },
+        _ => setup_si5324_as_synthesizer(clock_cfg),
+    }
+
+    // switch sysclk source to si5324
+    #[cfg(soc_platform = "kasli")]
+    unsafe {
+        info!("Switching system clock source to si5324, rebooting...");
+        csr::crg::clock_sel_write(1);
+    }
+}
+
 
 pub fn init() {
     let clock_cfg = get_rtio_clock_cfg();
     #[cfg(si5324_as_synthesizer)]
-    {
-        #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
-        let si5324_ext_input = si5324::Input::Ckin1;
-        #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
-        let si5324_ext_input = si5324::Input::Ckin2;
-        #[cfg(soc_platform = "metlino")]
-        let si5324_ext_input = si5324::Input::Ckin2;
-        #[cfg(soc_platform = "kc705")]
-        let si5324_ext_input = si5324::Input::Ckin2;
-        match clock_cfg {
-            RtioClock::Ext0_Bypass => {
-                info!("using external RTIO clock with PLL bypass");
-                si5324::bypass(si5324_ext_input, false).expect("cannot bypass Si5324")
-            },
-            _ => setup_si5324_as_synthesizer(clock_cfg),
-        }
-    }
+    setup_si5324(clock_cfg);
 
     #[cfg(has_drtio)]
     {

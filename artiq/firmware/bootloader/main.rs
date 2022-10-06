@@ -7,8 +7,6 @@ extern crate smoltcp;
 #[macro_use]
 extern crate board_misoc;
 extern crate riscv;
-#[cfg(soc_platform = "kasli")]
-extern crate board_artiq;
 
 use core::{ptr, slice, convert::TryFrom};
 use crc::crc32;
@@ -22,8 +20,6 @@ use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
 use smoltcp::iface::SocketStorage;
 use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address};
-#[cfg(soc_platform = "kasli")]
-use board_artiq::si5324;
 
 fn check_integrity() -> bool {
     extern {
@@ -90,40 +86,6 @@ fn memory_test(total: &mut usize, wrong: &mut usize) -> bool {
     *wrong == 0
 }
 
-#[cfg(soc_platform = "kasli")]
-fn set_clocks() {
-    let done = unsafe {  
-        board_misoc::csr::crg::switch_done_read()
-    };
-    if done != 0 {
-        println!("switch already done!");
-        return;
-    }
-    //set up 125mhz clock from internal oscillator (base option) - kasli 2.0+
-    let setting = si5324::FrequencySettings {
-        n1_hs  : 10,
-        nc1_ls : 4,
-        n2_hs  : 10,
-        n2_ls  : 19972,
-        n31    : 4565,
-        n32    : 4565,
-        bwsel  : 4,
-        crystal_ref: true
-    };
-    //squashed to 100MHz by PLL on 1.0/1.1
-    let res = si5324::setup(&setting, si5324::Input::Ckin2, true);
-    match res {
-        Ok(_) => { println!("si5324 clock locked!"); }
-        Err(x) => { println!("si5324 lock error! {}", x); }
-    };
-    // switch clk again
-    println!("switching to si5324!");
-    unsafe {
-        board_misoc::csr::crg::clock_sel_write(1); 
-    }
-    // will cause a reboot at this point
-}
-
 fn startup() -> bool {
     if check_integrity() {
         println!("Bootloader CRC passed");
@@ -133,13 +95,6 @@ fn startup() -> bool {
     }
 
     println!("Gateware ident {}", ident::read(&mut [0; 64]));
-    
-    #[cfg(soc_platform = "kasli")]
-    {
-        println!("Setting up Si5324 clock...");
-        set_clocks();
-        println!("PLL locked!");
-    }
 
     println!("Initializing SDRAM...");
 
@@ -564,12 +519,7 @@ pub extern fn main() -> i32 {
     }
 
     println!("No boot medium.");
-    loop {
-        #[cfg(has_error_led)]
-        unsafe {
-            board_misoc::csr::error_led::out_write(1);
-        }
-    }
+    loop {}
 }
 
 #[no_mangle]

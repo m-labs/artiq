@@ -517,7 +517,21 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
-    #[cfg(has_si5324)]
+    #[cfg(all(soc_platform = "kasli", has_si5324))]
+    {
+        let switched = unsafe {
+            csr::crg::switch_done_read()
+        };
+        if switched == 1 {
+            info!("Clocking has already been set up.");
+        }
+        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1, false).expect("cannot initialize Si5324");
+        info!("Switching system clock source to si5324, rebooting...");
+        unsafe {
+            csr::crg::clock_sel_write(1);
+        }
+    }
+    #[cfg(all(soc_platform != "kasli", has_si5324))]
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1, false).expect("cannot initialize Si5324");
     #[cfg(has_wrpll)]
     wrpll::init();
