@@ -141,80 +141,18 @@ class SchedulerCase(unittest.TestCase):
         high_priority = 3
         middle_priority = 2
         low_priority = 1
-        late = time() + 100000
+        late = time() + 4
         early = time() + 1
 
-        expect = [
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": low_priority,
-                    "pipeline": "main",
-                    "due_date": None,
-                    "status": "pending",
-                    "expid": expid_bg,
-                    "flush": False
-                },
-                "key": 0
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": high_priority,
-                    "pipeline": "main",
-                    "due_date": late,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 1
-            },
-            {
-                "path": [],
-                "action": "setitem",
-                "value": {
-                    "repo_msg": None,
-                    "priority": middle_priority,
-                    "pipeline": "main",
-                    "due_date": early,
-                    "status": "pending",
-                    "expid": expid_empty,
-                    "flush": False
-                },
-                "key": 2
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [0],
-                "action": "setitem",
-                "value": "prepare_done",
-                "key": "status"
-            },
+        expect_rid1 = _get_basic_steps(1, expid_empty, high_priority)
+        expect_rid1[0]["value"].update(due_date=late)
+        expect_rid2 = _get_basic_steps(2, expid_empty, middle_priority)
+        expect_rid2[0]["value"].update(due_date=early)
+        expect_run_order = [
             {
                 "path": [0],
                 "action": "setitem",
                 "value": "running",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "preparing",
-                "key": "status"
-            },
-            {
-                "path": [2],
-                "action": "setitem",
-                "value": "prepare_done",
                 "key": "status"
             },
             {
@@ -242,30 +180,51 @@ class SchedulerCase(unittest.TestCase):
                 "key": "status"
             },
             {
-                "path": [2],
+                "path": [0],
                 "action": "setitem",
-                "value": "analyzing",
+                "value": "paused",
                 "key": "status"
             },
             {
-                "path": [2],
+                "path": [1],
                 "action": "setitem",
-                "value": "deleting",
+                "value": "running",
                 "key": "status"
             },
             {
-                "path": [],
-                "action": "delitem",
-                "key": 2
+                "path": [1],
+                "action": "setitem",
+                "value": "run_done",
+                "key": "status"
+            },
+            {
+                "path": [0],
+                "action": "setitem",
+                "value": "running",
+                "key": "status"
             },
         ]
+
         done = asyncio.Event()
-        expect_idx = 0
+        expect_rid1_idx = 0
+        expect_rid2_idx = 0
+        expect_run_order_idx = 0
         def notify(mod):
-            nonlocal expect_idx
-            self.assertEqual(mod, expect[expect_idx])
-            expect_idx += 1
-            if expect_idx >= len(expect):
+            nonlocal expect_rid1_idx, expect_rid2_idx, expect_run_order_idx
+            if mod["path"] == [1] or (mod["path"] == [] and mod["key"] == 1):
+                self.assertEqual(mod, expect_rid1[expect_rid1_idx])
+                expect_rid1_idx += 1
+            if mod["path"] == [2] or (mod["path"] == [] and mod["key"] == 2):
+                self.assertEqual(mod, expect_rid2[expect_rid2_idx])
+                expect_rid2_idx += 1
+            if mod["key"] == "status" and \
+               mod["value"] in ["running", "run_done", "paused"]:
+                self.assertEqual(mod, expect_run_order[expect_run_order_idx])
+                expect_run_order_idx += 1
+            all_checked = expect_rid1_idx >= len(expect_rid1) and \
+                expect_rid2_idx >= len(expect_rid2) and \
+                expect_run_order_idx >= len(expect_run_order)
+            if all_checked:
                 done.set()
         scheduler.notifier.publish = notify
 
