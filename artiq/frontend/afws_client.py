@@ -84,10 +84,7 @@ class Client:
 
     def build(self, major_ver, rev, variant, log, experimental_features):
         if not variant:
-            variants = self.get_variants()
-            if len(variants) != 1:
-                raise ValueError("User can build more than 1 variant - need to specify")
-            variant = variants[0][0]
+            variant = self.get_single_variant(error_msg="User can build more than 1 variant - need to specify")
         print("Building variant: {}".format(variant))
         build_args = (
             rev,
@@ -140,6 +137,26 @@ class Client:
             raise ValueError("Unexpected server reply: expected 'OK', got '{}'".format(reply))
         return self.read_json()
 
+    def get_single_variant(self, error_msg):
+        variants = self.get_variants()
+        if len(variants) != 1:
+            print(error_msg)
+            table = PrettyTable()
+            table.field_names = ["Variant", "Expiry date"]
+            table.add_rows(variants)
+            print(table)
+            sys.exit(1)
+        return variants[0][0]
+
+    def get_json(self, variant):
+        self.send_command("GET_JSON", variant)
+        reply = self.read_reply()
+        if reply[0] != "OK":
+            return reply[0], None
+        length = int(reply[1])
+        json_str = self.fsocket.read(length).decode("ascii")
+        return "OK", json_str
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -158,6 +175,10 @@ def main():
     act_build.add_argument("variant", nargs="?", default=None, help="variant to build (can be omitted if user is authorised to build only one)")
     act_passwd = action.add_parser("passwd", help="change password")
     act_get_variants = action.add_parser("get_variants", help="get available variants and expiry dates")
+    act_get_json = action.add_parser("get_json", help="get JSON description file of variant")
+    act_get_json.add_argument("variant", nargs="?", default=None, help="variant to get (can be omitted if user is authorised to build only one)")
+    act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
+    act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
     args = parser.parse_args()
 
     cert = args.cert
@@ -228,6 +249,24 @@ def main():
             table.field_names = ["Variant", "Expiry date"]
             table.add_rows(data)        
             print(table)
+        elif args.action == "get_json":
+            if args.variant:
+                variant = args.variant
+            else:
+                variant = client.get_single_variant(error_msg="User can get JSON of more than 1 variant - need to specify")
+            result, json_str = client.get_json(variant)
+            if result != "OK":
+                if result == "UNAUTHORIZED":
+                    print(f"You are not authorized to get JSON of variant {variant}. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
+                sys.exit(1)
+            if args.out:
+                if not args.force and os.path.exists(args.out):
+                    print(f"File {args.out} already exists. You can use -f to overwrite the existing file.")
+                    sys.exit(1)
+                with open(args.out, "w") as f:
+                    f.write(json_str)
+            else:
+                print(json_str)
         else:
             raise ValueError
     finally:
