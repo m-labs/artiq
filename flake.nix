@@ -442,6 +442,8 @@
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
+	  export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
+          export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
         '';
       };
 
