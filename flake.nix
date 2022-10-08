@@ -201,7 +201,6 @@
       misoc = pkgs.python3Packages.buildPythonPackage {
         name = "misoc";
         src = src-misoc;
-        doCheck = false;  # TODO: fix misoc bitrot and re-enable tests
         propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
       };
 
