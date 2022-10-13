@@ -357,7 +357,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.disable_cdr_clk_ibuf.attr.add("no_retiming")
         cdr_clk_clean_buf = Signal()
         self.specials += Instance("BUFGCE",
-            i_CEB=self.disable_cdr_clk_ibuf,
+            i_CE=self.disable_cdr_clk_ibuf,
             i_I=self.crg.cdr_clk_buf,
             o_O=cdr_clk_clean_buf)
         # Note precisely the rules Xilinx made up:
@@ -409,19 +409,13 @@ class SatelliteBase(BaseSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
 
-        disable_cdr_clk_ibuf = Signal(reset=1)
-        disable_cdr_clk_ibuf.attr.add("no_retiming")
         cdr_clk_clean_buf = Signal()
-        self.specials += Instance("BUFGCE",
-            i_CEB=disable_cdr_clk_ibuf,
-            i_I=self.crg.cdr_clk_buf,
-            o_O=cdr_clk_clean_buf)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings)
+        qpll = QPLL(self.crg.cdr_clk_buf, qpll_drtio_settings)
         self.submodules += qpll
 
         drtio_data_pads = []
@@ -440,8 +434,6 @@ class SatelliteBase(BaseSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += disable_cdr_clk_ibuf.eq(
-            ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
@@ -550,8 +542,6 @@ class SatelliteBase(BaseSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
-        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
