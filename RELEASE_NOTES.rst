@@ -19,6 +19,7 @@ ARTIQ-9 (Unreleased)
 * Python 3.12 support.
 * Compiler can now give automatic suggestions for ``kernel_invariants``. 
 * Idle kernels now restart when written with ``artiq_coremgmt`` and stop when erased/removed from config.
+* HDF5 attributes can be attached to datasets using ``set_dataset_metadata()``.
 
 ARTIQ-8
 -------
