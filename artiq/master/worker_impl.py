@@ -289,6 +289,7 @@ def main():
         filename = "{:09}-{}.h5".format(rid, exp.__name__)
         with h5py.File(filename, "w") as f:
             dataset_mgr.write_hdf5(f)
+            dataset_mgr.write_hdf5_attributes(f)
             f["artiq_version"] = artiq_version
             f["rid"] = rid
             f["start_time"] = start_time

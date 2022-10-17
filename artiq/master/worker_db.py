@@ -110,6 +110,7 @@ class DatasetManager:
     def __init__(self, ddb):
         self._broadcaster = Notifier(dict())
         self.local = dict()
+        self.hdf5_attributes = dict()
         self.archive = dict()
 
         self.ddb = ddb
@@ -163,6 +164,12 @@ class DatasetManager:
             self.archive[key] = data
         return data
 
+    def set_metadata(self, key, metadata):
+        if key:
+            self.hdf5_attributes["datasets/" + key] = metadata
+        else:
+            self.hdf5_attributes["datasets"] = metadata
+
     def write_hdf5(self, f):
         datasets_group = f.create_group("datasets")
         for k, v in self.local.items():
@@ -171,6 +178,11 @@ class DatasetManager:
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
             _write(archive_group, k, v)
+
+    def write_hdf5_attributes(self, f):
+        for k, attrs in self.hdf5_attributes.items():
+            if k in f:
+                _write_attributes(f, k, attrs)
 
 
 def _write(group, k, v):
@@ -181,3 +193,14 @@ def _write(group, k, v):
     except TypeError as e:
         raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
             k, type(v), e))
+
+
+def _write_attributes(f, k, attrs):
+    # Add context to exception message when the user writes a attribute that is
+    # not representable in HDF5.
+    try:
+        for attr_k, attr_v in attrs.items():
+            f[k].attrs[attr_k] = attr_v
+    except TypeError as e:
+        raise TypeError("Error writing attribute '{}' of type '{}': {}".format(
+            attr_k, type(attr_v), e))
