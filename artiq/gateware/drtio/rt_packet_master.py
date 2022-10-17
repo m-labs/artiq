@@ -159,18 +159,6 @@ class RTPacketMaster(Module):
             buffer_space_not, buffer_space,
             self.buffer_space_not, self.buffer_space_not_ack, self.buffer_space)
 
-        set_time_stb = Signal()
-        set_time_ack = Signal()
-        self.submodules += CrossDomainRequest("sys",
-            self.set_time_stb, self.set_time_ack, None,
-            set_time_stb, set_time_ack, None)
-
-        echo_stb = Signal()
-        echo_ack = Signal()
-        self.submodules += CrossDomainRequest("sys",
-            self.echo_stb, self.echo_ack, None,
-            echo_stb, echo_ack, None)
-
         read_not = Signal()
         read_no_event = Signal()
         read_is_overflow = Signal()
@@ -198,7 +186,7 @@ class RTPacketMaster(Module):
         ]
 
         # TX FSM
-        tx_fsm = ClockDomainsRenamer("sys")(FSM(reset_state="IDLE"))
+        tx_fsm = FSM(reset_state="IDLE")
         self.submodules += tx_fsm
 
         echo_sent_now = Signal()
@@ -222,10 +210,10 @@ class RTPacketMaster(Module):
                     NextState("WRITE")
                 )
             ).Else(
-                If(echo_stb,
+                If(self.echo_stb,
                     echo_sent_now.eq(1),
                     NextState("ECHO")
-                ).Elif(set_time_stb,
+                ).Elif(self.set_time_stb,
                     tsc_value_load.eq(1),
                     NextState("SET_TIME")
                 )
@@ -272,14 +260,14 @@ class RTPacketMaster(Module):
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),
             If(tx_dp.packet_last,
-                echo_ack.eq(1),
+                self.echo_ack.eq(1),
                 NextState("IDLE")
             )
         )
         tx_fsm.act("SET_TIME",
             tx_dp.send("set_time", timestamp=tsc_value),
             If(tx_dp.packet_last,
-                set_time_ack.eq(1),
+                self.set_time_ack.eq(1),
                 NextState("IDLE")
             )
         )

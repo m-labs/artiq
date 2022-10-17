@@ -15,15 +15,11 @@ class RTController(Module, AutoCSR):
         self.command_missed_chan_sel = CSRStatus(24)
         self.buffer_space_timeout_dest = CSRStatus(8)
 
-        self.specials += MultiReg(self.reset.storage, rt_packet.reset)
+        self.sync += rt_packet.reset.eq(self.reset.storage)
 
         set_time_stb = Signal()
-        set_time_ack = Signal()
-        # self.submodules += CrossDomainRequest("sys",
-        #     set_time_stb, set_time_ack, None,
-        #     rt_packet.set_time_stb, rt_packet.set_time_ack, None)
         self.sync += [
-            If(set_time_ack, set_time_stb.eq(0)),
+            If(rt_packet.set_time_stb, set_time_stb.eq(0)),
             If(self.set_time.re, set_time_stb.eq(1))
         ]
         self.comb += self.set_time.w.eq(set_time_stb)

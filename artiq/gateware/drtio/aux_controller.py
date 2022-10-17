@@ -66,9 +66,11 @@ class Transmitter(Module, AutoCSR):
             converter.sink.data.eq(mem_port.dat_r)
         ]
 
+        tx_done = Signal()
         self.sync += [
             frame_counter.eq(frame_counter_next),
-            If(self.aux_tx.re, self.aux_tx.w.eq(1))
+            If(self.aux_tx.re, self.aux_tx.w.eq(1)),
+            If(tx_done, self.aux_tx.w.eq(0))
         ]
 
         fsm = FSM(reset_state="IDLE")
@@ -88,7 +90,7 @@ class Transmitter(Module, AutoCSR):
         )
         fsm.act("WAIT_INTERFRAME",
             If(seen_eop,
-                self.aux_tx.w.eq(0),
+                tx_done.eq(1),
                 NextState("IDLE")
             )
         )

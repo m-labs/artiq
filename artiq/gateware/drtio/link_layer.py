@@ -263,24 +263,16 @@ class LinkLayer(Module, AutoCSR):
             MultiReg(rx_up_r, rx_up_rx, "rtio_rx"),
             MultiReg(rx_up_r, self.rx_up.status)]
 
-        tx_force_aux_zero_rtio = Signal()
-        tx_force_rt_zero_rtio = Signal()
-        self.tx_force_aux_zero.storage.attr.add("no_retiming")
-        self.tx_force_rt_zero.storage.attr.add("no_retiming")
-        self.specials += [
-            MultiReg(self.tx_force_aux_zero.storage, tx_force_aux_zero_rtio),
-            MultiReg(self.tx_force_rt_zero.storage, tx_force_rt_zero_rtio)]
-
         rx_disable_rx = Signal()
         self.rx_disable.storage.attr.add("no_retiming")
         self.specials += MultiReg(self.rx_disable.storage, rx_disable_rx, "rtio_rx")
 
         self.comb += [
-            tx.aux_frame.eq(self.tx_aux_frame | tx_force_aux_zero_rtio),
-            tx.aux_data.eq(Mux(tx_force_aux_zero_rtio, 0, self.tx_aux_data)),
+            tx.aux_frame.eq(self.tx_aux_frame | self.tx_force_aux_zero.storage),
+            tx.aux_data.eq(Mux(self.tx_force_aux_zero.storage, 0, self.tx_aux_data)),
             self.tx_aux_ack.eq(tx.aux_ack),
-            tx.rt_frame.eq(self.tx_rt_frame | tx_force_rt_zero_rtio),
-            tx.rt_data.eq(Mux(tx_force_rt_zero_rtio, 0, self.tx_rt_data))
+            tx.rt_frame.eq(self.tx_rt_frame | self.tx_force_rt_zero.storage),
+            tx.rt_data.eq(Mux(self.tx_force_rt_zero.storage, 0, self.tx_rt_data))
         ]
         # we register those to improve timing margins, as the data may need
         # to be recaptured by RXSynchronizer.
