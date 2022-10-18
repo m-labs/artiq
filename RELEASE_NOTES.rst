@@ -11,6 +11,8 @@ Highlights:
 * Implemented Phaser-servo. This requires recent gateware on Phaser.
 * Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
   variant.
+* HDF5 attributes can be attached to datasets using ``set_dataset_metadata()``.
+
 
 ARTIQ-7
 -------
