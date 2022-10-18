@@ -23,6 +23,8 @@ Highlights:
   support legacy installations, but may be removed in a future release.
 * Added channel names to RTIO errors.
 * Full Python 3.10 support.
+* HDF5 attributes can be attached to datasets using ``set_dataset_metadata()``.
+
 
 ARTIQ-7
 -------
