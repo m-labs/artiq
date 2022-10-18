@@ -166,6 +166,8 @@ class DatasetManager:
 
     def set_metadata(self, key, metadata):
         if key:
+            if key not in self.local:
+                logger.warning(f"Key '{key}' not found in dataset.")
             self.hdf5_attributes["datasets/" + key] = metadata
         else:
             self.hdf5_attributes["datasets"] = metadata
