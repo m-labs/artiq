@@ -1,6 +1,5 @@
 from migen import *
 from misoc.cores.duc import MultiDDS
-from misoc.interconnect.stream import Endpoint
 
 from artiq.gateware.rtio import rtlink
 from .fastlink import SerDes, SerInterface

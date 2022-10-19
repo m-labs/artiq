@@ -8,6 +8,7 @@ import sys
 
 from artiq.experiment import *
 from artiq.coredevice.ad9910 import AD9910, SyncDataEeprom
+from artiq.coredevice.phaser import PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
@@ -86,7 +87,7 @@ class SinaraTester(EnvExperiment):
                 elif (module, cls) == ("artiq.coredevice.fastino", "Fastino"):
                     self.fastinos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.phaser", "Phaser"):
-                    self.phasers[name] = self.get_device(name)
+                    self. import PHASER_GW_BASE, PHASER_GW_MIQROphasers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.mirny", "Mirny"):
@@ -570,7 +571,7 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         phaser.init()
         delay(1*ms)
-        if phaser.gw_rev == 1:  # base
+        if phaser.gw_rev == PHASER_GW_BASE:  # base
             phaser.channel[0].set_duc_frequency(duc)
             phaser.channel[0].set_duc_cfg()
             phaser.channel[0].set_att(6*dB)
@@ -585,7 +586,7 @@ class SinaraTester(EnvExperiment):
                 phaser.channel[1].oscillator[i].set_frequency(-osc[i])
                 phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
                 delay(1*ms)
-        elif phaser.gw_rev == 2:  # miqro
+        elif phaser.gw_rev == PHASER_GW_BASE:  # miqro
             for ch in range(2):
                 phaser.channel[ch].set_att(6*dB)
                 phaser.channel[ch].set_duc_cfg(select=0)
@@ -599,6 +600,8 @@ class SinaraTester(EnvExperiment):
                 phaser.channel[ch].miqro.pulse(
                     window=0x000, profiles=[1 for _ in range(len(osc))])
                 delay(1*ms)
+        else:
+            raise ValueError
 
     @kernel
     def phaser_led_wave(self, phasers):
