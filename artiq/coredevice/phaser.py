@@ -89,8 +89,8 @@ class Phaser:
     quadrature modulation compensation and interpolation features.
 
     The coredevice RTIO PHY and the Phaser gateware come in different modes
-    that have different features. Phaser mode and coredevice PHY are both
-    both selected at gateware compile-time and need to match.
+    that have different features. Phaser mode and coredevice PHY mode are both
+    selected at their respective gateware compile-time and need to match.
 
     ===============  ==============  ===================================
     Phaser gateware  Coredevice PHY  Features per :class:`PhaserChannel`
@@ -99,6 +99,12 @@ class Phaser:
     Base >= v0.6     Base            Base + Servo
     Miqro >= v0.6    Miqro           :class:`Miqro`
     ===============  ==============  ===================================
+
+    The coredevice driver (this class and :class:`PhaserChannel`) exposes
+    the superset of all functionality regardless of the Coredevice RTIO PHY
+    or Phaser gateware modes. This is to evade type unification limitations.
+    Features absent in Coredevice PHY/Phaser gateware will not work and
+    should not be accessed.
 
     **Base mode**
 
@@ -833,8 +839,9 @@ class PhaserChannel:
 
     A Phaser channel contains:
 
-    * multiple oscillators (in the coredevice phy),
+    * multiple :class:`PhaserOscillator` (in the coredevice phy),
     * an interpolation chain and digital upconverter (DUC) on Phaser,
+    * a :class:`Miqro` instance on Phaser,
     * several channel-specific settings in the DAC:
 
         * quadrature modulation compensation QMC
@@ -846,6 +853,7 @@ class PhaserChannel:
     Attributes:
 
     * :attr:`oscillator`: List of five :class:`PhaserOscillator`.
+    * :attr:`miqro`: A :class:`Miqro`.
 
     .. note:: The amplitude sum of the oscillators must be less than one to
         avoid clipping or overflow. If any of the DDS or DUC frequencies are
@@ -858,6 +866,8 @@ class PhaserChannel:
         changes in oscillator parameters, the overshoot can lead to clipping
         or overflow after the interpolation. Either band-limit any changes
         in the oscillator parameters or back off the amplitude sufficiently.
+        Miqro is not affected by this. But both the oscillators and Miqro can
+        be affected by intrinsic overshoot of the interpolator on the DAC.
     """
     kernel_invariants = {"index", "phaser", "trf_mmap"}
 
@@ -1422,7 +1432,7 @@ class Miqro:
         """
         for osc in range(16):
             self.set_profile_mu(osc, profile=0, ftw=0, asf=0)
-            delay(10*us)
+            delay(20*us)
         self.set_window_mu(start=0, iq=[0], order=0)
         self.pulse(window=0, profiles=[0])
 
@@ -1512,7 +1522,7 @@ class Miqro:
         )
         for iqi in iq:
             self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, iqi)
-            delay(10*us)  # slack for long windows
+            delay(20*us)  # slack for long windows
         return (start + 1 + len(iq)) & 0x3ff
 
     @kernel
