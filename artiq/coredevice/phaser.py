@@ -275,7 +275,7 @@ class Phaser:
 
         for data in self.dac_mmap:
             self.dac_write(data >> 16, data)
-            delay(40*us)
+            delay(120*us)
         self.dac_sync()
         delay(40*us)
 
@@ -662,7 +662,7 @@ class Phaser:
         .. note:: Synchronising the NCO clears the phase-accumulator
         """
         config1f = self.dac_read(0x1f)
-        delay(.1*ms)
+        delay(.4*ms)
         self.dac_write(0x1f, config1f & ~int32(1 << 1))
         self.dac_write(0x1f, config1f | (1 << 1))
 
