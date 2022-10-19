@@ -571,7 +571,7 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         phaser.init()
         delay(1*ms)
-        if phaser.gw_rev == PHASER_GW_BASE:  # base
+        if phaser.gw_rev == PHASER_GW_BASE:
             phaser.channel[0].set_duc_frequency(duc)
             phaser.channel[0].set_duc_cfg()
             phaser.channel[0].set_att(6*dB)
@@ -586,7 +586,7 @@ class SinaraTester(EnvExperiment):
                 phaser.channel[1].oscillator[i].set_frequency(-osc[i])
                 phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
                 delay(1*ms)
-        elif phaser.gw_rev == PHASER_GW_BASE:  # miqro
+        elif phaser.gw_rev == PHASER_GW_MIQRO:
             for ch in range(2):
                 phaser.channel[ch].set_att(6*dB)
                 phaser.channel[ch].set_duc_cfg()
