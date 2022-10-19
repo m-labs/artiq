@@ -9,6 +9,10 @@ from artiq.coredevice.trf372017 import TRF372017
 
 
 PHASER_BOARD_ID = 19
+
+PHASER_GW_BASE = 1
+PHASER_GW_MIQRO = 2
+
 PHASER_ADDR_BOARD_ID = 0x00
 PHASER_ADDR_HW_REV = 0x01
 PHASER_ADDR_GW_REV = 0x02
@@ -47,6 +51,12 @@ PHASER_ADDR_SERVO_CFG1 = 0x31
 # 0x32 - 0x71 servo coefficients + offset data
 PHASER_ADDR_SERVO_DATA_BASE = 0x32
 
+# 0x72 - 0x78 Miqro channel profile/window memories
+PHASER_ADDR_MIQRO_MEM_ADDR = 0x72
+PHASER_ADDR_MIQRO_MEM_DATA = 0x74
+
+# Miqro profile memory select
+PHASER_MIQRO_SEL_PROFILE = 1 << 14
 
 PHASER_SEL_DAC = 1 << 0
 PHASER_SEL_TRF0 = 1 << 1
@@ -78,6 +88,26 @@ class Phaser:
     Phaser contains a 4 channel, 1 GS/s DAC chip with integrated upconversion,
     quadrature modulation compensation and interpolation features.
 
+    The coredevice RTIO PHY and the Phaser gateware come in different modes
+    that have different features. Phaser mode and coredevice PHY mode are both
+    selected at their respective gateware compile-time and need to match.
+
+    ===============  ==============  ===================================
+    Phaser gateware  Coredevice PHY  Features per :class:`PhaserChannel`
+    ===============  ==============  ===================================
+    Base <= v0.5     Base            Base (5 :class:`PhaserOscillator`)
+    Base >= v0.6     Base            Base + Servo
+    Miqro >= v0.6    Miqro           :class:`Miqro`
+    ===============  ==============  ===================================
+
+    The coredevice driver (this class and :class:`PhaserChannel`) exposes
+    the superset of all functionality regardless of the Coredevice RTIO PHY
+    or Phaser gateware modes. This is to evade type unification limitations.
+    Features absent in Coredevice PHY/Phaser gateware will not work and
+    should not be accessed.
+
+    **Base mode**
+
     The coredevice produces 2 IQ (in-phase and quadrature) data streams with 25
     MS/s and 14 bit per quadrature. Each data stream supports 5 independent
     numerically controlled IQ oscillators (NCOs, DDSs with 32 bit frequency, 16
@@ -108,6 +138,14 @@ class Phaser:
     absolute phase with respect to other RTIO input and output events
     (see `get_next_frame_mu()`).
 
+    **Miqro mode**
+
+    See :class:`Miqro`
+
+    Here the DAC operates in 4x interpolation.
+
+    **Analog flow**
+
     The four analog DAC outputs are passed through anti-aliasing filters.
 
     In the baseband variant, the even/in-phase DAC channels feed 31.5 dB range
@@ -124,6 +162,8 @@ class Phaser:
     The DAC, the analog quadrature upconverters and the attenuators are
     configured through a shared SPI bus that is accessed and controlled via
     FPGA registers.
+
+    **Servo**
 
     Each phaser output channel features a servo to control the RF output amplitude
     using feedback from an ADC. The servo consists of a first order IIR (infinite
@@ -203,6 +243,7 @@ class Phaser:
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
+        self.gw_rev = -1  # discovered in init()
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -226,9 +267,9 @@ class Phaser:
         delay(.1*ms)  # slack
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
-        gw_rev = self.read8(PHASER_ADDR_GW_REV)
+        self.gw_rev = self.read8(PHASER_ADDR_GW_REV)
         if debug:
-            print("gw_rev:", gw_rev)
+            print("gw_rev:", self.gw_rev)
             self.core.break_realtime()
         delay(.1*ms)  # slack
 
@@ -346,36 +387,40 @@ class Phaser:
             if channel.get_att_mu() != 0x5a:
                 raise ValueError("attenuator test failed")
             delay(.1*ms)
-            channel.set_att_mu(0x00)  # minimum attenuation
+            channel.set_att_mu(0x00)  # maximum attenuation
 
             channel.set_servo(profile=0, enable=0, hold=1)
 
-            # test oscillators and DUC
-            for i in range(len(channel.oscillator)):
-                oscillator = channel.oscillator[i]
-                asf = 0
-                if i == 0:
-                    asf = 0x7fff
-                # 6pi/4 phase
-                oscillator.set_amplitude_phase_mu(asf=asf, pow=0xc000, clr=1)
+            if self.gw_rev == PHASER_GW_BASE:
+                # test oscillators and DUC
+                for i in range(len(channel.oscillator)):
+                    oscillator = channel.oscillator[i]
+                    asf = 0
+                    if i == 0:
+                        asf = 0x7fff
+                    # 6pi/4 phase
+                    oscillator.set_amplitude_phase_mu(asf=asf, pow=0xc000, clr=1)
+                    delay(1*us)
+                # 3pi/4
+                channel.set_duc_phase_mu(0x6000)
+                channel.set_duc_cfg(select=0, clr=1)
+                self.duc_stb()
+                delay(.1*ms)  # settle link, pipeline and impulse response
+                data = channel.get_dac_data()
                 delay(1*us)
-            # 3pi/4
-            channel.set_duc_phase_mu(0x6000)
-            channel.set_duc_cfg(select=0, clr=1)
-            self.duc_stb()
-            delay(.1*ms)  # settle link, pipeline and impulse response
-            data = channel.get_dac_data()
-            delay(1*us)
-            channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
-                                                         clr=1)
-            delay(.1*ms)
-            sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
-            data_i = data & 0xffff
-            data_q = (data >> 16) & 0xffff
-            # allow ripple
-            if (data_i < sqrt2 - 30 or data_i > sqrt2 or
-                    abs(data_i - data_q) > 2):
-                raise ValueError("DUC+oscillator phase/amplitude test failed")
+                channel.oscillator[0].set_amplitude_phase_mu(asf=0, pow=0xc000,
+                                                            clr=1)
+                delay(.1*ms)
+                sqrt2 = 0x5a81  # 0x7fff/sqrt(2)
+                data_i = data & 0xffff
+                data_q = (data >> 16) & 0xffff
+                # allow ripple
+                if (data_i < sqrt2 - 30 or data_i > sqrt2 or
+                        abs(data_i - data_q) > 2):
+                    raise ValueError("DUC+oscillator phase/amplitude test failed")
+
+            if self.gw_rev == PHASER_GW_MIQRO:
+                channel.miqro.reset()
 
             if is_baseband:
                 continue
@@ -782,6 +827,8 @@ class Phaser:
             if good & (1 << o):
                 sum += o
                 count += 1
+        if count == 0:
+            raise ValueError("no good fifo offset")
         best = ((sum // count) + offset) % 8
         self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
         return best
@@ -792,8 +839,9 @@ class PhaserChannel:
 
     A Phaser channel contains:
 
-    * multiple oscillators (in the coredevice phy),
+    * multiple :class:`PhaserOscillator` (in the coredevice phy),
     * an interpolation chain and digital upconverter (DUC) on Phaser,
+    * a :class:`Miqro` instance on Phaser,
     * several channel-specific settings in the DAC:
 
         * quadrature modulation compensation QMC
@@ -805,6 +853,7 @@ class PhaserChannel:
     Attributes:
 
     * :attr:`oscillator`: List of five :class:`PhaserOscillator`.
+    * :attr:`miqro`: A :class:`Miqro`.
 
     .. note:: The amplitude sum of the oscillators must be less than one to
         avoid clipping or overflow. If any of the DDS or DUC frequencies are
@@ -817,6 +866,8 @@ class PhaserChannel:
         changes in oscillator parameters, the overshoot can lead to clipping
         or overflow after the interpolation. Either band-limit any changes
         in the oscillator parameters or back off the amplitude sufficiently.
+        Miqro is not affected by this. But both the oscillators and Miqro can
+        be affected by intrinsic overshoot of the interpolator on the DAC.
     """
     kernel_invariants = {"index", "phaser", "trf_mmap"}
 
@@ -826,6 +877,7 @@ class PhaserChannel:
         self.trf_mmap = TRF372017(trf).get_mmap()
 
         self.oscillator = [PhaserOscillator(self, osc) for osc in range(5)]
+        self.miqro = Miqro(self)
 
     @kernel
     def get_dac_data(self) -> TInt32:
@@ -1139,7 +1191,7 @@ class PhaserChannel:
         for data in [b0, b1, a1, offset]:
             self.phaser.write16(addr, data)
             addr += 2
-    
+
     @kernel
     def set_iir(self, profile, kp, ki=0., g=0., x_offset=0., y_offset=0.):
         """Set servo profile IIR coefficients.
@@ -1149,8 +1201,8 @@ class PhaserChannel:
         Gains are given in units of output full per scale per input full scale.
 
         .. note:: Due to inherent constraints of the fixed point datatypes and IIR
-        filters, the ``x_offset`` (setpoint) resolution depends on the selected gains. 
-        Low ``ki`` gains will lead to a low ``x_offset`` resolution.
+            filters, the ``x_offset`` (setpoint) resolution depends on the selected
+            gains. Low ``ki`` gains will lead to a low ``x_offset`` resolution.
 
         The transfer function is (up to time discretization and
         coefficient quantization errors):
@@ -1269,3 +1321,305 @@ class PhaserOscillator:
             raise ValueError("amplitude out of bounds")
         pow = int32(round(phase*(1 << 16)))
         self.set_amplitude_phase_mu(asf, pow, clr)
+
+
+class Miqro:
+    """
+    Miqro pulse generator.
+
+    A Miqro instance represents one RF output. The DSP components are fully
+    contained in the Phaser gateware. The output is generated by with
+    the following data flow:
+
+    **Oscillators**
+
+    * There are n_osc = 16 oscillators with oscillator IDs 0..n_osc-1.
+    * Each oscillator outputs one tone at any given time
+
+        * I/Q (quadrature, a.k.a. complex) 2x16 bit signed data
+          at tau = 4 ns sample intervals, 250 MS/s, Nyquist 125 MHz, bandwidth 200 MHz
+          (from f = -100..+100 MHz, taking into account the interpolation anti-aliasing
+          filters in subsequent interpolators),
+        * 32 bit frequency (f) resolution (~ 1/16 Hz),
+        * 16 bit unsigned amplitude (a) resolution
+        * 16 bit phase offset (p) resolution
+
+    * The output phase p' of each oscillator at time t (boot/reset/initialization of the
+      device at t=0) is then p' = f*t + p (mod 1 turn) where f and p are the (currently
+      active) profile frequency and phase offset.
+    * Note: The terms  "phase coherent" and "phase tracking" are defined to refer to this
+      choice of oscillator output phase p'. Note that the phase offset p is not relative to
+      (on top of previous phase/profiles/oscillator history).
+      It is "absolute" in the sense that frequency f and phase offset p fully determine
+      oscillator output phase p' at time t. This is unlike typical DDS behavior.
+    * Frequency, phase, and amplitude of each oscillator are configurable by selecting one of
+      n_profile = 32 profiles 0..n_profile-1. This selection is fast and can be done for
+      each pulse. The phase coherence defined above is guaranteed for each
+      profile individually.
+    * Note: one profile per oscillator (usually profile index 0) should be reserved
+      for the NOP (no operation, identity) profile, usually with zero amplitude.
+    * Data for each profile for each oscillator can be configured
+      individually. Storing profile data should be considered "expensive".
+    * Note: The annotation that some operation is "expensive" does not mean it is
+      impossible, just that it may take a significant amount of time and
+      resources to execute such that it may be impractical when used often or
+      during fast pulse sequences. They are intended for use in calibration and
+      initialization.
+
+    **Summation**
+
+    * The oscillator outputs are added together (wrapping addition).
+    * The user must ensure that the sum of oscillators outputs does not exceed the
+      data range. In general that means that the sum of the amplitudes must not
+      exceed one.
+
+    **Shaper**
+
+    * The summed complex output stream is then multiplied with a the complex-valued
+      output of a triggerable shaper.
+    * Triggering the shaper corresponds to passing a pulse from all oscillators to
+      the RF output.
+    * Selected profiles become active simultaneously (on the same output sample) when
+      triggering the shaper with the first shaper output sample.
+    * The shaper reads (replays) window samples from a memory of size n_window = 1 << 10.
+    * The window memory can be segmented by choosing different start indices
+      to support different windows.
+    * Each window memory segment starts with a header determining segment
+      length and interpolation parameters.
+    * The window samples are interpolated by a factor (rate change) between 1 and
+      r = 1 << 12.
+    * The interpolation order is constant, linear, quadratic, or cubic. This
+      corresponds to interpolation modes from rectangular window (1st order CIC)
+      or zero order hold) to Parzen window (4th order CIC or cubic spline).
+    * This results in support for single shot pulse lengths (envelope support) between
+      tau and a bit more than r * n_window * tau = (1 << 12 + 10) tau ~ 17 ms.
+    * Windows can be configured to be head-less and/or tail-less, meaning, they
+      do not feed zero-amplitude samples into the shaper before and after
+      each window respectively. This is used to implement pulses with arbitrary
+      length or CW output.
+
+    **Overall properties**
+
+    * The DAC may upconvert the signal by applying a frequency offset f1 with
+      phase p1.
+    * In the Upconverter Phaser variant, the analog quadrature upconverter
+      applies another frequency of f2 and phase p2.
+    * The resulting phase of the signal from one oscillator at the SMA output is
+      (f + f1 + f2)*t + p + s(t - t0) + p1 + p2 (mod 1 turn)
+      where s(t - t0) is the phase of the interpolated
+      shaper output, and t0 is the trigger time (fiducial of the shaper).
+      Unsurprisingly the frequency is the derivative of the phase.
+    * Group delays between pulse parameter updates are matched across oscillators,
+      shapers, and channels.
+    * The minimum time to change profiles and phase offsets is ~128 ns (estimate, TBC).
+      This is the minimum pulse interval.
+      The sustained pulse rate of the RTIO PHY/Fastlink is one pulse per Fastlink frame
+      (may be increased, TBC).
+    """
+
+    def __init__(self, channel):
+        self.channel = channel
+        self.base_addr = (self.channel.phaser.channel_base + 1 +
+                self.channel.index) << 8
+
+    @kernel
+    def reset(self):
+        """Establish no-output profiles and no-output window and execute them.
+
+        This establishes the first profile (index 0) on all oscillators as zero
+        amplitude, creates a trivial window (one sample with zero amplitude,
+        minimal interpolation), and executes a corresponding pulse.
+        """
+        for osc in range(16):
+            self.set_profile_mu(osc, profile=0, ftw=0, asf=0)
+            delay(20*us)
+        self.set_window_mu(start=0, iq=[0], order=0)
+        self.pulse(window=0, profiles=[0])
+
+    @kernel
+    def set_profile_mu(self, oscillator, profile, ftw, asf, pow_=0):
+        """Store an oscillator profile (machine units).
+
+        :param oscillator: Oscillator index (0 to 15)
+        :param profile: Profile index (0 to 31)
+        :param ftw: Frequency tuning word (32 bit signed integer on a 250 MHz clock)
+        :param asf: Amplitude scale factor (16 bit unsigned integer)
+        :param pow_: Phase offset word (16 bit integer)
+        """
+        if oscillator >= 16:
+            raise ValueError("invalid oscillator index")
+        if profile >= 32:
+            raise ValueError("invalid profile index")
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
+                (self.channel.index << 15) | PHASER_MIQRO_SEL_PROFILE |
+                (oscillator << 6) | (profile << 1))
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, ftw)
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
+            (asf & 0xffff) | (pow_ << 16))
+
+    @kernel
+    def set_profile(self, oscillator, profile, frequency, amplitude, phase=0.):
+        """Store an oscillator profile.
+
+        :param oscillator: Oscillator index (0 to 15)
+        :param profile: Profile index (0 to 31)
+        :param frequency: Frequency in Hz (passband -100 to 100 MHz).
+            Interpreted in the Nyquist sense, i.e. aliased.
+        :param amplitude: Amplitude in units of full scale (0. to 1.)
+        :param phase: Phase in turns. See :class:`Miqro` for a definition of
+            phase in this context.
+        :return: The quantized 32 bit frequency tuning word
+        """
+        ftw = int32(round(frequency*((1 << 30)/(62.5*MHz))))
+        asf = int32(round(amplitude*0xffff))
+        if asf < 0 or asf > 0xffff:
+            raise ValueError("amplitude out of bounds")
+        pow_ = int32(round(phase*(1 << 16)))
+        self.set_profile_mu(oscillator, profile, ftw, asf, pow_)
+        return ftw
+
+    @kernel
+    def set_window_mu(self, start, iq, rate=1, shift=0, order=3, head=1, tail=1):
+        """Store a window segment (machine units)
+
+        :param start: Window start address (0 to 0x3ff)
+        :param iq: List of IQ window samples. Each window sample is an integer
+            containing the signed I part in the 16 LSB and the signed Q part in
+            the 16 MSB. The maximum window length is 0x3fe. The user must
+            ensure that this window does not overlap with other windows in the
+            memory.
+        :param rate: Interpolation rate change (1 to 1 << 12)
+        :param shift: Interpolator amplitude gain compensation in powers of 2 (0 to 63)
+        :param order: Interpolation order from 0 (corresponding to
+            constant/rectangular window/zero-order-hold/1st order CIC interpolation)
+            to 3 (corresponding to cubic/Parzen window/4th order CIC interpolation)
+        :param head: Update the interpolator settings and clear its state at the start
+            of the window. This also implies starting the envelope from zero.
+        :param tail: Feed zeros into the interpolator after the window samples.
+            In the absence of further pulses this will return the output envelope
+            to zero with the chosen interpolation.
+        :return: Next available window memory address after this segment.
+        """
+        if start >= 1 << 10:
+            raise ValueError("start out of bounds")
+        if len(iq) >= 1 << 10:
+            raise ValueError("window length out of bounds")
+        if rate < 1 or rate > 1 << 12:
+            raise ValueError("rate out of bounds")
+        if shift > 0x3f:
+            raise ValueError("shift out of bounds")
+        if order > 3:
+            raise ValueError("order out of bounds")
+        self.channel.phaser.write16(PHASER_ADDR_MIQRO_MEM_ADDR,
+                (self.channel.index << 15) | start)
+        self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA,
+            (len(iq) & 0x3ff) |
+            ((rate - 1) << 10) |
+            (shift << 22) |
+            (order << 28) |
+            ((head & 1) << 30) |
+            ((tail & 1) << 31)
+        )
+        for iqi in iq:
+            self.channel.phaser.write32(PHASER_ADDR_MIQRO_MEM_DATA, iqi)
+            delay(20*us)  # slack for long windows
+        return (start + 1 + len(iq)) & 0x3ff
+
+    @kernel
+    def set_window(self, start, iq, period=4*ns, order=3, head=1, tail=1):
+        """Store a window segment
+
+        :param start: Window start address (0 to 0x3ff)
+        :param iq: List of IQ window samples. Each window sample is a pair of
+            two float numbers -1 to 1, one for each I and Q in units of full scale.
+            The maximum window length is 0x3fe. The user must ensure that this window
+            does not overlap with other windows in the memory.
+        :param period: Desired window sample period in SI units (4*ns to (4 << 12)*ns).
+        :param order: Interpolation order from 0 (corresponding to
+            constant/zero-order-hold/1st order CIC interpolation) to 3 (corresponding
+            to cubic/Parzen/4th order CIC interpolation)
+        :param head: Update the interpolator settings and clear its state at the start
+            of the window. This also implies starting the envelope from zero.
+        :param tail: Feed zeros into the interpolator after the window samples.
+            In the absence of further pulses this will return the output envelope
+            to zero with the chosen interpolation.
+        :return: Actual sample period in SI units
+        """
+        rate = int32(round(period/(4*ns)))
+        gain = 1.
+        for _ in range(order):
+            gain *= rate
+        shift = 0
+        while gain >= 2.:
+            shift += 1
+            gain *= .5
+        scale = ((1 << 15) - 1)/gain
+        iq_mu = [
+            (int32(round(iqi[0]*scale)) & 0xffff) |
+            (int32(round(iqi[1]*scale)) << 16)
+            for iqi in iq
+        ]
+        self.set_window_mu(start, iq_mu, rate, shift, order, head, tail)
+        return (len(iq) + order)*rate*4*ns
+
+    @kernel
+    def encode(self, window, profiles, data):
+        """Encode window and profile selection
+
+        :param window: Window start address (0 to 0x3ff)
+        :param profiles: List of profile indices for the oscillators. Maximum
+            length 16. Unused oscillators will be set to profile 0.
+        :param data: List of integers to store the encoded data words into.
+            Unused entries will remain untouched. Must contain at least three
+            lements if all oscillators are used and should be initialized to
+            zeros.
+        :return: Number of words from `data` used.
+        """
+        if len(profiles) > 16:
+            raise ValueError("too many oscillators")
+        if window > 0x3ff:
+            raise ValueError("window start out of bounds")
+        data[0] = window
+        word = 0
+        idx = 10
+        for profile in profiles:
+            if profile > 0x1f:
+                raise ValueError("profile out of bounds")
+            if idx > 32 - 5:
+                word += 1
+                idx = 0
+            data[word] |= profile << idx
+            idx += 5
+        return word + 1
+
+    @kernel
+    def pulse_mu(self, data):
+        """Emit a pulse (encoded)
+
+        The pulse fiducial timing resolution is 4 ns.
+
+        :param data: List of up to 3 words containing an encoded MIQRO pulse as
+            returned by :meth:`encode`.
+        """
+        word = len(data)
+        delay_mu(-8*word)  # back shift to align
+        while word > 0:
+            word -= 1
+            delay_mu(8)
+            # final write sets pulse stb
+            rtio_output(self.base_addr + word, data[word])
+
+    @kernel
+    def pulse(self, window, profiles):
+        """Emit a pulse
+
+        This encodes the window and profiles (see :meth:`encode`) and emits them
+        (see :meth:`pulse_mu`).
+
+        :param window: Window start address (0 to 0x3ff)
+        :param profiles: List of profile indices for the oscillators. Maximum
+            length 16. Unused oscillators will select profile 0.
+        """
+        data = [0, 0, 0]
+        words = self.encode(window, profiles, data)
+        self.pulse_mu(data[:words])
