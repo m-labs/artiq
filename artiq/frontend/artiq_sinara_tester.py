@@ -87,7 +87,7 @@ class SinaraTester(EnvExperiment):
                 elif (module, cls) == ("artiq.coredevice.fastino", "Fastino"):
                     self.fastinos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.phaser", "Phaser"):
-                    self. import PHASER_GW_BASE, PHASER_GW_MIQROphasers[name] = self.get_device(name)
+                    self.phasers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.grabber", "Grabber"):
                     self.grabbers[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.mirny", "Mirny"):
@@ -589,7 +589,7 @@ class SinaraTester(EnvExperiment):
         elif phaser.gw_rev == PHASER_GW_BASE:  # miqro
             for ch in range(2):
                 phaser.channel[ch].set_att(6*dB)
-                phaser.channel[ch].set_duc_cfg(select=0)
+                phaser.channel[ch].set_duc_cfg()
                 sign = 1. - 2.*ch
                 for i in range(len(osc)):
                     phaser.channel[ch].miqro.set_profile(i, profile=1,
