@@ -24,7 +24,7 @@ class Core(Module, AutoCSR):
         self.sequence_error_channel = CSRStatus(16)
 
         # Clocking/Reset
-        # Create rio and rio_phy domains based on sys and rtio
+        # Create rio and rio_phy domains based on sys
         # with reset controlled by CSR.
         #
         # The `rio` CD contains logic that is reset with `core.reset()`.

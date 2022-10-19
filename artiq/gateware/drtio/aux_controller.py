@@ -46,10 +46,6 @@ class Transmitter(Module, AutoCSR):
         mem_port = self.mem.get_port()
         self.specials += mem_port
 
-        self.aux_tx_length.storage.attr.add("no_retiming")
-        tx_length = Signal(bits_for(max_packet))
-        self.specials += MultiReg(self.aux_tx_length.storage, tx_length)
-
         frame_counter_nbits = bits_for(max_packet) - log2_int(mem_dw//8)
         frame_counter = Signal(frame_counter_nbits)
         frame_counter_next = Signal(frame_counter_nbits)
@@ -86,7 +82,8 @@ class Transmitter(Module, AutoCSR):
             If(converter.sink.ack,
                 frame_counter_ce.eq(1)
             ),
-            If(frame_counter_next == tx_length, NextState("WAIT_INTERFRAME"))
+            If(frame_counter_next == self.aux_tx_length.storage,
+                NextState("WAIT_INTERFRAME"))
         )
         fsm.act("WAIT_INTERFRAME",
             If(seen_eop,
