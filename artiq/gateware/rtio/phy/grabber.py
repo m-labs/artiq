@@ -21,9 +21,7 @@ class Synchronizer(Module):
 
         # # #
 
-        for count in counts_in:
-            count.attr.add("no_retiming")
-        self.specials += [MultiReg(i, o) for i, o in zip(counts_in, self.counts)]
+        self.comb += [o.eq(i) for i, o in zip(counts_in, self.counts)]
 
         ps = PulseSynchronizer("cl", "sys")
         self.submodules += ps

@@ -155,10 +155,8 @@ class CRIDecoder(Module):
         if enable_routing:
             self.specials.routing_table = Memory(slave_bits, 256)
 
-            if mode == "async":
+            if mode == "async" or mode == "sync":
                 rtp_decoder = self.routing_table.get_port()
-            elif mode == "sync":
-                rtp_decoder = self.routing_table.get_port(clock_domain="sys")
             else:
                 raise ValueError
             self.specials += rtp_decoder
@@ -199,12 +197,8 @@ class CRISwitch(Module, AutoCSR):
 
         # # #
 
-        if mode == "async":
+        if mode == "async" or mode == "sync":
             selected = self.selected.storage
-        elif mode == "sync":
-            self.selected.storage.attr.add("no_retiming")
-            selected = Signal.like(self.selected.storage)
-            self.specials += MultiReg(self.selected.storage, selected)
         else:
             raise ValueError
 
