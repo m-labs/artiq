@@ -250,7 +250,6 @@ def main():
         server_description = args.server
     logging.info("ARTIQ dashboard version: %s",
                  artiq_version)
-    logging.info("ARTIQ dashboard connected to moninj_proxy (%s)", server_description)
     # run
     main_window.show()
     loop.run_until_complete(main_window.exit_request.wait())
