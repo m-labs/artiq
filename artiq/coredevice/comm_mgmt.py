@@ -194,3 +194,24 @@ class CommMgmt:
 
     def debug_allocator(self):
         self._write_header(Request.DebugAllocator)
+
+    def device_update(self, device_db):
+        reversed_map: dict[int, str] = {}
+        for dev_name, device in device_db.get_device_db().items():
+            try:
+                print(device)
+                chan = device["arguments"]["channel"]
+                reversed_map[chan] = dev_name
+            except Exception as e:
+                print("error: ", e)
+
+        dev_len = len(reversed_map)
+        buffer = bytes()
+        buffer += dev_len.to_bytes(4, 'little', signed=False)
+        for dev_num, dev_name in reversed_map.items():
+            buffer += len(dev_name).to_bytes(1, "little", signed=False)
+            buffer += dev_num.to_bytes(4, "little", signed=True)
+            buffer += bytes(dev_name, "utf-8")
+
+        self.config_write("device_map", buffer)
+
