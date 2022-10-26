@@ -1,6 +1,6 @@
-use core::cell::RefCell;
 use alloc::collections::BTreeMap;
 use alloc::string::String;
+use core::cell::RefCell;
 use core::str;
 use urc::Urc;
 use board_misoc::{csr, config};
@@ -221,15 +221,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -356,15 +356,15 @@ fn async_error_thread(io: Io) {
             let errors = csr::rtio_core::async_error_read();
             if errors & ASYNC_ERROR_COLLISION != 0 {
                 let channel = csr::rtio_core::collision_channel_read();
-                error!("RTIO collision involving channel {} {}", channel, resolve_channel_name(channel as i32));
+                error!("RTIO collision involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
             }
             if errors & ASYNC_ERROR_BUSY != 0 {
                 let channel = csr::rtio_core::busy_channel_read();
-                error!("RTIO busy error involving channel {} {}", channel, resolve_channel_name(channel as i32));
+                error!("RTIO busy error involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
             }
             if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 let channel = csr::rtio_core::sequence_error_channel_read();
-                error!("RTIO sequence error involving channel {} {}", channel, resolve_channel_name(channel as i32));
+                error!("RTIO sequence error involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
             }
             SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);
@@ -372,42 +372,52 @@ fn async_error_thread(io: Io) {
     }
 }
 
-fn read_device_map() {
-    config::read("device_map", |val: Result<&[u8], config::Error>| {
-        let bytes = val.unwrap_or(&[0, 0, 0, 0]);
-        unsafe {
-            RTIO_DEVICE_MAP.clear();
-            let size = LittleEndian::read_u32(&bytes[..4]);
-            //let size = *(bytes.as_ptr() as *const u32);
-            let mut start: usize = 4;
-            for _ in 0..size {
-                // TODO implement safety constraints
-                let name_sz = bytes[start] as usize;
-                //let channel = *(bytes[start+1..start+5].as_ptr() as *const i32);
-                let channel = LittleEndian::read_i32(&bytes[start+1..start+5]);
-                let name = str::from_utf8(&bytes[start+5..start+5+name_sz]);
-                start += 5 + name_sz;
-                if let Ok(dev_name) = name {
-                    RTIO_DEVICE_MAP.insert(channel, String::from(dev_name));
-                }
+fn read_device_map() -> BTreeMap<i32, String> {
+    let mut device_map: BTreeMap<i32, String> = BTreeMap::new();
+    config::read("device_map", |value: Result<&[u8], config::Error>| {
+        let bytes = match value {
+            Ok(val) => val,
+            Err(err) => {
+                error!("read_device_map: error reading device_map config: {}", err);
+                return;
             }
+        };
+        let size = LittleEndian::read_u32(&bytes[..4]);
+        let mut start: usize = 4;
+        for _ in 0..size {
+            if start >= bytes.len() {
+                error!("read_device_map: error reading the device name: unexpected end of sequence at {}", start);
+                break;
+            }
+            let name_sz = bytes[start] as usize;
+            if start + name_sz + 5 > bytes.len() {
+                error!("read_device_map: error reading the device name: length {} doesn't fit config at position {}", name_sz, start);
+                break;
+            }
+
+            let channel = LittleEndian::read_i32(&bytes[start+1..start+5]);
+            let name = str::from_utf8(&bytes[start+5..start+5+name_sz]);
+            if let Ok(dev_name) = name {
+                device_map.insert(channel, String::from(dev_name));
+            }
+
+            start += 5 + name_sz;
         }
     });
+    device_map
 }
 
-pub fn resolve_channel_name(channel: i32) -> String {
-    unsafe {
-        match RTIO_DEVICE_MAP.get(&channel) {
-            Some(val) => val.clone(),
-            None => String::from("")
-        }
+pub fn resolve_channel_name(channel: i32, device_map: &BTreeMap<i32, String>) -> String {
+    match device_map.get(&channel) {
+        Some(val) => val.clone(),
+        None => String::from("")
     }
 }
 
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
-    read_device_map();
+    unsafe { RTIO_DEVICE_MAP = read_device_map(); }
     drtio::startup(io, aux_mutex, routing_table, up_destinations);
     unsafe {
         csr::rtio_core::reset_phy_write(1);

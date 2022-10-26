@@ -116,6 +116,13 @@ Moninj proxy
    :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
    :prog: aqctl_moninj_proxy
 
+Device management tool
+------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_devicemgmt.get_argparser
+   :prog: artiq_devicemgmt
+
 
 .. _core-device-rtio-analyzer-tool:
 

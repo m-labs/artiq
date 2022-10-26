@@ -48,12 +48,6 @@ def get_argparser():
     p_set_uart_level.add_argument("level", metavar="LEVEL", type=str,
                                   help="log level (one of: OFF ERROR WARN INFO DEBUG TRACE)")
 
-    # device
-    t_device = tools.add_parser("device", help="device configuration management")
-    subparsers = t_device.add_subparsers(dest="action")
-    p_update = subparsers.add_parser("update",
-                                    help="update device map")
-
     # configuration
     t_config = tools.add_parser("config",
                                 help="read and change core device configuration")
@@ -124,10 +118,6 @@ def main():
             mgmt.clear_log()
         if args.action == None:
             print(mgmt.get_log(), end="")
-
-    if args.tool == "device":
-        if args.action == "update":
-            mgmt.device_update(DeviceDB(args.device_db))
 
     if args.tool == "config":
         if args.action == "read":

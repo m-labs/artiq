@@ -23,6 +23,7 @@ console_scripts = [
     "artiq_compile = artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
     "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
+    "artiq_devicemgmt = artiq.frontend.artiq_devicemgmt:main",
     "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
