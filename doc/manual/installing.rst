@@ -340,3 +340,12 @@ Other options include:
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+
+* Setup resolving channels to their names
+
+This feature allows to print channel's respective names alongside with their numbers for RTIO errors. While host can resolve channels without additional setup, for device log you'll need to run ``artiq_devicemgmt`` tool: ::
+
+  $ artiq_devicemgmt update
+
+.. note:: You can find more information about how to use the ``artiq_devicemgmt`` utility on the :ref:`Utilities <device-management-tool>` page.
+

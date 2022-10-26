@@ -183,12 +183,13 @@ def incompatible_versions(v1, v2):
 class CommKernel:
     warned_of_mismatch = False
 
-    def __init__(self, host, port=1381):
+    def __init__(self, host, port=1381, device_mgr=None):
         self._read_type = None
         self.host = host
         self.port = port
         self.read_buffer = bytearray()
         self.write_buffer = bytearray()
+        self.device_mgr = device_mgr
 
 
     def open(self):
@@ -679,7 +680,7 @@ class CommKernel:
 
         traceback = list(symbolizer(backtrace))
         core_exn = exceptions.CoreException(nested_exceptions, exception_info,
-                                            traceback, stack_pointers)
+                                            traceback, stack_pointers, self.device_mgr)
 
         if core_exn.id == 0:
             python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])

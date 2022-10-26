@@ -116,8 +116,10 @@ Moninj proxy
    :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
    :prog: aqctl_moninj_proxy
 
+.. _device-management-tool:
+
 Device management tool
-------------
+----------------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_devicemgmt.get_argparser

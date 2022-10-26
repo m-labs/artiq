@@ -16,7 +16,7 @@ AssertionError = builtins.AssertionError
 
 class CoreException:
     """Information about an exception raised or passed through the core device."""
-    def __init__(self, exceptions, exception_info, traceback, stack_pointers):
+    def __init__(self, exceptions, exception_info, traceback, stack_pointers, device_mgr=None):
         self.exceptions = exceptions
         self.exception_info = exception_info
         self.traceback = list(traceback)
@@ -31,6 +31,7 @@ class CoreException:
             self.id, self.name = 0, name
         self.message = first_exception[1]
         self.params = first_exception[2]
+        self.device_mgr = device_mgr
 
     def append_backtrace(self, record, inlined=False):
         filename, line, column, function, address = record
@@ -77,7 +78,7 @@ class CoreException:
             exn_id = int(exn_id)
         else:
             exn_id = 0
-        lines.append("{}({}): {}".format(name, exn_id, message.format(*params)))
+        lines.append(identify_exception(name).formatted(exn_id, message, *params, device_mgr=self.device_mgr))
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
@@ -106,17 +107,52 @@ class CoreException:
                 '\n\nEnd of Core Device Traceback\n'
 
 
-class InternalError(Exception):
+def identify_exception(exception_name):
+    exc_name = exception_name.split(".")[-1]
+    if exc_name in globals():
+        return globals()[exc_name]()
+    return ARTIQGenericException(exception_name)
+
+
+def resolve_channel(channel, device_mgr):
+    dev_map = device_mgr.get_channel_map()
+    if channel in dev_map:
+        return "{}:{}".format(dev_map[channel], channel)
+    return channel
+
+
+class ARTIQGenericException(Exception):
+    def __init__(self, name):
+        Exception.__init__(self)
+        self.name = name
+
+    def formatted(self, exception_id, message, *params, device_mgr=None):
+        return "{}({}): {}".format(self.name, exception_id, message.format(*params))
+
+
+class ARTIQChanneledException(ARTIQGenericException):
+    def __init__(self, *args):
+        super().__init__(self.__class__.__name__)
+
+    def formatted(self, exception_id, message, *params, device_mgr=None):
+        if device_mgr is None:
+            return super().formatted(exception_id, message, *params)
+        channel = params[0]
+        new_params = [resolve_channel(channel, device_mgr)] + list(params[1:])
+        return super().formatted(exception_id, message, *new_params, device_mgr=device_mgr)
+
+
+class InternalError(ARTIQGenericException):
     """Raised when the runtime encounters an internal error condition."""
     artiq_builtin = True
 
 
-class CacheError(Exception):
+class CacheError(ARTIQGenericException):
     """Raised when putting a value into a cache row would violate memory safety."""
     artiq_builtin = True
 
 
-class RTIOUnderflow(Exception):
+class RTIOUnderflow(ARTIQChanneledException):
     """Raised when the CPU or DMA core fails to submit a RTIO event early
     enough (with respect to the event's timestamp).
 
@@ -125,7 +161,7 @@ class RTIOUnderflow(Exception):
     artiq_builtin = True
 
 
-class RTIOOverflow(Exception):
+class RTIOOverflow(ARTIQChanneledException):
     """Raised when at least one event could not be registered into the RTIO
     input FIFO because it was full (CPU not reading fast enough).
 
@@ -136,27 +172,27 @@ class RTIOOverflow(Exception):
     artiq_builtin = True
 
 
-class RTIODestinationUnreachable(Exception):
+class RTIODestinationUnreachable(ARTIQChanneledException):
     """Raised with a RTIO operation could not be completed due to a DRTIO link
     being down.
     """
     artiq_builtin = True
 
 
-class DMAError(Exception):
+class DMAError(ARTIQGenericException):
     """Raised when performing an invalid DMA operation."""
     artiq_builtin = True
 
 
-class ClockFailure(Exception):
+class ClockFailure(ARTIQGenericException):
     """Raised when RTIO PLL has lost lock."""
 
 
-class I2CError(Exception):
+class I2CError(ARTIQGenericException):
     """Raised when a I2C transaction fails."""
     pass
 
 
-class SPIError(Exception):
+class SPIError(ARTIQGenericException):
     """Raised when a SPI transaction fails."""
     pass
