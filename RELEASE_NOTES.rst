@@ -15,7 +15,7 @@ Highlights:
 * Sampler: adjusted ADC MU to Volt conversion base for Sampler since v2.2.
   For earlier version please explicitly define it as an argument in the device database file
   (e.g. ``"hw_rev": "v2.1"``).
-* Implemented resolving channels into names for RTIO errors.
+* Implemented channel resolver for RTIO errors.
 
 ARTIQ-7
 -------

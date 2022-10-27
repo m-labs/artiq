@@ -116,14 +116,14 @@ Moninj proxy
    :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
    :prog: aqctl_moninj_proxy
 
-.. _device-management-tool:
+.. _rtiomap-tool:
 
-Device management tool
+RTIO map encoder tool
 ----------------------
 
 .. argparse::
-   :ref: artiq.frontend.artiq_devicemgmt.get_argparser
-   :prog: artiq_devicemgmt
+   :ref: artiq.frontend.artiq_rtiomap.get_argparser
+   :prog: artiq_rtiomap
 
 
 .. _core-device-rtio-analyzer-tool:

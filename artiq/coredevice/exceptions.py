@@ -2,6 +2,7 @@ import builtins
 import linecache
 import re
 import os
+import sys
 
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.coredevice.runtime import source_loader
@@ -78,7 +79,7 @@ class CoreException:
             exn_id = int(exn_id)
         else:
             exn_id = 0
-        lines.append(identify_exception(name).formatted(exn_id, message, *params, device_mgr=self.device_mgr))
+        lines.append(format_exception("{}({}): {}", name, exn_id, message, *params, device_mgr=self.device_mgr))
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
@@ -109,45 +110,58 @@ class CoreException:
 
 def identify_exception(exception_name):
     exc_name = exception_name.split(".")[-1]
-    if exc_name in globals():
-        return globals()[exc_name]()
-    return ARTIQGenericException(exception_name)
+    try:
+        return getattr(sys.modules[__name__], exc_name)()
+    except AttributeError:
+        return Exception()
 
 
 def resolve_channel(channel, device_mgr):
-    dev_map = device_mgr.get_channel_map()
-    if channel in dev_map:
-        return "{}:{}".format(dev_map[channel], channel)
-    return channel
+    formatter = lambda x, y: "{}:{}".format(x, y)
+
+    dev_map = device_mgr.get_device_db()
+    for dev_name, device in dev_map.items():
+        if dev_name == 'Grabber':
+            chan = device["arguments"]["channel_base"]
+            if channel == chan:
+                return formatter(dev_name + " RIO coordinates", channel)
+            elif channel == chan + 1:
+                return formatter(dev_name + " RIO mask", channel)
+        elif dev_name == 'Phaser':
+            chan = device["arguments"]["channel_base"]
+            if chan <= channel <= chan + 4:
+                return formatter(dev_name, channel)
+        elif ("arguments" in device
+              and "channel" in device["arguments"]
+              and device["type"] == "local"
+              and device["module"].startswith("artiq.coredevice.")):
+            chan = device["arguments"]["channel"]
+            if channel == chan:
+                return formatter(dev_name, channel)
+
+    return str(channel)
 
 
-class ARTIQGenericException(Exception):
-    def __init__(self, name):
-        Exception.__init__(self)
-        self.name = name
-
-    def formatted(self, exception_id, message, *params, device_mgr=None):
-        return "{}({}): {}".format(self.name, exception_id, message.format(*params))
-
-
-class ARTIQChanneledException(ARTIQGenericException):
-    def __init__(self, *args):
-        super().__init__(self.__class__.__name__)
-
-    def formatted(self, exception_id, message, *params, device_mgr=None):
-        if device_mgr is None:
-            return super().formatted(exception_id, message, *params)
+def format_exception(fmt_str, exception_name, exception_id, message, *params, device_mgr=None):
+    exception = identify_exception(exception_name)
+    if issubclass(type(exception), ARTIQChanneledException):
         channel = params[0]
         new_params = [resolve_channel(channel, device_mgr)] + list(params[1:])
-        return super().formatted(exception_id, message, *new_params, device_mgr=device_mgr)
+    else:
+        new_params = params
+    return fmt_str.format(exception_name, exception_id, message.format(*new_params))
 
 
-class InternalError(ARTIQGenericException):
+class ARTIQChanneledException(Exception):
+    pass
+
+
+class InternalError(Exception):
     """Raised when the runtime encounters an internal error condition."""
     artiq_builtin = True
 
 
-class CacheError(ARTIQGenericException):
+class CacheError(Exception):
     """Raised when putting a value into a cache row would violate memory safety."""
     artiq_builtin = True
 
@@ -179,20 +193,20 @@ class RTIODestinationUnreachable(ARTIQChanneledException):
     artiq_builtin = True
 
 
-class DMAError(ARTIQGenericException):
+class DMAError(Exception):
     """Raised when performing an invalid DMA operation."""
     artiq_builtin = True
 
 
-class ClockFailure(ARTIQGenericException):
+class ClockFailure(Exception):
     """Raised when RTIO PLL has lost lock."""
 
 
-class I2CError(ARTIQGenericException):
+class I2CError(Exception):
     """Raised when a I2C transaction fails."""
     pass
 
 
-class SPIError(ARTIQGenericException):
+class SPIError(Exception):
     """Raised when a SPI transaction fails."""
     pass

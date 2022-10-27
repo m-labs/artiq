@@ -65,9 +65,6 @@ class DeviceManager:
         """Returns the full contents of the device database."""
         return self.ddb.get_device_db()
 
-    def get_channel_map(self):
-        return self.ddb.get_channel_map()
-
     def get_desc(self, name):
         return self.ddb.get(name, resolve_alias=True)
 

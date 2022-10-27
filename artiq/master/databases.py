@@ -27,26 +27,6 @@ class DeviceDB:
     def get_device_db(self):
         return self.data.raw_view
 
-    def get_channel_map(self):
-        reversed_map: dict[int, str] = {}
-        for dev_name, device in self.get_device_db().items():
-            if dev_name == 'Grabber':
-                chan = device["arguments"]["channel_base"]
-                reversed_map[chan] = dev_name + " RIO coordinates"
-                reversed_map[chan+1] = dev_name + " RIO mask"
-            elif dev_name == 'Phaser':
-                chan = device["arguments"]["channel_base"]
-                for chan_x in range(chan, chan+5):
-                    reversed_map[chan_x] = dev_name
-            elif ("arguments" in device
-                  and "channel" in device["arguments"]
-                  and device["type"] == "local"
-                  and device["module"].startswith("artiq.coredevice.")):
-                chan = device["arguments"]["channel"]
-                reversed_map[chan] = dev_name
-
-        return reversed_map
-
     def get(self, key, resolve_alias=False):
         desc = self.data.raw_view[key]
         if resolve_alias:
