@@ -680,16 +680,12 @@ class CommKernel:
 
         traceback = list(symbolizer(backtrace))
         core_exn = exceptions.CoreException(nested_exceptions, exception_info,
-                                            traceback, stack_pointers, self.device_mgr)
+                                            traceback, stack_pointers, embedding_map, self.device_mgr)
 
-        if core_exn.id == 0:
-            python_exn_type = getattr(exceptions, core_exn.name.split('.')[-1])
-        else:
-            python_exn_type = embedding_map.retrieve_object(core_exn.id)
+        python_exn_type = core_exn.exn_type
 
         try:
-            python_exn = python_exn_type(
-                nested_exceptions[-1][1].format(*nested_exceptions[0][2]))
+            python_exn = python_exn_type(core_exn.fmtd_message)
         except Exception as ex:
             python_exn = RuntimeError(
                 f"Exception type={python_exn_type}, which couldn't be "
