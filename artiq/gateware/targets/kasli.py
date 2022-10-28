@@ -258,8 +258,6 @@ class MasterBase(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += self.disable_cdr_clk_ibuf.eq(
-            ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
@@ -354,10 +352,6 @@ class MasterBase(MiniSoC, AMPSoC):
     def create_qpll(self):
         # The GTP acts up if you send any glitch to its
         # clock input, even while the PLL is held in reset.
-        self.disable_cdr_clk_ibuf = Signal(reset=1)
-        self.disable_cdr_clk_ibuf.attr.add("no_retiming")
-        # ^ to be removed from firmware
-        # si output should be stable from reset
 
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected

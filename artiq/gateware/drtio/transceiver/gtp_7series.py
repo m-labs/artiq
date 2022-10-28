@@ -696,7 +696,7 @@ class GTPSingle(Module):
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
-            rx_init.restart.eq(clock_aligner.restart),
+            rx_init.restart.eq(clock_aligner.restart | ~self.stable_clkin),
             self.rx_ready.eq(clock_aligner.ready)
         ]
 
