@@ -64,7 +64,7 @@ class GenericStandalone(StandaloneBase):
             self.add_csr_group("grabber", self.grabber_csr_group)
             for grabber in self.grabber_csr_group:
                 self.platform.add_false_path_constraints(
-                    self.rtio_crg.cd_rtio.clk, getattr(self, grabber).deserializer.cd_cl.clk)
+                    self.crg.cd_sys.clk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
 class GenericMaster(MasterBase):
