@@ -20,8 +20,8 @@ class SED(Module):
             gates_cdr = lambda x: x
             output_driver_cdr = lambda x: x
         elif mode == "async":
-            lane_dist_cdr = ClockDomainsRenamer("rsys")
-            fifos_cdr = ClockDomainsRenamer({"write": "rsys", "read": "rio"})
+            lane_dist_cdr = ClockDomainsRenamer("sys")
+            fifos_cdr = ClockDomainsRenamer({"write": "sys", "read": "rio"})
             gates_cdr = ClockDomainsRenamer("rio")
             output_driver_cdr = ClockDomainsRenamer("rio")
         else:

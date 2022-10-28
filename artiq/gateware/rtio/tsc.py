@@ -30,7 +30,7 @@ class TSC(Module):
 
         # # #
 
-        self.sync.rtio += If(self.load,
+        self.sync += If(self.load,
                 self.coarse_ts.eq(self.load_value)
             ).Else(
                 self.coarse_ts.eq(self.coarse_ts + 1)

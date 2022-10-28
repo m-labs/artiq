@@ -18,8 +18,8 @@ class _OSERDESE3(Module):
             p_IS_CLK_INVERTED=0, p_IS_CLKDIV_INVERTED=0, p_IS_RST_INVERTED=0,
 
             o_OQ=self.ser_out, o_T_OUT=self.t_out,
-            i_RST=ResetSignal("rtio"),
-            i_CLK=ClockSignal("rtiox"), i_CLKDIV=ClockSignal("rtio"),
+            i_RST=ResetSignal("sys"),
+            i_CLK=ClockSignal("rtiox"), i_CLKDIV=ClockSignal("sys"),
             i_D=self.o, i_T=self.t_in)
 
 
@@ -39,11 +39,11 @@ class _ISERDESE3(Module):
             p_DATA_WIDTH=dw,
 
             i_D=self.ser_in,
-            i_RST=ResetSignal("rtio"),
+            i_RST=ResetSignal("sys"),
             i_FIFO_RD_EN=0,
             i_CLK=ClockSignal("rtiox"),
             i_CLK_B=ClockSignal("rtiox"), # locally inverted
-            i_CLKDIV=ClockSignal("rtio"),
+            i_CLKDIV=ClockSignal("sys"),
             o_Q=Cat(*[self.i[i] for i in reversed(range(dw))]))
 
 
