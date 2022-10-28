@@ -12,7 +12,6 @@ pub enum RtioClock {
     Default,
     Int_125,
     Int_100,
-    Int_150,
     Ext0_Bypass,
     Ext0_Synth0_10to125,
     Ext0_Synth0_100to125,
@@ -25,7 +24,6 @@ fn get_rtio_clock_cfg() -> RtioClock {
         let res = match result {
             Ok("int_125") => RtioClock::Int_125,
             Ok("int_100") => RtioClock::Int_100,
-            Ok("int_150") => RtioClock::Int_150,
             Ok("ext0_bypass") => RtioClock::Ext0_Bypass,
             Ok("ext0_bypass_125") => RtioClock::Ext0_Bypass,
             Ok("ext0_bypass_100") => RtioClock::Ext0_Bypass,
@@ -56,8 +54,6 @@ fn get_rtio_clock_cfg() -> RtioClock {
             return RtioClock::Ext0_Synth0_125to125;
             #[cfg(all(rtio_frequency = "125.0", not(si5324_ext_ref)))]
             return RtioClock::Int_125;
-            #[cfg(all(rtio_frequency = "150.0", not(si5324_ext_ref), not(soc_platform = "kasli")))]
-            return RtioClock::Int_150;
             #[cfg(all(rtio_frequency = "100.0", not(si5324_ext_ref), not(soc_platform = "kasli")))]
             return RtioClock::Int_100;
             //in case nothing is set
@@ -159,19 +155,6 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                 n32    : 63,
                 bwsel  : 4,
                 crystal_ref: false
-            }
-        },
-        RtioClock::Int_150 => { // 150MHz output, from crystal
-            info!("using internal 150MHz RTIO clock");
-            si5324::FrequencySettings {
-                n1_hs  : 9,
-                nc1_ls : 4,
-                n2_hs  : 10,
-                n2_ls  : 33732,
-                n31    : 7139,
-                n32    : 7139,
-                bwsel  : 3,
-                crystal_ref: true
             }
         },
         RtioClock::Int_100 => { // 100MHz output, from crystal. Also used as reference for Sayma HMC830.
