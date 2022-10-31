@@ -15,7 +15,7 @@ class GrayCodeTransfer(Module):
 
         # convert to Gray code
         value_gray_rtio = Signal(width, reset_less=True)
-        self.sync += value_gray_rtio.eq(self.i ^ self.i[1:])
+        self.sync.rtio += value_gray_rtio.eq(self.i ^ self.i[1:])
         # transfer to system clock domain
         value_gray_sys = Signal(width)
         value_gray_rtio.attr.add("no_retiming")
