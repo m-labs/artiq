@@ -7,6 +7,7 @@ import sys
 from artiq import __artiq_dir__ as artiq_dir
 from artiq.coredevice.runtime import source_loader
 
+
 ZeroDivisionError = builtins.ZeroDivisionError
 ValueError = builtins.ValueError
 IndexError = builtins.IndexError
@@ -16,8 +17,7 @@ AssertionError = builtins.AssertionError
 
 class CoreException:
     """Information about an exception raised or passed through the core device."""
-
-    def __init__(self, exceptions, exception_info, traceback, stack_pointers, embedding_map, device_mgr):
+    def __init__(self, exceptions, exception_info, traceback, stack_pointers, device_mgr=None):
         self.exceptions = exceptions
         self.exception_info = exception_info
         self.traceback = list(traceback)
@@ -33,11 +33,6 @@ class CoreException:
         self.message = first_exception[1]
         self.params = first_exception[2]
         self.device_mgr = device_mgr
-        if self.id == 0:
-            self.exn_type = getattr(sys.modules[__name__], self.name.split('.')[-1])
-        else:
-            self.exn_type = embedding_map.retrieve_object(self.id)
-        self.fmtd_message = self.format_first_exception_message()
 
     def append_backtrace(self, record, inlined=False):
         filename, line, column, function, address = record
@@ -84,9 +79,7 @@ class CoreException:
             exn_id = int(exn_id)
         else:
             exn_id = 0
-        lines.append("{}({}): {}"
-                     .format(name, exn_id,
-                             message.format(*params) if exception_index else self.fmtd_message))
+        lines.append(format_exception("{}({}): {}", name, exn_id, message, *params, device_mgr=self.device_mgr))
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
@@ -106,14 +99,6 @@ class CoreException:
 
         return "\n".join(reversed(lines))
 
-    def format_first_exception_message(self):
-        if self.device_mgr and issubclass(self.exn_type, RTIOException):
-            channel = self.params[0]
-            true_params = [format_channel(channel, self.device_mgr)] + list(self.params[1:])
-        else:
-            true_params = self.params
-        return self.message.format(*true_params)
-
     def __str__(self):
         tracebacks = [self.single_traceback(i) for i in range(len(self.exceptions))]
         traceback_str = ('\n\nDuring handling of the above exception, ' +
@@ -123,9 +108,16 @@ class CoreException:
                 '\n\nEnd of Core Device Traceback\n'
 
 
-def format_channel(channel, device_mgr):
-    def formatter(x, y):
-        return "{}:{}".format(x, y)
+def identify_exception(exception_name):
+    exc_name = exception_name.split(".")[-1]
+    try:
+        return getattr(sys.modules[__name__], exc_name)()
+    except AttributeError:
+        return Exception()
+
+
+def resolve_channel(channel, device_mgr):
+    formatter = lambda x, y: "{}:{}".format(x, y)
 
     dev_map = device_mgr.get_device_db()
     for dev_name, device in dev_map.items():
@@ -150,8 +142,17 @@ def format_channel(channel, device_mgr):
     return str(channel)
 
 
-class RTIOException(Exception):
-    """Generic type for RTIO exceptions"""
+def format_exception(fmt_str, exception_name, exception_id, message, *params, device_mgr=None):
+    exception = identify_exception(exception_name)
+    if issubclass(type(exception), ARTIQChanneledException):
+        channel = params[0]
+        new_params = [resolve_channel(channel, device_mgr)] + list(params[1:])
+    else:
+        new_params = params
+    return fmt_str.format(exception_name, exception_id, message.format(*new_params))
+
+
+class ARTIQChanneledException(Exception):
     pass
 
 
@@ -165,7 +166,7 @@ class CacheError(Exception):
     artiq_builtin = True
 
 
-class RTIOUnderflow(RTIOException):
+class RTIOUnderflow(ARTIQChanneledException):
     """Raised when the CPU or DMA core fails to submit a RTIO event early
     enough (with respect to the event's timestamp).
 
@@ -174,7 +175,7 @@ class RTIOUnderflow(RTIOException):
     artiq_builtin = True
 
 
-class RTIOOverflow(RTIOException):
+class RTIOOverflow(ARTIQChanneledException):
     """Raised when at least one event could not be registered into the RTIO
     input FIFO because it was full (CPU not reading fast enough).
 
@@ -185,7 +186,7 @@ class RTIOOverflow(RTIOException):
     artiq_builtin = True
 
 
-class RTIODestinationUnreachable(RTIOException):
+class RTIODestinationUnreachable(ARTIQChanneledException):
     """Raised with a RTIO operation could not be completed due to a DRTIO link
     being down.
     """
