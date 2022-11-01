@@ -696,7 +696,7 @@ class GTPSingle(Module):
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
-            rx_init.restart.eq(clock_aligner.restart),
+            rx_init.restart.eq(clock_aligner.restart | ~self.stable_clkin),
             self.rx_ready.eq(clock_aligner.ready)
         ]
 
@@ -754,10 +754,6 @@ class GTP(Module, TransceiverInterface):
                   gtp.txenable.eq(self.txenable.storage[n])
             ]
 
-        self.comb += [
-            self.cd_rtio.clk.eq(self.gtps[master].cd_rtio_tx.clk),
-            self.cd_rtio.rst.eq(reduce(or_, [gtp.cd_rtio_tx.rst for gtp in self.gtps]))
-        ]
         for i in range(nchannels):
             self.comb += [
                 getattr(self, "cd_rtio_rx" + str(i)).clk.eq(self.gtps[i].cd_rtio_rx.clk),
