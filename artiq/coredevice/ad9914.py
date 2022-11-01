@@ -340,3 +340,7 @@ class AD9914:
         """
         self.set_x_mu(self.frequency_to_xftw(frequency),
                       self.amplitude_to_asf(amplitude))
+
+    @staticmethod
+    def get_rtio_channels(bus_channel, **kwargs):
+        return [(bus_channel, "")]

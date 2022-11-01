@@ -101,3 +101,7 @@ class CommMonInj:
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

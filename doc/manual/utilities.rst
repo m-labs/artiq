@@ -118,8 +118,8 @@ Moninj proxy
 
 .. _rtiomap-tool:
 
-RTIO map encoder tool
-----------------------
+RTIO channel name map tool
+--------------------------
 
 .. argparse::
    :ref: artiq.frontend.artiq_rtiomap.get_argparser

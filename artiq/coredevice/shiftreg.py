@@ -52,3 +52,7 @@ class ShiftReg:
             self.clk.off()
         delay(self.dt)
         return data
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

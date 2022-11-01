@@ -113,3 +113,7 @@ class CoreDMA:
             raise DMAError("Invalid handle")
         dma_playback(now_mu(), ptr)
         delay_mu(advance_mu)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

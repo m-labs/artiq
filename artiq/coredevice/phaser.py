@@ -833,6 +833,11 @@ class Phaser:
         self.dac_write(0x09, (config9 & 0x1fff) | (best << 13))
         return best
 
+    @staticmethod
+    def get_rtio_channels(channel_base, **kwargs):
+        return [(channel_base, ""), (channel_base + 1, ""),
+                (channel_base + 2, ""), (channel_base + 3, ""), (channel_base + 4, "")]
+
 
 class PhaserChannel:
     """Phaser channel IQ pair.

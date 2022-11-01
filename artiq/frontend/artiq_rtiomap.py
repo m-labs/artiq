@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import json
-from sys import stdout
+from sys import stdout, stderr
 from os import fdopen
+import importlib
 
 from sipyco import common_args
 
@@ -21,37 +21,36 @@ def get_argparser():
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
-    parser.add_argument("-D", "--device", default=None,
-                        help="use specified core device address instead of "
-                             "reading device database")
-    parser.add_argument("-j", "--json",
-                        default=False, action="store_true",
-                        help="print the map in JSON format")
     parser.add_argument("-s", "--stdout", default=False, action="store_true",
                         help="print the result into stdout")
-    parser.add_argument("-f", "--file", default=None,
+    parser.add_argument("file", metavar="FILE", default=None, nargs="?",
                         help="write the result into the specified file")
 
     return parser
 
 
+def get_rtio_channels(desc):
+    ty = desc["type"]
+    if ty == "local":
+        module = importlib.import_module(desc["module"])
+        device_class = getattr(module, desc["class"])
+        if hasattr(device_class, "get_rtio_channels"):
+            return device_class.get_rtio_channels(**desc.get("arguments", {}))
+        else:
+            print("Warning: device of type `{}.{}` doesn't have `get_rtio_channels` static method"
+                  .format(desc["module"], desc["class"]),
+                  file=stderr)
+            return []
+    else:
+        return []
+
+
 def get_channel_map(device_db):
     reversed_map = {}
     for dev_name, device in device_db.items():
-        if dev_name == 'Grabber':
-            chan = device["arguments"]["channel_base"]
-            reversed_map[chan] = dev_name + " RIO coordinates"
-            reversed_map[chan + 1] = dev_name + " RIO mask"
-        elif dev_name == 'Phaser':
-            chan = device["arguments"]["channel_base"]
-            for chan_x in range(chan, chan + 5):
-                reversed_map[chan_x] = dev_name
-        elif ("arguments" in device
-              and "channel" in device["arguments"]
-              and device["type"] == "local"
-              and device["module"].startswith("artiq.coredevice.")):
-            chan = device["arguments"]["channel"]
-            reversed_map[chan] = dev_name
+        channels = get_rtio_channels(device)
+        for chan, suffix in channels:
+            reversed_map[chan] = dev_name + suffix
 
     return reversed_map
 
@@ -76,19 +75,14 @@ def main():
     chan_map = get_channel_map(ddb.get_device_db())
     serialized = serialize_device_map(chan_map)
 
-    if args.file:
-        outfile = open(args.file, "wb")
-    elif args.stdout:
+    if args.stdout:
         outfile = fdopen(stdout.fileno(), "wb", closefd=False)
+    elif args.file:
+        outfile = open(args.file, "wb")
     else:
-        raise Exception("either stdout or file should be chosen")
+        raise Exception("expected either --stdout or FILE")
 
-    if args.json:
-        data = bytes(json.dumps(chan_map, indent=2), "utf-8")
-    else:
-        data = serialized
-
-    outfile.write(data)
+    outfile.write(serialized)
     outfile.flush()
 
 

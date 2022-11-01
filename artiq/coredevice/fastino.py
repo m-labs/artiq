@@ -298,3 +298,7 @@ class Fastino:
         overall gain, there will be a corresponding output step.
         """
         self.write(0x27, channel_mask)
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]  # TODO or channel << 8 ???

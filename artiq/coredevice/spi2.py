@@ -237,6 +237,10 @@ class SPIMaster:
         """
         return rtio_input_data(self.channel)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]
+
 
 @syscall(flags={"nounwind", "nowrite"})
 def spi_set_config(busno: TInt32, flags: TInt32, length: TInt32, div: TInt32, cs: TInt32) -> TNone:

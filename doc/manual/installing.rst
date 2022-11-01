@@ -343,9 +343,9 @@ Availability of these options depends on the board and their configuration - spe
 
 * Setup resolving channels to their names
 
-This feature allows to print channel's respective names alongside with their numbers for RTIO errors. While host can resolve channels without additional setup, for device log you'll need to run ``artiq_rtiomap`` tool and write its result into the device config at ``device_map`` key: ::
+This feature allows you to print the channels' respective names alongside with their numbers for RTIO errors. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
 
-  $ artiq_rtiomap -f dev_map.bin
+  $ artiq_rtiomap dev_map.bin
   $ artiq_coremgmt config write -f device_map dev_map.bin
 
 .. note:: You can find more information about how to use the ``artiq_rtiomap`` utility on the :ref:`Utilities <rtiomap-tool>` page.

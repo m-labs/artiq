@@ -172,3 +172,7 @@ class Novogorny:
             at_mu(t0 + dt_mu)
         for i in range(len(data)):
             data[i] = self.bus.read()
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

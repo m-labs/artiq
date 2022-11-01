@@ -234,3 +234,7 @@ class EdgeCounter:
                 "Input edge counter overflow on RTIO channel {0}",
                 int64(self.channel))
         return timestamp, count
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]

@@ -356,15 +356,15 @@ fn async_error_thread(io: Io) {
             let errors = csr::rtio_core::async_error_read();
             if errors & ASYNC_ERROR_COLLISION != 0 {
                 let channel = csr::rtio_core::collision_channel_read();
-                error!("RTIO collision involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
+                error!("RTIO collision involving channel {}:{}", channel, resolve_channel_name(channel as i32));
             }
             if errors & ASYNC_ERROR_BUSY != 0 {
                 let channel = csr::rtio_core::busy_channel_read();
-                error!("RTIO busy error involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
+                error!("RTIO busy error involving channel {}:{}", channel, resolve_channel_name(channel as i32));
             }
             if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 let channel = csr::rtio_core::sequence_error_channel_read();
-                error!("RTIO sequence error involving channel {} {}", channel, resolve_channel_name(channel as i32, &RTIO_DEVICE_MAP));
+                error!("RTIO sequence error involving channel {}:{}", channel, resolve_channel_name(channel as i32));
             }
             SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);
@@ -407,11 +407,15 @@ fn read_device_map() -> BTreeMap<i32, String> {
     device_map
 }
 
-pub fn resolve_channel_name(channel: i32, device_map: &BTreeMap<i32, String>) -> String {
+fn _resolve_channel_name(channel: i32, device_map: &BTreeMap<i32, String>) -> String {
     match device_map.get(&channel) {
         Some(val) => val.clone(),
-        None => String::from("")
+        None => String::from("unknown")
     }
+}
+
+pub fn resolve_channel_name(channel: i32) -> String {
+    _resolve_channel_name(channel, unsafe{&RTIO_DEVICE_MAP})
 }
 
 pub fn startup(io: &Io, aux_mutex: &Mutex,

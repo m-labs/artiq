@@ -43,3 +43,7 @@ class CoreCache:
         :param list value: a list of 32-bit integers
         """
         cache_put(key, value)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

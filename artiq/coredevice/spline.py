@@ -226,3 +226,7 @@ class Spline:
         else:
             raise ValueError("Invalid interpolation order. "
                              "Supported orders are: 0, 1, 3.")
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]

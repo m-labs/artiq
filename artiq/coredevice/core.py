@@ -87,7 +87,7 @@ class Core:
         if host is None:
             self.comm = CommKernelDummy()
         else:
-            self.comm = CommKernel(host, device_mgr=dmgr)
+            self.comm = CommKernel(host)
 
         self.first_run = True
         self.dmgr = dmgr
@@ -250,3 +250,7 @@ class Core:
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

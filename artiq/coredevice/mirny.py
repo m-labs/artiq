@@ -178,6 +178,10 @@ class Mirny:
             data <<= 32 - length
         self.bus.write(data)
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
 
 class Almazny:
     """
@@ -280,3 +284,7 @@ class Almazny:
     def _update_all_registers(self):
         for i in range(4):
             self._update_register(i)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

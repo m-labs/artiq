@@ -171,6 +171,10 @@ class I2CSwitch:
         """
         i2c_switch_select(self.busno, self.address >> 1, 0)
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
 
 class TCA6424A:
     """Driver for the TCA6424A I2C I/O expander.

@@ -1,4 +1,4 @@
-use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
+use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite, slice};
 use alloc::{vec::Vec, string::String};
 use byteorder::{ByteOrder, NativeEndian};
 use cslice::CSlice;
@@ -10,7 +10,7 @@ use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
-use rtio_mgt::get_async_errors;
+use rtio_mgt::{get_async_errors, resolve_channel_name};
 use cache::Cache;
 use kern_hwreq;
 use board_artiq::drtio_routing;
@@ -449,6 +449,29 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.congress.cache.unborrow() }
 
+                let exceptions_with_channel: Vec<Option<eh::eh_artiq::Exception>> = exceptions.iter()
+                    .map(|exception| {
+                        if let Some(exn) = exception {
+                            if exn.id >= 1 && exn.id <= 3 {
+                                let msg = str::from_utf8(unsafe{slice::from_raw_parts(exn.message.as_ptr(), exn.message.len())})
+                                    .unwrap_or("")
+                                    .replace("{0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as i32)));
+                                Some(eh::eh_artiq::Exception {
+                                    id: exn.id,
+                                    file: exn.file,
+                                    line: exn.line,
+                                    column: exn.column,
+                                    function: exn.function,
+                                    message: unsafe {CSlice::new(msg.as_ptr(), msg.len())},
+                                    param: exn.param
+                                })
+                            } else {
+                                Some(exn.clone())
+                            }
+                        } else { None }
+                    })
+                    .collect();
+
                 match stream {
                     None => {
                         error!("exception in flash kernel");
@@ -459,7 +482,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     },
                     Some(ref mut stream) => {
                         host_write(stream, host::Reply::KernelException {
-                            exceptions: exceptions,
+                            exceptions: &exceptions_with_channel,
                             stack_pointers: stack_pointers,
                             backtrace: backtrace,
                             async_errors: unsafe { get_async_errors() }

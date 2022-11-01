@@ -543,6 +543,10 @@ class ADF5356:
             r += 1
         return int32(r)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]
+
 
 @portable
 def gcd(a, b):

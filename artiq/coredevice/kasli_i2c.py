@@ -75,3 +75,7 @@ class KasliEEPROM:
         finally:
             self.deselect()
         return value
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

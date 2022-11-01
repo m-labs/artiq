@@ -391,3 +391,7 @@ class AD53xx:
         :return: The 16-bit DAC register value
         """
         return voltage_to_mu(voltage, self.offset_dacs, self.vref)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

@@ -21,3 +21,7 @@ class AD9154:
     def read(self, addr):
         self.write((1 << 15) | addr, 0)
         return self.bus.read()
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

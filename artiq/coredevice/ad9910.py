@@ -1119,3 +1119,7 @@ class AD9910:
                 # the good delay is period//2 after the edge
                 return (i + 1 + period // 2) & (period - 1)
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

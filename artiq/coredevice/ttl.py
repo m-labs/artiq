@@ -80,6 +80,10 @@ class TTLOut:
         delay(duration)
         self.off()
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]
+
 
 class TTLInOut:
     """RTIO TTL input/output driver.
@@ -444,6 +448,10 @@ class TTLInOut:
             success = False
         return success
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]
+
 
 class TTLClockGen:
     """RTIO TTL clock generator driver.
@@ -508,3 +516,7 @@ class TTLClockGen:
     def stop(self):
         """Stop the toggling of the clock and set the output level to 0."""
         self.set_mu(0)
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]

@@ -238,6 +238,10 @@ class SUServo:
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain, self.corrected_fs)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]
+
 
 class Channel:
     """Sampler-Urukul Servo channel
@@ -554,3 +558,7 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, "")]

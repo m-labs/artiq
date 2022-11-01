@@ -262,3 +262,7 @@ class AD9912:
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []

@@ -429,3 +429,7 @@ class CPLD:
         cfg = self.cfg_reg & ~(7 << CFG_PROFILE)
         cfg |= (profile & 7) << CFG_PROFILE
         self.cfg_write(cfg)
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
