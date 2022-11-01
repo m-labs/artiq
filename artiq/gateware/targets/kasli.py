@@ -218,6 +218,8 @@ class MasterBase(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
+                         clk_freq=rtio_clk_freq,
+                         rtio_sys_merge=True,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -256,8 +258,6 @@ class MasterBase(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += self.disable_cdr_clk_ibuf.eq(
-            ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
@@ -349,20 +349,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
-    def create_qpll(self):
-        # The GTP acts up if you send any glitch to its
-        # clock input, even while the PLL is held in reset.
-        self.disable_cdr_clk_ibuf = Signal(reset=1)
-        self.disable_cdr_clk_ibuf.attr.add("no_retiming")
-        if self.platform.hw_rev == "v2.0":
-            cdr_clk_clean = self.platform.request("cdr_clk_clean")
-        else:
-            cdr_clk_clean = self.platform.request("si5324_clkout")
-        cdr_clk_clean_buf = Signal()
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=self.disable_cdr_clk_ibuf,
-            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
-            o_O=cdr_clk_clean_buf)
+    def create_qpll(self):        
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -377,7 +364,7 @@ class MasterBase(MiniSoC, AMPSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings,
+        qpll = QPLL(self.crg.cdr_clk_buf, qpll_drtio_settings,
                     self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
