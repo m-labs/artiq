@@ -517,7 +517,22 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
-    #[cfg(has_si5324)]
+    #[cfg(all(soc_platform = "kasli", has_si5324))]
+    loop {
+        let switched = unsafe {
+            csr::crg::switch_done_read()
+        };
+        if switched == 1 {
+            info!("Clocking has already been set up.");
+            break;
+        }
+        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+        info!("Switching sys clock, rebooting..................");
+        unsafe {
+            csr::crg::clock_sel_write(1);
+        }
+    }
+    #[cfg(all(not(soc_platform = "kasli"), has_si5324))]
     si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
     #[cfg(has_wrpll)]
     wrpll::init();
@@ -532,6 +547,7 @@ pub extern fn main() -> i32 {
     }
     #[cfg(has_wrpll)]
     wrpll::diagnostics();
+
     init_rtio_crg();
 
     #[cfg(has_hmc830_7043)]
