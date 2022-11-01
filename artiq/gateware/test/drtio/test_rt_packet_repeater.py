@@ -12,7 +12,7 @@ def create_dut(nwords):
     pt = PacketInterface("s2m", nwords*8)
     pr = PacketInterface("m2s", nwords*8)
     ts = Signal(64)
-    dut = ClockDomainsRenamer({"rtio": "sys", "rtio_rx": "sys"})(
+    dut = ClockDomainsRenamer({"rtio_rx": "sys"})(
         RTPacketRepeater(
             SimpleNamespace(coarse_ts=ts),
             SimpleNamespace(

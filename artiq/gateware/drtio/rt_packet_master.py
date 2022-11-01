@@ -339,7 +339,7 @@ class RTPacketMaster(Module):
             If(link_layer.rx_rt_frame & ~rx_frame_r,
                 packet_cnt_rx.eq(packet_cnt_rx + 1))
         ]
-        cdc_packet_cnt_rx = ClockDomainsRenamer({"sys": "rtio_rx"})(
+        cdc_packet_cnt_rx = ClockDomainsRenamer({"rtio": "sys", "sys": "rtio_rx"})(
             GrayCodeTransfer(32))
         self.submodules += cdc_packet_cnt_rx
         self.comb += [
