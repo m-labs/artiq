@@ -105,7 +105,7 @@ class MiqroChannel(Module):
             self.pulse.eq(pulse),
             self.rtlink.o.busy.eq(stb & ~self.ack),
         ]
-        self.sync.rtio += [
+        self.sync += [
             If(~stb,
                 dt.eq(dt + 2),
             ),
@@ -162,7 +162,7 @@ class Miqro(Module):
         ]
 
         re_dly = Signal(3)  # stage, send, respond
-        self.sync.rtio += [
+        self.sync += [
             header.type.eq(3),  # body type is miqro pulse data
             If(self.serializer.stb,
                 header.we.eq(0),
