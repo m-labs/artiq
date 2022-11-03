@@ -15,7 +15,7 @@ requirements = [
     "numpy", "scipy",
     "python-dateutil", "prettytable", "h5py",
     "qasync", "pyqtgraph", "pygit2",
-    "llvmlite", "pythonparser", "python-Levenshtein",
+    "llvmlite", "pythonparser", "levenshtein",
 ]
 
 console_scripts = [
