@@ -263,7 +263,7 @@ class NativeTarget(Target):
     def __init__(self):
         super().__init__()
         self.triple = llvm.get_default_triple()
-        host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
+        self.data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
 
 class RV32IMATarget(Target):
     triple = "riscv32-unknown-linux"
