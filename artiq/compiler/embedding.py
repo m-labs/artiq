@@ -181,13 +181,16 @@ class ASTSynthesizer:
         return self.source_buffer
 
     def _add(self, fragment):
-        if len(self.source) - self.source.rfind("\n") + len(fragment) >= 2**16 - 2:
-            fragment = "\\\n" + fragment
         range_from   = len(self.source)
         self.source += fragment
         range_to     = len(self.source)
         return source.Range(self.source_buffer, range_from, range_to,
                             expanded_from=self.expanded_from)
+
+    def _add_iterable(self, fragment):
+        if len(self.source) - self.source.rfind("\n") >= 2**16 - 2:
+            fragment = "\\\n" + fragment
+        return self._add(fragment)
 
     def fast_quote_list(self, value):
         elts = [None] * len(value)
@@ -247,7 +250,7 @@ class ASTSynthesizer:
             for index, elt in enumerate(value):
                 elts[index] = self.quote(elt)
                 if index < len(value) - 1:
-                    self._add(", ")
+                    self._add_iterable(", ")
         return elts
 
     def quote(self, value):
@@ -298,28 +301,28 @@ class ASTSynthesizer:
                                  loc=self._add(repr(value)))
         elif isinstance(value, str):
             return asttyped.StrT(s=value, ctx=None, type=builtins.TStr(),
-                                 loc=self._add(repr(value)))
+                                 loc=self._add_iterable(repr(value)))
         elif isinstance(value, bytes):
             return asttyped.StrT(s=value, ctx=None, type=builtins.TBytes(),
-                                 loc=self._add(repr(value)))
+                                 loc=self._add_iterable(repr(value)))
         elif isinstance(value, bytearray):
-            quote_loc   = self._add('`')
-            repr_loc    = self._add(repr(value))
-            unquote_loc = self._add('`')
+            quote_loc   = self._add_iterable('`')
+            repr_loc    = self._add_iterable(repr(value))
+            unquote_loc = self._add_iterable('`')
             loc         = quote_loc.join(unquote_loc)
 
             return asttyped.QuoteT(value=value, type=builtins.TByteArray(), loc=loc)
         elif isinstance(value, list):
-            begin_loc = self._add("[")
+            begin_loc = self._add_iterable("[")
             elts = self.fast_quote_list(value)
-            end_loc   = self._add("]")
+            end_loc   = self._add_iterable("]")
             return asttyped.ListT(elts=elts, ctx=None, type=builtins.TList(),
                                   begin_loc=begin_loc, end_loc=end_loc,
                                   loc=begin_loc.join(end_loc))
         elif isinstance(value, tuple):
-            begin_loc = self._add("(")
+            begin_loc = self._add_iterable("(")
             elts = self.fast_quote_list(value)
-            end_loc   = self._add(")")
+            end_loc   = self._add_iterable(")")
             return asttyped.TupleT(elts=elts, ctx=None,
                                    type=types.TTuple([e.type for e in elts]),
                                    begin_loc=begin_loc, end_loc=end_loc,
