@@ -91,6 +91,10 @@ class EdgeCounter:
         self.channel = channel
         self.counter_max = (1 << (gateware_width - 1)) - 1
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def gate_rising(self, duration):
         """Count rising edges for the given duration and request the total at
@@ -234,7 +238,3 @@ class EdgeCounter:
                 "Input edge counter overflow on RTIO channel {0}",
                 int64(self.channel))
         return timestamp, count
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]

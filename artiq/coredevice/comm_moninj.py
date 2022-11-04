@@ -28,6 +28,10 @@ class CommMonInj:
         self.injection_status_cb = injection_status_cb
         self.disconnect_cb = disconnect_cb
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     async def connect(self, host, port=1383):
         self._reader, self._writer = await async_open_connection(
             host,
@@ -101,7 +105,3 @@ class CommMonInj:
         finally:
             if self.disconnect_cb is not None:
                 self.disconnect_cb()
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

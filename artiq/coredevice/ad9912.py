@@ -44,6 +44,10 @@ class AD9912:
         assert sysclk <= 1e9
         self.ftw_per_hz = 1 / sysclk * (int64(1) << 48)
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def write(self, addr: TInt32, data: TInt32, length: TInt32):
         """Variable length write to a register.
@@ -262,7 +266,3 @@ class AD9912:
         :param state: CPLD CFG RF switch bit
         """
         self.cpld.cfg_sw(self.chip_select - 4, state)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

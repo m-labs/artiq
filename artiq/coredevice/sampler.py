@@ -71,6 +71,10 @@ class Sampler:
     def use_corrected_fs(hw_rev):
         return hw_rev != "v2.1"
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def init(self):
         """Initialize the device.
@@ -153,7 +157,3 @@ class Sampler:
             channel = i + 8 - len(data)
             gain = (self.gains >> (channel*2)) & 0b11
             data[i] = adc_mu_to_volt(adc_data[i], gain, self.revision)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

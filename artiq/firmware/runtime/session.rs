@@ -452,22 +452,18 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let exceptions_with_channel: Vec<Option<eh::eh_artiq::Exception>> = exceptions.iter()
                     .map(|exception| {
                         if let Some(exn) = exception {
-                            if exn.id >= 1 && exn.id <= 3 {
-                                let msg = str::from_utf8(unsafe{slice::from_raw_parts(exn.message.as_ptr(), exn.message.len())})
-                                    .unwrap_or("")
-                                    .replace("{0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as i32)));
-                                Some(eh::eh_artiq::Exception {
-                                    id: exn.id,
-                                    file: exn.file,
-                                    line: exn.line,
-                                    column: exn.column,
-                                    function: exn.function,
-                                    message: unsafe {CSlice::new(msg.as_ptr(), msg.len())},
-                                    param: exn.param
-                                })
-                            } else {
-                                Some(exn.clone())
-                            }
+                            let msg = str::from_utf8(unsafe{slice::from_raw_parts(exn.message.as_ptr(), exn.message.len())})
+                                .unwrap()
+                                .replace("{rtio_channel_info:0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as i32)));
+                            Some(eh::eh_artiq::Exception {
+                                id: exn.id,
+                                file: exn.file,
+                                line: exn.line,
+                                column: exn.column,
+                                function: exn.function,
+                                message: unsafe {CSlice::new(msg.as_ptr(), msg.len())},
+                                param: exn.param
+                            })
                         } else { None }
                     })
                     .collect();

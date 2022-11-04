@@ -25,6 +25,10 @@ class Grabber:
         # ROI engine outputs for one video frame.
         self.sentinel = int32(int64(2**count_width))
 
+    @staticmethod
+    def get_rtio_channels(channel_base, **kwargs):
+        return [(channel_base, "RIO coordinates"), (channel_base + 1, "RIO coordinates")]
+
     @kernel
     def setup_roi(self, n, x0, y0, x1, y1):
         """
@@ -103,7 +107,3 @@ class Grabber:
             if roi_output == self.sentinel:
                 raise OutOfSyncException
             data[i] = roi_output
-
-    @staticmethod
-    def get_rtio_channels(channel_base, **kwargs):
-        return [(channel_base, "RIO coordinates"), (channel_base + 1, "RIO coordinates")]

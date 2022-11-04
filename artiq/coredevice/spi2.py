@@ -72,6 +72,10 @@ class SPIMaster:
         self.channel = channel
         self.update_xfer_duration_mu(div, length)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @portable
     def frequency_to_div(self, f):
         """Convert a SPI clock frequency to the closest SPI clock divider."""
@@ -236,10 +240,6 @@ class SPIMaster:
         :return: SPI input data.
         """
         return rtio_input_data(self.channel)
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]
 
 
 @syscall(flags={"nounwind", "nowrite"})

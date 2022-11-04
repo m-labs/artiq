@@ -90,6 +90,10 @@ class Mirny:
 
         # TODO: support clk_div on v1.0 boards
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def read_reg(self, addr):
         """Read a register"""
@@ -178,10 +182,6 @@ class Mirny:
             data <<= 32 - length
         self.bus.write(data)
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
 
 class Almazny:
     """
@@ -195,6 +195,10 @@ class Almazny:
         self.att_mu = [0x3f] * 4
         self.channel_sw = [0] * 4
         self.output_enable = False
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
 
     @kernel
     def init(self):
@@ -284,7 +288,3 @@ class Almazny:
     def _update_all_registers(self):
         for i in range(4):
             self._update_register(i)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

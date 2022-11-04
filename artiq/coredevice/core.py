@@ -94,6 +94,10 @@ class Core:
         self.core = self
         self.comm.core = self
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     def close(self):
         self.comm.close()
 
@@ -250,7 +254,3 @@ class Core:
         min_now = rtio_get_counter() + 125000
         if now_mu() < min_now:
             at_mu(min_now)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

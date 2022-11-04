@@ -52,6 +52,10 @@ class Fastino:
         assert self.core.ref_period == 1*ns
         self.t_frame = int64(14*7*4)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def init(self):
         """Initialize the device.
@@ -298,7 +302,3 @@ class Fastino:
         overall gain, there will be a corresponding output step.
         """
         self.write(0x27, channel_mask)
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]  # TODO or channel << 8 ???

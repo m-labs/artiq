@@ -186,6 +186,10 @@ class AD9910:
 
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def set_phase_mode(self, phase_mode: TInt32):
         r"""Set the default phase mode.
@@ -1119,7 +1123,3 @@ class AD9910:
                 # the good delay is period//2 after the edge
                 return (i + 1 + period // 2) & (period - 1)
         raise ValueError("no IO_UPDATE-SYNC_CLK alignment edge found")
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

@@ -73,6 +73,10 @@ class ADF5356:
 
         self._init_registers()
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def init(self, blind=False):
         """
@@ -542,10 +546,6 @@ class ADF5356:
         while self._compute_pfd_frequency(r, d, t) > ADF5356_MAX_FREQ_PFD:
             r += 1
         return int32(r)
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]
 
 
 @portable

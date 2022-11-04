@@ -85,6 +85,10 @@ class Novogorny:
         self.gains = gains
         self.v_ref = 5.  # 5 Volt reference
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def set_gain_mu(self, channel, gain):
         """Set instrumentation amplifier gain of a channel.
@@ -172,7 +176,3 @@ class Novogorny:
             at_mu(t0 + dt_mu)
         for i in range(len(data)):
             data[i] = self.bus.read()
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []

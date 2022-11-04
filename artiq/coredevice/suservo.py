@@ -85,6 +85,10 @@ class SUServo:
         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def init(self):
         """Initialize the servo, Sampler and both Urukuls.
@@ -238,10 +242,6 @@ class SUServo:
         gain = (self.gains >> (channel*2)) & 0b11
         return adc_mu_to_volts(val, gain, self.corrected_fs)
 
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]
-
 
 class Channel:
     """Sampler-Urukul Servo channel
@@ -260,6 +260,10 @@ class Channel:
         self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
                               self.servo.channel)
         self.dds = self.servo.ddses[self.servo_channel // 4]
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def set(self, en_out, en_iir=0, profile=0):
@@ -558,7 +562,3 @@ class Channel:
             raise ValueError("Invalid SUServo y-value!")
         self.set_y_mu(profile, y_mu)
         return y_mu
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]

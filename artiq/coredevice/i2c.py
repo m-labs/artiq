@@ -158,6 +158,10 @@ class I2CSwitch:
         self.busno = busno
         self.address = address
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def set(self, channel):
         """Enable one channel.
@@ -170,10 +174,6 @@ class I2CSwitch:
         """Disable output of the I2C switch.
         """
         i2c_switch_select(self.busno, self.address >> 1, 0)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
 
 
 class TCA6424A:
@@ -188,6 +188,10 @@ class TCA6424A:
         self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
 
     @kernel
     def _write24(self, addr, value):
@@ -222,6 +226,10 @@ class PCF8574A:
         self.core = dmgr.get(core_device)
         self.busno = busno
         self.address = address
+
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
 
     @kernel
     def set(self, data):

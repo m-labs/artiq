@@ -36,6 +36,10 @@ class TTLOut:
         self.channel = channel
         self.target_o = channel << 8
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def output(self):
         pass
@@ -79,10 +83,6 @@ class TTLOut:
         self.on()
         delay(duration)
         self.off()
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]
 
 
 class TTLInOut:
@@ -131,6 +131,10 @@ class TTLInOut:
         self.target_oe     = (channel << 8) + 1
         self.target_sens   = (channel << 8) + 2
         self.target_sample = (channel << 8) + 3
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def set_oe(self, oe):
@@ -448,10 +452,6 @@ class TTLInOut:
             success = False
         return success
 
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]
-
 
 class TTLClockGen:
     """RTIO TTL clock generator driver.
@@ -472,6 +472,10 @@ class TTLClockGen:
         self.target = channel << 8
 
         self.acc_width = numpy.int64(acc_width)
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @portable
     def frequency_to_ftw(self, frequency):
@@ -516,7 +520,3 @@ class TTLClockGen:
     def stop(self):
         """Stop the toggling of the clock and set the output level to 0."""
         self.set_mu(0)
-
-    @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, "")]

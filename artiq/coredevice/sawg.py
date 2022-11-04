@@ -334,6 +334,19 @@ class SAWG:
         self.phase0 = Spline(width, time_width, channel_base + 9,
                              self.core, 1.)
 
+    @staticmethod
+    def get_rtio_channels(channel_base, **kwargs):
+        return [(channel_base, "Base"),
+                (channel_base+1, "Offset"),
+                (channel_base+2, "Amplitude 1"),
+                (channel_base+3, "Frequency 1"),
+                (channel_base+4, "Phase 1"),
+                (channel_base+5, "Amplitude 2"),
+                (channel_base+6, "Frequency 2"),
+                (channel_base+7, "Phase 2"),
+                (channel_base+8, "Frequency 0"),
+                (channel_base+9, "Phase0")]
+
     @kernel
     def reset(self):
         """Re-establish initial conditions.
@@ -370,16 +383,3 @@ class SAWG:
         delay_mu(coarse_cycle)
         self.offset.set_mu(0)
         delay_mu(coarse_cycle)
-
-    @staticmethod
-    def get_rtio_channels(channel_base, **kwargs):
-        return [(channel_base, "Base"),
-                (channel_base+1, "Offset"),
-                (channel_base+2, "Amplitude 1"),
-                (channel_base+3, "Frequency 1"),
-                (channel_base+4, "Phase 1"),
-                (channel_base+5, "Amplitude 2"),
-                (channel_base+6, "Frequency 2"),
-                (channel_base+7, "Phase 2"),
-                (channel_base+8, "Frequency 0"),
-                (channel_base+9, "Phase0")]

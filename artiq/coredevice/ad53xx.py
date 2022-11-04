@@ -160,6 +160,10 @@ class AD53xx:
         self.offset_dacs = offset_dacs
         self.core = dmgr.get(core)
 
+    @staticmethod
+    def get_rtio_channels(**kwargs):
+        return []
+
     @kernel
     def init(self, blind=False):
         """Configures the SPI bus, drives LDAC and CLR high, programmes
@@ -391,7 +395,3 @@ class AD53xx:
         :return: The 16-bit DAC register value
         """
         return voltage_to_mu(voltage, self.offset_dacs, self.vref)
-
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
