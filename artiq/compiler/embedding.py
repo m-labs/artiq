@@ -181,6 +181,8 @@ class ASTSynthesizer:
         return self.source_buffer
 
     def _add(self, fragment):
+        if len(self.source) - self.source.rfind("\n") + len(fragment) >= 2**16 - 2:
+            fragment = "\\\n" + fragment
         range_from   = len(self.source)
         self.source += fragment
         range_to     = len(self.source)
