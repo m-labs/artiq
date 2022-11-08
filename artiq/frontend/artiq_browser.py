@@ -153,7 +153,7 @@ def main():
 
     browser = Browser(smgr, datasets_sub, args.browse_root,
                       args.server, args.port)
-    widget_log_handler.callback = browser.log.append_message
+    widget_log_handler.callback = browser.log.model.append
 
     if os.name == "nt":
         # HACK: show the main window before creating applets.

@@ -209,11 +209,11 @@ class LogDock(QDockWidgetCloseDetect):
         grid.addWidget(QtWidgets.QLabel("Minimum level: "), 0, 0)
         self.filter_level = QtWidgets.QComboBox()
         self.filter_level.addItems(["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"])
-        self.filter_level.setToolTip("Receive entries at or above this level")
+        self.filter_level.setToolTip("Filter entries at or above this level")
         grid.addWidget(self.filter_level, 0, 1)
         self.filter_freetext = QtWidgets.QLineEdit()
         self.filter_freetext.setPlaceholderText("freetext filter...")
-        self.filter_freetext.setToolTip("Receive entries containing this text")
+        self.filter_freetext.setToolTip("Filter entries containing this text")
         grid.addWidget(self.filter_freetext, 0, 2)
 
         scrollbottom = QtWidgets.QToolButton()
