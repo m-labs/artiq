@@ -252,8 +252,7 @@ class Phaser:
 
     @staticmethod
     def get_rtio_channels(channel_base, **kwargs):
-        return [(channel_base, None), (channel_base + 1, None),
-                (channel_base + 2, None), (channel_base + 3, None), (channel_base + 4, None)]
+        return [(channel_base + x, None) for x in range(5)]
 
     @kernel
     def init(self, debug=False):

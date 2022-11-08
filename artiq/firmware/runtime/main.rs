@@ -1,4 +1,4 @@
-#![feature(lang_items, panic_info_message, const_btree_new)]
+#![feature(lang_items, panic_info_message, const_btree_new, iter_advance_by)]
 #![no_std]
 
 extern crate eh;

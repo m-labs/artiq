@@ -2,6 +2,7 @@
 
 import argparse
 import importlib
+import struct
 
 from sipyco import common_args
 
@@ -38,20 +39,16 @@ def get_channel_map(device_db):
     for dev_name, device in device_db.items():
         channels = get_rtio_channels(device)
         for chan, suffix in channels:
-            reversed_map[chan] = dev_name + (suffix if suffix else "")
+            reversed_map[chan] = dev_name + (suffix if suffix is not None else "")
 
     return reversed_map
 
 
 def serialize_device_map(channel_map):
-    dev_len = len(channel_map)
-    buffer = bytes()
-    buffer += dev_len.to_bytes(4, 'little', signed=False)
+    buffer = struct.pack("<I", len(channel_map))
     for dev_num, dev_name in channel_map.items():
-        buffer += len(dev_name).to_bytes(1, "little", signed=False)
-        buffer += dev_num.to_bytes(4, "little", signed=True)
-        buffer += bytes(dev_name, "utf-8")
-
+        dev_name_bytes = dev_name.encode("utf-8")
+        buffer += struct.pack("<II{}s".format(len(dev_name_bytes)), dev_num, len(dev_name_bytes), dev_name_bytes)
     return buffer
 
 
@@ -65,7 +62,6 @@ def main():
 
     with open(args.file, "wb") as outfile:
         outfile.write(serialized)
-        outfile.flush()
 
 
 if __name__ == "__main__":
