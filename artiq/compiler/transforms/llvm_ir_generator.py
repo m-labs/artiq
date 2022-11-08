@@ -335,8 +335,8 @@ class LLVMIRGenerator:
             else:
                 value = const.value
 
-            llptr = self.llstr_of_str(const.value, linkage="private", unnamed_addr=True)
-            lllen = ll.Constant(lli32, len(const.value))
+            llptr = self.llstr_of_str(value, linkage="private", unnamed_addr=True)
+            lllen = ll.Constant(lli32, len(value))
             return ll.Constant(llty, (llptr, lllen))
         else:
             assert False
