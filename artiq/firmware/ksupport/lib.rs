@@ -156,6 +156,21 @@ extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ())
     })
 }
 
+
+/// Receives the result from an RPC call into the given memory buffer.
+///
+/// To handle aggregate objects with an a priori unknown size and number of
+/// sub-allocations (e.g. a list of list of lists, where, at each level, the number of
+/// elements is not statically known), this function needs to be called in a loop:
+///
+/// On the first call, `slot` should be a buffer of suitable size and alignment for
+/// the top-level return value (e.g. in the case of a list, the pointer/length pair).
+/// A return value of zero indicates that the value has been completely received.
+/// As long as the return value is positive, another allocation with the given number of
+/// bytes is needed, so the function should be called again with such a buffer (aligned
+/// to the maximum required for any of the possible types according to the target ABI).
+///
+/// If the RPC call resulted in an exception, it is reconstructed and raised.
 #[unwind(allowed)]
 extern fn rpc_recv(slot: *mut ()) -> usize {
     send(&RpcRecvRequest(slot));
