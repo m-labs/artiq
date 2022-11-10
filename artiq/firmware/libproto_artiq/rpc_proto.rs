@@ -6,22 +6,81 @@ use io::{ProtoRead, Read, Write, ProtoWrite, Error};
 use self::tag::{Tag, TagIterator, split_tag};
 
 #[inline]
-fn alignment_offset(alignment: isize, ptr: isize) -> isize {
-    (-ptr).rem_euclid(alignment)
+fn round_up(val: usize, power_of_two: usize) -> usize {
+    assert!(power_of_two.is_power_of_two());
+    let max_rem = power_of_two - 1;
+    (val + max_rem) & (!max_rem)
 }
 
+#[inline]
+unsafe fn round_up_mut<T>(ptr: *mut T, power_of_two: usize) -> *mut T {
+    round_up(ptr as usize, power_of_two) as *mut T
+}
+
+#[inline]
+unsafe fn round_up_const<T>(ptr: *const T, power_of_two: usize) -> *const T {
+    round_up(ptr as usize, power_of_two) as *const T
+}
+
+#[inline]
 unsafe fn align_ptr<T>(ptr: *const ()) -> *const T {
-    let alignment = core::mem::align_of::<T>() as isize;
-    let fix = alignment_offset(alignment as isize, ptr as isize);
-    ((ptr as isize) + fix) as *const T
+    round_up_const(ptr, core::mem::align_of::<T>()) as *const T
 }
 
+#[inline]
 unsafe fn align_ptr_mut<T>(ptr: *mut ()) -> *mut T {
-    let alignment = core::mem::align_of::<T>() as isize;
-    let fix =  alignment_offset(alignment as isize, ptr as isize);
-    ((ptr as isize) + fix) as *mut T
+    round_up_mut(ptr, core::mem::align_of::<T>()) as *mut T
 }
 
+/// Reads (deserializes) `length` array or list elements of type `tag` from `reader`,
+/// writing them into the buffer given by `storage`.
+///
+/// `alloc` is used for nested allocations (if elements themselves contain
+/// lists/arrays), see [recv_value].
+unsafe fn recv_elements<R, E>(
+    reader: &mut R,
+    tag: Tag,
+    length: usize,
+    storage: *mut (),
+    alloc: &dyn Fn(usize) -> Result<*mut (), E>,
+) -> Result<(), E>
+where
+    R: Read + ?Sized,
+    E: From<Error<R::ReadError>>,
+{
+    // List of simple types are special-cased in the protocol for performance.
+    match tag {
+        Tag::Bool => {
+            let dest = slice::from_raw_parts_mut(storage as *mut u8, length);
+            reader.read_exact(dest)?;
+        },
+        Tag::Int32 => {
+            let dest = slice::from_raw_parts_mut(storage as *mut u8, length * 4);
+            reader.read_exact(dest)?;
+            let dest = slice::from_raw_parts_mut(storage as *mut i32, length);
+            NativeEndian::from_slice_i32(dest);
+        },
+        Tag::Int64 | Tag::Float64 => {
+            let dest = slice::from_raw_parts_mut(storage as *mut u8, length * 8);
+            reader.read_exact(dest)?;
+            let dest = slice::from_raw_parts_mut(storage as *mut i64, length);
+            NativeEndian::from_slice_i64(dest);
+        },
+        _ => {
+            let mut data = storage;
+            for _ in 0..length {
+                recv_value(reader, tag, &mut data, alloc)?
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Reads (deserializes) a value of type `tag` from `reader`, writing the results to
+/// the kernel-side buffer `data` (the passed pointer to which is incremented to point
+/// past the just-received data). For nested allocations (lists/arrays), `alloc` is
+/// invoked any number of times with the size of the required allocation as a parameter
+/// (which is assumed to be correctly aligned for all payload types).
 unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                            alloc: &dyn Fn(usize) -> Result<*mut (), E>)
                           -> Result<(), E>
@@ -59,99 +118,63 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
             })
         }
         Tag::Tuple(it, arity) => {
-            *data = data.offset(alignment_offset(tag.alignment() as isize, *data as isize));
+            let alignment = tag.alignment();
+            *data = round_up_mut(*data, alignment);
             let mut it = it.clone();
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
                 recv_value(reader, tag, data, alloc)?
             }
+            // Take into account any tail padding (if element(s) with largest alignment
+            // are not at the end).
+            *data = round_up_mut(*data, alignment);
             Ok(())
         }
         Tag::List(it) => {
             #[repr(C)]
-            struct List { elements: *mut (), length: u32 }
-            consume_value!(*mut List, |ptr| {
+            struct List { elements: *mut (), length: usize }
+            consume_value!(*mut List, |ptr_to_list| {
                 let tag = it.clone().next().expect("truncated tag");
-                let padding = if let Tag::Int64 | Tag::Float64 = tag { 4 } else { 0 };
-
                 let length = reader.read_u32()? as usize;
-                let data = alloc(tag.size() * length + padding + 8)? as *mut u8;
-                *ptr = data as *mut List;
-                let ptr = data as *mut List;
-                let mut data = data.offset(8 + alignment_offset(tag.alignment() as isize, data as isize)) as *mut ();
 
-                (*ptr).length = length as u32;
-                (*ptr).elements = data;
-                match tag {
-                    Tag::Bool => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length);
-                        reader.read_exact(dest)?;
-                    },
-                    Tag::Int32 => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
-                        reader.read_exact(dest)?;
-                        let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NativeEndian::from_slice_i32(dest);
-                    },
-                    Tag::Int64 | Tag::Float64 => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
-                        reader.read_exact(dest)?;
-                        let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NativeEndian::from_slice_i64(dest);
-                    },
-                    _ => {
-                        for _ in 0..length {
-                            recv_value(reader, tag, &mut data, alloc)?
-                        }
-                    }
-                }
-                Ok(())
+                // To avoid multiple kernel CPU roundtrips, use a single allocation for
+                // both the pointer/length List (slice) and the backing storage for the
+                // elements. We can assume that alloc() is aligned suitably, so just
+                // need to take into account any extra padding required.
+                // (Note: On RISC-V, there will never actually be any types with
+                // alignment larger than 8 bytes, so storage_offset == 0 always.)
+                let list_size = 4 + 4;
+                let storage_offset = round_up(list_size, tag.alignment());
+                let storage_size = tag.size() * length;
+
+                let allocation = alloc(storage_offset as usize + storage_size)? as *mut u8;
+                *ptr_to_list = allocation as *mut List;
+                let storage = allocation.offset(storage_offset as isize) as *mut ();
+
+                (**ptr_to_list).length = length;
+                (**ptr_to_list).elements = storage;
+                recv_elements(reader, tag, length, storage, alloc)
             })
         }
         Tag::Array(it, num_dims) => {
             consume_value!(*mut (), |buffer| {
-                let mut total_len: u32 = 1;
+                // Deserialize length along each dimension and compute total number of
+                // elements.
+                let mut total_len: usize = 1;
                 for _ in 0..num_dims {
-                    let len = reader.read_u32()?;
+                    let len = reader.read_u32()? as usize;
                     total_len *= len;
-                    consume_value!(u32, |ptr| *ptr = len )
+                    consume_value!(usize, |ptr| *ptr = len )
                 }
-                let length = total_len as usize;
 
+                // Allocate backing storage for elements; deserialize them.
                 let elt_tag = it.clone().next().expect("truncated tag");
-                let padding = if let Tag::Int64 | Tag::Float64 = tag { 4 } else { 0 };
-                let mut data = alloc(elt_tag.size() * length + padding)?;
-                data = data.offset(alignment_offset(tag.alignment() as isize, data as isize));
-
-                *buffer = data;
-                match elt_tag {
-                    Tag::Bool => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length);
-                        reader.read_exact(dest)?;
-                    },
-                    Tag::Int32 => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 4);
-                        reader.read_exact(dest)?;
-                        let dest = slice::from_raw_parts_mut(data as *mut i32, length);
-                        NativeEndian::from_slice_i32(dest);
-                    },
-                    Tag::Int64 | Tag::Float64 => {
-                        let dest = slice::from_raw_parts_mut(data as *mut u8, length * 8);
-                        reader.read_exact(dest)?;
-                        let dest = slice::from_raw_parts_mut(data as *mut i64, length);
-                        NativeEndian::from_slice_i64(dest);
-                    },
-                    _ => {
-                        for _ in 0..length {
-                            recv_value(reader, elt_tag, &mut data, alloc)?
-                        }
-                    }
-                }
-                Ok(())
+                *buffer = alloc(elt_tag.size() * total_len)?;
+                recv_elements(reader, tag, total_len, *buffer, alloc)
             })
         }
         Tag::Range(it) => {
-            *data = data.offset(alignment_offset(tag.alignment() as isize, *data as isize));
+            *data = round_up_mut(*data, tag.alignment());
             let tag = it.clone().next().expect("truncated tag");
             recv_value(reader, tag, data, alloc)?;
             recv_value(reader, tag, data, alloc)?;
@@ -177,6 +200,36 @@ pub fn recv_return<R, E>(reader: &mut R, tag_bytes: &[u8], data: *mut (),
     let mut data = data;
     unsafe { recv_value(reader, tag, &mut data, alloc)? };
 
+    Ok(())
+}
+
+unsafe fn send_elements<W>(writer: &mut W, elt_tag: Tag, length: usize, data: *const ())
+                          -> Result<(), Error<W::WriteError>>
+    where W: Write + ?Sized
+{
+    writer.write_u8(elt_tag.as_u8())?;
+    match elt_tag {
+        // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
+        // and that is not needed as the data is already in native endian
+        Tag::Bool => {
+            let slice = slice::from_raw_parts(data as *const u8, length);
+            writer.write_all(slice)?;
+        },
+        Tag::Int32 => {
+            let slice = slice::from_raw_parts(data as *const u8, length * 4);
+            writer.write_all(slice)?;
+        },
+        Tag::Int64 | Tag::Float64 => {
+            let slice = slice::from_raw_parts(data as *const u8, length * 8);
+            writer.write_all(slice)?;
+        },
+        _ => {
+            let mut data = data;
+            for _ in 0..length {
+                send_value(writer, elt_tag, &mut data)?;
+            }
+        }
+    }
     Ok(())
 }
 
@@ -213,10 +266,13 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
         Tag::Tuple(it, arity) => {
             let mut it = it.clone();
             writer.write_u8(arity)?;
+            let mut max_alignment = 0;
             for _ in 0..arity {
                 let tag = it.next().expect("truncated tag");
+                max_alignment = core::cmp::max(max_alignment, tag.alignment());
                 send_value(writer, tag, data)?
             }
+            *data = round_up_const(*data, max_alignment);
             Ok(())
         }
         Tag::List(it) => {
@@ -226,30 +282,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                 let length = (**ptr).length as usize;
                 writer.write_u32((**ptr).length)?;
                 let tag = it.clone().next().expect("truncated tag");
-                let mut data = (**ptr).elements;
-                writer.write_u8(tag.as_u8())?;
-                match tag {
-                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in native endian
-                    Tag::Bool => {
-                        let slice = slice::from_raw_parts(data as *const u8, length);
-                        writer.write_all(slice)?;
-                    },
-                    Tag::Int32 => {
-                        let slice = slice::from_raw_parts(data as *const u8, length * 4);
-                        writer.write_all(slice)?;
-                    },
-                    Tag::Int64 | Tag::Float64 => {
-                        let slice = slice::from_raw_parts(data as *const u8, length * 8);
-                        writer.write_all(slice)?;
-                    },
-                    _ => {
-                        for _ in 0..length {
-                            send_value(writer, tag, &mut data)?;
-                        }
-                    }
-                }
-                Ok(())
+                send_elements(writer, tag, length, (**ptr).elements)
             })
         }
         Tag::Array(it, num_dims) => {
@@ -265,30 +298,7 @@ unsafe fn send_value<W>(writer: &mut W, tag: Tag, data: &mut *const ())
                     })
                 }
                 let length = total_len as usize;
-                let mut data = *buffer;
-                writer.write_u8(elt_tag.as_u8())?;
-                match elt_tag {
-                    // we cannot use NativeEndian::from_slice_i32 as the data is not mutable,
-                    // and that is not needed as the data is already in native endian
-                    Tag::Bool => {
-                        let slice = slice::from_raw_parts(data as *const u8, length);
-                        writer.write_all(slice)?;
-                    },
-                    Tag::Int32 => {
-                        let slice = slice::from_raw_parts(data as *const u8, length * 4);
-                        writer.write_all(slice)?;
-                    },
-                    Tag::Int64 | Tag::Float64 => {
-                        let slice = slice::from_raw_parts(data as *const u8, length * 8);
-                        writer.write_all(slice)?;
-                    },
-                    _ => {
-                        for _ in 0..length {
-                            send_value(writer, elt_tag, &mut data)?;
-                        }
-                    }
-                }
-                Ok(())
+                send_elements(writer, elt_tag, length, *buffer)
             })
         }
         Tag::Range(it) => {
@@ -349,7 +359,7 @@ pub fn send_args<W>(writer: &mut W, service: u32, tag_bytes: &[u8], data: *const
 
 mod tag {
     use core::fmt;
-    use super::alignment_offset;
+    use super::round_up;
 
     pub fn split_tag(tag_bytes: &[u8]) -> (&[u8], &[u8]) {
         let tag_separator =
@@ -416,16 +426,18 @@ mod tag {
                     let it = it.clone();
                     it.take(3).map(|t| t.alignment()).max().unwrap()
                 }
-                // CSlice basically
-                Tag::Bytes | Tag::String | Tag::ByteArray | Tag::List(_) =>
+                // the ptr/length(s) pair is basically CSlice
+                Tag::Bytes | Tag::String | Tag::ByteArray | Tag::List(_) | Tag::Array(_, _) =>
                     core::mem::align_of::<CSlice<()>>(),
-                // array buffer is allocated, so no need for alignment first
-                Tag::Array(_, _) => 1,
                 // will not be sent from the host
                 _ => unreachable!("unexpected tag from host")
             }
         }
 
+        /// Returns the "alignment size" of a value with the type described by the tag
+        /// (in bytes), i.e. the stride between successive elements in a list/array of
+        /// the given type, or the offset from a struct element of this type to the
+        /// next field.
         pub fn size(self) -> usize {
             match self {
                 Tag::None => 0,
@@ -438,12 +450,18 @@ mod tag {
                 Tag::ByteArray => 8,
                 Tag::Tuple(it, arity) => {
                     let mut size = 0;
+                    let mut max_alignment = 0;
                     let mut it = it.clone();
                     for _ in 0..arity {
                         let tag = it.next().expect("truncated tag");
+                        let alignment = tag.alignment();
+                        max_alignment = core::cmp::max(max_alignment, alignment);
+                        size = round_up(size, alignment);
                         size += tag.size();
-                        size += alignment_offset(tag.alignment() as isize, size as isize) as usize;
                     }
+                    // Take into account any tail padding (if element(s) with largest
+                    // alignment are not at the end).
+                    size = round_up(size, max_alignment);
                     size
                 }
                 Tag::List(_) => 8,
