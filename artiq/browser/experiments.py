@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 from functools import partial
 from collections import OrderedDict
 
@@ -341,9 +342,10 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         logger.info("Running '%s'...", self.expurl)
         worker = Worker(self._area.worker_handlers)
         try:
-            await worker.build(rid=None, pipeline_name="browser",
+            await worker.build(rid=int(time.time()), pipeline_name="browser",
                                wd=os.path.abspath("."),
                                expid=expid, priority=0)
+            await worker.run()
             await worker.analyze()
         except:
             logger.error("Failed to run '%s'", self.expurl)
@@ -393,7 +395,7 @@ class LocalDatasetDB:
 
 
 class ExperimentsArea(QtWidgets.QMdiArea):
-    def __init__(self, root, datasets_sub):
+    def __init__(self, root, datasets_sub, device_db):
         QtWidgets.QMdiArea.__init__(self)
         self.pixmap = QtGui.QPixmap(os.path.join(
             artiq_dir, "gui", "logo_ver.svg"))
@@ -405,8 +407,8 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self._ddb = LocalDatasetDB(datasets_sub)
 
         self.worker_handlers = {
-            "get_device_db": lambda: {},
-            "get_device": lambda k: {"type": "dummy"},
+            "get_device_db": device_db.get_device_db,
+            "get_device": device_db.get,
             "get_dataset": self._ddb.get,
             "update_dataset": self._ddb.update,
         }

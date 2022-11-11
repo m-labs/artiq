@@ -18,6 +18,7 @@ from artiq import __artiq_dir__ as artiq_dir
 from artiq.tools import get_user_config_dir
 from artiq.gui import state, applets, models, log
 from artiq.browser import datasets, files, experiments
+from artiq.master.databases import DeviceDB
 
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,8 @@ def get_argparser():
     parser.add_argument("--browse-root", default="",
                         help="root path for directory tree "
                         "(default %(default)s)")
+    parser.add_argument("--device-db", default="device_db.py",
+                        help="device database file (default: '%(default)s')")
     parser.add_argument(
         "-s", "--server", default="::1",
         help="hostname or IP of the master to connect to "
@@ -49,7 +52,7 @@ def get_argparser():
 
 class Browser(QtWidgets.QMainWindow):
     def __init__(self, smgr, datasets_sub, browse_root,
-                 master_host, master_port):
+                 master_host, master_port, device_db):
         QtWidgets.QMainWindow.__init__(self)
         smgr.register(self)
 
@@ -65,7 +68,7 @@ class Browser(QtWidgets.QMainWindow):
         self.setUnifiedTitleAndToolBarOnMac(True)
 
         self.experiments = experiments.ExperimentsArea(
-            browse_root, datasets_sub)
+            browse_root, datasets_sub, device_db)
         smgr.register(self.experiments)
         self.experiments.setHorizontalScrollBarPolicy(
             QtCore.Qt.ScrollBarAsNeeded)
@@ -148,11 +151,12 @@ def main():
 
     datasets_sub = models.LocalModelManager(datasets.Model)
     datasets_sub.init({})
+    device_db = DeviceDB(args.device_db)
 
     smgr = state.StateManager(args.db_file)
 
     browser = Browser(smgr, datasets_sub, args.browse_root,
-                      args.server, args.port)
+                      args.server, args.port, device_db)
     widget_log_handler.callback = browser.log.model.append
 
     if os.name == "nt":
