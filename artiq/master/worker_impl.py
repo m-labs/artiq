@@ -292,7 +292,8 @@ def main():
             f["artiq_version"] = artiq_version
             f["rid"] = rid
             f["start_time"] = start_time
-            f["run_time"] = run_time
+            if run_time is not None:
+                f["run_time"] = run_time
             f["expid"] = pyon.encode(expid)
 
     device_mgr = DeviceManager(ParentDeviceDB,
