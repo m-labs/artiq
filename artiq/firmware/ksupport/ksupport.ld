@@ -60,6 +60,11 @@ SECTIONS
         KEEP(*(.eh_frame_hdr))
     } > ksupport :text :eh_frame
 
+    .gcc_except_table :
+    {
+        *(.gcc_except_table)
+    } > ksupport
+
     .data :
     {
         *(.data .data.*)
