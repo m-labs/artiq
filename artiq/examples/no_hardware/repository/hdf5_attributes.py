@@ -20,5 +20,4 @@ class HDF5Attributes(EnvExperiment):
                          broadcast=True, archive=True)
         self.set_dataset_metadata("dummy", {"k1": "v1", "k2": "v2"})
 
-        # Attach metadata to an absent key is no-op
         self.set_dataset_metadata("nothing", {"no": "op"})
