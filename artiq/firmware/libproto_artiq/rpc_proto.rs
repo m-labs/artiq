@@ -170,7 +170,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 // Allocate backing storage for elements; deserialize them.
                 let elt_tag = it.clone().next().expect("truncated tag");
                 *buffer = alloc(elt_tag.size() * total_len)?;
-                recv_elements(reader, tag, total_len, *buffer, alloc)
+                recv_elements(reader, elt_tag, total_len, *buffer, alloc)
             })
         }
         Tag::Range(it) => {
