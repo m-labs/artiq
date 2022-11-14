@@ -147,7 +147,7 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
                 let storage_offset = round_up(list_size, tag.alignment());
                 let storage_size = tag.size() * length;
 
-                let allocation = alloc(storage_offset as usize + storage_size)? as *mut u8;
+                let allocation = alloc(storage_offset + storage_size)? as *mut u8;
                 *ptr_to_list = allocation as *mut List;
                 let storage = allocation.offset(storage_offset as isize) as *mut ();
 
