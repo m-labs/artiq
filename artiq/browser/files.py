@@ -174,14 +174,14 @@ class FilesDock(QtWidgets.QDockWidget):
         logger.debug("loading datasets from %s", info.filePath())
         with f:
             try:
-                expid = pyon.decode(f["expid"][()])
-                start_time = datetime.fromtimestamp(f["start_time"][()])
+                expid = pyon.decode(f["expid"][()]) if "expid" in f else None
+                start_time = datetime.fromtimestamp(f["start_time"][()]) if "start_time" in f else None
                 v = {
-                    "artiq_version": f["artiq_version"][()],
-                    "repo_rev": expid["repo_rev"],
-                    "file": expid.get("file", "<none>"),
-                    "class_name": expid["class_name"],
-                    "rid": f["rid"][()],
+                    "artiq_version": f["artiq_version"][()] if "artiq_version" in f else None,
+                    "repo_rev": expid["repo_rev"] if expid else None,
+                    "file": expid.get("file", "<none>") if expid else None,
+                    "class_name": expid["class_name"] if expid else None,
+                    "rid": f["rid"][()] if "rid" in f else None,
                     "start_time": start_time,
                 }
                 self.metadata_changed.emit(v)

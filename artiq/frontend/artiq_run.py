@@ -4,7 +4,6 @@
 
 import argparse
 import sys
-import time
 from operator import itemgetter
 import logging
 from collections import defaultdict
@@ -13,8 +12,7 @@ import h5py
 
 from llvmlite import binding as llvm
 
-from sipyco import common_args, pyon
-
+from sipyco import common_args
 
 from artiq import __version__ as artiq_version
 from artiq.language.environment import EnvExperiment, ProcessArgumentManager
@@ -183,9 +181,7 @@ def _build_experiment(device_mgr, dataset_mgr, args):
     expid = {
         "file": file,
         "class_name": args.class_name,
-        "arguments": arguments,
-        "log_level": logging.root.level,
-        "repo_rev": "N/A"
+        "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
     exp_inst = get_experiment(module, args.class_name)(managers)
@@ -204,7 +200,6 @@ def run(with_file=False):
     dataset_mgr = DatasetManager(dataset_db)
 
     try:
-        start_time = time.time()
         exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
         exp_inst.prepare()
         exp_inst.run()
@@ -220,10 +215,6 @@ def run(with_file=False):
 
     if args.hdf5 is not None:
         with h5py.File(args.hdf5, "w") as f:
-            f["expid"] = pyon.encode(device_mgr.virtual_devices["scheduler"].expid)
-            f["rid"] = device_mgr.virtual_devices["scheduler"].rid
-            f["start_time"] = start_time
-            f["artiq_version"] = artiq_version
             dataset_mgr.write_hdf5(f)
     else:
         for k, v in sorted(dataset_mgr.local.items(), key=itemgetter(0)):

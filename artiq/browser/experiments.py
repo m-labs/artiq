@@ -251,7 +251,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         terminate.clicked.connect(self._terminate_clicked)
         terminate.setEnabled(False)
         self._terminate = terminate
-        self.rid = None
 
     def dragEnterEvent(self, ev):
         if ev.mimeData().hasFormat("text/uri-list"):
@@ -298,7 +297,6 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         try:
             with h5py.File(filename, "r") as f:
                 expid = f["expid"][()]
-                self.rid = f["rid"][()]
             expid = pyon.decode(expid)
             arguments = expid["arguments"]
         except:
@@ -343,7 +341,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
         logger.info("Running '%s'...", self.expurl)
         worker = Worker(self._area.worker_handlers)
         try:
-            await worker.build(rid=self.rid, pipeline_name="browser",
+            await worker.build(rid=None, pipeline_name="browser",
                                wd=os.path.abspath("."),
                                expid=expid, priority=0)
             await worker.analyze()
@@ -387,7 +385,7 @@ class LocalDatasetDB:
     def init(self, data):
         self._data = data
 
-    def get(self, key, **kwargs):
+    def get(self, key):
         return self._data.backing_store[key][1]
 
     def update(self, mod):
@@ -407,7 +405,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
         self._ddb = LocalDatasetDB(datasets_sub)
 
         self.worker_handlers = {
-            "get_device_db": lambda **kwargs: {},
+            "get_device_db": lambda: {},
             "get_device": lambda k, **kwargs: {"type": "dummy"},
             "get_dataset": self._ddb.get,
             "update_dataset": self._ddb.update,
