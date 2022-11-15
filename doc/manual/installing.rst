@@ -1,13 +1,7 @@
 Installing ARTIQ
 ================
 
-ARTIQ can be installed using the Nix (on Linux) or Conda (on Windows or Linux) package managers.
-
-Nix is an innovative, robust, fast, and high-quality solution that comes with a larger collection of packages and features than Conda. However, Windows support is poor (using it with Windows Subsystem for Linux still has many problems) and Nix can be harder to learn.
-
-Conda has a more traditional approach to package management, is much more limited, slow, and lower-quality than Nix, but it supports Windows and it is simpler to use when it functions correctly.
-
-In the current state of affairs, we recommend that Linux users install ARTIQ via Nix and Windows users install it via Conda.
+ARTIQ can be installed using the Nix (on Linux) or MSYS2 (on Windows) package managers. Using Conda is also possible on both platforms but not recommended.
 
 .. _installing-nix-users:
 
@@ -90,11 +84,27 @@ You can create directories containing each a ``flake.nix`` that correspond to di
 
 If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
-Installing via Conda (Windows, Linux)
--------------------------------------
+Installing via MSYS2 (Windows)
+------------------------------
+
+Install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
+
+    [artiq]
+    SigLevel = Optional TrustAll
+    Server = https://msys2.m-labs.hk/artiq-beta
+
+Launch ``MSYS2 MINGW64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
+
+    pacman -Syy
+    pacman -S mingw-w64-x86_64-artiq
+
+If your favorite package is not available with MSYS2, contact us using the helpdesk@ email.
+
+Installing via Conda (Windows, Linux) [DEPRECATED]
+--------------------------------------------------
 
 .. warning::
-  For Linux users, the Nix package manager is preferred, as it is more reliable and faster than Conda.
+  Installing ARTIQ via Conda is not recommended. Instead, Linux users should install it via Nix and Windows users should install it via MSYS2. Conda support may be removed in future ARTIQ releases and M-Labs can only provide very limited technical support for Conda.
 
 First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
@@ -132,6 +142,11 @@ Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If 
 To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up version of the ``flake.lock`` file.
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
+
+Upgrading ARTIQ (with MSYS2)
+----------------------------
+
+Run ``pacman -Syu`` to update all MSYS2 packages including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the MSYS2 and Pacman manual for information on how to update individual packages if required.
 
 Upgrading ARTIQ (with Conda)
 ----------------------------
