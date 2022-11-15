@@ -11,7 +11,6 @@ import logging
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -56,6 +55,7 @@ class DeviceError(Exception):
 class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
+
     def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
         self.virtual_devices = virtual_devices
@@ -155,7 +155,7 @@ class DatasetManager:
     def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
-        
+
         data = self.ddb.get(key)
         if archive:
             if key in self.archive:
@@ -164,13 +164,14 @@ class DatasetManager:
             self.archive[key] = data
         return data
 
-    def set_metadata(self, key, metadata):
-        if key:
-            if key not in self.local:
-                logger.warning(f"Key '{key}' not found in dataset.")
-            self.hdf5_attributes["datasets/" + key] = metadata
-        else:
-            self.hdf5_attributes["datasets"] = metadata
+    def set_metadata(self, key, metadata_key, metadata_value):
+        if not (isinstance(metadata_key, str) and isinstance(key, str)):
+            raise TypeError("both `key` and `metadata_key` should be of type `str`")
+        if key not in self.local:
+            raise KeyError(f"Key '{key}' not found in dataset.")
+        if key not in self.hdf5_attributes:
+            self.hdf5_attributes[key] = dict()
+        self.hdf5_attributes[key][metadata_key] = metadata_value
 
     def write_hdf5(self, f):
         datasets_group = f.create_group("datasets")
@@ -182,9 +183,13 @@ class DatasetManager:
             _write(archive_group, k, v)
 
     def write_hdf5_attributes(self, f):
+        datasets = f["datasets"]
         for k, attrs in self.hdf5_attributes.items():
-            if k in f:
-                _write_attributes(f, k, attrs)
+            if k in datasets:
+                for attr_k, attr_v in attrs.items():
+                    datasets[k].attrs[attr_k] = attr_v
+            else:
+                raise KeyError(f"Key '{k}' not found in `datasets` group.")
 
 
 def _write(group, k, v):
@@ -195,14 +200,3 @@ def _write(group, k, v):
     except TypeError as e:
         raise TypeError("Error writing dataset '{}' of type '{}': {}".format(
             k, type(v), e))
-
-
-def _write_attributes(f, k, attrs):
-    # Add context to exception message when the user writes a attribute that is
-    # not representable in HDF5.
-    try:
-        for attr_k, attr_v in attrs.items():
-            f[k].attrs[attr_k] = attr_v
-    except TypeError as e:
-        raise TypeError("Error writing attribute '{}' of type '{}': {}".format(
-            attr_k, type(attr_v), e))
