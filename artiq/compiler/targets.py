@@ -269,7 +269,7 @@ class RV32IMATarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a"]
-    additional_linker_options = []
+    additional_linker_options = ["-m", "elf32lriscv"]
     print_function = "core_log"
     now_pinning = True
 
@@ -282,7 +282,7 @@ class RV32GTarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a", "f", "d"]
-    additional_linker_options = []
+    additional_linker_options = ["-m", "elf32lriscv"]
     print_function = "core_log"
     now_pinning = True
 
@@ -295,7 +295,7 @@ class CortexA9Target(Target):
     triple = "armv7-unknown-linux-gnueabihf"
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
-    additional_linker_options = ["--target2=rel"]
+    additional_linker_options = ["-m", "armelf_linux_eabi", "--target2=rel"]
     print_function = "core_log"
     now_pinning = False
 
