@@ -76,6 +76,20 @@ class StandaloneBase(MiniSoC, AMPSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(self.platform)
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk_div2)
+
+        self.crg.configure(cdr_clk_div2, div2=True)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -307,8 +321,13 @@ class MasterBase(MiniSoC, AMPSoC):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.drtio_transceiver.gtps[0]
+
+        txout_bufg = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_bufg)
+        self.crg.configure(txout_bufg, div2=False, clk_sw=gtp.tx_init.done)
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
@@ -349,7 +368,19 @@ class MasterBase(MiniSoC, AMPSoC):
 
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
-    def create_qpll(self):        
+    def create_qpll(self):
+        if self.platform.hw_rev == "v2.0":
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -364,7 +395,8 @@ class MasterBase(MiniSoC, AMPSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(self.crg.cdr_clk_buf, qpll_drtio_settings,
+
+        qpll = QPLL(cdr_clk, qpll_drtio_settings,
                     self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
@@ -399,12 +431,24 @@ class SatelliteBase(BaseSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
 
+        if self.platform.hw_rev == "v2.0":
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(self.crg.cdr_clk_buf, qpll_drtio_settings)
+        qpll = QPLL(cdr_clk, qpll_drtio_settings)
         self.submodules += qpll
 
         drtio_data_pads = []
@@ -518,6 +562,10 @@ class SatelliteBase(BaseSoC):
             self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.drtio_transceiver.gtps[0]
+        txout_bufg = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_bufg)
+        self.crg.configure(txout_bufg, div2=False, clk_sw=gtp.tx_init.done)
+
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
