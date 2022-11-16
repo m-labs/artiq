@@ -552,10 +552,11 @@ class PeripheralManager:
                 "type": "local",
                 "module": "artiq.coredevice.fastino",
                 "class": "Fastino",
-                "arguments": {{"channel": 0x{channel:06x}}}
+                "arguments": {{"channel": 0x{channel:06x}, "log2_width": {log2_width}}}
             }}""",
             name=self.get_name("fastino"),
-            channel=rtio_offset)
+            channel=rtio_offset,
+            log2_width=peripheral["log2_width"])
         return 1
 
     def process_phaser(self, rtio_offset, peripheral):
