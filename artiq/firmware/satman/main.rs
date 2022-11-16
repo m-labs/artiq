@@ -527,9 +527,10 @@ pub extern fn main() -> i32 {
             break;
         }
         si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-        info!("Switching sys clock, rebooting..................");
+        info!("Switching sys clock, rebooting...");
+        clock::spin_us(1500);
         unsafe {
-            csr::crg::clock_sel_write(1);
+            csr::drtio_transceiver::stable_clkin_write(1);
         }
     }
     #[cfg(all(not(soc_platform = "kasli"), has_si5324))]
@@ -537,6 +538,7 @@ pub extern fn main() -> i32 {
     #[cfg(has_wrpll)]
     wrpll::init();
 
+    #[cfg(not(all(soc_platform = "kasli", has_si5324)))]
     unsafe {
         csr::drtio_transceiver::stable_clkin_write(1);
     }

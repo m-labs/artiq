@@ -80,14 +80,14 @@ class StandaloneBase(MiniSoC, AMPSoC):
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
         
-        cdr_clk = Signal()
+        cdr_clk_div2 = Signal()
 
         self.platform.add_period_constraint(cdr_clk_out, 8.)
 
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=0,
             i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-            o_O=cdr_clk_div2)
+            o_ODIV2=cdr_clk_div2)
 
         self.crg.configure(cdr_clk_div2, div2=True)
 

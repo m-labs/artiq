@@ -2,9 +2,7 @@ use board_misoc::config;
 #[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
 #[cfg(any(soc_platform = "kasli", has_drtio))]
-use board_misoc::csr;
-#[cfg(has_drtio)]
-use board_misoc::clock;
+use board_misoc::{csr, clock};
 
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -239,10 +237,10 @@ fn setup_si5324(clock_cfg: RtioClock) {
     }
 
     // switch sysclk source to si5324
-    #[cfg(soc_platform = "kasli")]
+    #[cfg(all(soc_platform = "kasli", not(has_drtio)))]
     {
-        // excessive dots will be cut off by the reboot
-        info!("Switching sys clock, rebooting..................");
+        info!("Switching sys clock, rebooting...");
+        clock::spin_us(1000);
         unsafe {
             csr::crg::clock_sel_write(1);
         }
@@ -255,7 +253,7 @@ pub fn init() {
     #[cfg(si5324_as_synthesizer)]
     setup_si5324(clock_cfg);
 
-    #[cfg(has_drtio)]
+    #[cfg(all(has_drtio, not(soc_platform = "kasli")))]
     {
         unsafe {
             csr::drtio_transceiver::stable_clkin_write(1);
@@ -265,6 +263,25 @@ pub fn init() {
             csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
         }
     }
+    #[cfg(all(has_drtio, soc_platform = "kasli"))]
+    {
+        let switched = unsafe {
+            csr::crg::switch_done_read()
+        };
+        if switched == 0 {
+            info!("Switching sys clock, rebooting...");
+            clock::spin_us(1000);
+            unsafe {
+                csr::drtio_transceiver::stable_clkin_write(1);
+            }
+        }
+        else {
+            unsafe {
+                csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+            }
+        }
+    }
+
 
     #[cfg(has_rtio_crg)]
     {
