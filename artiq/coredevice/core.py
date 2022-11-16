@@ -94,10 +94,6 @@ class Core:
         self.core = self
         self.comm.core = self
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     def close(self):
         self.comm.close()
 

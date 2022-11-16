@@ -41,10 +41,6 @@ class Zotino(AD53xx):
                         chip_select=_SPI_CS_DAC, div_write=div_write,
                         div_read=div_read, core=core)
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def set_leds(self, leds):
         """ Sets the states of the 8 user LEDs.

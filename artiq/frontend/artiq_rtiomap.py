@@ -30,7 +30,10 @@ def get_rtio_channels(desc):
     if desc["type"] == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
-        return device_class.get_rtio_channels(**desc.get("arguments", {}))
+        try:
+            return getattr(device_class, "get_rtio_channels", lambda **kwargs: [])(**desc.get("arguments", {}))
+        except TypeError as e:
+            raise KeyError(f"failed to process the device: {desc}") from e
     return []
 
 

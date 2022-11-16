@@ -220,15 +220,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
+                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
+                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel, &RTIO_DEVICE_MAP), channel);
+                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),

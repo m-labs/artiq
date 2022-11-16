@@ -198,10 +198,6 @@ class CPLD:
         self.att_reg = int32(int64(att))
         self.sync_div = sync_div
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def cfg_write(self, cfg: TInt32):
         """Write to the configuration register.

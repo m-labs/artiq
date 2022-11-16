@@ -9,10 +9,6 @@ class AD9154:
         self.bus = dmgr.get(spi_device)
         self.chip_select = chip_select
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def setup_bus(self, div=16):
         self.bus.set_config_mu(0, 24, div, self.chip_select)

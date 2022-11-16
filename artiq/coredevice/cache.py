@@ -16,10 +16,6 @@ class CoreCache:
     def __init__(self, dmgr, core_device="core"):
         self.core = dmgr.get(core_device)
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def get(self, key):
         """Extract a value from the core device cache.

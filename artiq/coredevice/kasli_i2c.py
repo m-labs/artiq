@@ -34,10 +34,6 @@ class KasliEEPROM:
         self.port = port_mapping[port]
         self.address = 0xa0  # i2c 8 bit
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def select(self):
         mask = 1 << self.port

@@ -186,10 +186,6 @@ class AD9910:
 
         self.phase_mode = PHASE_MODE_CONTINUOUS
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def set_phase_mode(self, phase_mode: TInt32):
         r"""Set the default phase mode.

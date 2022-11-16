@@ -71,10 +71,6 @@ class Sampler:
     def use_corrected_fs(hw_rev):
         return hw_rev != "v2.1"
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def init(self):
         """Initialize the device.

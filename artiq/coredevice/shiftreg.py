@@ -16,10 +16,6 @@ class ShiftReg:
         if ser_in is not None:
             self.ser_in = dmgr.get(ser_in)
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def set(self, data):
         """Sets the values of the latch outputs. This does not

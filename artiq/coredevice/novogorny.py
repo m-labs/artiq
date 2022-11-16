@@ -85,10 +85,6 @@ class Novogorny:
         self.gains = gains
         self.v_ref = 5.  # 5 Volt reference
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def set_gain_mu(self, channel, gain):
         """Set instrumentation amplifier gain of a channel.

@@ -341,7 +341,7 @@ Other options include:
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
 
-* Setup resolving channels to their names
+* Setup resolving RTIO channels to their names
 
 This feature allows you to print the channels' respective names alongside with their numbers for RTIO errors. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
 

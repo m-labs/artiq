@@ -243,7 +243,7 @@ class Phaser:
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
-        self.gw_rev = gw_rev  # asserted in init()
+        self.gw_rev = gw_rev  # verified in init()
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
@@ -254,11 +254,13 @@ class Phaser:
     def get_rtio_channels(channel_base, gw_rev=PHASER_GW_BASE, **kwargs):
         if gw_rev == PHASER_GW_MIQRO:
             return [(channel_base, "base"), (channel_base + 1, "ch0"), (channel_base + 2, "ch1")]
-        return [(channel_base, "base"),
-                (channel_base + 1, "ch0 frequency"),
-                (channel_base + 2, "ch0 phase amplitude"),
-                (channel_base + 3, "ch1 frequency"),
-                (channel_base + 4, "ch1 phase amplitude")]
+        elif gw_rev == PHASER_GW_BASE:
+            return [(channel_base, "base"),
+                    (channel_base + 1, "ch0 frequency"),
+                    (channel_base + 2, "ch0 phase amplitude"),
+                    (channel_base + 3, "ch1 frequency"),
+                    (channel_base + 4, "ch1 phase amplitude")]
+        raise ValueError("invalid gw_rev `{}`".format(gw_rev))
 
     @kernel
     def init(self, debug=False):
@@ -278,10 +280,10 @@ class Phaser:
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
         gw_rev = self.read8(PHASER_ADDR_GW_REV)
-        assert gw_rev == self.gw_rev
         if debug:
             print("gw_rev:", self.gw_rev)
             self.core.break_realtime()
+        assert gw_rev == self.gw_rev
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot

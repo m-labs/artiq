@@ -73,10 +73,6 @@ class CoreDMA:
         self.recorder = DMARecordContextManager()
         self.epoch    = 0
 
-    @staticmethod
-    def get_rtio_channels(**kwargs):
-        return []
-
     @kernel
     def record(self, name):
         """Returns a context manager that will record a DMA trace called ``name``.
