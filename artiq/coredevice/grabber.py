@@ -27,7 +27,7 @@ class Grabber:
 
     @staticmethod
     def get_rtio_channels(channel_base, **kwargs):
-        return [(channel_base, "RIO coordinates"), (channel_base + 1, "RIO coordinates")]
+        return [(channel_base, "ROI coordinates"), (channel_base + 1, "ROI mask")]
 
     @kernel
     def setup_roi(self, n, x0, y0, x1, y1):

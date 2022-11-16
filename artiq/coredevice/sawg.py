@@ -336,16 +336,16 @@ class SAWG:
 
     @staticmethod
     def get_rtio_channels(channel_base, **kwargs):
-        return [(channel_base, "Base"),
-                (channel_base+1, "Offset"),
-                (channel_base+2, "Amplitude 1"),
-                (channel_base+3, "Frequency 1"),
-                (channel_base+4, "Phase 1"),
-                (channel_base+5, "Amplitude 2"),
-                (channel_base+6, "Frequency 2"),
-                (channel_base+7, "Phase 2"),
-                (channel_base+8, "Frequency 0"),
-                (channel_base+9, "Phase0")]
+        return [(channel_base, "base"),
+                (channel_base+1, "offset"),
+                (channel_base+2, "amplitude 1"),
+                (channel_base+3, "frequency 1"),
+                (channel_base+4, "phase 1"),
+                (channel_base+5, "amplitude 2"),
+                (channel_base+6, "frequency 2"),
+                (channel_base+7, "phase 2"),
+                (channel_base+8, "frequency 0"),
+                (channel_base+9, "phase0")]
 
     @kernel
     def reset(self):

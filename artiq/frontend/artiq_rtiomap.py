@@ -39,7 +39,7 @@ def get_channel_map(device_db):
     for dev_name, device in device_db.items():
         channels = get_rtio_channels(device)
         for chan, suffix in channels:
-            reversed_map[chan] = dev_name + (suffix if suffix is not None else "")
+            reversed_map[chan] = dev_name + (" " + suffix if suffix is not None else "")
 
     return reversed_map
 
