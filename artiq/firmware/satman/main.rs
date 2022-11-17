@@ -518,19 +518,21 @@ pub extern fn main() -> i32 {
     }
 
     #[cfg(all(soc_platform = "kasli", has_si5324))]
-    loop {
+    {
         let switched = unsafe {
             csr::crg::switch_done_read()
         };
         if switched == 1 {
             info!("Clocking has already been set up.");
-            break;
         }
-        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-        info!("Switching sys clock, rebooting...");
-        clock::spin_us(1500);
-        unsafe {
-            csr::drtio_transceiver::stable_clkin_write(1);
+        else {
+            si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+            info!("Switching sys clock, rebooting...");
+            clock::spin_us(500);
+            unsafe {
+                csr::drtio_transceiver::stable_clkin_write(1);
+            }
+            loop {}
         }
     }
     #[cfg(all(not(soc_platform = "kasli"), has_si5324))]
