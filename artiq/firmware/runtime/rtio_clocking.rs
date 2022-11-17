@@ -240,7 +240,7 @@ fn setup_si5324(clock_cfg: RtioClock) {
     #[cfg(all(soc_platform = "kasli", not(has_drtio)))]
     {
         info!("Switching sys clock, rebooting...");
-        clock::spin_us(1000);
+        clock::spin_us(1300);
         unsafe {
             csr::crg::clock_sel_write(1);
         }
@@ -270,10 +270,11 @@ pub fn init() {
         };
         if switched == 0 {
             info!("Switching sys clock, rebooting...");
-            clock::spin_us(1000);
+            clock::spin_us(500);
             unsafe {
                 csr::drtio_transceiver::stable_clkin_write(1);
             }
+            loop {}
         }
         else {
             unsafe {
