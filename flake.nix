@@ -44,6 +44,7 @@
       });
 
       vivadoDeps = pkgs: with pkgs; [
+        libxcrypt
         ncurses5
         zlib
         libuuid
