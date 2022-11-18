@@ -170,9 +170,11 @@ class Tester(StandaloneBase):
     """
     Configuration for CI tests. Contains the maximum number of different EEMs.
     """
-    def __init__(self, hw_rev=None, **kwargs):
+    def __init__(self, hw_rev=None, dds=None, **kwargs):
         if hw_rev is None:
             hw_rev = "v2.0"
+        if dds is None:
+            dds = "ad9910"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
         self.config["SI5324_AS_SYNTHESIZER"] = None
@@ -186,7 +188,7 @@ class Tester(StandaloneBase):
         eem.DIO.add_std(self, 5,
             ttl_serdes_7series.InOut_8X, ttl_serdes_7series.Output_8X,
             edge_counter_cls=edge_counter.SimpleEdgeCounter)
-        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X,
+        eem.Urukul.add_std(self, 0, 1, ttl_serdes_7series.Output_8X, dds,
                            ttl_simple.ClockGen)
         eem.Sampler.add_std(self, 3, 2, ttl_serdes_7series.Output_8X)
         eem.Zotino.add_std(self, 4, ttl_serdes_7series.Output_8X)
@@ -686,6 +688,9 @@ def main():
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(VARIANTS.keys()))))
     parser.add_argument("--with-wrpll", default=False, action="store_true")
+    parser.add_argument("--tester-dds", default=None,
+                        help="Tester variant DDS type: ad9910/ad9912 "
+                             "(default: ad9910)")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
@@ -694,6 +699,7 @@ def main():
     if args.with_wrpll:
         argdict["with_wrpll"] = True
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
+    argdict["dds"] = args.tester_dds
 
     variant = args.variant.lower()
     try:

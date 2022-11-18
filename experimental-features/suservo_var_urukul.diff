@@ -1,0 +1,771 @@
+diff --git a/artiq/coredevice/suservo.py b/artiq/coredevice/suservo.py
+index 1d0a72dad..a89cdcca4 100644
+--- a/artiq/coredevice/suservo.py
++++ b/artiq/coredevice/suservo.py
+@@ -3,17 +3,14 @@
+ from artiq.coredevice.rtio import rtio_output, rtio_input_data
+ from artiq.coredevice import spi2 as spi
+ from artiq.coredevice import urukul, sampler
++from math import ceil, log2
+ 
+ 
+-COEFF_WIDTH = 18
++COEFF_WIDTH = 18  # Must match gateware IIRWidths.coeff
+ Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
+-COEFF_DEPTH = 10 + 1
+-WE = 1 << COEFF_DEPTH + 1
+-STATE_SEL = 1 << COEFF_DEPTH
+-CONFIG_SEL = 1 << COEFF_DEPTH - 1
+-CONFIG_ADDR = CONFIG_SEL | STATE_SEL
+ T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
+-COEFF_SHIFT = 11
++COEFF_SHIFT = 11  # Must match gateware IIRWidths.shift
++PROFILE_WIDTH = 5  # Must match gateware IIRWidths.profile
+ 
+ 
+ @portable
+@@ -35,8 +32,8 @@ class SUServo:
+     """Sampler-Urukul Servo parent and configuration device.
+ 
+     Sampler-Urukul Servo is a integrated device controlling one
+-    8-channel ADC (Sampler) and two 4-channel DDS (Urukuls) with a DSP engine
+-    connecting the ADC data and the DDS output amplitudes to enable
++    8-channel ADC (Sampler) and any number of 4-channel DDS (Urukuls) with a
++    DSP engine connecting the ADC data and the DDS output amplitudes to enable
+     feedback. SU Servo can for example be used to implement intensity
+     stabilization of laser beams with an amplifier and AOM driven by Urukul
+     and a photodetector connected to Sampler.
+@@ -49,7 +46,7 @@ class SUServo:
+         * See the SU Servo variant of the Kasli target for an example of how to
+           connect the gateware and the devices. Sampler and each Urukul need
+           two EEM connections.
+-        * Ensure that both Urukuls are AD9910 variants and have the on-board
++        * Ensure that all Urukuls are AD9910 variants and have the on-board
+           dip switches set to 1100 (first two on, last two off).
+         * Refer to the Sampler and Urukul documentation and the SU Servo
+           example device database for runtime configuration of the devices
+@@ -65,7 +62,8 @@ class SUServo:
+     :param core_device: Core device name
+     """
+     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
+-                         "ref_period_mu"}
++                         "ref_period_mu", "num_channels", "coeff_sel",
++                         "state_sel", "config_addr", "write_enable"}
+ 
+     def __init__(self, dmgr, channel, pgia_device,
+                  cpld_devices, dds_devices,
+@@ -83,9 +81,19 @@ def __init__(self, dmgr, channel, pgia_device,
+             self.core.coarse_ref_period)
+         assert self.ref_period_mu == self.core.ref_multiplier
+ 
++        # The width of parts of the servo memory address depends on the number
++        # of channels.
++        self.num_channels = 4 * len(dds_devices)
++        channel_width = ceil(log2(self.num_channels))
++        coeff_depth = PROFILE_WIDTH + channel_width + 3
++        self.state_sel = 2 << (coeff_depth - 2)
++        self.config_addr = 3 << (coeff_depth - 2)
++        self.coeff_sel = 1 << coeff_depth
++        self.write_enable = 1 << (coeff_depth + 1)
++
+     @kernel
+     def init(self):
+-        """Initialize the servo, Sampler and both Urukuls.
++        """Initialize the servo, Sampler and all Urukuls.
+ 
+         Leaves the servo disabled (see :meth:`set_config`), resets and
+         configures all DDS.
+@@ -122,7 +130,7 @@ def write(self, addr, value):
+         :param addr: Memory location address.
+         :param value: Data to be written.
+         """
+-        addr |= WE
++        addr |= self.write_enable
+         value &= (1 << COEFF_WIDTH) - 1
+         value |= (addr >> 8) << COEFF_WIDTH
+         addr = addr & 0xff
+@@ -158,7 +166,7 @@ def set_config(self, enable):
+             Disabling takes up to two servo cycles (~2.3 µs) to clear the
+             processing pipeline.
+         """
+-        self.write(CONFIG_ADDR, enable)
++        self.write(self.config_addr, enable)
+ 
+     @kernel
+     def get_status(self):
+@@ -179,7 +187,7 @@ def get_status(self):
+         :return: Status. Bit 0: enabled, bit 1: done,
+           bits 8-15: channel clip indicators.
+         """
+-        return self.read(CONFIG_ADDR)
++        return self.read(self.config_addr)
+ 
+     @kernel
+     def get_adc_mu(self, adc):
+@@ -197,7 +205,8 @@ def get_adc_mu(self, adc):
+         # State memory entries are 25 bits. Due to the pre-adder dynamic
+         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
+         # only returns the 18 MSBs (the width of the coefficient memory).
+-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
++        return self.read(self.state_sel |
++                         (2 * adc + (1 << PROFILE_WIDTH) * self.num_channels))
+ 
+     @kernel
+     def set_pgia_mu(self, channel, gain):
+@@ -285,10 +294,11 @@ def set_dds_mu(self, profile, ftw, offs, pow_=0):
+         :param offs: IIR offset (17 bit signed)
+         :param pow_: Phase offset word (16 bit)
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 0, ftw >> 16)
+         self.servo.write(base + 6, (ftw & 0xffff))
+-        self.set_dds_offset_mu(profile, offs)
++        self.servo.write(base + 4, offs)
+         self.servo.write(base + 2, pow_)
+ 
+     @kernel
+@@ -319,7 +329,8 @@ def set_dds_offset_mu(self, profile, offs):
+         :param profile: Profile number (0-31)
+         :param offs: IIR offset (17 bit signed)
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 4, offs)
+ 
+     @kernel
+@@ -344,6 +355,30 @@ def dds_offset_to_mu(self, offset):
+         """
+         return int(round(offset * (1 << COEFF_WIDTH - 1)))
+ 
++    @kernel
++    def set_dds_phase_mu(self, profile, pow_):
++        """Set only POW in profile DDS coefficients.
++
++        See :meth:`set_dds_mu` for setting the complete DDS profile.
++
++        :param profile: Profile number (0-31)
++        :param pow_: Phase offset word (16 bit)
++        """
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
++        self.servo.write(base + 2, pow_)
++
++    @kernel
++    def set_dds_phase(self, profile, phase):
++        """Set only phase in profile DDS coefficients.
++
++        See :meth:`set_dds` for setting the complete DDS profile.
++
++        :param profile: Profile number (0-31)
++        :param phase: DDS phase in turns
++        """
++        self.set_dds_phase_mu(profile, self.dds.turns_to_pow(phase))
++
+     @kernel
+     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
+         """Set profile IIR coefficients in machine units.
+@@ -378,7 +413,8 @@ def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
+         :param dly: IIR update suppression time. In units of IIR cycles
+             (~1.2 µs, 0-255).
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 3, adc | (dly << 8))
+         self.servo.write(base + 1, b1)
+         self.servo.write(base + 5, a1)
+@@ -470,7 +506,9 @@ def get_profile_mu(self, profile, data):
+         :param profile: Profile number (0-31)
+         :param data: List of 8 integers to write the profile data into
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        assert len(data) == 8
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         for i in range(len(data)):
+             data[i] = self.servo.read(base + i)
+             delay(4*us)
+@@ -491,7 +529,8 @@ def get_y_mu(self, profile):
+         :param profile: Profile number (0-31)
+         :return: 17 bit unsigned Y0
+         """
+-        return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
++        return self.servo.read(self.servo.state_sel | (
++                self.servo_channel << PROFILE_WIDTH) | profile)
+ 
+     @kernel
+     def get_y(self, profile):
+@@ -529,7 +568,8 @@ def set_y_mu(self, profile, y):
+         """
+         # State memory is 25 bits wide and signed.
+         # Reads interact with the 18 MSBs (coefficient memory width)
+-        self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
++        self.servo.write(self.servo.state_sel | (
++                self.servo_channel << PROFILE_WIDTH) | profile, y)
+ 
+     @kernel
+     def set_y(self, profile, y):
+diff --git a/artiq/gateware/eem.py b/artiq/gateware/eem.py
+index 7f5fe3fdf..fbfdafe7d 100644
+--- a/artiq/gateware/eem.py
++++ b/artiq/gateware/eem.py
+@@ -473,11 +473,10 @@ def add_std(cls, target, eem, eem_aux=None, eem_aux2=None, ttl_out_cls=None,
+ class SUServo(_EEM):
+     @staticmethod
+     def io(*eems, iostandard):
+-        assert len(eems) in (4, 6)
+-        io = (Sampler.io(*eems[0:2], iostandard=iostandard)
+-                + Urukul.io_qspi(*eems[2:4], iostandard=iostandard))
+-        if len(eems) == 6:  # two Urukuls
+-            io += Urukul.io_qspi(*eems[4:6], iostandard=iostandard)
++        assert len(eems) >= 4 and len(eems) % 2 == 0
++        io = Sampler.io(*eems[0:2], iostandard=iostandard)
++        for i in range(len(eems) // 2 - 1):
++            io += Urukul.io_qspi(*eems[(2 * i + 2):(2 * i + 4)], iostandard=iostandard)
+         return io
+ 
+     @classmethod
+@@ -516,10 +515,9 @@ def add_std(cls, target, eems_sampler, eems_urukul,
+                                 # difference (4 cycles measured)
+                                 t_conv=57 - 4, t_rtt=t_rtt + 4)
+         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
+-                                accu=48, shift=shift, channel=3,
+-                                profile=profile, dly=8)
++                                accu=48, shift=shift, profile=profile, dly=8)
+         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
+-                                channels=adc_p.channels, clk=clk)
++                                channels=4 * len(eem_urukul), clk=clk)
+         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
+         su = ClockDomainsRenamer("rio_phy")(su)
+         # explicitly name the servo submodule to enable the migen namer to derive
+@@ -540,27 +538,23 @@ def add_std(cls, target, eems_sampler, eems_urukul,
+         target.submodules += phy
+         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+ 
+-        for i in range(2):
+-            if len(eem_urukul) > i:
+-                spi_p, spi_n = (
+-                    target.platform.request("{}_spi_p".format(eem_urukul[i])),
+-                    target.platform.request("{}_spi_n".format(eem_urukul[i])))
+-            else:  # create a dummy bus
+-                spi_p = Record([("clk", 1), ("cs_n", 1)])  # mosi, cs_n
+-                spi_n = None
+-
++        dds_sync = Signal(reset=0)
++        for j, eem_urukuli in enumerate(eem_urukul):
++            # connect quad-SPI
++            spi_p, spi_n = (
++                target.platform.request("{}_spi_p".format(eem_urukuli)),
++                target.platform.request("{}_spi_n".format(eem_urukuli)))
+             phy = spi2.SPIMaster(spi_p, spi_n)
+             target.submodules += phy
+             target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+-
+-        for j, eem_urukuli in enumerate(eem_urukul):
++            # connect `reset_sync_in`
+             pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
+-            target.specials += DifferentialOutput(0, pads.p, pads.n)
+-
++            target.specials += DifferentialOutput(dds_sync, pads.p, pads.n)
++            # connect RF switches
+             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
+                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
+                 target.specials += DifferentialOutput(
+-                    su.iir.ctrl[j*4 + i].en_out, pads.p, pads.n)
++                    su.iir.ctrl[j * 4 + i].en_out, pads.p, pads.n)
+ 
+ 
+ class Mirny(_EEM):
+diff --git a/artiq/gateware/rtio/phy/servo.py b/artiq/gateware/rtio/phy/servo.py
+index 9fa634521..379e7ba32 100644
+--- a/artiq/gateware/rtio/phy/servo.py
++++ b/artiq/gateware/rtio/phy/servo.py
+@@ -34,28 +34,38 @@ class RTServoMem(Module):
+     """All-channel all-profile coefficient and state RTIO control
+     interface.
+ 
++    The real-time interface exposes the following functions:
++      1. enable/disable servo iterations
++      2. read the servo status (including state of clip register)
++      3. access the IIR coefficient memory (set PI loop gains etc.)
++      4. access the IIR state memory (set offset and read ADC data)
++
++    The bit assignments for the servo address space are (from MSB):
++      * write-enable (1 bit)
++      * sel_coeff (1 bit)
++        If selected, the coefficient memory location is
++        addressed by all the lower bits excluding the LSB (high_coeff).
++          - high_coeff (1 bit) selects between the upper and lower halves of that
++            memory location.
++        Else (if ~sel_coeff), the following bits are:
++          - sel (2 bits) selects between the following memory locations:
++
++                 destination    |  sel  |  sel_coeff   |
++                ----------------|-------|--------------|
++                 IIR coeff mem  |   -   |       1      |
++                 Reserved       |   1   |       0      |
++                 IIR state mem  |   2   |       0      |
++                 config (write) |   3   |       0      |
++                 status (read)  |   3   |       0      |
++
++          - IIR state memory address
++
+     Servo internal addresses are internal_address_width wide, which is
+     typically longer than the 8-bit RIO address space. We pack the overflow
+     onto the RTIO data word after the data.
+ 
+-    Servo address space (from LSB):
+-      - IIR coefficient/state memory address, (w.profile + w.channel + 2) bits.
+-        If the state memory is selected, the lower bits are used directly as
+-        the memory address. If the coefficient memory is selected, the LSB
+-        (high_coeff) selects between the upper and lower halves of the memory
+-        location, which is two coefficients wide, with the remaining bits used
+-        as the memory address.
+-      - config_sel (1 bit)
+-      - state_sel (1 bit)
+-      - we (1 bit)
+-
+-     destination    | config_sel | state_sel
+-    ----------------|------------|----------
+-     IIR coeff mem  |    0       |   0
+-     IIR coeff mem  |    1       |   0
+-     IIR state mem  |    0       |   1
+-     config (write) |    1       |   1
+-     status (read)  |    1       |   1
++    The address layout reflects the fact that typically, the coefficient memory
++    address is 2 bits wider than the state memory address.
+ 
+     Values returned to the user on the Python side of the RTIO interface are
+     32 bit, so we sign-extend all values from w.coeff to that width. This works
+@@ -71,6 +81,7 @@ def __init__(self, w, servo):
+                 # mode=READ_FIRST,
+                 clock_domain="rio")
+         self.specials += m_state, m_coeff
++        w_channel = bits_for(len(servo.iir.dds) - 1)
+ 
+         # just expose the w.coeff (18) MSBs of state
+         assert w.state >= w.coeff
+@@ -83,7 +94,7 @@ def __init__(self, w, servo):
+         assert 8 + w.dly < w.coeff
+ 
+         # coeff, profile, channel, 2 mems, rw
+-        internal_address_width = 3 + w.profile + w.channel + 1 + 1
++        internal_address_width = 3 + w.profile + w_channel + 1 + 1
+         rtlink_address_width = min(8, internal_address_width)
+         overflow_address_width = internal_address_width - rtlink_address_width
+         self.rtlink = rtlink.Interface(
+@@ -99,8 +110,9 @@ def __init__(self, w, servo):
+         # # #
+ 
+         config = Signal(w.coeff, reset=0)
+-        status = Signal(w.coeff)
++        status = Signal(8 + len(servo.iir.ctrl))
+         pad = Signal(6)
++        assert len(status) <= len(self.rtlink.i.data)
+         self.comb += [
+                 Cat(servo.start).eq(config),
+                 status.eq(Cat(servo.start, servo.done, pad,
+@@ -109,15 +121,19 @@ def __init__(self, w, servo):
+ 
+         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff == (
+                 1 +  # we
+-                1 +  # state_sel
++                1 +  # sel_coeff
+                 1 +  # high_coeff
+                 len(m_coeff.adr))
+         # ensure that we can fit config/status into the state address space
+         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff >= (
+                 1 +  # we
+-                1 +  # state_sel
+-                1 +  # config_sel
++                1 +  # sel_coeff
++                2 +  # sel
+                 len(m_state.adr))
++        # ensure that IIR state mem addresses are at least 2 bits less wide than
++        # IIR coeff mem addresses to ensure we can fit SEL after the state mem
++        # address and before the SEL_COEFF bit.
++        assert w.profile + w_channel >= 4
+ 
+         internal_address = Signal(internal_address_width)
+         self.comb += internal_address.eq(Cat(self.rtlink.o.address,
+@@ -127,52 +143,51 @@ def __init__(self, w, servo):
+         self.comb += coeff_data.eq(self.rtlink.o.data[:w.coeff])
+ 
+         we = internal_address[-1]
+-        state_sel = internal_address[-2]
+-        config_sel = internal_address[-3]
++        sel_coeff = internal_address[-2]
++        sel1 = internal_address[-3]
++        sel0 = internal_address[-4]
+         high_coeff = internal_address[0]
++        sel = Signal(2)
+         self.comb += [
+                 self.rtlink.o.busy.eq(0),
++                sel.eq(Mux(sel_coeff, 0, Cat(sel0, sel1))),
+                 m_coeff.adr.eq(internal_address[1:]),
+                 m_coeff.dat_w.eq(Cat(coeff_data, coeff_data)),
+-                m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
+-                    we & ~state_sel),
+-                m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
+-                    we & ~state_sel),
++                m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff & we & sel_coeff),
++                m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff & we & sel_coeff),
+                 m_state.adr.eq(internal_address),
+                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
+-                m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
++                m_state.we.eq(self.rtlink.o.stb & we & (sel == 2)),
+         ]
+         read = Signal()
+-        read_state = Signal()
+         read_high = Signal()
+-        read_config = Signal()
++        read_sel = Signal(2)
+         self.sync.rio += [
+                 If(read,
+                     read.eq(0)
+                 ),
+                 If(self.rtlink.o.stb,
+                     read.eq(~we),
+-                    read_state.eq(state_sel),
++                    read_sel.eq(sel),
+                     read_high.eq(high_coeff),
+-                    read_config.eq(config_sel),
+                 )
+         ]
+         self.sync.rio_phy += [
+-                If(self.rtlink.o.stb & we & state_sel & config_sel,
++                If(self.rtlink.o.stb & we & (sel == 3),
+                     config.eq(self.rtlink.o.data)
+                 ),
+-                If(read & read_config & read_state,
++                If(read & (read_sel == 3),
+                     [_.clip.eq(0) for _ in servo.iir.ctrl]
+-                )
++                ),
+         ]
++        # read return value by destination
++        read_acts = Array([
++                Mux(read_high, m_coeff.dat_r[w.coeff:], m_coeff.dat_r[:w.coeff]),
++                0,
++                m_state.dat_r[w.state - w.coeff:],
++                status
++        ])
+         self.comb += [
+                 self.rtlink.i.stb.eq(read),
+-                _eq_sign_extend(self.rtlink.i.data,
+-                    Mux(read_state,
+-                        Mux(read_config,
+-                            status,
+-                            m_state.dat_r[w.state - w.coeff:]),
+-                        Mux(read_high,
+-                            m_coeff.dat_r[w.coeff:],
+-                            m_coeff.dat_r[:w.coeff])))
++                _eq_sign_extend(self.rtlink.i.data, read_acts[read_sel]),
+         ]
+diff --git a/artiq/gateware/suservo/iir.py b/artiq/gateware/suservo/iir.py
+index 0ec9bfa09..6b975b753 100644
+--- a/artiq/gateware/suservo/iir.py
++++ b/artiq/gateware/suservo/iir.py
+@@ -16,7 +16,6 @@
+     "word",     # "word" size to break up DDS profile data (16)
+     "asf",      # unsigned amplitude scale factor for DDS (14)
+     "shift",    # fixed point scaling coefficient for a1, b0, b1 (log2!) (11)
+-    "channel",  # channels (log2!) (3)
+     "profile",  # profiles per channel (log2!) (5)
+     "dly",      # the activation delay
+ ])
+@@ -213,10 +212,10 @@ class IIR(Module):
+     --/--: signal with a given bit width always includes a sign bit
+     -->--: flow is to the right and down unless otherwise indicated
+     """
+-    def __init__(self, w):
+-        self.widths = w
+-        for i, j in enumerate(w):
+-            assert j > 0, (i, j, w)
++    def __init__(self, w, w_i, w_o):
++        for v in (w, w_i, w_o):
++            for i, j in enumerate(v):
++                assert j > 0, (i, j, v)
+         assert w.word <= w.coeff  # same memory
+         assert w.state + w.coeff + 3 <= w.accu
+ 
+@@ -224,13 +223,13 @@ def __init__(self, w):
+         # ~processing
+         self.specials.m_coeff = Memory(
+                 width=2*w.coeff,  # Cat(pow/ftw/offset, cfg/a/b)
+-                depth=4 << w.profile + w.channel)
++                depth=(4 << w.profile) * w_o.channels)
+         # m_state[x] should only be read externally during ~(shifting | loading)
+         # m_state[y] of active profiles should only be read externally during
+         # ~processing
+         self.specials.m_state = Memory(
+                 width=w.state,  # y1,x0,x1
+-                depth=(1 << w.profile + w.channel) + (2 << w.channel))
++                depth=(1 << w.profile) * w_o.channels + 2 * w_i.channels)
+         # ctrl should only be updated synchronously
+         self.ctrl = [Record([
+                 ("profile", w.profile),
+@@ -238,14 +237,14 @@ def __init__(self, w):
+                 ("en_iir", 1),
+                 ("clip", 1),
+                 ("stb", 1)])
+-                for i in range(1 << w.channel)]
++                for i in range(w_o.channels)]
+         # only update during ~loading
+         self.adc = [Signal((w.adc, True), reset_less=True)
+-                for i in range(1 << w.channel)]
++                for i in range(w_i.channels)]
+         # Cat(ftw0, ftw1, pow, asf)
+         # only read externally during ~processing
+-        self.dds = [Signal(4*w.word, reset_less=True)
+-                for i in range(1 << w.channel)]
++        self.dds = [Signal(4 * w.word, reset_less=True)
++                for i in range(w_o.channels)]
+         # perform one IIR iteration, start with loading,
+         # then processing, then shifting, end with done
+         self.start = Signal()
+@@ -281,7 +280,7 @@ def __init__(self, w):
+         # using the (MSBs of) t_current_step, and, after all channels have been
+         # covered, proceed once the pipeline has completely drained.
+         self.submodules.fsm = fsm = FSM("IDLE")
+-        t_current_step = Signal(w.channel + 2)
++        t_current_step = Signal(max=max(4 * (w_o.channels + 2), 2 * w_i.channels))
+         t_current_step_clr = Signal()
+ 
+         # pipeline group activity flags (SR)
+@@ -298,7 +297,7 @@ def __init__(self, w):
+         )
+         fsm.act("LOAD",
+                 self.loading.eq(1),
+-                If(t_current_step == (1 << w.channel) - 1,
++                If(t_current_step == w_i.channels - 1,
+                     t_current_step_clr.eq(1),
+                     NextValue(stages_active[0], 1),
+                     NextState("PROCESS")
+@@ -315,7 +314,7 @@ def __init__(self, w):
+         )
+         fsm.act("SHIFT",
+                 self.shifting.eq(1),
+-                If(t_current_step == (2 << w.channel) - 1,
++                If(t_current_step == 2 * w_i.channels - 1,
+                     NextState("IDLE")
+                 )
+         )
+@@ -333,13 +332,13 @@ def __init__(self, w):
+         # pipeline group channel pointer (SR)
+         # for each pipeline stage, this is the channel currently being
+         # processed
+-        channel = [Signal(w.channel, reset_less=True) for i in range(3)]
++        channel = [Signal(max=w_o.channels, reset_less=True) for i in range(3)]
+         self.comb += Cat(pipeline_phase, channel[0]).eq(t_current_step)
+         self.sync += [
+             If(pipeline_phase == 3,
+                 Cat(channel[1:]).eq(Cat(channel[:-1])),
+                 stages_active[1:].eq(stages_active[:-1]),
+-                If(channel[0] == (1 << w.channel) - 1,
++                If(channel[0] == w_o.channels - 1,
+                     stages_active[0].eq(0)
+                 )
+             )
+@@ -393,13 +392,13 @@ def __init__(self, w):
+ 
+         # selected adc and profile delay (combinatorial from dat_r)
+         # both share the same coeff word (sel in the lower 8 bits)
+-        sel_profile = Signal(w.channel)
++        sel_profile = Signal(max=w_i.channels)
+         dly_profile = Signal(w.dly)
+-        assert w.channel <= 8
++        assert w_o.channels < (1 << 8)
+         assert 8 + w.dly <= w.coeff
+ 
+         # latched adc selection
+-        sel = Signal(w.channel, reset_less=True)
++        sel = Signal(max=w_i.channels, reset_less=True)
+         # iir enable SR
+         en = Signal(2, reset_less=True)
+ 
+@@ -407,12 +406,12 @@ def __init__(self, w):
+                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
+                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
+                 If(self.shifting,
+-                    m_state.adr.eq(t_current_step | (1 << w.profile + w.channel)),
++                    m_state.adr.eq(t_current_step + (1 << w.profile) * w_o.channels),
+                     m_state.dat_w.eq(m_state.dat_r),
+                     m_state.we.eq(t_current_step[0])
+                 ),
+                 If(self.loading,
+-                    m_state.adr.eq((t_current_step << 1) | (1 << w.profile + w.channel)),
++                    m_state.adr.eq((t_current_step << 1) + (1 << w.profile) * w_o.channels),
+                     m_state.dat_w[-w.adc - 1:-1].eq(Array(self.adc)[t_current_step]),
+                     m_state.dat_w[-1].eq(m_state.dat_w[-2]),
+                     m_state.we.eq(1)
+@@ -424,9 +423,9 @@ def __init__(self, w):
+                         # read old y
+                         Cat(profile[0], channel[0]),
+                         # read x0 (recent)
+-                        0 | (sel_profile << 1) | (1 << w.profile + w.channel),
++                        0 | (sel_profile << 1) + (1 << w.profile) * w_o.channels,
+                         # read x1 (old)
+-                        1 | (sel << 1) | (1 << w.profile + w.channel),
++                        1 | (sel << 1) + (1 << w.profile) * w_o.channels,
+                     ])[pipeline_phase]),
+                     m_state.dat_w.eq(dsp.output),
+                     m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
+@@ -438,11 +437,9 @@ def __init__(self, w):
+         #
+ 
+         # internal channel delay counters
+-        dlys = Array([Signal(w.dly)
+-            for i in range(1 << w.channel)])
+-        self._dlys = dlys  # expose for debugging only
++        dlys = Array([Signal(w.dly) for i in range(w_o.channels)])
+ 
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             self.sync += [
+                     # (profile != profile_old) | ~en_out
+                     If(self.ctrl[i].stb,
+@@ -517,6 +514,12 @@ def __init__(self, w):
+             }),
+         ]
+ 
++        # expose for simulation and debugging only
++        self.widths = w
++        self.widths_adc = w_i
++        self.widths_dds = w_o
++        self._dlys = dlys
++
+     def _coeff(self, channel, profile, coeff):
+         """Return ``high_word``, ``address`` and bit ``mask`` for the
+         storage of coefficient name ``coeff`` in profile ``profile``
+@@ -564,31 +567,33 @@ def get_coeff(self, channel, profile, coeff):
+     def set_state(self, channel, val, profile=None, coeff="y1"):
+         """Set a state value."""
+         w = self.widths
++        w_o = self.widths_dds
+         if coeff == "y1":
+             assert profile is not None
+             yield self.m_state[profile | (channel << w.profile)].eq(val)
+         elif coeff == "x0":
+             assert profile is None
+-            yield self.m_state[(channel << 1) |
+-                    (1 << w.profile + w.channel)].eq(val)
++            yield self.m_state[(channel << 1) +
++                    (1 << w.profile) * w_o.channels].eq(val)
+         elif coeff == "x1":
+             assert profile is None
+-            yield self.m_state[1 | (channel << 1) |
+-                    (1 << w.profile + w.channel)].eq(val)
++            yield self.m_state[1 | (channel << 1) +
++                    (1 << w.profile) * w_o.channels].eq(val)
+         else:
+             raise ValueError("no such state", coeff)
+ 
+     def get_state(self, channel, profile=None, coeff="y1"):
+         """Get a state value."""
+         w = self.widths
++        w_o = self.widths_dds
+         if coeff == "y1":
+             val = yield self.m_state[profile | (channel << w.profile)]
+         elif coeff == "x0":
+-            val = yield self.m_state[(channel << 1) |
+-                    (1 << w.profile + w.channel)]
++            val = yield self.m_state[(channel << 1) +
++                    (1 << w.profile) * w_o.channels]
+         elif coeff == "x1":
+-            val = yield self.m_state[1 | (channel << 1) |
+-                    (1 << w.profile + w.channel)]
++            val = yield self.m_state[1 | (channel << 1) +
++                    (1 << w.profile) * w_o.channels]
+         else:
+             raise ValueError("no such state", coeff)
+         return signed(val, w.state)
+@@ -607,6 +612,8 @@ def check_iter(self):
+         """Perform a single processing iteration while verifying
+         the behavior."""
+         w = self.widths
++        w_i = self.widths_adc
++        w_o = self.widths_dds
+ 
+         while not (yield self.done):
+             yield
+@@ -622,7 +629,7 @@ def check_iter(self):
+ 
+         x0s = []
+         # check adc loading
+-        for i in range(1 << w.channel):
++        for i in range(w_i.channels):
+             v_adc = signed((yield self.adc[i]), w.adc)
+             x0 = yield from self.get_state(i, coeff="x0")
+             x0s.append(x0)
+@@ -631,7 +638,7 @@ def check_iter(self):
+ 
+         data = []
+         # predict output
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             j = yield self.ctrl[i].profile
+             en_iir = yield self.ctrl[i].en_iir
+             en_out = yield self.ctrl[i].en_out
+@@ -640,7 +647,7 @@ def check_iter(self):
+                     i, j, en_iir, en_out, dly_i)
+ 
+             cfg = yield from self.get_coeff(i, j, "cfg")
+-            k_j = cfg & ((1 << w.channel) - 1)
++            k_j = cfg & ((1 << bits_for(w_i.channels - 1)) - 1)
+             dly_j = (cfg >> 8) & 0xff
+             logger.debug("cfg[%d,%d] sel=%d dly=%d", i, j, k_j, dly_j)
+ 
+@@ -694,7 +701,7 @@ def check_iter(self):
+             logger.debug("adc[%d] x0=%x x1=%x", i, x0, x1)
+ 
+         # check new state
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             j = yield self.ctrl[i].profile
+             logger.debug("ch[%d] profile=%d", i, j)
+             y1 = yield from self.get_state(i, j, "y1")
+@@ -702,7 +709,7 @@ def check_iter(self):
+             assert y1 == y0, (hex(y1), hex(y0))
+ 
+         # check dds output
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             ftw0, ftw1, pow, y0, x1, x0 = data[i]
+             asf = y0 >> (w.state - w.asf - 1)
+             dds = (ftw0 | (ftw1 << w.word) |
+diff --git a/artiq/gateware/suservo/pads.py b/artiq/gateware/suservo/pads.py
+index 0ab7d352f..778f05d01 100644
+--- a/artiq/gateware/suservo/pads.py
++++ b/artiq/gateware/suservo/pads.py
+@@ -72,12 +72,11 @@ def __init__(self, platform, *eems):
+                 DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
+                 DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
+                 for i in range(len(eems))]
+-        for i in range(8):
++        for i in range(4 * len(eems)):
+             mosi = Signal()
+             setattr(self, "mosi{}".format(i), mosi)
+-        for i in range(4*len(eems)):
+             self.specials += [
+-                DifferentialOutput(getattr(self, "mosi{}".format(i)),
++                DifferentialOutput(mosi,
+                     getattr(spip[i // 4], "mosi{}".format(i % 4)),
+                     getattr(spin[i // 4], "mosi{}".format(i % 4)))
+             ]
+diff --git a/artiq/gateware/suservo/servo.py b/artiq/gateware/suservo/servo.py
+index 1aec95f02..59529320c 100644
+--- a/artiq/gateware/suservo/servo.py
++++ b/artiq/gateware/suservo/servo.py
+@@ -42,7 +42,7 @@ def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+         assert t_iir + 2*adc_p.channels < t_cycle, "need shifting time"
+ 
+         self.submodules.adc = ADC(adc_pads, adc_p)
+-        self.submodules.iir = IIR(iir_p)
++        self.submodules.iir = IIR(iir_p, adc_p, dds_p)
+         self.submodules.dds = DDS(dds_pads, dds_p)
+ 
+         # adc channels are reversed on Sampler

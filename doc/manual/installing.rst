@@ -84,24 +84,24 @@ You can create directories containing each a ``flake.nix`` that correspond to di
 
 If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
-Installing with MSYS2 (Windows)
--------------------------------
+Installing via MSYS2 (Windows)
+------------------------------
 
-Install `MSYS2 <https://www.msys2.org>`, and open "MSYS2 MinGW x64". Edit ``/etc/pacman.conf`` to add:
-```
-[artiq]
-SigLevel = Optional TrustAll
-Server = https://lab.m-labs.hk/msys2
-```
+Install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
 
-Then run the following commands:
-```
-pacman -Syu
-pacman -S mingw-w64-x86_64-artiq
-```
+    [artiq]
+    SigLevel = Optional TrustAll
+    Server = https://msys2.m-labs.hk/artiq-nac3
+
+Launch ``MSYS2 MINGW64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
+
+    pacman -Syy
+    pacman -S mingw-w64-x86_64-artiq
 
 .. note::
     Some ARTIQ examples also require matplotlib and numba, and they must be installed manually for running those examples. They are available in MSYS2.
+
+If your favorite package is not available with MSYS2, contact us using the helpdesk@ email.
 
 Upgrading ARTIQ (with Nix)
 --------------------------
@@ -115,9 +115,7 @@ You may need to reflash the gateware and firmware of the core device to keep it 
 Upgrading ARTIQ (with MSYS2)
 ----------------------------
 
-Run this command to update the entire MSYS2 environment including ARTIQ: ::
-
-    $ pacman -Syu
+Run ``pacman -Syu`` to update all MSYS2 packages including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the MSYS2 and Pacman manual for information on how to update individual packages if required.
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
 
@@ -189,7 +187,7 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client [username] build [variant] [afws_directory]
+  $ afws_client [username] build [afws_directory] [variant]
 
 Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 

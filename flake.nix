@@ -73,7 +73,7 @@
         '';
       };
 
-      artiq = pkgs.python3Packages.buildPythonPackage rec {
+      artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
         version = artiqVersion;
         src = self;
@@ -85,6 +85,7 @@
           '';
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
+
         # keep llvm_x in sync with nac3
         propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
@@ -110,6 +111,11 @@
           '';
       };
 
+      artiq = artiq-upstream // {
+        withExperimentalFeatures = features: artiq-upstream.overrideAttrs(oa:
+            { patches = map (f: ./experimental-features/${f}.diff) features; });
+      };
+
       migen = pkgs.python3Packages.buildPythonPackage rec {
         name = "migen";
         src = src-migen;
@@ -131,7 +137,6 @@
       misoc = pkgs.python3Packages.buildPythonPackage {
         name = "misoc";
         src = src-misoc;
-        doCheck = false;  # TODO: fix misoc bitrot and re-enable tests
         propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
       };
 
@@ -173,7 +178,7 @@
         runScript = "vivado";
       };
 
-      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
+      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}", experimentalFeatures ? [] }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
@@ -184,7 +189,7 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc artiq]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_14.clang-unwrapped
@@ -377,6 +382,11 @@
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
+        shellHook = ''
+          export LIBARTIQ_SUPPORT=`libartiq-support`
+	  export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
+          export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
+        '';
       };
 
       packages.aarch64-linux = {

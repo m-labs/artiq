@@ -8,8 +8,11 @@ from PyQt5 import QtCore, QtWidgets, QtGui
 from sipyco.sync_struct import Subscriber
 
 from artiq.coredevice.comm_moninj import *
-from artiq.coredevice.ad9910 import _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, _AD9910_REG_FTW
-from artiq.coredevice.ad9912_reg import AD9912_POW1
+from artiq.coredevice.ad9910 import (
+    _AD9910_REG_PROFILE0, _AD9910_REG_PROFILE7, 
+    _AD9910_REG_FTW, _AD9910_REG_CFR1
+)
+from artiq.coredevice.ad9912_reg import AD9912_POW1, AD9912_SER_CONF
 from artiq.gui.tools import LayoutWidget
 from artiq.gui.flowlayout import FlowLayout
 
@@ -311,6 +314,10 @@ class _DDSWidget(QtWidgets.QFrame):
         apply.clicked.connect(self.apply_changes)
         if self.dds_model.is_urukul:
             off_btn.clicked.connect(self.off_clicked)
+            off_btn.setToolTip(textwrap.dedent(
+                """Note: If TTL RTIO sw for the channel is switched high,
+                this button will not disable the channel.
+                Use the TTL override instead."""))
         self.value_edit.returnPressed.connect(lambda: self.apply_changes(None))
         self.value_edit.escapePressedConnect(self.cancel_changes)
         cancel.clicked.connect(self.cancel_changes)
@@ -549,33 +556,55 @@ class _DeviceManager:
             scheduling["flush"])
         logger.info("Submitted '%s', RID is %d", title, rid)
 
-    def dds_set_frequency(self, dds_channel, dds_model, freq):
+    def _dds_faux_injection(self, dds_channel, dds_model, action, title, log_msg):
         # create kernel and fill it in and send-by-content
+
+        # initialize CPLD (if applicable)
         if dds_model.is_urukul:
             # urukuls need CPLD init and switch to on
-            # keep previous config if it was set already
             cpld_dev = """self.setattr_device("core_cache")
                 self.setattr_device("{}")""".format(dds_model.cpld)
-            cpld_init = """cfg = self.core_cache.get("_{cpld}_cfg")
-                if len(cfg) > 0:
-                    self.{cpld}.cfg_reg = cfg[0]
-                else:
+
+            # `sta`/`rf_sw`` variables are guaranteed for urukuls 
+            # so {action} can use it
+            # if there's no RF enabled, CPLD may have not been initialized
+            # but if there is, it has been initialised - no need to do again
+            cpld_init = """delay(15*ms)
+                was_init = self.core_cache.get("_{cpld}_init")
+                sta = self.{cpld}.sta_read()
+                rf_sw = urukul_sta_rf_sw(sta)
+                if rf_sw == 0 and len(was_init) == 0:
                     delay(15*ms)
                     self.{cpld}.init()
-                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
-                    cfg = self.core_cache.get("_{cpld}_cfg")
+                    self.core_cache.put("_{cpld}_init", [1])
             """.format(cpld=dds_model.cpld)
-            cfg_sw = """self.{}.cfg_sw(True)
-                cfg[0] = self.{}.cfg_reg
-            """.format(dds_channel, dds_model.cpld)
         else:
             cpld_dev = ""
             cpld_init = ""
-            cfg_sw = ""
+
+        # AD9912/9910: init channel (if uninitialized)
+        if dds_model.dds_type == "AD9912":
+            # 0xFF before init, 0x99 after
+            channel_init = """
+                if self.{dds_channel}.read({cfgreg}, length=1) == 0xFF:
+                    delay(10*ms)
+                    self.{dds_channel}.init()
+            """.format(dds_channel=dds_channel, cfgreg=AD9912_SER_CONF)
+        elif dds_model.dds_type == "AD9910":
+            # -1 before init, 2 after
+            channel_init = """
+                if self.{dds_channel}.read32({cfgreg}) == -1:
+                    delay(10*ms)
+                    self.{dds_channel}.init()
+            """.format(dds_channel=dds_channel, cfgreg=AD9912_SER_CONF)
+        else:
+            channel_init = "self.{dds_channel}.init()".format(dds_channel=dds_channel)
+
         dds_exp = textwrap.dedent("""
         from artiq.experiment import *
+        from artiq.coredevice.urukul import *
 
-        class SetDDS(EnvExperiment):
+        class {title}(EnvExperiment):
             def build(self):
                 self.setattr_device("core")
                 self.setattr_device("{dds_channel}")
@@ -585,53 +614,55 @@ class _DeviceManager:
             def run(self):
                 self.core.break_realtime()
                 {cpld_init}
-                delay(5*ms)
-                self.{dds_channel}.init()
-                self.{dds_channel}.set({freq})
-                {cfg_sw}
-        """.format(dds_channel=dds_channel, freq=freq,
+                delay(10*ms)
+                {channel_init}
+                delay(15*ms)
+                {action}
+        """.format(title=title, action=action,
+                   dds_channel=dds_channel,
                    cpld_dev=cpld_dev, cpld_init=cpld_init,
-                   cfg_sw=cfg_sw))
+                   channel_init=channel_init))
         asyncio.ensure_future(
             self._submit_by_content(
                 dds_exp, 
-                "SetDDS", 
-                "Set DDS {} {}MHz".format(dds_channel, freq/1e6)))
+                title, 
+                log_msg))
+
+    def dds_set_frequency(self, dds_channel, dds_model, freq):
+        action = "self.{ch}.set({freq})".format(
+            freq=freq, ch=dds_channel)
+        if dds_model.is_urukul:
+            action += """
+                ch_no = self.{ch}.chip_select - 4
+                self.{cpld}.cfg_switches(rf_sw | 1 << ch_no)
+            """.format(ch=dds_channel, cpld=dds_model.cpld)
+        self._dds_faux_injection(
+            dds_channel,
+            dds_model,
+            action,
+            "SetDDS", 
+            "Set DDS {} {}MHz".format(dds_channel, freq/1e6))
 
     def dds_channel_toggle(self, dds_channel, dds_model, sw=True):
         # urukul only
-        toggle_exp = textwrap.dedent("""
-        from artiq.experiment import *
-
-        class ToggleDDS(EnvExperiment):
-            def build(self):
-                self.setattr_device("core")
-                self.setattr_device("{ch}")
-                self.setattr_device("core_cache")
-                self.setattr_device("{cpld}")
-                
-            @kernel
-            def run(self):
-                self.core.break_realtime()
-                cfg = self.core_cache.get("_{cpld}_cfg")
-                if len(cfg) > 0:
-                    self.{cpld}.cfg_reg = cfg[0]
-                else:
-                    delay(15*ms)
-                    self.{cpld}.init()
-                    self.core_cache.put("_{cpld}_cfg", [self.{cpld}.cfg_reg])
-                    cfg = self.core_cache.get("_{cpld}_cfg")
-                delay(5*ms)
-                self.{ch}.init()
-                self.{ch}.cfg_sw({sw})
-                cfg[0] = self.{cpld}.cfg_reg
-        """.format(ch=dds_channel, cpld=dds_model.cpld, sw=sw))
-        asyncio.ensure_future(
-            self._submit_by_content(
-                toggle_exp, 
-                "ToggleDDS", 
-                "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
+        if sw:
+            switch = "| 1 << ch_no"
+        else:
+            switch = "& ~(1 << ch_no)"
+        action = """
+                ch_no = self.{dds_channel}.chip_select - 4
+                self.{cpld}.cfg_switches(rf_sw {switch})
+        """.format(
+            dds_channel=dds_channel,
+            cpld=dds_model.cpld,
+            switch=switch
         )
+        self._dds_faux_injection(
+            dds_channel,
+            dds_model,
+            action,
+            "ToggleDDS", 
+            "Toggle DDS {} {}".format(dds_channel, "on" if sw else "off"))
 
     def setup_ttl_monitoring(self, enable, channel):
         if self.mi_connection is not None:

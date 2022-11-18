@@ -18,9 +18,10 @@ from artiq.coredevice.adf5356 import ADF5356
 from artiq.coredevice.sampler import Sampler
 from artiq.coredevice.zotino import Zotino
 from artiq.coredevice.fastino import Fastino
-from artiq.coredevice.phaser import Phaser
+from artiq.coredevice.phaser import Phaser, PHASER_GW_BASE, PHASER_GW_MIQRO
 from artiq.coredevice.grabber import Grabber
 from artiq.coredevice.suservo import SUServo, Channel as SUServoChannel
+
 from artiq.master.databases import DeviceDB
 from artiq.master.worker_db import DeviceManager
 
@@ -590,20 +591,37 @@ class SinaraTester(EnvExperiment):
         self.core.break_realtime()
         phaser.init()
         self.core.delay(1.*ms)
-        phaser.channel[0].set_duc_frequency(duc)
-        phaser.channel[0].set_duc_cfg()
-        phaser.channel[0].set_att(6.*dB)
-        phaser.channel[1].set_duc_frequency(-duc)
-        phaser.channel[1].set_duc_cfg()
-        phaser.channel[1].set_att(6.*dB)
-        phaser.duc_stb()
-        self.core.delay(1.*ms)
-        for i in range(len(osc)):
-            phaser.channel[0].oscillator[i].set_frequency(osc[i])
-            phaser.channel[0].oscillator[i].set_amplitude_phase(.2)
-            phaser.channel[1].oscillator[i].set_frequency(-osc[i])
-            phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
+        if phaser.gw_rev == PHASER_GW_BASE:
+            phaser.channel[0].set_duc_frequency(duc)
+            phaser.channel[0].set_duc_cfg()
+            phaser.channel[0].set_att(6*dB)
+            phaser.channel[1].set_duc_frequency(-duc)
+            phaser.channel[1].set_duc_cfg()
+            phaser.channel[1].set_att(6*dB)
+            phaser.duc_stb()
             self.core.delay(1.*ms)
+            for i in range(len(osc)):
+                phaser.channel[0].oscillator[i].set_frequency(osc[i])
+                phaser.channel[0].oscillator[i].set_amplitude_phase(.2)
+                phaser.channel[1].oscillator[i].set_frequency(-osc[i])
+                phaser.channel[1].oscillator[i].set_amplitude_phase(.2)
+                self.core.delay(1.*ms)
+        elif phaser.gw_rev == PHASER_GW_MIQRO:
+            for ch in range(2):
+                phaser.channel[ch].set_att(6*dB)
+                phaser.channel[ch].set_duc_cfg()
+                sign = 1. - 2.*ch
+                for i in range(len(osc)):
+                    phaser.channel[ch].miqro.set_profile(i, profile=1,
+                        frequency=sign*(duc + osc[i]), amplitude=1./len(osc))
+                    self.core.delay(100.*us)
+                phaser.channel[ch].miqro.set_window(
+                    start=0x000, iq=[[1., 0.]], order=0, tail=0)
+                phaser.channel[ch].miqro.pulse(
+                    window=0x000, profiles=[1 for _ in range(len(osc))])
+                self.core.delay(1.*ms)
+        else:
+            raise ValueError
 
     @kernel
     def phaser_led_wave(self, phasers: list[Phaser]):

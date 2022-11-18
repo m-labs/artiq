@@ -1,0 +1,2361 @@
+diff --git a/artiq/coredevice/ad9910.py b/artiq/coredevice/ad9910.py
+index 801b689ca0..bc19afe25c 100644
+--- a/artiq/coredevice/ad9910.py
++++ b/artiq/coredevice/ad9910.py
+@@ -277,6 +277,10 @@ def read32(self, addr: TInt32) -> TInt32:
+ 
+         :param addr: Register address
+         """
++        return self.read32_impl(addr)
++
++    @kernel
++    def read32_impl(self, addr):
+         self.bus.set_config_mu(urukul.SPI_CONFIG, 8,
+                                urukul.SPIT_DDS_WR, self.chip_select)
+         self.bus.write((addr | 0x80) << 24)
+@@ -981,7 +985,8 @@ def clear_smp_err(self):
+ 
+     @kernel
+     def tune_sync_delay(self,
+-                        search_seed: TInt32 = 15) -> TTuple([TInt32, TInt32]):
++                        search_seed: TInt32 = 15,
++                        cpld_channel_idx: TInt32 = -1) -> TTuple([TInt32, TInt32]):
+         """Find a stable SYNC_IN delay.
+ 
+         This method first locates a valid SYNC_IN delay at zero validation
+@@ -997,6 +1002,9 @@ def tune_sync_delay(self,
+             Defaults to 15 (half range).
+         :return: Tuple of optimal delay and window size.
+         """
++        if cpld_channel_idx == -1:
++            cpld_channel_idx = self.chip_select - 4
++        assert 0 <= cpld_channel_idx < 4, "Invalid channel index"
+         if not self.cpld.sync_div:
+             raise ValueError("parent cpld does not drive SYNC")
+         search_span = 31
+@@ -1019,7 +1027,7 @@ def tune_sync_delay(self,
+                 delay(100 * us)
+                 err = urukul_sta_smp_err(self.cpld.sta_read())
+                 delay(100 * us)  # slack
+-                if not (err >> (self.chip_select - 4)) & 1:
++                if not (err >> cpld_channel_idx) & 1:
+                     next_seed = in_delay
+                     break
+             if next_seed >= 0:  # valid delay found, scan next window
+diff --git a/artiq/coredevice/suservo.py b/artiq/coredevice/suservo.py
+index 1d0a72dad1..f7b516a4e7 100644
+--- a/artiq/coredevice/suservo.py
++++ b/artiq/coredevice/suservo.py
+@@ -1,19 +1,19 @@
+ from artiq.language.core import kernel, delay, delay_mu, portable
+ from artiq.language.units import us, ns
++from artiq.language import *
+ from artiq.coredevice.rtio import rtio_output, rtio_input_data
+ from artiq.coredevice import spi2 as spi
+-from artiq.coredevice import urukul, sampler
++from artiq.coredevice import urukul, sampler, ad9910
++from math import ceil, log2
++from numpy import int32, int64
+ 
+ 
+-COEFF_WIDTH = 18
++COEFF_WIDTH = 18  # Must match gateware IIRWidths.coeff
+ Y_FULL_SCALE_MU = (1 << (COEFF_WIDTH - 1)) - 1
+-COEFF_DEPTH = 10 + 1
+-WE = 1 << COEFF_DEPTH + 1
+-STATE_SEL = 1 << COEFF_DEPTH
+-CONFIG_SEL = 1 << COEFF_DEPTH - 1
+-CONFIG_ADDR = CONFIG_SEL | STATE_SEL
+ T_CYCLE = (2*(8 + 64) + 2)*8*ns  # Must match gateware Servo.t_cycle.
+-COEFF_SHIFT = 11
++COEFF_SHIFT = 11  # Must match gateware IIRWidths.shift
++PROFILE_WIDTH = 5  # Must match gateware IIRWidths.profile
++FINE_TS_WIDTH = 3  # Must match gateware IIRWidths.ioup_dly
+ 
+ 
+ @portable
+@@ -35,21 +35,21 @@ class SUServo:
+     """Sampler-Urukul Servo parent and configuration device.
+ 
+     Sampler-Urukul Servo is a integrated device controlling one
+-    8-channel ADC (Sampler) and two 4-channel DDS (Urukuls) with a DSP engine
+-    connecting the ADC data and the DDS output amplitudes to enable
++    8-channel ADC (Sampler) and any number of 4-channel DDS (Urukuls) with a
++    DSP engine connecting the ADC data and the DDS output amplitudes to enable
+     feedback. SU Servo can for example be used to implement intensity
+     stabilization of laser beams with an amplifier and AOM driven by Urukul
+     and a photodetector connected to Sampler.
+ 
+     Additionally SU Servo supports multiple preconfigured profiles per channel
+-    and features like automatic integrator hold.
++    and features like automatic integrator hold and coherent phase tracking.
+ 
+     Notes:
+ 
+         * See the SU Servo variant of the Kasli target for an example of how to
+           connect the gateware and the devices. Sampler and each Urukul need
+           two EEM connections.
+-        * Ensure that both Urukuls are AD9910 variants and have the on-board
++        * Ensure that all Urukuls are AD9910 variants and have the on-board
+           dip switches set to 1100 (first two on, last two off).
+         * Refer to the Sampler and Urukul documentation and the SU Servo
+           example device database for runtime configuration of the devices
+@@ -65,7 +65,9 @@ class SUServo:
+     :param core_device: Core device name
+     """
+     kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
+-                         "ref_period_mu"}
++                         "ref_period_mu", "num_channels", "coeff_sel",
++                         "state_sel", "io_dly_addr", "config_addr",
++                         "write_enable"}
+ 
+     def __init__(self, dmgr, channel, pgia_device,
+                  cpld_devices, dds_devices,
+@@ -83,9 +85,20 @@ def __init__(self, dmgr, channel, pgia_device,
+             self.core.coarse_ref_period)
+         assert self.ref_period_mu == self.core.ref_multiplier
+ 
++        # The width of parts of the servo memory address depends on the number
++        # of channels.
++        self.num_channels = 4 * len(dds_devices)
++        channel_width = ceil(log2(self.num_channels))
++        coeff_depth = PROFILE_WIDTH + channel_width + 3
++        self.io_dly_addr = 1 << (coeff_depth - 2)
++        self.state_sel = 2 << (coeff_depth - 2)
++        self.config_addr = 3 << (coeff_depth - 2)
++        self.coeff_sel = 1 << coeff_depth
++        self.write_enable = 1 << (coeff_depth + 1)
++
+     @kernel
+     def init(self):
+-        """Initialize the servo, Sampler and both Urukuls.
++        """Initialize the servo, Sampler and all Urukuls.
+ 
+         Leaves the servo disabled (see :meth:`set_config`), resets and
+         configures all DDS.
+@@ -111,8 +124,20 @@ def init(self):
+             prev_cpld_cfg = cpld.cfg_reg
+             cpld.cfg_write(prev_cpld_cfg | (0xf << urukul.CFG_MASK_NU))
+             dds.init(blind=True)
++
++            if dds.sync_data.sync_delay_seed != -1:
++                for channel_idx in range(4):
++                    mask_nu_this = 1 << (urukul.CFG_MASK_NU + channel_idx)
++                    cpld.cfg_write(prev_cpld_cfg | mask_nu_this)
++                    delay(8 * us)
++                    dds.tune_sync_delay(dds.sync_data.sync_delay_seed,
++                                        cpld_channel_idx=channel_idx)
++                    delay(50 * us)
+             cpld.cfg_write(prev_cpld_cfg)
+ 
++        self.set_io_update_delays(
++            [dds.sync_data.io_update_delay for dds in self.ddses])
++
+     @kernel
+     def write(self, addr, value):
+         """Write to servo memory.
+@@ -122,7 +147,7 @@ def write(self, addr, value):
+         :param addr: Memory location address.
+         :param value: Data to be written.
+         """
+-        addr |= WE
++        addr |= self.write_enable
+         value &= (1 << COEFF_WIDTH) - 1
+         value |= (addr >> 8) << COEFF_WIDTH
+         addr = addr & 0xff
+@@ -158,7 +183,7 @@ def set_config(self, enable):
+             Disabling takes up to two servo cycles (~2.3 µs) to clear the
+             processing pipeline.
+         """
+-        self.write(CONFIG_ADDR, enable)
++        self.write(self.config_addr, enable)
+ 
+     @kernel
+     def get_status(self):
+@@ -179,7 +204,7 @@ def get_status(self):
+         :return: Status. Bit 0: enabled, bit 1: done,
+           bits 8-15: channel clip indicators.
+         """
+-        return self.read(CONFIG_ADDR)
++        return self.read(self.config_addr)
+ 
+     @kernel
+     def get_adc_mu(self, adc):
+@@ -197,7 +222,8 @@ def get_adc_mu(self, adc):
+         # State memory entries are 25 bits. Due to the pre-adder dynamic
+         # range, X0/X1/OFFSET are only 24 bits. Finally, the RTIO interface
+         # only returns the 18 MSBs (the width of the coefficient memory).
+-        return self.read(STATE_SEL | (adc << 1) | (1 << 8))
++        return self.read(self.state_sel |
++                         (2 * adc + (1 << PROFILE_WIDTH) * self.num_channels))
+ 
+     @kernel
+     def set_pgia_mu(self, channel, gain):
+@@ -236,6 +262,18 @@ def get_adc(self, channel):
+         gain = (self.gains >> (channel*2)) & 0b11
+         return adc_mu_to_volts(val, gain)
+ 
++    @kernel
++    def set_io_update_delays(self, dlys):
++        """Set IO_UPDATE pulse alignment delays.
++
++        :param dlys: List of delays for each Urukul
++        """
++        bits = 0
++        mask_fine_ts = (1 << FINE_TS_WIDTH) - 1
++        for i in range(len(dlys)):
++            bits |= (dlys[i] & mask_fine_ts) << (FINE_TS_WIDTH * i)
++        self.write(self.io_dly_addr, bits)
++
+ 
+ class Channel:
+     """Sampler-Urukul Servo channel
+@@ -256,7 +294,7 @@ def __init__(self, dmgr, channel, servo_device):
+         self.dds = self.servo.ddses[self.servo_channel // 4]
+ 
+     @kernel
+-    def set(self, en_out, en_iir=0, profile=0):
++    def set(self, en_out, en_iir=0, profile=0, en_pt=0):
+         """Operate channel.
+ 
+         This method does not advance the timeline. Output RF switch setting
+@@ -270,9 +308,26 @@ def set(self, en_out, en_iir=0, profile=0):
+         :param en_out: RF switch enable
+         :param en_iir: IIR updates enable
+         :param profile: Active profile (0-31)
++        :param en_pt: Coherent phase tracking enable
++            * en_pt=1: "coherent phase mode"
++            * en_pt=0: "continuous phase mode"
++            (see :func:`artiq.coredevice.ad9910.AD9910.set_phase_mode` for a
++            definition of the phase modes)
+         """
+         rtio_output(self.channel << 8,
+-                    en_out | (en_iir << 1) | (profile << 2))
++                    en_out | (en_iir << 1) | (en_pt << 2) | (profile << 3))
++
++    @kernel
++    def set_reference_time(self):
++        """Set reference time for "coherent phase mode" (see :meth:`set`).
++
++        This method does not advance the timeline.
++        With en_pt=1 (see :meth:`set`), the tracked DDS output phase of
++        this channel will refer to the current timeline position.
++
++        """
++        fine_ts = now_mu() & ((1 << FINE_TS_WIDTH) - 1)
++        rtio_output(self.channel << 8 | 1, self.dds.sysclk_per_mu * fine_ts)
+ 
+     @kernel
+     def set_dds_mu(self, profile, ftw, offs, pow_=0):
+@@ -285,10 +340,11 @@ def set_dds_mu(self, profile, ftw, offs, pow_=0):
+         :param offs: IIR offset (17 bit signed)
+         :param pow_: Phase offset word (16 bit)
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 0, ftw >> 16)
+         self.servo.write(base + 6, (ftw & 0xffff))
+-        self.set_dds_offset_mu(profile, offs)
++        self.servo.write(base + 4, offs)
+         self.servo.write(base + 2, pow_)
+ 
+     @kernel
+@@ -319,7 +375,8 @@ def set_dds_offset_mu(self, profile, offs):
+         :param profile: Profile number (0-31)
+         :param offs: IIR offset (17 bit signed)
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 4, offs)
+ 
+     @kernel
+@@ -344,6 +401,30 @@ def dds_offset_to_mu(self, offset):
+         """
+         return int(round(offset * (1 << COEFF_WIDTH - 1)))
+ 
++    @kernel
++    def set_dds_phase_mu(self, profile, pow_):
++        """Set only POW in profile DDS coefficients.
++
++        See :meth:`set_dds_mu` for setting the complete DDS profile.
++
++        :param profile: Profile number (0-31)
++        :param pow_: Phase offset word (16 bit)
++        """
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
++        self.servo.write(base + 2, pow_)
++
++    @kernel
++    def set_dds_phase(self, profile, phase):
++        """Set only phase in profile DDS coefficients.
++
++        See :meth:`set_dds` for setting the complete DDS profile.
++
++        :param profile: Profile number (0-31)
++        :param phase: DDS phase in turns
++        """
++        self.set_dds_phase_mu(profile, self.dds.turns_to_pow(phase))
++
+     @kernel
+     def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
+         """Set profile IIR coefficients in machine units.
+@@ -378,7 +459,8 @@ def set_iir_mu(self, profile, adc, a1, b0, b1, dly=0):
+         :param dly: IIR update suppression time. In units of IIR cycles
+             (~1.2 µs, 0-255).
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         self.servo.write(base + 3, adc | (dly << 8))
+         self.servo.write(base + 1, b1)
+         self.servo.write(base + 5, a1)
+@@ -470,7 +552,9 @@ def get_profile_mu(self, profile, data):
+         :param profile: Profile number (0-31)
+         :param data: List of 8 integers to write the profile data into
+         """
+-        base = (self.servo_channel << 8) | (profile << 3)
++        assert len(data) == 8
++        base = self.servo.coeff_sel | (self.servo_channel <<
++                                       (3 + PROFILE_WIDTH)) | (profile << 3)
+         for i in range(len(data)):
+             data[i] = self.servo.read(base + i)
+             delay(4*us)
+@@ -491,7 +575,8 @@ def get_y_mu(self, profile):
+         :param profile: Profile number (0-31)
+         :return: 17 bit unsigned Y0
+         """
+-        return self.servo.read(STATE_SEL | (self.servo_channel << 5) | profile)
++        return self.servo.read(self.servo.state_sel | (
++                self.servo_channel << PROFILE_WIDTH) | profile)
+ 
+     @kernel
+     def get_y(self, profile):
+@@ -529,7 +614,8 @@ def set_y_mu(self, profile, y):
+         """
+         # State memory is 25 bits wide and signed.
+         # Reads interact with the 18 MSBs (coefficient memory width)
+-        self.servo.write(STATE_SEL | (self.servo_channel << 5) | profile, y)
++        self.servo.write(self.servo.state_sel | (
++                self.servo_channel << PROFILE_WIDTH) | profile, y)
+ 
+     @kernel
+     def set_y(self, profile, y):
+@@ -552,3 +638,217 @@ def set_y(self, profile, y):
+             raise ValueError("Invalid SUServo y-value!")
+         self.set_y_mu(profile, y_mu)
+         return y_mu
++
++
++class CPLD(urukul.CPLD):
++    """
++    This module contains a subclass of the Urukul driver class in artiq.coredevice
++    adapted to use CPLD read-back via half-duplex SPI. Only the 8 LSBs can be read
++    back as the read-back buffer on the CPLD is 8 bits wide.
++    """
++
++    def __init__(self, dmgr, spi_device, io_update_device=None,
++                 **kwargs):
++        # Separate IO_UPDATE TTL output device used by SUServo core,
++        # if active, else by artiq.coredevice.suservo.AD9910
++        # :meth:`measure_io_update_alignment`.
++        # The urukul.CPLD driver utilises the CPLD CFG register
++        # option instead for pulsing IO_UPDATE of masked DDSs.
++        self.io_update_ttl = dmgr.get(io_update_device)
++        urukul.CPLD.__init__(self, dmgr, spi_device, **kwargs)
++
++    @kernel
++    def enable_readback(self):
++        """
++        This method sets the RB_EN flag in the Urukul CPLD configuration
++        register. Once set, the CPLD expects an alternating sequence of
++        two SPI transactions:
++
++            * 1: Any transaction. If returning data, the 8 LSBs
++                of that will be stored in the CPLD.
++
++            * 2: One read transaction in half-duplex SPI mode shifting
++                out data from the CPLD over MOSI (use :meth:`readback`).
++
++        To end this protocol, call :meth:`disable_readback` during step 1.
++        """
++        self.cfg_write(self.cfg_reg | (1 << urukul.CFG_RB_EN))
++
++    @kernel
++    def disable_readback(self):
++        """
++        This method clears the RB_EN flag in the Urukul CPLD configuration
++        register. This marks the end of the readback protocol (see
++        :meth:`enable_readback`).
++        """
++        self.cfg_write(self.cfg_reg & ~(1 << urukul.CFG_RB_EN))
++
++    @kernel
++    def sta_read(self, full=False):
++        """
++        Read from status register
++
++        :param full: retrieve status register by concatenating data from
++            several readback transactions.
++        """
++        self.enable_readback()
++        self.sta_read_impl()
++        delay(16 * us)  # slack
++        r = self.readback() << urukul.STA_RF_SW
++        delay(16 * us)  # slack
++        if full:
++            self.enable_readback()  # dummy write
++            r |= self.readback(urukul.CS_RB_PLL_LOCK) << urukul.STA_PLL_LOCK
++            delay(16 * us)  # slack
++            self.enable_readback()  # dummy write
++            r |= self.readback(urukul.CS_RB_PROTO_REV) << urukul.STA_PROTO_REV
++            delay(16 * us)  # slack
++        self.disable_readback()
++        return r
++
++    @kernel
++    def proto_rev_read(self):
++        """Read 8 LSBs of proto_rev"""
++        self.enable_readback()
++        self.enable_readback()  # dummy write
++        r = self.readback(urukul.CS_RB_PROTO_REV)
++        self.disable_readback()
++        return r
++
++    @kernel
++    def pll_lock_read(self):
++        """Read PLL lock status"""
++        self.enable_readback()
++        self.enable_readback()  # dummy write
++        r = self.readback(urukul.CS_RB_PLL_LOCK)
++        self.disable_readback()
++        return r & 0xf
++
++    @kernel
++    def get_att_mu(self):
++        # Different behaviour to urukul.CPLD.get_att_mu: Here, the
++        # latch enable of the attenuators activates 31.5dB
++        # attenuation during the transactions.
++        att_reg = int32(0)
++        self.enable_readback()
++        for i in range(4):
++            self.core.break_realtime()
++            self.bus.set_config_mu(urukul.SPI_CONFIG | spi.SPI_END, 8,
++                                   urukul.SPIT_ATT_RD, urukul.CS_ATT)
++            self.bus.write(0)  # shift in zeros, shift out next 8 bits
++            r = self.readback() & 0xff
++            att_reg |= r << (8 * i)
++
++        delay(16 * us)  # slack
++        self.disable_readback()
++
++        self.att_reg = int32(att_reg)
++        delay(8 * us)  # slack
++        self.set_all_att_mu(self.att_reg)  # shift and latch current value again
++        return self.att_reg
++
++    @kernel
++    def readback(self, cs=urukul.CS_RB_LSBS):
++        """Read from the readback register in half-duplex SPI mode
++        See :meth:`enable_readback` for usage instructions.
++
++        :param cs: Select data to be returned from the readback register.
++             - urukul.CS_RB_LSBS does not modify the readback register upon readback
++             - urukul.CS_RB_PROTO_REV loads the 8 LSBs of proto_rev
++             - urukul.CS_PLL_LOCK loads the PLL lock status bits concatenated with the
++               IFC mode bits
++        :return: CPLD readback register.
++        """
++        self.bus.set_config_mu(
++            urukul.SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT | spi.SPI_HALF_DUPLEX,
++            8, urukul.SPIT_CFG_RD, cs)
++        self.bus.write(0)
++        return int32(self.bus.read())
++
++
++class AD9910(ad9910.AD9910):
++    """
++    This module contains a subclass of the AD9910 driver class in artiq.coredevice
++    using CPLD read-back via half-duplex SPI.
++    """
++
++    # Re-declare set of kernel invariants to avoid warning about non-existent
++    # `sw` attribute, as the AD9910 (instance) constructor writes to the
++    # class attributes.
++    kernel_invariants = {
++        "chip_select", "cpld", "core", "bus", "ftw_per_hz", "sysclk_per_mu"
++    }
++
++    @kernel
++    def read32(self, addr):
++        """ Read from a 32-bit register
++
++        This method returns only the 8 LSBs of the return value.
++        """
++        self.cpld.enable_readback()
++        self.read32_impl(addr)
++        delay(12 * us)  # slack
++        r = self.cpld.readback()
++        delay(12 * us)  # slack
++        self.cpld.disable_readback()
++        return r
++
++    @kernel
++    def read64(self, addr):
++        # 3-wire SPI transactions consisting of multiple transfers are not supported.
++        raise NotImplementedError
++
++    @kernel
++    def read_ram(self, data):
++        # 3-wire SPI transactions consisting of multiple transfers are not supported.
++        raise NotImplementedError
++
++    @kernel
++    def measure_io_update_alignment(self, delay_start, delay_stop):
++        """Use the digital ramp generator to locate the alignment between
++        IO_UPDATE and SYNC_CLK.
++
++        Refer to `artiq.coredevice.ad9910` :meth:`measure_io_update_alignment`.
++        In order that this method can operate the io_update_ttl also used by the SUServo
++        core, deactivate the servo before (see :meth:`set_config`).
++        """
++        # set up DRG
++        self.set_cfr1(drg_load_lrr=1, drg_autoclear=1)
++        # DRG -> FTW, DRG enable
++        self.set_cfr2(drg_enable=1)
++        # no limits
++        self.write64(ad9910._AD9910_REG_RAMP_LIMIT, -1, 0)
++        # DRCTL=0, dt=1 t_SYNC_CLK
++        self.write32(ad9910._AD9910_REG_RAMP_RATE, 0x00010000)
++        # dFTW = 1, (work around negative slope)
++        self.write64(ad9910._AD9910_REG_RAMP_STEP, -1, 0)
++        # un-mask DDS
++        cfg_masked = self.cpld.cfg_reg
++        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
++        delay(70 * us)  # slack
++        # delay io_update after RTIO edge
++        t = now_mu() + 8 & ~7
++        at_mu(t + delay_start)
++        # assumes a maximum t_SYNC_CLK period
++        self.cpld.io_update_ttl.pulse(self.core.mu_to_seconds(16 - delay_start))  # realign
++        # re-mask DDS
++        self.cpld.cfg_write(cfg_masked)
++        delay(10 * us)  # slack
++        # disable DRG autoclear and LRR on io_update
++        self.set_cfr1()
++        delay(10 * us)  # slack
++        # stop DRG
++        self.write64(ad9910._AD9910_REG_RAMP_STEP, 0, 0)
++        delay(10 * us)  # slack
++        # un-mask DDS
++        self.cpld.cfg_write(cfg_masked & ~(0xf << urukul.CFG_MASK_NU))
++        at_mu(t + 0x20000 + delay_stop)
++        self.cpld.io_update_ttl.pulse_mu(16 - delay_stop)  # realign
++        # re-mask DDS
++        self.cpld.cfg_write(cfg_masked)
++        ftw = self.read32(ad9910._AD9910_REG_FTW)  # read out effective FTW
++        delay(100 * us)  # slack
++        # disable DRG
++        self.set_cfr2(drg_enable=0)
++        self.cpld.io_update.pulse_mu(16)
++        return ftw & 1
+diff --git a/artiq/coredevice/urukul.py b/artiq/coredevice/urukul.py
+index 2fd66bd65e..61fd476280 100644
+--- a/artiq/coredevice/urukul.py
++++ b/artiq/coredevice/urukul.py
+@@ -24,6 +24,7 @@
+ CFG_RF_SW = 0
+ CFG_LED = 4
+ CFG_PROFILE = 8
++CFG_RB_EN = 11
+ CFG_IO_UPDATE = 12
+ CFG_MASK_NU = 13
+ CFG_CLK_SEL0 = 17
+@@ -51,18 +52,23 @@
+ CS_DDS_CH1 = 5
+ CS_DDS_CH2 = 6
+ CS_DDS_CH3 = 7
++# chip selects for readback
++CS_RB_PROTO_REV = 1
++CS_RB_PLL_LOCK = 2
++CS_RB_LSBS = 3
+ 
+ # Default profile
+ DEFAULT_PROFILE = 7
+ 
+ 
+ @portable
+-def urukul_cfg(rf_sw, led, profile, io_update, mask_nu,
++def urukul_cfg(rf_sw, led, profile, rb_en, io_update, mask_nu,
+                clk_sel, sync_sel, rst, io_rst, clk_div):
+     """Build Urukul CPLD configuration register"""
+     return ((rf_sw << CFG_RF_SW) |
+             (led << CFG_LED) |
+             (profile << CFG_PROFILE) |
++            (rb_en << CFG_RB_EN) |
+             (io_update << CFG_IO_UPDATE) |
+             (mask_nu << CFG_MASK_NU) |
+             ((clk_sel & 0x01) << CFG_CLK_SEL0) |
+@@ -191,7 +197,7 @@ def __init__(self, dmgr, spi_device, io_update_device=None,
+             assert sync_div is None
+             sync_div = 0
+ 
+-        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=DEFAULT_PROFILE,
++        self.cfg_reg = urukul_cfg(rf_sw=rf_sw, led=0, profile=DEFAULT_PROFILE, rb_en=0,
+                                   io_update=0, mask_nu=0, clk_sel=clk_sel,
+                                   sync_sel=sync_sel,
+                                   rst=0, io_rst=0, clk_div=clk_div)
+@@ -226,6 +232,10 @@ def sta_read(self) -> TInt32:
+ 
+         :return: The status register value.
+         """
++        return self.sta_read_impl()
++
++    @kernel
++    def sta_read_impl(self):
+         self.bus.set_config_mu(SPI_CONFIG | spi.SPI_END | spi.SPI_INPUT, 24,
+                                SPIT_CFG_RD, CS_CFG)
+         self.bus.write(self.cfg_reg << 8)
+diff --git a/artiq/examples/kasli_suservo/device_db.py b/artiq/examples/kasli_suservo/device_db.py
+index c52b82a947..8e9d875205 100644
+--- a/artiq/examples/kasli_suservo/device_db.py
++++ b/artiq/examples/kasli_suservo/device_db.py
+@@ -142,53 +142,66 @@
+         "arguments": {"channel": 15},
+     },
+ 
++    "ttl_urukul0_io_update": {
++        "type": "local",
++        "module": "artiq.coredevice.ttl",
++        "class": "TTLOut",
++        "arguments": {"channel": 16}
++    },
++    "ttl_urukul1_io_update": {
++        "type": "local",
++        "module": "artiq.coredevice.ttl",
++        "class": "TTLOut",
++        "arguments": {"channel": 17}
++    },
++
+     "suservo0_ch0": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 16, "servo_device": "suservo0"}
++        "arguments": {"channel": 18, "servo_device": "suservo0"}
+     },
+     "suservo0_ch1": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 17, "servo_device": "suservo0"}
++        "arguments": {"channel": 19, "servo_device": "suservo0"}
+     },
+     "suservo0_ch2": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 18, "servo_device": "suservo0"}
++        "arguments": {"channel": 20, "servo_device": "suservo0"}
+     },
+     "suservo0_ch3": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 19, "servo_device": "suservo0"}
++        "arguments": {"channel": 21, "servo_device": "suservo0"}
+     },
+     "suservo0_ch4": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 20, "servo_device": "suservo0"}
++        "arguments": {"channel": 22, "servo_device": "suservo0"}
+     },
+     "suservo0_ch5": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 21, "servo_device": "suservo0"}
++        "arguments": {"channel": 23, "servo_device": "suservo0"}
+     },
+     "suservo0_ch6": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 22, "servo_device": "suservo0"}
++        "arguments": {"channel": 24, "servo_device": "suservo0"}
+     },
+     "suservo0_ch7": {
+         "type": "local",
+         "module": "artiq.coredevice.suservo",
+         "class": "Channel",
+-        "arguments": {"channel": 23, "servo_device": "suservo0"}
++        "arguments": {"channel": 25, "servo_device": "suservo0"}
+     },
+ 
+     "suservo0": {
+@@ -196,7 +209,7 @@
+         "module": "artiq.coredevice.suservo",
+         "class": "SUServo",
+         "arguments": {
+-            "channel": 24,
++            "channel": 26,
+             "pgia_device": "spi_sampler0_pgia",
+             "cpld_devices": ["urukul0_cpld", "urukul1_cpld"],
+             "dds_devices": ["urukul0_dds", "urukul1_dds"],
+@@ -207,33 +220,37 @@
+         "type": "local",
+         "module": "artiq.coredevice.spi2",
+         "class": "SPIMaster",
+-        "arguments": {"channel": 25}
++        "arguments": {"channel": 27}
+     },
+ 
+     "spi_urukul0": {
+         "type": "local",
+         "module": "artiq.coredevice.spi2",
+         "class": "SPIMaster",
+-        "arguments": {"channel": 26}
++        "arguments": {"channel": 28}
+     },
+     "urukul0_cpld": {
+         "type": "local",
+-        "module": "artiq.coredevice.urukul",
++        "module": "artiq.coredevice.suservo",
+         "class": "CPLD",
+         "arguments": {
+             "spi_device": "spi_urukul0",
++            "io_update_device": "ttl_urukul0_io_update",
++            "sync_device": "clkgen_dds_sync_in",
+             "refclk": 100e6,
+             "clk_sel": 0
+         }
+     },
+     "urukul0_dds": {
+         "type": "local",
+-        "module": "artiq.coredevice.ad9910",
++        "module": "artiq.coredevice.suservo",
+         "class": "AD9910",
+         "arguments": {
+             "pll_n": 40,
+             "chip_select": 3,
+             "cpld_device": "urukul0_cpld",
++            "io_update_delay": 0,
++            "sync_delay_seed": -1,
+         }
+     },
+ 
+@@ -241,26 +258,40 @@
+         "type": "local",
+         "module": "artiq.coredevice.spi2",
+         "class": "SPIMaster",
+-        "arguments": {"channel": 27}
++        "arguments": {"channel": 29}
+     },
+     "urukul1_cpld": {
+         "type": "local",
+-        "module": "artiq.coredevice.urukul",
++        "module": "artiq.coredevice.suservo",
+         "class": "CPLD",
+         "arguments": {
+             "spi_device": "spi_urukul1",
++            "io_update_device": "ttl_urukul1_io_update",
++            "sync_device": "clkgen_dds_sync_in",
+             "refclk": 100e6,
+             "clk_sel": 0
+         }
+     },
+     "urukul1_dds": {
+         "type": "local",
+-        "module": "artiq.coredevice.ad9910",
++        "module": "artiq.coredevice.suservo",
+         "class": "AD9910",
+         "arguments": {
+             "pll_n": 40,
+             "chip_select": 3,
+             "cpld_device": "urukul1_cpld",
++            "io_update_delay": 0,
++            "sync_delay_seed": -1,
++        }
++    },
++
++    "clkgen_dds_sync_in": {
++        "type": "local",
++        "module": "artiq.coredevice.ttl",
++        "class": "TTLClockGen",
++        "arguments": {
++            "channel": 30,
++            "acc_width": 4
+         }
+     },
+ 
+diff --git a/artiq/frontend/artiq_ddb_template.py b/artiq/frontend/artiq_ddb_template.py
+index b6d9294a37..93a74d46e7 100755
+--- a/artiq/frontend/artiq_ddb_template.py
++++ b/artiq/frontend/artiq_ddb_template.py
+@@ -424,6 +424,16 @@ def process_suservo(self, rtio_offset, peripheral):
+         sampler_name = self.get_name("sampler")
+         urukul_names = [self.get_name("urukul") for _ in range(2)]
+         channel = count(0)
++        for urukul_name in urukul_names:
++            self.gen("""
++                device_db["ttl_{urukul_name}_io_update"] = {{
++                    "type": "local",
++                    "module": "artiq.coredevice.ttl",
++                    "class": "TTLOut",
++                    "arguments": {{"channel": 0x{ttl_channel:06x}}}
++                }}""",
++                urukul_name=urukul_name,
++                ttl_channel=rtio_offset+next(channel))
+         for i in range(8):
+             self.gen("""
+                 device_db["{suservo_name}_ch{suservo_chn}"] = {{
+@@ -472,17 +482,19 @@ def process_suservo(self, rtio_offset, peripheral):
+                 }}
+                 device_db["{urukul_name}_cpld"] = {{
+                     "type": "local",
+-                    "module": "artiq.coredevice.urukul",
++                    "module": "artiq.coredevice.suservo",
+                     "class": "CPLD",
+                     "arguments": {{
+                         "spi_device": "spi_{urukul_name}",
++                        "io_update_device": "ttl_{urukul_name}_io_update",
++                        "sync_device": "clkgen_{suservo_name}_dds_sync_in",
+                         "refclk": {refclk},
+                         "clk_sel": {clk_sel}
+                     }}
+                 }}
+                 device_db["{urukul_name}_dds"] = {{
+                     "type": "local",
+-                    "module": "artiq.coredevice.ad9910",
++                    "module": "artiq.coredevice.suservo",
+                     "class": "AD9910",
+                     "arguments": {{
+                         "pll_n": {pll_n},
+@@ -490,12 +502,25 @@ def process_suservo(self, rtio_offset, peripheral):
+                         "cpld_device": "{urukul_name}_cpld"{pll_vco}
+                     }}
+                 }}""",
++                suservo_name=suservo_name,
+                 urukul_name=urukul_name,
+                 urukul_channel=rtio_offset+next(channel),
+                 refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
+                 clk_sel=peripheral["clk_sel"],
+                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
+                 pll_n=peripheral["pll_n"])
++        self.gen("""
++            device_db["clkgen_{suservo_name}_dds_sync_in"] = {{
++                "type": "local",
++                "module": "artiq.coredevice.ttl",
++                "class": "TTLClockGen",
++                "arguments": {{
++                    "channel": 0x{clkgen_channel:06x},
++                    "acc_width": 4
++                }}
++            }}""",
++            suservo_name=suservo_name,
++            clkgen_channel=rtio_offset+next(channel))
+         return next(channel)
+ 
+     def process_zotino(self, rtio_offset, peripheral):
+diff --git a/artiq/gateware/eem.py b/artiq/gateware/eem.py
+index 467f3cae2e..c7ce7c5879 100644
+--- a/artiq/gateware/eem.py
++++ b/artiq/gateware/eem.py
+@@ -6,6 +6,7 @@
+ from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, dds, grabber
+ from artiq.gateware.suservo import servo, pads as servo_pads
+ from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
++from artiq.gateware.rtio.phy import ttl_simple
+ 
+ 
+ def _eem_signal(i):
+@@ -536,17 +537,17 @@ def add_std(cls, target, eem, eem_aux=None, eem_aux2=None, ttl_out_cls=None,
+ class SUServo(_EEM):
+     @staticmethod
+     def io(*eems, iostandard):
+-        assert len(eems) in (4, 6)
+-        io = (Sampler.io(*eems[0:2], iostandard=iostandard)
+-                + Urukul.io_qspi(*eems[2:4], iostandard=iostandard))
+-        if len(eems) == 6:  # two Urukuls
+-            io += Urukul.io_qspi(*eems[4:6], iostandard=iostandard)
++        assert len(eems) >= 4 and len(eems) % 2 == 0
++        io = Sampler.io(*eems[0:2], iostandard=iostandard)
++        for i in range(len(eems) // 2 - 1):
++            io += Urukul.io_qspi(*eems[(2 * i + 2):(2 * i + 4)], iostandard=iostandard)
+         return io
+ 
+     @classmethod
+     def add_std(cls, target, eems_sampler, eems_urukul,
+                 t_rtt=4, clk=1, shift=11, profile=5,
+-                iostandard=default_iostandard):
++                sync_gen_cls=ttl_simple.ClockGen,
++                iostandard=default_iostandard, sysclk_per_clk=8):
+         """Add a 8-channel Sampler-Urukul Servo
+ 
+         :param t_rtt: upper estimate for clock round-trip propagation time from
+@@ -562,6 +563,8 @@ def add_std(cls, target, eems_sampler, eems_urukul,
+             (default: 11)
+         :param profile: log2 of the number of profiles for each DDS channel
+             (default: 5)
++        :param sysclk_per_clk: DDS "sysclk" (4*refclk = 1GHz typ.) cycles per
++            FPGA "sys" clock (125MHz typ.) cycles (default: 8)
+         """
+         cls.add_extension(
+             target, *(eems_sampler + sum(eems_urukul, [])),
+@@ -573,27 +576,29 @@ def add_std(cls, target, eems_sampler, eems_urukul,
+         urukul_pads = servo_pads.UrukulPads(
+             target.platform, *eem_urukul)
+         target.submodules += sampler_pads, urukul_pads
++        target.rtio_channels.extend(
++            rtio.Channel.from_phy(phy) for phy in urukul_pads.io_update_phys)
+         # timings in units of RTIO coarse period
+         adc_p = servo.ADCParams(width=16, channels=8, lanes=4, t_cnvh=4,
+                                 # account for SCK DDR to CONV latency
+                                 # difference (4 cycles measured)
+                                 t_conv=57 - 4, t_rtt=t_rtt + 4)
+         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
+-                                accu=48, shift=shift, channel=3,
+-                                profile=profile, dly=8)
+-        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
+-                                channels=adc_p.channels, clk=clk)
++                                accu=48, shift=shift, profile=profile, dly=8)
++        dds_p = servo.DDSParams(width=8 + 32 + 16 + 16, sysclk_per_clk=sysclk_per_clk,
++                                channels=4*len(eem_urukul), clk=clk)
+         su = servo.Servo(sampler_pads, urukul_pads, adc_p, iir_p, dds_p)
+         su = ClockDomainsRenamer("rio_phy")(su)
+         # explicitly name the servo submodule to enable the migen namer to derive
+         # a name for the adc return clock domain
+         setattr(target.submodules, "suservo_eem{}".format(eems_sampler[0]), su)
+ 
+-        ctrls = [rtservo.RTServoCtrl(ctrl) for ctrl in su.iir.ctrl]
++        ctrls = [rtservo.RTServoCtrl(ctrl, ctrl_reftime)
++                 for ctrl, ctrl_reftime in zip(su.iir.ctrl, su.iir.ctrl_reftime)]
+         target.submodules += ctrls
+         target.rtio_channels.extend(
+             rtio.Channel.from_phy(ctrl) for ctrl in ctrls)
+-        mem = rtservo.RTServoMem(iir_p, su)
++        mem = rtservo.RTServoMem(iir_p, su, urukul_pads.io_update_phys)
+         target.submodules += mem
+         target.rtio_channels.append(rtio.Channel.from_phy(mem, ififo_depth=4))
+ 
+@@ -603,27 +608,24 @@ def add_std(cls, target, eems_sampler, eems_urukul,
+         target.submodules += phy
+         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+ 
+-        for i in range(2):
+-            if len(eem_urukul) > i:
+-                spi_p, spi_n = (
+-                    target.platform.request("{}_spi_p".format(eem_urukul[i])),
+-                    target.platform.request("{}_spi_n".format(eem_urukul[i])))
+-            else:  # create a dummy bus
+-                spi_p = Record([("clk", 1), ("cs_n", 1)])  # mosi, cs_n
+-                spi_n = None
+-
++        for eem_urukuli in eem_urukul:
++            spi_p, spi_n = (
++                target.platform.request("{}_spi_p".format(eem_urukuli)),
++                target.platform.request("{}_spi_n".format(eem_urukuli)))
+             phy = spi2.SPIMaster(spi_p, spi_n)
+             target.submodules += phy
+             target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
+ 
+-        for j, eem_urukuli in enumerate(eem_urukul):
+-            pads = target.platform.request("{}_dds_reset_sync_in".format(eem_urukuli))
+-            target.specials += DifferentialOutput(0, pads.p, pads.n)
++        if sync_gen_cls is not None:  # AD9910 variant and SYNC_IN from EEM
++            phy = sync_gen_cls(urukul_pads.dds_reset_sync_in, ftw_width=4)
++            target.submodules += phy
++            target.rtio_channels.append(rtio.Channel.from_phy(phy))
+ 
++        for j, eem_urukuli in enumerate(eem_urukul):
+             for i, signal in enumerate("sw0 sw1 sw2 sw3".split()):
+                 pads = target.platform.request("{}_{}".format(eem_urukuli, signal))
+                 target.specials += DifferentialOutput(
+-                    su.iir.ctrl[j*4 + i].en_out, pads.p, pads.n)
++                    su.iir.ctrl[j * 4 + i].en_out, pads.p, pads.n)
+ 
+ 
+ class Mirny(_EEM):
+diff --git a/artiq/gateware/rtio/phy/servo.py b/artiq/gateware/rtio/phy/servo.py
+index 9fa6345211..0f7ebbf4b2 100644
+--- a/artiq/gateware/rtio/phy/servo.py
++++ b/artiq/gateware/rtio/phy/servo.py
+@@ -1,25 +1,32 @@
+ from migen import *
+-
+ from artiq.gateware.rtio import rtlink
+ 
+ 
+ class RTServoCtrl(Module):
+     """Per channel RTIO control interface"""
+-    def __init__(self, ctrl):
++    def __init__(self, ctrl, ctrl_reftime):
+         self.rtlink = rtlink.Interface(
+-            rtlink.OInterface(len(ctrl.profile) + 2))
++            rtlink.OInterface(
++                data_width=max(len(ctrl.profile) + 3,
++                               len(ctrl_reftime.sysclks_fine)),
++                address_width=1)
++            )
+ 
+         # # #
+ 
++        sel_ref = self.rtlink.o.address[0]
+         self.comb += [
+-                ctrl.stb.eq(self.rtlink.o.stb),
+-                self.rtlink.o.busy.eq(0)
++                ctrl.stb.eq(self.rtlink.o.stb & ~sel_ref),
++                self.rtlink.o.busy.eq(0),
++                ctrl_reftime.stb.eq(self.rtlink.o.stb & sel_ref),
+         ]
++        ctrl_cases = {
++            0: Cat(ctrl.en_out, ctrl.en_iir, ctrl.en_pt, ctrl.profile).eq(
++                            self.rtlink.o.data),
++            1: ctrl_reftime.sysclks_fine.eq(self.rtlink.o.data),
++        }
+         self.sync.rio_phy += [
+-                If(self.rtlink.o.stb,
+-                    Cat(ctrl.en_out, ctrl.en_iir, ctrl.profile).eq(
+-                            self.rtlink.o.data)
+-                )
++                If(self.rtlink.o.stb, Case(self.rtlink.o.address, ctrl_cases))
+         ]
+ 
+ 
+@@ -34,35 +41,45 @@ class RTServoMem(Module):
+     """All-channel all-profile coefficient and state RTIO control
+     interface.
+ 
++    The real-time interface exposes the following functions:
++      1. enable/disable servo iterations
++      2. read the servo status (including state of clip register)
++      3. access the IIR coefficient memory (set PI loop gains etc.)
++      4. access the IIR state memory (set offset and read ADC data)
++
++    The bit assignments for the servo address space are (from MSB):
++      * write-enable (1 bit)
++      * sel_coeff (1 bit)
++        If selected, the coefficient memory location is
++        addressed by all the lower bits excluding the LSB (high_coeff).
++          - high_coeff (1 bit) selects between the upper and lower halves of that
++            memory location.
++        Else (if ~sel_coeff), the following bits are:
++          - sel (2 bits) selects between the following memory locations:
++
++                 destination    |  sel  |  sel_coeff   |
++                ----------------|-------|--------------|
++                 IIR coeff mem  |   -   |       1      |
++                 DDS delay mem  |   1   |       0      |
++                 IIR state mem  |   2   |       0      |
++                 config (write) |   3   |       0      |
++                 status (read)  |   3   |       0      |
++
++          - IIR state memory address
++
+     Servo internal addresses are internal_address_width wide, which is
+     typically longer than the 8-bit RIO address space. We pack the overflow
+     onto the RTIO data word after the data.
+ 
+-    Servo address space (from LSB):
+-      - IIR coefficient/state memory address, (w.profile + w.channel + 2) bits.
+-        If the state memory is selected, the lower bits are used directly as
+-        the memory address. If the coefficient memory is selected, the LSB
+-        (high_coeff) selects between the upper and lower halves of the memory
+-        location, which is two coefficients wide, with the remaining bits used
+-        as the memory address.
+-      - config_sel (1 bit)
+-      - state_sel (1 bit)
+-      - we (1 bit)
+-
+-     destination    | config_sel | state_sel
+-    ----------------|------------|----------
+-     IIR coeff mem  |    0       |   0
+-     IIR coeff mem  |    1       |   0
+-     IIR state mem  |    0       |   1
+-     config (write) |    1       |   1
+-     status (read)  |    1       |   1
++    The address layout reflects the fact that typically, the coefficient memory
++    address is 2 bits wider than the state memory address.
+ 
+     Values returned to the user on the Python side of the RTIO interface are
+     32 bit, so we sign-extend all values from w.coeff to that width. This works
+     (instead of having to decide whether to sign- or zero-extend per address), as
+     all unsigned values are less wide than w.coeff.
+     """
+-    def __init__(self, w, servo):
++    def __init__(self, w, servo, io_update_phys):
+         m_coeff = servo.iir.m_coeff.get_port(write_capable=True,
+                 mode=READ_FIRST,
+                 we_granularity=w.coeff, clock_domain="rio")
+@@ -71,6 +88,7 @@ def __init__(self, w, servo):
+                 # mode=READ_FIRST,
+                 clock_domain="rio")
+         self.specials += m_state, m_coeff
++        w_channel = bits_for(len(servo.iir.dds) - 1)
+ 
+         # just expose the w.coeff (18) MSBs of state
+         assert w.state >= w.coeff
+@@ -83,7 +101,7 @@ def __init__(self, w, servo):
+         assert 8 + w.dly < w.coeff
+ 
+         # coeff, profile, channel, 2 mems, rw
+-        internal_address_width = 3 + w.profile + w.channel + 1 + 1
++        internal_address_width = 3 + w.profile + w_channel + 1 + 1
+         rtlink_address_width = min(8, internal_address_width)
+         overflow_address_width = internal_address_width - rtlink_address_width
+         self.rtlink = rtlink.Interface(
+@@ -99,7 +117,7 @@ def __init__(self, w, servo):
+         # # #
+ 
+         config = Signal(w.coeff, reset=0)
+-        status = Signal(w.coeff)
++        status = Signal(len(self.rtlink.i.data))
+         pad = Signal(6)
+         self.comb += [
+                 Cat(servo.start).eq(config),
+@@ -109,15 +127,19 @@ def __init__(self, w, servo):
+ 
+         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff == (
+                 1 +  # we
+-                1 +  # state_sel
++                1 +  # sel_coeff
+                 1 +  # high_coeff
+                 len(m_coeff.adr))
+-        # ensure that we can fit config/status into the state address space
++        # ensure that we can fit config/io_dly/status into the state address space
+         assert len(self.rtlink.o.address) + len(self.rtlink.o.data) - w.coeff >= (
+                 1 +  # we
+-                1 +  # state_sel
+-                1 +  # config_sel
++                1 +  # sel_coeff
++                2 +  # sel
+                 len(m_state.adr))
++        # ensure that IIR state mem addresses are at least 2 bits less wide than
++        # IIR coeff mem addresses to ensure we can fit SEL after the state mem
++        # address and before the SEL_COEFF bit.
++        assert w.profile + w_channel >= 4
+ 
+         internal_address = Signal(internal_address_width)
+         self.comb += internal_address.eq(Cat(self.rtlink.o.address,
+@@ -127,52 +149,60 @@ def __init__(self, w, servo):
+         self.comb += coeff_data.eq(self.rtlink.o.data[:w.coeff])
+ 
+         we = internal_address[-1]
+-        state_sel = internal_address[-2]
+-        config_sel = internal_address[-3]
++        sel_coeff = internal_address[-2]
++        sel1 = internal_address[-3]
++        sel0 = internal_address[-4]
+         high_coeff = internal_address[0]
++        sel = Signal(2)
+         self.comb += [
+                 self.rtlink.o.busy.eq(0),
++                sel.eq(Mux(sel_coeff, 0, Cat(sel0, sel1))),
+                 m_coeff.adr.eq(internal_address[1:]),
+                 m_coeff.dat_w.eq(Cat(coeff_data, coeff_data)),
+-                m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff &
+-                    we & ~state_sel),
+-                m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff &
+-                    we & ~state_sel),
++                m_coeff.we[0].eq(self.rtlink.o.stb & ~high_coeff & we & sel_coeff),
++                m_coeff.we[1].eq(self.rtlink.o.stb & high_coeff & we & sel_coeff),
+                 m_state.adr.eq(internal_address),
+                 m_state.dat_w[w.state - w.coeff:].eq(self.rtlink.o.data),
+-                m_state.we.eq(self.rtlink.o.stb & we & state_sel & ~config_sel),
++                m_state.we.eq(self.rtlink.o.stb & we & (sel == 2)),
+         ]
+         read = Signal()
+-        read_state = Signal()
+         read_high = Signal()
+-        read_config = Signal()
++        read_sel = Signal(2)
+         self.sync.rio += [
+                 If(read,
+                     read.eq(0)
+                 ),
+                 If(self.rtlink.o.stb,
+                     read.eq(~we),
+-                    read_state.eq(state_sel),
++                    read_sel.eq(sel),
+                     read_high.eq(high_coeff),
+-                    read_config.eq(config_sel),
+                 )
+         ]
++
++        # I/O update alignment delays
++        ioup_dlys = Cat(*[phy.fine_ts for phy in io_update_phys])
++        assert w.coeff >= len(ioup_dlys)
++
+         self.sync.rio_phy += [
+-                If(self.rtlink.o.stb & we & state_sel & config_sel,
++                If(self.rtlink.o.stb & we & (sel == 3),
+                     config.eq(self.rtlink.o.data)
+                 ),
+-                If(read & read_config & read_state,
++                If(read & (read_sel == 3),
+                     [_.clip.eq(0) for _ in servo.iir.ctrl]
+-                )
++                ),
++                If(self.rtlink.o.stb & we & (sel == 1),
++                    ioup_dlys.eq(self.rtlink.o.data)
++                ),
+         ]
++
++        # read return value by destination
++        read_acts = Array([
++                Mux(read_high, m_coeff.dat_r[w.coeff:], m_coeff.dat_r[:w.coeff]),
++                ioup_dlys,
++                m_state.dat_r[w.state - w.coeff:],
++                status
++        ])
+         self.comb += [
+                 self.rtlink.i.stb.eq(read),
+-                _eq_sign_extend(self.rtlink.i.data,
+-                    Mux(read_state,
+-                        Mux(read_config,
+-                            status,
+-                            m_state.dat_r[w.state - w.coeff:]),
+-                        Mux(read_high,
+-                            m_coeff.dat_r[w.coeff:],
+-                            m_coeff.dat_r[:w.coeff])))
++                _eq_sign_extend(self.rtlink.i.data, read_acts[read_sel]),
+         ]
+diff --git a/artiq/gateware/suservo/dds_ser.py b/artiq/gateware/suservo/dds_ser.py
+index 38d1f6d946..cdccfcc98e 100644
+--- a/artiq/gateware/suservo/dds_ser.py
++++ b/artiq/gateware/suservo/dds_ser.py
+@@ -1,4 +1,5 @@
+ import logging
++from collections import namedtuple
+ 
+ from migen import *
+ 
+@@ -6,11 +7,11 @@
+ 
+ from . import spi
+ 
+-
+ logger = logging.getLogger(__name__)
+ 
+-
+-DDSParams = spi.SPIParams
++DDSParams = namedtuple("DDSParams", spi.SPIParams._fields + (
++    "sysclk_per_clk",  # DDS_CLK per FPGA system clock
++))
+ 
+ 
+ class DDS(spi.SPISimple):
+diff --git a/artiq/gateware/suservo/iir.py b/artiq/gateware/suservo/iir.py
+index 0ec9bfa093..3fad77a6ea 100644
+--- a/artiq/gateware/suservo/iir.py
++++ b/artiq/gateware/suservo/iir.py
+@@ -1,6 +1,7 @@
+ from collections import namedtuple
+ import logging
+ from migen import *
++from migen.genlib.coding import Encoder
+ 
+ logger = logging.getLogger(__name__)
+ 
+@@ -16,7 +17,6 @@
+     "word",     # "word" size to break up DDS profile data (16)
+     "asf",      # unsigned amplitude scale factor for DDS (14)
+     "shift",    # fixed point scaling coefficient for a1, b0, b1 (log2!) (11)
+-    "channel",  # channels (log2!) (3)
+     "profile",  # profiles per channel (log2!) (5)
+     "dly",      # the activation delay
+ ])
+@@ -99,14 +99,14 @@ class IIR(Module):
+     This module implements a multi-channel IIR (infinite impulse response)
+     filter processor optimized for synthesis on FPGAs.
+ 
+-    The module is parametrized by passing a ``IIRWidths()`` object which
+-    will be abbreviated W here.
++    The module is parametrized by passing a ``IIRWidths()`` object, and
++    two more objects which will be abbreviated W, W_O and W_I here.
+ 
+-    It reads 1 << W.channels input channels (typically from an ADC)
++    It reads W_I.channels input channels (typically from an ADC)
+     and on each iteration processes the data using a first-order IIR filter.
+     At the end of the cycle each the output of the filter together with
+     additional data (typically frequency tunning word and phase offset word
+-    for a DDS) are presented at the 1 << W.channels outputs of the module.
++    for a DDS) are presented at the W_O.channels outputs of the module.
+ 
+     Profile memory
+     ==============
+@@ -145,10 +145,10 @@ class IIR(Module):
+     -------------
+ 
+     The state memory holds all Y1 values (IIR processor outputs) for all
+-    profiles of all channels in the lower half (1 << W.profile + W.channel
+-    addresses) and the pairs of old and new ADC input values X1, and X0,
+-    in the upper half (1 << W.channel addresses). Each memory location is
+-    W.state bits wide.
++    profiles of all channels in the lower half (1 << W.profile)*W_O.channels
++    addresses, and the pairs of old and new ADC input values X1, and X0,
++    in the upper half (W_I.channels addresses).
++    Each memory location is W.state bits wide.
+ 
+     Real-time control
+     =================
+@@ -157,15 +157,16 @@ class IIR(Module):
+ 
+         * The active profile, PROFILE
+         * Whether to perform IIR filter iterations, EN_IIR
++        * Whether to track the DDS phase coherently, EN_PT
+         * The RF switch state enabling output from the channel, EN_OUT
+ 
+     Delayed IIR processing
+     ======================
+ 
+-    The IIR filter iterations on a given channel are only performed all of the
+-    following are true:
++    The IIR filter iterations on a given channel are only performed if all of
++    the following are true:
+ 
+-        * PROFILE, EN_IIR, EN_OUT have not been updated in the within the
++        * PROFILE, EN_IIR, EN_OUT have not been updated within the
+           last DLY cycles
+         * EN_IIR is asserted
+         * EN_OUT is asserted
+@@ -176,9 +177,8 @@ class IIR(Module):
+     Typical design at the DSP level. This does not include the description of
+     the pipelining or the overall latency involved.
+ 
+-    IIRWidths(state=25, coeff=18, adc=16,
+-        asf=14, word=16, accu=48, shift=11,
+-        channel=3, profile=5, dly=8)
++    IIRWidths(state=25, coeff=18, adc=16, asf=14,
++        word=16, accu=48, shift=11, profile=5, dly=8)
+ 
+     X0 = ADC * 2^(25 - 1 - 16)
+     X1 = X0 delayed by one cycle
+@@ -213,39 +213,64 @@ class IIR(Module):
+     --/--: signal with a given bit width always includes a sign bit
+     -->--: flow is to the right and down unless otherwise indicated
+     """
+-    def __init__(self, w):
+-        self.widths = w
+-        for i, j in enumerate(w):
+-            assert j > 0, (i, j, w)
++    def __init__(self, w, w_i, w_o, t_cycle):
++        for v in (w, w_i, w_o):
++            for i, j in enumerate(v):
++                assert j > 0, (i, j, v)
+         assert w.word <= w.coeff  # same memory
+         assert w.state + w.coeff + 3 <= w.accu
+ 
++        # Reference counter for coherent phase tracking (we assume this doesn't
++        # roll over – a good assumption, as the period is, for a typical clock
++        # frequency, 2^48 / 125 MHz = ~26 days).
++        self.t_running = Signal(48, reset_less=True)
++
++        # If true, internal DDS phase tracking state is reset, matching DDS
++        # chips with phase cleared (and zero FTW) before the start of the
++        # iteration. Automatically reset at the end of the iteration.
++        self.reset_dds_phase = Signal()
++
+         # m_coeff of active profiles should only be accessed externally during
+         # ~processing
+         self.specials.m_coeff = Memory(
+                 width=2*w.coeff,  # Cat(pow/ftw/offset, cfg/a/b)
+-                depth=4 << w.profile + w.channel)
++                depth=(4 << w.profile) * w_o.channels)
+         # m_state[x] should only be read externally during ~(shifting | loading)
+         # m_state[y] of active profiles should only be read externally during
+         # ~processing
+         self.specials.m_state = Memory(
+                 width=w.state,  # y1,x0,x1
+-                depth=(1 << w.profile + w.channel) + (2 << w.channel))
++                depth=(1 << w.profile) * w_o.channels + 2 * w_i.channels)
+         # ctrl should only be updated synchronously
+         self.ctrl = [Record([
+                 ("profile", w.profile),
+                 ("en_out", 1),
+                 ("en_iir", 1),
++                ("en_pt", 1),
+                 ("clip", 1),
+                 ("stb", 1)])
+-                for i in range(1 << w.channel)]
++                for i in range(w_o.channels)]
++        # "Shadow copy" of phase accumulator in DDS accumulator for each output
++        # channel.
++        self.specials.m_accum_ftw = Memory(
++                width=2 * w.word,
++                depth=w_o.channels)
++        # ctrl_reftime should only be updated synchronously
++        self.ctrl_reftime = [Record([
++                ("sysclks_fine", bits_for(w_o.sysclk_per_clk - 1)),
++                ("stb", 1)])
++                for i in range(w_o.channels)]
++        # Reference time for each output channel.
++        self.specials.m_t_ref = Memory(
++                width=len(self.t_running),
++                depth=w_o.channels)
+         # only update during ~loading
+         self.adc = [Signal((w.adc, True), reset_less=True)
+-                for i in range(1 << w.channel)]
++                for i in range(w_i.channels)]
+         # Cat(ftw0, ftw1, pow, asf)
+         # only read externally during ~processing
+-        self.dds = [Signal(4*w.word, reset_less=True)
+-                for i in range(1 << w.channel)]
++        self.dds = [Signal(4 * w.word, reset_less=True)
++                for i in range(w_o.channels)]
+         # perform one IIR iteration, start with loading,
+         # then processing, then shifting, end with done
+         self.start = Signal()
+@@ -265,8 +290,15 @@ def __init__(self, w):
+         profiles = Array([ch.profile for ch in self.ctrl])
+         en_outs = Array([ch.en_out for ch in self.ctrl])
+         en_iirs = Array([ch.en_iir for ch in self.ctrl])
++        en_pts = Array([ch.en_pt for ch in self.ctrl])
+         clips = Array([ch.clip for ch in self.ctrl])
+ 
++        # Sample of the reference counter at the start of the current iteration,
++        # such that a common reference time is used for phase calculations
++        # across all channels, in DDS sysclk units.
++        sysclks_to_iter_start = Signal(
++            len(self.t_running) + bits_for(w_o.sysclk_per_clk - 1))
++
+         # Main state machine sequencing the steps of each servo iteration. The
+         # module IDLEs until self.start is asserted, and then runs through LOAD,
+         # PROCESS and SHIFT in order (see description of corresponding flags
+@@ -281,7 +313,7 @@ def __init__(self, w):
+         # using the (MSBs of) t_current_step, and, after all channels have been
+         # covered, proceed once the pipeline has completely drained.
+         self.submodules.fsm = fsm = FSM("IDLE")
+-        t_current_step = Signal(w.channel + 2)
++        t_current_step = Signal(max=max(4 * (w_o.channels + 2), 2 * w_i.channels))
+         t_current_step_clr = Signal()
+ 
+         # pipeline group activity flags (SR)
+@@ -293,12 +325,13 @@ def __init__(self, w):
+                 self.done.eq(1),
+                 t_current_step_clr.eq(1),
+                 If(self.start,
++                    NextValue(sysclks_to_iter_start, self.t_running * w_o.sysclk_per_clk),
+                     NextState("LOAD")
+                 )
+         )
+         fsm.act("LOAD",
+                 self.loading.eq(1),
+-                If(t_current_step == (1 << w.channel) - 1,
++                If(t_current_step == w_i.channels - 1,
+                     t_current_step_clr.eq(1),
+                     NextValue(stages_active[0], 1),
+                     NextState("PROCESS")
+@@ -311,11 +344,12 @@ def __init__(self, w):
+                 If(stages_active == 0,
+                     t_current_step_clr.eq(1),
+                     NextState("SHIFT"),
++                    NextValue(self.reset_dds_phase, 0)
+                 )
+         )
+         fsm.act("SHIFT",
+                 self.shifting.eq(1),
+-                If(t_current_step == (2 << w.channel) - 1,
++                If(t_current_step == 2 * w_i.channels - 1,
+                     NextState("IDLE")
+                 )
+         )
+@@ -333,13 +367,13 @@ def __init__(self, w):
+         # pipeline group channel pointer (SR)
+         # for each pipeline stage, this is the channel currently being
+         # processed
+-        channel = [Signal(w.channel, reset_less=True) for i in range(3)]
++        channel = [Signal(max=w_o.channels, reset_less=True) for i in range(3)]
+         self.comb += Cat(pipeline_phase, channel[0]).eq(t_current_step)
+         self.sync += [
+             If(pipeline_phase == 3,
+                 Cat(channel[1:]).eq(Cat(channel[:-1])),
+                 stages_active[1:].eq(stages_active[:-1]),
+-                If(channel[0] == (1 << w.channel) - 1,
++                If(channel[0] == w_o.channels - 1,
+                     stages_active[0].eq(0)
+                 )
+             )
+@@ -393,13 +427,13 @@ def __init__(self, w):
+ 
+         # selected adc and profile delay (combinatorial from dat_r)
+         # both share the same coeff word (sel in the lower 8 bits)
+-        sel_profile = Signal(w.channel)
++        sel_profile = Signal(max=w_i.channels)
+         dly_profile = Signal(w.dly)
+-        assert w.channel <= 8
++        assert w_o.channels < (1 << 8)
+         assert 8 + w.dly <= w.coeff
+ 
+         # latched adc selection
+-        sel = Signal(w.channel, reset_less=True)
++        sel = Signal(max=w_i.channels, reset_less=True)
+         # iir enable SR
+         en = Signal(2, reset_less=True)
+ 
+@@ -407,12 +441,12 @@ def __init__(self, w):
+                 sel_profile.eq(m_coeff.dat_r[w.coeff:]),
+                 dly_profile.eq(m_coeff.dat_r[w.coeff + 8:]),
+                 If(self.shifting,
+-                    m_state.adr.eq(t_current_step | (1 << w.profile + w.channel)),
++                    m_state.adr.eq(t_current_step + (1 << w.profile) * w_o.channels),
+                     m_state.dat_w.eq(m_state.dat_r),
+                     m_state.we.eq(t_current_step[0])
+                 ),
+                 If(self.loading,
+-                    m_state.adr.eq((t_current_step << 1) | (1 << w.profile + w.channel)),
++                    m_state.adr.eq((t_current_step << 1) + (1 << w.profile) * w_o.channels),
+                     m_state.dat_w[-w.adc - 1:-1].eq(Array(self.adc)[t_current_step]),
+                     m_state.dat_w[-1].eq(m_state.dat_w[-2]),
+                     m_state.we.eq(1)
+@@ -424,9 +458,9 @@ def __init__(self, w):
+                         # read old y
+                         Cat(profile[0], channel[0]),
+                         # read x0 (recent)
+-                        0 | (sel_profile << 1) | (1 << w.profile + w.channel),
++                        0 | (sel_profile << 1) + (1 << w.profile) * w_o.channels,
+                         # read x1 (old)
+-                        1 | (sel << 1) | (1 << w.profile + w.channel),
++                        1 | (sel << 1) + (1 << w.profile) * w_o.channels,
+                     ])[pipeline_phase]),
+                     m_state.dat_w.eq(dsp.output),
+                     m_state.we.eq((pipeline_phase == 0) & stages_active[2] & en[1]),
+@@ -438,11 +472,9 @@ def __init__(self, w):
+         #
+ 
+         # internal channel delay counters
+-        dlys = Array([Signal(w.dly)
+-            for i in range(1 << w.channel)])
+-        self._dlys = dlys  # expose for debugging only
++        dlys = Array([Signal(w.dly) for i in range(w_o.channels)])
+ 
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             self.sync += [
+                     # (profile != profile_old) | ~en_out
+                     If(self.ctrl[i].stb,
+@@ -482,25 +514,81 @@ def __init__(self, w):
+             }),
+         ]
+ 
++        # Update coarse reference time from t_running upon ctrl_reftime strobe
++        ref_stb_encoder = Encoder(w_o.channels)
++        m_t_ref_stb = self.m_t_ref.get_port(write_capable=True)
++        self.specials += m_t_ref_stb
++        self.submodules += ref_stb_encoder
++        self.comb += [
++                ref_stb_encoder.i.eq(Cat([ch.stb for ch in self.ctrl_reftime])),
++                m_t_ref_stb.adr.eq(ref_stb_encoder.o),
++                m_t_ref_stb.we.eq(~ref_stb_encoder.n),
++                m_t_ref_stb.dat_w.eq(self.t_running),
++        ]
++
+         #
+-        # Update DDS profile with FTW/POW/ASF
+-        # Stage 0 loads the POW, stage 1 the FTW, and stage 2 writes
+-        # the ASF computed by the IIR filter.
++        # Update DDS profile with FTW/POW/ASF (including phase tracking, if
++        # enabled). Stage 0 loads the POW, stage 1 the FTW, and stage 2 writes
++        # the ASF computed by the IIR filter (and adds any phase correction).
+         #
+ 
+         # muxing
+         ddss = Array(self.dds)
++        sysclks_ref_fine = Array([ch.sysclks_fine for ch in self.ctrl_reftime])
++
++        # registered copy of FTW on channel[1]
++        current_ftw = Signal(2 * w.word, reset_less=True)
++        # target effective DDS phase (accumulator + POW) at the coming io_update
++        target_dds_phase = Signal.like(current_ftw)
++        # DDS-internal phase accumulated until the coming io_update
++        accum_dds_phase = Signal.like(current_ftw)
++        # correction to add to the bare POW to yield a phase-coherent DDS output
++        correcting_pow = Signal(w.word, reset_less=True)
++        # sum of all FTWs on channel[1], updated with current FTW during the
++        # calculation
++        accum_ftw = Signal.like(current_ftw)
++        # sum of previous FTWs on channel[1] (or 0 on phase coherence reference
++        # reset)
++        prev_accum_ftw = Signal.like(current_ftw)
++        # time since reference time at coming io_update in DDS sysclk units
++        sysclks_to_ref = Signal.like(sysclks_to_iter_start)
++        # t_ref in DDS sysclk units
++        sysclks_ref_to_iter_start = Signal.like(sysclks_to_iter_start)
++
++        m_t_ref = self.m_t_ref.get_port()
++        m_accum_ftw = self.m_accum_ftw.get_port(write_capable=True, mode=READ_FIRST)
++        self.specials += m_accum_ftw, m_t_ref
++        prev_accum_ftw = Signal.like(accum_ftw)
++        self.comb += [
++            prev_accum_ftw.eq(Mux(self.reset_dds_phase, 0, m_accum_ftw.dat_r)),
++            m_accum_ftw.adr.eq(channel[1]),
++            m_accum_ftw.we.eq((pipeline_phase == 3) & stages_active[1]),
++            m_accum_ftw.dat_w.eq(accum_ftw),
++            m_t_ref.adr.eq(channel[0]),
++        ]
+ 
++        sysclks_per_iter = t_cycle * w_o.sysclk_per_clk
+         self.sync += [
+             Case(pipeline_phase, {
+                 0: [
+                     If(stages_active[1],
+                         ddss[channel[1]][:w.word].eq(m_coeff.dat_r),  # ftw0
++                        current_ftw[:w.word].eq(m_coeff.dat_r),
++                        sysclks_ref_to_iter_start.eq(m_t_ref.dat_r * w_o.sysclk_per_clk),
++                    ),
++                    If(stages_active[2] & en_pts[channel[2]],
++                        # add pow correction if phase tracking enabled
++                        ddss[channel[2]][2*w.word:3*w.word].eq(
++                            ddss[channel[2]][2*w.word:3*w.word] + correcting_pow),
+                     ),
+                 ],
+                 1: [
+                     If(stages_active[1],
+                         ddss[channel[1]][w.word:2 * w.word].eq(m_coeff.dat_r),  # ftw1
++                        current_ftw[w.word:].eq(m_coeff.dat_r),
++                        sysclks_to_ref.eq(sysclks_to_iter_start - (
++                            sysclks_ref_to_iter_start + sysclks_ref_fine[channel[1]])),
++                        accum_dds_phase.eq(prev_accum_ftw * sysclks_per_iter),
+                     ),
+                     If(stages_active[2],
+                         ddss[channel[2]][3*w.word:].eq(  # asf
+@@ -509,14 +597,40 @@ def __init__(self, w):
+                 ],
+                 2: [
+                     If(stages_active[0],
+-                        ddss[channel[0]][2*w.word:3*w.word].eq(m_coeff.dat_r),  # pow
++                        # Load bare POW from profile memory.
++                        ddss[channel[0]][2*w.word:3*w.word].eq(m_coeff.dat_r),
++                    ),
++                    If(stages_active[1],
++                        target_dds_phase.eq(current_ftw * sysclks_to_ref),
++                        accum_ftw.eq(prev_accum_ftw + current_ftw),
+                     ),
+                 ],
+                 3: [
++                    If(stages_active[1],
++                        # Prepare most-significant word to add to POW from
++                        # profile for phase tracking.
++                        correcting_pow.eq(
++                            (target_dds_phase - accum_dds_phase)[w.word:]),
++                    ),
+                 ],
+             }),
+         ]
+ 
++        # expose for simulation and debugging only
++        self.widths = w
++        self.widths_adc = w_i
++        self.widths_dds = w_o
++        self.t_cycle = t_cycle
++        self._state = t_current_step
++        self._stages = stages_active
++        self._dt_start = sysclks_to_iter_start
++        self._sysclks_to_ref = sysclks_to_ref
++        self._sysclks_ref_to_iter_start = sysclks_ref_to_iter_start
++        self._sysclks_ref_fine = sysclks_ref_fine
++        self._ph_acc = accum_dds_phase
++        self._ph_coh = target_dds_phase
++        self._dlys = dlys
++
+     def _coeff(self, channel, profile, coeff):
+         """Return ``high_word``, ``address`` and bit ``mask`` for the
+         storage of coefficient name ``coeff`` in profile ``profile``
+@@ -564,35 +678,45 @@ def get_coeff(self, channel, profile, coeff):
+     def set_state(self, channel, val, profile=None, coeff="y1"):
+         """Set a state value."""
+         w = self.widths
++        w_o = self.widths_dds
+         if coeff == "y1":
+             assert profile is not None
+             yield self.m_state[profile | (channel << w.profile)].eq(val)
+         elif coeff == "x0":
+             assert profile is None
+-            yield self.m_state[(channel << 1) |
+-                    (1 << w.profile + w.channel)].eq(val)
++            yield self.m_state[(channel << 1) +
++                    (1 << w.profile) * w_o.channels].eq(val)
+         elif coeff == "x1":
+             assert profile is None
+-            yield self.m_state[1 | (channel << 1) |
+-                    (1 << w.profile + w.channel)].eq(val)
++            yield self.m_state[1 | (channel << 1) +
++                    (1 << w.profile) * w_o.channels].eq(val)
+         else:
+             raise ValueError("no such state", coeff)
+ 
+     def get_state(self, channel, profile=None, coeff="y1"):
+         """Get a state value."""
+         w = self.widths
++        w_o = self.widths_dds
+         if coeff == "y1":
+             val = yield self.m_state[profile | (channel << w.profile)]
+         elif coeff == "x0":
+-            val = yield self.m_state[(channel << 1) |
+-                    (1 << w.profile + w.channel)]
++            val = yield self.m_state[(channel << 1) +
++                    (1 << w.profile) * w_o.channels]
+         elif coeff == "x1":
+-            val = yield self.m_state[1 | (channel << 1) |
+-                    (1 << w.profile + w.channel)]
++            val = yield self.m_state[1 | (channel << 1) +
++                    (1 << w.profile) * w_o.channels]
+         else:
+             raise ValueError("no such state", coeff)
+         return signed(val, w.state)
+ 
++    def get_accum_ftw(self, channel):
++        val = yield self.m_accum_ftw[channel]
++        return val
++
++    def get_t_ref(self, channel):
++        val = yield self.m_t_ref[channel]
++        return val
++
+     def fast_iter(self):
+         """Perform a single processing iteration."""
+         assert (yield self.done)
+@@ -607,6 +731,8 @@ def check_iter(self):
+         """Perform a single processing iteration while verifying
+         the behavior."""
+         w = self.widths
++        w_i = self.widths_adc
++        w_o = self.widths_dds
+ 
+         while not (yield self.done):
+             yield
+@@ -622,25 +748,33 @@ def check_iter(self):
+ 
+         x0s = []
+         # check adc loading
+-        for i in range(1 << w.channel):
++        for i in range(w_i.channels):
+             v_adc = signed((yield self.adc[i]), w.adc)
+             x0 = yield from self.get_state(i, coeff="x0")
+             x0s.append(x0)
+-            assert v_adc << (w.state - w.adc - 1) == x0, (hex(v_adc), hex(x0))
+             logger.debug("adc[%d] adc=%x x0=%x", i, v_adc, x0)
++            assert v_adc << (w.state - w.adc - 1) == x0, (hex(v_adc), hex(x0))
+ 
+         data = []
+         # predict output
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
++            t0 = yield self._dt_start
++            dds_ftw_accu = yield from self.get_accum_ftw(i)
++            sysclks_ref = (yield from self.get_t_ref(i)) * self.widths_dds.sysclk_per_clk\
++                           + (yield self.ctrl_reftime[i].sysclks_fine)
++            logger.debug("dt_start=%d dt_ref=%d t_cycle=%d ftw_accu=%#x",
++                         t0, sysclks_ref, self.t_cycle, dds_ftw_accu)
++
+             j = yield self.ctrl[i].profile
+             en_iir = yield self.ctrl[i].en_iir
+             en_out = yield self.ctrl[i].en_out
++            en_pt = yield self.ctrl[i].en_pt
+             dly_i = yield self._dlys[i]
+-            logger.debug("ctrl[%d] profile=%d en_iir=%d en_out=%d dly=%d",
+-                    i, j, en_iir, en_out, dly_i)
++            logger.debug("ctrl[%d] profile=%d en_iir=%d en_out=%d en_pt=%d dly=%d",
++                    i, j, en_iir, en_out, en_pt, dly_i)
+ 
+             cfg = yield from self.get_coeff(i, j, "cfg")
+-            k_j = cfg & ((1 << w.channel) - 1)
++            k_j = cfg & ((1 << bits_for(w_i.channels - 1)) - 1)
+             dly_j = (cfg >> 8) & 0xff
+             logger.debug("cfg[%d,%d] sel=%d dly=%d", i, j, k_j, dly_j)
+ 
+@@ -657,9 +791,13 @@ def check_iter(self):
+ 
+             ftw0 = yield from self.get_coeff(i, j, "ftw0")
+             ftw1 = yield from self.get_coeff(i, j, "ftw1")
+-            pow = yield from self.get_coeff(i, j, "pow")
+-            logger.debug("dds[%d,%d] ftw0=%#x ftw1=%#x pow=%#x",
+-                    i, j, ftw0, ftw1, pow)
++            _pow = yield from self.get_coeff(i, j, "pow")
++            ph_coh = ((ftw0 | (ftw1 << w.word)) * (t0 - sysclks_ref))
++            ph_accu = dds_ftw_accu * self.t_cycle * self.widths_dds.sysclk_per_clk
++            ph = ph_coh - ph_accu
++            pow = (_pow + (ph >> w.word)) & 0xffff if en_pt else _pow
++            logger.debug("dds[%d,%d] ftw0=%#x ftw1=%#x ph_coh=%#x _pow=%#x pow=%#x",
++                    i, j, ftw0, ftw1, ph_coh, _pow, pow)
+ 
+             y1 = yield from self.get_state(i, j, "y1")
+             x1 = yield from self.get_state(k_j, coeff="x1")
+@@ -681,6 +819,10 @@ def check_iter(self):
+         # wait for output
+         assert (yield self.processing)
+         while (yield self.processing):
++            logger.debug("sysclks_to_ref=%d sysclks_ref_to_iter_start=%d",
++                         (yield self._sysclks_to_ref),
++                         (yield self._sysclks_ref_to_iter_start))
++            # logger.debug("%d %d %d %d", *[x for x in (yield self._sysclks_ref_fine)])
+             yield
+ 
+         assert (yield self.shifting)
+@@ -694,7 +836,7 @@ def check_iter(self):
+             logger.debug("adc[%d] x0=%x x1=%x", i, x0, x1)
+ 
+         # check new state
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             j = yield self.ctrl[i].profile
+             logger.debug("ch[%d] profile=%d", i, j)
+             y1 = yield from self.get_state(i, j, "y1")
+@@ -702,7 +844,7 @@ def check_iter(self):
+             assert y1 == y0, (hex(y1), hex(y0))
+ 
+         # check dds output
+-        for i in range(1 << w.channel):
++        for i in range(w_o.channels):
+             ftw0, ftw1, pow, y0, x1, x0 = data[i]
+             asf = y0 >> (w.state - w.asf - 1)
+             dds = (ftw0 | (ftw1 << w.word) |
+diff --git a/artiq/gateware/suservo/pads.py b/artiq/gateware/suservo/pads.py
+index 0ab7d352f1..bdae8ee35c 100644
+--- a/artiq/gateware/suservo/pads.py
++++ b/artiq/gateware/suservo/pads.py
+@@ -1,5 +1,7 @@
+ from migen import *
+ from migen.genlib.io import DifferentialOutput, DifferentialInput, DDROutput
++from artiq.gateware.rtio.phy import ttl_serdes_7series, ttl_serdes_generic
++from artiq.gateware.rtio import rtlink
+ 
+ 
+ class SamplerPads(Module):
+@@ -57,27 +59,85 @@ def __init__(self, platform, eem):
+                 clk=dp.clkout, port=sdop)
+ 
+ 
++class OutIoUpdate_8X(Module):
++    def __init__(self, pad):
++        serdes = ttl_serdes_7series._OSERDESE2_8X()
++        self.submodules += serdes
++
++        self.passthrough = Signal()
++        self.data = Signal()
++        self.fine_ts = Signal(3)
++
++        self.rtlink = rtlink.Interface(
++            rtlink.OInterface(1, fine_ts_width=3))
++        self.probes = [serdes.o[-1]]
++        override_en = Signal()
++        override_o = Signal()
++        self.overrides = [override_en, override_o]
++
++        # # #
++
++        self.specials += Instance("IOBUFDS",
++                                  i_I=serdes.ser_out,
++                                  i_T=serdes.t_out,
++                                  io_IO=pad.p,
++                                  io_IOB=pad.n)
++
++        # Just strobe always in non-passthrough mode, as self.data is supposed
++        # to be always valid.
++        self.submodules += ttl_serdes_generic._SerdesDriver(
++            serdes.o,
++            Mux(self.passthrough, self.rtlink.o.stb, 1),
++            Mux(self.passthrough, self.rtlink.o.data, self.data),
++            Mux(self.passthrough, self.rtlink.o.fine_ts, self.fine_ts),
++            override_en, override_o)
++
++        self.comb += self.rtlink.o.busy.eq(~self.passthrough)
++
++
+ class UrukulPads(Module):
+     def __init__(self, platform, *eems):
+         spip, spin = [[
+                 platform.request("{}_qspi_{}".format(eem, pol), 0)
+                 for eem in eems] for pol in "pn"]
+-        ioup = [platform.request("{}_io_update".format(eem), 0)
+-                for eem in eems]
++
+         self.cs_n = Signal()
+         self.clk = Signal()
+         self.io_update = Signal()
++        self.passthrough = Signal()
++        self.dds_reset_sync_in = Signal(reset=0)  # sync_in phy (one for all)
++
++        # # #
++
++        self.io_update_phys = []
++        for eem in eems:
++            phy = OutIoUpdate_8X(platform.request("{}_io_update".format(eem), 0))
++            self.io_update_phys.append(phy)
++            setattr(self.submodules, "{}_io_update_phy".format(eem), phy)
++            self.comb += [
++                phy.data.eq(self.io_update),
++                phy.passthrough.eq(self.passthrough),
++            ]
++
++            sync_in_pads = platform.request("{}_dds_reset_sync_in".format(eem))
++            sync_in_r = Signal()
++            self.sync.rio_phy += sync_in_r.eq(self.dds_reset_sync_in)
++            sync_in_o = Signal()
++            self.specials += Instance("ODDR",
++                p_DDR_CLK_EDGE="SAME_EDGE",
++                i_C=ClockSignal("rio_phy"), i_CE=1, i_S=0, i_R=0,
++                i_D1=sync_in_r, i_D2=sync_in_r, o_Q=sync_in_o)
++            self.specials += DifferentialOutput(sync_in_o, sync_in_pads.p, sync_in_pads.n)
++
+         self.specials += [(
+                 DifferentialOutput(~self.cs_n, spip[i].cs, spin[i].cs),
+-                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk),
+-                DifferentialOutput(self.io_update, ioup[i].p, ioup[i].n))
++                DifferentialOutput(self.clk, spip[i].clk, spin[i].clk))
+                 for i in range(len(eems))]
+-        for i in range(8):
++        for i in range(4 * len(eems)):
+             mosi = Signal()
+             setattr(self, "mosi{}".format(i), mosi)
+-        for i in range(4*len(eems)):
+             self.specials += [
+-                DifferentialOutput(getattr(self, "mosi{}".format(i)),
++                DifferentialOutput(mosi,
+                     getattr(spip[i // 4], "mosi{}".format(i % 4)),
+                     getattr(spin[i // 4], "mosi{}".format(i % 4)))
+             ]
+diff --git a/artiq/gateware/suservo/servo.py b/artiq/gateware/suservo/servo.py
+index 1aec95f027..15d31027e0 100644
+--- a/artiq/gateware/suservo/servo.py
++++ b/artiq/gateware/suservo/servo.py
+@@ -42,7 +42,7 @@ def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+         assert t_iir + 2*adc_p.channels < t_cycle, "need shifting time"
+ 
+         self.submodules.adc = ADC(adc_pads, adc_p)
+-        self.submodules.iir = IIR(iir_p)
++        self.submodules.iir = IIR(iir_p, adc_p, dds_p, t_cycle)
+         self.submodules.dds = DDS(dds_pads, dds_p)
+ 
+         # adc channels are reversed on Sampler
+@@ -63,7 +63,6 @@ def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+         assert t_restart > 1
+         cnt = Signal(max=t_restart)
+         cnt_done = Signal()
+-        active = Signal(3)
+ 
+         # Indicates whether different steps (0: ADC, 1: IIR, 2: DDS) are
+         # currently active (exposed for simulation only), with each bit being
+@@ -71,6 +70,8 @@ def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+         # timing details of the different steps, any number can be concurrently
+         # active (e.g. ADC read from iteration n, IIR computation from iteration
+         # n - 1, and DDS write from iteration n - 2).
++        active = Signal(3)
++        self._active = active  # Exposed for debugging only.
+ 
+         # Asserted once per cycle when the DDS write has been completed.
+         self.done = Signal()
+@@ -95,6 +96,17 @@ def __init__(self, adc_pads, dds_pads, adc_p, iir_p, dds_p):
+                     cnt.eq(t_restart - 1)
+                 )
+         ]
++
++        # Count number of cycles since the servo was last started from idle.
++        self.sync += If(active == 0,
++            self.iir.t_running.eq(0),
++            self.iir.reset_dds_phase.eq(1)
++        ).Else(
++            self.iir.t_running.eq(self.iir.t_running + 1)
++        )
++
++        self.sync += dds_pads.passthrough.eq(active == 0)
++
+         self.comb += [
+                 cnt_done.eq(cnt == 0),
+                 self.adc.start.eq(self.start & cnt_done),
+diff --git a/artiq/gateware/test/suservo/__init__.py b/artiq/gateware/test/suservo/__init__.py
+index e69de29bb2..7a1df77ac1 100644
+--- a/artiq/gateware/test/suservo/__init__.py
++++ b/artiq/gateware/test/suservo/__init__.py
+@@ -0,0 +1,10 @@
++"""Gateware implementation of the Sampler-Urukul (AD9910) DDS amplitude servo.
++
++General conventions:
++
++ - ``t_...`` signals and constants refer to time spans measured in the gateware
++   module's default clock (typically a 125 MHz RTIO clock).
++ - ``start`` signals cause modules to proceed with the next servo iteration iff
++   they are currently idle (i.e. their value is irrelevant while the module is
++   busy, so they are not necessarily one-clock-period strobes).
++"""
+diff --git a/artiq/gateware/test/suservo/test_dds.py b/artiq/gateware/test/suservo/test_dds.py
+index a666f14c56..d9a8167590 100644
+--- a/artiq/gateware/test/suservo/test_dds.py
++++ b/artiq/gateware/test/suservo/test_dds.py
+@@ -5,6 +5,9 @@
+ 
+ from artiq.gateware.suservo.dds_ser import DDSParams, DDS
+ 
++class OutIoUpdateTB(Module):
++    def __init__(self):
++        self.fine_ts = Signal(3)
+ 
+ class TB(Module):
+     def __init__(self, p):
+@@ -15,6 +18,12 @@ def __init__(self, p):
+             setattr(self, "mosi{}".format(i), m)
+         self.miso = Signal()
+         self.io_update = Signal()
++        self.passthrough = Signal()
++
++        self.io_update_phys = []
++        for i in range(p.channels//4):
++            phy = OutIoUpdateTB()
++            self.io_update_phys.append(phy)
+ 
+         clk0 = Signal()
+         self.sync += clk0.eq(self.clk)
+@@ -23,16 +32,19 @@ def __init__(self, p):
+ 
+         self.ddss = []
+         for i in range(p.channels):
+-            dds = Record([("ftw", 32), ("pow", 16), ("asf", 16), ("cmd", 8)])
+-            sr = Signal(len(dds))
++            dds = Record([("ftw", 32), ("pow", 16), ("asf", 16),
++                          ("cmd", 8), ("accu", 32), ("phase", 19)])
++            sr = Signal(32 + 16 + 16 + 8)
+             self.sync += [
++                    dds.accu.eq(dds.accu + p.sysclk_per_clk * dds.ftw),
+                     If(~self.cs_n & sample,
+                         sr.eq(Cat(self.mosi[i], sr))
+                     ),
+                     If(self.io_update,
+-                        dds.raw_bits().eq(sr)
++                        dds.raw_bits()[:len(sr)].eq(sr)
+                     )
+             ]
++            self.comb += dds.phase.eq((dds.pow << 3) + (dds.accu >> 13))
+             self.ddss.append(dds)
+ 
+     @passive
+@@ -55,7 +67,7 @@ def log(self, data):
+ 
+ 
+ def main():
+-    p = DDSParams(channels=4, width=8 + 32 + 16 + 16, clk=1)
++    p = DDSParams(channels=4, width=8 + 32 + 16 + 16, clk=1, sysclk_per_clk=8)
+     tb = TB(p)
+     dds = DDS(tb, p)
+     tb.submodules += dds
+diff --git a/artiq/gateware/test/suservo/test_iir.py b/artiq/gateware/test/suservo/test_iir.py
+index 919e7a6bf9..ab8a9a4a46 100644
+--- a/artiq/gateware/test/suservo/test_iir.py
++++ b/artiq/gateware/test/suservo/test_iir.py
+@@ -2,48 +2,67 @@
+ import unittest
+ 
+ from migen import *
+-from artiq.gateware.suservo import iir
++from artiq.gateware.suservo import servo
++from collections import namedtuple
+ 
++logger = logging.getLogger(__name__)
++
++ADCParamsSim = namedtuple("ADCParams", ["channels"])
++DDSParamsSim = namedtuple("ADCParams", ["channels", "sysclk_per_clk"])
+ 
+ def main():
+-    w_kasli = iir.IIRWidths(state=25, coeff=18, adc=16,
+-            asf=14, word=16, accu=48, shift=11,
+-            channel=3, profile=5, dly=8)
+-    w = iir.IIRWidths(state=17, coeff=16, adc=16,
+-            asf=14, word=16, accu=48, shift=11,
+-            channel=2, profile=1, dly=8)
++    w_kasli = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14,
++            word=16, accu=48, shift=11, profile=5, dly=8)
++    p_adc = ADCParamsSim(channels=8)
++    p_dds = DDSParamsSim(channels=4, sysclk_per_clk=8)
++    w = servo.IIRWidths(state=17, coeff=16, adc=16, asf=14,
++            word=16, accu=48, shift=11, profile=2, dly=8)
+ 
++    t_iir = p_adc.channels + 4*p_dds.channels + 8 + 1
+     def run(dut):
++        yield dut.t_running.eq(0)
+         for i, ch in enumerate(dut.adc):
+             yield ch.eq(i)
+         for i, ch in enumerate(dut.ctrl):
+             yield ch.en_iir.eq(1)
+             yield ch.en_out.eq(1)
+             yield ch.profile.eq(i)
+-        for i in range(1 << w.channel):
++            yield ch.en_pt.eq(i)
++        for i, ch in enumerate(dut.ctrl_reftime):
++            yield ch.sysclks_fine.eq(i)
++            yield ch.stb.eq(1)
++            yield
++            yield dut.t_running.eq(dut.t_running + 1)
++            yield ch.stb.eq(0)
++            yield
++            yield dut.t_running.eq(dut.t_running + 1)
++        for i in range(p_adc.channels):
+             yield from dut.set_state(i, i << 8, coeff="x1")
+             yield from dut.set_state(i, i << 8, coeff="x0")
++        for i in range(p_dds.channels):
+             for j in range(1 << w.profile):
+                 yield from dut.set_state(i,
+                         (j << 1) | (i << 8), profile=j, coeff="y1")
+                 for k, l in enumerate("pow offset ftw0 ftw1".split()):
+                     yield from dut.set_coeff(i, profile=j, coeff=l,
+-                            value=(i << 12) | (j << 8) | (k << 4))
++                            value=(i << 10) | (j << 8) | (k << 4))
+         yield
+-        for i in range(1 << w.channel):
++        for i in range(p_dds.channels):
+             for j in range(1 << w.profile):
+-                for k, l in enumerate("cfg a1 b0 b1".split()):
++                for k, l in enumerate("a1 b0 b1".split()):
+                     yield from dut.set_coeff(i, profile=j, coeff=l,
+-                            value=(i << 12) | (j << 8) | (k << 4))
++                            value=(i << 10) | (j << 8) | (k << 4))
+                 yield from dut.set_coeff(i, profile=j, coeff="cfg",
+-                        value=(i << 0) | (j << 8))  # sel, dly
++                        value=(i % p_adc.channels) | (j << 8))  # sel, dly
+         yield
+-        for i in range(10):
++        for i in range(4):
++            logger.debug("check_iter {}".format(i))
+             yield from dut.check_iter()
++            yield dut.t_running.eq((yield dut.t_running) + t_iir)
+             yield
+ 
+-    dut = iir.IIR(w)
+-    run_simulation(dut, [run(dut)], vcd_name="iir.vcd")
++    dut = servo.IIR(w, p_adc, p_dds, t_iir)
++    run_simulation(dut, [run(dut)], vcd_name="servo.vcd")
+ 
+ 
+ class IIRTest(unittest.TestCase):
+diff --git a/artiq/gateware/test/suservo/test_servo.py b/artiq/gateware/test/suservo/test_servo.py
+index cc1a73a2be..fe1708d033 100644
+--- a/artiq/gateware/test/suservo/test_servo.py
++++ b/artiq/gateware/test/suservo/test_servo.py
+@@ -1,5 +1,6 @@
+ import logging
+ import unittest
++import numpy as np
+ 
+ from migen import *
+ from migen.genlib import io
+@@ -7,15 +8,17 @@
+ from artiq.gateware.test.suservo import test_adc, test_dds
+ from artiq.gateware.suservo import servo
+ 
++logger = logging.getLogger(__name__)
++
+ 
+ class ServoSim(servo.Servo):
+     def __init__(self):
+         adc_p = servo.ADCParams(width=16, channels=8, lanes=4,
+                 t_cnvh=4, t_conv=57 - 4, t_rtt=4 + 4)
+         iir_p = servo.IIRWidths(state=25, coeff=18, adc=16, asf=14, word=16,
+-                accu=48, shift=11, channel=3, profile=5, dly=8)
++                accu=48, shift=11, profile=5, dly=8)
+         dds_p = servo.DDSParams(width=8 + 32 + 16 + 16,
+-                channels=adc_p.channels, clk=1)
++                channels=4, clk=1, sysclk_per_clk=8)
+ 
+         self.submodules.adc_tb = test_adc.TB(adc_p)
+         self.submodules.dds_tb = test_dds.TB(dds_p)
+@@ -23,37 +26,156 @@ def __init__(self):
+         servo.Servo.__init__(self, self.adc_tb, self.dds_tb,
+                 adc_p, iir_p, dds_p)
+ 
++        self.dds_output = []
++
++    def log_flow(self, cycle):
++        su_start = yield self.start
++        adc_start = yield self.adc.start
++        iir_start = yield self.iir.start
++        dds_start = yield self.dds.start
++        su_done = yield self.done
++        adc_done = yield self.adc.done
++        iir_done = yield self.iir.done
++        dds_done = yield self.dds.done
++        active = yield self._active
++        io_update = yield self.dds_tb.io_update
++        passthrough = yield self.dds_tb.passthrough
++        iir_loading = yield self.iir.loading
++        iir_processing = yield self.iir.processing
++        iir_shifting = yield self.iir.shifting
++        dt = yield self.iir.t_running
++        dt_iir = yield self.iir._dt_start
++        state = yield self.iir._state
++        stage0 = yield self.iir._stages[0]
++        stage1 = yield self.iir._stages[1]
++        stage2 = yield self.iir._stages[2]
++        logger.debug(
++            "cycle=%d "
++            #"start=[su=%d adc=%d iir=%d dds=%d] "
++            #"done=[su=%d adc=%d iir=%d dds=%d] "
++            "active=%s load_proc_shft=%d%d%d stages_active=%d%d%d "
++            "io_update=%d passthrough=%d "
++            "dt=%d dt_iir=%d state=%d",
++            cycle,
++            #su_start, adc_start, iir_start, dds_start,
++            #su_done, adc_done, iir_done, dds_done,
++            '{:03b}'.format(active), iir_loading, iir_processing, iir_shifting, stage0, stage1, stage2,
++            io_update, passthrough,
++            dt, dt_iir//8, state
++        )
++
++    def log_state(self, channel, profile, calls=[0]):
++        calls[0] += 1
++        # if not (yield self._active[1]):
++        #     return
++        yield from self.log_flow(calls[0] - 2)
++        return
++        cfg = yield from self.iir.get_coeff(channel, profile, "cfg")
++        sel = cfg & 0x7
++        x0 = yield from self.iir.get_state(sel, coeff="x0")
++        x1 = yield from self.iir.get_state(sel, coeff="x1")
++        y1 = yield from self.iir.get_state(channel, profile, coeff="y1")
++        _pow = yield from self.iir.get_coeff(channel, profile, "pow")
++        pow_iir = yield self.iir.dds[channel][2*self.iir.widths.word:3*self.iir.widths.word]
++        pow_dds = yield self.dds_tb.ddss[channel].pow
++        asf_dds = yield self.dds_tb.ddss[channel].asf
++        ftw_dds = yield self.dds_tb.ddss[channel].ftw
++        accu_dds = yield self.dds_tb.ddss[channel].accu
++        phase_dds = (yield self.dds_tb.ddss[channel].phase)
++        dds_output = np.cos(2*np.pi*phase_dds/2**19)
++        ph_coh = yield self.iir._ph_coh
++        ph_acc = yield self.iir._ph_acc
++        offset = yield from self.iir.get_coeff(channel, profile, "offset")
++        ftw0 = yield from self.iir.get_coeff(channel, profile, "ftw0")
++        ftw1 = yield from self.iir.get_coeff(channel, profile, "ftw1")
++        m_phase = yield from self.iir.get_accum_ftw(channel)
++        iir_adc = yield self.iir.adc[sel]
++        logger.debug("\t"
++                     "ch=%d pr=%d "
++                     # "x0=%d x1=%d adc=%d y1=%d sel=%d "
++                     "ftw=%#x pow_coeff=%#x ftw_accu=%#x "
++                     "ph_coh=%#x ph_acc=%#x "
++                     "pow_iir=%#x pow_dds=%#x ftw_dds=%#x asf_dds=%#x accu_dds=%#x phase_dds=%#x dds_output=%04.3f",
++                     channel, profile,
++                     # x0, x1, iir_adc, y1, sel,
++                     ftw0 | (ftw1 << 16), _pow, m_phase,
++                     ph_coh, ph_acc,
++                     pow_iir, pow_dds, ftw_dds, asf_dds, accu_dds, phase_dds >> 3, dds_output
++        )
++        self.dds_output.append(dds_output)
++        # yield from self.log_registers(profile)
++
++    def log_registers(self, profile):
++        adc_channels = self.iir.widths_adc.channels
++        dds_channels = self.iir.widths_dds.channels
++        x0s = [0]*adc_channels
++        x1s = [0]*adc_channels
++        y1s = [0]*dds_channels
++        for ch in range(adc_channels):
++            x0s[ch] = yield from self.iir.get_state(ch, coeff="x0")
++            x1s[ch] = yield from self.iir.get_state(ch, coeff="x1")
++        for ch in range(dds_channels):
++            y1s[ch] = yield from self.iir.get_state(ch, profile, coeff="y1")
++
++        logger.debug(("x0s = " + '{:05X} ' * adc_channels).format(*x0s))
++        logger.debug(("x1s = " + '{:05X} ' * adc_channels).format(*x1s))
++        logger.debug(("y1s = " + '{:05X} ' * dds_channels).format(*y1s))
++
+     def test(self):
+         assert (yield self.done)
+ 
+-        adc = 1
++        adc = 7
+         x0 = 0x0141
+         yield self.adc_tb.data[-adc-1].eq(x0)
+-        channel = 3
+-        yield self.iir.adc[channel].eq(adc)
++        channel = 0
+         yield self.iir.ctrl[channel].en_iir.eq(1)
+         yield self.iir.ctrl[channel].en_out.eq(1)
+-        profile = 5
++        yield self.iir.ctrl[channel].en_pt.eq(1)
++        profile = 31
+         yield self.iir.ctrl[channel].profile.eq(profile)
+         x1 = 0x0743
+         yield from self.iir.set_state(adc, x1, coeff="x1")
+         y1 = 0x1145
+         yield from self.iir.set_state(channel, y1,
+                 profile=profile, coeff="y1")
+-        coeff = dict(pow=0x1333, offset=0x1531, ftw0=0x1727, ftw1=0x1929,
+-                a1=0x0135, b0=0x0337, b1=0x0539, cfg=adc | (0 << 3))
++        coeff = dict(pow=0, offset=0x1531, ftw0=0xeb85, ftw1=0x51,
++                a1=0x0135, b0=0x0337, b1=0x0539, cfg=adc)
+         for ks in "pow offset ftw0 ftw1", "a1 b0 b1 cfg":
+             for k in ks.split():
+                 yield from self.iir.set_coeff(channel, value=coeff[k],
+                         profile=profile, coeff=k)
+             yield
+ 
++        num_it = 1
++        num_proc_its = [0]*num_it # number of iterations while iir.processing
++        yield from self.log_state(channel, profile)
+         yield self.start.eq(1)
+         yield
+-        yield self.start.eq(0)
+-        while not (yield self.dds_tb.io_update):
+-            yield
+-        yield  # io_update
++        for i in range(num_it):
++            if i == 1:  # change ftw
++                yield from self.iir.set_coeff(channel,
++                    profile=profile, coeff='ftw0', value=coeff['ftw1'])
++                yield from self.iir.set_coeff(channel,
++                    profile=profile, coeff='ftw1', value=coeff['ftw0'])
++            if i == 2:  # change ftw back
++                yield from self.iir.set_coeff(channel,
++                    profile=profile, coeff='ftw0', value=coeff['ftw0'])
++                yield from self.iir.set_coeff(channel,
++                    profile=profile, coeff='ftw1', value=coeff['ftw1'])
++            logger.debug("iteration {}".format(i))
++            yield from self.log_state(channel, profile)
++            if i == num_it-1:
++                yield self.start.eq(0)
++            while not (yield self.dds_tb.io_update):
++                yield
++                if (yield self.iir.processing):
++                    num_proc_its[i] += 1
++                if (yield self.iir._stages) != 0:
++                    yield from self.log_state(channel, profile)
++            yield  # io_update
++        yield from self.log_state(channel, profile)
++        yield
++        yield from self.log_state(channel, profile)
+ 
+         w = self.iir.widths
+ 
+@@ -63,6 +185,8 @@ def test(self):
+ 
+         offset = coeff["offset"] << (w.state - w.coeff - 1)
+         a1, b0, b1 = coeff["a1"], coeff["b0"], coeff["b1"]
++
++        # works only for 1 iteration
+         out = (
+                 0*(1 << w.shift - 1) +  # rounding
+                 a1*(y1 + 0) + b0*(x0 + offset) + b1*(x1 + offset)
+@@ -76,8 +200,15 @@ def test(self):
+         ftw = (coeff["ftw1"] << 16) | coeff["ftw0"]
+         assert _ == ftw, (hex(_), hex(ftw))
+ 
++        t0 = yield self.iir._dt_start
++        # todo: include phase accumulator
++        ph = (ftw * t0) >> 16
++        if (yield self.iir.ctrl[channel].en_pt):
++            pow = (coeff["pow"] + ph) & 0xffff
++        else:
++            pow = coeff["pow"]
+         _ = yield self.dds_tb.ddss[channel].pow
+-        assert _ == coeff["pow"], (hex(_), hex(coeff["pow"]))
++        assert _ == pow, (hex(_), hex(pow))
+ 
+         _ = yield self.dds_tb.ddss[channel].asf
+         asf = y1 >> (w.state - w.asf - 1)
+@@ -101,4 +232,5 @@ def test_run(self):
+ 
+ 
+ if __name__ == "__main__":
++    logging.basicConfig(level=logging.DEBUG)
+     main()
