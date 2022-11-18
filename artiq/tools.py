@@ -63,16 +63,12 @@ def short_format(v):
     elif np.issubdtype(t, np.unicode_):
         return "\"" + elide(v, 50) + "\""
     else:
-        encoded = pyon.encode(v)
-        if len(encoded) < 50:
-            return encoded
-        else:
-            r = t.__name__
-            if t is list or t is dict or t is set:
-                r += " ({})".format(len(v))
-            if t is np.ndarray:
-                r += " " + str(np.shape(v))
-            return r
+        r = t.__name__
+        if t is list or t is dict or t is set:
+            r += " ({})".format(len(v))
+        if t is np.ndarray:
+            r += " " + str(np.shape(v))
+        return r
 
 
 def file_import(filename, prefix="file_import_"):
