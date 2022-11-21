@@ -169,6 +169,7 @@ class EmbeddingMap:
 class ASTSynthesizer:
     def __init__(self, embedding_map, value_map, quote_function=None, expanded_from=None):
         self.source = ""
+        self.source_last_new_line = 0
         self.source_buffer = source.Buffer(self.source, "<synthesized>")
         self.embedding_map = embedding_map
         self.value_map = value_map
@@ -188,8 +189,11 @@ class ASTSynthesizer:
                             expanded_from=self.expanded_from)
 
     def _add_iterable(self, fragment):
-        if len(self.source) - self.source.rfind("\n") >= 2**16 - 2:
+        # Since DILocation points on the beginning of the piece of source
+        # we don't care if the fragment's end will overflow LLVM's limit.
+        if len(self.source) - self.source_last_new_line >= 2**16:
             fragment = "\\\n" + fragment
+            self.source_last_new_line = len(self.source) + 2
         return self._add(fragment)
 
     def fast_quote_list(self, value):
