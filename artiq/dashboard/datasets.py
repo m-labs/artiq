@@ -39,9 +39,23 @@ class CreateEditDialog(QtWidgets.QDialog):
         self.value_widget = QtWidgets.QLineEdit()
         self.value_widget.setPlaceholderText('PYON (Python)')
         grid.addWidget(self.value_widget, 1, 1)
-        self.data_type = QtWidgets.QLabel("data type")
-        grid.addWidget(self.data_type, 1, 2)
+
+        self.data_type_combo = QtWidgets.QComboBox(self)
+        grid.addWidget(self.data_type_combo, 1, 2)
+        self.data_type_combo.addItems(["auto", "NoneType", "bool", "int", "float", "complex",
+                                       "str", "tuple", "list", "dict", "set"])
+        self.data_type_combo.currentIndexChanged.connect(self.dtype)
+        width = self.data_type_combo.minimumSizeHint().width()
+        self.data_type_combo.view().setMinimumWidth(width)
         self.value_widget.textChanged.connect(self.dtype)
+
+        self.data_type_ind = QtWidgets.QLabel("")
+        grid.addWidget(self.data_type_ind, 1, 3)
+        self.data_type_ind.setFixedWidth(35)
+
+        self.data_type = QtWidgets.QLabel("")
+        grid.addWidget(self.data_type, 2, 2)
+        self.data_type.setFixedWidth(100)
 
         grid.addWidget(QtWidgets.QLabel("Persist:"), 2, 0)
         self.box_widget = QtWidgets.QCheckBox()
@@ -55,8 +69,8 @@ class CreateEditDialog(QtWidgets.QDialog):
             self.ok, QtWidgets.QDialogButtonBox.AcceptRole)
         self.buttons.addButton(
             self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
-        grid.setRowStretch(3, 1)
-        grid.addWidget(self.buttons, 4, 0, 1, 3, alignment=QtCore.Qt.AlignHCenter)
+
+        grid.addWidget(self.buttons, 4, 0, 1, 4, alignment=QtCore.Qt.AlignHCenter)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
 
@@ -78,16 +92,24 @@ class CreateEditDialog(QtWidgets.QDialog):
 
     def dtype(self):
         txt = self.value_widget.text()
+        result = ""
         try:
-            result = pyon.decode(txt)
+            result = type(pyon.decode(txt)).__name__
+            if self.data_type_combo.currentText() not in ["auto", result]:
+                raise TypeError()
         except:
-            pixmap = self.style().standardPixmap(
-                QtWidgets.QStyle.SP_MessageBoxWarning)
-            self.data_type.setPixmap(pixmap)
+            pixmap = self.style().standardPixmap(QtWidgets.QStyle.SP_MessageBoxWarning)
+            self.data_type_ind.setPixmap(pixmap)
             self.ok.setEnabled(False)
         else:
-            self.data_type.setText(type(result).__name__)
+            pixmap = self.style().standardPixmap(QtWidgets.QStyle.SP_DialogApplyButton)
+            self.data_type_ind.setPixmap(pixmap)
             self.ok.setEnabled(True)
+        finally:
+            if self.data_type_combo.currentText() == "auto":
+                self.data_type.setText(result)
+            else:
+                self.data_type.setText("")
 
 
 class Model(DictSyncTreeSepModel):
