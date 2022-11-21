@@ -11,8 +11,8 @@ class HDF5Attributes(EnvExperiment):
     """Archive data to HDF5 with attributes"""
 
     def run(self):
-        # Attach attributes to the HDF5 group `datasets`
-        # The key should exist in result HDF5 file.
+        # Attach attributes metadata to the HDF5 key
+        # The key should exist in the resulting HDF5 file (archive=True).
         self.set_dataset("dummy", np.full(20, np.nan), broadcast=True, archive=True)
         self.set_dataset_metadata("dummy", "k1", "v1")
         self.set_dataset_metadata("dummy", "k2", "v2")
@@ -28,7 +28,6 @@ class TestHDF5Attributes(ExperimentCase):
         self.bio = io.BytesIO()
         with h5py.File(self.bio, "w") as f:
             self.dataset_mgr.write_hdf5(f)
-            self.dataset_mgr.write_hdf5_attributes(f)
 
         self.bio.seek(0)
         self.h5file = h5py.File(self.bio, "r")
@@ -39,10 +38,11 @@ class TestHDF5Attributes(ExperimentCase):
         self.assertTrue(np.all((self.datasets["dummy"], np.full(20, np.nan))))
 
     def test_write_none(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(KeyError):
             self.exp.set_dataset_metadata(None, "test", "none")
+        self.exp.set_dataset_metadata("dummy", None, "none")
         with self.assertRaises(TypeError):
-            self.exp.set_dataset_metadata("dummy", None, "none")
+            self.dump()
 
     def test_write_absent(self):
         with self.assertRaises(KeyError):

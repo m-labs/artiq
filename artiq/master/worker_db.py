@@ -11,6 +11,7 @@ import logging
 from sipyco.sync_struct import Notifier
 from sipyco.pc_rpc import AutoTarget, Client, BestEffortClient
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,7 +56,6 @@ class DeviceError(Exception):
 class DeviceManager:
     """Handles creation and destruction of local device drivers and controller
     RPC clients."""
-
     def __init__(self, ddb, virtual_devices=dict()):
         self.ddb = ddb
         self.virtual_devices = virtual_devices
@@ -155,7 +155,7 @@ class DatasetManager:
     def get(self, key, archive=False):
         if key in self.local:
             return self.local[key]
-
+        
         data = self.ddb.get(key)
         if archive:
             if key in self.archive:
@@ -165,10 +165,8 @@ class DatasetManager:
         return data
 
     def set_metadata(self, key, metadata_key, metadata_value):
-        if not (isinstance(metadata_key, str) and isinstance(key, str)):
-            raise TypeError("both `key` and `metadata_key` should be of type `str`")
         if key not in self.local:
-            raise KeyError(f"Key '{key}' not found in dataset.")
+            raise KeyError(f"Dataset '{key}' does not exist.")
         if key not in self.hdf5_attributes:
             self.hdf5_attributes[key] = dict()
         self.hdf5_attributes[key][metadata_key] = metadata_value
@@ -178,18 +176,14 @@ class DatasetManager:
         for k, v in self.local.items():
             _write(datasets_group, k, v)
 
+        for k, attrs in self.hdf5_attributes.items():
+            assert k in datasets_group
+            for attr_k, attr_v in attrs.items():
+                datasets_group[k].attrs[attr_k] = attr_v
+
         archive_group = f.create_group("archive")
         for k, v in self.archive.items():
             _write(archive_group, k, v)
-
-    def write_hdf5_attributes(self, f):
-        datasets = f["datasets"]
-        for k, attrs in self.hdf5_attributes.items():
-            if k in datasets:
-                for attr_k, attr_v in attrs.items():
-                    datasets[k].attrs[attr_k] = attr_v
-            else:
-                raise KeyError(f"Key '{k}' not found in `datasets` group.")
 
 
 def _write(group, k, v):

@@ -6,6 +6,7 @@ from sipyco import pyon
 from artiq.language import units
 from artiq.language.core import rpc
 
+
 __all__ = ["NoDefault", "DefaultMissing",
            "PYONValue", "BooleanValue", "EnumerationValue",
            "NumberValue", "StringValue",
@@ -49,7 +50,6 @@ class _SimpleArgProcessor:
 
 class PYONValue(_SimpleArgProcessor):
     """An argument that can be any PYON-serializable value."""
-
     def __init__(self, default=NoDefault):
         # Override the _SimpleArgProcessor init, as list defaults are valid
         # PYON values
@@ -68,7 +68,6 @@ class PYONValue(_SimpleArgProcessor):
 
 class BooleanValue(_SimpleArgProcessor):
     """A boolean argument."""
-
     def process(self, x):
         if type(x) != bool:
             raise ValueError("Invalid BooleanValue value")
@@ -82,7 +81,6 @@ class EnumerationValue(_SimpleArgProcessor):
     :param choices: A list of string representing the possible values of the
         argument.
     """
-
     def __init__(self, choices, default=NoDefault):
         self.choices = choices
         super().__init__(default)
@@ -143,7 +141,7 @@ class NumberValue(_SimpleArgProcessor):
                     raise KeyError("Unit {} is unknown, you must specify "
                                    "the scale manually".format(unit))
         if step is None:
-            step = scale / 10.0
+            step = scale/10.0
         self.unit = unit
         self.scale = scale
         self.step = step
@@ -212,7 +210,6 @@ class TraceArgumentManager:
         return None
 
 
-
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
         self.unprocessed_arguments = unprocessed_arguments
@@ -227,17 +224,15 @@ class ProcessArgumentManager:
         return r
 
     def check_unprocessed_arguments(self):
-        unprocessed = set(self.unprocessed_arguments.keys()) - \
+        unprocessed = set(self.unprocessed_arguments.keys()) -\
                       self._processed_arguments
         if unprocessed:
             raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
 
-
 class HasEnvironment:
     """Provides methods to manage the environment of an experiment (arguments,
     devices, datasets)."""
-
     def __init__(self, managers_or_parent, *args, **kwargs):
         self.children = []
         if isinstance(managers_or_parent, tuple):
@@ -386,16 +381,16 @@ class HasEnvironment:
 
     @rpc(flags={"async"})
     def set_dataset_metadata(self, key, metadata_key, metadata_value):
-        """Attach metadata to the key in the dataset.
+        """Attach metadata to the dataset.
 
         The metadata is saved as HDF5 attributes if there was a call to
         ``set_dataset(..., archive=True)`` with the same key.
 
-        :param key: Already existing key in the dataset, which will be the metadata attached to.
+        :param key: The already existing dataset, to which you want to attach the metadata.
         If absent, KeyError will be raised.
-        :param metadata_key: Key of the metadata of type string. If already exists, rewrites the metadata.
-        :param metadata_value: Value to be attached to metadata_key of any valid HDF5 datatype.
-        See https://docs.hdfgroup.org/hdf5/develop/group___h5_t.html for additional information.
+        :param metadata_key: The metadata key of type string. If already exists, rewrites the metadata.
+        :param metadata_value: Value to be attached to ``metadata_key``. Can be any valid HDF5 datatype.
+        See HDF5 documentation for additional information.
         """
         self.__dataset_mgr.set_metadata(key, metadata_key, metadata_value)
 
@@ -452,7 +447,6 @@ class Experiment:
     Deriving from this class enables automatic experiment discovery in
     Python modules.
     """
-
     def prepare(self):
         """Entry point for pre-computing data necessary for running the
         experiment.
@@ -498,7 +492,6 @@ class EnvExperiment(Experiment, HasEnvironment):
     :class:`~artiq.language.environment.HasEnvironment` environment manager.
 
     Most experiments should derive from this class."""
-
     def prepare(self):
         """This default prepare method calls :meth:`~artiq.language.environment.Experiment.prepare`
         for all children, in the order of registration, if the child has a
@@ -509,9 +502,9 @@ class EnvExperiment(Experiment, HasEnvironment):
 def is_experiment(o):
     """Checks if a Python object is a top-level experiment class."""
     return (isclass(o)
-            and issubclass(o, Experiment)
-            and o is not Experiment
-            and o is not EnvExperiment)
+        and issubclass(o, Experiment)
+        and o is not Experiment
+        and o is not EnvExperiment)
 
 
 def is_public_experiment(o):
