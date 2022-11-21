@@ -220,15 +220,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel), channel);
+                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -375,9 +375,12 @@ fn read_device_map() -> BTreeMap<u32, String> {
     let mut device_map: BTreeMap<u32, String> = BTreeMap::new();
     config::read("device_map", |value: Result<&[u8], config::Error>| {
         let mut bytes = match value {
-            Ok(val) => Cursor::new(val),
+            Ok(val) => if val.len() > 0 { Cursor::new(val) } else {
+                error!("read_device_map: `device_map` was not found in the config");
+                return;
+            },
             Err(err) => {
-                error!("read_device_map: error reading device_map config: {}", err);
+                error!("read_device_map: error reading `device_map` from config: {}", err);
                 return;
             }
         };
@@ -386,7 +389,7 @@ fn read_device_map() -> BTreeMap<u32, String> {
             let channel = bytes.read_u32().unwrap();
             let device_name= bytes.read_string().unwrap();
             if let Some(old_entry) = device_map.insert(channel, device_name.clone()) {
-                panic!("conflicting entries for channel {}: `{}` and `{}`",
+                error!("conflicting entries for channel {}: `{}` and `{}`",
                        channel, old_entry, device_name);
             }
         }
