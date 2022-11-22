@@ -229,7 +229,7 @@ class ProcessArgumentManager:
         unprocessed = set(self.unprocessed_arguments.keys()) -\
                       self._processed_arguments
         if unprocessed:
-            raise AttributeError("Invalid argument(s): " +
+            raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
 
 class HasEnvironment:
