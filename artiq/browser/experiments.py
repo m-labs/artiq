@@ -406,7 +406,7 @@ class ExperimentsArea(QtWidgets.QMdiArea):
 
         self.worker_handlers = {
             "get_device_db": lambda: {},
-            "get_device": lambda k, **kwargs: {"type": "dummy"},
+            "get_device": lambda key, resolve_alias=False: {"type": "dummy"},
             "get_dataset": self._ddb.get,
             "update_dataset": self._ddb.update,
         }

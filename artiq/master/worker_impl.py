@@ -286,8 +286,6 @@ def main():
     repository_path = None
 
     def write_results():
-        if not rid:
-            return
         filename = "{:09}-{}.h5".format(rid, exp.__name__)
         with h5py.File(filename, "w") as f:
             dataset_mgr.write_hdf5(f)
@@ -353,9 +351,10 @@ def main():
             elif action == "analyze":
                 try:
                     exp_inst.analyze()
+                except:
+                    put_exception_report()
+                else:
                     put_completed()
-                finally:
-                    write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_completed()
