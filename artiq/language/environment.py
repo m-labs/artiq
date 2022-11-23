@@ -209,8 +209,6 @@ class TraceArgumentManager:
         self.requested_args[key] = processor, group, tooltip
         return None
 
-    def check_unprocessed_arguments(self):
-        pass
 
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
@@ -252,8 +250,6 @@ class HasEnvironment:
         self.__in_build = True
         self.build(*args, **kwargs)
         self.__in_build = False
-        if self.__argument_mgr is not None:
-            self.__argument_mgr.check_unprocessed_arguments()
 
     def register_child(self, child):
         self.children.append(child)
