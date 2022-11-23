@@ -80,16 +80,19 @@ class StandaloneBase(MiniSoC, AMPSoC):
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
         
-        cdr_clk_div2 = Signal()
-
+        cdr_clk = Signal()
+        cdr_clk_buf = Signal()
         self.platform.add_period_constraint(cdr_clk_out, 8.)
 
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
-            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-            o_ODIV2=cdr_clk_div2)
+        self.specials += [
+            Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+                o_O=cdr_clk), 
+            Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
+        ]
 
-        self.crg.configure(cdr_clk_div2, div2=True)
+        self.crg.configure(cdr_clk_buf)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -322,9 +325,9 @@ class MasterBase(MiniSoC, AMPSoC):
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.drtio_transceiver.gtps[0]
 
-        txout_bufg = Signal()
-        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_bufg)
-        self.crg.configure(txout_bufg, div2=False, clk_sw=gtp.tx_init.done)
+        txout_buf = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
+        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
 
@@ -562,9 +565,9 @@ class SatelliteBase(BaseSoC):
             self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.drtio_transceiver.gtps[0]
-        txout_bufg = Signal()
-        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_bufg)
-        self.crg.configure(txout_bufg, div2=False, clk_sw=gtp.tx_init.done)
+        txout_buf = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
+        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
