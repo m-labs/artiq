@@ -184,7 +184,9 @@ def _build_experiment(device_mgr, dataset_mgr, args):
         "arguments": arguments
     }
     device_mgr.virtual_devices["scheduler"].expid = expid
-    return get_experiment(module, args.class_name)(managers)
+    exp_inst = get_experiment(module, args.class_name)(managers)
+    argument_mgr.check_unprocessed_arguments()
+    return exp_inst
 
 
 def run(with_file=False):
