@@ -471,6 +471,8 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
     }
 }
 
+static mut STACK_GUARD_BASE: usize = 0x0;
+
 #[no_mangle]
 pub unsafe fn main() {
     eh_artiq::reset_exception_buffer(KERNELCPU_PAYLOAD_ADDRESS);
@@ -502,6 +504,7 @@ pub unsafe fn main() {
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
     board_misoc::pmp::init_stack_guard(_sstack_guard as usize);
+    STACK_GUARD_BASE = _sstack_guard as usize;
     board_misoc::cache::flush_cpu_dcache();
     board_misoc::cache::flush_cpu_icache();
 
@@ -531,10 +534,20 @@ pub unsafe fn main() {
 
 #[no_mangle]
 #[unwind(allowed)]
-pub extern fn exception(_regs: *const u32) {
+pub unsafe extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
     let mtval = mtval::read();
+    if let mcause::Trap::Exception(mcause::Exception::LoadFault)
+    | mcause::Trap::Exception(mcause::Exception::StoreFault) = cause
+    {
+        if mtval >= STACK_GUARD_BASE
+            && mtval < (STACK_GUARD_BASE + board_misoc::pmp::STACK_GUARD_SIZE)
+        {
+            panic!("{:?} at PC {:#08x} in stack guard page ({:#08x}); stack overflow in user kernel code?",
+                   cause, u32::try_from(pc).unwrap(), mtval);
+        }
+    }
     panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 
