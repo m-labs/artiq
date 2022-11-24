@@ -33,9 +33,19 @@ SECTIONS
         KEEP(*(.eh_frame_hdr))
     } : text : eh_frame
 
+    .got :
+    {
+        *(.got)
+    } : text
+
+    .got.plt :
+    {
+        *(.got.plt)
+    } : text
+
     .data :
     {
-        *(.data)
+        *(.data .data.*)
     } : data
 
     .dynamic :
@@ -51,6 +61,10 @@ SECTIONS
         _end = .;
     }
 
+    /* Kernel stack grows downward from end of memory, so put guard page after
+     * all the program contents. Note: This requires all loaded sections (at
+     * least those accessed) to be explicitly listed in the above!
+     */
     . = ALIGN(0x1000);
     _sstack_guard = .;
 }
