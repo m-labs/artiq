@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import ast
 
 import numpy as np
 from PyQt5 import QtCore, QtWidgets
@@ -52,26 +51,57 @@ class NoneEditor:
 
 class BoolEditor:
     def __init__(self):
-        self.widget = QtWidgets.QCheckBox()
-        self.widget.setChecked(False)
+        self.widget = QtWidgets.QGroupBox()
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.f_radio = QtWidgets.QRadioButton("false")
+        self.t_radio = QtWidgets.QRadioButton("true")
+        self.hbox.addWidget(self.f_radio)
+        self.hbox.addWidget(self.t_radio)
+        self.hbox.addStretch(1)
+        self.widget.setLayout(self.hbox)
+        self.f_radio.toggle()
 
     def get_value(self):
-        return self.widget.isChecked()
+        return self.t_radio.isChecked()
 
     def set(self, val):
         if type(val) is str and val.lower() == "false":
             val = False
-        self.widget.setChecked(bool(val))
+        val = bool(val)
+        if val:
+            self.t_radio.toggle()
+        else:
+            self.f_radio.toggle()
 
     def connect(self, f):
-        self.widget.stateChanged.connect(f)
+        self.f_radio.toggled.connect(f)
+        self.t_radio.toggled.connect(f)
 
 
-class IntEditor(AutoEditor):
+class IntEditor:
+    def __init__(self):
+        self.widget = QtWidgets.QSpinBox()
+        self.widget.setValue(0)
+        self.widget.setRange(-(1 << 31), (1 << 31) - 1)
+
+    def set(self, val):
+        try:
+            self.widget.setValue(int(float(val)))
+        except (TypeError, ValueError):
+            self.widget.setValue(0)
+
+    def get_value(self):
+        return self.widget.value()
+
+    def connect(self, f):
+        self.widget.valueChanged.connect(f)
+
+
+class FloatEditor(AutoEditor):
     def __init__(self):
         super().__init__()
-        self.widget.setPlaceholderText("Integer number")
-        self.converter = int
+        self.widget.setPlaceholderText("Float number")
+        self.converter = float
 
     def set(self, val):
         # first, try use python format
@@ -84,14 +114,7 @@ class IntEditor(AutoEditor):
         return self.converter(self.widget.text())
 
 
-class FloatEditor(IntEditor):
-    def __init__(self):
-        super().__init__()
-        self.widget.setPlaceholderText("Float number")
-        self.converter = float
-
-
-class ComplexEditor(IntEditor):
+class ComplexEditor(AutoEditor):
     def __init__(self):
         super().__init__()
         self.widget.setPlaceholderText("Complex number")
@@ -108,41 +131,6 @@ class StrEditor(AutoEditor):
 
     def get_value(self):
         return self.widget.text()
-
-
-class TupleEditor(AutoEditor):
-    def __init__(self):
-        super().__init__()
-        self.widget.setPlaceholderText("Comma-separated values")
-
-    @staticmethod
-    def remove_brackets(value):
-        if value[0] in {"(", "{", "["}:
-            value = value[1:]
-        if value[-1] in {")", "}", "]"}:
-            value = value[:-1]
-        return value
-
-    def set(self, val):
-        self.widget.setText(self.remove_brackets(str(val)))
-
-    def get_value(self):
-        return tuple(ast.literal_eval("[{}]".format(self.widget.text())))
-
-
-class ListEditor(TupleEditor):
-    def get_value(self):
-        return list(super().get_value())
-
-
-class SetEditor(TupleEditor):
-    def get_value(self):
-        return set(super().get_value())
-
-
-class DictEditor(SetEditor):
-    def get_value(self):
-        return dict(ast.literal_eval("{{ {} }}".format(self.widget.text())))
 
 
 class CreateEditDialog(QtWidgets.QDialog):
@@ -173,10 +161,6 @@ class CreateEditDialog(QtWidgets.QDialog):
             "float": FloatEditor,
             "complex": ComplexEditor,
             "str": StrEditor,
-            "tuple": TupleEditor,
-            "list": ListEditor,
-            "dict": DictEditor,
-            "set": SetEditor,
         }
 
         self.data_type_combo.addItems(sorted(self.editor_typemap.keys(), key=lambda x: x.lower()))
