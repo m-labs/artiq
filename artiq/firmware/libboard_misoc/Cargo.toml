@@ -15,7 +15,7 @@ build_misoc = { path = "../libbuild_misoc" }
 [dependencies]
 byteorder = { version = "1.0", default-features = false }
 log = { version = "0.4", default-features = false, optional = true }
-smoltcp = { version = "0.8.0", default-features = false, optional = true }
+smoltcp = { version = "0.8.2", default-features = false, optional = true }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
 
 [features]
