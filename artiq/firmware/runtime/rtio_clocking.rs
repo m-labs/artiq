@@ -222,8 +222,9 @@ fn setup_si5324(clock_cfg: RtioClock) {
     let si5324_ext_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "metlino")]
     let si5324_ext_input = si5324::Input::Ckin2;
+    //kc705 - ckin2 is NOT CONNECTED! need to reroute SMA, this doesn't make sense
     #[cfg(soc_platform = "kc705")]
-    let si5324_ext_input = si5324::Input::Ckin2;
+    let si5324_ext_input = si5324::Input::Ckin1;
     match clock_cfg {
         RtioClock::Ext0_Bypass => {
             info!("using external RTIO clock with PLL bypass");

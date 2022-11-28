@@ -16,13 +16,12 @@ class GTX_20X(Module):
     # * GTX PLL frequency @ 2.5GHz
     # * GTX line rate (TX & RX) @ 2.5Gb/s
     # * GTX TX/RX USRCLK @ 125MHz == coarse RTIO frequency
-    def __init__(self, refclk, pads, sys_clk_freq, rtio_clk_freq=125e6, tx_mode="single", rx_mode="single"):
+    def __init__(self, refclk, pads, clk_freq=125e6, tx_mode="single", rx_mode="single"):
         assert tx_mode in ["single", "master", "slave"]
         assert rx_mode in ["single", "master", "slave"]
 
         self.txenable = Signal()
-        self.submodules.encoder = ClockDomainsRenamer("rtio_tx")(
-            Encoder(2, True))
+        self.submodules.encoder = Encoder(2, True)
         self.submodules.decoders = [ClockDomainsRenamer("rtio_rx")(
             (Decoder(True))) for _ in range(2)]
         self.rx_ready = Signal()
@@ -37,10 +36,9 @@ class GTX_20X(Module):
         cpllreset = Signal()
         cplllock = Signal()
         # TX generates RTIO clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTXInit(sys_clk_freq, False, mode=tx_mode)
+        self.submodules.tx_init = tx_init = GTXInit(clk_freq, False, mode=tx_mode)
         # RX receives restart commands from RTIO domain
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("rtio_tx")(
-            GTXInit(rtio_clk_freq, True, mode=rx_mode))
+        self.submodules.rx_init = rx_init = GTXInit(clk_freq, True, mode=rx_mode)
         self.comb += [
             cpllreset.eq(tx_init.cpllreset),
             tx_init.cplllock.eq(cplllock),
@@ -87,7 +85,7 @@ class GTX_20X(Module):
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
                 i_TXSYSCLKSEL=0b00,
-                i_TXOUTCLKSEL=0b11,
+                i_TXOUTCLKSEL=0b011,
 
                 # TX Startup/Reset
                 i_TXPHDLYRESET=0,
@@ -113,8 +111,8 @@ class GTX_20X(Module):
                 i_TXCHARDISPMODE=Cat(txdata[9], txdata[19]),
                 i_TXCHARDISPVAL=Cat(txdata[8], txdata[18]),
                 i_TXDATA=Cat(txdata[:8], txdata[10:18]),
-                i_TXUSRCLK=ClockSignal("rtio_tx"),
-                i_TXUSRCLK2=ClockSignal("rtio_tx"),
+                i_TXUSRCLK=ClockSignal("sys"),
+                i_TXUSRCLK2=ClockSignal("sys"),
 
                 # TX electrical
                 i_TXBUFDIFFCTRL=0b100,
@@ -251,15 +249,11 @@ class GTX_20X(Module):
         tx_reset_deglitched = Signal()
         tx_reset_deglitched.attr.add("no_retiming")
         self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_rtio_tx = ClockDomain()
-        if tx_mode == "single" or tx_mode == "master":
-            self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk)
-        self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
 
         # RX clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.rtio += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         if rx_mode == "single" or rx_mode == "master":
             self.specials += Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
@@ -271,7 +265,7 @@ class GTX_20X(Module):
             self.decoders[1].input.eq(rxdata[10:])
         ]
 
-        clock_aligner = BruteforceClockAligner(0b0101111100, rtio_clk_freq)
+        clock_aligner = BruteforceClockAligner(0b0101111100, clk_freq)
         self.submodules += clock_aligner
         self.comb += [
             clock_aligner.rxdata.eq(rxdata),
@@ -282,10 +276,10 @@ class GTX_20X(Module):
 
 
 class GTX(Module, TransceiverInterface):
-    def __init__(self, clock_pads, pads, sys_clk_freq, rtio_clk_freq=125e6, master=0):
+    def __init__(self, clock_pads, pads, clk_freq=125e6, master=0):
         self.nchannels = nchannels = len(pads)
         self.gtxs = []
-        self.rtio_clk_freq = rtio_clk_freq
+        self.rtio_clk_freq = clk_freq
 
         # # #
 
@@ -296,12 +290,11 @@ class GTX(Module, TransceiverInterface):
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk,
-            p_CLKCM_CFG="0b1",
-            p_CLKRCV_TRST="0b1",
-            p_CLKSWING_CFG="0b11"
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE",
+            p_CLKSWING_CFG="2'b11"
         )
 
-        rtio_tx_clk = Signal()
         channel_interfaces = []
         for i in range(nchannels):
             if nchannels == 1:
@@ -309,12 +302,7 @@ class GTX(Module, TransceiverInterface):
             else:
                 mode = "master" if i == master else "slave"
             # Note: RX phase alignment is to be done on individual lanes, not multi-lane.
-            gtx = GTX_20X(refclk, pads[i], sys_clk_freq, rtio_clk_freq=rtio_clk_freq, tx_mode=mode, rx_mode="single")
-            # Fan-out (to slave) / Fan-in (from master) of the TXUSRCLK
-            if mode == "slave":
-                self.comb += gtx.cd_rtio_tx.clk.eq(rtio_tx_clk)
-            else:
-                self.comb += rtio_tx_clk.eq(gtx.cd_rtio_tx.clk)
+            gtx = GTX_20X(refclk, pads[i], clk_freq, tx_mode=mode, rx_mode="single")
             self.gtxs.append(gtx)
             setattr(self.submodules, "gtx"+str(i), gtx)
             channel_interface = ChannelInterface(gtx.encoder, gtx.decoders)
@@ -330,11 +318,6 @@ class GTX(Module, TransceiverInterface):
                 gtx.txenable.eq(self.txenable.storage[n])
             ]
 
-        # Connect master's `rtio_tx` clock to `rtio` clock
-        self.comb += [
-            self.cd_rtio.clk.eq(self.gtxs[master].cd_rtio_tx.clk),
-            self.cd_rtio.rst.eq(reduce(or_, [gtx.cd_rtio_tx.rst for gtx in self.gtxs]))
-        ]
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
         for i in range(nchannels):
             self.comb += [
