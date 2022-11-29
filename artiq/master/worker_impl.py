@@ -333,7 +333,6 @@ def main():
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
                 exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
-                argument_mgr.check_unprocessed_arguments()
                 put_completed()
             elif action == "prepare":
                 exp_inst.prepare()
