@@ -57,16 +57,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1666056570,
-        "narHash": "sha256-e7EkIY68Tp7NKyp9JSHh6CgPPdsKYYWxiL4wZQN8Cwg=",
+        "lastModified": 1669735802,
+        "narHash": "sha256-qtG/o/i5ZWZLmXw108N2aPiVsxOcidpHJYNkT45ry9Q=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "47edaa313fc3767ce3026037a5b62352f22f3602",
+        "rev": "731cc710aeebecbf45a258e977e8b68350549522",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-22.05",
+        "ref": "nixos-22.11",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -89,11 +89,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1664319253,
-        "narHash": "sha256-hycJAgy+NFF9f5I6++7yo8KdhMSyKCPKJazRPxeedI4=",
+        "lastModified": 1669369686,
+        "narHash": "sha256-YHez+S3PTUgtuliUNB5WM+RXcj8RKLbHVRvOgELSkwU=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "d58ded7280e0f020be2446d4fee70f4393e6045f",
+        "rev": "98db6eacb084c2c5280fb653bee3d313e3ca6df8",
         "type": "github"
       },
       "original": {
@@ -121,11 +121,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1665395741,
-        "narHash": "sha256-7ULMGBPPn5NxZX6rdxU5GheoSNBiJklHQEVf04jU9tI=",
+        "lastModified": 1669779825,
+        "narHash": "sha256-l3lyy6dmbivo9Tppb08KHSyU89ZZG1CCcSjPlNRD210=",
         "ref": "master",
-        "rev": "4fb0730db4c5de7e86f82fa3bd204e6c4608af85",
-        "revCount": 2427,
+        "rev": "2c255775f732a41ba1a512ab3d2547af4e25f674",
+        "revCount": 2435,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
