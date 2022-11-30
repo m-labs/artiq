@@ -65,10 +65,7 @@ class BoolEditor:
         return self.t_radio.isChecked()
 
     def set(self, val):
-        if type(val) is str and val.lower() == "false":
-            val = False
-        val = bool(val)
-        if val:
+        if bool(val):
             self.t_radio.toggle()
         else:
             self.f_radio.toggle()
@@ -78,15 +75,17 @@ class BoolEditor:
         self.t_radio.toggled.connect(f)
 
 
-class IntEditor:
+class NumberEditor:
     def __init__(self):
-        self.widget = QtWidgets.QSpinBox()
+        self.widget = ScientificSpinBox()
+        self.widget.setDecimals(13)
+        self.widget.setPrecision()
+        self.widget.setRelativeStep()
         self.widget.setValue(0)
-        self.widget.setRange(-(1 << 31), (1 << 31) - 1)
 
     def set(self, val):
         try:
-            self.widget.setValue(int(float(val)))
+            self.widget.setValue(float(val))
         except (TypeError, ValueError):
             self.widget.setValue(0)
 
@@ -97,28 +96,44 @@ class IntEditor:
         self.widget.valueChanged.connect(f)
 
 
-class FloatEditor(AutoEditor):
+class ComplexEditor:
     def __init__(self):
-        super().__init__()
-        self.widget.setPlaceholderText("Float number")
-        self.converter = float
+        self.widget = QtWidgets.QGroupBox()
+        self.hbox = QtWidgets.QHBoxLayout()
+        self.real = ScientificSpinBox()
+        self.imag = ScientificSpinBox()
+        self.hbox.addWidget(self.real)
+        self.hbox.addWidget(QtWidgets.QLabel("+"))
+        self.hbox.addWidget(self.imag)
+        self.hbox.addWidget(QtWidgets.QLabel("j"))
+        self.hbox.addStretch(1)
+        self.widget.setLayout(self.hbox)
 
-    def set(self, val):
-        # first, try use python format
-        try:
-            self.widget.setText(str(self.converter(val)))
-        except (TypeError, ValueError):  # fallback to plaintext
-            self.widget.setText(str(val))
+        self.real.setValue(0)
+        self.imag.setValue(0)
+
+        self.real.setDecimals(13)
+        self.real.setPrecision()
+        self.real.setRelativeStep()
+
+        self.imag.setDecimals(13)
+        self.imag.setPrecision()
+        self.imag.setRelativeStep()
 
     def get_value(self):
-        return self.converter(self.widget.text())
+        return complex(self.real.value(), self.imag.value())
 
+    def set(self, val):
+        try:
+            value = complex(val)
+        except (TypeError, ValueError):
+            value = 0+0j
+        self.real.setValue(value.real)
+        self.imag.setValue(value.imag)
 
-class ComplexEditor(AutoEditor):
-    def __init__(self):
-        super().__init__()
-        self.widget.setPlaceholderText("Complex number")
-        self.converter = complex
+    def connect(self, f):
+        self.real.valueChanged.connect(f)
+        self.imag.valueChanged.connect(f)
 
 
 class StrEditor(AutoEditor):
@@ -153,17 +168,17 @@ class CreateEditDialog(QtWidgets.QDialog):
         self.data_type_combo = QtWidgets.QComboBox(self)
         self.grid.addWidget(self.data_type_combo, 1, 2)
 
-        self.editor_typemap = {
-            "auto": AutoEditor,
-            "NoneType": NoneEditor,
-            "bool": BoolEditor,
-            "int": IntEditor,
-            "float": FloatEditor,
-            "complex": ComplexEditor,
-            "str": StrEditor,
-        }
+        self.editor_typemap = [
+            ("auto", AutoEditor),
+            ("None", NoneEditor),
+            ("bool", BoolEditor),
+            ("number", NumberEditor),
+            ("complex", ComplexEditor),
+            ("string", StrEditor),
+        ]
 
-        self.data_type_combo.addItems(sorted(self.editor_typemap.keys(), key=lambda x: x.lower()))
+        self.data_type_combo.addItems(map(lambda x: x[0], self.editor_typemap))
+        self.editor_typemap = dict(self.editor_typemap)
         width = self.data_type_combo.minimumSizeHint().width()
         self.data_type_combo.view().setMinimumWidth(width)
         self.data_type_combo.currentIndexChanged.connect(self.update_input_field)
@@ -198,19 +213,34 @@ class CreateEditDialog(QtWidgets.QDialog):
         self.name_widget.setText(key)
         self.box_widget.setChecked(persist)
 
-        if not self.key or type(self.value).__name__ not in self.editor_typemap:
+        if not self.key:
             self.value_widget_holder = AutoEditor()
         else:
-            self.value_widget_holder = self.editor_typemap[type(self.value).__name__]()
-            index = self.data_type_combo.findText(type(self.value).__name__)
+            typename = self.get_typename_for_value(self.value)
+            self.value_widget_holder = self.editor_typemap[typename]()
+            index = self.data_type_combo.findText(typename)
             if index != -1:
                 self.data_type_combo.setCurrentIndex(index)
-        if self.key:
             self.value_widget_holder.set(self.value)
 
         self.grid.addWidget(self.value_widget_holder.widget, 1, 1)
         self.value_widget_holder.connect(self.dtype)
         self.dtype()
+
+    @staticmethod
+    def get_typename_for_value(value):
+        t = type(value)
+        if np.issubdtype(t, np.complex_):
+            return "complex"
+        elif np.issubdtype(t, np.number):
+            return "number"
+        elif np.issubdtype(t, np.bool_):
+            return "bool"
+        elif np.issubdtype(t, np.compat.unicode):
+            return "string"
+        elif value is None:
+            return "None"
+        return "auto"
 
     def update_input_field(self):
         new_widget_name = self.data_type_combo.currentText()
