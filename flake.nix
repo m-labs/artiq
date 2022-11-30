@@ -209,18 +209,16 @@
 
       cargo-xbuild = rustPlatform.buildRustPackage rec {
         pname = "cargo-xbuild";
-        version = "0.6.6";
+        version = "0.6.5";
 
         src = pkgs.fetchFromGitHub {
           owner = "rust-osdev";
           repo = pname;
           rev = "v${version}";
-          sha256 = "sha256-29rCjmzxxIjR5nBN2J3xxP+r8NnPIJV90FkSQQEBbo4=";
+          sha256 = "18djvygq9v8rmfchvi2hfj0i6fhn36m716vqndqnj56fiqviwxvf";
         };
 
-        cargoLock = {
-          lockFile = "${src}/Cargo.lock";
-        };
+        cargoSha256 = "13sj9j9kl6js75h9xq0yidxy63vixxm9q3f8jil6ymarml5wkhx8";
       };
 
       vivadoEnv = pkgs.buildFHSUserEnv {
