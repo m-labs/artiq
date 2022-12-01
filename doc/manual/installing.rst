@@ -186,6 +186,10 @@ OpenOCD can be used to write the binary images into the core device FPGA board's
 
 With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
 
+With MSYS2, install ``openocd`` and ``bscan-spi-bitstreams`` as follows::
+
+    pacman -S mingw-w64-x86_64-openocd mingw-w64-x86_64-bscan-spi-bitstreams
+
 With Conda, install ``openocd`` as follows::
 
     $ conda install -c m-labs openocd
