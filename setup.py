@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 import sys
 
 import versioneer
@@ -66,7 +66,7 @@ Topic :: System :: Hardware
 """.splitlines(),
     install_requires=requirements,
     extras_require={},
-    packages=find_packages(),
+    packages=find_namespace_packages(exclude=["artiq.test.lit", "artiq.test.lit.*", "doc.manual"], ),
     namespace_packages=[],
     include_package_data=True,
     ext_modules=[],
