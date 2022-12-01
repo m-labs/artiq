@@ -351,10 +351,9 @@ def main():
             elif action == "analyze":
                 try:
                     exp_inst.analyze()
-                except:
-                    put_exception_report()
-                else:
                     put_completed()
+                finally:
+                    write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_completed()
