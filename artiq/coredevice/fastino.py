@@ -21,7 +21,7 @@ class Fastino:
     DAC updates synchronized to a frame edge.
 
     The `log2_width=0` RTIO layout uses one DAC channel per RTIO address and a
-    dense RTIO address space. The RTIO words are narrow. (32 bit) and
+    dense RTIO address space. The RTIO words are narrow (32 bit) and
     few-channel updates are efficient. There is the least amount of DAC state
     tracking in kernels, at the cost of more DMA and RTIO data.
     The setting here and in the RTIO PHY (gateware) must match.
