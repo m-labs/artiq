@@ -376,6 +376,9 @@
                             "minItems": 2,
                             "maxItems": 2
                         },
+                        "sampler_hw_rev": {
+                            "type": "string"
+                        },
                         "urukul0_ports": {
                             "type": "array",
                             "items": {
