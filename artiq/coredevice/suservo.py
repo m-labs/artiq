@@ -85,6 +85,10 @@ class SUServo:
         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @kernel
     def init(self):
         """Initialize the servo, Sampler and both Urukuls.
@@ -256,6 +260,10 @@ class Channel:
         self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
                               self.servo.channel)
         self.dds = self.servo.ddses[self.servo_channel // 4]
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def set(self, en_out, en_iir=0, profile=0):

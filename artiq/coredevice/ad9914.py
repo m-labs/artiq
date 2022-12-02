@@ -80,6 +80,10 @@ class AD9914:
         self.set_x_duration_mu     = 7 * self.write_duration_mu
         self.exit_x_duration_mu    = 3 * self.write_duration_mu
 
+    @staticmethod
+    def get_rtio_channels(bus_channel, **kwargs):
+        return [(bus_channel, None)]
+
     @kernel
     def write(self, addr, data):
         rtio_output((self.bus_channel << 8) | addr, data)

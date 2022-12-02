@@ -8,6 +8,7 @@ from itertools import count
 
 from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
+from artiq.coredevice.phaser import PHASER_GW_MIQRO, PHASER_GW_BASE
 
 
 def process_header(output, description):
@@ -566,10 +567,10 @@ class PeripheralManager:
     def process_phaser(self, rtio_offset, peripheral):
         mode = peripheral.get("mode", "base")
         if mode == "miqro":
-            dac = ', "dac": {"pll_m": 16, "pll_n": 3, "interpolation": 2}'
+            dac = f', "dac": {{"pll_m": 16, "pll_n": 3, "interpolation": 2}}, "gw_rev"={PHASER_GW_MIQRO}'
             n_channels = 3
         else:
-            dac = ""
+            dac = f', "gw_rev"={PHASER_GW_BASE}'
             n_channels = 5
         self.gen("""
             device_db["{name}"] = {{

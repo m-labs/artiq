@@ -116,6 +116,15 @@ Moninj proxy
    :ref: artiq.frontend.aqctl_moninj_proxy.get_argparser
    :prog: aqctl_moninj_proxy
 
+.. _rtiomap-tool:
+
+RTIO channel name map tool
+--------------------------
+
+.. argparse::
+   :ref: artiq.frontend.artiq_rtiomap.get_argparser
+   :prog: artiq_rtiomap
+
 
 .. _core-device-rtio-analyzer-tool:
 

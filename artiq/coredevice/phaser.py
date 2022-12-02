@@ -229,7 +229,7 @@ class Phaser:
                          "dac_mmap"}
 
     def __init__(self, dmgr, channel_base, miso_delay=1, tune_fifo_offset=True,
-                 clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None,
+                 clk_sel=0, sync_dly=0, dac=None, trf0=None, trf1=None, gw_rev=PHASER_GW_BASE,
                  core_device="core"):
         self.channel_base = channel_base
         self.core = dmgr.get(core_device)
@@ -243,12 +243,24 @@ class Phaser:
         self.clk_sel = clk_sel
         self.tune_fifo_offset = tune_fifo_offset
         self.sync_dly = sync_dly
-        self.gw_rev = -1  # discovered in init()
+        self.gw_rev = gw_rev  # verified in init()
 
         self.dac_mmap = DAC34H84(dac).get_mmap()
 
         self.channel = [PhaserChannel(self, ch, trf)
                         for ch, trf in enumerate([trf0, trf1])]
+
+    @staticmethod
+    def get_rtio_channels(channel_base, gw_rev=PHASER_GW_BASE, **kwargs):
+        if gw_rev == PHASER_GW_MIQRO:
+            return [(channel_base, "base"), (channel_base + 1, "ch0"), (channel_base + 2, "ch1")]
+        elif gw_rev == PHASER_GW_BASE:
+            return [(channel_base, "base"),
+                    (channel_base + 1, "ch0 frequency"),
+                    (channel_base + 2, "ch0 phase amplitude"),
+                    (channel_base + 3, "ch1 frequency"),
+                    (channel_base + 4, "ch1 phase amplitude")]
+        raise ValueError("invalid gw_rev `{}`".format(gw_rev))
 
     @kernel
     def init(self, debug=False):
@@ -267,10 +279,11 @@ class Phaser:
         delay(.1*ms)  # slack
         is_baseband = hw_rev & PHASER_HW_REV_VARIANT
 
-        self.gw_rev = self.read8(PHASER_ADDR_GW_REV)
+        gw_rev = self.read8(PHASER_ADDR_GW_REV)
         if debug:
             print("gw_rev:", self.gw_rev)
             self.core.break_realtime()
+        assert gw_rev == self.gw_rev
         delay(.1*ms)  # slack
 
         # allow a few errors during startup and alignment since boot

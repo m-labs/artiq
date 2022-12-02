@@ -340,3 +340,13 @@ Other options include:
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+
+* Setup resolving RTIO channels to their names
+
+This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
+
+  $ artiq_rtiomap dev_map.bin
+  $ artiq_coremgmt config write -f device_map dev_map.bin
+
+.. note:: You can find more information about how to use the ``artiq_rtiomap`` utility on the :ref:`Utilities <rtiomap-tool>` page.
+

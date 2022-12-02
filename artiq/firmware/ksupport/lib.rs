@@ -414,13 +414,13 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             csr::rtio_dma::error_write(1);
             if error & 1 != 0 {
                 raise!("RTIOUnderflow",
-                    "RTIO underflow at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0);
+                    "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
             }
             if error & 2 != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, output, at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0);
+                    "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
             }
         }
     }
