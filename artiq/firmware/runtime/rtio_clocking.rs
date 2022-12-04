@@ -212,9 +212,8 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
             }
         }
     };
-    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0", not(si5324_ext_ref)))]
-    let si5324_ref_input = si5324::Input::Ckin2;
-    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0", si5324_ext_ref))]
+
+    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     let si5324_ref_input = si5324::Input::Ckin1;
     #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
     let si5324_ref_input = si5324::Input::Ckin2;
@@ -222,6 +221,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "kc705")]
     let si5324_ref_input = si5324::Input::Ckin2;
+
     si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
 }
 
