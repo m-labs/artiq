@@ -117,6 +117,17 @@ pub mod crg {
     pub fn check() -> bool { true }
 }
 
+// Si5324 input to select for locking to an external clock (as opposed to
+// a recovered link clock in DRTIO satellites, which is handled elsewhere).
+#[cfg(all(si5324_as_synthesizer, soc_platform = "kasli", hw_rev = "v2.0"))]
+const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin1;
+#[cfg(all(si5324_as_synthesizer, soc_platform = "kasli", not(hw_rev = "v2.0")))]
+const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
+#[cfg(all(si5324_as_synthesizer, soc_platform = "metlino"))]
+const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
+#[cfg(all(si5324_as_synthesizer, soc_platform = "kc705"))]
+const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
+
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_settings = match cfg {
@@ -212,35 +223,17 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
             }
         }
     };
-
-    #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
-    let si5324_ref_input = si5324::Input::Ckin1;
-    #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
-    let si5324_ref_input = si5324::Input::Ckin2;
-    #[cfg(soc_platform = "metlino")]
-    let si5324_ref_input = si5324::Input::Ckin2;
-    #[cfg(soc_platform = "kc705")]
-    let si5324_ref_input = si5324::Input::Ckin2;
-
-    si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
+    si5324::setup(&si5324_settings, SI5324_EXT_INPUT).expect("cannot initialize Si5324");
 }
 
 pub fn init() {
     let clock_cfg = get_rtio_clock_cfg();
     #[cfg(si5324_as_synthesizer)]
     {
-        #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
-        let si5324_ext_input = si5324::Input::Ckin1;
-        #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
-        let si5324_ext_input = si5324::Input::Ckin2;
-        #[cfg(soc_platform = "metlino")]
-        let si5324_ext_input = si5324::Input::Ckin2;
-        #[cfg(soc_platform = "kc705")]
-        let si5324_ext_input = si5324::Input::Ckin2;
         match clock_cfg {
             RtioClock::Ext0_Bypass => {
                 info!("using external RTIO clock with PLL bypass");
-                si5324::bypass(si5324_ext_input).expect("cannot bypass Si5324")
+                si5324::bypass(SI5324_EXT_INPUT).expect("cannot bypass Si5324")
             },
             _ => setup_si5324_as_synthesizer(clock_cfg),
         }
