@@ -106,7 +106,7 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
                     start_time = datetime.fromtimestamp(h5["start_time"][()]) if "start_time" in h5 else "<none>"
                     v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
                          "class_name: {}\nrid: {}\nstart_time: {}").format(
-                             h5["artiq_version"][()] if "artiq_version" in h5 else "<none>",
+                             h5["artiq_version"].asstr()[()] if "artiq_version" in h5 else "<none>",
                              expid.get("repo_rev", "<none>"),
                              expid.get("file", "<none>"), expid.get("class_name", "<none>"),
                              h5["rid"][()] if "rid" in h5 else "<none>", start_time)
@@ -178,7 +178,7 @@ class FilesDock(QtWidgets.QDockWidget):
                 expid = pyon.decode(f["expid"][()]) if "expid" in f else dict()
                 start_time = datetime.fromtimestamp(f["start_time"][()]) if "start_time" in f else "<none>"
                 v = {
-                    "artiq_version": f["artiq_version"][()] if "artiq_version" in f else "<none>",
+                    "artiq_version": f["artiq_version"].asstr()[()] if "artiq_version" in f else "<none>",
                     "repo_rev": expid.get("repo_rev", "<none>"),
                     "file": expid.get("file", "<none>"),
                     "class_name": expid.get("class_name", "<none>"),
