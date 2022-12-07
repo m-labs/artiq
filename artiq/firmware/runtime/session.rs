@@ -452,18 +452,22 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let exceptions_with_channel: Vec<Option<eh::eh_artiq::Exception>> = exceptions.iter()
                     .map(|exception| {
                         if let Some(exn) = exception {
-                            let msg = str::from_utf8(unsafe{slice::from_raw_parts(exn.message.as_ptr(), exn.message.len())})
-                                .unwrap()
-                                .replace("{rtio_channel_info:0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as u32)));
-                            Some(eh::eh_artiq::Exception {
-                                id: exn.id,
-                                file: exn.file,
-                                line: exn.line,
-                                column: exn.column,
-                                function: exn.function,
-                                message: unsafe {CSlice::new(msg.as_ptr(), msg.len())},
-                                param: exn.param
-                            })
+                            if exn.message.len() == usize::MAX {  // host string
+                                Some(exn.clone())
+                            } else {
+                                let msg = str::from_utf8(unsafe { slice::from_raw_parts(exn.message.as_ptr(), exn.message.len()) })
+                                    .unwrap()
+                                    .replace("{rtio_channel_info:0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as u32)));
+                                Some(eh::eh_artiq::Exception {
+                                    id: exn.id,
+                                    file: exn.file,
+                                    line: exn.line,
+                                    column: exn.column,
+                                    function: exn.function,
+                                    message: unsafe { CSlice::new(msg.as_ptr(), msg.len()) },
+                                    param: exn.param,
+                                })
+                            }
                         } else { None }
                     })
                     .collect();
