@@ -284,9 +284,10 @@ def main():
     exp = None
     exp_inst = None
     repository_path = None
+    results_directory = None
 
     def write_results():
-        filename = "{:09}-{}.h5".format(rid, exp.__name__)
+        filename = "{}/{:09}-{}.h5".format(results_directory, rid, exp.__name__)
         with h5py.File(filename, "w") as f:
             dataset_mgr.write_hdf5(f)
             f["artiq_version"] = artiq_version
@@ -326,11 +327,10 @@ def main():
                 device_mgr.virtual_devices["scheduler"].set_run_info(
                     rid, obj["pipeline_name"], expid, obj["priority"])
                 start_local_time = time.localtime(start_time)
-                dirname = os.path.join("results",
+                results_directory = os.path.join("results",
                                    time.strftime("%Y-%m-%d", start_local_time),
                                    time.strftime("%H", start_local_time))
-                os.makedirs(dirname, exist_ok=True)
-                os.chdir(dirname)
+                os.makedirs(results_directory, exist_ok=True)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
                 exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
                 argument_mgr.check_unprocessed_arguments()
