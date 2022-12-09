@@ -352,7 +352,10 @@ def main():
                     exp_inst.analyze()
                     put_completed()
                 finally:
-                    write_results()
+                    # browser's analyze shouldn't write results,
+                    # since it doesn't run the experiment and cannot have rid
+                    if rid is not None:
+                        write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_completed()
