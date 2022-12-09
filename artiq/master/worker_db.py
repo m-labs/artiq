@@ -119,6 +119,8 @@ class DatasetManager:
         if persist:
             broadcast = True
 
+        self.ddb.set(key, value, persist)
+
         if broadcast:
             self._broadcaster[key] = persist, value
         elif key in self._broadcaster.raw_view:

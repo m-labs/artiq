@@ -291,7 +291,8 @@ class SchedulerCase(unittest.TestCase):
                  "value": (False, True), "path": []})
             termination_ok = True
         handlers = {
-            "update_dataset": check_termination
+            "update_dataset": check_termination,
+            "set_dataset": lambda key, value, persist=None: None
         }
         scheduler = Scheduler(_RIDCounter(0), handlers, None, None)
 

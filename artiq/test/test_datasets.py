@@ -16,6 +16,9 @@ class MockDatasetDB:
     def get(self, key):
         return self.data[key][1]
 
+    def set(self, key, value, persist=None):
+        self.data[key] = (persist, value)
+
     def update(self, mod):
         # Copy mod before applying to avoid sharing references to objects
         # between this and the DatasetManager, which would lead to mods being
@@ -27,8 +30,8 @@ class MockDatasetDB:
 
 
 class TestExperiment(EnvExperiment):
-    def get(self, key):
-        return self.get_dataset(key)
+    def get(self, key, archive=True):
+        return self.get_dataset(key, archive=archive)
 
     def set(self, key, value, **kwargs):
         self.set_dataset(key, value, **kwargs)
@@ -56,8 +59,7 @@ class ExperimentDatasetCase(unittest.TestCase):
         for i in range(2):    
             self.exp.set(KEY, i)
             self.assertEqual(self.exp.get(KEY), i)
-            with self.assertRaises(KeyError):
-                self.dataset_db.get(KEY)
+            self.assertEqual(self.dataset_db.get(KEY), i)
 
     def test_set_broadcast(self):
         with self.assertRaises(KeyError):
@@ -103,3 +105,15 @@ class ExperimentDatasetCase(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.exp.append(KEY, 0)
 
+    def test_set_non_archive(self):
+        value = 42
+        self.exp.set(KEY, value, archive=False)
+        self.assertEqual(self.exp.get(KEY), value)
+        self.assertEqual(self.dataset_db.get(KEY), value)
+
+    def test_get_archive(self):
+        value = 42
+        self.exp.set(KEY, value, archive=False)
+        self.assertEqual(self.exp.get_dataset(KEY, archive=True), value)
+        self.assertEqual(self.dataset_db.get(KEY), value)
+        self.assertEqual(self.dataset_mgr.archive[KEY], value)
