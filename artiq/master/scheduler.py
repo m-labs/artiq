@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import csv
+import os.path
 from enum import Enum
 from time import time
 
@@ -131,7 +132,8 @@ class RunPool:
             writer.writerow([rid, start_time, expid["file"]])
 
     def submit(self, expid, priority, due_date, flush, pipeline_name):
-        # mutates expid to insert head repository revision if None.
+        # mutates expid to insert head repository revision if None and
+        # replaces relative path with the absolute one.
         # called through scheduler.
         rid = self.ridc.get()
         if "repo_rev" in expid:
@@ -141,6 +143,9 @@ class RunPool:
                 expid["repo_rev"])
         else:
             wd, repo_msg = None, None
+
+        if "file" in expid:
+            expid["file"] = os.path.abspath(expid["file"])
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self, repo_msg=repo_msg)
         if self.log_submissions is not None:          
@@ -425,7 +430,8 @@ class Scheduler:
         When called through an experiment, the default values of
         ``pipeline_name``, ``expid`` and ``priority`` correspond to those of
         the current run."""
-        # mutates expid to insert head repository revision if None
+        # mutates expid to insert head repository revision if None, and
+        # replaces relative file path with absolute one
         if self._terminated:
             return
         try:
