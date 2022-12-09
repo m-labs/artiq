@@ -35,9 +35,9 @@ class GTX_20X(Module):
 
         cpllreset = Signal()
         cplllock = Signal()
-        # TX generates RTIO clock, init must be in system domain
+        # TX generates SYS clock, init must be in system domain
         self.submodules.tx_init = tx_init = GTXInit(clk_freq, False, mode=tx_mode)
-        # RX receives restart commands from RTIO domain
+        # RX receives restart commands from SYS domain
         self.submodules.rx_init = rx_init = GTXInit(clk_freq, True, mode=rx_mode)
         self.comb += [
             cpllreset.eq(tx_init.cpllreset),
@@ -85,7 +85,7 @@ class GTX_20X(Module):
                 p_TX_XCLK_SEL="TXUSR",
                 o_TXOUTCLK=self.txoutclk,
                 i_TXSYSCLKSEL=0b00,
-                i_TXOUTCLKSEL=0b011,
+                i_TXOUTCLKSEL=0b11,
 
                 # TX Startup/Reset
                 i_TXPHDLYRESET=0,
@@ -245,15 +245,10 @@ class GTX_20X(Module):
                 p_ES_EYE_SCAN_EN="TRUE",            # Must be TRUE for GTX
             )
 
-        # TX clocking
-        tx_reset_deglitched = Signal()
-        tx_reset_deglitched.attr.add("no_retiming")
-        self.sync += tx_reset_deglitched.eq(~tx_init.done)
-
         # RX clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync.rtio_rx += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         if rx_mode == "single" or rx_mode == "master":
             self.specials += Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
@@ -284,15 +279,16 @@ class GTX(Module, TransceiverInterface):
         # # #
 
         refclk = Signal()
+
         stable_clkin_n = Signal()
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=stable_clkin_n,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk,
-            p_CLKCM_CFG="TRUE",
-            p_CLKRCV_TRST="TRUE",
-            p_CLKSWING_CFG="2'b11"
+            p_CLKCM_CFG="0b1",
+            p_CLKRCV_TRST="0b1",
+            p_CLKSWING_CFG="0b11"
         )
 
         channel_interfaces = []
@@ -315,7 +311,9 @@ class GTX(Module, TransceiverInterface):
         for n, gtx in enumerate(self.gtxs):
             self.comb += [
                 stable_clkin_n.eq(~self.stable_clkin.storage),
-                gtx.txenable.eq(self.txenable.storage[n])
+                gtx.txenable.eq(self.txenable.storage[n]),
+                gtx.tx_init.stable_clkin.eq(self.stable_clkin.storage),
+                gtx.rx_init.stable_clkin.eq(self.stable_clkin.storage)
             ]
 
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
