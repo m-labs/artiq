@@ -528,6 +528,7 @@ pub extern fn main() -> i32 {
         else {
             si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
             info!("Switching sys clock, rebooting...");
+            // delay for clean UART log, wait until UART FIFO is empty
             clock::spin_us(500);
             unsafe {
                 csr::drtio_transceiver::stable_clkin_write(1);

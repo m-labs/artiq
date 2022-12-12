@@ -240,7 +240,8 @@ fn setup_si5324(clock_cfg: RtioClock) {
     #[cfg(all(has_rtiosyscrg, not(has_drtio)))]
     {
         info!("Switching sys clock, rebooting...");
-        clock::spin_us(1300);
+        // delay for clean UART log, wait until UART FIFO is empty
+        clock::spin_us(1300); 
         unsafe {
             csr::crg::clock_sel_write(1);
             loop {}
@@ -261,7 +262,7 @@ pub fn init() {
         };
         if switched == 0 {
             info!("Switching sys clock, rebooting...");
-            clock::spin_us(500);
+            clock::spin_us(500); // delay for clean UART log
             unsafe {
                 // clock switch and reboot will begin after TX is initialized
                 // and TX will be initialized after this
