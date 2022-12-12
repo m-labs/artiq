@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
-from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
+from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -93,6 +93,7 @@ class StandaloneBase(MiniSoC, AMPSoC):
         ]
 
         self.crg.configure(cdr_clk_buf)
+        self.config["HAS_RTIOSYSCRG"] = None
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -328,6 +329,8 @@ class MasterBase(MiniSoC, AMPSoC):
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.config["HAS_RTIOSYSCRG"] = None
+
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
 
@@ -339,8 +342,6 @@ class MasterBase(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
-        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
@@ -568,6 +569,7 @@ class SatelliteBase(BaseSoC):
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+        self.config["HAS_RTIOSYSCRG"] = None
 
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
