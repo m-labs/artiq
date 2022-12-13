@@ -142,10 +142,10 @@ class RunPool:
             wd, repo_msg = self.experiment_db.repo_backend.request_rev(
                 expid["repo_rev"])
         else:
+            if "file" in expid:
+                expid["file"] = os.path.abspath(expid["file"])
             wd, repo_msg = None, None
 
-        if "file" in expid:
-            expid["file"] = os.path.abspath(expid["file"])
         run = Run(rid, pipeline_name, wd, expid, priority, due_date, flush,
                   self, repo_msg=repo_msg)
         if self.log_submissions is not None:          
