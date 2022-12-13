@@ -29,7 +29,7 @@ def get_argparser():
 
 
 def get_rtio_channels(desc):
-    if desc["type"] == "local":
+    if isinstance(desc, dict) and desc["type"] == "local":
         module = importlib.import_module(desc["module"])
         device_class = getattr(module, desc["class"])
         return getattr(device_class, "get_rtio_channels", lambda **kwargs: [])(**desc.get("arguments", {}))
