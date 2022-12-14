@@ -34,7 +34,7 @@ class GTPSingle(Module):
 
         # TX generates RTIO clock, init must be in bootstrap domain
         self.submodules.tx_init = tx_init = ClockDomainsRenamer("bootstrap")(
-            GTPTXInit(62.5e6, mode))
+            GTPTXInit(125e6, mode))
         # RX receives restart commands from SYS domain
         rx_init = GTPRXInit(rtio_clk_freq)
         self.submodules += rx_init
