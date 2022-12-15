@@ -269,7 +269,6 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_AS_SYNTHESIZER"] = None
 
-
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq
         # Constrain TX & RX timing for the first transceiver channel
         # (First channel acts as master for phase alignment for all channels' TX)
@@ -278,14 +277,12 @@ class _MasterBase(MiniSoC, AMPSoC):
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
-        self.comb += [
-            self.platform.request("user_sma_clock_p").eq(txout_buf),
-            self.platform.request("user_sma_clock_n").eq(gtx0.txoutclk)
-        ]
-        led_7 = platform.request("user_led", 3)
-        self.comb += led_7.eq(gtx0.tx_init.done)
-
         self.config["HAS_RTIOSYSCRG"] = None
+
+        self.comb += [
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
+            platform.request("user_sma_clock_n").eq(gtx0.txoutclk)
+        ]
 
         platform.add_period_constraint(gtx0.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtx0.rxoutclk, rtio_clk_period)
@@ -440,6 +437,11 @@ class _SatelliteBase(BaseSoC):
         self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
         self.config["HAS_RTIOSYSCRG"] = None
 
+        self.comb += [
+            platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
+            platform.request("user_sma_clock_n").eq(gtx0.txoutclk)
+        ]
+
         platform.add_period_constraint(gtx0.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtx0.rxoutclk, rtio_clk_period)
         # Constrain RX timing for the each transceiver channel
@@ -493,6 +495,10 @@ class _NIST_CLOCK_RTIO:
         phy = ttl_serdes_7series.InOut_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         ams101_dac = self.platform.request("ams101_dac", 0)
         phy = ttl_simple.Output(ams101_dac.ldac)
@@ -560,6 +566,10 @@ class _NIST_QC2_RTIO:
         phy = ttl_serdes_7series.InOut_8X(platform.request("user_sma_gpio_n_33"))
         self.submodules += phy
         rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=512))
+
+        phy = ttl_simple.Output(platform.request("user_led", 2))
+        self.submodules += phy
+        rtio_channels.append(rtio.Channel.from_phy(phy))
 
         # AMS101 DAC on KC705 XADC header - optional
         ams101_dac = self.platform.request("ams101_dac", 0)
