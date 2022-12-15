@@ -24,31 +24,12 @@ from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
-# class SMAClkinForward(Module):
-#     def __init__(self, platform):
-#         sma_clkin = platform.request("user_sma_clock_33")
-#         platform.add_period_constraint(sma_clkin.p, 8.0)
-#         sma_clkin_se = Signal()
-#         sma_clkin_buffered = Signal()
-#         cdr_clk_se = Signal()
-#         cdr_clk = platform.request("si5324_clkin_33")
-#         self.specials += [
-#             Instance("IBUFDS", i_I=sma_clkin.p, i_IB=sma_clkin.n, o_O=sma_clkin_se),
-#             Instance("BUFG", i_I=sma_clkin_se, o_O=sma_clkin_buffered),
-#             Instance("ODDR", i_C=sma_clkin_buffered, i_CE=1, i_D1=0, i_D2=1, o_Q=cdr_clk_se),
-#             Instance("OBUFDS", i_I=cdr_clk_se, o_O=cdr_clk.p, o_OB=cdr_clk.n)
-#         ]
-
 
 # The default voltage for these signals on KC705 is 2.5V, and the Migen platform
 # follows this default. But since the SMAs are on the same bank as the DDS,
 # which is set to 3.3V by reprogramming the KC705 power ICs, we need to
 # redefine them here.
 _reprogrammed3v3_io = [
-    ("user_sma_clock_33", 0,
-        Subsignal("p", Pins("L25"), IOStandard("TMDS_33")),
-        Subsignal("n", Pins("K25"), IOStandard("TMDS_33"))
-    ),
     ("user_sma_gpio_p_33", 0, Pins("Y23"), IOStandard("LVCMOS33")),
     ("user_sma_gpio_n_33", 0, Pins("Y24"), IOStandard("LVCMOS33")),
     ("si5324_33", 0,
@@ -68,10 +49,8 @@ _reprogrammed3v3_io = [
         Subsignal("mosi", Pins("AB22")),
         Subsignal("cs_n", Pins("AC21")),
         IOStandard("LVCMOS33")
-    ),
+    )
 ]
-
-
 
 _ams101_dac = [
     ("ams101_dac", 0,
@@ -136,11 +115,15 @@ class _StandaloneBase(MiniSoC, AMPSoC):
 
         self.crg.configure(cdr_clk_buf)
         self.config["HAS_RTIOSYSCRG"] = None
-        # self.submodules += SMAClkinForward(self.platform)
 
         self.submodules.timer1 = timer.Timer()
         self.csr_devices.append("timer1")
         self.interrupt_devices.append("timer1")
+
+        self.submodules.leds = gpio.GPIOOut(Cat(
+            self.platform.request("user_led", 0),
+            self.platform.request("user_led", 1)))
+        self.csr_devices.append("leds")
 
         self.platform.add_extension(_reprogrammed3v3_io)
         self.platform.add_extension(_ams101_dac)
@@ -414,6 +397,7 @@ class _SatelliteBase(BaseSoC):
         self.submodules.siphaser = SiPhaser7Series(
             si5324_clkin=platform.request("si5324_clkin_33"),
             rx_synchronizer=self.rx_synchronizer,
+            ref_clk=ClockSignal("bootstrap"),
             ultrascale=False,
             rtio_clk_freq=self.drtio_transceiver.rtio_clk_freq)
         platform.add_false_path_constraints(
