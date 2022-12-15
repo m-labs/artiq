@@ -277,7 +277,7 @@ class _MasterBase(MiniSoC, AMPSoC):
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
-        self.crg.configure(self.crg.cd_bootstrap.clk, clk_sw=gtx0.tx_init.done)
+        self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
         self.comb += [
             self.platform.request("user_sma_clock_p").eq(txout_buf),
             self.platform.request("user_sma_clock_n").eq(gtx0.txoutclk)

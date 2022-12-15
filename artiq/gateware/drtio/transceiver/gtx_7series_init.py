@@ -110,13 +110,13 @@ class GTXInit(Module):
 
         startup_fsm.act("INITIAL",
             startup_timer.wait.eq(1),
-            If(startup_timer.done, NextState("RESET_ALL"))
+            If(startup_timer.done & self.stable_clkin, NextState("RESET_ALL"))
         )
         startup_fsm.act("RESET_ALL",
             gtXxreset.eq(1),
             self.cpllreset.eq(1),
             pll_reset_timer.wait.eq(1),
-            If(pll_reset_timer.done & self.stable_clkin, NextState("RELEASE_PLL_RESET"))
+            If(pll_reset_timer.done, NextState("RELEASE_PLL_RESET"))
         )
         startup_fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
