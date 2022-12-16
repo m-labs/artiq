@@ -465,6 +465,30 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_ref: true
 };
 
+fn sysclk_setup() {
+    let switched = unsafe {
+        csr::crg::switch_done_read()
+    };
+    if switched == 1 {
+        info!("Clocking has already been set up.");
+        return;
+    }
+    else {
+        #[cfg(has_si5324)]
+        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+        #[cfg(has_wrpll)]
+        wrpll::init();
+        info!("Switching sys clock, rebooting...");
+        // delay for clean UART log, wait until UART FIFO is empty
+        clock::spin_us(1300);
+        unsafe {
+            csr::drtio_transceiver::stable_clkin_write(1);
+        }
+        loop {}
+    }
+}
+
+
 #[no_mangle]
 pub extern fn main() -> i32 {
     extern {
@@ -517,35 +541,8 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
-    #[cfg(has_rtiosyscrg)]
-    {
-        let switched = unsafe {
-            csr::crg::switch_done_read()
-        };
-        if switched == 1 {
-            info!("Clocking has already been set up.");
-        }
-        else {
-            si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-            info!("Switching sys clock, rebooting...");
-            // delay for clean UART log, wait until UART FIFO is empty
-            clock::spin_us(500);
-            unsafe {
-                csr::drtio_transceiver::stable_clkin_write(1);
-            }
-            loop {}
-        }
-    }
-    #[cfg(all(not(has_rtiosyscrg), has_si5324))]
-    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-    #[cfg(has_wrpll)]
-    wrpll::init();
+    sysclk_setup();
 
-    #[cfg(not(has_rtiosyscrg))]
-    unsafe {
-        csr::drtio_transceiver::stable_clkin_write(1);
-    }
-    clock::spin_us(1500); // wait for CPLL/QPLL lock
     #[cfg(not(has_jdcg))]
     unsafe {
         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);

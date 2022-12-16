@@ -1,7 +1,6 @@
 use board_misoc::config;
 #[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
-#[cfg(any(soc_platform = "kasli", has_drtio, has_rtiosyscrg))]
 use board_misoc::{csr, clock};
 
 #[derive(Debug, PartialEq)]
@@ -210,15 +209,12 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
 
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324(clock_cfg: RtioClock) {
-    #[cfg(has_rtiosyscrg)]
-    {
-        let switched = unsafe {
-            csr::crg::switch_done_read()
-        };
-        if switched == 1 {
-            info!("Clocking has already been set up.");
-            return;
-        }
+    let switched = unsafe {
+        csr::crg::switch_done_read()
+    };
+    if switched == 1 {
+        info!("Clocking has already been set up.");
+        return;
     }
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     let si5324_ext_input = si5324::Input::Ckin1;
@@ -237,7 +233,7 @@ fn setup_si5324(clock_cfg: RtioClock) {
     }
 
     // switch sysclk source to si5324
-    #[cfg(all(has_rtiosyscrg, not(has_drtio)))]
+    #[cfg(not(has_drtio))]
     {
         info!("Switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
