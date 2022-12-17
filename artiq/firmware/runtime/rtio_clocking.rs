@@ -142,7 +142,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 6,
                     n32    : 6,
                     bwsel  : 4,
-                    crystal_ref: false
+                    crystal_as_ckin2: false
                 },
                 SI5324_EXT_INPUT
             )
@@ -158,7 +158,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 52,
                     n32    : 52,
                     bwsel  : 4,
-                    crystal_ref: false
+                    crystal_as_ckin2: false
                 },
                 SI5324_EXT_INPUT
             )
@@ -174,7 +174,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 63,
                     n32    : 63,
                     bwsel  : 4,
-                    crystal_ref: false
+                    crystal_as_ckin2: false
                 },
                 SI5324_EXT_INPUT
             )
@@ -190,7 +190,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 7139,
                     n32    : 7139,
                     bwsel  : 3,
-                    crystal_ref: true
+                    crystal_as_ckin2: true
                 },
                 si5324::Input::Ckin2
             )
@@ -206,7 +206,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 7139,
                     n32    : 7139,
                     bwsel  : 3,
-                    crystal_ref: true
+                    crystal_as_ckin2: true
                 },
                 si5324::Input::Ckin2
             )
@@ -222,7 +222,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 4565,
                     n32    : 4565,
                     bwsel  : 4,
-                    crystal_ref: true
+                    crystal_as_ckin2: true
                 },
                 si5324::Input::Ckin2
             )
@@ -238,7 +238,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                     n31    : 4565,
                     n32    : 4565,
                     bwsel  : 4,
-                    crystal_ref: true
+                    crystal_as_ckin2: true
                 },
                 si5324::Input::Ckin2
             )
