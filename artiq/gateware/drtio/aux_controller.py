@@ -22,8 +22,7 @@ class Transmitter(Module, AutoCSR):
         self.aux_tx = CSR()
         self.specials.mem = Memory(mem_dw, max_packet//(mem_dw//8))
 
-        converter = ClockDomainsRenamer("rtio")(
-            stream.Converter(mem_dw, ll_dw))
+        converter = stream.Converter(mem_dw, ll_dw)
         self.submodules += converter
 
         # when continuously fed, the Converter outputs data continuously
@@ -36,7 +35,7 @@ class Transmitter(Module, AutoCSR):
         seen_eop_rst = Signal()
         frame_r = Signal()
         seen_eop = Signal()
-        self.sync.rtio += [
+        self.sync += [
             If(link_layer.tx_aux_ack,
                 frame_r.eq(link_layer.tx_aux_frame),
                 If(frame_r & ~link_layer.tx_aux_frame, seen_eop.eq(1))
@@ -44,12 +43,8 @@ class Transmitter(Module, AutoCSR):
             If(seen_eop_rst, seen_eop.eq(0))
         ]
 
-        mem_port = self.mem.get_port(clock_domain="rtio")
+        mem_port = self.mem.get_port()
         self.specials += mem_port
-
-        self.aux_tx_length.storage.attr.add("no_retiming")
-        tx_length = Signal(bits_for(max_packet))
-        self.specials += MultiReg(self.aux_tx_length.storage, tx_length, "rtio")
 
         frame_counter_nbits = bits_for(max_packet) - log2_int(mem_dw//8)
         frame_counter = Signal(frame_counter_nbits)
@@ -66,35 +61,33 @@ class Transmitter(Module, AutoCSR):
             mem_port.adr.eq(frame_counter_next),
             converter.sink.data.eq(mem_port.dat_r)
         ]
-        self.sync.rtio += frame_counter.eq(frame_counter_next)
 
-        start_tx = PulseSynchronizer("sys", "rtio")
-        tx_done = PulseSynchronizer("rtio", "sys")
-        self.submodules += start_tx, tx_done
-        self.comb += start_tx.i.eq(self.aux_tx.re)
+        tx_done = Signal()
         self.sync += [
-            If(tx_done.o, self.aux_tx.w.eq(0)),
-            If(self.aux_tx.re, self.aux_tx.w.eq(1))
+            frame_counter.eq(frame_counter_next),
+            If(self.aux_tx.re, self.aux_tx.w.eq(1)),
+            If(tx_done, self.aux_tx.w.eq(0))
         ]
 
-        fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
+        fsm = FSM(reset_state="IDLE")
         self.submodules += fsm
 
         fsm.act("IDLE",
             frame_counter_rst.eq(1),
             seen_eop_rst.eq(1),
-            If(start_tx.o, NextState("TRANSMIT"))
+            If(self.aux_tx.re, NextState("TRANSMIT"))
         )
         fsm.act("TRANSMIT",
             converter.sink.stb.eq(1),
             If(converter.sink.ack,
                 frame_counter_ce.eq(1)
             ),
-            If(frame_counter_next == tx_length, NextState("WAIT_INTERFRAME"))
+            If(frame_counter_next == self.aux_tx_length.storage,
+                NextState("WAIT_INTERFRAME"))
         )
         fsm.act("WAIT_INTERFRAME",
             If(seen_eop,
-                tx_done.i.eq(1),
+                tx_done.eq(1),
                 NextState("IDLE")
             )
         )

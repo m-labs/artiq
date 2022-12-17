@@ -33,7 +33,7 @@ class BruteforceClockAligner(Module):
         check_counter = Signal(max=check_max_val+1)
         check = Signal()
         reset_check_counter = Signal()
-        self.sync.rtio_tx += [
+        self.sync += [
             check.eq(0),
             If(reset_check_counter,
                 check_counter.eq(check_max_val)
@@ -47,7 +47,7 @@ class BruteforceClockAligner(Module):
             )
         ]
 
-        checks_reset = PulseSynchronizer("rtio_tx", "rtio_rx")
+        checks_reset = PulseSynchronizer("sys", "rtio_rx")
         self.submodules += checks_reset
 
         comma_n = ~comma & 0b1111111111
@@ -76,7 +76,7 @@ class BruteforceClockAligner(Module):
             )
         ]
 
-        fsm = ClockDomainsRenamer("rtio_tx")(FSM(reset_state="WAIT_COMMA"))
+        fsm = FSM(reset_state="WAIT_COMMA")
         self.submodules += fsm
 
         fsm.act("WAIT_COMMA",

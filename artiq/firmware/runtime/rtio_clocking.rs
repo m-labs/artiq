@@ -1,10 +1,7 @@
 use board_misoc::config;
 #[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
-#[cfg(any(soc_platform = "kasli", has_drtio))]
-use board_misoc::csr;
-#[cfg(has_drtio)]
-use board_misoc::clock;
+use board_misoc::{csr, clock};
 
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -212,15 +209,12 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
 
 #[cfg(si5324_as_synthesizer)]
 fn setup_si5324(clock_cfg: RtioClock) {
-    #[cfg(soc_platform = "kasli")]
-    {
-        let switched = unsafe {
-            csr::crg::switch_done_read()
-        };
-        if switched == 1 {
-            info!("Clocking has already been set up.");
-            return;
-        }
+    let switched = unsafe {
+        csr::crg::switch_done_read()
+    };
+    if switched == 1 {
+        info!("Clocking has already been set up.");
+        return;
     }
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     let si5324_ext_input = si5324::Input::Ckin1;
@@ -239,12 +233,14 @@ fn setup_si5324(clock_cfg: RtioClock) {
     }
 
     // switch sysclk source to si5324
-    #[cfg(soc_platform = "kasli")]
+    #[cfg(not(has_drtio))]
     {
-        // excessive dots will be cut off by the reboot
-        info!("Switching sys clock, rebooting..................");
+        info!("Switching sys clock, rebooting...");
+        // delay for clean UART log, wait until UART FIFO is empty
+        clock::spin_us(1300); 
         unsafe {
             csr::crg::clock_sel_write(1);
+            loop {}
         }
     }
 }
@@ -257,14 +253,27 @@ pub fn init() {
 
     #[cfg(has_drtio)]
     {
-        unsafe {
-            csr::drtio_transceiver::stable_clkin_write(1);
+        let switched = unsafe {
+            csr::crg::switch_done_read()
+        };
+        if switched == 0 {
+            info!("Switching sys clock, rebooting...");
+            clock::spin_us(500); // delay for clean UART log
+            unsafe {
+                // clock switch and reboot will begin after TX is initialized
+                // and TX will be initialized after this
+                csr::drtio_transceiver::stable_clkin_write(1);
+            }
+            loop {}
         }
-        clock::spin_us(1500); // wait for CPLL/QPLL lock
-        unsafe {
-            csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+        else {
+            // enable TX after the reboot, with stable clock
+            unsafe {
+                csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+            }
         }
     }
+
 
     #[cfg(has_rtio_crg)]
     {

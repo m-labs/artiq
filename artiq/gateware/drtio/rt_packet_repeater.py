@@ -38,8 +38,8 @@ class RTPacketRepeater(Module):
         assert len(link_layer.tx_rt_data) % 8 == 0
         ws = len(link_layer.tx_rt_data)
         tx_plm = get_m2s_layouts(ws)
-        tx_dp = ClockDomainsRenamer("rtio")(TransmitDatapath(
-            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        tx_dp = TransmitDatapath(
+                link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm)
         self.submodules += tx_dp
         rx_plm = get_s2m_layouts(ws)
         rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
@@ -49,7 +49,7 @@ class RTPacketRepeater(Module):
         # TSC sync
         tsc_value = Signal(64)
         tsc_value_load = Signal()
-        self.sync.rtio += If(tsc_value_load, tsc_value.eq(tsc.coarse_ts))
+        self.sync += If(tsc_value_load, tsc_value.eq(tsc.coarse_ts))
 
         # CRI buffer stage 1
         cb0_loaded = Signal()
@@ -60,7 +60,7 @@ class RTPacketRepeater(Module):
         cb0_chan_sel = Signal(24)
         cb0_o_address = Signal(8)
         cb0_o_data = Signal(512)
-        self.sync.rtio += [
+        self.sync += [
             If(self.reset | cb0_ack,
                 cb0_loaded.eq(0),
                 cb0_cmd.eq(cri.commands["nop"])
@@ -91,7 +91,7 @@ class RTPacketRepeater(Module):
         cb_chan_sel = Signal(24)
         cb_o_address = Signal(8)
         cb_o_data = Signal(512)
-        self.sync.rtio += [
+        self.sync += [
             If(self.reset | cb_ack,
                 cb_loaded.eq(0),
                 cb_cmd.eq(cri.commands["nop"])
@@ -112,11 +112,11 @@ class RTPacketRepeater(Module):
         wb_extra_data_a = Signal(512)
         self.comb += wb_extra_data_a.eq(self.cri.o_data[short_data_len:])
         for i in range(512//ws):
-            self.sync.rtio += If(self.cri.cmd == cri.commands["write"],
+            self.sync += If(self.cri.cmd == cri.commands["write"],
                 If(wb_extra_data_a[ws*i:ws*(i+1)] != 0, wb_extra_data_cnt.eq(i+1)))
 
         wb_extra_data = Signal(512)
-        self.sync.rtio += If(self.cri.cmd == cri.commands["write"],
+        self.sync += If(self.cri.cmd == cri.commands["write"],
             wb_extra_data.eq(wb_extra_data_a))
 
         extra_data_ce = Signal()
@@ -128,7 +128,7 @@ class RTPacketRepeater(Module):
                  for i in range(512//ws)}),
             extra_data_last.eq(extra_data_counter == wb_extra_data_cnt)
         ]
-        self.sync.rtio += \
+        self.sync += \
             If(extra_data_ce,
                 extra_data_counter.eq(extra_data_counter + 1),
             ).Else(
@@ -136,19 +136,19 @@ class RTPacketRepeater(Module):
             )
 
         # Buffer space
-        self.sync.rtio += If(self.cri.cmd == cri.commands["get_buffer_space"],
+        self.sync += If(self.cri.cmd == cri.commands["get_buffer_space"],
             self.buffer_space_destination.eq(self.cri.chan_sel[16:]))
 
         rx_buffer_space_not = Signal()
         rx_buffer_space = Signal(16)
         buffer_space_not = Signal()
         buffer_space_not_ack = Signal()
-        self.submodules += CrossDomainNotification("rtio_rx", "rtio",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             rx_buffer_space_not, rx_buffer_space,
             buffer_space_not, buffer_space_not_ack,
             self.cri.o_buffer_space)
 
-        timeout_counter = ClockDomainsRenamer("rtio")(WaitTimer(8191))
+        timeout_counter = WaitTimer(8191)
         self.submodules += timeout_counter
 
         # Read
@@ -163,7 +163,7 @@ class RTPacketRepeater(Module):
         rtio_read_is_overflow = Signal()
         rtio_read_data = Signal(32)
         rtio_read_timestamp = Signal(64)
-        self.submodules += CrossDomainNotification("rtio_rx", "rtio",
+        self.submodules += CrossDomainNotification("rtio_rx", "sys",
             read_not,
             Cat(read_no_event, read_is_overflow, read_data, read_timestamp),
 
@@ -183,7 +183,7 @@ class RTPacketRepeater(Module):
             i_status_wait_event, i_status_overflow, cb0_loaded | cb_loaded))
 
         load_read_reply = Signal()
-        self.sync.rtio += [
+        self.sync += [
             If(load_read_reply,
                 i_status_wait_event.eq(0),
                 i_status_overflow.eq(0),
@@ -200,7 +200,7 @@ class RTPacketRepeater(Module):
         ]
 
         # TX and CRI FSM
-        tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
+        tx_fsm = FSM(reset_state="IDLE")
         self.submodules += tx_fsm
 
         tx_fsm.act("IDLE",

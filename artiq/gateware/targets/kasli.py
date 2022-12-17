@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
-from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
+from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
@@ -76,6 +76,23 @@ class StandaloneBase(MiniSoC, AMPSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
             self.submodules += SMAClkinForward(self.platform)
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        cdr_clk_buf = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
+        self.specials += [
+            Instance("IBUFDS_GTE2",
+                i_CEB=0,
+                i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+                o_O=cdr_clk), 
+            Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
+        ]
+
+        self.crg.configure(cdr_clk_buf)
 
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -218,6 +235,8 @@ class MasterBase(MiniSoC, AMPSoC):
                          integrated_sram_size=8192,
                          ethmac_nrxslots=4,
                          ethmac_ntxslots=4,
+                         clk_freq=rtio_clk_freq,
+                         rtio_sys_merge=True,
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
@@ -256,8 +275,6 @@ class MasterBase(MiniSoC, AMPSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += self.disable_cdr_clk_ibuf.eq(
-            ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
@@ -307,8 +324,14 @@ class MasterBase(MiniSoC, AMPSoC):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.drtio_transceiver.gtps[0]
+
+        txout_buf = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
+        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
+
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
@@ -317,8 +340,6 @@ class MasterBase(MiniSoC, AMPSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
-        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
@@ -350,19 +371,18 @@ class MasterBase(MiniSoC, AMPSoC):
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.
     def create_qpll(self):
-        # The GTP acts up if you send any glitch to its
-        # clock input, even while the PLL is held in reset.
-        self.disable_cdr_clk_ibuf = Signal(reset=1)
-        self.disable_cdr_clk_ibuf.attr.add("no_retiming")
         if self.platform.hw_rev == "v2.0":
-            cdr_clk_clean = self.platform.request("cdr_clk_clean")
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
-            cdr_clk_clean = self.platform.request("si5324_clkout")
-        cdr_clk_clean_buf = Signal()
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=self.disable_cdr_clk_ibuf,
-            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
-            o_O=cdr_clk_clean_buf)
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -377,7 +397,8 @@ class MasterBase(MiniSoC, AMPSoC):
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings,
+
+        qpll = QPLL(cdr_clk, qpll_drtio_settings,
                     self.crg.clk125_buf, qpll_eth_settings)
         self.submodules += qpll
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
@@ -400,6 +421,8 @@ class SatelliteBase(BaseSoC):
                  cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 clk_freq=rtio_clk_freq,
+                 rtio_sys_merge=True,
                  **kwargs)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
@@ -410,23 +433,24 @@ class SatelliteBase(BaseSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
 
-        disable_cdr_clk_ibuf = Signal(reset=1)
-        disable_cdr_clk_ibuf.attr.add("no_retiming")
         if self.platform.hw_rev == "v2.0":
-            cdr_clk_clean = self.platform.request("cdr_clk_clean")
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
-            cdr_clk_clean = self.platform.request("si5324_clkout")
-        cdr_clk_clean_buf = Signal()
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=disable_cdr_clk_ibuf,
-            i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
-            o_O=cdr_clk_clean_buf)
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
             fbdiv_45=5,
             refclk_div=1)
-        qpll = QPLL(cdr_clk_clean_buf, qpll_drtio_settings)
+        qpll = QPLL(cdr_clk, qpll_drtio_settings)
         self.submodules += qpll
 
         drtio_data_pads = []
@@ -445,8 +469,6 @@ class SatelliteBase(BaseSoC):
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
         self.csr_devices.append("drtio_transceiver")
-        self.sync += disable_cdr_clk_ibuf.eq(
-            ~self.drtio_transceiver.stable_clkin.storage)
 
         if enable_sata:
             sfp_channels = self.drtio_transceiver.channels[1:]
@@ -542,6 +564,10 @@ class SatelliteBase(BaseSoC):
             self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.drtio_transceiver.gtps[0]
+        txout_buf = Signal()
+        self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
+        self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
+
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
         platform.add_false_path_constraints(
@@ -555,8 +581,6 @@ class SatelliteBase(BaseSoC):
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
 
-        self.submodules.rtio_crg = RTIOClockMultiplier(rtio_clk_freq)
-        self.csr_devices.append("rtio_crg")
         fix_serdes_timing_path(platform)
 
     def add_rtio(self, rtio_channels, sed_lanes=8):
