@@ -214,11 +214,9 @@ pub fn bypass(input: Input) -> Result<()> {
     Ok(())
 }
 
-pub fn setup(settings: &FrequencySettings, ext_input: Input) -> Result<()> {
+pub fn setup(settings: &FrequencySettings, input: Input) -> Result<()> {
     let s = map_frequency_settings(settings)?;
 
-    // FREE_RUN=1 routes XA/XB to CKIN2.
-    let input = if settings.crystal_ref { Input::Ckin2 } else { ext_input };
     let cksel_reg = match input {
         Input::Ckin1 => 0b00,
         Input::Ckin2 => 0b01,
