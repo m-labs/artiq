@@ -31,7 +31,7 @@ Highlights:
    - Almazny mezzanine board for Mirny
    - Phaser: improved documentation, exposed the DAC coarse mixer and ``sif_sync``, exposed upconverter calibration
      and enabling/disabling of upconverter LO & RF outputs, added helpers to align Phaser updates to the
-     RTIO timeline (``get_next_frame_mu()``
+     RTIO timeline (``get_next_frame_mu()``).
    - Urukul: ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912.
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * Gateware FPU is supported on KC705 and Kasli 2.0.
