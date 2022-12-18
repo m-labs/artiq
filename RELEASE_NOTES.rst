@@ -67,9 +67,9 @@ Breaking changes:
   generated for some configurations.
 * Phaser: fixed coarse mixer frequency configuration
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
-  calling `ADF5356.init()`.
+  calling ``ADF5356.init()``.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
-* The ``PCA9548`` I2C switch class was renamed to ``I2CSwitch``, to accomodate support for PCA9547,
+* The ``PCA9548`` I2C switch class was renamed to ``I2CSwitch``, to accommodate support for PCA9547,
   and possibly other switches in future. Readback has been removed, and now only one channel per
   switch is supported.
 
