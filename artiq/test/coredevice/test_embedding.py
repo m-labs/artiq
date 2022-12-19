@@ -74,11 +74,17 @@ class RoundtripTest(ExperimentCase):
     def test_object_list(self):
         self.assertRoundtrip([object(), object()])
 
+    def test_object_tuple(self):
+        self.assertRoundtrip((False, object(), True, 0x12345678))
+
     def test_list_tuple(self):
         self.assertRoundtrip(([1, 2], [3, 4]))
 
     def test_list_mixed_tuple(self):
-        self.assertRoundtrip([(0x12345678, [("foo", [0.0, 1.0], [0, 1])])])
+        self.assertRoundtrip([
+            (0x12345678, [("foo", [0.0, 1.0], [0, 1])]),
+            (0x23456789, [("bar", [2.0, 3.0], [2, 3])])])
+        self.assertRoundtrip([(0, 1.0, 0), (1, 1.5, 2), (2, 1.9, 4)])
 
     def test_array_1d(self):
         self.assertArrayRoundtrip(numpy.array([True, False]))
@@ -92,7 +98,7 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
 
     # FIXME: This should work, but currently passes as the argument is just
-    # synthesised as a call to array() without forwarding the dype form the host
+    # synthesised as a call to array() without forwarding the dtype from the host
     # NumPy object.
     @unittest.expectedFailure
     def test_array_jagged(self):
@@ -520,19 +526,32 @@ class NumpyBoolTest(ExperimentCase):
 class _Alignment(EnvExperiment):
     def build(self):
         self.setattr_device("core")
+        self.a = False
+        self.b = 1234.5678
+        self.c = True
+        self.d = True
+        self.e = 2345.6789
+        self.f = False
 
     @rpc
-    def a_tuple(self) -> TList(TTuple([TBool, TFloat, TBool])):
-        return [(True, 1234.5678, True)]
+    def get_tuples(self) -> TList(TTuple([TBool, TFloat, TBool])):
+        return [(self.a, self.b, self.c), (self.d, self.e, self.f)]
 
     @kernel
     def run(self):
-        a, b, c = self.a_tuple()[0]
-        d, e, f = self.a_tuple()[0]
-        assert a == d
-        assert b == e
-        assert c == f
-        return 0
+        # Run two RPCs before checking to catch any obvious allocation size calculation
+        # issues (i.e. use of uninitialised stack memory).
+        tuples0 = self.get_tuples()
+        tuples1 = self.get_tuples()
+        for tuples in [tuples0, tuples1]:
+            a, b, c = tuples[0]
+            d, e, f = tuples[1]
+            assert a == self.a
+            assert b == self.b
+            assert c == self.c
+            assert d == self.d
+            assert e == self.e
+            assert f == self.f
 
 
 class AlignmentTest(ExperimentCase):

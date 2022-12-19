@@ -1,7 +1,7 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.05;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.11;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
@@ -44,6 +44,7 @@
       });
 
       vivadoDeps = pkgs: with pkgs; [
+        libxcrypt
         ncurses5
         zlib
         libuuid
@@ -112,29 +113,7 @@
         '';
       };
 
-      llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
-        pname = "llvmlite";
-        version = "0.38.0";
-        src = pkgs.python3Packages.fetchPypi {
-          inherit pname;
-          version = "0.38.0";
-          sha256 = "qZ0WbM87EW87ntI7m3C6JBVkCpyXjzqqE/rUnFj0llw=";
-        };
-        nativeBuildInputs = [ pkgs.llvm_11 ];
-        # Disable static linking
-        # https://github.com/numba/llvmlite/issues/93
-        postPatch = ''
-          substituteInPlace ffi/Makefile.linux --replace "-static-libstdc++" ""
-          substituteInPlace llvmlite/tests/test_binding.py --replace "test_linux" "nope"
-        '';
-        # Set directory containing llvm-config binary
-        preConfigure = ''
-          export LLVM_CONFIG=${pkgs.llvm_11.dev}/bin/llvm-config
-        '';
-        doCheck = false;  # FIXME
-      };
-
-      artiq = pkgs.python3Packages.buildPythonPackage rec {
+      artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
         version = artiqVersion;
         src = self;
@@ -147,8 +126,8 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 llvmlite-new sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial python-Levenshtein h5py pyqt5 qasync tqdm ]);
+        propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+          ++ (with pkgs.python3Packages; [ llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm ]);
 
         dontWrapQtApps = true;
         postFixup = ''
@@ -175,6 +154,11 @@
           '';
       };
 
+      artiq = artiq-upstream // {
+        withExperimentalFeatures = features: artiq-upstream.overrideAttrs(oa:
+            { patches = map (f: ./experimental-features/${f}.diff) features; });
+      };
+
       migen = pkgs.python3Packages.buildPythonPackage rec {
         name = "migen";
         src = src-migen;
@@ -196,7 +180,6 @@
       misoc = pkgs.python3Packages.buildPythonPackage {
         name = "misoc";
         src = src-misoc;
-        doCheck = false;  # TODO: fix misoc bitrot and re-enable tests
         propagatedBuildInputs = with pkgs.python3Packages; [ jinja2 numpy migen pyserial asyncserial ];
       };
 
@@ -246,11 +229,11 @@
       vivado = pkgs.buildFHSUserEnv {
         name = "vivado";
         targetPkgs = vivadoDeps;
-        profile = "set -e; source /opt/Xilinx/Vivado/2021.2/settings64.sh";
+        profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
         runScript = "vivado";
       };
 
-      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}" }:
+      makeArtiqBoardPackage = { target, variant, buildCommand ? "python -m artiq.gateware.targets.${target} -V ${variant}", experimentalFeatures ? [] }:
         pkgs.stdenv.mkDerivation {
           name = "artiq-board-${target}-${variant}";
           phases = [ "buildPhase" "checkPhase" "installPhase" ];
@@ -261,7 +244,7 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ ps.jsonschema  migen misoc artiq]))
+            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
             pkgs.llvmPackages_11.clang-unwrapped
@@ -442,6 +425,8 @@
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
+	  export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
+          export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
         '';
       };
 

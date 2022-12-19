@@ -156,6 +156,21 @@ extern fn rpc_send_async(service: u32, tag: &CSlice<u8>, data: *const *const ())
     })
 }
 
+
+/// Receives the result from an RPC call into the given memory buffer.
+///
+/// To handle aggregate objects with an a priori unknown size and number of
+/// sub-allocations (e.g. a list of list of lists, where, at each level, the number of
+/// elements is not statically known), this function needs to be called in a loop:
+///
+/// On the first call, `slot` should be a buffer of suitable size and alignment for
+/// the top-level return value (e.g. in the case of a list, the pointer/length pair).
+/// A return value of zero indicates that the value has been completely received.
+/// As long as the return value is positive, another allocation with the given number of
+/// bytes is needed, so the function should be called again with such a buffer (aligned
+/// to the maximum required for any of the possible types according to the target ABI).
+///
+/// If the RPC call resulted in an exception, it is reconstructed and raised.
 #[unwind(allowed)]
 extern fn rpc_recv(slot: *mut ()) -> usize {
     send(&RpcRecvRequest(slot));
@@ -399,13 +414,13 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             csr::rtio_dma::error_write(1);
             if error & 1 != 0 {
                 raise!("RTIOUnderflow",
-                    "RTIO underflow at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0);
+                    "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
             }
             if error & 2 != 0 {
                 raise!("RTIODestinationUnreachable",
-                    "RTIO destination unreachable, output, at {0} mu, channel {1}",
-                    timestamp as i64, channel as i64, 0);
+                    "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
             }
         }
     }
@@ -456,6 +471,8 @@ unsafe fn attribute_writeback(typeinfo: *const ()) {
     }
 }
 
+static mut STACK_GUARD_BASE: usize = 0x0;
+
 #[no_mangle]
 pub unsafe fn main() {
     eh_artiq::reset_exception_buffer(KERNELCPU_PAYLOAD_ADDRESS);
@@ -487,6 +504,7 @@ pub unsafe fn main() {
     ptr::write_bytes(__bss_start as *mut u8, 0, (_end - __bss_start) as usize);
 
     board_misoc::pmp::init_stack_guard(_sstack_guard as usize);
+    STACK_GUARD_BASE = _sstack_guard as usize;
     board_misoc::cache::flush_cpu_dcache();
     board_misoc::cache::flush_cpu_icache();
 
@@ -516,10 +534,20 @@ pub unsafe fn main() {
 
 #[no_mangle]
 #[unwind(allowed)]
-pub extern fn exception(_regs: *const u32) {
+pub unsafe extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
     let cause = mcause::read().cause();
     let mtval = mtval::read();
+    if let mcause::Trap::Exception(mcause::Exception::LoadFault)
+    | mcause::Trap::Exception(mcause::Exception::StoreFault) = cause
+    {
+        if mtval >= STACK_GUARD_BASE
+            && mtval < (STACK_GUARD_BASE + board_misoc::pmp::STACK_GUARD_SIZE)
+        {
+            panic!("{:?} at PC {:#08x} in stack guard page ({:#08x}); stack overflow in user kernel code?",
+                   cause, u32::try_from(pc).unwrap(), mtval);
+        }
+    }
     panic!("{:?} at PC {:#08x}, trap value {:#08x}", cause, u32::try_from(pc).unwrap(), mtval);
 }
 

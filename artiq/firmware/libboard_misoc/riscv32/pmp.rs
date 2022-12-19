@@ -9,6 +9,8 @@ const PMP_W    : usize = 0b00000010;
 const PMP_R    : usize = 0b00000001;
 const PMP_OFF  : usize = 0b00000000;
 
+pub const STACK_GUARD_SIZE: usize = 0x1000;
+
 #[inline(always)]
 pub unsafe fn init_stack_guard(guard_base: usize) {
     pmpaddr2::write((guard_base >> 2) | ((0x1000 - 1) >> 3));

@@ -29,7 +29,19 @@ def get_artiq_rev():
         import artiq
     except ImportError:
         return None
-    return artiq._version.get_rev()
+    rev = artiq._version.get_rev()
+    if rev == "unknown":
+        return None
+    return rev
+
+
+def get_artiq_major_version():
+    try:
+        import artiq
+    except ImportError:
+        return None
+    version = artiq._version.get_version()
+    return version.split(".")[0]
 
 
 def zip_unarchive(data, directory):
@@ -70,17 +82,18 @@ class Client:
         self.send_command("LOGIN", username, password)
         return self.read_reply() == ["HELLO"]
 
-    def build(self, rev, variant, log):
+    def build(self, major_ver, rev, variant, log, experimental_features):
         if not variant:
-            variants = self.get_variants()
-            if len(variants) != 1:
-                raise ValueError("User can build more than 1 variant - need to specify")
-            variant = variants[0][0]
+            variant = self.get_single_variant(error_msg="User can build more than 1 variant - need to specify")
         print("Building variant: {}".format(variant))
-        if log:
-            self.send_command("BUILD", rev, variant, "LOG_ENABLE")
-        else:
-            self.send_command("BUILD", rev, variant)
+        build_args = (
+            rev,
+            variant,
+            "LOG_ENABLE" if log else "LOG_DISABLE",
+            major_ver,
+            *experimental_features,
+        )
+        self.send_command("BUILD", *build_args)
         reply = self.read_reply()[0]
         if reply != "BUILDING":
             return reply, None
@@ -124,6 +137,26 @@ class Client:
             raise ValueError("Unexpected server reply: expected 'OK', got '{}'".format(reply))
         return self.read_json()
 
+    def get_single_variant(self, error_msg):
+        variants = self.get_variants()
+        if len(variants) != 1:
+            print(error_msg)
+            table = PrettyTable()
+            table.field_names = ["Variant", "Expiry date"]
+            table.add_rows(variants)
+            print(table)
+            sys.exit(1)
+        return variants[0][0]
+
+    def get_json(self, variant):
+        self.send_command("GET_JSON", variant)
+        reply = self.read_reply()
+        if reply[0] != "OK":
+            return reply[0], None
+        length = int(reply[1])
+        json_str = self.fsocket.read(length).decode("ascii")
+        return "OK", json_str
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -134,12 +167,18 @@ def main():
     action = parser.add_subparsers(dest="action")
     action.required = True
     act_build = action.add_parser("build", help="build and download firmware")
+    act_build.add_argument("--major-ver", default=None, help="ARTIQ major version")
     act_build.add_argument("--rev", default=None, help="revision to build (default: currently installed ARTIQ revision)")
     act_build.add_argument("--log", action="store_true", help="Display the build log")
+    act_build.add_argument("--experimental", action="append", default=[], help="enable an experimental feature (can be repeatedly specified to enable multiple features)")
     act_build.add_argument("directory", help="output directory")
     act_build.add_argument("variant", nargs="?", default=None, help="variant to build (can be omitted if user is authorised to build only one)")
     act_passwd = action.add_parser("passwd", help="change password")
     act_get_variants = action.add_parser("get_variants", help="get available variants and expiry dates")
+    act_get_json = action.add_parser("get_json", help="get JSON description file of variant")
+    act_get_json.add_argument("variant", nargs="?", default=None, help="variant to get (can be omitted if user is authorised to build only one)")
+    act_get_json.add_argument("-o", "--out", default=None, help="output JSON file")
+    act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
     args = parser.parse_args()
 
     cert = args.cert
@@ -182,13 +221,19 @@ def main():
                 except NotADirectoryError:
                     print("A file with the same name as the output directory already exists. Please remove it and try again.")
                     sys.exit(1)
+            major_ver = args.major_ver
+            if major_ver is None:
+                major_ver = get_artiq_major_version()
+            if major_ver is None:
+                print("Unable to determine currently installed ARTIQ major version. Specify manually using --major-ver.")
+                sys.exit(1)
             rev = args.rev
             if rev is None:
                 rev = get_artiq_rev()
             if rev is None:
                 print("Unable to determine currently installed ARTIQ revision. Specify manually using --rev.")
                 sys.exit(1)
-            result, contents = client.build(rev, args.variant, args.log)
+            result, contents = client.build(major_ver, rev, args.variant, args.log, args.experimental)
             if result != "OK":
                 if result == "UNAUTHORIZED":
                     print("You are not authorized to build this variant. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
@@ -204,6 +249,24 @@ def main():
             table.field_names = ["Variant", "Expiry date"]
             table.add_rows(data)        
             print(table)
+        elif args.action == "get_json":
+            if args.variant:
+                variant = args.variant
+            else:
+                variant = client.get_single_variant(error_msg="User can get JSON of more than 1 variant - need to specify")
+            result, json_str = client.get_json(variant)
+            if result != "OK":
+                if result == "UNAUTHORIZED":
+                    print(f"You are not authorized to get JSON of variant {variant}. Your firmware subscription may have expired. Contact helpdesk\x40m-labs.hk.")
+                sys.exit(1)
+            if args.out:
+                if not args.force and os.path.exists(args.out):
+                    print(f"File {args.out} already exists. You can use -f to overwrite the existing file.")
+                    sys.exit(1)
+                with open(args.out, "w") as f:
+                    f.write(json_str)
+            else:
+                print(json_str)
         else:
             raise ValueError
     finally:

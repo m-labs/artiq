@@ -41,6 +41,10 @@ class Spline:
         self.time_scale = float((1 << time_width) *
                                 core_device.coarse_ref_period)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @portable(flags={"fast-math"})
     def to_mu(self, value: TFloat) -> TInt32:
         """Convert floating point ``value`` from physical units to 32 bit

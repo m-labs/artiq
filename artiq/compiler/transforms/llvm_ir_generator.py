@@ -177,6 +177,15 @@ class LLVMIRGenerator:
         self.empty_metadata = self.llmodule.add_metadata([])
         self.quote_fail_msg = None
 
+        # Maximum alignment required according to the target platform ABI. As this is
+        # not directly exposed by LLVM, just take the maximum across all the "big"
+        # elementary types we use. (Vector types, should we ever support them, are
+        # likely contenders for even larger alignment requirements.)
+        self.max_target_alignment = max(map(
+            lambda t: self.abi_layout_info.get_size_align(t)[1],
+            [lli64, lldouble, llptr]
+        ))
+
     def add_pred(self, pred, block):
         if block not in self.llpred_map:
             self.llpred_map[block] = set()
@@ -335,8 +344,8 @@ class LLVMIRGenerator:
             else:
                 value = const.value
 
-            llptr = self.llstr_of_str(const.value, linkage="private", unnamed_addr=True)
-            lllen = ll.Constant(lli32, len(const.value))
+            llptr = self.llstr_of_str(value, linkage="private", unnamed_addr=True)
+            lllen = ll.Constant(lli32, len(value))
             return ll.Constant(llty, (llptr, lllen))
         else:
             assert False
@@ -1529,7 +1538,7 @@ class LLVMIRGenerator:
 
         self.llbuilder.position_at_end(llalloc)
         llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
-        llalloca.align = 4 # maximum alignment required by OR1K ABI
+        llalloca.align = self.max_target_alignment
         llphi.add_incoming(llalloca, llalloc)
         self.llbuilder.branch(llhead)
 

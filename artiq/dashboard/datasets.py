@@ -14,92 +14,18 @@ from artiq.gui.scientific_spinbox import ScientificSpinBox
 logger = logging.getLogger(__name__)
 
 
-async def rename(key, newkey, value, dataset_ctl):
-    if key != newkey:
+async def rename(key, new_key, value, persist, dataset_ctl):
+    if key != new_key:
         await dataset_ctl.delete(key)
-    await dataset_ctl.set(newkey, value)
+    await dataset_ctl.set(new_key, value, persist)
 
 
-class Editor(QtWidgets.QDialog):
-    def __init__(self, parent, dataset_ctl, key, value):
-        QtWidgets.QDialog.__init__(self, parent=parent)
-        self.dataset_ctl = dataset_ctl
-        self.key = key
-        self.initial_type = type(value)
-
-        self.setWindowTitle("Edit dataset")
-        grid = QtWidgets.QGridLayout()
-        self.setLayout(grid)
-
-        grid.addWidget(QtWidgets.QLabel("Name:"), 0, 0)
-
-        self.name_widget = QtWidgets.QLineEdit()
-        self.name_widget.setText(key)
-
-        grid.addWidget(self.name_widget, 0, 1)
-
-        grid.addWidget(QtWidgets.QLabel("Value:"), 1, 0)
-        grid.addWidget(self.get_edit_widget(value), 1, 1)
-
-        buttons = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
-        grid.setRowStretch(2, 1)
-        grid.addWidget(buttons, 3, 0, 1, 2)
-        buttons.accepted.connect(self.accept)
-        buttons.rejected.connect(self.reject)
-
-    def accept(self):
-        newkey = self.name_widget.text()
-        value = self.initial_type(self.get_edit_widget_value())
-        asyncio.ensure_future(rename(self.key, newkey, value, self.dataset_ctl))
-        QtWidgets.QDialog.accept(self)
-
-    def get_edit_widget(self, initial_value):
-        raise NotImplementedError
-
-    def get_edit_widget_value(self):
-        raise NotImplementedError
-
-
-class NumberEditor(Editor):
-    def get_edit_widget(self, initial_value):
-        self.edit_widget = ScientificSpinBox()
-        self.edit_widget.setDecimals(13)
-        self.edit_widget.setPrecision()
-        self.edit_widget.setRelativeStep()
-        self.edit_widget.setValue(float(initial_value))
-        return self.edit_widget
-
-    def get_edit_widget_value(self):
-        return self.edit_widget.value()
-
-
-class BoolEditor(Editor):
-    def get_edit_widget(self, initial_value):
-        self.edit_widget = QtWidgets.QCheckBox()
-        self.edit_widget.setChecked(bool(initial_value))
-        return self.edit_widget
-
-    def get_edit_widget_value(self):
-        return self.edit_widget.isChecked()
-
-
-class StringEditor(Editor):
-    def get_edit_widget(self, initial_value):
-        self.edit_widget = QtWidgets.QLineEdit()
-        self.edit_widget.setText(initial_value)
-        return self.edit_widget
-
-    def get_edit_widget_value(self):
-        return self.edit_widget.text()
-
-
-class Creator(QtWidgets.QDialog):
-    def __init__(self, parent, dataset_ctl):
+class CreateEditDialog(QtWidgets.QDialog):
+    def __init__(self, parent, dataset_ctl, key=None, value=None, persist=False):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.dataset_ctl = dataset_ctl
 
-        self.setWindowTitle("Create dataset")
+        self.setWindowTitle("Create dataset" if key is None else "Edit dataset")
         grid = QtWidgets.QGridLayout()
         grid.setRowMinimumHeight(1, 40)
         grid.setColumnMinimumWidth(2, 60)
@@ -130,16 +56,24 @@ class Creator(QtWidgets.QDialog):
         self.buttons.addButton(
             self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
         grid.setRowStretch(3, 1)
-        grid.addWidget(self.buttons, 4, 0, 1, 3)
+        grid.addWidget(self.buttons, 4, 0, 1, 3, alignment=QtCore.Qt.AlignHCenter)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
+
+        self.key = key
+        self.name_widget.setText(key)
+        self.value_widget.setText(value)
+        self.box_widget.setChecked(persist)
 
     def accept(self):
         key = self.name_widget.text()
         value = self.value_widget.text()
         persist = self.box_widget.isChecked()
-        asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(
-            key, pyon.decode(value), persist)))
+        if self.key and self.key != key:
+            asyncio.ensure_future(exc_to_warning(rename(self.key, key, pyon.decode(value), persist, self.dataset_ctl)))
+        else:
+            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, pyon.decode(value), persist)))
+        self.key = key
         QtWidgets.QDialog.accept(self)
 
     def dtype(self):
@@ -226,7 +160,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table.setModel(self.table_model_filter)
 
     def create_clicked(self):
-        Creator(self, self.dataset_ctl).open()
+        CreateEditDialog(self, self.dataset_ctl).open()
 
     def edit_clicked(self):
         idx = self.table.selectedIndexes()
@@ -236,17 +170,13 @@ class DatasetsDock(QtWidgets.QDockWidget):
             if key is not None:
                 persist, value = self.table_model.backing_store[key]
                 t = type(value)
-                if np.issubdtype(t, np.number):
-                    dialog_cls = NumberEditor
-                elif np.issubdtype(t, np.bool_):
-                    dialog_cls = BoolEditor
+                if np.issubdtype(t, np.number) or np.issubdtype(t, np.bool_):
+                    value = str(value)
                 elif np.issubdtype(t, np.unicode_):
-                    dialog_cls = StringEditor
+                    value = '"{}"'.format(str(value))
                 else:
-                    logger.error("Cannot edit dataset %s: "
-                                 "type %s is not supported", key, t)
-                    return
-                dialog_cls(self, self.dataset_ctl, key, value).open()
+                    value = pyon.encode(value)
+                CreateEditDialog(self, self.dataset_ctl, key, value, persist).open()
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()

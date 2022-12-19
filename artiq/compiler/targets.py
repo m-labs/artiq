@@ -91,7 +91,7 @@ class Target:
 
     tool_ld = "ld.lld"
     tool_strip = "llvm-strip"
-    tool_addr2line = "llvm-addr2line"
+    tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
 
     def __init__(self):
@@ -218,8 +218,8 @@ class Target:
         # the backtrace entry should point at.
         last_inlined = None
         offset_addresses = [hex(addr - 1) for addr in addresses]
-        with RunTool([self.tool_addr2line, "--addresses",  "--functions", "--inlines",
-                      "--demangle", "--exe={library}"] + offset_addresses,
+        with RunTool([self.tool_symbolizer, "--addresses",  "--functions", "--inlines",
+                      "--demangle", "--output-style=GNU", "--exe={library}"] + offset_addresses,
                      library=library) \
                 as results:
             lines = iter(results["__stdout__"].read().rstrip().split("\n"))
@@ -263,43 +263,43 @@ class NativeTarget(Target):
     def __init__(self):
         super().__init__()
         self.triple = llvm.get_default_triple()
-        host_data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
+        self.data_layout = str(llvm.targets.Target.from_default_triple().create_target_machine().target_data)
 
 class RV32IMATarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a"]
-    additional_linker_options = []
+    additional_linker_options = ["-m", "elf32lriscv"]
     print_function = "core_log"
     now_pinning = True
 
     tool_ld = "ld.lld"
     tool_strip = "llvm-strip"
-    tool_addr2line = "llvm-addr2line"
+    tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
 
 class RV32GTarget(Target):
     triple = "riscv32-unknown-linux"
     data_layout = "e-m:e-p:32:32-i64:64-n32-S128"
     features = ["m", "a", "f", "d"]
-    additional_linker_options = []
+    additional_linker_options = ["-m", "elf32lriscv"]
     print_function = "core_log"
     now_pinning = True
 
     tool_ld = "ld.lld"
     tool_strip = "llvm-strip"
-    tool_addr2line = "llvm-addr2line"
+    tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"
 
 class CortexA9Target(Target):
     triple = "armv7-unknown-linux-gnueabihf"
     data_layout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
     features = ["dsp", "fp16", "neon", "vfp3"]
-    additional_linker_options = ["--target2=rel"]
+    additional_linker_options = ["-m", "armelf_linux_eabi", "--target2=rel"]
     print_function = "core_log"
     now_pinning = False
 
     tool_ld = "ld.lld"
     tool_strip = "llvm-strip"
-    tool_addr2line = "llvm-addr2line"
+    tool_symbolizer = "llvm-symbolizer"
     tool_cxxfilt = "llvm-cxxfilt"

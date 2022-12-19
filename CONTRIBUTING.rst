@@ -26,7 +26,6 @@ report if possible:
   * Operating System
   * ARTIQ version (with recent versions of ARTIQ, run ``artiq_client --version``)
   * Version of the gateware and runtime loaded in the core device (in the output of ``artiq_coremgmt -D .... log``)
-  * If using Conda, output of `conda list`
   * Hardware involved
 
 

@@ -333,6 +333,7 @@ def main():
                 os.chdir(dirname)
                 argument_mgr = ProcessArgumentManager(expid["arguments"])
                 exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
+                argument_mgr.check_unprocessed_arguments()
                 put_completed()
             elif action == "prepare":
                 exp_inst.prepare()
@@ -352,7 +353,10 @@ def main():
                     exp_inst.analyze()
                     put_completed()
                 finally:
-                    write_results()
+                    # browser's analyze shouldn't write results,
+                    # since it doesn't run the experiment and cannot have rid
+                    if rid is not None:
+                        write_results()
             elif action == "examine":
                 examine(ExamineDeviceMgr, ExamineDatasetMgr, obj["file"])
                 put_completed()

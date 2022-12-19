@@ -1,13 +1,7 @@
 Installing ARTIQ
 ================
 
-ARTIQ can be installed using the Nix (on Linux) or Conda (on Windows or Linux) package managers.
-
-Nix is an innovative, robust, fast, and high-quality solution that comes with a larger collection of packages and features than Conda. However, Windows support is poor (using it with Windows Subsystem for Linux still has many problems) and Nix can be harder to learn.
-
-Conda has a more traditional approach to package management, is much more limited, slow, and lower-quality than Nix, but it supports Windows and it is simpler to use when it functions correctly.
-
-In the current state of affairs, we recommend that Linux users install ARTIQ via Nix and Windows users install it via Conda.
+ARTIQ can be installed using the Nix (on Linux) or MSYS2 (on Windows) package managers. Using Conda is also possible on both platforms but not recommended.
 
 .. _installing-nix-users:
 
@@ -90,11 +84,27 @@ You can create directories containing each a ``flake.nix`` that correspond to di
 
 If your favorite package is not available with Nix, contact us using the helpdesk@ email.
 
-Installing via Conda (Windows, Linux)
--------------------------------------
+Installing via MSYS2 (Windows)
+------------------------------
+
+Install `MSYS2 <https://msys2.org>`_, then edit ``C:\MINGW64\etc\pacman.conf`` and add at the end: ::
+
+    [artiq]
+    SigLevel = Optional TrustAll
+    Server = https://msys2.m-labs.hk/artiq-beta
+
+Launch ``MSYS2 MINGW64`` from the Windows Start menu to open the MSYS2 shell, and enter the following commands: ::
+
+    pacman -Syy
+    pacman -S mingw-w64-x86_64-artiq
+
+If your favorite package is not available with MSYS2, contact us using the helpdesk@ email.
+
+Installing via Conda (Windows, Linux) [DEPRECATED]
+--------------------------------------------------
 
 .. warning::
-  For Linux users, the Nix package manager is preferred, as it is more reliable and faster than Conda.
+  Installing ARTIQ via Conda is not recommended. Instead, Linux users should install it via Nix and Windows users should install it via MSYS2. Conda support may be removed in future ARTIQ releases and M-Labs can only provide very limited technical support for Conda.
 
 First, install `Anaconda <https://www.anaconda.com/distribution/>`_ or the more minimalistic `Miniconda <https://conda.io/en/latest/miniconda.html>`_.
 
@@ -133,6 +143,11 @@ To rollback to the previous version, respectively use ``$ nix profile rollback``
 
 You may need to reflash the gateware and firmware of the core device to keep it synchronized with the software.
 
+Upgrading ARTIQ (with MSYS2)
+----------------------------
+
+Run ``pacman -Syu`` to update all MSYS2 packages including ARTIQ. If you get a message telling you that the shell session must be restarted after a partial update, open the shell again after the partial update and repeat the command. See the MSYS2 and Pacman manual for information on how to update individual packages if required.
+
 Upgrading ARTIQ (with Conda)
 ----------------------------
 
@@ -170,6 +185,10 @@ Installing OpenOCD
 OpenOCD can be used to write the binary images into the core device FPGA board's flash memory.
 
 With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages. Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not support ARTIQ boards.
+
+With MSYS2, install ``openocd`` and ``bscan-spi-bitstreams`` as follows::
+
+    pacman -S mingw-w64-x86_64-openocd mingw-w64-x86_64-bscan-spi-bitstreams
 
 With Conda, install ``openocd`` as follows::
 
@@ -219,7 +238,7 @@ If you have an active firmware subscription with M-Labs or QUARTIQ, you can obta
 
 Run the command::
 
-  $ afws_client [username] build [variant] [afws_directory]
+  $ afws_client [username] build [afws_directory] [variant]
 
 Replace ``[username]`` with the login name that was given to you with the subscription, ``[variant]`` with the name of your system variant, and ``[afws_directory]`` with the name of an empty directory, which will be created by the command if it does not exist. Enter your password when prompted and wait for the build (if applicable) and download to finish. If you experience issues with the AFWS client, write to the helpdesk@ email.
 
@@ -321,3 +340,13 @@ Other options include:
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+
+* Setup resolving RTIO channels to their names
+
+This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
+
+  $ artiq_rtiomap dev_map.bin
+  $ artiq_coremgmt config write -f device_map dev_map.bin
+
+.. note:: You can find more information about how to use the ``artiq_rtiomap`` utility on the :ref:`Utilities <rtiomap-tool>` page.
+

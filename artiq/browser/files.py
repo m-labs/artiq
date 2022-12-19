@@ -102,13 +102,14 @@ class Hdf5FileSystemModel(QtWidgets.QFileSystemModel):
             h5 = open_h5(info)
             if h5 is not None:
                 try:
-                    expid = pyon.decode(h5["expid"][()])
-                    start_time = datetime.fromtimestamp(h5["start_time"][()])
+                    expid = pyon.decode(h5["expid"][()]) if "expid" in h5 else dict()
+                    start_time = datetime.fromtimestamp(h5["start_time"][()]) if "start_time" in h5 else "<none>"
                     v = ("artiq_version: {}\nrepo_rev: {}\nfile: {}\n"
                          "class_name: {}\nrid: {}\nstart_time: {}").format(
-                             h5["artiq_version"][()], expid["repo_rev"],
-                             expid.get("file", "<none>"), expid["class_name"],
-                             h5["rid"][()], start_time)
+                             h5["artiq_version"].asstr()[()] if "artiq_version" in h5 else "<none>",
+                             expid.get("repo_rev", "<none>"),
+                             expid.get("file", "<none>"), expid.get("class_name", "<none>"),
+                             h5["rid"][()] if "rid" in h5 else "<none>", start_time)
                     return v
                 except:
                     logger.warning("unable to read metadata from %s",
@@ -174,14 +175,14 @@ class FilesDock(QtWidgets.QDockWidget):
         logger.debug("loading datasets from %s", info.filePath())
         with f:
             try:
-                expid = pyon.decode(f["expid"][()])
-                start_time = datetime.fromtimestamp(f["start_time"][()])
+                expid = pyon.decode(f["expid"][()]) if "expid" in f else dict()
+                start_time = datetime.fromtimestamp(f["start_time"][()]) if "start_time" in f else "<none>"
                 v = {
-                    "artiq_version": f["artiq_version"][()],
-                    "repo_rev": expid["repo_rev"],
+                    "artiq_version": f["artiq_version"].asstr()[()] if "artiq_version" in f else "<none>",
+                    "repo_rev": expid.get("repo_rev", "<none>"),
                     "file": expid.get("file", "<none>"),
-                    "class_name": expid["class_name"],
-                    "rid": f["rid"][()],
+                    "class_name": expid.get("class_name", "<none>"),
+                    "rid": f["rid"][()] if "rid" in f else "<none>",
                     "start_time": start_time,
                 }
                 self.metadata_changed.emit(v)
