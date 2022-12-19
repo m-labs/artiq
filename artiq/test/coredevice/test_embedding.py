@@ -98,7 +98,7 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
 
     # FIXME: This should work, but currently passes as the argument is just
-    # synthesised as a call to array() without forwarding the dype form the host
+    # synthesised as a call to array() without forwarding the dtype from the host
     # NumPy object.
     @unittest.expectedFailure
     def test_array_jagged(self):
