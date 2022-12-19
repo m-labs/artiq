@@ -74,6 +74,9 @@ class RoundtripTest(ExperimentCase):
     def test_object_list(self):
         self.assertRoundtrip([object(), object()])
 
+    def test_object_tuple(self):
+        self.assertRoundtrip((False, object(), True, 0x12345678))
+
     def test_list_tuple(self):
         self.assertRoundtrip(([1, 2], [3, 4]))
 
