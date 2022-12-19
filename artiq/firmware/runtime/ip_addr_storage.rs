@@ -16,7 +16,7 @@ pub trait InterfaceBuilderEx {
 impl<'a, DeviceT: for<'d> Device<'d>> InterfaceBuilderEx for InterfaceBuilder<'a, DeviceT> {
     fn init_ip_addrs(self, net_addresses: &NetAddresses) -> Self {
         let mut storage = [
-            IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0);  IP_ADDRESS_STORAGE_SIZE
+            IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 32);  IP_ADDRESS_STORAGE_SIZE
         ];
         if let Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
             storage[IPV4_INDEX] = IpCidr::Ipv4(ipv4);

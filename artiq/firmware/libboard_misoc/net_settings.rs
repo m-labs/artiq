@@ -82,7 +82,7 @@ pub fn get_adresses() -> NetAddresses {
     }
 
     let ipv4_addr = match config::read_str("ip", |r| r.map(|s| s.parse())) {
-        Ok(Ok(addr)) =>  addr,
+        Ok(Ok(addr)) => addr,
         _ => Ipv4AddrConfig::UseDhcp,
     };
 

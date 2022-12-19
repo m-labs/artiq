@@ -283,7 +283,7 @@ impl<'a> Io<'a> {
         Ok(self.network.borrow_mut().routes_mut().add_default_ipv4_route(addr)?)
     }
 
-    pub fn remote_ipv4_default_route(&self) -> Option<Route> {
+    pub fn remove_ipv4_default_route(&self) -> Option<Route> {
         self.network.borrow_mut().routes_mut().remove_default_ipv4_route()
     }
 }

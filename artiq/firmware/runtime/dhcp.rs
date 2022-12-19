@@ -65,7 +65,7 @@ pub fn dhcp_thread(io: sched::Io) {
                         io.set_ipv4_address(&config.address);
                         match config.router {
                             Some(route) => { io.set_ipv4_default_route(route).unwrap(); }
-                            None => { io.remote_ipv4_default_route(); }
+                            None => { io.remove_ipv4_default_route(); }
                         }
                     }
                 }
@@ -76,7 +76,7 @@ pub fn dhcp_thread(io: sched::Io) {
                             OptionalIpAddressDisplay(&config.router),
                         );
                         io.set_ipv4_address(&Ipv4Cidr::new(Ipv4Address::UNSPECIFIED, 0));
-                        io.remote_ipv4_default_route();
+                        io.remove_ipv4_default_route();
                         last_config = None;
                     }
                     // We always get one of these events at the start, ignore that one
