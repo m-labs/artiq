@@ -43,9 +43,9 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
         aqmain = artiq.packages.x86_64-linux;
         aqextra = extrapkg.packages.x86_64-linux;
       in {
-        defaultPackage.x86_64-linux = pkgs.buildEnv {
+        devShells.x86_64-linux.default = pkgs.mkShell {
           name = "artiq-env";
-          paths = [
+          buildInputs = [
             # ========================================
             # EDIT BELOW
             # ========================================
@@ -86,9 +86,9 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
   }
 
 
-Then spawn a shell containing the packages with ``$ nix shell``. The ARTIQ commands with all the additional packages should now be available.
+Then spawn a shell containing the packages with ``$ nix develop``. The ARTIQ commands with all the additional packages should now be available.
 
-You can exit the shell by typing Control-D. The next time ``$ nix shell`` is invoked, Nix uses the cached packages so the shell startup is fast.
+You can exit the shell by typing Control-D. The next time ``$ nix develop`` is invoked, Nix uses the cached packages so the shell startup is fast.
 
 You can create directories containing each a ``flake.nix`` that correspond to different sets of packages. If you are familiar with Conda, using Nix in this way is similar to having multiple Conda environments.
 
@@ -147,7 +147,7 @@ This activation has to be performed in every new shell you open to make the ARTI
 Upgrading ARTIQ (with Nix)
 --------------------------
 
-Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter ``$ nix shell``.
+Run ``$ nix profile upgrade`` if you installed ARTIQ into your user profile. If you used a ``flake.nix`` shell environment, make a back-up copy of the ``flake.lock`` file to enable rollback, then run ``$ nix flake update`` and re-enter ``$ nix develop``.
 
 To rollback to the previous version, respectively use ``$ nix profile rollback`` or restore the backed-up version of the ``flake.lock`` file.
 
