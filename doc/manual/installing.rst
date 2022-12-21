@@ -24,9 +24,18 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
 ::
 
   {
-    inputs.artiq.url = "git+https://github.com/m-labs/artiq.git";
-    inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
-    inputs.extrapkg.inputs.artiq.follows = "artiq";
+    inputs = {
+      artiq.url = "git+https://github.com/m-labs/artiq.git";
+      extrapkg = {
+        url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
+        inputs = {
+          artiq.follows = "artiq";
+          nixpkgs.follows = "artiq/nixpkgs";
+          sipyco.follows = "artiq/sipyco";
+        };
+      };
+    };
+
     outputs = { self, artiq, extrapkg }:
       let
         pkgs = artiq.inputs.nixpkgs.legacyPackages.x86_64-linux;
