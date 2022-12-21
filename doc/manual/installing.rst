@@ -25,20 +25,21 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
 
   {
     inputs = {
+      nixpkgs.follows = "artiq/nixpkgs";
       artiq.url = "git+https://github.com/m-labs/artiq.git";
       extrapkg = {
         url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
         inputs = {
           artiq.follows = "artiq";
-          nixpkgs.follows = "artiq/nixpkgs";
+          nixpkgs.follows = "nixpkgs";
           sipyco.follows = "artiq/sipyco";
         };
       };
     };
 
-    outputs = { self, artiq, extrapkg }:
+    outputs = { self, nixpkgs, artiq, extrapkg }:
       let
-        pkgs = artiq.inputs.nixpkgs.legacyPackages.x86_64-linux;
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
         aqmain = artiq.packages.x86_64-linux;
         aqextra = extrapkg.packages.x86_64-linux;
       in {
