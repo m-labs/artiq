@@ -114,7 +114,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         ]
 
         self.crg.configure(cdr_clk_buf)
-        self.config["HAS_RTIOSYSCRG"] = None
 
         self.submodules.timer1 = timer.Timer()
         self.csr_devices.append("timer1")
@@ -125,7 +124,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
             self.platform.request("user_led", 1)))
         self.csr_devices.append("leds")
 
-        self.platform.add_extension(_reprogrammed3v3_io)
         self.platform.add_extension(_ams101_dac)
 
         i2c = self.platform.request("i2c")
@@ -259,7 +257,6 @@ class _MasterBase(MiniSoC, AMPSoC):
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
-        self.config["HAS_RTIOSYSCRG"] = None
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
@@ -418,7 +415,6 @@ class _SatelliteBase(BaseSoC):
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtx0.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtx0.tx_init.done)
-        self.config["HAS_RTIOSYSCRG"] = None
 
         self.comb += [
             platform.request("user_sma_clock_p").eq(ClockSignal("rtio_rx0")),
