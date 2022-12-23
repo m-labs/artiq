@@ -63,40 +63,12 @@ fn get_rtio_clock_cfg() -> RtioClock {
 
 #[cfg(has_rtio_crg)]
 pub mod crg {
-    #[cfg(has_rtio_clock_switch)]
-    use super::RtioClock;
     use board_misoc::{clock, csr};
 
     pub fn check() -> bool {
         unsafe { csr::rtio_crg::pll_locked_read() != 0 }
     }
 
-    #[cfg(has_rtio_clock_switch)]
-    pub fn init(clk: RtioClock) -> bool {
-        let clk_sel: u8 = match clk {
-            RtioClock::Ext0_Bypass => { 
-                info!("Using external clock"); 
-                1 
-            },
-            RtioClock::Int_125 => {
-                info!("Using internal RTIO clock");
-                0
-            },
-            _ => {
-                warn!("rtio_clock setting '{:?}' is not supported. Using default internal RTIO clock instead", clk);
-                0
-            }
-        };
-        unsafe {
-            csr::rtio_crg::pll_reset_write(1);
-            csr::rtio_crg::clock_sel_write(clk_sel);
-            csr::rtio_crg::pll_reset_write(0);
-        }
-        clock::spin_us(150);
-        return check()
-    }
-
-    #[cfg(not(has_rtio_clock_switch))]
     pub fn init() -> bool {
         info!("Using internal RTIO clock");
         unsafe {
@@ -277,9 +249,6 @@ pub fn init() {
 
     #[cfg(has_rtio_crg)]
     {
-        #[cfg(has_rtio_clock_switch)]
-        let result = crg::init(clock_cfg);
-        #[cfg(not(has_rtio_clock_switch))]
         let result = crg::init();
         if !result {
             error!("RTIO clock failed");

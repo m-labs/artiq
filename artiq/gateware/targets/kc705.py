@@ -136,7 +136,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.config["HAS_DDS"] = None
 
     def add_rtio(self, rtio_channels):
-        self.config["HAS_RTIO_CLOCK_SWITCH"] = None
         self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
         self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
