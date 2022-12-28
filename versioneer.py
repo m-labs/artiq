@@ -1,6 +1,6 @@
 import os
 import sys
-
+import subprocess
 
 VERSION_FILE = """
 def get_version():
@@ -11,10 +11,14 @@ def get_rev():
 """
 
 def get_version():
-    return os.getenv("VERSIONEER_OVERRIDE", default="8.0.beta")
+    return os.getenv("VERSIONEER_OVERRIDE", default="8" + "." + \
+     subprocess.check_output(['git', 'rev-list', '--count', 'HEAD']).decode('ascii').strip() + "." + \
+     subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip() + "." + \
+     "beta")
 
 def get_rev():
-    return os.getenv("VERSIONEER_REV", default="unknown")
+    return os.getenv("VERSIONEER_REV", default= \
+     subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip())
 
 def write_to_version_file(filename, version, rev):
     os.unlink(filename)
