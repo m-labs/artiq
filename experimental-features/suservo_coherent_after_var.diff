@@ -80,9 +80,9 @@ index a89cdcca..f7b516a4 100644
      """
      kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
                           "ref_period_mu", "num_channels", "coeff_sel",
--                         "state_sel", "config_addr", "write_enable"}
+-                         "corrected_fs", "state_sel", "config_addr", "write_enable"}
 +                         "state_sel", "io_dly_addr", "config_addr",
-+                         "write_enable"}
++                         "corrected_fs", "write_enable"}
  
      def __init__(self, dmgr, channel, pgia_device,
                   cpld_devices, dds_devices,
@@ -117,7 +117,7 @@ index a89cdcca..f7b516a4 100644
          """Write to servo memory.
 @@ -245,6 +262,18 @@ class SUServo:
          gain = (self.gains >> (channel*2)) & 0b11
-         return adc_mu_to_volts(val, gain)
+         return adc_mu_to_volts(val, gain, self.corrected_fs)
  
 +    @kernel
 +    def set_io_update_delays(self, dlys):
@@ -135,7 +135,7 @@ index a89cdcca..f7b516a4 100644
  class Channel:
      """Sampler-Urukul Servo channel
 @@ -265,7 +294,7 @@ class Channel:
-         self.dds = self.servo.ddses[self.servo_channel // 4]
+         return [(channel, None)]
  
      @kernel
 -    def set(self, en_out, en_iir=0, profile=0):
