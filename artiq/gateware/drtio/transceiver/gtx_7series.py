@@ -1,5 +1,6 @@
 from migen import *
 from migen.genlib.resetsync import AsyncResetSynchronizer
+from migen.genlib.cdc import MultiReg
 
 from misoc.cores.code_8b10b import Encoder, Decoder
 from misoc.interconnect.csr import *
@@ -39,8 +40,7 @@ class GTX_20X(Module):
         self.submodules.tx_init = tx_init = ClockDomainsRenamer("bootstrap")(
             GTXInit(clk_freq, False, mode=tx_mode))
         # RX receives restart commands from SYS domain
-        self.submodules.rx_init = rx_init = ClockDomainsRenamer("bootstrap")(
-            GTXInit(clk_freq, True, mode=rx_mode))
+        self.submodules.rx_init = rx_init = GTXInit(clk_freq, True, mode=rx_mode)
         self.comb += [
             cpllreset.eq(tx_init.cpllreset),
             tx_init.cplllock.eq(cplllock),
@@ -313,11 +313,14 @@ class GTX(Module, TransceiverInterface):
         for n, gtx in enumerate(self.gtxs):
             self.comb += [
                 gtx.txenable.eq(self.txenable.storage[n]),
-                gtx.tx_init.stable_clkin.eq(self.stable_clkin.storage),
-                gtx.rx_init.stable_clkin.eq(self.stable_clkin.storage)
+                gtx.tx_init.stable_clkin.eq(clk_enable)
             ]
+            # rx_init is in SYS domain, rather than bootstrap
+            self.specials += MultiReg(clk_enable, gtx.rx_init.stable_clkin)
 
-        self.comb += clk_enable.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.done),
+        # stable_clkin resets after reboot since it's in SYS domain
+        # still need to keep clk_enable high after this
+        self.sync.bootstrap += clk_enable.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.done)
 
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
         for i in range(nchannels):
