@@ -104,15 +104,15 @@ index 1d0a72dad1..f7b516a4e7 100644
      :param core_device: Core device name
      """
      kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
--                         "ref_period_mu"}
+-                         "ref_period_mu", "corrected_fs"}
 +                         "ref_period_mu", "num_channels", "coeff_sel",
 +                         "state_sel", "io_dly_addr", "config_addr",
-+                         "write_enable"}
++                         "corrected_fs", "write_enable"}
  
      def __init__(self, dmgr, channel, pgia_device,
                   cpld_devices, dds_devices,
-@@ -83,9 +85,20 @@ def __init__(self, dmgr, channel, pgia_device,
-             self.core.coarse_ref_period)
+@@ -83,13 +85,24 @@ def __init__(self, dmgr, channel, pgia_device,
+         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
          assert self.ref_period_mu == self.core.ref_multiplier
  
 +        # The width of parts of the servo memory address depends on the number
@@ -126,6 +126,10 @@ index 1d0a72dad1..f7b516a4e7 100644
 +        self.coeff_sel = 1 << coeff_depth
 +        self.write_enable = 1 << (coeff_depth + 1)
 +
+     @staticmethod
+     def get_rtio_channels(channel, **kwargs):
+         return [(channel, None)]
+
      @kernel
      def init(self):
 -        """Initialize the servo, Sampler and both Urukuls.
@@ -191,9 +195,9 @@ index 1d0a72dad1..f7b516a4e7 100644
  
      @kernel
      def set_pgia_mu(self, channel, gain):
-@@ -236,6 +262,18 @@ def get_adc(self, channel):
+@@ -242,6 +268,18 @@ def get_adc(self, channel):
          gain = (self.gains >> (channel*2)) & 0b11
-         return adc_mu_to_volts(val, gain)
+         return adc_mu_to_volts(val, gain, self.corrected_fs)
  
 +    @kernel
 +    def set_io_update_delays(self, dlys):
@@ -211,7 +215,7 @@ index 1d0a72dad1..f7b516a4e7 100644
  class Channel:
      """Sampler-Urukul Servo channel
 @@ -256,7 +294,7 @@ def __init__(self, dmgr, channel, servo_device):
-         self.dds = self.servo.ddses[self.servo_channel // 4]
+         return [(channel, None)]
  
      @kernel
 -    def set(self, en_out, en_iir=0, profile=0):
