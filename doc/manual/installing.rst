@@ -73,6 +73,10 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ];
         };
       };
+    nixConfig = {  # work around https://github.com/NixOS/nix/issues/6771
+      extra-trusted-public-keys = "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=";
+      extra-substituters = "https://nixbld.m-labs.hk";
+    };
   }
 
 
