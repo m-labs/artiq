@@ -174,8 +174,6 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "metlino")]
     let si5324_ref_input = si5324::Input::Ckin2;
-    // the clocking for this should be fixed with more recent changes
-    // will not change it now
     #[cfg(soc_platform = "kc705")]
     let si5324_ref_input = si5324::Input::Ckin2;
     si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
