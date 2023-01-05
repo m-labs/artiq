@@ -11,10 +11,12 @@ class GTXInit(Module):
     # Choose between Auto Mode and Manual Mode for TX/RX phase alignment with buffer bypassed:
     # * Auto Mode: When only single lane is involved, as suggested by Xilinx (AR59612)
     # * Manual Mode: When only multi-lane is involved, as suggested by Xilinx (AR59612)
-    def __init__(self, sys_clk_freq, rx, mode="single"):
+    def __init__(self, clk_freq, rx, mode="single"):
         assert isinstance(rx, bool)
         assert mode in ["single", "master", "slave"]
         self.mode = mode
+
+        self.stable_clkin = Signal()
 
         self.done = Signal()
         self.restart = Signal()
@@ -83,13 +85,13 @@ class GTXInit(Module):
 
         # After configuration, transceiver resets have to stay low for
         # at least 500ns (see AR43482)
-        startup_cycles = ceil(500*sys_clk_freq/1000000000)
+        startup_cycles = ceil(500*clk_freq/1000000000)
         startup_timer = WaitTimer(startup_cycles)
         self.submodules += startup_timer
 
         # PLL reset should be 1 period of refclk
         # (i.e. 1/(125MHz) for the case of RTIO @ 125MHz)
-        pll_reset_cycles = ceil(sys_clk_freq/125e6)
+        pll_reset_cycles = ceil(clk_freq/125e6)
         pll_reset_timer = WaitTimer(pll_reset_cycles)
         self.submodules += pll_reset_timer
 
@@ -108,7 +110,7 @@ class GTXInit(Module):
 
         startup_fsm.act("INITIAL",
             startup_timer.wait.eq(1),
-            If(startup_timer.done, NextState("RESET_ALL"))
+            If(startup_timer.done & self.stable_clkin, NextState("RESET_ALL"))
         )
         startup_fsm.act("RESET_ALL",
             gtXxreset.eq(1),
