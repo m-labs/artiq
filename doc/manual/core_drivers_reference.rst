@@ -47,12 +47,6 @@ Digital I/O drivers
 .. automodule:: artiq.coredevice.edge_counter
     :members:
 
-:mod:`artiq.coredevice.shiftreg` module
-+++++++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.shiftreg
-    :members:
-
 :mod:`artiq.coredevice.spi2` module
 +++++++++++++++++++++++++++++++++++
 
@@ -102,25 +96,6 @@ RF generation drivers
 +++++++++++++++++++++++++++++++++++++++
 
 .. automodule:: artiq.coredevice.adf5356
-    :members:
-
-:mod:`artiq.coredevice.spline` module
-+++++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.spline
-    :members:
-
-:mod:`artiq.coredevice.sawg` module
-+++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.sawg
-    :members:
-
-
-:mod:`artiq.coredevice.basemod_att` module
-++++++++++++++++++++++++++++++++++++++++++
-
-.. automodule:: artiq.coredevice.basemod_att
     :members:
 
 :mod:`artiq.coredevice.phaser` module

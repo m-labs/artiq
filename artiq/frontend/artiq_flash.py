@@ -25,12 +25,10 @@ def get_argparser():
 Valid actions:
 
     * gateware: write main gateware bitstream to flash
-    * rtm_gateware: write RTM gateware bitstream to flash
     * bootloader: write bootloader to flash
     * storage: write storage image to flash
     * firmware: write firmware to flash
     * load: load main gateware bitstream into device (volatile but fast)
-    * rtm_load: load RTM gateware bitstream into device
     * erase: erase flash memory
     * start: trigger the target to (re)load its gateware bitstream from flash
 
@@ -61,15 +59,13 @@ Prerequisites:
                         help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
-                             "kasli sayma metlino kc705")
+                             "kasli kc705")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
     parser.add_argument("-f", "--storage", help="write file to storage area")
     parser.add_argument("-d", "--dir", default=None, help="look for board binaries in this directory")
     parser.add_argument("--srcbuild", help="board binaries directory is laid out as a source build tree",
-                        default=False, action="store_true")
-    parser.add_argument("--no-rtm-jtag", help="do not attempt JTAG to the RTM",
                         default=False, action="store_true")
     parser.add_argument("action", metavar="ACTION", nargs="*",
                         default=[],
@@ -234,76 +230,6 @@ class ProgrammerXC7(Programmer):
             "xc7_program xc7.tap")
 
 
-class ProgrammerAMCRTM(Programmer):
-    _sector_size = 0x10000
-
-    def __init__(self, client, preinit_script):
-        Programmer.__init__(self, client, preinit_script)
-
-        add_commands(self._board_script,
-            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
-
-            "interface ftdi",
-            "ftdi_device_desc \"Quad RS232-HS\"",
-            "ftdi_vid_pid 0x0403 0x6011",
-            "ftdi_channel 0",
-            # EN_USB_JTAG on ADBUS7: out, high
-            # nTRST on ADBUS4: out, high, but R46 is DNP
-            "ftdi_layout_init 0x0098 0x008b",
-            "reset_config none",
-            "adapter_khz 5000",
-            "transport select jtag",
-            # tap 0, pld 0
-            "source {}".format(self._transfer_script("cpld/xilinx-xc7.cfg")),
-            # tap 1, pld 1
-            "set CHIP XCKU040",
-            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg")))
-        self.add_flash_bank("spi0", "xcu", index=0)
-        self.add_flash_bank("spi1", "xcu", index=1)
-
-        add_commands(self._script, "echo \"RTM FPGA XADC:\"", "xadc_report xc7.tap")
-        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
-
-    def load_proxy(self):
-        self.load(find_proxy_bitfile("bscan_spi_xcku040.bit"), pld=1)
-
-    def start(self):
-        add_commands(self._script, "xcu_program xcu.tap")
-
-
-class ProgrammerAMC(Programmer):
-    _sector_size = 0x10000
-
-    def __init__(self, client, preinit_script):
-        Programmer.__init__(self, client, preinit_script)
-
-        add_commands(self._board_script,
-            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
-
-            "interface ftdi",
-            "ftdi_device_desc \"Quad RS232-HS\"",
-            "ftdi_vid_pid 0x0403 0x6011",
-            "ftdi_channel 0",
-            # EN_USB_JTAG on ADBUS7: out, high
-            # nTRST on ADBUS4: out, high, but R46 is DNP
-            "ftdi_layout_init 0x0098 0x008b",
-            "reset_config none",
-            "adapter_khz 5000",
-            "transport select jtag",
-            "set CHIP XCKU040",
-            "source {}".format(self._transfer_script("cpld/xilinx-xcu.cfg")))
-        self.add_flash_bank("spi0", "xcu", index=0)
-        self.add_flash_bank("spi1", "xcu", index=1)
-
-        add_commands(self._script, "echo \"AMC FPGA XADC:\"", "xadc_report xcu.tap")
-
-    def load_proxy(self):
-        self.load(find_proxy_bitfile("bscan_spi_xcku040.bit"), pld=0)
-
-    def start(self):
-        add_commands(self._script, "xcu_program xcu.tap")
-
-
 def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
@@ -316,21 +242,6 @@ def main():
             "storage":      ("spi0", 0x440000),
             "firmware":     ("spi0", 0x450000),
         },
-        "sayma": {
-            "programmer":   ProgrammerAMCRTM,
-            "gateware":     ("spi0", 0x000000),
-            "bootloader":   ("spi1", 0x000000),
-            "storage":      ("spi1", 0x040000),
-            "firmware":     ("spi1", 0x050000),
-            "rtm_gateware": ("spi1", 0x200000),
-        },
-        "metlino": {
-            "programmer":   ProgrammerAMC,
-            "gateware":     ("spi0", 0x000000),
-            "bootloader":   ("spi1", 0x000000),
-            "storage":      ("spi1", 0x040000),
-            "firmware":     ("spi1", 0x050000),
-        },
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
             "gateware":     ("spi0", 0x000000),
@@ -341,32 +252,21 @@ def main():
     }[args.target]
 
     if not args.action:
-        if args.target == "sayma":
-            args.action = "gateware rtm_gateware bootloader firmware start".split()
-        else:
-            args.action = "gateware bootloader firmware start".split()
+        args.action = "gateware bootloader firmware start".split()
     needs_artifacts = any(
         action in args.action
-        for action in ["gateware", "rtm_gateware", "bootloader", "firmware", "load", "rtm_load"])
+        for action in ["gateware", "bootloader", "firmware", "load"])
     if needs_artifacts and args.dir is None:
         raise ValueError("the directory containing the binaries need to be specified using -d.")
 
     binary_dir = args.dir
-    if binary_dir is not None:
-        rtm_binary_dir = os.path.join(binary_dir, "rtm")
-    else:
-        rtm_binary_dir = None
 
     if args.host is None:
         client = LocalClient()
     else:
         client = SSHClient(args.host, args.jump)
 
-    if args.target == "sayma" and args.no_rtm_jtag:
-        programmer_cls = ProgrammerAMC
-    else:
-        programmer_cls = config["programmer"]
-    programmer = programmer_cls(client, preinit_script=args.preinit_command)
+    programmer = config["programmer"](client, preinit_script=args.preinit_command)
 
     def artifact_path(this_binary_dir, *path_filename):
         if args.srcbuild:
@@ -377,7 +277,7 @@ def main():
             *_, filename = path_filename
             return os.path.join(this_binary_dir, filename)
 
-    def convert_gateware(bit_filename, header=False):
+    def convert_gateware(bit_filename):
         bin_handle, bin_filename = tempfile.mkstemp(
             prefix="artiq_", suffix="_" + os.path.basename(bit_filename))
         with open(bit_filename, "rb") as bit_file, \
@@ -385,12 +285,6 @@ def main():
             if header:
                 bin_file.write(b"\x00"*8)
             bit2bin(bit_file, bin_file)
-            if header:
-                magic = 0x5352544d  # "SRTM", see sayma_rtm target
-                length = bin_file.tell() - 8
-                bin_file.seek(0)
-                bin_file.write(magic.to_bytes(4, byteorder="little"))
-                bin_file.write(length.to_bytes(4, byteorder="little"))
         atexit.register(lambda: os.unlink(bin_filename))
         return bin_filename
 
@@ -399,11 +293,6 @@ def main():
             gateware_bin = convert_gateware(
                 artifact_path(binary_dir, "gateware", "top.bit"))
             programmer.write_binary(*config["gateware"], gateware_bin)
-        elif action == "rtm_gateware":
-            rtm_gateware_bin = convert_gateware(
-                artifact_path(rtm_binary_dir, "gateware", "top.bit"), header=True)
-            programmer.write_binary(*config["rtm_gateware"],
-                                    rtm_gateware_bin)
         elif action == "bootloader":
             bootloader_bin = artifact_path(binary_dir, "software", "bootloader", "bootloader.bin")
             programmer.write_binary(*config["bootloader"], bootloader_bin)
@@ -423,23 +312,12 @@ def main():
                    "Found firmware files: {}".format(" ".join(firmware_fbis)))
             programmer.write_binary(*config["firmware"], firmware_fbis[0])
         elif action == "load":
-            if args.target == "sayma":
-                gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
-                programmer.load(gateware_bit, 1)
-            else:
-                gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
-                programmer.load(gateware_bit, 0)
-        elif action == "rtm_load":
-            rtm_gateware_bit = artifact_path(rtm_binary_dir, "gateware", "top.bit")
-            programmer.load(rtm_gateware_bit, 0)
+            gateware_bit = artifact_path(binary_dir, "gateware", "top.bit")
+            programmer.load(gateware_bit, 0)
         elif action == "start":
             programmer.start()
         elif action == "erase":
-            if args.target == "sayma" or args.target == "metlino":
-                programmer.erase_flash("spi0")
-                programmer.erase_flash("spi1")
-            else:
-                programmer.erase_flash("spi0")
+            programmer.erase_flash("spi0")
         else:
             raise ValueError("invalid action", action)
 

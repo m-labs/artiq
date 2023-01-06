@@ -126,7 +126,7 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
                 crystal_ref: false
             }
         },
-        RtioClock::Int_100 => { // 100MHz output, from crystal. Also used as reference for Sayma HMC830.
+        RtioClock::Int_100 => { // 100MHz output, from crystal
             info!("using internal 100MHz RTIO clock");
             si5324::FrequencySettings {
                 n1_hs  : 9,
@@ -172,8 +172,6 @@ fn setup_si5324_as_synthesizer(cfg: RtioClock) {
     let si5324_ref_input = si5324::Input::Ckin1;
     #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
     let si5324_ref_input = si5324::Input::Ckin2;
-    #[cfg(soc_platform = "metlino")]
-    let si5324_ref_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "kc705")]
     let si5324_ref_input = si5324::Input::Ckin2;
     si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
@@ -191,8 +189,6 @@ fn setup_si5324(clock_cfg: RtioClock) {
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     let si5324_ext_input = si5324::Input::Ckin1;
     #[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
-    let si5324_ext_input = si5324::Input::Ckin2;
-    #[cfg(soc_platform = "metlino")]
     let si5324_ext_input = si5324::Input::Ckin2;
     #[cfg(soc_platform = "kc705")]
     let si5324_ext_input = si5324::Input::Ckin1;

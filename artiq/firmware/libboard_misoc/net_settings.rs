@@ -67,10 +67,6 @@ pub fn get_adresses() -> NetAddresses {
                     .map(|addr_buf| EthernetAddress(addr_buf))
                     .unwrap_or_else(|_e| EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x21]));
             }
-            #[cfg(soc_platform = "sayma_amc")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x11]); }
-            #[cfg(soc_platform = "metlino")]
-            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x19]); }
             #[cfg(soc_platform = "kc705")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]); }
         }
