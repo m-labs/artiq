@@ -17,7 +17,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio, nist_clock, nist_qc2
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, dds, spi2
-from artiq.gateware.rtio.xilinx_clocking import RTIOClockMultiplier, fix_serdes_timing_path
+from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware.drtio.transceiver import gtx_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
