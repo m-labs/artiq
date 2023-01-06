@@ -52,7 +52,7 @@ class DUT(Module):
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.tsc_master = rtio.TSC()
         self.submodules.master = DRTIOMaster(self.tsc_master,
                                              self.transceivers.alice)
         self.submodules.master_ki = rtio.KernelInitiator(self.tsc_master,
@@ -144,8 +144,8 @@ class OutputsTestbench:
 
 
 class TestFullStack(unittest.TestCase):
-    clocks = {"sys": 8, "rtio_rx": 5,
-              "rio": 5, "rio_phy": 5}
+    clocks = {"sys": 8, "rtio_rx": 8,
+              "rio": 8, "rio_phy": 8}
 
     def test_pulses(self):
         tb = OutputsTestbench()
