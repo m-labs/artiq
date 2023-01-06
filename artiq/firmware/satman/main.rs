@@ -12,8 +12,6 @@ use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
-#[cfg(has_wrpll)]
-use board_artiq::wrpll;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use riscv::register::{mcause, mepc, mtval};
@@ -420,8 +418,6 @@ fn sysclk_setup() {
     else {
         #[cfg(has_si5324)]
         si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-        #[cfg(has_wrpll)]
-        wrpll::init();
         info!("Switching sys clock, rebooting...");
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(1300);
@@ -460,17 +456,6 @@ pub extern fn main() -> i32 {
         io_expander1 = board_misoc::io_expander::IoExpander::new(1);
         io_expander0.init().expect("I2C I/O expander #0 initialization failed");
         io_expander1.init().expect("I2C I/O expander #1 initialization failed");
-        #[cfg(has_wrpll)]
-        {
-            io_expander0.set_oe(1, 1 << 7).unwrap();
-            io_expander0.set(1, 7, true);
-            io_expander0.service().unwrap();
-            io_expander1.set_oe(0, 1 << 7).unwrap();
-            io_expander1.set_oe(1, 1 << 7).unwrap();
-            io_expander1.set(0, 7, true);
-            io_expander1.set(1, 7, true);
-            io_expander1.service().unwrap();
-        }
 
         // Actively drive TX_DISABLE to false on SFP0..3
         io_expander0.set_oe(0, 1 << 1).unwrap();
@@ -490,8 +475,6 @@ pub extern fn main() -> i32 {
     unsafe {
         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
     }
-    #[cfg(has_wrpll)]
-    wrpll::diagnostics();
 
     init_rtio_crg();
 
@@ -527,8 +510,6 @@ pub extern fn main() -> i32 {
             si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
-        #[cfg(has_wrpll)]
-        wrpll::select_recovered_clock(true);
 
         drtioaux::reset(0);
         drtiosat_reset(false);
@@ -565,8 +546,6 @@ pub extern fn main() -> i32 {
         info!("uplink is down, switching to local oscillator clock");
         #[cfg(has_si5324)]
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
-        #[cfg(has_wrpll)]
-        wrpll::select_recovered_clock(false);
     }
 }
 

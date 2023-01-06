@@ -21,7 +21,6 @@ from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
-from artiq.gateware.drtio.wrpll import WRPLL, DDMTDSamplerGTP
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
@@ -410,7 +409,7 @@ class SatelliteBase(BaseSoC):
     }
     mem_map.update(BaseSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, with_wrpll=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -533,35 +532,18 @@ class SatelliteBase(BaseSoC):
 
         rtio_clk_period = 1e9/rtio_clk_freq
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
-        if with_wrpll:
-            self.submodules.wrpll_sampler = DDMTDSamplerGTP(
-                self.drtio_transceiver,
-                platform.request("cdr_clk_clean_fabric"))
-            helper_clk_pads = platform.request("ddmtd_helper_clk")
-            self.submodules.wrpll = WRPLL(
-                helper_clk_pads=helper_clk_pads,
-                main_dcxo_i2c=platform.request("ddmtd_main_dcxo_i2c"),
-                helper_dxco_i2c=platform.request("ddmtd_helper_dcxo_i2c"),
-                ddmtd_inputs=self.wrpll_sampler)
-            self.csr_devices.append("wrpll")
-            # note: do not use self.wrpll.cd_helper.clk; otherwise, vivado craps out with:
-            # critical warning: create_clock attempting to set clock on an unknown port/pin
-            # command: "create_clock -period 7.920000 -waveform {0.000000 3.960000} -name
-            # helper_clk [get_xlnx_outside_genome_inst_pin 20 0]
-            platform.add_period_constraint(helper_clk_pads.p, rtio_clk_period*0.99)
-            platform.add_false_path_constraints(self.crg.cd_sys.clk, helper_clk_pads.p)
-        else:
-            self.submodules.siphaser = SiPhaser7Series(
-                si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
-                    else platform.request("si5324_clkin"),
-                rx_synchronizer=self.rx_synchronizer,
-                ref_clk=self.crg.clk125_div2, ref_div2=True,
-                rtio_clk_freq=rtio_clk_freq)
-            platform.add_false_path_constraints(
-                self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
-            self.csr_devices.append("siphaser")
-            self.config["HAS_SI5324"] = None
-            self.config["SI5324_SOFT_RESET"] = None
+
+        self.submodules.siphaser = SiPhaser7Series(
+            si5324_clkin=platform.request("cdr_clk") if platform.hw_rev == "v2.0"
+                else platform.request("si5324_clkin"),
+            rx_synchronizer=self.rx_synchronizer,
+            ref_clk=self.crg.clk125_div2, ref_div2=True,
+            rtio_clk_freq=rtio_clk_freq)
+        platform.add_false_path_constraints(
+            self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
+        self.csr_devices.append("siphaser")
+        self.config["HAS_SI5324"] = None
+        self.config["SI5324_SOFT_RESET"] = None
 
         gtp = self.drtio_transceiver.gtps[0]
         txout_buf = Signal()
@@ -573,9 +555,6 @@ class SatelliteBase(BaseSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
-        if with_wrpll:
-            platform.add_false_path_constraints(
-                helper_clk_pads.p, gtp.rxoutclk)
         for gtp in self.drtio_transceiver.gtps[1:]:
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
@@ -652,7 +631,6 @@ def main():
     parser.add_argument("-V", "--variant", default="tester",
                         help="variant: {} (default: %(default)s)".format(
                             "/".join(sorted(VARIANTS.keys()))))
-    parser.add_argument("--with-wrpll", default=False, action="store_true")
     parser.add_argument("--tester-dds", default=None,
                         help="Tester variant DDS type: ad9910/ad9912 "
                              "(default: ad9910)")
@@ -661,8 +639,6 @@ def main():
     args = parser.parse_args()
 
     argdict = dict()
-    if args.with_wrpll:
-        argdict["with_wrpll"] = True
     argdict["gateware_identifier_str"] = args.gateware_identifier_str
     argdict["dds"] = args.tester_dds
 
