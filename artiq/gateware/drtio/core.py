@@ -58,7 +58,7 @@ class SyncRTIO(Module):
         assert tsc.glbl_fine_ts_width >= chan_fine_ts_width
 
         self.submodules.outputs = ClockDomainsRenamer("rio")(
-            SED(channels, tsc.glbl_fine_ts_width, "sync",
+            SED(channels, tsc.glbl_fine_ts_width,
                 lane_count=lane_count, fifo_depth=fifo_depth,
                 enable_spread=False, report_buffer_space=True,
                 interface=self.cri))
@@ -66,7 +66,7 @@ class SyncRTIO(Module):
         self.sync += self.outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
 
         self.submodules.inputs = ClockDomainsRenamer("rio")(
-            InputCollector(tsc, channels, "sync", interface=self.cri))
+            InputCollector(tsc, channels, interface=self.cri))
 
         for attr, _ in async_errors_layout:
             self.comb += getattr(self.async_errors, attr).eq(getattr(self.outputs, attr))

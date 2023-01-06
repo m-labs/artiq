@@ -60,7 +60,7 @@ class Core(Module, AutoCSR):
         # Outputs/Inputs
         quash_channels = [n for n, c in enumerate(channels) if isinstance(c, LogChannel)]
 
-        outputs = SED(channels, tsc.glbl_fine_ts_width, "sync",
+        outputs = SED(channels, tsc.glbl_fine_ts_width,
             quash_channels=quash_channels,
             lane_count=lane_count, fifo_depth=fifo_depth,
             interface=self.cri)
@@ -68,7 +68,7 @@ class Core(Module, AutoCSR):
         self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
 
-        inputs = InputCollector(tsc, channels, "sync",
+        inputs = InputCollector(tsc, channels,
             quash_channels=quash_channels,
             interface=self.cri)
         self.submodules += inputs

@@ -11,41 +11,25 @@ __all__ = ["SED"]
 
 
 class SED(Module):
-    def __init__(self, channels, glbl_fine_ts_width, mode,
+    def __init__(self, channels, glbl_fine_ts_width,
                  lane_count=8, fifo_depth=128, enable_spread=True,
                  quash_channels=[], report_buffer_space=False, interface=None):
-        if mode == "sync":
-            lane_dist_cdr = lambda x: x
-            fifos_cdr = lambda x: x
-            gates_cdr = lambda x: x
-            output_driver_cdr = lambda x: x
-        elif mode == "async":
-            lane_dist_cdr = ClockDomainsRenamer("sys")
-            fifos_cdr = ClockDomainsRenamer({"write": "sys", "read": "rio"})
-            gates_cdr = ClockDomainsRenamer("rio")
-            output_driver_cdr = ClockDomainsRenamer("rio")
-        else:
-            raise ValueError
-
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
 
-        self.submodules.lane_dist = lane_dist_cdr(
-            LaneDistributor(lane_count, seqn_width,
-                            layouts.fifo_payload(channels),
-                            [channel.interface.o.delay for channel in channels],
-                            glbl_fine_ts_width,
-                            enable_spread=enable_spread,
-                            quash_channels=quash_channels,
-                            interface=interface))
-        self.submodules.fifos = fifos_cdr(
-            FIFOs(lane_count, fifo_depth,
-                  layouts.fifo_payload(channels), mode, report_buffer_space))
-        self.submodules.gates = gates_cdr(
-            Gates(lane_count, seqn_width,
-                  layouts.fifo_payload(channels),
-                  layouts.output_network_payload(channels, glbl_fine_ts_width)))
-        self.submodules.output_driver = output_driver_cdr(
-            OutputDriver(channels, glbl_fine_ts_width, lane_count, seqn_width))
+        self.submodules.lane_dist = LaneDistributor(lane_count, seqn_width,
+            layouts.fifo_payload(channels),
+            [channel.interface.o.delay for channel in channels],
+            glbl_fine_ts_width,
+            enable_spread=enable_spread,
+            quash_channels=quash_channels,
+            interface=interface)
+        self.submodules.fifos = FIFOs(lane_count, fifo_depth,
+            layouts.fifo_payload(channels), report_buffer_space)
+        self.submodules.gates = Gates(lane_count, seqn_width,
+            layouts.fifo_payload(channels),
+            layouts.output_network_payload(channels, glbl_fine_ts_width))
+        self.submodules.output_driver = OutputDriver(channels, glbl_fine_ts_width,
+            lane_count, seqn_width)
 
         for o, i in zip(self.lane_dist.output, self.fifos.input):
             self.comb += o.connect(i)

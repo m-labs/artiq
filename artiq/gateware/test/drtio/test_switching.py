@@ -40,12 +40,12 @@ class DUT(Module):
     def __init__(self, nwords):
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.tsc_master = rtio.TSC()
         self.submodules.master = DRTIOMaster(self.tsc_master,
                                              self.transceivers.alice)
 
         rx_synchronizer = DummyRXSynchronizer()
-        self.submodules.tsc_satellite = rtio.TSC("sync")
+        self.submodules.tsc_satellite = rtio.TSC()
         self.submodules.satellite = DRTIOSatellite(
             self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0

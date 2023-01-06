@@ -149,7 +149,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         self.config["HAS_DDS"] = None
 
     def add_rtio(self, rtio_channels):
-        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
         self.submodules.rtio_core = rtio.Core(self.rtio_tsc, rtio_channels)
         self.csr_devices.append("rtio_core")
         self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
@@ -218,7 +218,7 @@ class _MasterBase(MiniSoC, AMPSoC):
             clk_freq=self.clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.submodules.rtio_tsc = rtio.TSC("async", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
         drtio_csr_group = []
         drtioaux_csr_group = []
@@ -358,7 +358,7 @@ class _SatelliteBase(BaseSoC):
             clk_freq=self.clk_freq)
         self.csr_devices.append("drtio_transceiver")
 
-        self.submodules.rtio_tsc = rtio.TSC("sync", glbl_fine_ts_width=3)
+        self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
         drtioaux_csr_group = []
         drtioaux_memory_group = []
@@ -456,7 +456,7 @@ class _SatelliteBase(BaseSoC):
         self.submodules.cri_con = rtio.CRIInterconnectShared(
             [self.drtiosat.cri],
             [self.local_io.cri] + self.drtio_cri,
-            mode="sync", enable_routing=True)
+            enable_routing=True)
         self.csr_devices.append("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")

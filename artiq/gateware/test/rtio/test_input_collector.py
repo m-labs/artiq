@@ -38,8 +38,8 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy0, ififo_depth=4),
             rtio.Channel.from_phy(self.phy1, ififo_depth=4)
         ]
-        self.submodules.tsc = ClockDomainsRenamer({"rtio": "sys"})(rtio.TSC("sync"))
-        self.submodules.input_collector = InputCollector(self.tsc, rtio_channels, "sync")
+        self.submodules.tsc = rtio.TSC()
+        self.submodules.input_collector = InputCollector(self.tsc, rtio_channels)
 
     @property
     def cri(self):

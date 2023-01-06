@@ -22,7 +22,7 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1)
         ]
 
-        self.submodules.sed = SED(rtio_channels, 0, "sync", **kwargs)
+        self.submodules.sed = SED(rtio_channels, 0, **kwargs)
         self.sync += [
             self.sed.coarse_timestamp.eq(self.sed.coarse_timestamp + 1),
             self.sed.minimum_coarse_timestamp.eq(self.sed.coarse_timestamp + 16)

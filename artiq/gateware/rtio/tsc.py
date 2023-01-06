@@ -1,7 +1,7 @@
 from migen import *
 
 class TSC(Module):
-    def __init__(self, mode, glbl_fine_ts_width=0):
+    def __init__(self, glbl_fine_ts_width=0):
         self.glbl_fine_ts_width = glbl_fine_ts_width
 
         # in rtio domain

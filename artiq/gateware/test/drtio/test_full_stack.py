@@ -67,7 +67,7 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1),
             rtio.Channel.from_phy(self.phy2),
         ]
-        self.submodules.tsc_satellite = rtio.TSC("sync")
+        self.submodules.tsc_satellite = rtio.TSC()
         self.submodules.satellite = DRTIOSatellite(
             self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0
