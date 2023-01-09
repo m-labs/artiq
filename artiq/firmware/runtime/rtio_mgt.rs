@@ -220,15 +220,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
+                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel {} 0x{:04x}", destination, resolve_channel_name(channel as u32), channel);
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -355,15 +355,15 @@ fn async_error_thread(io: Io) {
             let errors = csr::rtio_core::async_error_read();
             if errors & ASYNC_ERROR_COLLISION != 0 {
                 let channel = csr::rtio_core::collision_channel_read();
-                error!("RTIO collision involving channel {}:{}", channel, resolve_channel_name(channel as u32));
+                error!("RTIO collision involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             if errors & ASYNC_ERROR_BUSY != 0 {
                 let channel = csr::rtio_core::busy_channel_read();
-                error!("RTIO busy error involving channel {}:{}", channel, resolve_channel_name(channel as u32));
+                error!("RTIO busy error involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
                 let channel = csr::rtio_core::sequence_error_channel_read();
-                error!("RTIO sequence error involving channel {}:{}", channel, resolve_channel_name(channel as u32));
+                error!("RTIO sequence error involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);

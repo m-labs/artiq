@@ -457,7 +457,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             } else {
                                 let msg = str::from_utf8(unsafe { slice::from_raw_parts(exn.message.as_ptr(), exn.message.len()) })
                                     .unwrap()
-                                    .replace("{rtio_channel_info:0}", &format!("{}:{}", exn.param[0], resolve_channel_name(exn.param[0] as u32)));
+                                    .replace("{rtio_channel_info:0}", &format!("0x{:04x}:{}", exn.param[0], resolve_channel_name(exn.param[0] as u32)));
                                 Some(eh::eh_artiq::Exception {
                                     id: exn.id,
                                     file: exn.file,
