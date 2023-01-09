@@ -436,6 +436,18 @@
 
       hydraJobs = {
         inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
+        gateware-sim = pkgs.stdenvNoCC.mkDerivation {
+          name = "gateware-sim";
+          buildInputs = [
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          ];
+          phases = [ "buildPhase" ];
+          buildPhase =
+            ''
+            python -m unittest discover -v artiq.gateware.test
+            touch $out
+            '';
+        };
         kc705-hitl = pkgs.stdenvNoCC.mkDerivation {
           name = "kc705-hitl";
 
