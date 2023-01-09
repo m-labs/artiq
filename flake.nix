@@ -436,7 +436,7 @@
 
       hydraJobs = {
         inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
-        kc705-hitl = pkgs.stdenv.mkDerivation {
+        kc705-hitl = pkgs.stdenvNoCC.mkDerivation {
           name = "kc705-hitl";
 
           __networked = true;  # compatibility with old patched Nix
@@ -453,7 +453,6 @@
           phases = [ "buildPhase" ];
           buildPhase =
             ''
-            whoami
             export HOME=`mktemp -d`
             mkdir $HOME/.ssh
             cp /opt/hydra_id_ed25519 $HOME/.ssh/id_ed25519
