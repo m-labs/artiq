@@ -169,7 +169,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_underflow(self):
@@ -214,7 +214,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_write_underflow(self):
@@ -284,7 +284,7 @@ class TestFullStack(unittest.TestCase):
             yield dut.phy2.rtlink.i.stb.eq(0)
 
         run_simulation(dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), generate_input()]}, self.clocks)
 
     def test_echo(self):
         dut = DUT(2)
