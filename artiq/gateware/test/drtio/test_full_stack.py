@@ -303,7 +303,7 @@ class TestFullStack(unittest.TestCase):
                 yield
             yield dut.master.rt_packet.echo_stb.eq(0)
 
-            for i in range(15):
+            for i in range(17):
                 yield
 
             self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 1)
