@@ -73,7 +73,6 @@ class ParentDeviceDB:
 class ParentDatasetDB:
     get = make_parent_action("get_dataset")
     update = make_parent_action("update_dataset")
-    set = make_parent_action("set_dataset")
 
 
 class Watchdog:

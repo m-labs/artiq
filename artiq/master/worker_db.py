@@ -119,7 +119,8 @@ class DatasetManager:
         if persist:
             broadcast = True
 
-        self.ddb.set(key, value, persist)
+        if not (broadcast or archive):
+            logger.warning(f"Dataset '{key}' will not be stored. Both 'broadcast' and 'archive' are set to False.")
 
         if broadcast:
             self._broadcaster[key] = persist, value
