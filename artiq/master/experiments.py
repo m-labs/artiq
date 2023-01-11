@@ -124,9 +124,9 @@ class ExperimentDB:
             self._scanning = False
             self.status["scanning"] = False
 
-    def scan_repository_async(self, new_cur_rev=None):
+    def scan_repository_async(self, new_cur_rev=None, loop=None):
         asyncio.ensure_future(
-            exc_to_warning(self.scan_repository(new_cur_rev)))
+            exc_to_warning(self.scan_repository(new_cur_rev)), loop=loop)
 
     async def examine(self, filename, use_repository=True, revision=None):
         if use_repository:
