@@ -77,7 +77,7 @@ class DRTIOSatellite(Module):
         self.reset = CSRStorage(reset=1)
         self.reset_phy = CSRStorage(reset=1)
         self.tsc_loaded = CSR()
-        # master interface in the rtio domain
+        # master interface in the sys domain
         self.cri = cri.Interface()
         self.async_errors = Record(async_errors_layout)
 

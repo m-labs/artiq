@@ -112,7 +112,7 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         cdr_clk_buf = Signal()
 
         self.config["HAS_SI5324"] = None
-        self.submodules.si5324_rst_n = gpio.GPIOOut(self.platform.request("si5324_33").rst_n)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(self.platform.request("si5324_33").rst_n, reset_out=1)
         self.csr_devices.append("si5324_rst_n")
         self.specials += [
             Instance("IBUFDS_GTE2",
@@ -254,7 +254,7 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
 
         self.config["RTIO_FREQUENCY"] = str(self.drtio_transceiver.rtio_clk_freq/1e6)
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n, reset_out=1)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
@@ -412,7 +412,7 @@ class _SatelliteBase(BaseSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk, self.siphaser.mmcm_freerun_output)
         self.csr_devices.append("siphaser")
-        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n)
+        self.submodules.si5324_rst_n = gpio.GPIOOut(platform.request("si5324_33").rst_n, reset_out=1)
         self.csr_devices.append("si5324_rst_n")
         i2c = self.platform.request("i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])

@@ -169,7 +169,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_underflow(self):
@@ -214,7 +214,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_write_underflow(self):
@@ -227,16 +227,16 @@ class TestFullStack(unittest.TestCase):
             errors = yield from saterr.protocol_error.read()
             self.assertEqual(errors, 0)
             yield from csrs.underflow_margin.write(0)
-            tb.delay(100)
+            tb.delay(80)
             yield from tb.write(42, 1)
-            for i in range(12):
+            for i in range(21):
                yield
             errors = yield from saterr.protocol_error.read()
             underflow_channel = yield from saterr.underflow_channel.read()
             underflow_timestamp_event = yield from saterr.underflow_timestamp_event.read()
             self.assertEqual(errors, 8)  # write underflow
             self.assertEqual(underflow_channel, 42)
-            self.assertEqual(underflow_timestamp_event, 100)
+            self.assertEqual(underflow_timestamp_event, 80)
             yield from saterr.protocol_error.write(errors)
             yield
             errors = yield from saterr.protocol_error.read()
@@ -284,7 +284,7 @@ class TestFullStack(unittest.TestCase):
             yield dut.phy2.rtlink.i.stb.eq(0)
 
         run_simulation(dut,
-            {"sys": test()}, self.clocks)
+            {"sys": [test(), generate_input()]}, self.clocks)
 
     def test_echo(self):
         dut = DUT(2)
@@ -303,7 +303,7 @@ class TestFullStack(unittest.TestCase):
                 yield
             yield dut.master.rt_packet.echo_stb.eq(0)
 
-            for i in range(15):
+            for i in range(17):
                 yield
 
             self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 1)
