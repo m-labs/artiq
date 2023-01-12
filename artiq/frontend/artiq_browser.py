@@ -161,7 +161,7 @@ def main():
         # QDockWidgets fail to be embedded.
         browser.show()
     smgr.load()
-    smgr.start()
+    smgr.start(loop=loop)
     atexit_register_coroutine(smgr.stop, loop=loop)
 
     if args.select is not None:

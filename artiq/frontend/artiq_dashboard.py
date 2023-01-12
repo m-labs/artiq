@@ -232,7 +232,7 @@ def main():
         # QDockWidgets fail to be embedded.
         main_window.show()
     smgr.load()
-    smgr.start()
+    smgr.start(loop=loop)
     atexit_register_coroutine(smgr.stop, loop=loop)
 
     # work around for https://github.com/m-labs/artiq/issues/1307
