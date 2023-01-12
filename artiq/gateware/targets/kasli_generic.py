@@ -23,7 +23,6 @@ class GenericStandalone(StandaloneBase):
         self.class_name_override = description["variant"]
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None

@@ -1,5 +1,4 @@
 use board_misoc::config;
-#[cfg(si5324_as_synthesizer)]
 use board_artiq::si5324;
 use board_misoc::{csr, clock};
 
@@ -86,15 +85,14 @@ pub mod crg {
 
 // Si5324 input to select for locking to an external clock (as opposed to
 // a recovered link clock in DRTIO satellites, which is handled elsewhere).
-#[cfg(all(si5324_as_synthesizer, soc_platform = "kasli", hw_rev = "v2.0"))]
+#[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
 const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin1;
-#[cfg(all(si5324_as_synthesizer, soc_platform = "kasli", not(hw_rev = "v2.0")))]
+#[cfg(all(soc_platform = "kasli", not(hw_rev = "v2.0")))]
 const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
-#[cfg(all(si5324_as_synthesizer, soc_platform = "kc705"))]
+#[cfg(all(soc_platform = "kc705"))]
 const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
 
-#[cfg(si5324_as_synthesizer)]
-fn setup_si5324_as_synthesizer(cfg: RtioClock) {
+fn setup_si5324_pll(cfg: RtioClock) {
     let (si5324_settings, si5324_ref_input) = match cfg {
         RtioClock::Ext0_Synth0_10to125 => { // 125 MHz output from 10 MHz CLKINx reference, 504 Hz BW
             info!("using 10MHz reference to make 125MHz RTIO clock with PLL");
@@ -209,7 +207,7 @@ fn setup_si5324(clock_cfg: RtioClock) {
             info!("using external RTIO clock with PLL bypass");
             si5324::bypass(SI5324_EXT_INPUT).expect("cannot bypass Si5324")
         },
-        _ => setup_si5324_as_synthesizer(clock_cfg),
+        _ => setup_si5324_pll(clock_cfg),
     }
 
     // switch sysclk source to si5324

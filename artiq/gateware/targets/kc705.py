@@ -112,7 +112,6 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         cdr_clk_buf = Signal()
 
         self.config["HAS_SI5324"] = None
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         self.submodules.si5324_rst_n = gpio.GPIOOut(self.platform.request("si5324_33").rst_n)
         self.csr_devices.append("si5324_rst_n")
         self.specials += [
@@ -262,7 +261,6 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("i2c")
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
-        self.config["SI5324_AS_SYNTHESIZER"] = None
 
         rtio_clk_period = 1e9/self.drtio_transceiver.rtio_clk_freq
         # Constrain TX & RX timing for the first transceiver channel

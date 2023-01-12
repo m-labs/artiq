@@ -136,7 +136,6 @@ class Tester(StandaloneBase):
             dds = "ad9910"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
         if hw_rev == "v1.0":
@@ -174,7 +173,6 @@ class SUServo(StandaloneBase):
             hw_rev = "v2.0"
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         # self.config["SI5324_EXT_REF"] = None
         self.config["RTIO_FREQUENCY"] = "125.0"
         if hw_rev == "v1.0":
@@ -254,7 +252,6 @@ class MasterBase(MiniSoC, AMPSoC):
         self.config["I2C_BUS_COUNT"] = 1
         self.config["HAS_SI5324"] = None
         self.config["SI5324_SOFT_RESET"] = None
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = str(rtio_clk_freq/1e6)
 
         drtio_data_pads = []
