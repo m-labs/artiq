@@ -22,15 +22,6 @@ pub mod rpc_queue;
 
 #[cfg(has_si5324)]
 pub mod si5324;
-#[cfg(has_wrpll)]
-pub mod wrpll;
-
-#[cfg(has_hmc830_7043)]
-pub mod hmc830_7043;
-#[cfg(has_ad9154)]
-mod ad9154_reg;
-#[cfg(has_ad9154)]
-pub mod ad9154;
 
 #[cfg(has_grabber)]
 pub mod grabber;

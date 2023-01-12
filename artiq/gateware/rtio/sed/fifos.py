@@ -2,7 +2,7 @@ from operator import or_
 from functools import reduce
 
 from migen import *
-from migen.genlib.fifo import *
+from migen.genlib.fifo import SyncFIFOBuffered
 
 from artiq.gateware.rtio.sed import layouts
 
@@ -11,7 +11,7 @@ __all__ = ["FIFOs"]
 
 
 class FIFOs(Module):
-    def __init__(self, lane_count, fifo_depth, layout_payload, mode, report_buffer_space=False):
+    def __init__(self, lane_count, fifo_depth, layout_payload, report_buffer_space=False):
         seqn_width = layouts.seqn_width(lane_count, fifo_depth)
         self.input = [Record(layouts.fifo_ingress(seqn_width, layout_payload))
                       for _ in range(lane_count)]
@@ -23,16 +23,9 @@ class FIFOs(Module):
 
         # # #
 
-        if mode == "sync":
-            fifo_cls = SyncFIFOBuffered
-        elif mode == "async":
-            fifo_cls = AsyncFIFOBuffered
-        else:
-            raise ValueError
-
         fifos = []
         for input, output in zip(self.input, self.output):
-            fifo = fifo_cls(seqn_width + layout_len(layout_payload), fifo_depth)
+            fifo = SyncFIFOBuffered(seqn_width + layout_len(layout_payload), fifo_depth)
             self.submodules += fifo
             fifos.append(fifo)
 
@@ -47,9 +40,6 @@ class FIFOs(Module):
             ]
 
         if report_buffer_space:
-            if mode != "sync":
-                raise NotImplementedError
-
             def compute_max(elts):
                 l = len(elts)
                 if l == 1:
