@@ -195,20 +195,6 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ pyserial prettytable msgpack migen ];
       };
 
-      cargo-xbuild = rustPlatform.buildRustPackage rec {
-        pname = "cargo-xbuild";
-        version = "0.6.5";
-
-        src = pkgs.fetchFromGitHub {
-          owner = "rust-osdev";
-          repo = pname;
-          rev = "v${version}";
-          sha256 = "18djvygq9v8rmfchvi2hfj0i6fhn36m716vqndqnj56fiqviwxvf";
-        };
-
-        cargoSha256 = "13sj9j9kl6js75h9xq0yidxy63vixxm9q3f8jil6ymarml5wkhx8";
-      };
-
       vivadoEnv = pkgs.buildFHSUserEnv {
         name = "vivado-env";
         targetPkgs = vivadoDeps;
@@ -235,12 +221,12 @@
             (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
+            pkgs.cargo-xbuild
             pkgs.llvmPackages_11.clang-unwrapped
             pkgs.llvm_11
             pkgs.lld_11
             vivado
             rustPlatform.cargoSetupHook
-            cargo-xbuild
           ];
           buildPhase = 
             ''
@@ -396,7 +382,7 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema microscope ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
-          cargo-xbuild
+          pkgs.cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
           pkgs.lld_11
