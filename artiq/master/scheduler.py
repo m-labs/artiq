@@ -443,7 +443,7 @@ class Scheduler:
                                 self._worker_handlers, self.notifier,
                                 self._experiment_db, self._log_submissions)
             self._pipelines[pipeline_name] = pipeline
-            pipeline.start(self._loop)
+            pipeline.start(loop=self._loop)
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)
 
     def delete(self, rid):
