@@ -83,7 +83,7 @@ class Browser(QtWidgets.QMainWindow):
 
         self.applets = applets.AppletsDock(self, datasets_sub)
         smgr.register(self.applets)
-        atexit_register_coroutine(self.applets.stop)
+        atexit_register_coroutine(self.applets.stop, loop=loop)
 
         self.datasets = datasets.DatasetsDock(
             datasets_sub, master_host, master_port)
@@ -162,7 +162,7 @@ def main():
         browser.show()
     smgr.load()
     smgr.start()
-    atexit_register_coroutine(smgr.stop)
+    atexit_register_coroutine(smgr.stop, loop=loop)
 
     if args.select is not None:
         browser.files.select(args.select)
