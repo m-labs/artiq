@@ -92,9 +92,9 @@ class AppletIPCServer(AsyncioParentComm):
         finally:
             self.datasets_sub.notify_cbs.remove(self._on_mod)
 
-    def start_server(self, embed_cb, fix_initial_size_cb):
+    def start_server(self, embed_cb, fix_initial_size_cb, *, loop=None):
         self.server_task = asyncio.ensure_future(
-            self.serve(embed_cb, fix_initial_size_cb))
+            self.serve(embed_cb, fix_initial_size_cb), loop=loop)
 
     async def stop_server(self):
         if hasattr(self, "server_task"):
@@ -327,7 +327,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, datasets_sub, extra_substitutes={}):
+    def __init__(self, main_window, datasets_sub, extra_substitutes={}, *, loop=None):
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -341,6 +341,8 @@ class AppletsDock(QtWidgets.QDockWidget):
         self.datasets_sub = datasets_sub
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
+
+        self._loop = loop
 
         self.table = QtWidgets.QTreeWidget()
         self.table.setColumnCount(2)
@@ -441,7 +443,7 @@ class AppletsDock(QtWidgets.QDockWidget):
         dock = _AppletDock(self.datasets_sub, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
-        asyncio.ensure_future(dock.start())
+        asyncio.ensure_future(dock.start(), loop=self._loop)
         dock.sigClosed.connect(partial(self.on_dock_closed, item, dock))
         return dock
 
@@ -480,7 +482,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
     def on_dock_closed(self, item, dock):
         item.applet_geometry = dock.saveGeometry()
-        asyncio.ensure_future(dock.terminate())
+        asyncio.ensure_future(dock.terminate(), loop=self._loop)
         item.setCheckState(0, QtCore.Qt.Unchecked)
 
     def get_untitled(self):
@@ -569,7 +571,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                 if wi.ty == "applet":
                     dock = wi.applet_dock
                     if dock is not None:
-                        asyncio.ensure_future(dock.restart())
+                        asyncio.ensure_future(dock.restart(), loop=self._loop)
                 elif wi.ty == "group":
                     for i in range(wi.childCount()):
                         walk(wi.child(i))

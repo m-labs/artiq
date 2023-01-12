@@ -195,7 +195,8 @@ def main():
                                                "server": args.server,
                                                "port_notify": args.port_notify,
                                                "port_control": args.port_control,
-                                           })
+                                           },
+                                           loop=loop)
     atexit_register_coroutine(d_applets.stop, loop=loop)
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
