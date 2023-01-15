@@ -22,7 +22,7 @@ class Fastino:
     DAC updates synchronized to a frame edge.
 
     The `log2_width=0` RTIO layout uses one DAC channel per RTIO address and a
-    dense RTIO address space. The RTIO words are narrow. (32 bit) and
+    dense RTIO address space. The RTIO words are narrow (32 bit) and
     few-channel updates are efficient. There is the least amount of DAC state
     tracking in kernels, at the cost of more DMA and RTIO data.
     The setting here and in the RTIO PHY (gateware) must match.
@@ -56,6 +56,10 @@ class Fastino:
         # self.core.seconds_to_mu(14*7*4*ns)  # unfortunately this may round wrong
         assert self.core.ref_period == 1*ns
         self.t_frame = int64(14*7*4)
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def init(self):

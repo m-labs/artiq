@@ -8,10 +8,21 @@ ARTIQ-8 (Unreleased)
 
 Highlights:
 
-* Implemented Phaser-servo. This requires recent gateware on Phaser.
-* Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
-  variant.
-* MSYS2 packaging for Windows.
+* Hardware support:
+  - Implemented Phaser-servo. This requires recent gateware on Phaser.
+  - Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
+    variant.
+  - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
+    For earlier hardware versions, specify the hardware version in the device
+    database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
+  - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+* CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
+  clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
+  reduce RTIO latency.
+* MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
+  support legacy installations, but may be removed in a future release.
+* Added channel names to RTIO errors.
+* Full Python 3.10 support.
 
 ARTIQ-7
 -------
@@ -27,7 +38,7 @@ Highlights:
    - Almazny mezzanine board for Mirny
    - Phaser: improved documentation, exposed the DAC coarse mixer and ``sif_sync``, exposed upconverter calibration
      and enabling/disabling of upconverter LO & RF outputs, added helpers to align Phaser updates to the
-     RTIO timeline (``get_next_frame_mu()``
+     RTIO timeline (``get_next_frame_mu()``).
    - Urukul: ``get()``, ``get_mu()``, ``get_att()``, and ``get_att_mu()`` functions added for AD9910 and AD9912.
 * Softcore targets now use the RISC-V architecture (VexRiscv) instead of OR1K (mor1kx).
 * Gateware FPU is supported on KC705 and Kasli 2.0.
@@ -77,9 +88,9 @@ Breaking changes:
   generated for some configurations.
 * Phaser: fixed coarse mixer frequency configuration
 * Mirny: Added extra delays in ``ADF5356.sync()``. This avoids the need of an extra delay before
-  calling `ADF5356.init()`.
+  calling ``ADF5356.init()``.
 * The deprecated ``set_dataset(..., save=...)`` is no longer supported.
-* The ``PCA9548`` I2C switch class was renamed to ``I2CSwitch``, to accomodate support for PCA9547,
+* The ``PCA9548`` I2C switch class was renamed to ``I2CSwitch``, to accommodate support for PCA9547,
   and possibly other switches in future. Readback has been removed, and now only one channel per
   switch is supported.
 

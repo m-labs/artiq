@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_namespace_packages
 import sys
 
 import versioneer
@@ -15,6 +15,7 @@ console_scripts = [
     "artiq_compile = artiq.frontend.artiq_compile:main",
     "artiq_coreanalyzer = artiq.frontend.artiq_coreanalyzer:main",
     "artiq_coremgmt = artiq.frontend.artiq_coremgmt:main",
+    "artiq_rtiomap = artiq.frontend.artiq_rtiomap:main",
     "artiq_ddb_template = artiq.frontend.artiq_ddb_template:main",
     "artiq_master = artiq.frontend.artiq_master:main",
     "artiq_mkfs = artiq.frontend.artiq_mkfs:main",
@@ -56,7 +57,7 @@ Programming Language :: Python :: 3.9
 Topic :: Scientific/Engineering :: Physics
 Topic :: System :: Hardware
 """.splitlines(),
-    packages=find_packages(),
+    packages=find_namespace_packages(exclude=["doc.manual"]),
     namespace_packages=[],
     include_package_data=True,
     ext_modules=[],

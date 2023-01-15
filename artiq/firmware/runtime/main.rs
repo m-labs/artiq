@@ -1,4 +1,4 @@
-#![feature(lang_items, panic_info_message)]
+#![feature(lang_items, panic_info_message, const_btree_new, iter_advance_by)]
 #![no_std]
 
 extern crate eh;
@@ -104,8 +104,8 @@ fn startup() {
     let (mut io_expander0, mut io_expander1);
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     {
-        io_expander0 = board_misoc::io_expander::IoExpander::new(0);
-        io_expander1 = board_misoc::io_expander::IoExpander::new(1);
+        io_expander0 = board_misoc::io_expander::IoExpander::new(0).unwrap();
+        io_expander1 = board_misoc::io_expander::IoExpander::new(1).unwrap();
         io_expander0.init().expect("I2C I/O expander #0 initialization failed");
         io_expander1.init().expect("I2C I/O expander #1 initialization failed");
 

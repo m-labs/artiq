@@ -429,8 +429,8 @@ mod tag {
                 // the ptr/length(s) pair is basically CSlice
                 Tag::Bytes | Tag::String | Tag::ByteArray | Tag::List(_) | Tag::Array(_, _) =>
                     core::mem::align_of::<CSlice<()>>(),
-                // will not be sent from the host
-                _ => unreachable!("unexpected tag from host")
+                Tag::Keyword(_) => unreachable!("Tag::Keyword should not appear in composite types"),
+                Tag::Object => core::mem::align_of::<u32>(),
             }
         }
 

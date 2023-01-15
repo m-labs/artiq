@@ -153,20 +153,6 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ pyserial prettytable msgpack migen ];
       };
 
-      cargo-xbuild = rustPlatform.buildRustPackage rec {
-        pname = "cargo-xbuild";
-        version = "0.6.5";
-
-        src = pkgs.fetchFromGitHub {
-          owner = "rust-osdev";
-          repo = pname;
-          rev = "v${version}";
-          sha256 = "18djvygq9v8rmfchvi2hfj0i6fhn36m716vqndqnj56fiqviwxvf";
-        };
-
-        cargoSha256 = "13sj9j9kl6js75h9xq0yidxy63vixxm9q3f8jil6ymarml5wkhx8";
-      };
-
       vivadoEnv = pkgs.buildFHSUserEnv {
         name = "vivado-env";
         targetPkgs = vivadoDeps;
@@ -175,7 +161,7 @@
       vivado = pkgs.buildFHSUserEnv {
         name = "vivado";
         targetPkgs = vivadoDeps;
-        profile = "set -e; source /opt/Xilinx/Vivado/2021.2/settings64.sh";
+        profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
         runScript = "vivado";
       };
 
@@ -193,12 +179,12 @@
             (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
             rustPlatform.rust.rustc
             rustPlatform.rust.cargo
+            pkgs.cargo-xbuild
             pkgs.llvmPackages_14.clang-unwrapped
             pkgs.llvm_14
             pkgs.lld_14
             vivado
             rustPlatform.cargoSetupHook
-            cargo-xbuild
           ];
           buildPhase = 
             ''
@@ -372,7 +358,7 @@
           (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema microscope ]))
           rustPlatform.rust.rustc
           rustPlatform.rust.cargo
-          cargo-xbuild
+          pkgs.cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
@@ -400,6 +386,18 @@
         artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;
         msys2-repos = packages.x86_64-w64-mingw32.msys2-repos;
         inherit (packages.x86_64-linux) artiq-manual-html artiq-manual-pdf;
+        gateware-sim = pkgs.stdenvNoCC.mkDerivation {
+          name = "gateware-sim";
+          buildInputs = [
+            (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          ];
+          phases = [ "buildPhase" ];
+          buildPhase =
+            ''
+            python -m unittest discover -v artiq.gateware.test
+            touch $out
+            '';
+        };
       };
     };
 

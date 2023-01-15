@@ -12,8 +12,6 @@ use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
-#[cfg(has_wrpll)]
-use board_artiq::wrpll;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use riscv::register::{mcause, mepc, mtval};
@@ -383,19 +381,6 @@ fn hardware_tick(ts: &mut u64) {
     }
 }
 
-#[cfg(all(has_si5324, rtio_frequency = "150.0"))]
-const SI5324_SETTINGS: si5324::FrequencySettings
-    = si5324::FrequencySettings {
-    n1_hs  : 6,
-    nc1_ls : 6,
-    n2_hs  : 10,
-    n2_ls  : 270,
-    n31    : 75,
-    n32    : 75,
-    bwsel  : 4,
-    crystal_ref: true
-};
-
 #[cfg(all(has_si5324, rtio_frequency = "125.0"))]
 const SI5324_SETTINGS: si5324::FrequencySettings
     = si5324::FrequencySettings {
@@ -406,7 +391,7 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     n31    : 63,
     n32    : 63,
     bwsel  : 4,
-    crystal_ref: true
+    crystal_as_ckin2: true
 };
 
 #[cfg(all(has_si5324, rtio_frequency = "100.0"))]
@@ -419,8 +404,30 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     n31    : 50,
     n32    : 50,
     bwsel  : 4,
-    crystal_ref: true
+    crystal_as_ckin2: true
 };
+
+fn sysclk_setup() {
+    let switched = unsafe {
+        csr::crg::switch_done_read()
+    };
+    if switched == 1 {
+        info!("Clocking has already been set up.");
+        return;
+    }
+    else {
+        #[cfg(has_si5324)]
+        si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
+        info!("Switching sys clock, rebooting...");
+        // delay for clean UART log, wait until UART FIFO is empty
+        clock::spin_us(1300);
+        unsafe {
+            csr::drtio_transceiver::stable_clkin_write(1);
+        }
+        loop {}
+    }
+}
+
 
 #[no_mangle]
 pub extern fn main() -> i32 {
@@ -445,21 +452,10 @@ pub extern fn main() -> i32 {
     let (mut io_expander0, mut io_expander1);
     #[cfg(all(soc_platform = "kasli", hw_rev = "v2.0"))]
     {
-        io_expander0 = board_misoc::io_expander::IoExpander::new(0);
-        io_expander1 = board_misoc::io_expander::IoExpander::new(1);
+        io_expander0 = board_misoc::io_expander::IoExpander::new(0).unwrap();
+        io_expander1 = board_misoc::io_expander::IoExpander::new(1).unwrap();
         io_expander0.init().expect("I2C I/O expander #0 initialization failed");
         io_expander1.init().expect("I2C I/O expander #1 initialization failed");
-        #[cfg(has_wrpll)]
-        {
-            io_expander0.set_oe(1, 1 << 7).unwrap();
-            io_expander0.set(1, 7, true);
-            io_expander0.service().unwrap();
-            io_expander1.set_oe(0, 1 << 7).unwrap();
-            io_expander1.set_oe(1, 1 << 7).unwrap();
-            io_expander1.set(0, 7, true);
-            io_expander1.set(1, 7, true);
-            io_expander1.service().unwrap();
-        }
 
         // Actively drive TX_DISABLE to false on SFP0..3
         io_expander0.set_oe(0, 1 << 1).unwrap();
@@ -474,21 +470,12 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
-    #[cfg(has_si5324)]
-    si5324::setup(&SI5324_SETTINGS, si5324::Input::Ckin1).expect("cannot initialize Si5324");
-    #[cfg(has_wrpll)]
-    wrpll::init();
+    sysclk_setup();
 
-    unsafe {
-        csr::drtio_transceiver::stable_clkin_write(1);
-    }
-    clock::spin_us(1500); // wait for CPLL/QPLL lock
-    #[cfg(not(has_jdcg))]
     unsafe {
         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
     }
-    #[cfg(has_wrpll)]
-    wrpll::diagnostics();
+
     init_rtio_crg();
 
     #[cfg(has_drtio_routing)]
@@ -504,11 +491,6 @@ pub extern fn main() -> i32 {
     let mut hardware_tick_ts = 0;
 
     loop {
-        #[cfg(has_jdcg)]
-        unsafe {
-            // Hide from uplink until RTM is ready
-            csr::drtio_transceiver::txenable_write(0xfffffffeu32 as _);
-        }
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
             for rep in repeaters.iter_mut() {
@@ -528,15 +510,11 @@ pub extern fn main() -> i32 {
             si5324::siphaser::select_recovered_clock(true).expect("failed to switch clocks");
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
-        #[cfg(has_wrpll)]
-        wrpll::select_recovered_clock(true);
 
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
-        #[cfg(has_jdcg)]
-        let mut was_up = false;
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
@@ -551,18 +529,6 @@ pub extern fn main() -> i32 {
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
-                #[cfg(has_jdcg)]
-                {
-                    // We assume that the RTM on repeater0 is up.
-                    // Uplink should not send a TSC load command unless the link is
-                    // up, and we are hiding when the RTM is down.
-                    if let Err(e) = jdcg::jesd204sync::sysref_rtio_align() {
-                        error!("failed to align SYSREF with TSC ({})", e);
-                    }
-                    if let Err(e) = jdcg::jesd204sync::resync_dacs() {
-                        error!("DAC resync failed after SYSREF/TSC realignment ({})", e);
-                    }
-                }
                 for rep in repeaters.iter() {
                     if let Err(e) = rep.sync_tsc() {
                         error!("failed to sync TSC ({})", e);
@@ -572,37 +538,7 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
-            #[cfg(has_jdcg)]
-            {
-                let is_up = repeaters[0].is_up();
-                if is_up && !was_up {
-                    /*
-                     * One side of the JESD204 elastic buffer is clocked by the jitter filter
-                     * (Si5324 or WRPLL), the other by the RTM.
-                     * The elastic buffer can operate only when those two clocks are derived from
-                     * the same oscillator.
-                     * This is the case when either of those conditions is true:
-                     * (1) The DRTIO master and the RTM are clocked directly from a common external
-                     *     source, *and* the jitter filter has locked to the recovered clock.
-                     *     This clocking scheme may provide less noise and phase drift at the DACs.
-                     * (2) The RTM clock is connected to the jitter filter output.
-                     * To handle those cases, we simply keep the JESD204 core in reset unless the
-                     * jitter filter is locked to the recovered clock.
-                     */
-                    jdcg::jesd::reset(false);
-                    let _ = jdcg::jdac::init();
-                    jdcg::jesd204sync::sysref_auto_align();
-                    jdcg::jdac::stpl();
-                    unsafe {
-                        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);  // unhide
-                    }
-                }
-                was_up = is_up;
-            }
         }
-
-        #[cfg(has_jdcg)]
-        jdcg::jesd::reset(true);
 
         drtiosat_reset_phy(true);
         drtiosat_reset(true);
@@ -610,8 +546,6 @@ pub extern fn main() -> i32 {
         info!("uplink is down, switching to local oscillator clock");
         #[cfg(has_si5324)]
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
-        #[cfg(has_wrpll)]
-        wrpll::select_recovered_clock(false);
     }
 }
 

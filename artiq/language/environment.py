@@ -209,8 +209,6 @@ class TraceArgumentManager:
         self.requested_args[key] = processor, group, tooltip
         return None
 
-    def check_unprocessed_arguments(self):
-        pass
 
 class ProcessArgumentManager:
     def __init__(self, unprocessed_arguments):
@@ -229,7 +227,7 @@ class ProcessArgumentManager:
         unprocessed = set(self.unprocessed_arguments.keys()) -\
                       self._processed_arguments
         if unprocessed:
-            raise AttributeError("Invalid argument(s): " +
+            raise AttributeError("Supplied argument(s) not queried in experiment: " +
                                  ", ".join(unprocessed))
 
 class HasEnvironment:
@@ -252,8 +250,6 @@ class HasEnvironment:
         self.__in_build = True
         self.build(*args, **kwargs)
         self.__in_build = False
-        if self.__argument_mgr is not None:
-            self.__argument_mgr.check_unprocessed_arguments()
 
     def register_child(self, child):
         self.children.append(child)

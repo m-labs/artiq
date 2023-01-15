@@ -451,7 +451,7 @@ class SinaraTester(EnvExperiment):
         print("Frequencies:")
         for card_n, channels in enumerate(chunker(self.mirnies, 4)):
             for channel_n, (channel_name, channel_dev) in enumerate(channels):
-                frequency = 1000.*(card_n + 1) + channel_n * 100
+                frequency = float(1000 + 100 * (card_n + 1) + channel_n * 10)
                 print("{}\t{}MHz".format(channel_name, frequency))
                 self.setup_mirny(channel_dev, frequency)
                 print("{} info: {}".format(channel_name, channel_dev.info()))

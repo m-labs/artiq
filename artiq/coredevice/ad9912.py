@@ -27,6 +27,8 @@ class AD9912:
         f_ref/clk_div*pll_n where f_ref is the reference frequency and clk_div
         is the reference clock divider (both set in the parent Urukul CPLD
         instance).
+    :param pll_en: PLL enable bit, set to False to bypass PLL (default: True).
+        Note that when bypassing the PLL the red front panel LED may remain on.
     """
 
     core: KernelInvariant[Core]
@@ -34,11 +36,12 @@ class AD9912:
     bus: KernelInvariant[SPIMaster]
     chip_select: KernelInvariant[int32]
     pll_n: KernelInvariant[int32]
+    pll_en: KernelInvariant[bool]
     ftw_per_hz: KernelInvariant[float]
     sw: KernelInvariant[Option[TTLOut]]
 
     def __init__(self, dmgr, chip_select, cpld_device, sw_device=None,
-                 pll_n=10):
+                 pll_n=10, pll_en=True):
         self.cpld = dmgr.get(cpld_device)
         self.core = self.cpld.core
         self.bus = self.cpld.bus
@@ -48,8 +51,12 @@ class AD9912:
             self.sw = Some(dmgr.get(sw_device))
         else:
             self.sw = none
+        self.pll_en = pll_en
         self.pll_n = pll_n
-        sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
+        if pll_en:
+            sysclk = self.cpld.refclk / [1, 1, 2, 4][self.cpld.clk_div] * pll_n
+        else:
+            sysclk = self.cpld.refclk
         assert sysclk <= 1e9
         self.ftw_per_hz = 1 / sysclk * (1 << 48)
 
@@ -111,13 +118,15 @@ class AD9912:
             raise ValueError("Urukul AD9912 product id mismatch")
         self.core.delay(50. * us)
         # HSTL power down, CMOS power down
-        self.write(AD9912_PWRCNTRL1, 0x80, 1)
+        pwrcntrl1 = 0x80 | (int32(not self.pll_en) << 4)
+        self.write(AD9912_PWRCNTRL1, pwrcntrl1, 1)
         self.cpld.io_update.pulse(2. * us)
-        self.write(AD9912_N_DIV, self.pll_n // 2 - 2, 1)
-        self.cpld.io_update.pulse(2. * us)
-        # I_cp = 375 µA, VCO high range
-        self.write(AD9912_PLLCFG, 0b00000101, 1)
-        self.cpld.io_update.pulse(2. * us)
+        if self.pll_en:
+            self.write(AD9912_N_DIV, self.pll_n // 2 - 2, 1)
+            self.cpld.io_update.pulse(2. * us)
+            # I_cp = 375 µA, VCO high range
+            self.write(AD9912_PLLCFG, 0b00000101, 1)
+            self.cpld.io_update.pulse(2. * us)
         self.core.delay(1. * ms)
 
     @kernel

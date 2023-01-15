@@ -23,7 +23,6 @@ class GenericStandalone(StandaloneBase):
         self.class_name_override = description["variant"]
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
 
-        self.config["SI5324_AS_SYNTHESIZER"] = None
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
@@ -64,7 +63,7 @@ class GenericStandalone(StandaloneBase):
             self.add_csr_group("grabber", self.grabber_csr_group)
             for grabber in self.grabber_csr_group:
                 self.platform.add_false_path_constraints(
-                    self.rtio_crg.cd_rtio.clk, getattr(self, grabber).deserializer.cd_cl.clk)
+                    self.crg.cd_sys.clk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
 class GenericMaster(MasterBase):

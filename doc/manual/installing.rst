@@ -73,6 +73,10 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
           ];
         };
       };
+    nixConfig = {  # work around https://github.com/NixOS/nix/issues/6771
+      extra-trusted-public-keys = "nixbld.m-labs.hk-1:5aSRVA5b320xbNvu30tqxVPXpld73bhtOeH6uAjRyHc=";
+      extra-substituters = "https://nixbld.m-labs.hk";
+    };
   }
 
 
@@ -142,11 +146,9 @@ OpenOCD can be used to write the binary images into the core device FPGA board's
 With Nix, add ``aqmain.openocd-bscanspi`` to the shell packages.
 Be careful not to add ``pkgs.openocd`` instead - this would install OpenOCD from the NixOS package collection, which does not contain the bscanspi bitstreams necessary to flash ARTIQ boards.
 
-With MSYS2, install ``openocd`` as follows::
+With MSYS2, install ``openocd`` and ``bscan-spi-bitstreams`` as follows::
 
-    $ pacman -S mingw-w64-x86_64-openocd
-
-and manually copy the bscanspi bitstreams where OpenOCD will find them.
+    pacman -S mingw-w64-x86_64-openocd mingw-w64-x86_64-bscan-spi-bitstreams
 
 .. _configuring-openocd:
 
@@ -289,3 +291,13 @@ Other options include:
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
 
 Availability of these options depends on the board and their configuration - specific setting may or may not be supported.
+
+* Setup resolving RTIO channels to their names
+
+This feature allows you to print the channels' respective names alongside with their numbers in RTIO error messages. To enable it, run the ``artiq_rtiomap`` tool and write its result into the device config at the ``device_map`` key: ::
+
+  $ artiq_rtiomap dev_map.bin
+  $ artiq_coremgmt config write -f device_map dev_map.bin
+
+.. note:: You can find more information about how to use the ``artiq_rtiomap`` utility on the :ref:`Utilities <rtiomap-tool>` page.
+

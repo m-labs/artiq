@@ -75,6 +75,9 @@ class RoundtripTest(ExperimentCase):
     def test_object_list(self):
         self.assertRoundtrip([object(), object()])
 
+    def test_object_tuple(self):
+        self.assertRoundtrip((False, object(), True, 0x12345678))
+
     def test_list_tuple(self):
         self.assertRoundtrip(([1, 2], [3, 4]))
 
@@ -96,7 +99,7 @@ class RoundtripTest(ExperimentCase):
         self.assertArrayRoundtrip(numpy.array([["a", "b"], ["c", "d"]]))
 
     # FIXME: This should work, but currently passes as the argument is just
-    # synthesised as a call to array() without forwarding the dype form the host
+    # synthesised as a call to array() without forwarding the dtype from the host
     # NumPy object.
     @unittest.expectedFailure
     def test_array_jagged(self):

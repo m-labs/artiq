@@ -2,7 +2,7 @@
 
 from migen import *
 from migen.genlib.fsm import *
-from migen.genlib.fifo import AsyncFIFO
+from migen.genlib.fifo import SyncFIFO
 from migen.genlib.cdc import BlindTransfer
 
 from artiq.gateware.rtio.cdc import GrayCodeTransfer
@@ -76,8 +76,8 @@ class RTPacketMaster(Module):
         assert len(link_layer.tx_rt_data) % 8 == 0
         ws = len(link_layer.tx_rt_data)
         tx_plm = get_m2s_layouts(ws)
-        tx_dp = ClockDomainsRenamer("rtio")(TransmitDatapath(
-            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm))
+        tx_dp = TransmitDatapath(
+            link_layer.tx_rt_frame, link_layer.tx_rt_data, tx_plm)
         self.submodules += tx_dp
         rx_plm = get_s2m_layouts(ws)
         rx_dp = ClockDomainsRenamer("rtio_rx")(ReceiveDatapath(
@@ -85,8 +85,7 @@ class RTPacketMaster(Module):
         self.submodules += rx_dp
 
         # Write FIFO and extra data count
-        sr_fifo = ClockDomainsRenamer({"write": "sys", "read": "rtio"})(
-            AsyncFIFO(1+64+24+8+512, sr_fifo_depth))
+        sr_fifo = SyncFIFO(1+64+24+8+512, sr_fifo_depth)
         self.submodules += sr_fifo
         sr_notwrite_d = Signal()
         sr_timestamp_d = Signal(64)
@@ -106,7 +105,7 @@ class RTPacketMaster(Module):
         sr_buf_re = Signal()
 
         self.comb += sr_fifo.re.eq(sr_fifo.readable & (~sr_buf_readable | sr_buf_re))
-        self.sync.rtio += \
+        self.sync += \
             If(sr_fifo.re,
                 sr_buf_readable.eq(1),
             ).Elif(sr_buf_re,
@@ -120,7 +119,7 @@ class RTPacketMaster(Module):
         sr_extra_data_cnt = Signal(8)
         sr_data = Signal(512)
 
-        self.sync.rtio += If(sr_fifo.re,
+        self.sync += If(sr_fifo.re,
             sr_notwrite.eq(sr_notwrite_d),
             sr_timestamp.eq(sr_timestamp_d),
             sr_chan_sel.eq(sr_chan_sel_d),
@@ -131,11 +130,11 @@ class RTPacketMaster(Module):
         sr_extra_data_d = Signal(512)
         self.comb += sr_extra_data_d.eq(sr_data_d[short_data_len:])
         for i in range(512//ws):
-            self.sync.rtio += If(sr_fifo.re,
+            self.sync += If(sr_fifo.re,
                 If(sr_extra_data_d[ws*i:ws*(i+1)] != 0, sr_extra_data_cnt.eq(i+1)))
 
         sr_extra_data = Signal(512)
-        self.sync.rtio += If(sr_fifo.re, sr_extra_data.eq(sr_extra_data_d))
+        self.sync += If(sr_fifo.re, sr_extra_data.eq(sr_extra_data_d))
 
         extra_data_ce = Signal()
         extra_data_last = Signal()
@@ -146,7 +145,7 @@ class RTPacketMaster(Module):
                  for i in range(512//ws)}),
             extra_data_last.eq(extra_data_counter == sr_extra_data_cnt)
         ]
-        self.sync.rtio += \
+        self.sync += \
             If(extra_data_ce,
                 extra_data_counter.eq(extra_data_counter + 1),
             ).Else(
@@ -159,18 +158,6 @@ class RTPacketMaster(Module):
         self.submodules += CrossDomainNotification("rtio_rx", "sys",
             buffer_space_not, buffer_space,
             self.buffer_space_not, self.buffer_space_not_ack, self.buffer_space)
-
-        set_time_stb = Signal()
-        set_time_ack = Signal()
-        self.submodules += CrossDomainRequest("rtio",
-            self.set_time_stb, self.set_time_ack, None,
-            set_time_stb, set_time_ack, None)
-
-        echo_stb = Signal()
-        echo_ack = Signal()
-        self.submodules += CrossDomainRequest("rtio",
-            self.echo_stb, self.echo_ack, None,
-            echo_stb, echo_ack, None)
 
         read_not = Signal()
         read_no_event = Signal()
@@ -199,14 +186,14 @@ class RTPacketMaster(Module):
         ]
 
         # TX FSM
-        tx_fsm = ClockDomainsRenamer("rtio")(FSM(reset_state="IDLE"))
+        tx_fsm = FSM(reset_state="IDLE")
         self.submodules += tx_fsm
 
         echo_sent_now = Signal()
-        self.sync.rtio += self.echo_sent_now.eq(echo_sent_now)
+        self.sync += self.echo_sent_now.eq(echo_sent_now)
         tsc_value = Signal(64)
         tsc_value_load = Signal()
-        self.sync.rtio += If(tsc_value_load, tsc_value.eq(self.tsc_value))
+        self.sync += If(tsc_value_load, tsc_value.eq(self.tsc_value))
 
         tx_fsm.act("IDLE",
             # Ensure 2 cycles between frames on the link.
@@ -223,10 +210,10 @@ class RTPacketMaster(Module):
                     NextState("WRITE")
                 )
             ).Else(
-                If(echo_stb,
+                If(self.echo_stb,
                     echo_sent_now.eq(1),
                     NextState("ECHO")
-                ).Elif(set_time_stb,
+                ).Elif(self.set_time_stb,
                     tsc_value_load.eq(1),
                     NextState("SET_TIME")
                 )
@@ -273,14 +260,14 @@ class RTPacketMaster(Module):
         tx_fsm.act("ECHO",
             tx_dp.send("echo_request"),
             If(tx_dp.packet_last,
-                echo_ack.eq(1),
+                self.echo_ack.eq(1),
                 NextState("IDLE")
             )
         )
         tx_fsm.act("SET_TIME",
             tx_dp.send("set_time", timestamp=tsc_value),
             If(tx_dp.packet_last,
-                set_time_ack.eq(1),
+                self.set_time_ack.eq(1),
                 NextState("IDLE")
             )
         )
@@ -334,16 +321,14 @@ class RTPacketMaster(Module):
         # packet counters
         tx_frame_r = Signal()
         packet_cnt_tx = Signal(32)
-        self.sync.rtio += [
+        self.sync += [
             tx_frame_r.eq(link_layer.tx_rt_frame),
             If(link_layer.tx_rt_frame & ~tx_frame_r,
                 packet_cnt_tx.eq(packet_cnt_tx + 1))
         ]
-        cdc_packet_cnt_tx = GrayCodeTransfer(32)
-        self.submodules += cdc_packet_cnt_tx
+
         self.comb += [
-            cdc_packet_cnt_tx.i.eq(packet_cnt_tx),
-            self.packet_cnt_tx.eq(cdc_packet_cnt_tx.o)
+            self.packet_cnt_tx.eq(packet_cnt_tx)
         ]
 
         rx_frame_r = Signal()
@@ -353,7 +338,7 @@ class RTPacketMaster(Module):
             If(link_layer.rx_rt_frame & ~rx_frame_r,
                 packet_cnt_rx.eq(packet_cnt_rx + 1))
         ]
-        cdc_packet_cnt_rx = ClockDomainsRenamer({"rtio": "rtio_rx"})(
+        cdc_packet_cnt_rx = ClockDomainsRenamer({"rtio": "sys", "sys": "rtio_rx"})(
             GrayCodeTransfer(32))
         self.submodules += cdc_packet_cnt_rx
         self.comb += [

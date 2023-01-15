@@ -1,23 +1,23 @@
 from migen import *
-from migen.genlib.cdc import MultiReg, PulseSynchronizer
+from migen.genlib.cdc import MultiReg
 
 from misoc.interconnect.csr import *
 
 
-# This code assumes 125/62.5MHz reference clock and 100MHz, 125MHz or 150MHz RTIO
+# This code assumes 125/62.5MHz reference clock and 100MHz or 125MHz RTIO
 # frequency.
 
 class SiPhaser7Series(Module, AutoCSR):
     def __init__(self, si5324_clkin, rx_synchronizer,
-                 ref_clk=None, ref_div2=False, ultrascale=False, rtio_clk_freq=150e6):
+                 ref_clk=None, ref_div2=False, ultrascale=False, rtio_clk_freq=125e6):
         self.switch_clocks = CSRStorage()
         self.phase_shift = CSR()
         self.phase_shift_done = CSRStatus(reset=1)
         self.error = CSR()
 
-        assert rtio_clk_freq in (100e6, 125e6, 150e6)
+        assert rtio_clk_freq in (100e6, 125e6)
 
-        # 125MHz/62.5MHz reference clock to 100MHz/125MHz/150MHz. VCO @ 750MHz.
+        # 125MHz/62.5MHz reference clock to 100MHz/125MHz. VCO @ 750MHz.
         # Used to provide a startup clock to the transceiver through the Si,
         # we do not use the crystal reference so that the PFD (f3) frequency
         # can be high.
@@ -97,17 +97,14 @@ class SiPhaser7Series(Module, AutoCSR):
         toggle_out = rx_synchronizer.resync(toggle_in)
 
         toggle_out_expected = Signal()
-        self.sync.rtio += toggle_out_expected.eq(~toggle_out)
+        self.sync += toggle_out_expected.eq(~toggle_out)
 
         error = Signal()
-        error_clear = PulseSynchronizer("sys", "rtio")
-        self.submodules += error_clear
-        self.sync.rtio += [
+        self.sync += [
             If(toggle_out != toggle_out_expected, error.eq(1)),
-            If(error_clear.o, error.eq(0))
+            If(self.error.re, error.eq(0))
         ]
         self.specials += MultiReg(error, self.error.w)
-        self.comb += error_clear.i.eq(self.error.re)
 
         # expose MMCM outputs - used for clock constraints
         self.mmcm_freerun_output = mmcm_freerun_output

@@ -86,7 +86,7 @@ def main():
     server_broadcast = Broadcaster()
     loop.run_until_complete(server_broadcast.start(
         bind, args.port_broadcast))
-    atexit_register_coroutine(server_broadcast.stop)
+    atexit_register_coroutine(server_broadcast.stop, loop=loop)
 
     log_forwarder.callback = (lambda msg:
         server_broadcast.broadcast("log", msg))
@@ -100,8 +100,8 @@ def main():
 
     device_db = DeviceDB(args.device_db)
     dataset_db = DatasetDB(args.dataset_db)
-    dataset_db.start()
-    atexit_register_coroutine(dataset_db.stop)
+    dataset_db.start(loop=loop)
+    atexit_register_coroutine(dataset_db.stop, loop=loop)
     worker_handlers = dict()
 
     if args.git:
@@ -113,8 +113,8 @@ def main():
     atexit.register(experiment_db.close)
 
     scheduler = Scheduler(RIDCounter(), worker_handlers, experiment_db, args.log_submissions)
-    scheduler.start()
-    atexit_register_coroutine(scheduler.stop)
+    scheduler.start(loop=loop)
+    atexit_register_coroutine(scheduler.stop, loop=loop)
 
     config = MasterConfig(args.name)
 
@@ -131,7 +131,7 @@ def main():
         "scheduler_check_termination": scheduler.check_termination,
         "ccb_issue": ccb_issue,
     })
-    experiment_db.scan_repository_async()
+    experiment_db.scan_repository_async(loop=loop)
 
     server_control = RPCServer({
         "master_config": config,
@@ -142,7 +142,7 @@ def main():
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
-    atexit_register_coroutine(server_control.stop)
+    atexit_register_coroutine(server_control.stop, loop=loop)
 
     server_notify = Publisher({
         "schedule": scheduler.notifier,
@@ -153,12 +153,12 @@ def main():
     })
     loop.run_until_complete(server_notify.start(
         bind, args.port_notify))
-    atexit_register_coroutine(server_notify.stop)
+    atexit_register_coroutine(server_notify.stop, loop=loop)
 
     server_logging = LoggingServer()
     loop.run_until_complete(server_logging.start(
         bind, args.port_logging))
-    atexit_register_coroutine(server_logging.stop)
+    atexit_register_coroutine(server_logging.stop, loop=loop)
 
     print("ARTIQ master is now ready.")
     loop.run_until_complete(signal_handler.wait_terminate())

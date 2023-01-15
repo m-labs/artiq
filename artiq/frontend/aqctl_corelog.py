@@ -96,14 +96,15 @@ def main():
         signal_handler.setup()
         try:
             get_logs_task = asyncio.ensure_future(
-                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr))
+                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr),
+                loop=loop)
             try:
                 server = Server({"corelog": PingTarget()}, None, True)
                 loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
                 try:
                     _, pending = loop.run_until_complete(asyncio.wait(
-                        [signal_handler.wait_terminate(),
-                         server.wait_terminate(),
+                        [loop.create_task(signal_handler.wait_terminate()),
+                         loop.create_task(server.wait_terminate()),
                          get_logs_task],
                         return_when=asyncio.FIRST_COMPLETED))
                     for task in pending:

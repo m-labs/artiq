@@ -148,7 +148,7 @@ def main():
             report_disconnect)
         loop.run_until_complete(subscriber.connect(
             args.server, args.port_notify))
-        atexit_register_coroutine(subscriber.close)
+        atexit_register_coroutine(subscriber.close, loop=loop)
         sub_clients[notifier_name] = subscriber
 
     broadcast_clients = dict()
@@ -156,7 +156,7 @@ def main():
         client = Receiver(target, [], report_disconnect)
         loop.run_until_complete(client.connect(
             args.server, args.port_broadcast))
-        atexit_register_coroutine(client.close)
+        atexit_register_coroutine(client.close, loop=loop)
         broadcast_clients[target] = client
 
     # initialize main window
@@ -195,14 +195,15 @@ def main():
                                                "server": args.server,
                                                "port_notify": args.port_notify,
                                                "port_control": args.port_control,
-                                           })
-    atexit_register_coroutine(d_applets.stop)
+                                           },
+                                           loop=loop)
+    atexit_register_coroutine(d_applets.stop, loop=loop)
     smgr.register(d_applets)
     broadcast_clients["ccb"].notify_cbs.append(d_applets.ccb_notify)
 
     d_ttl_dds = moninj.MonInj(rpc_clients["schedule"])
     loop.run_until_complete(d_ttl_dds.start(args.server, args.port_notify))
-    atexit_register_coroutine(d_ttl_dds.stop)
+    atexit_register_coroutine(d_ttl_dds.stop, loop=loop)
 
     d_schedule = schedule.ScheduleDock(
         rpc_clients["schedule"], sub_clients["schedule"])
@@ -231,8 +232,8 @@ def main():
         # QDockWidgets fail to be embedded.
         main_window.show()
     smgr.load()
-    smgr.start()
-    atexit_register_coroutine(smgr.stop)
+    smgr.start(loop=loop)
+    atexit_register_coroutine(smgr.stop, loop=loop)
 
     # work around for https://github.com/m-labs/artiq/issues/1307
     d_ttl_dds.ttl_dock.show()

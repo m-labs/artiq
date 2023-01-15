@@ -77,6 +77,10 @@ class SPIMaster:
         self.channel = channel
         self.update_xfer_duration_mu(div, length)
 
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
+
     @portable
     def frequency_to_div(self, f: float) -> int32:
         """Convert a SPI clock frequency to the closest SPI clock divider."""

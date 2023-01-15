@@ -8,6 +8,7 @@ from itertools import count
 
 from artiq import __version__ as artiq_version
 from artiq.coredevice import jsondesc
+from artiq.coredevice.phaser import PHASER_GW_MIQRO, PHASER_GW_BASE
 
 
 def process_header(output, description):
@@ -382,10 +383,12 @@ class PeripheralManager:
                 "arguments": {{
                     "spi_adc_device": "spi_{name}_adc",
                     "spi_pgia_device": "spi_{name}_pgia",
-                    "cnv_device": "ttl_{name}_cnv"
+                    "cnv_device": "ttl_{name}_cnv",
+                    "hw_rev": "{hw_rev}"
                 }}
             }}""",
             name=self.get_name("sampler"),
+            hw_rev=peripheral.get("hw_rev", "v2.2"),
             adc_channel=rtio_offset,
             pgia_channel=rtio_offset + 1,
             cnv_channel=rtio_offset + 2)
@@ -416,11 +419,13 @@ class PeripheralManager:
                     "channel": 0x{suservo_channel:06x},
                     "pgia_device": "spi_{sampler_name}_pgia",
                     "cpld_devices": {cpld_names_list},
-                    "dds_devices": {dds_names_list}
+                    "dds_devices": {dds_names_list},
+                    "sampler_hw_rev": "{sampler_hw_rev}"
                 }}
             }}""",
             suservo_name=suservo_name,
             sampler_name=sampler_name,
+            sampler_hw_rev=peripheral.get("sampler_hw_rev", "v2.2"),
             cpld_names_list=[urukul_name + "_cpld" for urukul_name in urukul_names],
             dds_names_list=[urukul_name + "_dds" for urukul_name in urukul_names],
             suservo_channel=rtio_offset+next(channel))
@@ -534,10 +539,10 @@ class PeripheralManager:
     def process_phaser(self, rtio_offset, peripheral):
         mode = peripheral.get("mode", "base")
         if mode == "miqro":
-            dac = ', "dac": {"pll_m": 16, "pll_n": 3, "interpolation": 2}'
+            dac = f', "dac": {{"pll_m": 16, "pll_n": 3, "interpolation": 2}}, "gw_rev"={PHASER_GW_MIQRO}'
             n_channels = 3
         else:
-            dac = ""
+            dac = f', "gw_rev"={PHASER_GW_BASE}'
             n_channels = 5
         self.gen("""
             device_db["{name}"] = {{

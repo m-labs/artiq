@@ -28,12 +28,12 @@ def y_mu_to_full_scale(y: int32) -> float:
 
 
 @portable
-def adc_mu_to_volts(x: int32, gain: int32) -> float:
+def adc_mu_to_volts(x: int32, gain: int32, corrected_fs: bool = True) -> float:
     """Convert servo ADC data from machine units to Volt."""
     val = (x >> 1) & 0xffff
     mask = 1 << 15
     val = -(val & mask) + (val & ~mask)
-    return sampler_adc_mu_to_volt(val, gain)
+    return sampler_adc_mu_to_volt(val, gain, corrected_fs)
 
 
 @nac3
@@ -68,6 +68,7 @@ class SUServo:
     :param gains: Initial value for PGIA gains shift register
         (default: 0x0000). Knowledge of this state is not transferred
         between experiments.
+    :param sampler_hw_rev: Sampler's revision string
     :param core_device: Core device name
     """
 
@@ -78,11 +79,11 @@ class SUServo:
     channel: KernelInvariant[int32]
     gains: Kernel[int32]
     ref_period_mu: KernelInvariant[int64]
-
+    corrected_fs: KernelInvariant[bool]
 
     def __init__(self, dmgr, channel, pgia_device,
                  cpld_devices, dds_devices,
-                 gains=0x0000, core_device="core"):
+                 gains=0x0000, sampler_hw_rev="v2.2", core_device="core"):
 
         self.core = dmgr.get(core_device)
         self.pgia = dmgr.get(pgia_device)
@@ -94,7 +95,12 @@ class SUServo:
         self.gains = gains
         self.ref_period_mu = self.core.seconds_to_mu(
             self.core.coarse_ref_period)
+        self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
         assert self.ref_period_mu == self.core.ref_multiplier
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def init(self):
@@ -247,7 +253,7 @@ class SUServo:
         """
         val = self.get_adc_mu(channel)
         gain = (self.gains >> (channel*2)) & 0b11
-        return adc_mu_to_volts(val, gain)
+        return adc_mu_to_volts(val, gain, self.corrected_fs)
 
 
 @nac3
@@ -273,6 +279,10 @@ class Channel:
         self.servo_channel = (self.channel + 4 * len(self.servo.cplds) -
                               self.servo.channel)
         self.dds = self.servo.ddses[self.servo_channel // 4]
+
+    @staticmethod
+    def get_rtio_channels(channel, **kwargs):
+        return [(channel, None)]
 
     @kernel
     def set(self, en_out: bool, en_iir: bool = False, profile: int32 = 0):

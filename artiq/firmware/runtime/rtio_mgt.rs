@@ -1,14 +1,19 @@
+use alloc::collections::BTreeMap;
+use alloc::string::String;
 use core::cell::RefCell;
 use urc::Urc;
-use board_misoc::csr;
+use board_misoc::{csr, config};
 #[cfg(has_drtio)]
 use board_misoc::clock;
 use board_artiq::drtio_routing;
 use sched::Io;
 use sched::Mutex;
+use io::{Cursor, ProtoRead};
 const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
 const ASYNC_ERROR_BUSY: u8 = 1 << 1;
 const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
+
+static mut RTIO_DEVICE_MAP: BTreeMap<u32, String> = BTreeMap::new();
 
 #[cfg(has_drtio)]
 pub mod drtio {
@@ -215,15 +220,15 @@ pub mod drtio {
                                 destination_set_up(routing_table, up_destinations, destination, false),
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
-                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}", destination, channel);
+                                error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_SEQUENCE_ERROR };
                             }
                             Ok(drtioaux::Packet::DestinationCollisionReply { channel }) => {
-                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}", destination, channel);
+                                error!("[DEST#{}] RTIO collision involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_COLLISION };
                             }
                             Ok(drtioaux::Packet::DestinationBusyReply { channel }) => {
-                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}", destination, channel);
+                                error!("[DEST#{}] RTIO busy error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
                                 unsafe { SEEN_ASYNC_ERRORS |= ASYNC_ERROR_BUSY };
                             }
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
@@ -349,16 +354,16 @@ fn async_error_thread(io: Io) {
             io.until(|| csr::rtio_core::async_error_read() != 0).unwrap();
             let errors = csr::rtio_core::async_error_read();
             if errors & ASYNC_ERROR_COLLISION != 0 {
-                error!("RTIO collision involving channel {}",
-                       csr::rtio_core::collision_channel_read());
+                let channel = csr::rtio_core::collision_channel_read();
+                error!("RTIO collision involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             if errors & ASYNC_ERROR_BUSY != 0 {
-                error!("RTIO busy error involving channel {}",
-                       csr::rtio_core::busy_channel_read());
+                let channel = csr::rtio_core::busy_channel_read();
+                error!("RTIO busy error involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             if errors & ASYNC_ERROR_SEQUENCE_ERROR != 0 {
-                error!("RTIO sequence error involving channel {}",
-                       csr::rtio_core::sequence_error_channel_read());
+                let channel = csr::rtio_core::sequence_error_channel_read();
+                error!("RTIO sequence error involving channel 0x{:04x}:{}", channel, resolve_channel_name(channel as u32));
             }
             SEEN_ASYNC_ERRORS = errors;
             csr::rtio_core::async_error_write(errors);
@@ -366,9 +371,47 @@ fn async_error_thread(io: Io) {
     }
 }
 
+fn read_device_map() -> BTreeMap<u32, String> {
+    let mut device_map: BTreeMap<u32, String> = BTreeMap::new();
+    config::read("device_map", |value: Result<&[u8], config::Error>| {
+        let mut bytes = match value {
+            Ok(val) => if val.len() > 0 { Cursor::new(val) } else {
+                error!("read_device_map: `device_map` was not found in the config");
+                return;
+            },
+            Err(err) => {
+                error!("read_device_map: error reading `device_map` from config: {}", err);
+                return;
+            }
+        };
+        let size = bytes.read_u32().unwrap();
+        for _ in 0..size {
+            let channel = bytes.read_u32().unwrap();
+            let device_name= bytes.read_string().unwrap();
+            if let Some(old_entry) = device_map.insert(channel, device_name.clone()) {
+                error!("conflicting entries for channel {}: `{}` and `{}`",
+                       channel, old_entry, device_name);
+            }
+        }
+    });
+    device_map
+}
+
+fn _resolve_channel_name(channel: u32, device_map: &BTreeMap<u32, String>) -> String {
+    match device_map.get(&channel) {
+        Some(val) => val.clone(),
+        None => String::from("unknown")
+    }
+}
+
+pub fn resolve_channel_name(channel: u32) -> String {
+    _resolve_channel_name(channel, unsafe{&RTIO_DEVICE_MAP})
+}
+
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+    unsafe { RTIO_DEVICE_MAP = read_device_map(); }
     drtio::startup(io, aux_mutex, routing_table, up_destinations);
     unsafe {
         csr::rtio_core::reset_phy_write(1);

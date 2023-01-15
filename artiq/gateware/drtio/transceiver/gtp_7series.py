@@ -20,8 +20,7 @@ class GTPSingle(Module):
 
         self.stable_clkin = Signal()
         self.txenable = Signal()
-        self.submodules.encoder = encoder = ClockDomainsRenamer("rtio_tx")(
-            Encoder(2, True))
+        self.submodules.encoder = encoder = Encoder(2, True)
         self.submodules.decoders = decoders = [ClockDomainsRenamer("rtio_rx")(
             (Decoder(True))) for _ in range(2)]
         self.rx_ready = Signal()
@@ -33,10 +32,11 @@ class GTPSingle(Module):
 
         # # #
 
-        # TX generates RTIO clock, init must be in system domain
-        self.submodules.tx_init = tx_init = GTPTXInit(sys_clk_freq, mode)
-        # RX receives restart commands from RTIO domain
-        rx_init = ClockDomainsRenamer("rtio_tx")(GTPRXInit(rtio_clk_freq))
+        # TX generates RTIO clock, init must be in bootstrap domain
+        self.submodules.tx_init = tx_init = ClockDomainsRenamer("bootstrap")(
+            GTPTXInit(125e6, mode))
+        # RX receives restart commands from SYS domain
+        rx_init = GTPRXInit(rtio_clk_freq)
         self.submodules += rx_init
 
         self.comb += [
@@ -367,7 +367,7 @@ class GTPSingle(Module):
 
             # Channel - DRP Ports
             i_DRPADDR=rx_init.drpaddr,
-            i_DRPCLK=ClockSignal("rtio_tx"),
+            i_DRPCLK=ClockSignal("sys"),
             i_DRPDI=rx_init.drpdi,
             o_DRPDO=rx_init.drpdo,
             i_DRPEN=rx_init.drpen,
@@ -566,8 +566,8 @@ class GTPSingle(Module):
             i_PMARSVDIN1                     =0b0,
             # Transmit Ports - FPGA TX Interface Ports
             i_TXDATA                         =Cat(txdata[:8], txdata[10:18]),
-            i_TXUSRCLK                       =ClockSignal("rtio_tx"),
-            i_TXUSRCLK2                      =ClockSignal("rtio_tx"),
+            i_TXUSRCLK                       =ClockSignal("sys"),
+            i_TXUSRCLK2                      =ClockSignal("sys"),
 
             # Transmit Ports - PCI Express Ports
             i_TXELECIDLE                     =0,
@@ -665,19 +665,10 @@ class GTPSingle(Module):
             raise ValueError
         self.specials += Instance("GTPE2_CHANNEL", **gtp_params)
 
-        # tx clocking
-        tx_reset_deglitched = Signal()
-        tx_reset_deglitched.attr.add("no_retiming")
-        self.sync += tx_reset_deglitched.eq(~tx_init.done)
-        self.clock_domains.cd_rtio_tx = ClockDomain()
-        if mode == "master" or mode == "single":
-            self.specials += Instance("BUFG", i_I=self.txoutclk, o_O=self.cd_rtio_tx.clk)
-        self.specials += AsyncResetSynchronizer(self.cd_rtio_tx, tx_reset_deglitched)
-
         # rx clocking
         rx_reset_deglitched = Signal()
         rx_reset_deglitched.attr.add("no_retiming")
-        self.sync.rtio_tx += rx_reset_deglitched.eq(~rx_init.done)
+        self.sync += rx_reset_deglitched.eq(~rx_init.done)
         self.clock_domains.cd_rtio_rx = ClockDomain()
         self.specials += [
             Instance("BUFG", i_I=self.rxoutclk, o_O=self.cd_rtio_rx.clk),
@@ -727,7 +718,6 @@ class GTP(Module, TransceiverInterface):
 
         # # #
 
-        rtio_tx_clk = Signal()
         channel_interfaces = []
         for i in range(nchannels):
             if nchannels == 1:
@@ -735,10 +725,6 @@ class GTP(Module, TransceiverInterface):
             else:
                 mode = "master" if i == master else "slave"
             gtp = GTPSingle(qpll_channel, data_pads[i], sys_clk_freq, rtio_clk_freq, mode)
-            if mode == "slave":
-                self.comb += gtp.cd_rtio_tx.clk.eq(rtio_tx_clk)
-            else:
-                self.comb += rtio_tx_clk.eq(gtp.cd_rtio_tx.clk)
             self.gtps.append(gtp)
             setattr(self.submodules, "gtp"+str(i), gtp)
             channel_interface = ChannelInterface(gtp.encoder, gtp.decoders)
@@ -754,10 +740,6 @@ class GTP(Module, TransceiverInterface):
                   gtp.txenable.eq(self.txenable.storage[n])
             ]
 
-        self.comb += [
-            self.cd_rtio.clk.eq(self.gtps[master].cd_rtio_tx.clk),
-            self.cd_rtio.rst.eq(reduce(or_, [gtp.cd_rtio_tx.rst for gtp in self.gtps]))
-        ]
         for i in range(nchannels):
             self.comb += [
                 getattr(self, "cd_rtio_rx" + str(i)).clk.eq(self.gtps[i].cd_rtio_rx.clk),
