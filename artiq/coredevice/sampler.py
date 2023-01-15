@@ -164,4 +164,4 @@ class Sampler:
         for i in range(n):
             channel = i + 8 - len(data)
             gain = (self.gains >> (channel*2)) & 0b11
-            data[i] = adc_mu_to_volt(adc_data[i], gain, self.revision)
+            data[i] = adc_mu_to_volt(adc_data[i], gain, self.corrected_fs)
