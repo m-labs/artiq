@@ -539,10 +539,10 @@ class PeripheralManager:
     def process_phaser(self, rtio_offset, peripheral):
         mode = peripheral.get("mode", "base")
         if mode == "miqro":
-            dac = f', "dac": {{"pll_m": 16, "pll_n": 3, "interpolation": 2}}, "gw_rev"={PHASER_GW_MIQRO}'
+            dac = f', "dac": {{"pll_m": 16, "pll_n": 3, "interpolation": 2}}, "gw_rev": {PHASER_GW_MIQRO}'
             n_channels = 3
         else:
-            dac = f', "gw_rev"={PHASER_GW_BASE}'
+            dac = f', "gw_rev": {PHASER_GW_BASE}'
             n_channels = 5
         self.gen("""
             device_db["{name}"] = {{
