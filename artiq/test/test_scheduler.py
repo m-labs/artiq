@@ -2,10 +2,13 @@ import unittest
 import logging
 import asyncio
 import sys
+import os
 from time import time, sleep
+from pygit2 import init_repository, Signature
 
 from artiq.experiment import *
 from artiq.master.scheduler import Scheduler
+from artiq.master.experiments import GitBackend, FilesystemBackend, ExperimentDB
 
 
 class EmptyExperiment(EnvExperiment):
@@ -422,6 +425,145 @@ class SchedulerCase(unittest.TestCase):
         loop.run_until_complete(first_preparing.wait())
         scheduler.submit("main", expid, 1, None, True)
         loop.run_until_complete(done.wait())
+        loop.run_until_complete(scheduler.stop())
+
+    def test_submit_by_content(self):
+        empty_experiment = """
+from artiq.experiment import *
+class EmptyExperiment(EnvExperiment):
+    def build(self):
+        pass
+    def run(self):
+        pass
+"""
+        loop = self.loop
+        scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
+        expid = _get_expid("EmptyExperiment")
+        expid["content"] = empty_experiment
+        expid.pop("file")
+
+        expect = _get_basic_steps(0, expid)
+        done = asyncio.Event()
+        expect_idx = 0
+
+        def notify(mod):
+            nonlocal expect_idx
+            self.assertEqual(mod, expect[expect_idx])
+            expect_idx += 1
+            if expect_idx >= len(expect):
+                done.set()
+
+        scheduler.notifier.publish = notify
+
+        scheduler.start(loop=loop)
+
+        scheduler.submit("main", expid, 0, None, False)
+
+        loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
+        loop.run_until_complete(scheduler.stop())
+
+    def test_submit_outside_repo(self):
+        loop = self.loop
+        scheduler = Scheduler(_RIDCounter(0), dict(), None, None)
+        expid = _get_expid("EmptyExperiment")
+
+        expect = _get_basic_steps(0, expid)
+        done = asyncio.Event()
+        expect_idx = 0
+
+        def notify(mod):
+            nonlocal expect_idx
+            self.assertEqual(mod, expect[expect_idx])
+            expect_idx += 1
+            if expect_idx >= len(expect):
+                done.set()
+
+        scheduler.notifier.publish = notify
+
+        scheduler.start(loop=loop)
+
+        scheduler.submit("main", expid, 0, None, False)
+
+        loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
+        loop.run_until_complete(scheduler.stop())
+
+    def test_submit_non_git_repo(self):
+        loop = self.loop
+        repo_backend = FilesystemBackend(os.path.dirname(sys.modules[__name__].__file__))
+        worker_handlers = dict()
+        experiment_db = ExperimentDB(repo_backend, worker_handlers, "")
+        scheduler = Scheduler(_RIDCounter(0), dict(), experiment_db, None)
+
+        expid = _get_expid("EmptyExperiment")
+
+        expect = _get_basic_steps(0, expid)
+        done = asyncio.Event()
+        expect_idx = 0
+
+        def notify(mod):
+            nonlocal expect_idx
+            self.assertEqual(mod, expect[expect_idx])
+            expect_idx += 1
+            if expect_idx >= len(expect):
+                done.set()
+
+        scheduler.notifier.publish = notify
+
+        scheduler.start(loop=loop)
+
+        scheduler.submit("main", expid, 0, None, False)
+
+        loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
+        loop.run_until_complete(scheduler.stop())
+
+    def test_submit_git_repo(self):
+        loop = self.loop
+        repo_path = "{}/_test_repo".format(os.path.dirname(sys.modules[__name__].__file__))
+        repo = init_repository(repo_path)
+        repo.index.add_all()
+        repo.index.write()
+        tree = repo.index.write_tree()
+        signature = Signature("Test", "test@example.com")
+        exp_file = "EmptyExperiment.py"
+        commit_msg = "Commit message"
+        commit = repo.create_commit("HEAD", signature, signature, commit_msg, tree, [])
+
+        repo_backend = GitBackend(repo_path)
+        worker_handlers = dict()
+        experiment_db = ExperimentDB(repo_backend, worker_handlers, "")
+        scheduler = Scheduler(_RIDCounter(0), dict(), experiment_db, None)
+
+        expid = _get_expid("EmptyExperiment")
+        expid["repo_rev"] = commit.hex
+        expid["file"] = exp_file
+        expid["repo_msg"] = commit_msg
+
+        expect = _get_basic_steps(0, expid)
+        expect[0] = {'action': 'setitem', 'path': [], 'key': 0, 'value': {'pipeline': 'main', 'expid':
+            {'log_level': 30, 'file': exp_file, 'class_name': 'EmptyExperiment',
+             'arguments': {}, 'repo_rev': commit.hex, 'repo_msg': commit_msg},
+                    'priority': 0, 'due_date': None, 'flush': False, 'status': 'pending', 'repo_msg': commit_msg}}
+        done = asyncio.Event()
+        expect_idx = 0
+
+        def notify(mod):
+            nonlocal expect_idx
+            self.assertEqual(mod, expect[expect_idx])
+            expect_idx += 1
+            if expect_idx >= len(expect):
+                done.set()
+
+        scheduler.notifier.publish = notify
+
+        scheduler.start(loop=loop)
+
+        scheduler.submit("main", expid, 0, None, False)
+
+        loop.run_until_complete(done.wait())
+        scheduler.notifier.publish = None
         loop.run_until_complete(scheduler.stop())
 
     def tearDown(self):
