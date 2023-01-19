@@ -607,25 +607,18 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
 
     let mut kernel_thread = None;
     {
-        let aux_mutex = aux_mutex.clone();
-        let routing_table = routing_table.clone();
-        let up_destinations = up_destinations.clone();
-        let congress = congress.clone();
-        respawn(&io, &mut kernel_thread, move |io| {
-            let routing_table = routing_table.borrow();
-            let mut congress = congress.borrow_mut();
-            info!("running startup kernel");
-            match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &mut congress, "startup_kernel") {
-                Ok(()) =>
-                    info!("startup kernel finished"),
-                Err(Error::KernelNotFound) =>
-                    info!("no startup kernel found"),
-                Err(err) => {
-                    congress.finished_cleanly.set(false);
-                    error!("startup kernel aborted: {}", err);
-                }
+        let mut congress = congress.borrow_mut();
+        info!("running startup kernel");
+        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, &mut congress, "startup_kernel") {
+            Ok(()) =>
+                info!("startup kernel finished"),
+            Err(Error::KernelNotFound) =>
+                info!("no startup kernel found"),
+            Err(err) => {
+                congress.finished_cleanly.set(false);
+                error!("startup kernel aborted: {}", err);
             }
-        })
+        }
     }
 
     loop {
