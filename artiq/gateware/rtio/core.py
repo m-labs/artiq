@@ -66,7 +66,7 @@ class Core(Module, AutoCSR):
             interface=self.cri)
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)
-        self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 16)
+        self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 12)
 
         inputs = InputCollector(tsc, channels,
             quash_channels=quash_channels,
