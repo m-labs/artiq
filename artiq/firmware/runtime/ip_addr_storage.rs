@@ -1,6 +1,6 @@
 use smoltcp::iface::{Interface, InterfaceBuilder};
 use smoltcp::phy::Device;
-use smoltcp::wire::{IpAddress, IpCidr, Ipv4Address, Ipv4Cidr};
+use smoltcp::wire::{IpAddress, IpCidr, Ipv4Address, Ipv4Cidr, Ipv6Address, Ipv6Cidr};
 use board_misoc::net_settings::{Ipv4AddrConfig, NetAddresses};
 
 
@@ -31,10 +31,14 @@ impl<'a, DeviceT: for<'d> Device<'d>> InterfaceBuilderEx for InterfaceBuilder<'a
 
 pub trait InterfaceEx {
     fn update_ipv4_addr(&mut self, addr: &Ipv4Cidr);
+    fn update_ipv6_addr(&mut self, addr: &Ipv6Cidr);
 }
 
 impl<'a, DeviceT: for<'d> Device<'d>> InterfaceEx for Interface<'a, DeviceT> {
     fn update_ipv4_addr(&mut self, addr: &Ipv4Cidr) {
         self.update_ip_addrs(|storage| storage[IPV4_INDEX] = IpCidr::Ipv4(*addr))
+    }
+    fn update_ipv6_addr(&mut self, addr: &Ipv6Cidr) {
+        self.update_ip_addrs(|storage| storage[IPV6_INDEX] = IpCidr::Ipv6(*addr))
     }
 }

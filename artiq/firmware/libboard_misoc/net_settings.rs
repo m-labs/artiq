@@ -2,7 +2,7 @@ use core::fmt;
 use core::fmt::{Display, Formatter};
 use core::str::FromStr;
 
-use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address, Ipv4Cidr};
+use smoltcp::wire::{EthernetAddress, IpAddress, Ipv4Address, Ipv4Cidr, Ipv6Address, Ipv6Cidr};
 
 use config;
 #[cfg(soc_platform = "kasli")]
@@ -45,6 +45,7 @@ pub struct NetAddresses {
     pub ipv6_ll_addr: IpAddress,
     pub ipv6_addr: Option<IpAddress>,
     pub ipv4_default_route: Option<Ipv4Address>,
+    pub ipv6_default_route: Option<Ipv6Address>,
 }
 
 impl fmt::Display for NetAddresses {
@@ -99,11 +100,17 @@ pub fn get_adresses() -> NetAddresses {
         _ => None
     };
 
+    let default_routev6 = match config::read_str("ipv6_default_route", |r| r.map(|s| s.parse())) {
+        Ok(Ok(addr)) => Some(addr),
+        _ => None,
+    };
+
     NetAddresses {
         hardware_addr,
         ipv4_addr,
         ipv6_ll_addr,
         ipv6_addr,
         ipv4_default_route: default_route,
+        ipv6_default_route: default_routev6,
     }
 }
