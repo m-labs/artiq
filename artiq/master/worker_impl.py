@@ -9,6 +9,7 @@ process via IPC.
 import sys
 import time
 import os
+import pathlib
 import inspect
 import logging
 import traceback
@@ -194,7 +195,8 @@ class ExamineDatasetMgr:
 def examine(device_mgr, dataset_mgr, file):
     previous_keys = set(sys.modules.keys())
     try:
-        module = tools.file_import(file)
+        parent_dir = os.path.basename(os.path.dirname(pathlib.Path(file)))
+        module = tools.file_import(file) if not parent_dir.startswith("_") else None
         for class_name, exp_class in inspect.getmembers(module, is_public_experiment):
             if exp_class.__doc__ is None:
                 name = class_name
