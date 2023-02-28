@@ -1,4 +1,6 @@
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -54,6 +56,15 @@ pub enum Packet {
     SpiReadRequest { destination: u8, busno: u8 },
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
+
+    #[cfg(feature = "alloc")]
+    DmaAddTraceRequest { entryid: u32, trace: Vec<u8> },
+    DmaAddTraceReply { succeeded: bool },
+    DmaRemoveTraceRequest { entryid: u32 },
+    DmaRemoveTraceReply { succeeded: bool },
+    DmaPlaybackRequest { entryid: u32, timestamp: u64 },
+    DmaPlaybackReply { succeeded: bool }
+
 }
 
 impl Packet {
@@ -182,6 +193,28 @@ impl Packet {
                 data: reader.read_u32()?
             },
             0x95 => Packet::SpiBasicReply {
+                succeeded: reader.read_bool()?
+            },
+
+            #[cfg(feature = "alloc")]
+            0xb0 => Packet::DmaAddTraceRequest {
+                id: reader.read_u32()?,
+                trace: reader.read_bytes()?
+            },
+            0xb1 => Packet::DmaAddTraceReply {
+                succeeded: reader.read_bool()?
+            },
+            0xb2 => Packet::DmaRemoveTraceRequest {
+                id: reader.read_u32()?
+            },
+            0xb3 => Packet::DmaRemoveTraceReply {
+                succeeded: reader.read_bool()?
+            },
+            0xb4 => Packet::DmaPlaybackRequest {
+                id: reader.read_u32()?,
+                timestamp: reader.read_u64()?
+            },
+            0xb5 => Packet::DmaPlaybackReply {
                 succeeded: reader.read_bool()?
             },
 
@@ -341,6 +374,36 @@ impl Packet {
             },
             Packet::SpiBasicReply { succeeded } => {
                 writer.write_u8(0x95)?;
+                writer.write_bool(succeeded)?;
+            },
+
+            #[cfg(feature = "alloc")]
+            Packet::DmaAddTraceRequest { id, trace } => {
+                writer.write_u8(0xb0)?;
+                writer.write_u32(id)?;
+                // trace may be broken down to fit within drtio aux memory limit
+                // will be reconstructed by satellite
+                writer.write_bytes(&trace)?;
+            },
+            Packet::DmaAddTraceReply { succeeded } => {
+                writer.write_u8(0xb1)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::DmaRemoveTraceRequest { id } => {
+                writer.write_u8(0xb2)?;
+                writer.write_u32(id)?;
+            },
+            Packet::DmaRemoveTraceReply { succeeded } => {
+                writer.write_u8(0xb3)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::DmaPlaybackRequest { id, timestamp } => {
+                writer.write_u8(0xb4)?;
+                writer.write_u32(id)?;
+                writer.write_u64(timestamp)?;
+            },
+            Packet::DmaPlaybackReply { succeeded } => {
+                writer.write_u8(0xb5)?;
                 writer.write_bool(succeeded)?;
             },
         }
