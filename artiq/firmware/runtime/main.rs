@@ -161,12 +161,13 @@ fn startup() {
         .finalize();
 
     if !use_dhcp {
-        if let Some(default_route) = net_addresses.ipv4_default_route {
-            interface.routes_mut().add_default_ipv4_route(default_route).unwrap();
+        if let Some(ipv4_default_route) = net_addresses.ipv4_default_route {
+            interface.routes_mut().add_default_ipv4_route(ipv4_default_route).unwrap();
         }
-        if let Some(default_routev6) = net_addresses.ipv6_default_route {
-            interface.routes_mut().add_default_ipv6_route(default_routev6).unwrap();
-        }
+    }
+
+    if let Some(ipv6_default_route) = net_addresses.ipv6_default_route {
+        interface.routes_mut().add_default_ipv6_route(ipv6_default_route).unwrap();
     }
 
     #[cfg(has_drtio)]

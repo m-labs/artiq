@@ -1,6 +1,6 @@
 use smoltcp::iface::{Interface, InterfaceBuilder};
 use smoltcp::phy::Device;
-use smoltcp::wire::{IpAddress, IpCidr, Ipv4Address, Ipv4Cidr, Ipv6Address, Ipv6Cidr};
+use smoltcp::wire::{IpAddress, IpCidr, Ipv4Address, Ipv4Cidr, Ipv6Cidr};
 use board_misoc::net_settings::{Ipv4AddrConfig, NetAddresses};
 
 
@@ -21,9 +21,9 @@ impl<'a, DeviceT: for<'d> Device<'d>> InterfaceBuilderEx for InterfaceBuilder<'a
         if let Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
             storage[IPV4_INDEX] = IpCidr::Ipv4(ipv4);
         }
-        storage[IPV6_LL_INDEX] = IpCidr::new(net_addresses.ipv6_ll_addr, 0);
+        storage[IPV6_LL_INDEX] = net_addresses.ipv6_ll_addr;
         if let Some(ipv6) = net_addresses.ipv6_addr {
-            storage[IPV6_INDEX] = IpCidr::new(ipv6, 0);
+            storage[IPV6_INDEX] = IpCidr::Ipv6(ipv6);
         }
         self.ip_addrs(storage)
     }

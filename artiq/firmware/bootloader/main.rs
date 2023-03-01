@@ -19,7 +19,7 @@ use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
 use smoltcp::iface::{Routes, SocketStorage};
-use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address};
+use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address, Ipv6Address};
 
 fn check_integrity() -> bool {
     extern {
@@ -411,16 +411,16 @@ fn network_boot() {
     println!("Network addresses: {}", net_addresses);
     let mut ip_addrs = [
         IpCidr::new(IpAddress::Ipv4(Ipv4Address::UNSPECIFIED), 0),
-        IpCidr::new(net_addresses.ipv6_ll_addr, 0),
-        IpCidr::new(net_addresses.ipv6_ll_addr, 0)
+        net_addresses.ipv6_ll_addr,
+        IpCidr::new(IpAddress::Ipv6(Ipv6Address::UNSPECIFIED), 0)
     ];
     if let net_settings::Ipv4AddrConfig::Static(ipv4) = net_addresses.ipv4_addr {
         ip_addrs[0] = IpCidr::Ipv4(ipv4);
     }
-    if let Some(addr) =  net_addresses.ipv6_addr {
-        ip_addrs[2] = IpCidr::new(addr, 0);
+    if let Some(ipv6) =  net_addresses.ipv6_addr {
+        ip_addrs[2] = IpCidr::Ipv6(ipv6);
     };
-    let mut routes = [None; 1];
+    let mut routes = [None; 2];
     let mut interface = smoltcp::iface::InterfaceBuilder::new(net_device, &mut sockets[..])
         .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
         .ip_addrs(&mut ip_addrs[..])
@@ -430,6 +430,9 @@ fn network_boot() {
 
     if let Some(default_route) = net_addresses.ipv4_default_route {
         interface.routes_mut().add_default_ipv4_route(default_route).unwrap();
+    }
+    if let Some(default_route) = net_addresses.ipv6_default_route {
+        interface.routes_mut().add_default_ipv6_route(default_route).unwrap();
     }
 
     let mut rx_storage = [0; 4096];
