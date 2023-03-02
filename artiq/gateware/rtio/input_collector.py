@@ -1,6 +1,6 @@
 from migen import *
 from migen.genlib.record import Record
-from migen.genlib.fifo import *
+from migen.genlib.fifo import SyncFIFOBuffered
 from migen.genlib.cdc import BlindTransfer
 
 from artiq.gateware.rtio import cri
@@ -24,23 +24,12 @@ def get_channel_layout(coarse_ts_width, interface):
 
 
 class InputCollector(Module):
-    def __init__(self, tsc, channels, mode, quash_channels=[], interface=None):
+    def __init__(self, tsc, channels, quash_channels=[], interface=None):
         if interface is None:
             interface = cri.Interface()
         self.cri = interface
 
         # # #
-
-        if mode == "sync":
-            fifo_factory = SyncFIFOBuffered
-            sync_io = self.sync
-            sync_cri = self.sync
-        elif mode == "async":
-            fifo_factory = lambda *args: ClockDomainsRenamer({"write": "rio", "read": "rsys"})(AsyncFIFO(*args))
-            sync_io = self.sync.rio
-            sync_cri = self.sync.rsys
-        else:
-            raise ValueError
 
         i_statuses, i_datas, i_timestamps = [], [], []
         i_ack = Signal()
@@ -55,7 +44,7 @@ class InputCollector(Module):
 
             # FIFO
             layout = get_channel_layout(len(tsc.coarse_ts), iif)
-            fifo = fifo_factory(layout_len(layout), channel.ififo_depth)
+            fifo = SyncFIFOBuffered(layout_len(layout), channel.ififo_depth)
             self.submodules += fifo
             fifo_in = Record(layout)
             fifo_out = Record(layout)
@@ -67,7 +56,7 @@ class InputCollector(Module):
             # FIFO write
             if iif.delay:
                 counter_rtio = Signal.like(tsc.coarse_ts, reset_less=True)
-                sync_io += counter_rtio.eq(tsc.coarse_ts - (iif.delay + 1))
+                self.sync += counter_rtio.eq(tsc.coarse_ts - (iif.delay + 1))
             else:
                 counter_rtio = tsc.coarse_ts
             if hasattr(fifo_in, "data"):
@@ -80,17 +69,8 @@ class InputCollector(Module):
                 self.comb += fifo_in.timestamp.eq(full_ts)
             self.comb += fifo.we.eq(iif.stb)
 
-            overflow_io = Signal()
-            self.comb += overflow_io.eq(fifo.we & ~fifo.writable)
-            if mode == "sync":
-                overflow_trigger = overflow_io
-            elif mode == "async":
-                overflow_transfer = BlindTransfer("rio", "rsys")
-                self.submodules += overflow_transfer
-                self.comb += overflow_transfer.i.eq(overflow_io)
-                overflow_trigger = overflow_transfer.o
-            else:
-                raise ValueError
+            overflow_trigger = Signal()
+            self.comb += overflow_trigger.eq(fifo.we & ~fifo.writable)
 
             # FIFO read, CRI connection
             if hasattr(fifo_out, "data"):
@@ -107,7 +87,7 @@ class InputCollector(Module):
             self.comb += selected.eq(sel == n)
 
             overflow = Signal()
-            sync_cri += [
+            self.sync += [
                 If(selected & i_ack,
                     overflow.eq(0)),
                 If(overflow_trigger,
@@ -122,7 +102,7 @@ class InputCollector(Module):
         input_pending = Signal()
         self.cri.i_data.reset_less = True
         self.cri.i_timestamp.reset_less = True
-        sync_cri += [
+        self.sync += [
             i_ack.eq(0),
             If(i_ack,
                 self.cri.i_status.eq(Cat(~i_status_raw[0], i_status_raw[1], 0)),

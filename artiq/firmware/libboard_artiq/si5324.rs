@@ -182,12 +182,6 @@ fn init() -> Result<()> {
         i2c::switch_select(BUSNO, 0x70, 0)?;
         i2c::switch_select(BUSNO, 0x71, 1 << 3)?;
     }
-    #[cfg(soc_platform = "sayma_amc")]
-    i2c::switch_select(BUSNO, 0x70, 1 << 4)?;
-    #[cfg(soc_platform = "sayma_rtm")]
-    i2c::switch_select(BUSNO, 0x77, 1 << 5)?;
-    #[cfg(soc_platform = "metlino")]
-    i2c::switch_select(BUSNO, 0x70, 1 << 4)?;
     #[cfg(soc_platform = "kc705")]
     i2c::switch_select(BUSNO, 0x74, 1 << 7)?;
 

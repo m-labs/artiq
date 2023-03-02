@@ -332,10 +332,10 @@ class Pipeline:
         self._run = RunStage(self.pool, deleter.delete)
         self._analyze = AnalyzeStage(self.pool, deleter.delete)
 
-    def start(self):
-        self._prepare.start()
-        self._run.start()
-        self._analyze.start()
+    def start(self, *, loop=None):
+        self._prepare.start(loop=loop)
+        self._run.start(loop=loop)
+        self._analyze.start(loop=loop)
 
     async def stop(self):
         # NB: restart of a stopped pipeline is not supported
@@ -410,8 +410,9 @@ class Scheduler:
         self._deleter = Deleter(self._pipelines)
         self._log_submissions = log_submissions
 
-    def start(self):
-        self._deleter.start()
+    def start(self, *, loop=None):
+        self._loop = loop
+        self._deleter.start(loop=self._loop)
 
     async def stop(self):
         # NB: restart of a stopped scheduler is not supported
@@ -442,7 +443,7 @@ class Scheduler:
                                 self._worker_handlers, self.notifier,
                                 self._experiment_db, self._log_submissions)
             self._pipelines[pipeline_name] = pipeline
-            pipeline.start()
+            pipeline.start(loop=self._loop)
         return pipeline.pool.submit(expid, priority, due_date, flush, pipeline_name)
 
     def delete(self, rid):

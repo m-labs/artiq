@@ -104,7 +104,7 @@ class SchedulerCase(unittest.TestCase):
                 done.set()
         scheduler.notifier.publish = notify
 
-        scheduler.start()
+        scheduler.start(loop=loop)
 
         # Verify that a timed experiment far in the future does not
         # get run, even if it has high priority.
@@ -269,7 +269,7 @@ class SchedulerCase(unittest.TestCase):
                 done.set()
         scheduler.notifier.publish = notify
 
-        scheduler.start()
+        scheduler.start(loop=loop)
 
         scheduler.submit("main", expid_bg, low_priority)
         scheduler.submit("main", expid_empty, high_priority, late)
@@ -328,7 +328,7 @@ class SchedulerCase(unittest.TestCase):
                     empty_completed.set()
         scheduler.notifier.publish = notify
 
-        scheduler.start()
+        scheduler.start(loop=loop)
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
         self.assertFalse(scheduler.check_pause(0))
@@ -379,7 +379,7 @@ class SchedulerCase(unittest.TestCase):
                 empty_ready.set()
         scheduler.notifier.publish = notify
 
-        scheduler.start()
+        scheduler.start(loop=loop)
         scheduler.submit("main", expid_bg, -99, None, False)
         loop.run_until_complete(background_running.wait())
 
@@ -417,7 +417,7 @@ class SchedulerCase(unittest.TestCase):
                     done.set()
         scheduler.notifier.publish = notify
 
-        scheduler.start()
+        scheduler.start(loop=loop)
         scheduler.submit("main", expid, 0, None, False)
         loop.run_until_complete(first_preparing.wait())
         scheduler.submit("main", expid, 1, None, True)

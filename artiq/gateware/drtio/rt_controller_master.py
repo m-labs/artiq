@@ -108,7 +108,7 @@ class RTController(Module):
 
         cond_underflow = Signal()
         self.comb += cond_underflow.eq((self.cri.o_timestamp[tsc.glbl_fine_ts_width:]
-                           - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts_sys)
+                           - self.csrs.underflow_margin.storage[tsc.glbl_fine_ts_width:]) < tsc.coarse_ts)
 
         # buffer space
         buffer_space = Memory(16, 256)

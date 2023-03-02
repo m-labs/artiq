@@ -127,7 +127,7 @@ class KernelInitiator(Module, AutoCSR):
 
 
 class CRIDecoder(Module):
-    def __init__(self, slaves=2, master=None, mode="async", enable_routing=False):
+    def __init__(self, slaves=2, master=None, enable_routing=False):
         if isinstance(slaves, int):
             slaves = [Interface() for _ in range(slaves)]
         if master is None:
@@ -155,12 +155,7 @@ class CRIDecoder(Module):
         if enable_routing:
             self.specials.routing_table = Memory(slave_bits, 256)
 
-            if mode == "async":
-                rtp_decoder = self.routing_table.get_port()
-            elif mode == "sync":
-                rtp_decoder = self.routing_table.get_port(clock_domain="rtio")
-            else:
-                raise ValueError
+            rtp_decoder = self.routing_table.get_port()
             self.specials += rtp_decoder
             self.comb += [
                 rtp_decoder.adr.eq(self.master.chan_sel[16:]),
@@ -187,7 +182,7 @@ class CRIDecoder(Module):
 
 
 class CRISwitch(Module, AutoCSR):
-    def __init__(self, masters=2, slave=None, mode="async"):
+    def __init__(self, masters=2, slave=None):
         if isinstance(masters, int):
             masters = [Interface() for _ in range(masters)]
         if slave is None:
@@ -199,15 +194,6 @@ class CRISwitch(Module, AutoCSR):
 
         # # #
 
-        if mode == "async":
-            selected = self.selected.storage
-        elif mode == "sync":
-            self.selected.storage.attr.add("no_retiming")
-            selected = Signal.like(self.selected.storage)
-            self.specials += MultiReg(self.selected.storage, selected, "rtio")
-        else:
-            raise ValueError
-
         if len(masters) == 1:
             self.comb += masters[0].connect(slave)
         else:
@@ -215,7 +201,7 @@ class CRISwitch(Module, AutoCSR):
             for name, size, direction in layout:
                 if direction == DIR_M_TO_S:
                     choices = Array(getattr(m, name) for m in masters)
-                    self.comb += getattr(slave, name).eq(choices[selected])
+                    self.comb += getattr(slave, name).eq(choices[self.selected.storage])
 
             # connect slave->master signals
             for name, size, direction in layout:
@@ -227,10 +213,10 @@ class CRISwitch(Module, AutoCSR):
 
 
 class CRIInterconnectShared(Module):
-    def __init__(self, masters=2, slaves=2, mode="async", enable_routing=False):
+    def __init__(self, masters=2, slaves=2, enable_routing=False):
         shared = Interface()
-        self.submodules.switch = CRISwitch(masters, shared, mode)
-        self.submodules.decoder = CRIDecoder(slaves, shared, mode, enable_routing)
+        self.submodules.switch = CRISwitch(masters, shared)
+        self.submodules.decoder = CRIDecoder(slaves, shared, enable_routing)
 
     def get_csrs(self):
         return self.switch.get_csrs()

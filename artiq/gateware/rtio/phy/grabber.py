@@ -21,14 +21,12 @@ class Synchronizer(Module):
 
         # # #
 
-        for count in counts_in:
-            count.attr.add("no_retiming")
-        self.specials += [MultiReg(i, o, "rtio") for i, o in zip(counts_in, self.counts)]
+        self.comb += [o.eq(i) for i, o in zip(counts_in, self.counts)]
 
-        ps = PulseSynchronizer("cl", "rtio")
+        ps = PulseSynchronizer("cl", "sys")
         self.submodules += ps
         self.comb += ps.i.eq(roi_engines[0].out.update)
-        self.sync.rtio += self.update.eq(ps.o)
+        self.sync += self.update.eq(ps.o)
 
 
 class Serializer(Module):
@@ -85,7 +83,7 @@ class Grabber(Module):
                                              roi_engine.cfg.x1, roi_engine.cfg.y1]):
                 roi_boundary = Signal.like(target)
                 roi_boundary.attr.add("no_retiming")
-                self.sync.rtio += If(self.config.o.stb & (self.config.o.address == 4*n+offset),
+                self.sync += If(self.config.o.stb & (self.config.o.address == 4*n+offset),
                     roi_boundary.eq(self.config.o.data))
                 self.specials += MultiReg(roi_boundary, target, "cl")
 

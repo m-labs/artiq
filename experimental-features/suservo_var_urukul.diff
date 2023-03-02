@@ -48,14 +48,14 @@ index 1d0a72dad..a89cdcca4 100644
      :param core_device: Core device name
      """
      kernel_invariants = {"channel", "core", "pgia", "cplds", "ddses",
--                         "ref_period_mu"}
+-                         "ref_period_mu", "corrected_fs"}
 +                         "ref_period_mu", "num_channels", "coeff_sel",
-+                         "state_sel", "config_addr", "write_enable"}
++                         "corrected_fs", "state_sel", "config_addr", "write_enable"}
  
      def __init__(self, dmgr, channel, pgia_device,
                   cpld_devices, dds_devices,
-@@ -83,9 +81,19 @@ def __init__(self, dmgr, channel, pgia_device,
-             self.core.coarse_ref_period)
+@@ -83,13 +81,23 @@ def __init__(self, dmgr, channel, pgia_device,
+         self.corrected_fs = sampler.Sampler.use_corrected_fs(sampler_hw_rev)
          assert self.ref_period_mu == self.core.ref_multiplier
  
 +        # The width of parts of the servo memory address depends on the number
@@ -68,6 +68,10 @@ index 1d0a72dad..a89cdcca4 100644
 +        self.coeff_sel = 1 << coeff_depth
 +        self.write_enable = 1 << (coeff_depth + 1)
 +
+     @staticmethod
+     def get_rtio_channels(channel, **kwargs):
+         return [(channel, None)]
+
      @kernel
      def init(self):
 -        """Initialize the servo, Sampler and both Urukuls.

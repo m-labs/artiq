@@ -8,14 +8,21 @@ ARTIQ-8 (Unreleased)
 
 Highlights:
 
-* Implemented Phaser-servo. This requires recent gateware on Phaser.
-* Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
-  variant.
-* MSYS2 packaging for Windows.
-* Sampler: adjusted ADC MU to Volt conversion base for Sampler since v2.2.
-  For earlier version please explicitly define it as an argument in the device database file
-  (e.g. ``"hw_rev": "v2.1"``).
+* Hardware support:
+   - Implemented Phaser-servo. This requires recent gateware on Phaser.
+   - Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
+     variant.
+   - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
+     For earlier hardware versions, specify the hardware version in the device
+     database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
+   - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+* CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
+  clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
+  reduce RTIO latency.
+* MSYS2 packaging for Windows, which replaces Conda. Conda packages are still available to
+  support legacy installations, but may be removed in a future release.
 * Added channel names to RTIO errors.
+* Full Python 3.10 support.
 
 ARTIQ-7
 -------

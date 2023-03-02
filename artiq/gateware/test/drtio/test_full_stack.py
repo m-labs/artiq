@@ -52,7 +52,7 @@ class DUT(Module):
         self.ttl1 = Signal()
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.tsc_master = rtio.TSC()
         self.submodules.master = DRTIOMaster(self.tsc_master,
                                              self.transceivers.alice)
         self.submodules.master_ki = rtio.KernelInitiator(self.tsc_master,
@@ -67,7 +67,7 @@ class DUT(Module):
             rtio.Channel.from_phy(self.phy1),
             rtio.Channel.from_phy(self.phy2),
         ]
-        self.submodules.tsc_satellite = rtio.TSC("sync")
+        self.submodules.tsc_satellite = rtio.TSC()
         self.submodules.satellite = DRTIOSatellite(
             self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0
@@ -144,8 +144,8 @@ class OutputsTestbench:
 
 
 class TestFullStack(unittest.TestCase):
-    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
-              "rio": 5, "rio_phy": 5}
+    clocks = {"sys": 8, "rtio_rx": 8,
+              "rio": 8, "rio_phy": 8}
 
     def test_pulses(self):
         tb = OutputsTestbench()
@@ -169,7 +169,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.check_ttls(ttl_changes)}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_underflow(self):
@@ -214,7 +214,7 @@ class TestFullStack(unittest.TestCase):
             yield from tb.sync()
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.check_ttls(ttl_changes)}, self.clocks)
+            {"sys": [test(), tb.check_ttls(ttl_changes)]}, self.clocks)
         self.assertEqual(ttl_changes, correct_ttl_changes)
 
     def test_write_underflow(self):
@@ -227,16 +227,16 @@ class TestFullStack(unittest.TestCase):
             errors = yield from saterr.protocol_error.read()
             self.assertEqual(errors, 0)
             yield from csrs.underflow_margin.write(0)
-            tb.delay(100)
+            tb.delay(80)
             yield from tb.write(42, 1)
-            for i in range(12):
+            for i in range(21):
                yield
             errors = yield from saterr.protocol_error.read()
             underflow_channel = yield from saterr.underflow_channel.read()
             underflow_timestamp_event = yield from saterr.underflow_timestamp_event.read()
             self.assertEqual(errors, 8)  # write underflow
             self.assertEqual(underflow_channel, 42)
-            self.assertEqual(underflow_timestamp_event, 100)
+            self.assertEqual(underflow_timestamp_event, 80)
             yield from saterr.protocol_error.write(errors)
             yield
             errors = yield from saterr.protocol_error.read()
@@ -284,7 +284,7 @@ class TestFullStack(unittest.TestCase):
             yield dut.phy2.rtlink.i.stb.eq(0)
 
         run_simulation(dut,
-            {"sys": test(), "rtio": generate_input()}, self.clocks)
+            {"sys": [test(), generate_input()]}, self.clocks)
 
     def test_echo(self):
         dut = DUT(2)
@@ -303,7 +303,7 @@ class TestFullStack(unittest.TestCase):
                 yield
             yield dut.master.rt_packet.echo_stb.eq(0)
 
-            for i in range(15):
+            for i in range(17):
                 yield
 
             self.assertEqual((yield dut.master.rt_packet.packet_cnt_tx), 1)

@@ -15,15 +15,11 @@ class RTController(Module, AutoCSR):
         self.command_missed_chan_sel = CSRStatus(24)
         self.buffer_space_timeout_dest = CSRStatus(8)
 
-        self.specials += MultiReg(self.reset.storage, rt_packet.reset, "rtio")
+        self.sync += rt_packet.reset.eq(self.reset.storage)
 
         set_time_stb = Signal()
-        set_time_ack = Signal()
-        self.submodules += CrossDomainRequest("rtio",
-            set_time_stb, set_time_ack, None,
-            rt_packet.set_time_stb, rt_packet.set_time_ack, None)
         self.sync += [
-            If(set_time_ack, set_time_stb.eq(0)),
+            If(rt_packet.set_time_stb, set_time_stb.eq(0)),
             If(self.set_time.re, set_time_stb.eq(1))
         ]
         self.comb += self.set_time.w.eq(set_time_stb)
@@ -31,10 +27,10 @@ class RTController(Module, AutoCSR):
         errors = [
             (rt_packet.err_unknown_packet_type, "rtio_rx", None, None),
             (rt_packet.err_packet_truncated, "rtio_rx", None, None),
-            (rt_packet.err_command_missed, "rtio",
+            (rt_packet.err_command_missed, "sys",
                 Cat(rt_packet.command_missed_cmd, rt_packet.command_missed_chan_sel),
                 Cat(self.command_missed_cmd.status, self.command_missed_chan_sel.status)),
-            (rt_packet.err_buffer_space_timeout, "rtio",
+            (rt_packet.err_buffer_space_timeout, "sys",
                 rt_packet.buffer_space_destination, self.buffer_space_timeout_dest.status)
         ]
 

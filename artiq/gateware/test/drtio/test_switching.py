@@ -40,12 +40,12 @@ class DUT(Module):
     def __init__(self, nwords):
         self.transceivers = DummyTransceiverPair(nwords)
 
-        self.submodules.tsc_master = rtio.TSC("async")
+        self.submodules.tsc_master = rtio.TSC()
         self.submodules.master = DRTIOMaster(self.tsc_master,
                                              self.transceivers.alice)
 
         rx_synchronizer = DummyRXSynchronizer()
-        self.submodules.tsc_satellite = rtio.TSC("sync")
+        self.submodules.tsc_satellite = rtio.TSC()
         self.submodules.satellite = DRTIOSatellite(
             self.tsc_satellite, self.transceivers.bob, rx_synchronizer)
         self.satellite.reset.storage.reset = 0
@@ -130,7 +130,7 @@ class Testbench:
 
 
 class TestSwitching(unittest.TestCase):
-    clocks = {"sys": 8, "rtio": 5, "rtio_rx": 5,
+    clocks = {"sys": 8, "rtio_rx": 5,
               "rio": 5, "rio_phy": 5}
 
     def test_outputs(self):
@@ -183,7 +183,7 @@ class TestSwitching(unittest.TestCase):
             current_request = (packet_type, field_dict, trailer)
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.dut.pr.receive(receive), "rtio_rx": send_replies()}, self.clocks)
+            {"sys": test(), "sys": tb.dut.pr.receive(receive), "rtio_rx": send_replies()}, self.clocks)
 
 
     def test_inputs(self):
@@ -244,4 +244,4 @@ class TestSwitching(unittest.TestCase):
             current_request = (packet_type, field_dict, trailer)
 
         run_simulation(tb.dut,
-            {"sys": test(), "rtio": tb.dut.pr.receive(receive), "rtio_rx": send_replies()}, self.clocks)
+            {"sys": test(), "sys": tb.dut.pr.receive(receive), "rtio_rx": send_replies()}, self.clocks)
