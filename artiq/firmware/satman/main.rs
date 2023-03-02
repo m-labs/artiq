@@ -1,4 +1,4 @@
-#![feature(never_type, panic_info_message, llvm_asm)]
+#![feature(never_type, panic_info_message, llvm_asm, default_alloc_error_handler)]
 #![no_std]
 
 #[macro_use]
@@ -7,6 +7,7 @@ extern crate log;
 extern crate board_misoc;
 extern crate board_artiq;
 extern crate riscv;
+extern crate alloc;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
@@ -15,8 +16,13 @@ use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use riscv::register::{mcause, mepc, mtval};
+use dma::Manager as DmaManager;
+
+#[global_allocator]
+static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
 
 mod repeater;
+mod dma;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -67,7 +73,7 @@ macro_rules! forward {
     ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {}
 }
 
-fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
+fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Repeater],
         _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
         packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
@@ -294,6 +300,24 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
                     &drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 })
             }
         }
+        #[cfg(has_rtio_dma)]
+        drtioaux::Packet::DmaAddTraceRequest { id, last, length, trace } => {
+            let succeeded = _manager.add(id, last, &trace, length as usize).is_ok();
+            drtioaux::send(0,
+                &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
+        }
+        #[cfg(has_rtio_dma)]
+        drtioaux::Packet::DmaRemoveTraceRequest { id } => {
+            let succeeded = _manager.erase(id).is_ok();
+            drtioaux::send(0,
+                &drtioaux::Packet::DmaRemoveTraceReply { succeeded: succeeded })
+        }
+        #[cfg(has_rtio_dma)]
+        drtioaux::Packet::DmaPlaybackRequest { id, timestamp } => {
+            let succeeded = _manager.playback(id, timestamp).is_ok();
+            drtioaux::send(0,
+                &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
+        }
 
         _ => {
             warn!("received unexpected aux packet");
@@ -302,12 +326,12 @@ fn process_aux_packet(_repeaters: &mut [repeater::Repeater],
     }
 }
 
-fn process_aux_packets(repeaters: &mut [repeater::Repeater],
+fn process_aux_packets(dma_manager: &mut DmaManager, repeaters: &mut [repeater::Repeater],
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8) {
     let result =
         drtioaux::recv(0).and_then(|packet| {
             if let Some(packet) = packet {
-                process_aux_packet(repeaters, routing_table, rank, packet)
+                process_aux_packet(dma_manager, repeaters, routing_table, rank, packet)
             } else {
                 Ok(())
             }
@@ -511,13 +535,15 @@ pub extern fn main() -> i32 {
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
 
+        let mut dma_manager = DmaManager::new();
+
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            process_aux_packets(&mut repeaters, &mut routing_table, &mut rank);
+            process_aux_packets(&mut dma_manager, &mut repeaters, &mut routing_table, &mut rank);
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }

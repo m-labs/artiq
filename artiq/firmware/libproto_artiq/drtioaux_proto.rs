@@ -1,6 +1,4 @@
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
-#[cfg(feature = "alloc")]
-use alloc::vec::Vec;
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -15,6 +13,8 @@ impl<T> From<IoError<T>> for Error<T> {
         Error::Io(value)
     }
 }
+
+const DMA_TRACE_MAX_SIZE: usize = 400;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
@@ -57,12 +57,12 @@ pub enum Packet {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    #[cfg(feature = "alloc")]
-    DmaAddTraceRequest { entryid: u32, trace: Vec<u8> },
+    //maximum DMA_TRACE_MAX_SIZE to fit within 512 max size + leeway
+    DmaAddTraceRequest { id: u32, last: bool, length: u32, trace: [u8; DMA_TRACE_MAX_SIZE] },
     DmaAddTraceReply { succeeded: bool },
-    DmaRemoveTraceRequest { entryid: u32 },
+    DmaRemoveTraceRequest { id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
-    DmaPlaybackRequest { entryid: u32, timestamp: u64 },
+    DmaPlaybackRequest { id: u32, timestamp: u64 },
     DmaPlaybackReply { succeeded: bool }
 
 }
@@ -196,10 +196,18 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
 
-            #[cfg(feature = "alloc")]
-            0xb0 => Packet::DmaAddTraceRequest {
-                id: reader.read_u32()?,
-                trace: reader.read_bytes()?
+            0xb0 => { 
+                let id = reader.read_u32()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u32()?;
+                let mut trace: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+                reader.read_exact(&mut trace[0..length as usize])?;
+                Packet::DmaAddTraceRequest {
+                    id: id,
+                    last: last,
+                    length: length as u32,
+                    trace: trace,
+                }
             },
             0xb1 => Packet::DmaAddTraceReply {
                 succeeded: reader.read_bool()?
@@ -377,13 +385,13 @@ impl Packet {
                 writer.write_bool(succeeded)?;
             },
 
-            #[cfg(feature = "alloc")]
-            Packet::DmaAddTraceRequest { id, trace } => {
+            Packet::DmaAddTraceRequest { id, last, trace, length } => {
                 writer.write_u8(0xb0)?;
                 writer.write_u32(id)?;
+                writer.write_bool(last)?;
                 // trace may be broken down to fit within drtio aux memory limit
                 // will be reconstructed by satellite
-                writer.write_bytes(&trace)?;
+                writer.write_bytes(&trace[0..length as usize])?;
             },
             Packet::DmaAddTraceReply { succeeded } => {
                 writer.write_u8(0xb1)?;
