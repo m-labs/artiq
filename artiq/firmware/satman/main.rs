@@ -535,6 +535,9 @@ pub extern fn main() -> i32 {
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
 
+        // DMA manager created here, so when link is dropped, all DMA traces
+        // are cleared out for a clean slate on subsequent connections,
+        // without a manual intervention.
         let mut dma_manager = DmaManager::new();
 
         drtioaux::reset(0);
