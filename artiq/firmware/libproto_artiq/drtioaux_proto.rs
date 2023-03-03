@@ -63,7 +63,8 @@ pub enum Packet {
     DmaRemoveTraceRequest { id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
     DmaPlaybackRequest { id: u32, timestamp: u64 },
-    DmaPlaybackReply { succeeded: bool }
+    DmaPlaybackReply { succeeded: bool },
+    DmaPlaybackStatus { id: u32, error: u8, channel: u32, timestamp: u64 }
 
 }
 
@@ -224,6 +225,12 @@ impl Packet {
             },
             0xb5 => Packet::DmaPlaybackReply {
                 succeeded: reader.read_bool()?
+            },
+            0xb6 => Packet::DmaPlaybackStatus {
+                id: reader.read_u32()?,
+                error: reader.read_u8()?,
+                channel: reader.read_u32()?,
+                timestamp: reader.read_u64()?
             },
 
             ty => return Err(Error::UnknownPacket(ty))
@@ -414,6 +421,13 @@ impl Packet {
                 writer.write_u8(0xb5)?;
                 writer.write_bool(succeeded)?;
             },
+            Packet::DmaPlaybackStatus { id, error, channel, timestamp } => {
+                writer.write_u8(0xb6)?;
+                writer.write_u32(id)?;
+                writer.write_u8(error)?;
+                writer.write_u32(channel)?;
+                writer.write_u64(timestamp)?;
+            }
         }
         Ok(())
     }

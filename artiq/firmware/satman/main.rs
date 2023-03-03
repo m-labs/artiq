@@ -567,6 +567,10 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
+            if let Some(status) = dma_manager.check_state() {
+                drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
+                    id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp });
+            }
         }
 
         drtiosat_reset_phy(true);

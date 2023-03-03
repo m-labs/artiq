@@ -1,8 +1,25 @@
-use core::str;
 use board_misoc::csr;
 use alloc::{vec::Vec, collections::btree_map::BTreeMap};
 
 const ALIGNMENT: usize = 64;
+
+#[derive(Debug, PartialEq)]
+enum ManagerState {
+    Idle,
+    Playback
+}
+
+pub struct RtioStatus {
+    pub id: u32, 
+    pub error: u8, 
+    pub channel: u32, 
+    pub timestamp: u64
+}
+
+pub enum Error {
+    IdNotFound,
+    PlaybackInProgress
+}
 
 #[derive(Debug)]
 struct Entry {
@@ -14,16 +31,25 @@ struct Entry {
 #[derive(Debug)]
 pub struct Manager {
     entries: BTreeMap<u32, Entry>,
+    state: ManagerState,
+    currentid: u32
 }
 
 impl Manager {
     pub fn new() -> Manager {
+        // in case Manager is created during a DMA in progress
+        // wait for it to end
+        unsafe {
+            while csr::rtio_dma::enable_read() != 0 {} 
+        }
         Manager {
             entries: BTreeMap::new(),
+            currentid: 0,
+            state: ManagerState::Idle,
         }
     }
 
-    pub fn add(&mut self, id: u32, last: bool, trace: &[u8], trace_len: usize) -> Result<(), &'static str> {
+    pub fn add(&mut self, id: u32, last: bool, trace: &[u8], trace_len: usize) -> Result<(), Error> {
         let entry = match self.entries.get_mut(&id) {
             Some(entry) => entry,
             None => {
@@ -57,20 +83,27 @@ impl Manager {
         Ok(())
     }
 
-    pub fn erase(&mut self, id: u32) -> Result<(), &'static str> {
+    pub fn erase(&mut self, id: u32) -> Result<(), Error> {
         match self.entries.remove(&id) {
             Some(_) => Ok(()),
-            None => Err("Item did not exist")
+            None => Err(Error::IdNotFound)
         }
     }
 
-    pub fn playback(&mut self, id: u32, timestamp: u64) -> Result<(), &'static str> {
+    pub fn playback(&mut self, id: u32, timestamp: u64) -> Result<(), Error> {
+        if self.state != ManagerState::Idle {
+            return Err(Error::PlaybackInProgress);
+        }
+
         let entry = match self.entries.get(&id){
             Some(entry) => entry,
-            None => { return Err("Entry for given ID not found"); }
+            None => { return Err(Error::IdNotFound); }
         };
         let ptr = entry.trace.as_ptr();
         assert!(ptr as u32 % 64 == 0);
+
+        self.state = ManagerState::Playback;
+        self.currentid = id;
 
         unsafe {
             csr::rtio_dma::base_address_write(ptr as u64);
@@ -78,21 +111,37 @@ impl Manager {
     
             csr::cri_con::selected_write(1);
             csr::rtio_dma::enable_write(1);
-            while csr::rtio_dma::enable_read() != 0 {}
-            csr::cri_con::selected_write(0);
-    
-            let error = csr::rtio_dma::error_read();
-            if error != 0 {
-                csr::rtio_dma::error_write(1);
-                if error & 1 != 0 {
-                    return Err("RTIO underflow");
-                }
-                if error & 2 != 0 {
-                    return Err("RTIO destination unreachable");
-                }
-            }
+            // playback has begun here, for status call check_state
         }
         Ok(())
+    }
+
+    pub fn check_state(&mut self) -> Option<RtioStatus> {
+        if self.state != ManagerState::Playback {
+            // nothing to report
+            return None;
+        }
+        let dma_enable = unsafe { csr::rtio_dma::enable_read() };
+        if dma_enable != 0 {
+            return None;
+        }
+        else {
+            self.state = ManagerState::Idle;
+            unsafe { 
+                csr::cri_con::selected_write(0);
+                let error =  csr::rtio_dma::error_read();
+                let channel = csr::rtio_dma::error_channel_read();
+                let timestamp = csr::rtio_dma::error_timestamp_read();
+                if error != 0 {
+                    csr::rtio_dma::error_write(1);
+                }
+                return Some(RtioStatus { 
+                    id: self.currentid, 
+                    error: error,
+                    channel: channel, 
+                    timestamp: timestamp });
+            }
+        }
     }
 
 }
