@@ -568,8 +568,10 @@ pub extern fn main() -> i32 {
                 }
             }
             if let Some(status) = dma_manager.check_state() {
-                drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                    id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp });
+                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
+                    id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
+                    error!("error sending DMA playback status: {}", e);
+                }
             }
         }
 
