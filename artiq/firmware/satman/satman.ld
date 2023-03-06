@@ -66,4 +66,12 @@ SECTIONS
         . += 0x10000;
         _fstack = . - 16;
     } > main_ram
+
+    /* 32MB heap for alloc use */
+    .heap (NOLOAD) : ALIGN(16)
+    {
+        _fheap = .;
+        . = . + 0x2000000;
+        _eheap = .;
+    } > main_ram
 }

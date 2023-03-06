@@ -456,10 +456,13 @@ fn sysclk_setup() {
 #[no_mangle]
 pub extern fn main() -> i32 {
     extern {
+        static mut _fheap: u8;
+        static mut _eheap: u8;
         static mut _sstack_guard: u8;
     }
 
     unsafe {
+        ALLOC.add_range(&mut _fheap, &mut _eheap);
         pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
 
