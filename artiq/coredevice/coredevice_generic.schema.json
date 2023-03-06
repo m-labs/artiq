@@ -511,6 +511,10 @@
                         "almazny": {
                             "type": "boolean",
                             "default": false
+                        },
+                         "almazny_channel": {
+                            "type": "boolean",
+                            "default": false
                         }
                     },
                     "required": ["ports"]

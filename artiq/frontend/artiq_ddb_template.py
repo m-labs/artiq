@@ -326,6 +326,20 @@ class PeripheralManager:
                 name=mirny_name,
                 mchn=i)
 
+            if peripheral.get("almazny_channel", False):
+                self.gen("""
+                device_db["{name}_almazny{i}"] = {{
+                    "type": "local",
+                    "module": "artiq.coredevice.almazny",
+                    "class": "AlmaznyChannel",
+                    "arguments": {{
+                        "cpld_device": "{name}_cpld",
+                        "channel": {i},
+                    }},
+                }}""",
+                name=mirny_name,
+                i=i)
+
         clk_sel = peripheral["clk_sel"]
         if isinstance(peripheral["clk_sel"], str):
             clk_sel = '"' + peripheral["clk_sel"] + '"'

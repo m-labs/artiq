@@ -183,6 +183,9 @@ class Almazny:
     """
     Almazny (High frequency mezzanine board for Mirny)
 
+    This applies to Almazny hardware v1.1 and earlier.
+    Use :class:`artiq.coredevice.almazny.AlmaznyChannel` for Almazny v1.2 and later.
+
     :param host_mirny - Mirny device Almazny is connected to
     """
 
