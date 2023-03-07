@@ -25,7 +25,6 @@ pub enum Error {
 #[derive(Debug)]
 struct Entry {
     trace: Vec<u8>,
-    padding_len: usize,
     complete: bool
 }
 
@@ -56,7 +55,6 @@ impl Manager {
             None => {
                 self.entries.insert(id, Entry {
                     trace: Vec::new(),
-                    padding_len: 0,
                     complete: false });
                 self.entries.get_mut(&id).unwrap()
             },
@@ -79,7 +77,6 @@ impl Manager {
                 entry.trace[data_len + padding - i] = entry.trace[data_len - i]
             }
             entry.complete = true;
-            entry.padding_len = padding;
         }
         Ok(())
     }
