@@ -18,7 +18,8 @@ pub struct RtioStatus {
 
 pub enum Error {
     IdNotFound,
-    PlaybackInProgress
+    PlaybackInProgress,
+    EntryNotComplete
 }
 
 #[derive(Debug)]
@@ -99,6 +100,9 @@ impl Manager {
             Some(entry) => entry,
             None => { return Err(Error::IdNotFound); }
         };
+        if !entry.complete {
+            return Err(Error::EntryNotComplete);
+        }
         let ptr = entry.trace.as_ptr();
         assert!(ptr as u32 % 64 == 0);
 
