@@ -284,17 +284,17 @@ If you purchased a Kasli device from M-Labs, it usually comes with the IP addres
 
 and then reboot the device (with ``artiq_flash start`` or a power cycle).
 
-If the ip config field is not set, or set to "use_dhcp" then the device will
+If the ``ip`` config field is not set, or set to ``use_dhcp`` then the device will
 attempt to obtain an IP address and default gateway using DHCP. If a static IP
 address is wanted, install OpenOCD as before, and flash the IP, default gateway
-(and, if necessary, MAC) addresses directly: ::
+(and, if necessary, MAC and IPv6) addresses directly: ::
 
-  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx/xx -s ipv4_default_route xx.xx.xx.xx
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx/xx -s ipv4_default_route xx.xx.xx.xx -s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx -s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 For Kasli devices, flashing a MAC address is not necessary as they can obtain it from their EEPROM.
-If you only want to access the kasli from the same subnet you might be able to
-omit the default gateway and ip prefix length: ::
+If you only want to access the core device from the same subnet you may
+omit the default gateway and IPv4 prefix length: ::
 
   $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
 
