@@ -14,7 +14,8 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-const DMA_TRACE_MAX_SIZE: usize = 400;
+/* 512 (max size) - 4 (CRC) - 1 (packet ID) - 4 (trace ID) - 1 (last) - 2 (length) */
+const DMA_TRACE_MAX_SIZE: usize = 500;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
@@ -57,8 +58,7 @@ pub enum Packet {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    //maximum DMA_TRACE_MAX_SIZE to fit within 512 max size + leeway
-    DmaAddTraceRequest { id: u32, last: bool, length: u32, trace: [u8; DMA_TRACE_MAX_SIZE] },
+    DmaAddTraceRequest { id: u32, last: bool, length: u16, trace: [u8; DMA_TRACE_MAX_SIZE] },
     DmaAddTraceReply { succeeded: bool },
     DmaRemoveTraceRequest { id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
@@ -200,13 +200,13 @@ impl Packet {
             0xb0 => { 
                 let id = reader.read_u32()?;
                 let last = reader.read_bool()?;
-                let length = reader.read_u32()?;
+                let length = reader.read_u16()?;
                 let mut trace: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
                 reader.read_exact(&mut trace[0..length as usize])?;
                 Packet::DmaAddTraceRequest {
                     id: id,
                     last: last,
-                    length: length as u32,
+                    length: length as u16,
                     trace: trace,
                 }
             },
@@ -398,7 +398,8 @@ impl Packet {
                 writer.write_bool(last)?;
                 // trace may be broken down to fit within drtio aux memory limit
                 // will be reconstructed by satellite
-                writer.write_bytes(&trace[0..length as usize])?;
+                writer.write_u16(length)?;
+                writer.write_all(&trace[0..length as usize])?;
             },
             Packet::DmaAddTraceReply { succeeded } => {
                 writer.write_u8(0xb1)?;
