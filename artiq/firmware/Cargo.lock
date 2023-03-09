@@ -352,7 +352,6 @@ dependencies = [
  "board_misoc",
  "build_misoc",
  "log",
- "proto_artiq",
  "riscv",
 ]
 

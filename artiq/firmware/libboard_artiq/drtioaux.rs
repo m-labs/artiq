@@ -80,7 +80,7 @@ fn receive<F, T>(linkno: u8, f: F) -> Result<Option<T>, Error<!>>
     }
 }
 
-pub fn recv<'a>(linkno: u8) -> Result<Option<Packet<'a>>, Error<!>> {
+pub fn recv(linkno: u8) -> Result<Option<Packet>, Error<!>> {
     if has_rx_error(linkno) {
         return Err(Error::GatewareError)
     }
@@ -104,7 +104,7 @@ pub fn recv<'a>(linkno: u8) -> Result<Option<Packet<'a>>, Error<!>> {
     })
 }
 
-pub fn recv_timeout<'a>(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet<'a>, Error<!>> {
+pub fn recv_timeout(linkno: u8, timeout_ms: Option<u64>) -> Result<Packet, Error<!>> {
     let timeout_ms = timeout_ms.unwrap_or(10);
     let limit = clock::get_ms() + timeout_ms;
     while clock::get_ms() < limit {

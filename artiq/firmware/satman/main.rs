@@ -301,8 +301,8 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
             }
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaAddTraceRequestRead { id, last, trace } => {
-            let succeeded = _manager.add(id, last, &trace, trace.len()).is_ok();
+        drtioaux::Packet::DmaAddTraceRequest { id, last, length, trace } => {
+            let succeeded = _manager.add(id, last, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
