@@ -59,7 +59,7 @@ class AlmaznyChannel:
     @kernel
     def set(self, att, enable, led=False):
         """
-        Set attenuation, RF switch, and LET state (SI units).
+        Set attenuation, RF switch, and LED state (SI units).
 
         :param att: attenuator setting in dB (0-31.5)
         :param enable: RF switch state (bool)
