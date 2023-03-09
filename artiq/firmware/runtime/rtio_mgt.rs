@@ -39,7 +39,7 @@ pub mod drtio {
         }
     }
 
-    fn recv_aux_timeout(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet, &'static str> {
+    fn recv_aux_timeout<'a>(io: &Io, linkno: u8, timeout: u32) -> Result<drtioaux::Packet<'a>, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         loop {
             if !link_rx_up(linkno) {
@@ -57,8 +57,8 @@ pub mod drtio {
         }
     }
 
-    pub fn aux_transact(io: &Io, aux_mutex: &Mutex,
-            linkno: u8, request: &drtioaux::Packet) -> Result<drtioaux::Packet, &'static str> {
+    pub fn aux_transact<'a>(io: &Io, aux_mutex: &Mutex,
+            linkno: u8, request: &drtioaux::Packet) -> Result<drtioaux::Packet<'a>, &'static str> {
         let _lock = aux_mutex.lock(io).unwrap();
         drtioaux::send(linkno, request).unwrap();
         recv_aux_timeout(io, linkno, 200)

@@ -1,4 +1,8 @@
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError};
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
+#[cfg(feature = "log")]
+use log::error;
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -14,10 +18,8 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-const DMA_TRACE_MAX_SIZE: usize = 400;
-
 #[derive(PartialEq, Debug)]
-pub enum Packet {
+pub enum Packet<'a> {
     EchoRequest,
     EchoReply,
     ResetRequest,
@@ -57,8 +59,11 @@ pub enum Packet {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    //maximum DMA_TRACE_MAX_SIZE to fit within 512 max size + leeway
-    DmaAddTraceRequest { id: u32, last: bool, length: u32, trace: [u8; DMA_TRACE_MAX_SIZE] },
+    //maximum trace size should be within memory limit (512 bytes)
+    //Read is to be read by satellite, Write is to be written by the master
+    #[cfg(feature = "alloc")]
+    DmaAddTraceRequestRead { id: u32, last: bool, trace: Vec<u8> },
+    DmaAddTraceRequestWrite { id: u32, last: bool, length: u32, trace: &'a [u8] },
     DmaAddTraceReply { succeeded: bool },
     DmaRemoveTraceRequest { id: u32 },
     DmaRemoveTraceReply { succeeded: bool },
@@ -68,7 +73,7 @@ pub enum Packet {
 
 }
 
-impl Packet {
+impl<'a> Packet<'_> {
     pub fn read_from<R>(reader: &mut R) -> Result<Self, Error<R::ReadError>>
         where R: Read + ?Sized
     {
@@ -197,18 +202,11 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
 
-            0xb0 => { 
-                let id = reader.read_u32()?;
-                let last = reader.read_bool()?;
-                let length = reader.read_u32()?;
-                let mut trace: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
-                reader.read_exact(&mut trace[0..length as usize])?;
-                Packet::DmaAddTraceRequest {
-                    id: id,
-                    last: last,
-                    length: length as u32,
-                    trace: trace,
-                }
+            #[cfg(feature = "alloc")]
+            0xb0 => Packet::DmaAddTraceRequestRead {
+                id: reader.read_u32()?,
+                last: reader.read_bool()?,
+                trace: reader.read_bytes()?,
             },
             0xb1 => Packet::DmaAddTraceReply {
                 succeeded: reader.read_bool()?
@@ -240,6 +238,7 @@ impl Packet {
     pub fn write_to<W>(&self, writer: &mut W) -> Result<(), IoError<W::WriteError>>
         where W: Write + ?Sized
     {
+        #[allow(unreachable_patterns)]
         match *self {
             Packet::EchoRequest =>
                 writer.write_u8(0x00)?,
@@ -392,7 +391,7 @@ impl Packet {
                 writer.write_bool(succeeded)?;
             },
 
-            Packet::DmaAddTraceRequest { id, last, trace, length } => {
+            Packet::DmaAddTraceRequestWrite { id, last, length, trace } => {
                 writer.write_u8(0xb0)?;
                 writer.write_u32(id)?;
                 writer.write_bool(last)?;
@@ -427,6 +426,11 @@ impl Packet {
                 writer.write_u8(error)?;
                 writer.write_u32(channel)?;
                 writer.write_u64(timestamp)?;
+            },
+            // called if Packet::DmaAddTraceRead would be written.
+            _ => {
+                #[cfg(feature = "log")]
+                error!("Attempting to write a read-only packet");
             }
         }
         Ok(())
