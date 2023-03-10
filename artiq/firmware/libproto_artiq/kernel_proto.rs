@@ -32,7 +32,8 @@ pub enum Message<'a> {
     },
     DmaRetrieveReply {
         trace:    Option<&'a [u8]>,
-        duration: u64
+        duration: u64,
+        id: u32
     },
 
     RunFinished,

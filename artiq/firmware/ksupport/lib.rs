@@ -371,6 +371,7 @@ extern fn dma_erase(name: &CSlice<u8>) {
 struct DmaTrace {
     duration: i64,
     address:  i32,
+    id: u32,
 }
 
 #[unwind(allowed)]
@@ -378,11 +379,12 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });
-    recv!(&DmaRetrieveReply { trace, duration } => {
+    recv!(&DmaRetrieveReply { trace, duration, id } => {
         match trace {
             Some(bytes) => Ok(DmaTrace {
                 address:  bytes.as_ptr() as i32,
-                duration: duration as i64
+                duration: duration as i64,
+                id: id as u32
             }),
             None => Err(())
         }
@@ -395,7 +397,7 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
 
 #[cfg(has_rtio_dma)]
 #[unwind(allowed)]
-extern fn dma_playback(timestamp: i64, ptr: i32) {
+extern fn dma_playback(timestamp: i64, ptr: i32, id: u32) {
     assert!(ptr % 64 == 0);
 
     unsafe {
@@ -428,7 +430,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
 
 #[cfg(not(has_rtio_dma))]
 #[unwind(allowed)]
-extern fn dma_playback(_timestamp: i64, _ptr: i32) {
+extern fn dma_playback(_timestamp: i64, _ptr: i32, _id: u32) {
     unimplemented!("not(has_rtio_dma)")
 }
 

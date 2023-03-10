@@ -100,16 +100,16 @@ class CoreDMA:
     def get_handle(self, name):
         """Returns a handle to a previously recorded DMA trace. The returned handle
         is only valid until the next call to :meth:`record` or :meth:`erase`."""
-        (advance_mu, ptr) = dma_retrieve(name)
-        return (self.epoch, advance_mu, ptr)
+        (advance_mu, ptr, id) = dma_retrieve(name)
+        return (self.epoch, advance_mu, ptr, id)
 
     @kernel
     def playback_handle(self, handle):
         """Replays a handle obtained with :meth:`get_handle`. Using this function
         is much faster than :meth:`playback` for replaying a set of traces repeatedly,
         but incurs the overhead of managing the handles onto the programmer."""
-        (epoch, advance_mu, ptr) = handle
+        (epoch, advance_mu, ptr, id) = handle
         if self.epoch != epoch:
             raise DMAError("Invalid handle")
-        dma_playback(now_mu(), ptr)
+        dma_playback(now_mu(), ptr, id)
         delay_mu(advance_mu)
