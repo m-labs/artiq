@@ -33,8 +33,23 @@ pub enum Message<'a> {
     DmaRetrieveReply {
         trace:    Option<&'a [u8]>,
         duration: u64,
-        id: u32
+        id: i32
     },
+
+    DmaStartRemoteRequest {
+        id: i32,
+        timestamp: i64,
+    },
+    DmaAwaitRemoteRequest {
+        id: i32
+    }
+    DmaAwaitRemoteReply {
+        id: i32,
+        error: i32,
+        channel: i32,
+        timestamp: i32
+    }
+
 
     RunFinished,
     RunException {

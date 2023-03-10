@@ -371,7 +371,7 @@ extern fn dma_erase(name: &CSlice<u8>) {
 struct DmaTrace {
     duration: i64,
     address:  i32,
-    id: u32,
+    id: i32,
 }
 
 #[unwind(allowed)]
@@ -384,7 +384,7 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
             Some(bytes) => Ok(DmaTrace {
                 address:  bytes.as_ptr() as i32,
                 duration: duration as i64,
-                id: id as u32
+                id: id as i32
             }),
             None => Err(())
         }
@@ -397,8 +397,10 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
 
 #[cfg(has_rtio_dma)]
 #[unwind(allowed)]
-extern fn dma_playback(timestamp: i64, ptr: i32, id: u32) {
+extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
     assert!(ptr % 64 == 0);
+
+    send(&DmaStartRemoteRequest { id: dma_id, timestamp: timestamp });
 
     unsafe {
         csr::rtio_dma::base_address_write(ptr as u64);
@@ -426,11 +428,29 @@ extern fn dma_playback(timestamp: i64, ptr: i32, id: u32) {
             }
         }
     }
+
+    send(&DmaAwaitRemoteRequest { id: dma_id });
+    recv!(&DmaAwaitRemoteReply { id, error, channel, timestamp } => {
+        if id != dma_id {
+            println!("DMA Await reply ID mismatch");
+            raise!("DMAError", "DMA trace ID mismatch");
+        }
+        if error & 1 != 0 {
+            raise!("RTIOUnderflow",
+                "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                channel as i64, timestamp as i64, 0);
+        }
+        if error & 2 != 0 {
+            raise!("RTIODestinationUnreachable",
+                "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                channel as i64, timestamp as i64, 0);
+        }
+    };
 }
 
 #[cfg(not(has_rtio_dma))]
 #[unwind(allowed)]
-extern fn dma_playback(_timestamp: i64, _ptr: i32, _id: u32) {
+extern fn dma_playback(_timestamp: i64, _ptr: i32, _id: i32) {
     unimplemented!("not(has_rtio_dma)")
 }
 

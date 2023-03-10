@@ -25,11 +25,11 @@ def dma_erase(name: TStr) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_retrieve(name: TStr) -> TTuple([TInt64, TInt32]):
+def dma_retrieve(name: TStr) -> TTuple([TInt64, TInt32, TInt32]):
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_playback(timestamp: TInt64, ptr: TInt32) -> TNone:
+def dma_playback(timestamp: TInt64, ptr: TInt32, id: TInt32) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 
