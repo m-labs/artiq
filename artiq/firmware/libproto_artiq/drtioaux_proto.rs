@@ -14,6 +14,9 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
+/* 512 (max size) - 4 (CRC) - 1 (packet ID) - 4 (trace ID) - 1 (last) - 2 (length) */
+const DMA_TRACE_MAX_SIZE: usize = 500;
+
 #[derive(PartialEq, Debug)]
 pub enum Packet {
     EchoRequest,
@@ -54,6 +57,15 @@ pub enum Packet {
     SpiReadRequest { destination: u8, busno: u8 },
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
+
+    DmaAddTraceRequest { id: u32, last: bool, length: u16, trace: [u8; DMA_TRACE_MAX_SIZE] },
+    DmaAddTraceReply { succeeded: bool },
+    DmaRemoveTraceRequest { id: u32 },
+    DmaRemoveTraceReply { succeeded: bool },
+    DmaPlaybackRequest { id: u32, timestamp: u64 },
+    DmaPlaybackReply { succeeded: bool },
+    DmaPlaybackStatus { id: u32, error: u8, channel: u32, timestamp: u64 }
+
 }
 
 impl Packet {
@@ -183,6 +195,42 @@ impl Packet {
             },
             0x95 => Packet::SpiBasicReply {
                 succeeded: reader.read_bool()?
+            },
+
+            0xb0 => { 
+                let id = reader.read_u32()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut trace: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+                reader.read_exact(&mut trace[0..length as usize])?;
+                Packet::DmaAddTraceRequest {
+                    id: id,
+                    last: last,
+                    length: length as u16,
+                    trace: trace,
+                }
+            },
+            0xb1 => Packet::DmaAddTraceReply {
+                succeeded: reader.read_bool()?
+            },
+            0xb2 => Packet::DmaRemoveTraceRequest {
+                id: reader.read_u32()?
+            },
+            0xb3 => Packet::DmaRemoveTraceReply {
+                succeeded: reader.read_bool()?
+            },
+            0xb4 => Packet::DmaPlaybackRequest {
+                id: reader.read_u32()?,
+                timestamp: reader.read_u64()?
+            },
+            0xb5 => Packet::DmaPlaybackReply {
+                succeeded: reader.read_bool()?
+            },
+            0xb6 => Packet::DmaPlaybackStatus {
+                id: reader.read_u32()?,
+                error: reader.read_u8()?,
+                channel: reader.read_u32()?,
+                timestamp: reader.read_u64()?
             },
 
             ty => return Err(Error::UnknownPacket(ty))
@@ -343,6 +391,44 @@ impl Packet {
                 writer.write_u8(0x95)?;
                 writer.write_bool(succeeded)?;
             },
+
+            Packet::DmaAddTraceRequest { id, last, trace, length } => {
+                writer.write_u8(0xb0)?;
+                writer.write_u32(id)?;
+                writer.write_bool(last)?;
+                // trace may be broken down to fit within drtio aux memory limit
+                // will be reconstructed by satellite
+                writer.write_u16(length)?;
+                writer.write_all(&trace[0..length as usize])?;
+            },
+            Packet::DmaAddTraceReply { succeeded } => {
+                writer.write_u8(0xb1)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::DmaRemoveTraceRequest { id } => {
+                writer.write_u8(0xb2)?;
+                writer.write_u32(id)?;
+            },
+            Packet::DmaRemoveTraceReply { succeeded } => {
+                writer.write_u8(0xb3)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::DmaPlaybackRequest { id, timestamp } => {
+                writer.write_u8(0xb4)?;
+                writer.write_u32(id)?;
+                writer.write_u64(timestamp)?;
+            },
+            Packet::DmaPlaybackReply { succeeded } => {
+                writer.write_u8(0xb5)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::DmaPlaybackStatus { id, error, channel, timestamp } => {
+                writer.write_u8(0xb6)?;
+                writer.write_u32(id)?;
+                writer.write_u8(error)?;
+                writer.write_u32(channel)?;
+                writer.write_u64(timestamp)?;
+            }
         }
         Ok(())
     }
