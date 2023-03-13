@@ -658,21 +658,21 @@ class CommKernel:
             # note: if length == -1, the following int32 is the object key
             length = self._read_int32()
             if length == -1:
-                return False, embedding_map.retrieve_str(self._read_int32())
+                return embedding_map.retrieve_str(self._read_int32())
             else:
-                return True, self._read(length).decode("utf-8")
+                return self._read(length).decode("utf-8")
 
         for _ in range(exception_count):
             name = embedding_map.retrieve_str(self._read_int32())
-            use_fmt, message = read_exception_string()
+            message = read_exception_string()
             params = [self._read_int64() for _ in range(3)]
 
-            _, filename = read_exception_string()
+            filename = read_exception_string()
             line = self._read_int32()
             column = self._read_int32()
-            _, function = read_exception_string()
+            function = read_exception_string()
             nested_exceptions.append([name, message, params,
-                                      filename, line, column, function, use_fmt])
+                                      filename, line, column, function])
 
         demangled_names = demangler([ex[6] for ex in nested_exceptions])
         for i in range(exception_count):
@@ -703,8 +703,13 @@ class CommKernel:
             python_exn_type = embedding_map.retrieve_object(core_exn.id)
 
         try:
-            python_exn = python_exn_type(
-                nested_exceptions[-1][1].format(*nested_exceptions[0][2]) if nested_exceptions[-1][7] else nested_exceptions[-1][1])
+            message = nested_exceptions[0][1].format(*nested_exceptions[0][2])
+        except Exception as ex:
+            message = nested_exceptions[0][1]
+            logger.error("Couldn't format exception message `{}`: {}: {}".format(message, type(ex).__name__, str(ex)))
+
+        try:
+            python_exn = python_exn_type(message)
         except Exception as ex:
             python_exn = RuntimeError(
                 f"Exception type={python_exn_type}, which couldn't be "
