@@ -301,19 +301,22 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
             }
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaAddTraceRequest { id, last, length, trace } => {
+        drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.add(id, last, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaRemoveTraceRequest { id } => {
+        drtioaux::Packet::DmaRemoveTraceRequest { destination: _destination, id } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.erase(id).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaRemoveTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaPlaybackRequest { id, timestamp } => {
+        drtioaux::Packet::DmaPlaybackRequest { destination: _destination, id, timestamp } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.playback(id, timestamp).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
@@ -572,7 +575,7 @@ pub extern fn main() -> i32 {
             }
             if let Some(status) = dma_manager.check_state() {
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                    id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
+                    destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
                     error!("error sending DMA playback status: {}", e);
                 }
             }
