@@ -77,7 +77,10 @@ class CoreException:
             exn_id = int(exn_id)
         else:
             exn_id = 0
-        lines.append("{}({}): {}".format(name, exn_id, message.format(*params) if exception[7] else message))
+        try:
+            lines.append("{}({}): {}".format(name, exn_id, message.format(*params)))
+        except:
+            lines.append("{}({}): {}".format(name, exn_id, message))
         zipped.append(((exception[3], exception[4], exception[5], exception[6],
                        None, []), None))
 
