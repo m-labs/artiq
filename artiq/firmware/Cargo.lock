@@ -347,6 +347,7 @@ dependencies = [
 name = "satman"
 version = "0.0.0"
 dependencies = [
+ "alloc_list",
  "board_artiq",
  "board_misoc",
  "build_misoc",

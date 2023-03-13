@@ -250,6 +250,7 @@ class PeripheralManager:
                         "class": "AD9910",
                         "arguments": {{
                             "pll_n": {pll_n},
+                            "pll_en": {pll_en},
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld"{sw}{pll_vco}{sync_delay_seed}{io_update_delay}
                         }}
@@ -259,7 +260,7 @@ class PeripheralManager:
                     uchn=i,
                     sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                    pll_n=peripheral.get("pll_n", 32),
+                    pll_n=peripheral.get("pll_n", 32), pll_en=peripheral.get("pll_en", 1),
                     sync_delay_seed=",\n        \"sync_delay_seed\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "",
                     io_update_delay=",\n        \"io_update_delay\": \"eeprom_{}:{}\"".format(urukul_name, 64 + 4*i) if synchronization else "")
             elif dds == "ad9912":
@@ -270,6 +271,7 @@ class PeripheralManager:
                         "class": "AD9912",
                         "arguments": {{
                             "pll_n": {pll_n},
+                            "pll_en": {pll_en},
                             "chip_select": {chip_select},
                             "cpld_device": "{name}_cpld"{sw}{pll_vco}
                         }}
@@ -279,7 +281,7 @@ class PeripheralManager:
                     uchn=i,
                     sw=",\n        \"sw_device\": \"ttl_{name}_sw{uchn}\"".format(name=urukul_name, uchn=i) if len(peripheral["ports"]) > 1 else "",
                     pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                    pll_n=peripheral.get("pll_n", 8))
+                    pll_n=peripheral.get("pll_n", 8), pll_en=peripheral.get("pll_en", 1))
             else:
                 raise ValueError
         return next(channel)
@@ -463,6 +465,7 @@ class PeripheralManager:
                     "class": "AD9910",
                     "arguments": {{
                         "pll_n": {pll_n},
+                        "pll_en": {pll_en},
                         "chip_select": 3,
                         "cpld_device": "{urukul_name}_cpld"{pll_vco}
                     }}
@@ -472,7 +475,7 @@ class PeripheralManager:
                 refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
-                pll_n=peripheral["pll_n"])
+                pll_n=peripheral["pll_n"],  pll_en=peripheral.get("pll_en", 1))
         return next(channel)
 
     def process_zotino(self, rtio_offset, peripheral):

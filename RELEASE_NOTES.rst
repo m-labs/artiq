@@ -9,13 +9,13 @@ ARTIQ-8 (Unreleased)
 Highlights:
 
 * Hardware support:
-  - Implemented Phaser-servo. This requires recent gateware on Phaser.
-  - Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
-    variant.
-  - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
-    For earlier hardware versions, specify the hardware version in the device
-    database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
-  - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+   - Implemented Phaser-servo. This requires recent gateware on Phaser.
+   - Implemented Phaser-MIQRO support. This requires the Phaser MIQRO gateware
+     variant.
+   - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
+     For earlier hardware versions, specify the hardware version in the device
+     database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
+   - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
 * CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
   reduce RTIO latency.

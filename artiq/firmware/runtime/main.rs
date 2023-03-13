@@ -25,6 +25,7 @@ extern crate logger_artiq;
 extern crate proto_artiq;
 extern crate riscv;
 
+use alloc::collections::BTreeMap;
 use core::cell::RefCell;
 use core::convert::TryFrom;
 use smoltcp::wire::HardwareAddress;
@@ -42,6 +43,7 @@ use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_pro
 use proto_artiq::analyzer_proto;
 
 use riscv::register::{mcause, mepc, mtval};
+use smoltcp::iface::Routes;
 use ip_addr_storage::InterfaceBuilderEx;
 
 mod rtio_clocking;
@@ -151,11 +153,22 @@ fn startup() {
     } else {
         false
     };
-    let interface = smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
+    let mut interface = smoltcp::iface::InterfaceBuilder::new(net_device, vec![])
         .hardware_addr(HardwareAddress::Ethernet(net_addresses.hardware_addr))
         .init_ip_addrs(&net_addresses)
         .neighbor_cache(neighbor_cache)
+        .routes(Routes::new(BTreeMap::new()))
         .finalize();
+
+    if !use_dhcp {
+        if let Some(ipv4_default_route) = net_addresses.ipv4_default_route {
+            interface.routes_mut().add_default_ipv4_route(ipv4_default_route).unwrap();
+        }
+    }
+
+    if let Some(ipv6_default_route) = net_addresses.ipv6_default_route {
+        interface.routes_mut().add_default_ipv6_route(ipv6_default_route).unwrap();
+    }
 
     #[cfg(has_drtio)]
     let drtio_routing_table = urc::Urc::new(RefCell::new(

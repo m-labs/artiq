@@ -24,14 +24,11 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
 ::
 
   {
-    inputs.artiq.url = "git+https://github.com/m-labs/artiq.git";
     inputs.extrapkg.url = "git+https://git.m-labs.hk/M-Labs/artiq-extrapkg.git";
-    inputs.extrapkg.inputs.artiq.follows = "artiq";
-    outputs = { self, artiq, extrapkg }:
+    outputs = { self, extrapkg }:
       let
-        pkgs = artiq.inputs.nixpkgs.legacyPackages.x86_64-linux;
-        aqmain = artiq.packages.x86_64-linux;
-        aqextra = extrapkg.packages.x86_64-linux;
+        pkgs = extrapkg.pkgs;
+        artiq = extrapkg.packages.x86_64-linux;
       in {
         defaultPackage.x86_64-linux = pkgs.buildEnv {
           name = "artiq-env";
@@ -41,9 +38,11 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
             # ========================================
             (pkgs.python3.withPackages(ps: [
               # List desired Python packages here.
-              aqmain.artiq
+              artiq.artiq
               #ps.paramiko  # needed if and only if flashing boards remotely (artiq_flash -H)
-              #aqextra.flake8-artiq
+              #artiq.flake8-artiq
+              #artiq.dax
+              #artiq.dax-applets
 
               # The NixOS package collection contains many other packages that you may find
               # interesting. Here are some examples:
@@ -52,17 +51,18 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
               #ps.scipy
               #ps.numba
               #ps.matplotlib
+              #ps.jsonschema # required by artiq_ddb_template
               # or if you need Qt (will recompile):
               #(ps.matplotlib.override { enableQt = true; })
               #ps.bokeh
               #ps.cirq
               #ps.qiskit
             ]))
-            #aqextra.korad_ka3005p
-            #aqextra.novatech409b
+            #artiq.korad_ka3005p
+            #artiq.novatech409b
             # List desired non-Python packages here
-            #aqmain.openocd-bscanspi  # needed if and only if flashing boards
-            # Other potentially interesting packages from the NixOS package collection:
+            #artiq.openocd-bscanspi  # needed if and only if flashing boards
+            # Other potentially interesting non-Python packages from the NixOS package collection:
             #pkgs.gtkwave
             #pkgs.spyder
             #pkgs.R
@@ -231,20 +231,26 @@ If you purchased a Kasli device from M-Labs, it usually comes with the IP addres
 
 and then reboot the device (with ``artiq_flash start`` or a power cycle).
 
-If the ip config field is not set, or set to "use_dhcp" then the device will attempt to obtain an IP address using
-DHCP. If a static IP address is wanted, install OpenOCD as before, and flash the IP (and, if necessary, MAC) addresses
-directly: ::
+If the ``ip`` config field is not set, or set to ``use_dhcp`` then the device will
+attempt to obtain an IP address and default gateway using DHCP. If a static IP
+address is wanted, install OpenOCD as before, and flash the IP, default gateway
+(and, if necessary, MAC and IPv6) addresses directly: ::
 
-  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx/xx -s ipv4_default_route xx.xx.xx.xx -s ip6 xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx/xx -s ipv6_default_route xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx
   $ artiq_flash -t [board] -V [variant] -f flash_storage.img storage start
 
 For Kasli devices, flashing a MAC address is not necessary as they can obtain it from their EEPROM.
+If you only want to access the core device from the same subnet you may
+omit the default gateway and IPv4 prefix length: ::
+
+  $ artiq_mkfs flash_storage.img -s mac xx:xx:xx:xx:xx:xx -s ip xx.xx.xx.xx
 
 If DHCP has been used the address can be found in the console output, which can be viewed using: ::
 
   $ python -m misoc.tools.flterm /dev/ttyUSB2
 
-Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware.
+
+Check that you can ping the device. If ping fails, check that the Ethernet link LED is ON - on Kasli, it is the LED next to the SFP0 connector. As a next step, look at the messages emitted on the UART during boot. Use a program such as flterm or PuTTY to connect to the device's serial port at 115200bps 8-N-1 and reboot the device. On Kasli, the serial port is on FTDI channel 2 with v1.1 hardware (with channel 0 being JTAG) and on FTDI channel 1 with v1.0 hardware. Note that on Windows you might need to install the `FTDI drivers <https://ftdichip.com/drivers/>`_ first.
 
 If you want to use IPv6, the device also has a link-local address that corresponds to its EUI-64, and an additional arbitrary IPv6 address can be defined by using the ``ip6`` configuration key. All IPv4 and IPv6 addresses can be used at the same time.
 

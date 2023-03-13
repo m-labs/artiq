@@ -567,8 +567,10 @@ class SatelliteBase(BaseSoC):
 
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+        self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
+        self.csr_devices.append("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri],
             [self.local_io.cri] + self.drtio_cri,
             enable_routing=True)
         self.csr_devices.append("cri_con")
