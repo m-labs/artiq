@@ -400,14 +400,13 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
 extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
     assert!(ptr % 64 == 0);
 
-    send(&DmaStartRemoteRequest { id: dma_id, timestamp: timestamp });
-
     unsafe {
         csr::rtio_dma::base_address_write(ptr as u64);
         csr::rtio_dma::time_offset_write(timestamp as u64);
 
         csr::cri_con::selected_write(1);
         csr::rtio_dma::enable_write(1);
+        send(&DmaStartRemoteRequest { id: dma_id, timestamp: timestamp });
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
 
