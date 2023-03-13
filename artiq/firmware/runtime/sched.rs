@@ -8,8 +8,8 @@ use fringe::OwnedStack;
 use fringe::generator::{Generator, Yielder, State as GeneratorState};
 use smoltcp::time::Duration;
 use smoltcp::Error as NetworkError;
-use smoltcp::wire::{IpEndpoint, Ipv4Cidr};
-use smoltcp::iface::{Interface, SocketHandle};
+use smoltcp::wire::{IpEndpoint, Ipv4Address, Ipv4Cidr};
+use smoltcp::iface::{Interface, Route, SocketHandle};
 
 use io::{Read, Write};
 use board_misoc::clock;
@@ -277,6 +277,14 @@ impl<'a> Io<'a> {
 
     pub fn set_ipv4_address(&self, addr: &Ipv4Cidr) {
         self.network.borrow_mut().update_ipv4_addr(addr)
+    }
+
+    pub fn set_ipv4_default_route(&self, addr: Ipv4Address) -> Result<Option<Route>, Error> {
+        Ok(self.network.borrow_mut().routes_mut().add_default_ipv4_route(addr)?)
+    }
+
+    pub fn remove_ipv4_default_route(&self) -> Option<Route> {
+        self.network.borrow_mut().routes_mut().remove_default_ipv4_route()
     }
 }
 
