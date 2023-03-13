@@ -163,7 +163,7 @@ mod imp {
             while let Some(result) = iter.next() {
                 let (record_key, record_value) = result?;
                 if key.as_bytes() == record_key {
-                    found = true;
+                    found = !record_value.is_empty();
                     // last write wins
                     value = record_value
                 }
