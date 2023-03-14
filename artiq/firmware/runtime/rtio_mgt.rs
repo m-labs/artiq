@@ -8,6 +8,7 @@ use board_misoc::clock;
 use board_artiq::drtio_routing;
 use sched::Io;
 use sched::Mutex;
+use rtio_dma::RemoteManager;
 use io::{Cursor, ProtoRead};
 const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
 const ASYNC_ERROR_BUSY: u8 = 1 << 1;
@@ -328,6 +329,40 @@ pub mod drtio {
             }
         }
     }
+
+    fn dma_update_up(io: &Io, aux_mutex: &Mutex, 
+        routing_table: &drtio_routing::RoutingTable, 
+        remote_mgr: &RemoteManager, 
+        destination: u8, up: bool) {
+        //update status after link is lost or restored
+        //also re-send the trace if needed
+    }
+
+
+    fn dma_handle_unsolicited(remote_mgr: &RemoteManager, packet: drtioaux::Packet) {
+        //todo: update state
+    }
+
+    pub fn dma_send_traces(io: &Io, aux_mutex: &Mutex, 
+        routing_table: &drtio_routing::RoutingTable, 
+        remote_mgr: &RemoteManager,
+        id: u32) {
+        //todo: get traces, break them apart, send, deal with unsolicited aux
+    }
+
+    pub fn dma_erase(io: &Io, aux_mutex: &Mutex, 
+        routing_table: &drtio_routing::RoutingTable, 
+        remote_mgr: &RemoteManager,
+        id: u32) {
+        //todo: dispatch erase message
+    }
+
+    pub fn dma_playback(io: &Io, aux_mutex: &Mutex, 
+        routing_table: &drtio_routing::RoutingTable, 
+        remote_mgr: &RemoteManager,
+        id: u32, timestamp: u64) {
+        //todo: grab every trace associated with id from map
+    }
 }
 
 #[cfg(not(has_drtio))]
@@ -338,6 +373,7 @@ pub mod drtio {
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
+
 }
 
 static mut SEEN_ASYNC_ERRORS: u8 = 0;

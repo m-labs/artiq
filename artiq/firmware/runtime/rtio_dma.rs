@@ -1,14 +1,107 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
-
+use sched::{Mutex, Io}
 const ALIGNMENT: usize = 64;
+
+
+#[derive(Debug)]
+pub enum RemoteState {
+    NotLoaded,
+    Loaded,
+    Running,
+    PlaybackEnded { error: u32, channel: u32, timestamp: u64 }
+}
+
+#[derive(Debug)]
+struct RemoteTrace {
+    trace: Vec<u8>,
+    state: RemoteState
+}
+
+impl From<Vec<u8>> for RemoteTrace {
+    fn from(trace: Vec<u8>) -> Self {
+        DmaRemoteTrace {
+            trace: trace,
+            state: NotLoaded
+        }
+    }
+}
+
+impl RemoteTrace {
+    pub fn get_trace(&self) -> &Vec<u8> {
+        &self.trace
+    }
+
+    pub fn update_state(&mut self, new_state: RemoteState) {
+        self.state = new_state;
+    }
+
+    pub fn get_state(&self) -> &RemoteState {
+        &self.state
+    }
+}
+
+
+#[derive(Debug)]
+struct RemoteManager {
+    mutex: Mutex;
+    traces: BTreeMap<u32, BTreeMap<u8, RemoteTrace>>;
+}
+
+impl RemoteManager {
+    pub fn new() -> RemoteManager {
+        mutex: Muxex::new(), // probably unnecessary
+        traces: BTreeMap::new()
+    }
+
+    pub fn add_traces(&mut self, id: u32, traces: BTreeMap<u8, Vec<u8>>) {
+        let trace_map: BTreeMap<u8, RemoteTrace> = BTreeMap::new();
+        for (destination, trace) in remote_traces {
+            trace_map.insert(destination, trace.into());
+        }
+        self.traces.insert(id, trace_map);
+    }
+
+    pub fn get_traces(&mut self, id: u32) -> Option<BTreeMap<u8, RemoteTrace>> {
+        self.traces.get(&id)?
+    }
+
+    pub fn change_state(&mut self, id: u32, destination: u8, new_state: RemoteState) {
+        // for updating when handled by DRTIO
+        if let Some(traces) = self.traces.get_mut(&id) {
+            if let Some(remote_trace) = traces.get_mut(&destination) {
+                remote_trace.change_state(new_state);
+            }
+        }
+    }
+
+    pub fn get_state(&mut self, id: u32, destination: u8) -> Option<&RemoteState> {
+        Some(self.traces.get(&id)?.get(&destination)?.state)
+    }
+
+    pub fn await_done(&mut self, io: &Io, id: u32) -> RemoteState {
+        // for waiting until all remote DMAs are finished
+        // TODO
+    }
+
+    pub fn erase(&mut self, id: u32) {
+        // erase the data - make sure you order satellites to remove first
+        self.traces.remove(id);
+    }
+
+    pub fn get_destinations(&mut self, id: u32) -> Option<Vec<u8>> {
+        // get a vector of destinations that need to be erased or triggered
+        Some(self.traces.get(&id)?.keys().cloned().collect())
+    }
+}
+
 
 #[derive(Debug)]
 struct Entry {
     local_trace: Vec<u8>,
     local_padding_len: usize,
     duration: u64,
-    remote_traces: BTreeMap<u8, Vec<u8>>
+    remote_traces: BTreeMap<u8, Vec<u8>> // todo move it out of here, add to remote manager (and as argument for record_stop)
 }
 
 #[derive(Debug)]
@@ -97,6 +190,10 @@ impl Manager {
         });
         self.name_map.insert(self.recording_name, id);
         id
+    }
+
+    pub fn get_remotes(&mut self, id: u32) -> Option<BTreeMap<u8, Vec<u8>>>{
+        self.entries.get_mut(&id)
     }
 
     pub fn erase(&mut self, name: &str) {
