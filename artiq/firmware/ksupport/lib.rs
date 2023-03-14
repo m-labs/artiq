@@ -379,12 +379,11 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });
-    recv!(&DmaRetrieveReply { trace, duration, id } => {
+    recv!(&DmaRetrieveReply { trace, duration } => {
         match trace {
             Some(bytes) => Ok(DmaTrace {
                 address:  bytes.as_ptr() as i32,
-                duration: duration as i64,
-                id: id as i32
+                duration: duration as i64
             }),
             None => Err(())
         }
@@ -397,7 +396,7 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
 
 #[cfg(has_rtio_dma)]
 #[unwind(allowed)]
-extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
+extern fn dma_playback(timestamp: i64, ptr: i32) {
     assert!(ptr % 64 == 0);
 
     unsafe {
@@ -406,7 +405,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
 
         csr::cri_con::selected_write(1);
         csr::rtio_dma::enable_write(1);
-        send(&DmaStartRemoteRequest { id: dma_id, timestamp: timestamp });
+        send(&DmaStartRemoteRequest { id: ptr as u32, timestamp: timestamp });
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
 
@@ -428,9 +427,9 @@ extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
         }
     }
 
-    send(&DmaAwaitRemoteRequest { id: dma_id });
+    send(&DmaAwaitRemoteRequest { id: ptr as u32 });
     recv!(&DmaAwaitRemoteReply { id, error, channel, timestamp } => {
-        if id != dma_id {
+        if id != ptr as u32 {
             println!("DMA Await reply ID mismatch");
             raise!("DMAError", "DMA trace ID mismatch");
         }
@@ -449,7 +448,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32, dma_id: i32) {
 
 #[cfg(not(has_rtio_dma))]
 #[unwind(allowed)]
-extern fn dma_playback(_timestamp: i64, _ptr: i32, _id: i32) {
+extern fn dma_playback(_timestamp: i64, _ptr: i32) {
     unimplemented!("not(has_rtio_dma)")
 }
 

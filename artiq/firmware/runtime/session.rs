@@ -388,8 +388,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.congress.dma_manager.with_trace(name, |trace, duration| {
                     kern_send(io, &kern::DmaRetrieveReply {
                         trace:    trace,
-                        duration: duration,
-                        id: id
+                        duration: duration
                     })
                 })
             }
