@@ -42,32 +42,36 @@ impl Manager {
         self.recording_trace.extend_from_slice(data)
     }
 
-    pub fn record_stop(&mut self, duration: u64) -> u32 {
-        let mut trace = Vec::new();
-        mem::swap(&mut self.recording_trace, &mut trace);
-        trace.push(0);
-
-        let local_trace = Vec::new();
+    pub fn record_stop(&mut self, duration: u64, disable_ddma: bool) -> u32 {
+        let mut local_trace = Vec::new();
         let remote_traces: BTreeMap<u8, SatTraceState> = BTreeMap::new();
 
-        // analyze each entry and put in proper buckets
-        let mut ptr = 0;
-        while trace[ptr] != 0 {
-            // ptr + 3 = tgt >> 24 (destination)
-            let len = trace[ptr];
-            let destination = trace[ptr+3];
-            if destination == 0 {
-                local_trace.extend(trace[ptr..ptr+len]);
-            }
-            else {
-                if let Some(remote_trace) = remote_traces.get_mut(&destination) {
-                    remote_trace.extend(trace[ptr..ptr+len]);
-                } else {
-                    remote_traces.insert(trace[ptr..ptr+len].to_vec());
+        if !disable_ddma {
+            let mut trace = Vec::new();
+            mem::swap(&mut self.recording_trace, &mut trace);
+            trace.push(0);
+            // analyze each entry and put in proper buckets
+            let mut ptr = 0;
+            while trace[ptr] != 0 {
+                // ptr + 3 = tgt >> 24 (destination)
+                let len = trace[ptr];
+                let destination = trace[ptr+3];
+                if destination == 0 {
+                    local_trace.extend(trace[ptr..ptr+len]);
                 }
+                else {
+                    if let Some(remote_trace) = remote_traces.get_mut(&destination) {
+                        remote_trace.extend(trace[ptr..ptr+len]);
+                    } else {
+                        remote_traces.insert(trace[ptr..ptr+len].to_vec());
+                    }
+                }
+                // and jump to the next event
+                ptr += len;
             }
-            // and jump to the next event
-            ptr += len;
+        } else {
+            // with disabled DDMA, move the whole trace to local
+            mem::swap(&mut self.recording_trace, &mut local_trace);
         }
 
         local_trace.push(0);

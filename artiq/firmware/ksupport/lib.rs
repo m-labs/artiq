@@ -269,7 +269,7 @@ extern fn dma_record_start(name: &CSlice<u8>) {
 }
 
 #[unwind(allowed)]
-extern fn dma_record_stop(duration: i64) {
+extern fn dma_record_stop(duration: i64, disable_ddma: bool) {
     unsafe {
         dma_record_flush();
 
@@ -285,7 +285,8 @@ extern fn dma_record_stop(duration: i64) {
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
-            duration: duration as u64
+            duration: duration as u64,
+            disable_ddma: disable_ddma
         });
     }
 }

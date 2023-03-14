@@ -20,7 +20,8 @@ pub enum Message<'a> {
     DmaRecordStart(&'a str),
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
-        duration:  u64
+        duration:  u64,
+        disable_ddma: bool
     },
 
     DmaEraseRequest {

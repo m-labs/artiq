@@ -375,8 +375,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.congress.dma_manager.record_append(data);
                 kern_acknowledge()
             }
-            &kern::DmaRecordStop { duration } => {
-                session.congress.dma_manager.record_stop(duration);
+            &kern::DmaRecordStop { duration, disable_ddma } => {
+                session.congress.dma_manager.record_stop(duration, disable_ddma);
                 cache::flush_l2_cache();
                 kern_acknowledge()
             }
