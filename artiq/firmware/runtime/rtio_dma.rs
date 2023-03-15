@@ -4,7 +4,7 @@ use sched::{Mutex, Io}
 const ALIGNMENT: usize = 64;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RemoteState {
     NotLoaded,
     Loaded,
@@ -62,8 +62,19 @@ impl RemoteManager {
         self.traces.insert(id, trace_map);
     }
 
-    pub fn get_traces(&mut self, id: u32) -> Option<BTreeMap<u8, RemoteTrace>> {
+    pub fn get_traces(&mut self, id: u32) -> Option<&BTreeMap<u8, RemoteTrace>> {
         self.traces.get(&id)?
+    }
+
+    pub fn get_traces_for_destination(&mut self, destination: u8) -> Vec<&RemoteTrace> {
+        // get all traces for given destination
+        let mut dest_traces: Vec<&RemoteTrace> = Vec::new();
+        for traces in self.traces.into_values() {
+            if let Some(dest_trace) = traces.get_mut(&destination) {
+                dest_traces.push(dest_trace)
+            }
+        }
+        dest_traces
     }
 
     pub fn change_state(&mut self, id: u32, destination: u8, new_state: RemoteState) {
@@ -79,7 +90,7 @@ impl RemoteManager {
         Some(self.traces.get(&id)?.get(&destination)?.state)
     }
 
-    pub fn await_done(&mut self, io: &Io, id: u32) -> RemoteState {
+    pub fn await_done(&mut self, io: &Io, id: u32) -> &RemoteState {
         // for waiting until all remote DMAs are finished
         // TODO
     }

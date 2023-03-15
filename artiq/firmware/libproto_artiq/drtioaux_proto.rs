@@ -15,7 +15,7 @@ impl<T> From<IoError<T>> for Error<T> {
 }
 
 /* 512 (max size) - 4 (CRC) - 1 (packet ID) - 1 (destination) - 4 (trace ID) - 1 (last) - 2 (length) */
-const DMA_TRACE_MAX_SIZE: usize = 499;
+pub const DMA_TRACE_MAX_SIZE: usize = 499;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
