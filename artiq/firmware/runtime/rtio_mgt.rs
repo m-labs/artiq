@@ -411,7 +411,7 @@ pub mod drtio {
                 let reply = aux_transact(io, aux_mutex, linkno, 
                     &drtioaux::Packet::DmaEraseRequest { id: id, destination: destination });
                 match reply {
-                    Ok(drtioaux::Packet::DmaEraseReply { succeeded: succeeded }) => { 
+                    Ok(drtioaux::Packet::DmaEraseReply { succeeded: succeeded }) => {
                         if !succeeded { 
                             error!("error erasing DMA trace on satellite for destination {}", destination); 
                         }
@@ -470,6 +470,17 @@ pub mod drtio {
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
+    pub fn dma_send_traces(_io: &Io, _aux_mutex: &Mutex, 
+        _routing_table: &drtio_routing::RoutingTable, 
+        _remote_mgr: &RemoteManager, _id: u32) {}
+    pub fn dma_erase(_io: &Io, _aux_mutex: &Mutex, 
+        _routing_table: &drtio_routing::RoutingTable, 
+        _remote_mgr: &RemoteManager,
+        _id: u32) {}
+    pub fn dma_playback(_io: &Io, _aux_mutex: &Mutex, 
+        _routing_table: &drtio_routing::RoutingTable, 
+        _remote_mgr: &RemoteManager,
+        _id: u32, _timestamp: u64) {}
 
 }
 
@@ -557,4 +568,25 @@ pub fn reset(io: &Io, aux_mutex: &Mutex) {
         csr::rtio_core::reset_write(1);
     }
     drtio::reset(io, aux_mutex)
+}
+
+
+pub fn dma_send_traces(io: &Io, aux_mutex: &Mutex, 
+    routing_table: &drtio_routing::RoutingTable, 
+    remote_mgr: &RemoteManager, id: u32) {
+    drtio::dma_send_traces(io, aux_mutex, routing_table, remote_mgr, id);
+}
+
+pub fn dma_erase(io: &Io, aux_mutex: &Mutex, 
+    routing_table: &drtio_routing::RoutingTable, 
+    remote_mgr: &RemoteManager,
+    id: u32) {
+    drtio::dma_erase(io, aux_mutex, routing_table, remote_mgr, id);
+}
+
+pub fn dma_playback(io: &Io, aux_mutex: &Mutex, 
+    routing_table: &drtio_routing::RoutingTable, 
+    remote_mgr: &RemoteManager,
+    id: u32, timestamp: u64) {
+    drtio::dma_playback(io, aux_mutex, routing_table, remote_mgr, id, timestamp);
 }
