@@ -42,13 +42,13 @@ pub enum Message<'a> {
     },
     DmaAwaitRemoteRequest {
         id: i32
-    }
+    },
     DmaAwaitRemoteReply {
         id: i32,
         error: i32,
         channel: i32,
         timestamp: i32
-    }
+    },
 
 
     RunFinished,

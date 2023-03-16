@@ -169,6 +169,9 @@ fn startup() {
     drtio_routing::interconnect_disable_all();
     let aux_mutex = sched::Mutex::new();
 
+    let dma_remote_mgr = urc::Urc::new(RefCell::new(
+        rtio_dma::RemoteManager::new()));
+
     let mut scheduler = sched::Scheduler::new(interface);
     let io = scheduler.io();
 
@@ -176,14 +179,15 @@ fn startup() {
         io.spawn(4096, dhcp::dhcp_thread);
     }
 
-    rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations);
+    rtio_mgt::startup(&io, &aux_mutex, &drtio_routing_table, &up_destinations, &dma_remote_mgr);
 
     io.spawn(4096, mgmt::thread);
     {
         let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
-        io.spawn(16384, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations) });
+        let dma_remote_mgr = dma_remote_mgr.clone();
+        io.spawn(16384, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &dma_remote_mgr) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {

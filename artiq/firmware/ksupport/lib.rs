@@ -371,8 +371,7 @@ extern fn dma_erase(name: &CSlice<u8>) {
 #[repr(C)]
 struct DmaTrace {
     duration: i64,
-    address:  i32,
-    id: i32,
+    address:  i32
 }
 
 #[unwind(allowed)]
@@ -406,7 +405,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
 
         csr::cri_con::selected_write(1);
         csr::rtio_dma::enable_write(1);
-        send(&DmaStartRemoteRequest { id: ptr as u32, timestamp: timestamp });
+        send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
 
@@ -428,9 +427,9 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
         }
     }
 
-    send(&DmaAwaitRemoteRequest { id: ptr as u32 });
+    send(&DmaAwaitRemoteRequest { id: ptr as i32 });
     recv!(&DmaAwaitRemoteReply { id, error, channel, timestamp } => {
-        if id != ptr as u32 {
+        if id != ptr as i32 {
             println!("DMA Await reply ID mismatch");
             raise!("DMAError", "DMA trace ID mismatch");
         }
@@ -444,7 +443,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
                 "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
                 channel as i64, timestamp as i64, 0);
         }
-    };
+    });
 }
 
 #[cfg(not(has_rtio_dma))]
