@@ -1,6 +1,7 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
 use sched::{Mutex, Io}
+use board_misoc::clock;
 const ALIGNMENT: usize = 64;
 
 
@@ -44,13 +45,11 @@ impl RemoteTrace {
 
 #[derive(Debug)]
 struct RemoteManager {
-    mutex: Mutex;
     traces: BTreeMap<u32, BTreeMap<u8, RemoteTrace>>;
 }
 
 impl RemoteManager {
     pub fn new() -> RemoteManager {
-        mutex: Muxex::new(), // probably unnecessary
         traces: BTreeMap::new()
     }
 
@@ -90,9 +89,34 @@ impl RemoteManager {
         Some(self.traces.get(&id)?.get(&destination)?.state)
     }
 
-    pub fn await_done(&mut self, io: &Io, id: u32) -> &RemoteState {
-        // for waiting until all remote DMAs are finished
-        // TODO
+    pub fn await_done(&mut self, io: &Io, id: u32, timeout: u64) -> Result<RemoteState; &'static str> {
+        let max_time = clock::get_ms() + timeout as u64;
+        io.until(|| {
+            while clock::get_ms() < max_time {
+                for _dest, trace in self.traces.get(&id) {
+                    match trace.get_state() {
+                        RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
+                        _ => return false
+                    }
+                }
+            }
+            true
+        }).unwrap();
+        if clock::get_ms() > max_time {
+            return Err("Timed out waiting for results.");
+        }
+        // clear the internal state, if there have been any errors, return one of them
+        let mut playback_state: RemoteState = PlaybackEnded { error: 0, channel: 0, timestamp: 0 }
+        for _dest, trace in self.traces.get(&id) {
+            let state = trace.get_state();
+            match state {
+                RemoteState::PlaybackEnded {error: e, channel: _c, timestamp: _ts} => if e != 0 { playback_state = state; },
+                _ => (),
+            }
+            trace.change_state(RemoteState::Loaded);
+        }
+        return Ok(playback_state);
+
     }
 
     pub fn erase(&mut self, id: u32) {
@@ -108,16 +132,15 @@ impl RemoteManager {
 
 
 #[derive(Debug)]
-struct Entry {
-    local_trace: Vec<u8>,
-    local_padding_len: usize,
-    duration: u64,
-    remote_traces: BTreeMap<u8, Vec<u8>> // todo move it out of here, add to remote manager (and as argument for record_stop)
+struct LocalEntry {
+    trace: Vec<u8>,
+    padding_len: usize,
+    duration: u64
 }
 
 #[derive(Debug)]
 pub struct Manager {
-    entries: BTreeMap<u32, Entry>,
+    entries: BTreeMap<u32, LocalEntry>,
     name_map: BTreeMap<String, u32>,
     recording_name: String,
     recording_trace: Vec<u8>
@@ -146,9 +169,9 @@ impl Manager {
         self.recording_trace.extend_from_slice(data)
     }
 
-    pub fn record_stop(&mut self, duration: u64, disable_ddma: bool) -> u32 {
+    pub fn record_stop(&mut self, duration: u64, disable_ddma: bool) -> (u32, BTreeMap<u8, Vec<u8>>) {
         let mut local_trace = Vec::new();
-        let remote_traces: BTreeMap<u8, SatTraceState> = BTreeMap::new();
+        let remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
         if !disable_ddma {
             let mut trace = Vec::new();
@@ -193,18 +216,13 @@ impl Manager {
         }
         // trace ID is its pointer
         let id = local_trace[padding..].as_ptr() as u32;
-        self.entries.insert(id, Entry {
-            local_trace: local_trace,
-            local_padding_len: padding,
+        self.entries.insert(id, LocalEntry {
+            trace: local_trace,
+            padding_len: padding,
             duration: duration,
-            remote_traces: remote_traces
         });
         self.name_map.insert(self.recording_name, id);
-        id
-    }
-
-    pub fn get_remotes(&mut self, id: u32) -> Option<BTreeMap<u8, Vec<u8>>>{
-        self.entries.get_mut(&id)
+        (id, remote_traces)
     }
 
     pub fn erase(&mut self, name: &str) {
@@ -214,11 +232,15 @@ impl Manager {
         self.name_map.remove(name);
     }
 
+    pub fn get_id(&mut self, name: &str) -> Option<u32> {
+        self.name_map.get(name)
+    }
+
     pub fn with_trace<F, R>(&self, name: &str, f: F) -> R
             where F: FnOnce(Option<&[u8]>, u64) -> R {
         if let Some(ptr) = self.name_map.get(name) {
             match self.entries.get(ptr) {
-                Some(entry) => f(Some(&entry.local_trace[entry.local_padding_len..]), entry.duration),
+                Some(entry) => f(Some(&entry.trace[entry.padding_len..]), entry.duration),
                 None => f(None, 0)
             }
         } else {
