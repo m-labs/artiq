@@ -329,7 +329,7 @@ fn process_host_message(io: &Io,
 fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                        dma_remote_mgr: &DmaRemoteManager,
+                        dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
                         mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
@@ -378,17 +378,17 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaRecordStop { duration, disable_ddma } => {
                 let (id, remote_traces) = session.congress.dma_manager.record_stop(duration, disable_ddma);
-                dma_remote_mgr.add_traces(id, remote_traces);
-                dma_send_traces(io, aux_mutex, dma_remote_mgr, id);
+                dma_remote_mgr.borrow_mut().add_traces(id, remote_traces);
+                dma_send_traces(io, aux_mutex, routing_table, dma_remote_mgr, id);
                 cache::flush_l2_cache();
                 kern_acknowledge()
             }
             &kern::DmaEraseRequest { name } => {
-                session.congress.dma_manager.erase(name);
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    dma_erase(io, aux_mutex, routing_table, dma_remote_mgr: id);
-                    dma_remote_mgr.erase(id);
+                    dma_erase(io, aux_mutex, routing_table, dma_remote_mgr, *id);
+                    dma_remote_mgr.borrow_mut().erase(id);
                 }
+                session.congress.dma_manager.erase(name);
                 kern_acknowledge()
             }
             &kern::DmaRetrieveRequest { name } => {
@@ -399,15 +399,18 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     })
                 })
             }
+            &kern::DmaStartRemoteRequest { id, timestamp } => {
+                dma_playback(io, aux_mutex, routing_table, dma_remote_mgr, id as u32, timestamp as u64);
+                kern_acknowledge()
+            }
             &kern::DmaAwaitRemoteRequest { id } => {
-                drtio::dma_playback(io, aux_mutex, routing_table, dma_remote_mgr, id);
-                let reply = match dma_remote_mgr.await_done(io, id, 10_000) {
+                let reply = match dma_remote_mgr.borrow_mut().await_done(io, id as u32, 10_000) {
                     Ok(DmaRemoteState::PlaybackEnded { error: e, channel: ch, timestamp: ts }) => {
                         kern::DmaAwaitRemoteReply {
                             id: id,
-                            error: e,
-                            channel: ch,
-                            timestamp: ts
+                            error: e as i32,
+                            channel: ch as i32,
+                            timestamp: ts as i32
                         }
                     },
                     Err(_) => { kern::DmaAwaitRemoteReply { id: id, error: 0x80, channel: 0, timestamp: 0}}
@@ -533,7 +536,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
 fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       routing_table: &drtio_routing::RoutingTable,
                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                      dma_remote_mgr: &DmaRemoteManager,
+                      dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
                       stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
@@ -570,7 +573,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
 fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
                        routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                       dma_remote_mgr: &DmaRemoteManager,
+                       dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
                        congress: &mut Congress,
                        config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
@@ -593,7 +596,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, aux_mutex, routing_table, up_destinations, None, &mut session)? {
+            if process_kern_message(io, aux_mutex, routing_table, up_destinations, dma_remote_mgr, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -635,7 +638,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
     {
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
-        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, &dma_remote_mgr, &mut congress, "startup_kernel") {
+        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, dma_remote_mgr, &mut congress, "startup_kernel") {
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>
@@ -675,6 +678,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
+            let dma_remote_mgr = dma_remote_mgr.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
@@ -703,6 +707,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
+            let dma_remote_mgr = dma_remote_mgr.clone();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();

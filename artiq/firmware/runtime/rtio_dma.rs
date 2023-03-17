@@ -1,16 +1,16 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
-use sched::{Mutex, Io}
+use sched::Io;
 use board_misoc::clock;
 const ALIGNMENT: usize = 64;
 
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum RemoteState {
     NotLoaded,
     Loaded,
     Running,
-    PlaybackEnded { error: u32, channel: u32, timestamp: u64 }
+    PlaybackEnded { error: u8, channel: u32, timestamp: u64 }
 }
 
 #[derive(Debug)]
@@ -21,9 +21,9 @@ struct RemoteTrace {
 
 impl From<Vec<u8>> for RemoteTrace {
     fn from(trace: Vec<u8>) -> Self {
-        DmaRemoteTrace {
+        RemoteTrace {
             trace: trace,
-            state: NotLoaded
+            state: RemoteState::NotLoaded
         }
     }
 }
@@ -44,33 +44,35 @@ impl RemoteTrace {
 
 
 #[derive(Debug)]
-struct RemoteManager {
-    traces: BTreeMap<u32, BTreeMap<u8, RemoteTrace>>;
+pub struct RemoteManager {
+    traces: BTreeMap<u32, BTreeMap<u8, RemoteTrace>>
 }
 
 impl RemoteManager {
     pub fn new() -> RemoteManager {
-        traces: BTreeMap::new()
+        RemoteManager {
+            traces: BTreeMap::new()
+        }
     }
 
     pub fn add_traces(&mut self, id: u32, traces: BTreeMap<u8, Vec<u8>>) {
-        let trace_map: BTreeMap<u8, RemoteTrace> = BTreeMap::new();
-        for (destination, trace) in remote_traces {
+        let mut trace_map: BTreeMap<u8, RemoteTrace> = BTreeMap::new();
+        for (destination, trace) in traces {
             trace_map.insert(destination, trace.into());
         }
         self.traces.insert(id, trace_map);
     }
 
-    pub fn get_traces(&mut self, id: u32) -> Option<&BTreeMap<u8, RemoteTrace>> {
-        self.traces.get(&id)?
+    pub fn get_traces(&mut self, id: u32) -> Option<&mut BTreeMap<u8, RemoteTrace>> {
+        self.traces.get_mut(&id)
     }
 
-    pub fn get_traces_for_destination(&mut self, destination: u8) -> Vec<&RemoteTrace> {
+    pub fn get_traces_for_destination(&mut self, destination: u8) -> BTreeMap<u32, &RemoteTrace> {
         // get all traces for given destination
-        let mut dest_traces: Vec<&RemoteTrace> = Vec::new();
-        for traces in self.traces.into_values() {
-            if let Some(dest_trace) = traces.get_mut(&destination) {
-                dest_traces.push(dest_trace)
+        let mut dest_traces: BTreeMap<u32, &RemoteTrace> = BTreeMap::new();
+        for (id, traces) in self.traces {
+            if let Some(dest_trace) = traces.get(&destination) {
+                dest_traces.insert(id.clone(), dest_trace);
             }
         }
         dest_traces
@@ -80,23 +82,25 @@ impl RemoteManager {
         // for updating when handled by DRTIO
         if let Some(traces) = self.traces.get_mut(&id) {
             if let Some(remote_trace) = traces.get_mut(&destination) {
-                remote_trace.change_state(new_state);
+                remote_trace.update_state(new_state);
             }
         }
     }
 
     pub fn get_state(&mut self, id: u32, destination: u8) -> Option<&RemoteState> {
-        Some(self.traces.get(&id)?.get(&destination)?.state)
+        Some(&self.traces.get(&id)?.get(&destination)?.state)
     }
 
-    pub fn await_done(&mut self, io: &Io, id: u32, timeout: u64) -> Result<RemoteState; &'static str> {
+    pub fn await_done(&mut self, io: &Io, id: u32, timeout: u64) -> Result<RemoteState, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         io.until(|| {
             while clock::get_ms() < max_time {
-                for _dest, trace in self.traces.get(&id) {
-                    match trace.get_state() {
-                        RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
-                        _ => return false
+                if let Some(traces) = self.traces.get(&id) {
+                    for (_dest, trace) in traces {
+                        match trace.get_state() {
+                            RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
+                            _ => return false
+                        }
                     }
                 }
             }
@@ -106,20 +110,22 @@ impl RemoteManager {
             return Err("Timed out waiting for results.");
         }
         // clear the internal state, if there have been any errors, return one of them
-        let mut playback_state: RemoteState = PlaybackEnded { error: 0, channel: 0, timestamp: 0 }
-        for _dest, trace in self.traces.get(&id) {
-            let state = trace.get_state();
-            match state {
-                RemoteState::PlaybackEnded {error: e, channel: _c, timestamp: _ts} => if e != 0 { playback_state = state; },
-                _ => (),
+        let mut playback_state: RemoteState = RemoteState::PlaybackEnded { error: 0, channel: 0, timestamp: 0 };
+        if let Some(traces) = self.traces.get_mut(&id) {
+            for (_dest, trace) in traces {
+                let state = trace.get_state();
+                match state {
+                    RemoteState::PlaybackEnded {error: e, channel: _c, timestamp: _ts} => if *e != 0 { playback_state = state.clone(); },
+                    _ => (),
+                }
+                trace.update_state(RemoteState::Loaded);
             }
-            trace.change_state(RemoteState::Loaded);
         }
         return Ok(playback_state);
 
     }
 
-    pub fn erase(&mut self, id: u32) {
+    pub fn erase(&mut self, id: &u32) {
         // erase the data - make sure you order satellites to remove first
         self.traces.remove(id);
     }
@@ -152,6 +158,7 @@ impl Manager {
             entries: BTreeMap::new(),
             name_map: BTreeMap::new(),
             recording_trace: Vec::new(),
+            recording_name: String::new()
         }
     }
 
@@ -159,8 +166,8 @@ impl Manager {
         self.recording_name = String::from(name);
         if let Some(id) = self.name_map.get(&self.recording_name) {
             // replacing a trace
-            self.entries.remove(id);
-            self.name_map.remove(self.recording_name);
+            self.entries.remove(&id);
+            self.name_map.remove(&self.recording_name);
         }
         self.recording_trace = Vec::new();
     }
@@ -171,7 +178,7 @@ impl Manager {
 
     pub fn record_stop(&mut self, duration: u64, disable_ddma: bool) -> (u32, BTreeMap<u8, Vec<u8>>) {
         let mut local_trace = Vec::new();
-        let remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
+        let mut remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
         if !disable_ddma {
             let mut trace = Vec::new();
@@ -181,16 +188,16 @@ impl Manager {
             let mut ptr = 0;
             while trace[ptr] != 0 {
                 // ptr + 3 = tgt >> 24 (destination)
-                let len = trace[ptr];
+                let len = trace[ptr] as usize;
                 let destination = trace[ptr+3];
                 if destination == 0 {
-                    local_trace.extend(trace[ptr..ptr+len]);
+                    local_trace.extend(&trace[ptr..ptr+len]);
                 }
                 else {
                     if let Some(remote_trace) = remote_traces.get_mut(&destination) {
-                        remote_trace.extend(trace[ptr..ptr+len]);
+                        remote_trace.extend(&trace[ptr..ptr+len]);
                     } else {
-                        remote_traces.insert(trace[ptr..ptr+len].to_vec());
+                        remote_traces.insert(destination, trace[ptr..ptr+len].to_vec());
                     }
                 }
                 // and jump to the next event
@@ -221,7 +228,9 @@ impl Manager {
             padding_len: padding,
             duration: duration,
         });
-        self.name_map.insert(self.recording_name, id);
+        let mut name = String::new();
+        mem::swap(&mut self.recording_name, &mut name);
+        self.name_map.insert(name, id);
         (id, remote_traces)
     }
 
@@ -232,7 +241,7 @@ impl Manager {
         self.name_map.remove(name);
     }
 
-    pub fn get_id(&mut self, name: &str) -> Option<u32> {
+    pub fn get_id(&mut self, name: &str) -> Option<&u32> {
         self.name_map.get(name)
     }
 
