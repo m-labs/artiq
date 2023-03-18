@@ -21,7 +21,7 @@ pub enum Message<'a> {
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
         duration:  u64,
-        disable_ddma: bool
+        enable_ddma: bool
     },
 
     DmaEraseRequest {
@@ -44,7 +44,6 @@ pub enum Message<'a> {
         id: i32
     },
     DmaAwaitRemoteReply {
-        id: i32,
         error: i32,
         channel: i32,
         timestamp: i32

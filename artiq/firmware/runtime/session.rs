@@ -376,8 +376,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 session.congress.dma_manager.record_append(data);
                 kern_acknowledge()
             }
-            &kern::DmaRecordStop { duration, disable_ddma } => {
-                let (id, remote_traces) = session.congress.dma_manager.record_stop(duration, disable_ddma);
+            &kern::DmaRecordStop { duration, enable_ddma } => {
+                let (id, remote_traces) = session.congress.dma_manager.record_stop(duration, enable_ddma);
                 dma_remote_mgr.borrow_mut().add_traces(id, remote_traces);
                 dma_send_traces(io, aux_mutex, routing_table, dma_remote_mgr, id);
                 cache::flush_l2_cache();

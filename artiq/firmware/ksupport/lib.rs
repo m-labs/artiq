@@ -269,7 +269,7 @@ extern fn dma_record_start(name: &CSlice<u8>) {
 }
 
 #[unwind(allowed)]
-extern fn dma_record_stop(duration: i64, disable_ddma: bool) {
+extern fn dma_record_stop(duration: i64, enable_ddma: bool) {
     unsafe {
         dma_record_flush();
 
@@ -286,7 +286,7 @@ extern fn dma_record_stop(duration: i64, disable_ddma: bool) {
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
             duration: duration as u64,
-            disable_ddma: disable_ddma
+            enable_ddma: enable_ddma
         });
     }
 }
@@ -428,11 +428,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
     }
 
     send(&DmaAwaitRemoteRequest { id: ptr as i32 });
-    recv!(&DmaAwaitRemoteReply { id, error, channel, timestamp } => {
-        if id != ptr as i32 {
-            println!("DMA Await reply ID mismatch");
-            raise!("DMAError", "DMA trace ID mismatch");
-        }
+    recv!(&DmaAwaitRemoteReply { error, channel, timestamp } => {
         if error & 1 != 0 {
             raise!("RTIOUnderflow",
                 "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
@@ -442,6 +438,10 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             raise!("RTIODestinationUnreachable",
                 "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
                 channel as i64, timestamp as i64, 0);
+        }
+        if error & 0x80 != 0 {
+            raise!("DMAError",
+                "Error running DMA on satellite device, timed out waiting for results");
         }
     });
 }

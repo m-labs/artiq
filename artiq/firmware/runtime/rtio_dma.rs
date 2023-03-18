@@ -176,15 +176,17 @@ impl Manager {
         self.recording_trace.extend_from_slice(data)
     }
 
-    pub fn record_stop(&mut self, duration: u64, disable_ddma: bool) -> (u32, BTreeMap<u8, Vec<u8>>) {
+    pub fn record_stop(&mut self, duration: u64, enable_ddma: bool) -> (u32, BTreeMap<u8, Vec<u8>>) {
         let mut local_trace = Vec::new();
         let mut remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
-        if !disable_ddma {
+        if enable_ddma {
             let mut trace = Vec::new();
             mem::swap(&mut self.recording_trace, &mut trace);
             trace.push(0);
-            // analyze each entry and put in proper buckets
+            // analyze each entry and put in proper buckets, as the kernel core
+            // sends whole chunks, to limit comms/kernel CPU communication,
+            // and as only comms core has access to varios DMA buffers.
             let mut ptr = 0;
             while trace[ptr] != 0 {
                 // ptr + 3 = tgt >> 24 (destination)
