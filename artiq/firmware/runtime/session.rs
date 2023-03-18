@@ -9,7 +9,7 @@ use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use rtio_clocking;
-use rtio_dma::{Manager as DmaManager, remote_ddma};
+use rtio_dma::{Manager as DmaManager, remote_dma};
 use rtio_mgt::{get_async_errors, resolve_channel_name};
 use cache::Cache;
 use kern_hwreq;
@@ -379,8 +379,8 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let (id, remote_traces) = session.congress.dma_manager.record_stop(duration, enable_ddma);
                 #[cfg(has_drtio)]
                 {
-                    remote_ddma::add_traces(io, ddma_mutex, id, remote_traces);
-                    remote_ddma::upload_traces(io, aux_mutex, routing_table, ddma_mutex, id);
+                    remote_dma::add_traces(io, ddma_mutex, id, remote_traces);
+                    remote_dma::upload_traces(io, aux_mutex, routing_table, ddma_mutex, id);
                 }
                 cache::flush_l2_cache();
                 kern_acknowledge()
@@ -388,7 +388,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::DmaEraseRequest { name } => {
                 #[cfg(has_drtio)]
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    remote_ddma::erase(io, aux_mutex, routing_table, ddma_mutex, *id);
+                    remote_dma::erase(io, aux_mutex, routing_table, ddma_mutex, *id);
                 }
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
@@ -403,14 +403,14 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaStartRemoteRequest { id, timestamp } => {
                 #[cfg(has_drtio)]
-                remote_ddma::playback(io, aux_mutex, routing_table, ddma_mutex, id as u32, timestamp as u64);
+                remote_dma::playback(io, aux_mutex, routing_table, ddma_mutex, id as u32, timestamp as u64);
                 kern_acknowledge()
             }
             &kern::DmaAwaitRemoteRequest { id } => {
                 #[cfg(has_drtio)]
                 {
-                    let reply = match remote_ddma::await_done(io, ddma_mutex, id as u32, 10_000) {
-                        Ok(remote_ddma::RemoteState::PlaybackEnded { error, channel, timestamp }) => {
+                    let reply = match remote_dma::await_done(io, ddma_mutex, id as u32, 10_000) {
+                        Ok(remote_dma::RemoteState::PlaybackEnded { error, channel, timestamp }) => {
                             kern::DmaAwaitRemoteReply {
                                 error: error as i32,
                                 channel: channel as i32,

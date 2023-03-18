@@ -21,7 +21,7 @@ pub mod drtio {
     use super::*;
     use drtioaux;
     use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
-    use rtio_dma::remote_ddma;
+    use rtio_dma::remote_dma;
 
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
@@ -156,7 +156,7 @@ pub mod drtio {
         let _lock = aux_mutex.lock(io).unwrap();
         match drtioaux::recv(linkno) {
             Ok(Some(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp })) => {
-                remote_ddma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
+                remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
             }
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
@@ -227,7 +227,7 @@ pub mod drtio {
                         match reply {
                             Ok(drtioaux::Packet::DestinationDownReply) => {
                                 destination_set_up(routing_table, up_destinations, destination, false);
-                                remote_ddma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
+                                remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
                             }
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
@@ -247,7 +247,7 @@ pub mod drtio {
                         }
                     } else {
                         destination_set_up(routing_table, up_destinations, destination, false);
-                        remote_ddma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
+                        remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
                     }
                 } else {
                     if up_links[linkno as usize] {
@@ -259,7 +259,7 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 destination_set_up(routing_table, up_destinations, destination, true);
                                 init_buffer_space(destination as u8, linkno);
-                                remote_ddma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, true);
+                                remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, true);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -343,7 +343,7 @@ pub mod drtio {
         }
     }
 
-    pub fn dma_upload_trace(io: &Io, aux_mutex: &Mutex, 
+    pub fn ddma_upload_trace(io: &Io, aux_mutex: &Mutex, 
             routing_table: &drtio_routing::RoutingTable,
             id: u32, destination: u8, trace: &Vec<u8>) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0];
@@ -369,7 +369,7 @@ pub mod drtio {
     }
 
 
-    pub fn dma_send_erase(io: &Io, aux_mutex: &Mutex,
+    pub fn ddma_send_erase(io: &Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable, 
             id: u32, destination: u8) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0];
@@ -383,7 +383,7 @@ pub mod drtio {
         }
     }
 
-    pub fn dma_send_playback(io: &Io, aux_mutex: &Mutex,
+    pub fn ddma_send_playback(io: &Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable,
             ddma_mutex: &Mutex, id: u32, destination: u8, timestamp: u64) -> Result<(), &'static str> {
         let linkno = routing_table.0[destination as usize][0];
@@ -399,7 +399,7 @@ pub mod drtio {
                 // in case we received status from another destination
                 // but we want to get DmaPlaybackReply anyway, thus the loop
                 Ok(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp }) => {
-                    remote_ddma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
+                    remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
                 },
                 Ok(_) => { return Err("received unexpected aux packet while DMA playback") },
                 Err(_) => { return Err("aux error on DMA playback") }
