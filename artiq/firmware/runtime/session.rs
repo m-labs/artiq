@@ -9,8 +9,8 @@ use {mailbox, rpc_queue, kernel};
 use urc::Urc;
 use sched::{ThreadHandle, Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use rtio_clocking;
-use rtio_dma::{Manager as DmaManager, RemoteManager as DmaRemoteManager, RemoteState as DmaRemoteState};
-use rtio_mgt::{get_async_errors, resolve_channel_name, dma_send_traces, dma_erase, dma_playback};
+use rtio_dma::{Manager as DmaManager, remote_ddma};
+use rtio_mgt::{get_async_errors, resolve_channel_name};
 use cache::Cache;
 use kern_hwreq;
 use board_artiq::drtio_routing;
@@ -329,8 +329,7 @@ fn process_host_message(io: &Io,
 fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                        dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
-                        mut stream: Option<&mut TcpStream>,
+                        ddma_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -378,15 +377,18 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaRecordStop { duration, enable_ddma } => {
                 let (id, remote_traces) = session.congress.dma_manager.record_stop(duration, enable_ddma);
-                dma_remote_mgr.borrow_mut().add_traces(id, remote_traces);
-                dma_send_traces(io, aux_mutex, routing_table, dma_remote_mgr, id);
+                #[cfg(has_drtio)]
+                {
+                    remote_ddma::add_traces(io, ddma_mutex, id, remote_traces);
+                    remote_ddma::upload_traces(io, aux_mutex, routing_table, ddma_mutex, id);
+                }
                 cache::flush_l2_cache();
                 kern_acknowledge()
             }
             &kern::DmaEraseRequest { name } => {
+                #[cfg(has_drtio)]
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    dma_erase(io, aux_mutex, routing_table, dma_remote_mgr, *id);
-                    dma_remote_mgr.borrow_mut().erase(id);
+                    remote_ddma::erase(io, aux_mutex, routing_table, ddma_mutex, *id);
                 }
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
@@ -400,22 +402,26 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 })
             }
             &kern::DmaStartRemoteRequest { id, timestamp } => {
-                dma_playback(io, aux_mutex, routing_table, dma_remote_mgr, id as u32, timestamp as u64);
+                #[cfg(has_drtio)]
+                remote_ddma::playback(io, aux_mutex, routing_table, ddma_mutex, id as u32, timestamp as u64);
                 kern_acknowledge()
             }
             &kern::DmaAwaitRemoteRequest { id } => {
-                let reply = match dma_remote_mgr.borrow_mut().await_done(io, id as u32, 10_000) {
-                    Ok(DmaRemoteState::PlaybackEnded { error: e, channel: ch, timestamp: ts }) => {
-                        kern::DmaAwaitRemoteReply {
-                            id: id,
-                            error: e as i32,
-                            channel: ch as i32,
-                            timestamp: ts as i32
-                        }
-                    },
-                    Err(_) => { kern::DmaAwaitRemoteReply { id: id, error: 0x80, channel: 0, timestamp: 0}}
-                };
-                kern_send(io, &reply)
+                #[cfg(has_drtio)]
+                {
+                    let reply = match remote_ddma::await_done(io, ddma_mutex, id as u32, 10_000) {
+                        Ok(remote_ddma::RemoteState::PlaybackEnded { error, channel, timestamp }) => {
+                            kern::DmaAwaitRemoteReply {
+                                error: error as i32,
+                                channel: channel as i32,
+                                timestamp: timestamp as i32
+                            }
+                        },
+                        Ok(_) => { kern::DmaAwaitRemoteReply { error: 0x80, channel: 0, timestamp: 0} }
+                        Err(_) => { kern::DmaAwaitRemoteReply { error: 0x80, channel: 0, timestamp: 0} }
+                    };
+                    kern_send(io, &reply)
+                }
             }
 
             &kern::RpcSend { async, service, tag, data } => {
@@ -536,8 +542,7 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
 fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       routing_table: &drtio_routing::RoutingTable,
                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                      dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
-                      stream: &mut TcpStream,
+                      ddma_mutex: &Mutex, stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
@@ -555,7 +560,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
         if mailbox::receive() != 0 {
             process_kern_message(io, aux_mutex,
                 routing_table, up_destinations,
-                dma_remote_mgr,
+                ddma_mutex,
                 Some(stream), &mut session)?;
         }
 
@@ -573,8 +578,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
 fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
                        routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                       dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>,
-                       congress: &mut Congress,
+                       ddma_mutex: &Mutex, congress: &mut Congress,
                        config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
@@ -596,7 +600,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, aux_mutex, routing_table, up_destinations, dma_remote_mgr, None, &mut session)? {
+            if process_kern_message(io, aux_mutex, routing_table, up_destinations, ddma_mutex, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -627,7 +631,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
 pub fn thread(io: Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-        dma_remote_mgr: &Urc<RefCell<DmaRemoteManager>>) {
+        ddma_mutex: &Mutex) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
@@ -638,7 +642,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
     {
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
-        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, dma_remote_mgr, &mut congress, "startup_kernel") {
+        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, ddma_mutex, &mut congress, "startup_kernel") {
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>
@@ -678,13 +682,13 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
-            let dma_remote_mgr = dma_remote_mgr.clone();
+            let ddma_mutex = ddma_mutex.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &dma_remote_mgr, &mut stream, &mut *congress) {
+                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
@@ -707,11 +711,11 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let routing_table = routing_table.clone();
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
-            let dma_remote_mgr = dma_remote_mgr.clone();
+            let ddma_mutex = ddma_mutex.clone();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
-                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &dma_remote_mgr, &mut *congress, "idle_kernel") {
+                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(

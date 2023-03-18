@@ -1,139 +1,169 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
-use sched::Io;
-use board_misoc::clock;
 const ALIGNMENT: usize = 64;
 
+#[cfg(has_drtio)]
+pub mod remote_ddma {
+    use super::*;
+    use board_artiq::drtio_routing::RoutingTable;
+    use rtio_mgt::drtio;
+    use board_misoc::clock;
+    use sched::{Io, Mutex};
 
-#[derive(Debug, PartialEq, Clone)]
-pub enum RemoteState {
-    NotLoaded,
-    Loaded,
-    Running,
-    PlaybackEnded { error: u8, channel: u32, timestamp: u64 }
-}
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum RemoteState {
+        NotLoaded,
+        Loaded,
+        PlaybackEnded { error: u8, channel: u32, timestamp: u64 }
+    }
+    #[derive(Debug, Clone)]
+    struct RemoteTrace {
+        trace: Vec<u8>,
+        pub state: RemoteState
+    }
 
-#[derive(Debug)]
-struct RemoteTrace {
-    trace: Vec<u8>,
-    state: RemoteState
-}
-
-impl From<Vec<u8>> for RemoteTrace {
-    fn from(trace: Vec<u8>) -> Self {
-        RemoteTrace {
-            trace: trace,
-            state: RemoteState::NotLoaded
+    impl From<Vec<u8>> for RemoteTrace {
+        fn from(trace: Vec<u8>) -> Self {
+            RemoteTrace {
+                trace: trace,
+                state: RemoteState::NotLoaded
+            }
         }
     }
-}
-
-impl RemoteTrace {
-    pub fn get_trace(&self) -> &Vec<u8> {
-        &self.trace
-    }
-
-    pub fn update_state(&mut self, new_state: RemoteState) {
-        self.state = new_state;
-    }
-
-    pub fn get_state(&self) -> &RemoteState {
-        &self.state
-    }
-}
-
-
-#[derive(Debug)]
-pub struct RemoteManager {
-    traces: BTreeMap<u32, BTreeMap<u8, RemoteTrace>>
-}
-
-impl RemoteManager {
-    pub fn new() -> RemoteManager {
-        RemoteManager {
-            traces: BTreeMap::new()
+    
+    impl RemoteTrace {
+        pub fn get_trace(&self) -> &Vec<u8> {
+            &self.trace
         }
     }
 
-    pub fn add_traces(&mut self, id: u32, traces: BTreeMap<u8, Vec<u8>>) {
+    // remote traces map. ID -> destination, trace pair
+    static mut TRACES: BTreeMap<u32, BTreeMap<u8, RemoteTrace>> = BTreeMap::new();
+
+    pub fn add_traces(io: &Io, dma_remote_mutex: &Mutex, id: u32, traces: BTreeMap<u8, Vec<u8>>) {
+        let _lock = dma_remote_mutex.lock(io);
         let mut trace_map: BTreeMap<u8, RemoteTrace> = BTreeMap::new();
         for (destination, trace) in traces {
             trace_map.insert(destination, trace.into());
         }
-        self.traces.insert(id, trace_map);
+        unsafe { TRACES.insert(id, trace_map); }
     }
 
-    pub fn get_traces(&mut self, id: u32) -> Option<&mut BTreeMap<u8, RemoteTrace>> {
-        self.traces.get_mut(&id)
-    }
-
-    pub fn get_traces_for_destination(&mut self, destination: u8) -> BTreeMap<u32, &RemoteTrace> {
-        // get all traces for given destination
-        let mut dest_traces: BTreeMap<u32, &RemoteTrace> = BTreeMap::new();
-        for (id, traces) in self.traces {
-            if let Some(dest_trace) = traces.get(&destination) {
-                dest_traces.insert(id.clone(), dest_trace);
-            }
-        }
-        dest_traces
-    }
-
-    pub fn change_state(&mut self, id: u32, destination: u8, new_state: RemoteState) {
-        // for updating when handled by DRTIO
-        if let Some(traces) = self.traces.get_mut(&id) {
-            if let Some(remote_trace) = traces.get_mut(&destination) {
-                remote_trace.update_state(new_state);
-            }
-        }
-    }
-
-    pub fn get_state(&mut self, id: u32, destination: u8) -> Option<&RemoteState> {
-        Some(&self.traces.get(&id)?.get(&destination)?.state)
-    }
-
-    pub fn await_done(&mut self, io: &Io, id: u32, timeout: u64) -> Result<RemoteState, &'static str> {
+    pub fn await_done(io: &Io, ddma_mutex: &Mutex, id: u32, timeout: u64) -> Result<RemoteState, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         io.until(|| {
-            while clock::get_ms() < max_time {
-                if let Some(traces) = self.traces.get(&id) {
-                    for (_dest, trace) in traces {
-                        match trace.get_state() {
-                            RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
-                            _ => return false
-                        }
+            let _lock = ddma_mutex.lock(io).unwrap();
+            if clock::get_ms() < max_time {
+                let traces = unsafe { TRACES.get(&id).unwrap() };
+                for (_dest, trace) in traces {
+                    match trace.state {
+                        RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
+                        _ => return false
                     }
                 }
             }
             true
         }).unwrap();
         if clock::get_ms() > max_time {
+            error!("Remote DMA await done timed out");
             return Err("Timed out waiting for results.");
         }
-        // clear the internal state, if there have been any errors, return one of them
+        // clear the internal state, and if there have been any errors, return one of them
         let mut playback_state: RemoteState = RemoteState::PlaybackEnded { error: 0, channel: 0, timestamp: 0 };
-        if let Some(traces) = self.traces.get_mut(&id) {
+        {
+            let _lock = ddma_mutex.lock(io).unwrap();
+            let traces = unsafe { TRACES.get_mut(&id).unwrap() };
             for (_dest, trace) in traces {
-                let state = trace.get_state();
-                match state {
-                    RemoteState::PlaybackEnded {error: e, channel: _c, timestamp: _ts} => if *e != 0 { playback_state = state.clone(); },
+                match trace.state {
+                    RemoteState::PlaybackEnded {error: e, channel: _c, timestamp: _ts} => if e != 0 { playback_state = trace.state.clone(); },
                     _ => (),
                 }
-                trace.update_state(RemoteState::Loaded);
+                trace.state = RemoteState::Loaded;
             }
         }
-        return Ok(playback_state);
+        Ok(playback_state)
+    }
+
+    pub fn erase(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32) {
+        let _lock = ddma_mutex.lock(io).unwrap();
+        let destinations = unsafe { TRACES.get(&id).unwrap() };
+        for destination in destinations.keys() {
+            match drtio::dma_send_erase(io, aux_mutex, routing_table, id, *destination) {
+                Ok(_) => (),
+                Err(e) => error!("Error erasing trace on DMA: {}", e)
+            } 
+        }
+        unsafe { TRACES.remove(&id); }
+    }
+
+    pub fn upload_traces(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32) {
+        let _lock = ddma_mutex.lock(io);
+        let traces = unsafe { TRACES.get_mut(&id).unwrap() };
+        for (destination, mut trace) in traces {
+            match drtio::dma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())
+            {
+                Ok(_) => trace.state = RemoteState::Loaded,
+                Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
+            }
+        }
+    }
+
+    pub fn playback(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32, timestamp: u64) {
+        // triggers playback on satellites
+        let destinations = unsafe { 
+            let _lock = ddma_mutex.lock(io).unwrap();
+            TRACES.get(&id).unwrap() };
+        for (destination, trace) in destinations {
+            {
+                let _lock = ddma_mutex.lock(io).unwrap();
+                if trace.state != RemoteState::Loaded {
+                    error!("Destination {} not ready for DMA, state: {:?}", *destination, trace.state);
+                    continue;
+                }
+            }
+            match drtio::dma_send_playback(io, aux_mutex, routing_table, ddma_mutex, id, *destination, timestamp) {
+                Ok(_) => (),
+                Err(e) => error!("Error during remote DMA playback: {}", e)
+            }
+        }
+    }
+
+    pub fn playback_done(io: &Io, ddma_mutex: &Mutex, 
+            id: u32, destination: u8, error: u8, channel: u32, timestamp: u64) {
+        // called upon receiving PlaybackDone aux packet
+        let _lock = ddma_mutex.lock(io).unwrap();
+        let mut trace = unsafe { TRACES.get_mut(&id).unwrap().get_mut(&destination).unwrap() };
+        trace.state = RemoteState::PlaybackEnded {
+            error: error, 
+            channel: channel, 
+            timestamp: timestamp 
+        };
+    }
+
+    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, destination: u8, up: bool) {
+        // update state of the destination, resend traces if it's up
+        let _lock = ddma_mutex.lock(io).unwrap();
+        let traces_iter = unsafe { TRACES.iter_mut() };
+        for (id, dest_traces) in traces_iter {
+            if let Some(trace) = dest_traces.get_mut(&destination) {
+                if up {
+                    match drtio::dma_upload_trace(io, aux_mutex, routing_table, *id, destination, trace.get_trace())
+                    {
+                        Ok(_) => trace.state = RemoteState::Loaded,
+                        Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
+                    }
+                } else {
+                    trace.state = RemoteState::NotLoaded;
+                }
+            }
+        }
 
     }
 
-    pub fn erase(&mut self, id: &u32) {
-        // erase the data - make sure you order satellites to remove first
-        self.traces.remove(id);
-    }
-
-    pub fn get_destinations(&mut self, id: u32) -> Option<Vec<u8>> {
-        // get a vector of destinations that need to be erased or triggered
-        Some(self.traces.get(&id)?.keys().cloned().collect())
-    }
 }
 
 
@@ -233,6 +263,7 @@ impl Manager {
         let mut name = String::new();
         mem::swap(&mut self.recording_name, &mut name);
         self.name_map.insert(name, id);
+
         (id, remote_traces)
     }
 
