@@ -368,7 +368,11 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
 
             &kern::DmaRecordStart(name) => {
-                session.congress.dma_manager.record_start(name);
+                if let Some(id) = session.congress.dma_manager.record_start(name) {
+                    // replace the record
+                    #[cfg(has_drtio)]
+                    remote_dma::erase(io, aux_mutex, routing_table, ddma_mutex, id);
+                }
                 kern_acknowledge()
             }
             &kern::DmaRecordAppend(data) => {

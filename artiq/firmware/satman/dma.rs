@@ -52,7 +52,19 @@ impl Manager {
 
     pub fn add(&mut self, id: u32, last: bool, trace: &[u8], trace_len: usize) -> Result<(), Error> {
         let entry = match self.entries.get_mut(&id) {
-            Some(entry) => entry,
+            Some(entry) => {
+                if entry.complete {
+                    // replace entry
+                    self.entries.remove(&id);
+                    self.entries.insert(id, Entry {
+                        trace: Vec::new(),
+                        padding_len: 0,
+                        complete: false });
+                    self.entries.get_mut(&id).unwrap()
+                } else {
+                    entry
+                }
+            },
             None => {
                 self.entries.insert(id, Entry {
                     trace: Vec::new(),

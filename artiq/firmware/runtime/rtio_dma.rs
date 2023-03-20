@@ -199,14 +199,18 @@ impl Manager {
         }
     }
 
-    pub fn record_start(&mut self, name: &str) {
+    pub fn record_start(&mut self, name: &str) -> Option<u32> {
         self.recording_name = String::from(name);
+        self.recording_trace = Vec::new();
         if let Some(id) = self.name_map.get(&self.recording_name) {
             // replacing a trace
+            let old_id = id.clone();
             self.entries.remove(&id);
             self.name_map.remove(&self.recording_name);
+            // return old ID
+            return Some(old_id);
         }
-        self.recording_trace = Vec::new();
+        return None;
     }
 
     pub fn record_append(&mut self, data: &[u8]) {
