@@ -31,7 +31,7 @@ pub mod drtio {
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
-        io.spawn(4096, move |io| {
+        io.spawn(8192, move |io| {
             let routing_table = routing_table.borrow();
             link_thread(io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex);
         });
@@ -346,14 +346,14 @@ pub mod drtio {
     pub fn ddma_upload_trace(io: &Io, aux_mutex: &Mutex, 
             routing_table: &drtio_routing::RoutingTable,
             id: u32, destination: u8, trace: &Vec<u8>) -> Result<(), &'static str> {
-        let linkno = routing_table.0[destination as usize][0];
+        let linkno = routing_table.0[destination as usize][0] - 1;
         let mut i = 0;
-        while i <= trace.len() {
+        while i < trace.len() {
             let mut trace_slice: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
             let len: usize = if i + DMA_TRACE_MAX_SIZE < trace.len() { DMA_TRACE_MAX_SIZE } else { trace.len() - i } as usize;
             let last = i + len == trace.len();
+            trace_slice[..len].clone_from_slice(&trace[i..i+len]);
             i += len;
-            trace_slice.clone_from_slice(&trace[i..i+len]);
             let reply = aux_transact(io, aux_mutex, linkno, 
                 &drtioaux::Packet::DmaAddTraceRequest {
                     id: id, destination: destination, last: last, length: len as u16, trace: trace_slice});
@@ -372,7 +372,7 @@ pub mod drtio {
     pub fn ddma_send_erase(io: &Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable, 
             id: u32, destination: u8) -> Result<(), &'static str> {
-        let linkno = routing_table.0[destination as usize][0];
+        let linkno = routing_table.0[destination as usize][0] - 1;
         let reply = aux_transact(io, aux_mutex, linkno, 
             &drtioaux::Packet::DmaRemoveTraceRequest { id: id, destination: destination });
         match reply {
@@ -386,7 +386,7 @@ pub mod drtio {
     pub fn ddma_send_playback(io: &Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable,
             ddma_mutex: &Mutex, id: u32, destination: u8, timestamp: u64) -> Result<(), &'static str> {
-        let linkno = routing_table.0[destination as usize][0];
+        let linkno = routing_table.0[destination as usize][0] - 1;
         let _lock = aux_mutex.lock(io).unwrap();
         drtioaux::send(linkno, &drtioaux::Packet::DmaPlaybackRequest{
                 id: id, destination: destination, timestamp: timestamp }).unwrap();

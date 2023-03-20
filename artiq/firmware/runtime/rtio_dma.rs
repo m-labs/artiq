@@ -52,14 +52,19 @@ pub mod remote_dma {
     pub fn await_done(io: &Io, ddma_mutex: &Mutex, id: u32, timeout: u64) -> Result<RemoteState, &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
         io.until(|| {
-            let _lock = ddma_mutex.lock(io).unwrap();
-            if clock::get_ms() < max_time {
-                let traces = unsafe { TRACES.get(&id).unwrap() };
-                for (_dest, trace) in traces {
-                    match trace.state {
-                        RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
-                        _ => return false
-                    }
+            if clock::get_ms() > max_time {
+                return true;
+            }
+            if ddma_mutex.test_lock() {
+                // cannot lock again within io.until - scheduler guarantees
+                // that it will not be interrupted - so only test the lock
+                return false;
+            }
+            let traces = unsafe { TRACES.get(&id).unwrap() };
+            for (_dest, trace) in traces {
+                match trace.state {
+                    RemoteState::PlaybackEnded {error: _, channel: _, timestamp: _} => (),
+                    _ => return false
                 }
             }
             true
@@ -118,6 +123,8 @@ pub mod remote_dma {
             TRACES.get(&id).unwrap() };
         for (destination, trace) in destinations {
             {
+                // need to drop the lock before sending the playback request to avoid a deadlock
+                // if a PlaybackStatus is returned from another satellite in the meanwhile.
                 let _lock = ddma_mutex.lock(io).unwrap();
                 if trace.state != RemoteState::Loaded {
                     error!("Destination {} not ready for DMA, state: {:?}", *destination, trace.state);

@@ -293,6 +293,10 @@ impl Mutex {
         self.0.set(true);
         Ok(MutexGuard(&*self.0))
     }
+
+    pub fn test_lock<'a>(&'a self) -> bool {
+        self.0.get()
+    }
 }
 
 pub struct MutexGuard<'a>(&'a Cell<bool>);
