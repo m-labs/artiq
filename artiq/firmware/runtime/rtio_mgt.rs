@@ -1,6 +1,5 @@
 use alloc::collections::BTreeMap;
 use alloc::string::String;
-use alloc::vec::Vec;
 use core::cell::RefCell;
 use urc::Urc;
 use board_misoc::{csr, config};
@@ -19,6 +18,7 @@ static mut RTIO_DEVICE_MAP: BTreeMap<u32, String> = BTreeMap::new();
 #[cfg(has_drtio)]
 pub mod drtio {
     use super::*;
+    use alloc::vec::Vec;
     use drtioaux;
     use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
     use rtio_dma::remote_dma;
@@ -416,8 +416,8 @@ pub mod drtio {
 
     pub fn startup(_io: &Io, _aux_mutex: &Mutex,
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
-        _ddma_mutex: &Mutex,
-        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
+        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+        _ddma_mutex: &Mutex) {}
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
 }
 

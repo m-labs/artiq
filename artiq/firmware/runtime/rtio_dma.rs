@@ -1,5 +1,6 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
+
 const ALIGNMENT: usize = 64;
 
 #[cfg(has_drtio)]
@@ -285,6 +286,7 @@ impl Manager {
         self.name_map.remove(name);
     }
 
+    #[cfg(has_drtio)]
     pub fn get_id(&mut self, name: &str) -> Option<&u32> {
         self.name_map.get(name)
     }
