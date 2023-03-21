@@ -10,7 +10,7 @@ extern crate riscv;
 extern crate alloc;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c};
+use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
@@ -461,11 +461,13 @@ pub extern fn main() -> i32 {
     extern {
         static mut _fheap: u8;
         static mut _eheap: u8;
+        static mut _sstack_guard: u8;
     }
 
     unsafe {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
         // stack guard disabled, see https://github.com/m-labs/artiq/issues/2067
+        // pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
 
     clock::init();
