@@ -231,7 +231,9 @@ const DMA_BUFFER_SIZE: usize = 64 * 1024;
 
 const DMA_RTIO_UNDERFLOW:               u8 = 0x01;
 const DMA_RTIO_DESTINATION_UNREACHABLE: u8 = 0x02;
-const DMA_TIMEOUT:                      u8 = 0x80;
+// these 2 RTIO errors are propagated from satellites, leaving 6 bits unused
+// one unused bit is taken for indicating DDMA timeout (e.g. satellite error)
+const DDMA_TIMEOUT:                      u8 = 0x80;
 
 struct DmaRecorder {
     active:   bool,
@@ -443,7 +445,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
                 "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
                 channel as i64, timestamp as i64, 0);
         }
-        if error & DMA_TIMEOUT != 0 {
+        if error & DDMA_TIMEOUT != 0 {
             raise!("DMAError",
                 "Error running DMA on satellite device, timed out waiting for results");
         }
