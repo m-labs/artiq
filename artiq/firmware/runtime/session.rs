@@ -416,9 +416,9 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let reply = match remote_dma::await_done(io, ddma_mutex, _id as u32, 10_000) {
                     Ok(remote_dma::RemoteState::PlaybackEnded { error, channel, timestamp }) =>
                         kern::DmaAwaitRemoteReply {
-                            error: error as i32,
-                            channel: channel as i32,
-                            timestamp: timestamp as i32
+                            error: error,
+                            channel: channel,
+                            timestamp: timestamp
                         },
                     Ok(_) => kern::DmaAwaitRemoteReply { error: 0x80, channel: 0, timestamp: 0},
                     Err(_) => kern::DmaAwaitRemoteReply { error: 0x80, channel: 0, timestamp: 0}

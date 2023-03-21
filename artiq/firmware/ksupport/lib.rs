@@ -229,6 +229,10 @@ extern fn cache_put(key: &CSlice<u8>, list: &CSlice<i32>) {
 
 const DMA_BUFFER_SIZE: usize = 64 * 1024;
 
+const DMA_RTIO_UNDERFLOW:               u8 = 0x01;
+const DMA_RTIO_DESTINATION_UNREACHABLE: u8 = 0x02;
+const DMA_TIMEOUT:                      u8 = 0x80;
+
 struct DmaRecorder {
     active:   bool,
     data_len: usize,
@@ -414,12 +418,12 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             let timestamp = csr::rtio_dma::error_timestamp_read();
             let channel = csr::rtio_dma::error_channel_read();
             csr::rtio_dma::error_write(1);
-            if error & 1 != 0 {
+            if error & DMA_RTIO_UNDERFLOW != 0 {
                 raise!("RTIOUnderflow",
                     "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
                     channel as i64, timestamp as i64, 0);
             }
-            if error & 2 != 0 {
+            if error & DMA_RTIO_DESTINATION_UNREACHABLE != 0 {
                 raise!("RTIODestinationUnreachable",
                     "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
                     channel as i64, timestamp as i64, 0);
@@ -429,17 +433,17 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
 
     send(&DmaAwaitRemoteRequest { id: ptr as i32 });
     recv!(&DmaAwaitRemoteReply { error, channel, timestamp } => {
-        if error & 1 != 0 {
+        if error & DMA_RTIO_UNDERFLOW != 0 {
             raise!("RTIOUnderflow",
                 "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
                 channel as i64, timestamp as i64, 0);
         }
-        if error & 2 != 0 {
+        if error & DMA_RTIO_DESTINATION_UNREACHABLE != 0 {
             raise!("RTIODestinationUnreachable",
                 "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
                 channel as i64, timestamp as i64, 0);
         }
-        if error & 0x80 != 0 {
+        if error & DMA_TIMEOUT != 0 {
             raise!("DMAError",
                 "Error running DMA on satellite device, timed out waiting for results");
         }
