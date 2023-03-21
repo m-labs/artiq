@@ -1,5 +1,6 @@
 use core::mem;
 use alloc::{vec::Vec, string::String, collections::btree_map::BTreeMap};
+use sched::{Io, Mutex};
 
 const ALIGNMENT: usize = 64;
 
@@ -9,7 +10,6 @@ pub mod remote_dma {
     use board_artiq::drtio_routing::RoutingTable;
     use rtio_mgt::drtio;
     use board_misoc::clock;
-    use sched::{Io, Mutex};
 
     #[derive(Debug, PartialEq, Clone)]
     pub enum RemoteState {
@@ -218,7 +218,8 @@ impl Manager {
         self.recording_trace.extend_from_slice(data)
     }
 
-    pub fn record_stop(&mut self, duration: u64, enable_ddma: bool) -> (u32, BTreeMap<u8, Vec<u8>>) {
+    pub fn record_stop(&mut self, duration: u64, enable_ddma: bool,
+            _io: &Io, _ddma_mutex: &Mutex) -> u32 {
         let mut local_trace = Vec::new();
         let mut remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
@@ -276,7 +277,10 @@ impl Manager {
         mem::swap(&mut self.recording_name, &mut name);
         self.name_map.insert(name, id);
 
-        (id, remote_traces)
+        #[cfg(has_drtio)]
+        remote_dma::add_traces(_io, _ddma_mutex, id, remote_traces);
+
+        id
     }
 
     pub fn erase(&mut self, name: &str) {
