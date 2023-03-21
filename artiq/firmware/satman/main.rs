@@ -10,7 +10,7 @@ extern crate riscv;
 extern crate alloc;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
+use board_misoc::{csr, ident, clock, uart_logger, i2c};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
@@ -461,12 +461,11 @@ pub extern fn main() -> i32 {
     extern {
         static mut _fheap: u8;
         static mut _eheap: u8;
-        static mut _sstack_guard: u8;
     }
 
     unsafe {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
-        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+        // stack guard disabled, see https://github.com/m-labs/artiq/issues/2067
     }
 
     clock::init();
@@ -574,6 +573,7 @@ pub extern fn main() -> i32 {
                 }
             }
             if let Some(status) = dma_manager.check_state() {
+                info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
                     destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
                     error!("error sending DMA playback status: {}", e);
