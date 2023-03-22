@@ -301,19 +301,22 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
             }
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaAddTraceRequest { id, last, length, trace } => {
+        drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.add(id, last, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaRemoveTraceRequest { id } => {
+        drtioaux::Packet::DmaRemoveTraceRequest { destination: _destination, id } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.erase(id).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaRemoveTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
-        drtioaux::Packet::DmaPlaybackRequest { id, timestamp } => {
+        drtioaux::Packet::DmaPlaybackRequest { destination: _destination, id, timestamp } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let succeeded = _manager.playback(id, timestamp).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
@@ -463,7 +466,8 @@ pub extern fn main() -> i32 {
 
     unsafe {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
-        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+        // stack guard disabled, see https://github.com/m-labs/artiq/issues/2067
+        // pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
 
     clock::init();
@@ -571,8 +575,9 @@ pub extern fn main() -> i32 {
                 }
             }
             if let Some(status) = dma_manager.check_state() {
+                info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                    id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
+                    destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
                     error!("error sending DMA playback status: {}", e);
                 }
             }

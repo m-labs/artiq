@@ -6,7 +6,7 @@ alone could achieve.
 """
 
 from artiq.language.core import syscall, kernel
-from artiq.language.types import TInt32, TInt64, TStr, TNone, TTuple
+from artiq.language.types import TInt32, TInt64, TStr, TNone, TTuple, TBool
 from artiq.coredevice.exceptions import DMAError
 
 from numpy import int64
@@ -17,7 +17,7 @@ def dma_record_start(name: TStr) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
-def dma_record_stop(duration: TInt64) -> TNone:
+def dma_record_stop(duration: TInt64, enable_ddma: TBool) -> TNone:
     raise NotImplementedError("syscall not simulated")
 
 @syscall
@@ -47,6 +47,7 @@ class DMARecordContextManager:
     def __init__(self):
         self.name = ""
         self.saved_now_mu = int64(0)
+        self.enable_ddma = False
 
     @kernel
     def __enter__(self):
@@ -56,7 +57,7 @@ class DMARecordContextManager:
 
     @kernel
     def __exit__(self, type, value, traceback):
-        dma_record_stop(now_mu()) # see above
+        dma_record_stop(now_mu(), self.enable_ddma) # see above
         at_mu(self.saved_now_mu)
 
 
@@ -74,12 +75,18 @@ class CoreDMA:
         self.epoch    = 0
 
     @kernel
-    def record(self, name):
+    def record(self, name, enable_ddma=False):
         """Returns a context manager that will record a DMA trace called ``name``.
         Any previously recorded trace with the same name is overwritten.
-        The trace will persist across kernel switches."""
+        The trace will persist across kernel switches.
+        In DRTIO context, you can toggle distributed DMA with ``enable_ddma``.
+        Enabling it allows running DMA on satellites, rather than sending all
+        events from the master.
+        Disabling it may improve performance in some scenarios, 
+        e.g. when there are many small satellite buffers."""
         self.epoch += 1
         self.recorder.name = name
+        self.recorder.enable_ddma = enable_ddma
         return self.recorder
 
     @kernel

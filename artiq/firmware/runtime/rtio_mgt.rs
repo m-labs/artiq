@@ -18,17 +18,22 @@ static mut RTIO_DEVICE_MAP: BTreeMap<u32, String> = BTreeMap::new();
 #[cfg(has_drtio)]
 pub mod drtio {
     use super::*;
+    use alloc::vec::Vec;
     use drtioaux;
+    use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
+    use rtio_dma::remote_dma;
 
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
-            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+            ddma_mutex: &Mutex) {
         let aux_mutex = aux_mutex.clone();
         let routing_table = routing_table.clone();
         let up_destinations = up_destinations.clone();
-        io.spawn(4096, move |io| {
+        let ddma_mutex = ddma_mutex.clone();
+        io.spawn(8192, move |io| {
             let routing_table = routing_table.borrow();
-            link_thread(io, &aux_mutex, &routing_table, &up_destinations);
+            link_thread(io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex);
         });
     }
 
@@ -147,9 +152,12 @@ pub mod drtio {
         }
     }
 
-    fn process_unsolicited_aux(io: &Io, aux_mutex: &Mutex, linkno: u8) {
+    fn process_unsolicited_aux(io: &Io, aux_mutex: &Mutex, linkno: u8, ddma_mutex: &Mutex) {
         let _lock = aux_mutex.lock(io).unwrap();
         match drtioaux::recv(linkno) {
+            Ok(Some(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp })) => {
+                remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
+            }
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
             Err(_) => warn!("[LINK#{}] aux packet error", linkno)
@@ -198,7 +206,8 @@ pub mod drtio {
 
     fn destination_survey(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
             up_links: &[bool],
-            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+            ddma_mutex: &Mutex) {
         for destination in 0..drtio_routing::DEST_COUNT {
             let hop = routing_table.0[destination][0];
             let destination = destination as u8;
@@ -216,8 +225,10 @@ pub mod drtio {
                             destination: destination
                         });
                         match reply {
-                            Ok(drtioaux::Packet::DestinationDownReply) =>
-                                destination_set_up(routing_table, up_destinations, destination, false),
+                            Ok(drtioaux::Packet::DestinationDownReply) => {
+                                destination_set_up(routing_table, up_destinations, destination, false);
+                                remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
+                            }
                             Ok(drtioaux::Packet::DestinationOkReply) => (),
                             Ok(drtioaux::Packet::DestinationSequenceErrorReply { channel }) => {
                                 error!("[DEST#{}] RTIO sequence error involving channel 0x{:04x}:{}", destination, channel, resolve_channel_name(channel as u32));
@@ -236,6 +247,7 @@ pub mod drtio {
                         }
                     } else {
                         destination_set_up(routing_table, up_destinations, destination, false);
+                        remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
                     }
                 } else {
                     if up_links[linkno as usize] {
@@ -247,6 +259,7 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 destination_set_up(routing_table, up_destinations, destination, true);
                                 init_buffer_space(destination as u8, linkno);
+                                remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, true);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -259,7 +272,8 @@ pub mod drtio {
 
     pub fn link_thread(io: Io, aux_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable,
-            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+            up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+            ddma_mutex: &Mutex) {
         let mut up_links = [false; csr::DRTIO.len()];
         loop {
             for linkno in 0..csr::DRTIO.len() {
@@ -267,7 +281,7 @@ pub mod drtio {
                 if up_links[linkno as usize] {
                     /* link was previously up */
                     if link_rx_up(linkno) {
-                        process_unsolicited_aux(&io, aux_mutex, linkno);
+                        process_unsolicited_aux(&io, aux_mutex, linkno, ddma_mutex);
                         process_local_errors(linkno);
                     } else {
                         info!("[LINK#{}] link is down", linkno);
@@ -297,7 +311,7 @@ pub mod drtio {
                     }
                 }
             }
-            destination_survey(&io, aux_mutex, routing_table, &up_links, up_destinations);
+            destination_survey(&io, aux_mutex, routing_table, &up_links, up_destinations, ddma_mutex);
             io.sleep(200).unwrap();
         }
     }
@@ -328,6 +342,72 @@ pub mod drtio {
             }
         }
     }
+
+    pub fn ddma_upload_trace(io: &Io, aux_mutex: &Mutex, 
+            routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, trace: &Vec<u8>) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let mut i = 0;
+        while i < trace.len() {
+            let mut trace_slice: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+            let len: usize = if i + DMA_TRACE_MAX_SIZE < trace.len() { DMA_TRACE_MAX_SIZE } else { trace.len() - i } as usize;
+            let last = i + len == trace.len();
+            trace_slice[..len].clone_from_slice(&trace[i..i+len]);
+            i += len;
+            let reply = aux_transact(io, aux_mutex, linkno, 
+                &drtioaux::Packet::DmaAddTraceRequest {
+                    id: id, destination: destination, last: last, length: len as u16, trace: trace_slice});
+            match reply {
+                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: true }) => (),
+                Ok(drtioaux::Packet::DmaAddTraceReply { succeeded: false }) => { 
+                    return Err("error adding trace on satellite"); },
+                Ok(_) => { return Err("adding DMA trace failed, unexpected aux packet"); },
+                Err(_) => { return Err("adding DMA trace failed, aux error"); }
+            }
+        }
+        Ok(())
+    }
+
+
+    pub fn ddma_send_erase(io: &Io, aux_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable, 
+            id: u32, destination: u8) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, linkno, 
+            &drtioaux::Packet::DmaRemoveTraceRequest { id: id, destination: destination });
+        match reply {
+            Ok(drtioaux::Packet::DmaRemoveTraceReply { succeeded: true }) => Ok(()),
+            Ok(drtioaux::Packet::DmaRemoveTraceReply { succeeded: false }) => Err("satellite DMA erase error"),
+            Ok(_) => Err("adding trace failed, unexpected aux packet"),
+            Err(_) => Err("erasing trace failed, aux error")
+        }
+    }
+
+    pub fn ddma_send_playback(io: &Io, aux_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable,
+            ddma_mutex: &Mutex, id: u32, destination: u8, timestamp: u64) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let _lock = aux_mutex.lock(io).unwrap();
+        drtioaux::send(linkno, &drtioaux::Packet::DmaPlaybackRequest{
+                id: id, destination: destination, timestamp: timestamp }).unwrap();
+        loop {
+            let reply = recv_aux_timeout(io, linkno, 200);
+            match reply {
+                Ok(drtioaux::Packet::DmaPlaybackReply { succeeded: true }) => { return Ok(()) },
+                Ok(drtioaux::Packet::DmaPlaybackReply { succeeded: false }) => {
+                        return Err("error on DMA playback request") },
+                // in case we received status from another destination
+                // but we want to get DmaPlaybackReply anyway, thus the loop
+                Ok(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp }) => {
+                    remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
+                },
+                Ok(_) => { return Err("received unexpected aux packet while DMA playback") },
+                Err(_) => { return Err("aux error on DMA playback") }
+            }
+        }
+    }
+
+
 }
 
 #[cfg(not(has_drtio))]
@@ -336,7 +416,8 @@ pub mod drtio {
 
     pub fn startup(_io: &Io, _aux_mutex: &Mutex,
         _routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
-        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {}
+        _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+        _ddma_mutex: &Mutex) {}
     pub fn reset(_io: &Io, _aux_mutex: &Mutex) {}
 }
 
@@ -410,9 +491,10 @@ pub fn resolve_channel_name(channel: u32) -> String {
 
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
-        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
+        ddma_mutex: &Mutex) {
     unsafe { RTIO_DEVICE_MAP = read_device_map(); }
-    drtio::startup(io, aux_mutex, routing_table, up_destinations);
+    drtio::startup(io, aux_mutex, routing_table, up_destinations, ddma_mutex);
     unsafe {
         csr::rtio_core::reset_phy_write(1);
     }

@@ -1,4 +1,4 @@
-use board_misoc::csr;
+use board_misoc::{csr, cache::flush_l2_cache};
 use alloc::{vec::Vec, collections::btree_map::BTreeMap};
 
 const ALIGNMENT: usize = 64;
@@ -52,7 +52,19 @@ impl Manager {
 
     pub fn add(&mut self, id: u32, last: bool, trace: &[u8], trace_len: usize) -> Result<(), Error> {
         let entry = match self.entries.get_mut(&id) {
-            Some(entry) => entry,
+            Some(entry) => {
+                if entry.complete {
+                    // replace entry
+                    self.entries.remove(&id);
+                    self.entries.insert(id, Entry {
+                        trace: Vec::new(),
+                        padding_len: 0,
+                        complete: false });
+                    self.entries.get_mut(&id).unwrap()
+                } else {
+                    entry
+                }
+            },
             None => {
                 self.entries.insert(id, Entry {
                     trace: Vec::new(),
@@ -80,6 +92,7 @@ impl Manager {
             }
             entry.complete = true;
             entry.padding_len = padding;
+            flush_l2_cache();
         }
         Ok(())
     }
