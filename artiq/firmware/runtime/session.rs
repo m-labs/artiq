@@ -21,9 +21,6 @@ use rpc_proto as rpc;
 use session_proto as host;
 use kernel_proto as kern;
 
-// error code for timed out playback requests
-const DDMA_TIMEOUT = 0x80;
-
 #[derive(Fail, Debug)]
 pub enum Error<T> {
     #[fail(display = "cannot load kernel: {}", _0)]
@@ -419,15 +416,15 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let reply = match remote_dma::await_done(io, ddma_mutex, _id as u32, 10_000) {
                     Ok(remote_dma::RemoteState::PlaybackEnded { error, channel, timestamp }) =>
                         kern::DmaAwaitRemoteReply {
+                            timeout: false,
                             error: error,
                             channel: channel,
                             timestamp: timestamp
                         },
-                    Ok(_) => kern::DmaAwaitRemoteReply { error: DDMA_TIMEOUT, channel: 0, timestamp: 0},
-                    Err(_) => kern::DmaAwaitRemoteReply { error: DDMA_TIMEOUT, channel: 0, timestamp: 0}
+                    _ => kern::DmaAwaitRemoteReply { timeout: true, error: 0, channel: 0, timestamp: 0},
                 };
                 #[cfg(not(has_drtio))]
-                let reply = kern::DmaAwaitRemoteReply { error: 0, channel: 0, timestamp: 0};
+                let reply = kern::DmaAwaitRemoteReply { timeout: false, error: 0, channel: 0, timestamp: 0};
                 kern_send(io, &reply)
             }
 

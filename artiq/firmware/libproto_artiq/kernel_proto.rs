@@ -44,6 +44,7 @@ pub enum Message<'a> {
         id: i32
     },
     DmaAwaitRemoteReply {
+        timeout: bool,
         error: u8,
         channel: u32,
         timestamp: u64
