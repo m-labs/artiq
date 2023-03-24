@@ -75,6 +75,8 @@ pub fn get_adresses() -> NetAddresses {
             }
             #[cfg(soc_platform = "kc705")]
             { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x01]); }
+            #[cfg(soc_platform = "digilent_genesys2")]
+            { hardware_addr = EthernetAddress([0x02, 0x00, 0x00, 0x00, 0x00, 0x03]); }
         }
     }
 

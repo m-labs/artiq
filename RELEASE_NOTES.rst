@@ -16,6 +16,7 @@ Highlights:
      For earlier hardware versions, specify the hardware version in the device
      database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
    - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
+   - Digilent Genesys 2, Xilinx Kintex 7 development board with single FMC HPC connector.
 * CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
   reduce RTIO latency.

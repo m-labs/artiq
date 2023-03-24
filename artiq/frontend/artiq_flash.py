@@ -59,7 +59,7 @@ Prerequisites:
                         help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
-                             "kasli kc705")
+                             "kasli kc705 genesys2")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
@@ -230,6 +230,34 @@ class ProgrammerXC7(Programmer):
             "xc7_program xc7.tap")
 
 
+class ProgrammerGenesys2(Programmer):
+    _sector_size = 0x10000
+
+    def __init__(self, client, preinit_script):
+        Programmer.__init__(self, client, preinit_script)
+
+        add_commands(self._board_script,
+            "adapter driver ftdi",
+            "ftdi vid_pid 0x0403 0x6010",
+            "ftdi channel 1",
+            "ftdi layout_init 0x00e8 0x60eb",
+            "reset_config none",
+            "adapter speed 25000",
+            "transport select jtag",
+            "source {}".format(self._transfer_script("cpld/xilinx-xc7.cfg")),
+            "source {}".format(self._transfer_script("fpga/xilinx-xadc.cfg")),
+            "source {}".format(self._transfer_script("cpld/jtagspi.cfg")))
+        self.add_flash_bank("spi0", "xc7", index=0)
+
+        add_commands(self._script, "xadc_report xc7.tap")
+
+    def load_proxy(self):
+        self.load(find_proxy_bitfile("bscan_spi_xc7k325t.bit"), pld=0)
+
+    def start(self):
+        add_commands(self._script, "xc7_program xc7.tap")
+
+
 def main():
     args = get_argparser().parse_args()
     common_args.init_logger_from_args(args)
@@ -244,6 +272,13 @@ def main():
         },
         "kc705": {
             "programmer":   partial(ProgrammerXC7, board="kc705", proxy="bscan_spi_xc7k325t.bit"),
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0xaf0000),
+            "storage":      ("spi0", 0xb30000),
+            "firmware":     ("spi0", 0xb40000),
+        },
+        "genesys2": {
+            "programmer":   ProgrammerGenesys2,
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0xaf0000),
             "storage":      ("spi0", 0xb30000),
