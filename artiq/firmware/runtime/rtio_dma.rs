@@ -218,12 +218,13 @@ impl Manager {
         self.recording_trace.extend_from_slice(data)
     }
 
-    pub fn record_stop(&mut self, duration: u64, enable_ddma: bool,
+    pub fn record_stop(&mut self, duration: u64, _enable_ddma: bool,
             _io: &Io, _ddma_mutex: &Mutex) -> u32 {
         let mut local_trace = Vec::new();
-        let mut remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
+        let mut _remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
-        if enable_ddma {
+        #[cfg(has_drtio)]
+        if _enable_ddma {
             let mut trace = Vec::new();
             mem::swap(&mut self.recording_trace, &mut trace);
             trace.push(0);
@@ -239,10 +240,10 @@ impl Manager {
                     local_trace.extend(&trace[ptr..ptr+len]);
                 }
                 else {
-                    if let Some(remote_trace) = remote_traces.get_mut(&destination) {
+                    if let Some(remote_trace) = _remote_traces.get_mut(&destination) {
                         remote_trace.extend(&trace[ptr..ptr+len]);
                     } else {
-                        remote_traces.insert(destination, trace[ptr..ptr+len].to_vec());
+                        _remote_traces.insert(destination, trace[ptr..ptr+len].to_vec());
                     }
                 }
                 // and jump to the next event
@@ -278,7 +279,7 @@ impl Manager {
         self.name_map.insert(name, id);
 
         #[cfg(has_drtio)]
-        remote_dma::add_traces(_io, _ddma_mutex, id, remote_traces);
+        remote_dma::add_traces(_io, _ddma_mutex, id, _remote_traces);
 
         id
     }

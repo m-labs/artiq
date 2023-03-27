@@ -405,6 +405,7 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
 
         csr::cri_con::selected_write(1);
         csr::rtio_dma::enable_write(1);
+        #[cfg(has_drtio)]
         send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
@@ -427,23 +428,29 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
         }
     }
 
-    send(&DmaAwaitRemoteRequest { id: ptr as i32 });
-    recv!(&DmaAwaitRemoteReply { timeout, error, channel, timestamp } => {
-        if timeout {
-            raise!("DMAError",
-                "Error running DMA on satellite device, timed out waiting for results");
-        }
-        if error & 1 != 0 {
-            raise!("RTIOUnderflow",
-                "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
-                channel as i64, timestamp as i64, 0);
-        }
-        if error & 2 != 0 {
-            raise!("RTIODestinationUnreachable",
-                "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
-                channel as i64, timestamp as i64, 0);
-        }
-    });
+    #[cfg(has_drtio)]
+    {
+        send(&DmaAwaitRemoteRequest { id: ptr as i32 });
+        recv!(&DmaAwaitRemoteReply { timeout, error, channel, timestamp } => {
+            if timeout {
+                println!("timeout\n");
+                raise!("DMAError",
+                    "Error running DMA on satellite device, timed out waiting for results");
+            }
+            if error & 1 != 0 {
+                println!("rtio underflow from ddma\n");
+                raise!("RTIOUnderflow",
+                    "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
+            }
+            if error & 2 != 0 {
+                println!("rtio destun from ddma\n");
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
+            }
+        });
+    }
 }
 
 #[cfg(not(has_rtio_dma))]
