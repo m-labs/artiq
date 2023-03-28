@@ -204,8 +204,9 @@ fn startup() {
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
         let aux_mutex = aux_mutex.clone();
+        let ddma_mutex = ddma_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
-        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &drtio_routing_table) });
+        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table) });
     }
     #[cfg(has_rtio_analyzer)]
     io.spawn(4096, analyzer::thread);

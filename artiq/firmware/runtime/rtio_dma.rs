@@ -95,7 +95,7 @@ pub mod remote_dma {
         let _lock = ddma_mutex.lock(io).unwrap();
         let destinations = unsafe { TRACES.get(&id).unwrap() };
         for destination in destinations.keys() {
-            match drtio::ddma_send_erase(io, aux_mutex, routing_table, id, *destination) {
+            match drtio::ddma_send_erase(io, aux_mutex, ddma_mutex, routing_table, id, *destination) {
                 Ok(_) => (),
                 Err(e) => error!("Error erasing trace on DMA: {}", e)
             } 
@@ -108,7 +108,7 @@ pub mod remote_dma {
         let _lock = ddma_mutex.lock(io);
         let traces = unsafe { TRACES.get_mut(&id).unwrap() };
         for (destination, mut trace) in traces {
-            match drtio::ddma_upload_trace(io, aux_mutex, routing_table, id, *destination, trace.get_trace())
+            match drtio::ddma_upload_trace(io, aux_mutex, ddma_mutex, routing_table, id, *destination, trace.get_trace())
             {
                 Ok(_) => trace.state = RemoteState::Loaded,
                 Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
@@ -132,7 +132,7 @@ pub mod remote_dma {
                     continue;
                 }
             }
-            match drtio::ddma_send_playback(io, aux_mutex, routing_table, ddma_mutex, id, *destination, timestamp) {
+            match drtio::ddma_send_playback(io, aux_mutex, ddma_mutex, routing_table, id, *destination, timestamp) {
                 Ok(_) => (),
                 Err(e) => error!("Error during remote DMA playback: {}", e)
             }
@@ -159,7 +159,7 @@ pub mod remote_dma {
         for (id, dest_traces) in traces_iter {
             if let Some(trace) = dest_traces.get_mut(&destination) {
                 if up {
-                    match drtio::ddma_upload_trace(io, aux_mutex, routing_table, *id, destination, trace.get_trace())
+                    match drtio::ddma_upload_trace(io, aux_mutex, ddma_mutex, routing_table, *id, destination, trace.get_trace())
                     {
                         Ok(_) => trace.state = RemoteState::Loaded,
                         Err(e) => error!("Error adding DMA trace on destination {}: {}", destination, e)
@@ -223,8 +223,7 @@ impl Manager {
         let mut local_trace = Vec::new();
         let mut _remote_traces: BTreeMap<u8, Vec<u8>> = BTreeMap::new();
 
-        #[cfg(has_drtio)]
-        if _enable_ddma {
+        if _enable_ddma & cfg!(has_drtio) {
             let mut trace = Vec::new();
             mem::swap(&mut self.recording_trace, &mut trace);
             trace.push(0);

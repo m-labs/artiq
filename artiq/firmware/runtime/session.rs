@@ -349,7 +349,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, aux_mutex, routing_table, up_destinations, request)? {
+        if kern_hwreq::process_kern_hwreq(io, aux_mutex, ddma_mutex, routing_table, up_destinations, request)? {
             return Ok(false)
         }
 
@@ -384,7 +384,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::DmaRecordStop { duration, enable_ddma } => {
                 let _id = session.congress.dma_manager.record_stop(duration, enable_ddma, io, ddma_mutex);
                 #[cfg(has_drtio)]
-                {
+                if enable_ddma {
                     remote_dma::upload_traces(io, aux_mutex, routing_table, ddma_mutex, _id);
                 }
                 cache::flush_l2_cache();
