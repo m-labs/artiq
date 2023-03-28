@@ -79,10 +79,12 @@ class CoreDMA:
         """Returns a context manager that will record a DMA trace called ``name``.
         Any previously recorded trace with the same name is overwritten.
         The trace will persist across kernel switches.
-        In DRTIO context, you can toggle distributed DMA with ``enable_ddma``.
+
+        In DRTIO context, distributed DMA can be toggled with ``enable_ddma``.
         Enabling it allows running DMA on satellites, rather than sending all
         events from the master.
-        Disabling it may improve performance in some scenarios, 
+
+        Keeping it disabled it may improve performance in some scenarios, 
         e.g. when there are many small satellite buffers."""
         self.epoch += 1
         self.recorder.name = name
