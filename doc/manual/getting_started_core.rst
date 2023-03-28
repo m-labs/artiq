@@ -243,3 +243,25 @@ Try this: ::
                 # execute RTIO operations in the DMA buffer
                 # each playback advances the timeline by 50*(100+100) ns
                 self.core_dma.playback_handle(pulses_handle)
+
+Distributed Direct Memory Access (DDMA)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default on DRTIO systems, all events recorded by the DMA core are kept and played back on the master.
+
+With distributed DMA, RTIO events that should be played back on remote destinations, are distributed to the corresponding satellites. In some cases, it may allow for better performance and lower latency - as there is overhead in transmitting the data.
+
+To enable distributed DMA, simply provide an ``enable_ddma=True`` argument for the :meth:`~artiq.coredevice.dma.CoreDMA.record` method - taking a snippet from the previous example: ::
+
+        @kernel
+        def record(self):
+            with self.core_dma.record("pulses", enable_ddma=True):
+                # all RTIO operations now go to the "pulses"
+                # DMA buffer, instead of being executed immediately.
+                for i in range(50):
+                    self.ttl0.pulse(100*ns)
+                    delay(100*ns)
+
+This argument is ignored on standalone systems, as it does not apply there. Enabling DDMA on a purely local sequence will have a consequence of slight overhead coming from analyzing the recording after it is stopped, so careful usage is advised.
+
+Due to the extra time processing and communicating with relevant satellites may take, an additional delay before playback may be necessary to prevent a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` on remote.
