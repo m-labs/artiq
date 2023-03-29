@@ -249,7 +249,7 @@ Distributed Direct Memory Access (DDMA)
 
 By default on DRTIO systems, all events recorded by the DMA core are kept and played back on the master.
 
-With distributed DMA, RTIO events that should be played back on remote destinations, are distributed to the corresponding satellites. In some cases, it may allow for better performance and higher bandwidth, as the RTIO events do not have to be sent during playback.
+With distributed DMA, RTIO events that should be played back on remote destinations, are distributed to the corresponding satellites. In some cases (typically, large buffers on several satellites with high event throughput), it allows for better performance and higher bandwidth, as the RTIO events do not have to be sent over the DRTIO link(s) during playback.
 
 To enable distributed DMA, simply provide an ``enable_ddma=True`` argument for the :meth:`~artiq.coredevice.dma.CoreDMA.record` method - taking a snippet from the previous example: ::
 
@@ -262,6 +262,8 @@ To enable distributed DMA, simply provide an ``enable_ddma=True`` argument for t
                     self.ttl0.pulse(100*ns)
                     delay(100*ns)
 
-This argument is ignored on standalone systems, as it does not apply there. Enabling DDMA on a purely local sequence will have a consequence of slight overhead coming from analyzing the recording after it is stopped, so careful usage is advised.
+This argument is ignored on standalone systems, as it does not apply there.
 
-Due to the extra time processing and communicating with relevant satellites may take, an additional delay before playback may be necessary to prevent a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` on remote.
+Enabling DDMA on a purely local sequence on a DRTIO system introduces an overhead during trace recording which comes from additional processing done on the record, so careful use is advised.
+
+Due to the extra time that communicating with relevant satellites takes, an additional delay before playback may be necessary to prevent a :exc:`~artiq.coredevice.exceptions.RTIOUnderflow` when playing back a DDMA-enabled sequence.
