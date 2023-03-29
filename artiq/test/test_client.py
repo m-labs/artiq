@@ -4,9 +4,7 @@ import subprocess
 import sys
 import os
 import unittest
-import logging
 from tempfile import TemporaryDirectory
-import signal
 from pygit2 import init_repository, Signature
 
 EXPERIMENT_CONTENT = """
@@ -51,15 +49,8 @@ class TestClient(unittest.TestCase):
     def check_and_terminate_master(self):
         while not ("test content" in self.master.stdout.readline()):
             pass
-        if os.name == "nt":
-            try:
-                self.master.send_signal(signal.CTRL_C_EVENT)
-                self.master.wait()
-            except KeyboardInterrupt:
-                logging.warning("Master process haven't handled the CTRL_C_EVENT correctly")
-        else:
-            self.master.terminate()
-            self.master.wait()
+        self.run_client("terminate")
+        self.assertEqual(self.master.wait(), 0)
         self.master.stdout.close()
 
     @staticmethod
@@ -70,14 +61,17 @@ class TestClient(unittest.TestCase):
     def test_submit_outside_repo(self):
         self.start_master("-r", self.tmp_empty_dir.name)
         self.run_client("submit", self.exp_path)
+        self.check_and_terminate_master()
 
     def test_submit_by_content(self):
         self.start_master("-r", self.tmp_empty_dir.name)
         self.run_client("submit", self.exp_path, "--content")
+        self.check_and_terminate_master()
 
     def test_submit_by_file_repo(self):
         self.start_master("-r", self.tmp_dir.name)
         self.run_client("submit", self.exp_name, "-R")
+        self.check_and_terminate_master()
 
     def test_submit_by_git_repo(self):
         repo = init_repository(self.tmp_dir.name)
@@ -90,8 +84,8 @@ class TestClient(unittest.TestCase):
 
         self.start_master("-r", self.tmp_dir.name, "-g")
         self.run_client("submit", self.exp_name, "-R")
+        self.check_and_terminate_master()
 
     def tearDown(self):
-        self.check_and_terminate_master()
         self.tmp_dir.cleanup()
         self.tmp_empty_dir.cleanup()
