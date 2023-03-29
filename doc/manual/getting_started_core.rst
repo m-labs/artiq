@@ -249,7 +249,7 @@ Distributed Direct Memory Access (DDMA)
 
 By default on DRTIO systems, all events recorded by the DMA core are kept and played back on the master.
 
-With distributed DMA, RTIO events that should be played back on remote destinations, are distributed to the corresponding satellites. In some cases, it may allow for better performance and lower latency - as there is overhead in transmitting the data.
+With distributed DMA, RTIO events that should be played back on remote destinations, are distributed to the corresponding satellites. In some cases, it may allow for better performance and higher bandwidth, as the RTIO events do not have to be sent during playback.
 
 To enable distributed DMA, simply provide an ``enable_ddma=True`` argument for the :meth:`~artiq.coredevice.dma.CoreDMA.record` method - taking a snippet from the previous example: ::
 

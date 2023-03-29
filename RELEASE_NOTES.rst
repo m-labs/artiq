@@ -24,7 +24,7 @@ Highlights:
 * Added channel names to RTIO errors.
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be ran directly on satellites for corresponding
-  RTIO events, decreasing latency in scenarios with heavy satellite usage.
+  RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
 
 ARTIQ-7
 -------
