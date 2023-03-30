@@ -3,8 +3,6 @@
 import argparse
 
 from migen import *
-from migen.genlib.resetsync import AsyncResetSynchronizer
-from migen.genlib.cdc import MultiReg
 from migen.build.generic_platform import *
 
 from misoc.interconnect.csr import *
@@ -28,8 +26,9 @@ class _StandaloneBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, gateware_identifier_str=None, **kwargs):
+    def __init__(self, fmc1_vadj, gateware_identifier_str=None, **kwargs):
         MiniSoC.__init__(self,
+                         fmc1_vadj,
                          cpu_type="vexriscv",
                          cpu_bus_width=64,
                          sdram_controller_type="minicon",
