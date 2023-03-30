@@ -1,9 +1,13 @@
-use core::str::Utf8Error;
-use alloc::vec::Vec;
+use core::{str, str::Utf8Error, slice};
+use alloc::{vec::Vec, format, collections::BTreeMap, string::String};
 use eh::eh_artiq::{Exception, StackPointerBacktrace};
 use cslice::CSlice;
 
 use io::{Read, ProtoRead, Write, ProtoWrite, Error as IoError, ReadStringError};
+
+pub type DeviceMap = BTreeMap<u32, String>;
+
+static mut RTIO_DEVICE_MAP: Option<DeviceMap> = None;
 
 #[derive(Fail, Debug)]
 pub enum Error<T> {
@@ -190,7 +194,14 @@ impl<'a> Reply<'a> {
                 for exception in exceptions.iter() {
                     let exception = exception.as_ref().unwrap();
                     writer.write_u32(exception.id as u32)?;
-                    write_exception_string(writer, &exception.message)?;
+                    if exception.message.len() == usize::MAX {
+                        // exception with host string
+                        write_exception_string(writer, &exception.message)?;
+                    } else {
+                        let msg = str::from_utf8(unsafe { slice::from_raw_parts(exception.message.as_ptr(), exception.message.len()) }).unwrap()
+                          .replace("{rtio_channel_info:0}", &format!("0x{:04x}:{}", exception.param[0], resolve_channel_name(exception.param[0] as u32)));
+                        write_exception_string(writer, unsafe { &CSlice::new(msg.as_ptr(), msg.len()) })?;
+                    }
                     writer.write_u64(exception.param[0] as u64)?;
                     writer.write_u64(exception.param[1] as u64)?;
                     writer.write_u64(exception.param[2] as u64)?;
@@ -225,4 +236,21 @@ impl<'a> Reply<'a> {
         }
         Ok(())
     }
+}
+
+pub fn set_device_map(device_map: DeviceMap) {
+    unsafe { RTIO_DEVICE_MAP = Some(device_map); }
+}
+
+fn _resolve_channel_name(channel: u32, device_map: &Option<DeviceMap>) -> String {
+    if let Some(dev_map) = device_map {
+        match dev_map.get(&channel) {
+            Some(val) => val.clone(),
+            None => String::from("unknown")
+        }
+    } else { String::from("unknown") }
+}
+
+pub fn resolve_channel_name(channel: u32) -> String {
+    _resolve_channel_name(channel, unsafe{&RTIO_DEVICE_MAP})
 }

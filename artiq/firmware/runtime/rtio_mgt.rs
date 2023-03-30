@@ -1,5 +1,3 @@
-use alloc::collections::BTreeMap;
-use alloc::string::String;
 use core::cell::RefCell;
 use urc::Urc;
 use board_misoc::{csr, config};
@@ -9,11 +7,10 @@ use board_artiq::drtio_routing;
 use sched::Io;
 use sched::Mutex;
 use io::{Cursor, ProtoRead};
+use session_proto::{DeviceMap, resolve_channel_name, set_device_map};
 const ASYNC_ERROR_COLLISION: u8 = 1 << 0;
 const ASYNC_ERROR_BUSY: u8 = 1 << 1;
 const ASYNC_ERROR_SEQUENCE_ERROR: u8 = 1 << 2;
-
-static mut RTIO_DEVICE_MAP: BTreeMap<u32, String> = BTreeMap::new();
 
 #[cfg(has_drtio)]
 pub mod drtio {
@@ -451,8 +448,8 @@ fn async_error_thread(io: Io) {
     }
 }
 
-fn read_device_map() -> BTreeMap<u32, String> {
-    let mut device_map: BTreeMap<u32, String> = BTreeMap::new();
+fn read_device_map() -> DeviceMap {
+    let mut device_map: DeviceMap = DeviceMap::new();
     config::read("device_map", |value: Result<&[u8], config::Error>| {
         let mut bytes = match value {
             Ok(val) => if val.len() > 0 { Cursor::new(val) } else {
@@ -477,22 +474,11 @@ fn read_device_map() -> BTreeMap<u32, String> {
     device_map
 }
 
-fn _resolve_channel_name(channel: u32, device_map: &BTreeMap<u32, String>) -> String {
-    match device_map.get(&channel) {
-        Some(val) => val.clone(),
-        None => String::from("unknown")
-    }
-}
-
-pub fn resolve_channel_name(channel: u32) -> String {
-    _resolve_channel_name(channel, unsafe{&RTIO_DEVICE_MAP})
-}
-
 pub fn startup(io: &Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
         ddma_mutex: &Mutex) {
-    unsafe { RTIO_DEVICE_MAP = read_device_map(); }
+    set_device_map(read_device_map());
     drtio::startup(io, aux_mutex, routing_table, up_destinations, ddma_mutex);
     unsafe {
         csr::rtio_core::reset_phy_write(1);
