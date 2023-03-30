@@ -29,7 +29,10 @@ class KernelNestedFmtException(EnvExperiment):
         try:
             self.throw()
         except:
-            raise RTIOUnderflow("{bar}")
+            try:
+                raise RTIOUnderflow("{bar}")
+            except:
+                raise RTIOOverflow("{buzz}")
 
     def throw(self):
         raise CustomException("{foo}")
@@ -46,7 +49,7 @@ class TestExceptions(ExperimentCase):
     def test_nested_formatted_kernel_exception(self):
         with self.assertLogs() as captured:
             with self.assertRaisesRegex(CustomException,
-                                        re.compile(r"CustomException\(\d+\): \{foo\}.*?RTIOUnderflow\(\d+\): \{bar\}",
+                                        re.compile(r"CustomException\(\d+\): \{foo\}.*?RTIOUnderflow\(\d+\): \{bar\}.*?RTIOOverflow\(\d+\): \{buzz\}",
                                                    re.DOTALL)):
                 self.execute(KernelNestedFmtException)
         self.assertEqual(captured.output, [
