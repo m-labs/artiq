@@ -72,6 +72,14 @@ class MasterConfig:
         return self.name
 
 
+class MasterProcess:
+    def __init__(self, task):
+        self.task = task
+
+    def terminate(self):
+        self.task.cancel()
+
+
 def main():
     args = get_argparser().parse_args()
     log_forwarder = init_log(args)
@@ -81,6 +89,7 @@ def main():
     signal_handler = SignalHandler()
     signal_handler.setup()
     atexit.register(signal_handler.teardown)
+    signal_handler_task = loop.create_task(signal_handler.wait_terminate())
     bind = common_args.bind_address_from_args(args)
 
     server_broadcast = Broadcaster()
@@ -133,12 +142,14 @@ def main():
     })
     experiment_db.scan_repository_async(loop=loop)
 
+    master = MasterProcess(signal_handler_task)
     server_control = RPCServer({
         "master_config": config,
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
-        "master_experiment_db": experiment_db
+        "master_experiment_db": experiment_db,
+        "master_process": master
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
@@ -161,7 +172,10 @@ def main():
     atexit_register_coroutine(server_logging.stop, loop=loop)
 
     print("ARTIQ master is now ready.")
-    loop.run_until_complete(signal_handler.wait_terminate())
+    try:
+        loop.run_until_complete(signal_handler_task)
+    except asyncio.CancelledError:
+        pass
 
 if __name__ == "__main__":
     main()
