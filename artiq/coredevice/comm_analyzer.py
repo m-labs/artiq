@@ -102,15 +102,15 @@ def decode_dump(data):
     # messages are big endian
     parts = struct.unpack(endian + "IQbbb", data[:15])
     (sent_bytes, total_byte_count,
-     error_occured, log_channel, dds_onehot_sel) = parts
+     error_occurred, log_channel, dds_onehot_sel) = parts
 
     expected_len = sent_bytes + 15
     if expected_len != len(data):
         raise ValueError("analyzer dump has incorrect length "
                          "(got {}, expected {})".format(
                             len(data), expected_len))
-    if error_occured:
-        logger.warning("error occured within the analyzer, "
+    if error_occurred:
+        logger.warning("error occurred within the analyzer, "
                        "data may be corrupted")
     if total_byte_count > sent_bytes:
         logger.info("analyzer ring buffer has wrapped %d times",
