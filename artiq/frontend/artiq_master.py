@@ -73,11 +73,7 @@ class MasterConfig:
 
 
 class MasterProcess:
-    def __init__(self, task):
-        self.task = task
-
-    def terminate(self):
-        self.task.cancel()
+    pass
 
 
 def main():
@@ -142,7 +138,9 @@ def main():
     })
     experiment_db.scan_repository_async(loop=loop)
 
-    master = MasterProcess(signal_handler_task)
+    master = MasterProcess()
+    setattr(MasterProcess, 'terminate', lambda self: signal_handler_task.cancel())
+
     server_control = RPCServer({
         "master_config": config,
         "master_device_db": device_db,
