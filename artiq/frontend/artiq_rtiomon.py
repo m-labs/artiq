@@ -2,8 +2,9 @@
 
 import argparse
 import asyncio
+import atexit
 
-from sipyco.asyncio_tools import SignalHandler
+from sipyco.asyncio_tools import SignalHandler, atexit_register_coroutine
 
 from artiq.coredevice.comm_moninj import *
 
@@ -23,24 +24,22 @@ def main():
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        signal_handler = SignalHandler()
-        signal_handler.setup()
-        try:
-            comm = CommMonInj(
-                lambda channel, probe, value: print("0x{:06x}: {}".format(channel, value)),
-                lambda channel, override, value: None)
-            loop.run_until_complete(comm.connect(args.core_addr))
-            try:
-                for channel in args.channel:
-                    comm.monitor_probe(True, channel, 0)
-                loop.run_until_complete(signal_handler.wait_terminate())
-            finally:
-                loop.run_until_complete(comm.close())
-        finally:
-            signal_handler.teardown()
-    finally:
-        loop.close()
+    atexit.register(loop.close)
+
+    signal_handler = SignalHandler()
+    signal_handler.setup()
+    atexit.register(signal_handler.teardown)
+    comm = CommMonInj(
+        lambda channel, probe, value: print("0x{:06x}: {}".format(channel, value)),
+        lambda channel, override, value: None)
+    loop.run_until_complete(comm.connect(args.core_addr))
+
+    atexit_register_coroutine(comm.close, loop=loop)
+
+    for channel in args.channel:
+        comm.monitor_probe(True, channel, 0)
+
+    loop.run_until_complete(signal_handler.wait_terminate())
 
 
 if __name__ == "__main__":

@@ -5,11 +5,12 @@ import asyncio
 import struct
 import logging
 import re
+import atexit
 
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 from sipyco.logging_tools import log_with_name
-from sipyco.asyncio_tools import SignalHandler
+from sipyco.asyncio_tools import SignalHandler, atexit_register_coroutine
 from sipyco.keepalive import async_open_connection
 
 from artiq.coredevice.comm_mgmt import Request, Reply
@@ -91,32 +92,29 @@ def main():
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        signal_handler = SignalHandler()
-        signal_handler.setup()
-        try:
-            get_logs_task = asyncio.ensure_future(
-                get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr),
-                loop=loop)
-            try:
-                server = Server({"corelog": PingTarget()}, None, True)
-                loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
-                try:
-                    _, pending = loop.run_until_complete(asyncio.wait(
-                        [loop.create_task(signal_handler.wait_terminate()),
-                         loop.create_task(server.wait_terminate()),
-                         get_logs_task],
-                        return_when=asyncio.FIRST_COMPLETED))
-                    for task in pending:
-                        task.cancel()
-                finally:
-                    loop.run_until_complete(server.stop())
-            finally:
-                pass
-        finally:
-            signal_handler.teardown()
-    finally:
-        loop.close()
+    atexit.register(loop.close)
+
+    signal_handler = SignalHandler()
+    signal_handler.setup()
+    atexit.register(signal_handler.teardown)
+
+    get_logs_task = asyncio.ensure_future(
+        get_logs_sim(args.core_addr) if args.simulation else get_logs(args.core_addr),
+        loop=loop)
+
+    server = Server({"corelog": PingTarget()}, None, True)
+    loop.run_until_complete(server.start(common_args.bind_address_from_args(args), args.port))
+    atexit_register_coroutine(server.stop)
+
+    _, pending = loop.run_until_complete(asyncio.wait(
+        [loop.create_task(signal_handler.wait_terminate()),
+         loop.create_task(server.wait_terminate()),
+         get_logs_task],
+        return_when=asyncio.FIRST_COMPLETED))
+
+    for task in pending:
+        task.cancel()
+
 
 if __name__ == "__main__":
     main()

@@ -4,9 +4,10 @@ import argparse
 import logging
 import asyncio
 import struct
+import atexit
 from enum import Enum
 
-from sipyco.asyncio_tools import AsyncioServer, SignalHandler
+from sipyco.asyncio_tools import AsyncioServer, SignalHandler, atexit_register_coroutine
 from sipyco.pc_rpc import Server
 from sipyco import common_args
 
@@ -201,40 +202,34 @@ def main():
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    try:
-        signal_handler = SignalHandler()
-        signal_handler.setup()
-        try:
-            monitor_mux = MonitorMux()
-            comm_moninj = CommMonInj(monitor_mux.monitor_cb,
-                                     monitor_mux.injection_status_cb,
-                                     monitor_mux.disconnect_cb)
-            monitor_mux.comm_moninj = comm_moninj
-            loop.run_until_complete(comm_moninj.connect(args.core_addr))
-            try:
-                proxy_server = ProxyServer(monitor_mux)
-                loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
-                try:
-                    server = Server({"moninj_proxy": PingTarget()}, None, True)
-                    loop.run_until_complete(server.start(bind_address, args.port_control))
-                    try:
-                        _, pending = loop.run_until_complete(asyncio.wait(
-                            [loop.create_task(signal_handler.wait_terminate()),
-                             loop.create_task(server.wait_terminate()),
-                             comm_moninj.wait_terminate()],
-                            return_when=asyncio.FIRST_COMPLETED))
-                        for task in pending:
-                            task.cancel()
-                    finally:
-                        loop.run_until_complete(server.stop())
-                finally:
-                    loop.run_until_complete(proxy_server.stop())
-            finally:
-                loop.run_until_complete(comm_moninj.close())
-        finally:
-            signal_handler.teardown()
-    finally:
-        loop.close()
+    atexit.register(loop.close)
+    signal_handler = SignalHandler()
+    signal_handler.setup()
+    atexit.register(signal_handler.teardown)
+
+    monitor_mux = MonitorMux()
+    comm_moninj = CommMonInj(monitor_mux.monitor_cb,
+                             monitor_mux.injection_status_cb,
+                             monitor_mux.disconnect_cb)
+    monitor_mux.comm_moninj = comm_moninj
+    loop.run_until_complete(comm_moninj.connect(args.core_addr))
+    atexit_register_coroutine(comm_moninj.close, loop=loop)
+
+    proxy_server = ProxyServer(monitor_mux)
+    loop.run_until_complete(proxy_server.start(bind_address, args.port_proxy))
+    atexit_register_coroutine(proxy_server.stop, loop=loop)
+
+    server = Server({"moninj_proxy": PingTarget()}, None, True)
+    loop.run_until_complete(server.start(bind_address, args.port_control))
+    atexit_register_coroutine(server.stop, loop=loop)
+
+    _, pending = loop.run_until_complete(asyncio.wait(
+        [loop.create_task(signal_handler.wait_terminate()),
+         loop.create_task(server.wait_terminate()),
+         comm_moninj.wait_terminate()],
+        return_when=asyncio.FIRST_COMPLETED))
+    for task in pending:
+        task.cancel()
 
 
 if __name__ == "__main__":
