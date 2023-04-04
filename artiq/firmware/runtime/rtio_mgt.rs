@@ -456,11 +456,11 @@ fn read_device_map() -> BTreeMap<u32, String> {
     config::read("device_map", |value: Result<&[u8], config::Error>| {
         let mut bytes = match value {
             Ok(val) => if val.len() > 0 { Cursor::new(val) } else {
-                error!("read_device_map: `device_map` was not found in the config");
+                warn!("device map not found in config, device names will not be available in RTIO error messages");
                 return;
             },
             Err(err) => {
-                error!("read_device_map: error reading `device_map` from config: {}", err);
+                warn!("error reading device map ({}), device names will not be available in RTIO error messages", err);
                 return;
             }
         };
@@ -469,7 +469,7 @@ fn read_device_map() -> BTreeMap<u32, String> {
             let channel = bytes.read_u32().unwrap();
             let device_name= bytes.read_string().unwrap();
             if let Some(old_entry) = device_map.insert(channel, device_name.clone()) {
-                error!("conflicting entries for channel {}: `{}` and `{}`",
+                warn!("conflicting device map entries for RTIO channel {}: '{}' and '{}'",
                        channel, old_entry, device_name);
             }
         }
