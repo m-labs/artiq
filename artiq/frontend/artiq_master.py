@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import atexit
 import logging
+from types import SimpleNamespace
 
 from sipyco.pc_rpc import Server as RPCServer
 from sipyco.sync_struct import Publisher
@@ -72,10 +73,6 @@ class MasterConfig:
         return self.name
 
 
-class MasterProcess:
-    pass
-
-
 def main():
     args = get_argparser().parse_args()
     log_forwarder = init_log(args)
@@ -85,7 +82,6 @@ def main():
     signal_handler = SignalHandler()
     signal_handler.setup()
     atexit.register(signal_handler.teardown)
-    signal_handler_task = loop.create_task(signal_handler.wait_terminate())
     bind = common_args.bind_address_from_args(args)
 
     server_broadcast = Broadcaster()
@@ -138,8 +134,8 @@ def main():
     })
     experiment_db.scan_repository_async(loop=loop)
 
-    master = MasterProcess()
-    setattr(MasterProcess, 'terminate', lambda self: signal_handler_task.cancel())
+    signal_handler_task = loop.create_task(signal_handler.wait_terminate())
+    master_terminate = SimpleNamespace(terminate=lambda: signal_handler_task.cancel())
 
     server_control = RPCServer({
         "master_config": config,
@@ -147,7 +143,7 @@ def main():
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
         "master_experiment_db": experiment_db,
-        "master_process": master
+        "master_terminate": master_terminate
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
@@ -174,6 +170,7 @@ def main():
         loop.run_until_complete(signal_handler_task)
     except asyncio.CancelledError:
         pass
+
 
 if __name__ == "__main__":
     main()
