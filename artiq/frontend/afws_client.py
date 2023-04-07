@@ -13,17 +13,6 @@ from getpass import getpass
 from tqdm import tqdm
 
 
-def get_artiq_cert():
-    try:
-        import artiq
-    except ImportError:
-        return None
-    filename = os.path.join(os.path.dirname(artiq.__file__), "afws.pem")
-    if not os.path.isfile(filename):
-        return None
-    return filename
-
-
 def get_artiq_rev():
     try:
         import artiq
@@ -54,12 +43,26 @@ class Client:
     def __init__(self, server, port, cafile):
         self.ssl_context = ssl.create_default_context(cafile=cafile)
         self.raw_socket = socket.create_connection((server, port))
+        self.init_websocket(server)
         try:
             self.socket = self.ssl_context.wrap_socket(self.raw_socket, server_hostname=server)
         except:
             self.raw_socket.close()
             raise
         self.fsocket = self.socket.makefile("rwb")
+
+    def init_websocket(self, server):
+        self.raw_socket.sendall("GET / HTTP/1.1\r\nHost: {}\r\nConnection: Upgrade\r\nUpgrade: websocket\r\n\r\n"
+            .format(server).encode())
+        crlf_count = 0
+        while crlf_count < 4:
+            char = self.raw_socket.recv(1)
+            if not char:
+                return ValueError("Connection closed during WebSocket initialization")
+            if char == b"\r" or char == b"\n":
+                crlf_count += 1
+            else:
+                crlf_count = 0
 
     def close(self):
         self.socket.close()
@@ -160,9 +163,9 @@ class Client:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--server", default="nixbld.m-labs.hk", help="server to connect to (default: %(default)s)")
-    parser.add_argument("--port", default=7402, type=int, help="port to connect to (default: %(default)d)")
-    parser.add_argument("--cert", default=None, help="SSL certificate file used to authenticate server (default: afws.pem in ARTIQ)")
+    parser.add_argument("--server", default="afws.m-labs.hk", help="server to connect to (default: %(default)s)")
+    parser.add_argument("--port", default=80, type=int, help="port to connect to (default: %(default)d)")
+    parser.add_argument("--cert", default=None, help="SSL certificate file used to authenticate server (default: use system certificates)")
     parser.add_argument("username", help="user name for logging into AFWS")
     action = parser.add_subparsers(dest="action")
     action.required = True
@@ -181,19 +184,12 @@ def main():
     act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
     args = parser.parse_args()
 
-    cert = args.cert
-    if cert is None:
-        cert = get_artiq_cert()
-    if cert is None:
-        print("SSL certificate not found in ARTIQ. Specify manually using --cert.")
-        sys.exit(1)
-
     if args.action == "passwd":
         password = getpass("Current password: ")
     else:
         password = getpass()
 
-    client = Client(args.server, args.port, cert)
+    client = Client(args.server, args.port, args.cert)
     try:
         if not client.login(args.username, password):
             print("Login failed")
