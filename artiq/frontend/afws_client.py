@@ -184,29 +184,10 @@ def main():
     act_get_json.add_argument("-f", "--force", action="store_true", help="overwrite file if it already exists")
     args = parser.parse_args()
 
-    if args.action == "passwd":
-        password = getpass("Current password: ")
-    else:
-        password = getpass()
-
     client = Client(args.server, args.port, args.cert)
     try:
-        if not client.login(args.username, password):
-            print("Login failed")
-            sys.exit(1)
-        print("Logged in successfully.")
-        if args.action == "passwd":
-            print("Password must made of alphanumeric characters (a-z, A-Z, 0-9) and be at least 8 characters long.")
-            password = getpass("New password: ")
-            password_confirm = getpass("New password (again): ")
-            while password != password_confirm:
-                print("Passwords do not match")
-                password = getpass("New password: ")
-                password_confirm = getpass("New password (again): ")
-            if not client.passwd(password):
-                print("Failed to change password")
-                sys.exit(1)
-        elif args.action == "build":
+        if args.action == "build":
+            # do this before user enters password so errors are reported without unnecessary user action
             try:
                 os.mkdir(args.directory)
             except FileExistsError:
@@ -229,6 +210,29 @@ def main():
             if rev is None:
                 print("Unable to determine currently installed ARTIQ revision. Specify manually using --rev.")
                 sys.exit(1)
+
+        if args.action == "passwd":
+            password = getpass("Current password: ")
+        else:
+            password = getpass()
+        if not client.login(args.username, password):
+            print("Login failed")
+            sys.exit(1)
+
+        print("Logged in successfully.")
+        if args.action == "passwd":
+            print("Password must made of alphanumeric characters (a-z, A-Z, 0-9) and be at least 8 characters long.")
+            password = getpass("New password: ")
+            password_confirm = getpass("New password (again): ")
+            while password != password_confirm:
+                print("Passwords do not match")
+                password = getpass("New password: ")
+                password_confirm = getpass("New password (again): ")
+            if not client.passwd(password):
+                print("Failed to change password")
+                sys.exit(1)
+        elif args.action == "build":
+            # build dir and version variables set up above
             result, contents = client.build(major_ver, rev, args.variant, args.log, args.experimental)
             if result != "OK":
                 if result == "UNAUTHORIZED":
