@@ -10,6 +10,7 @@ pub enum RtioClock {
     Int_100,
     Ext0_Bypass,
     Ext0_Synth0_10to125,
+    Ext0_Synth0_80to125,
     Ext0_Synth0_100to125,
     Ext0_Synth0_125to125,
 }
@@ -24,6 +25,7 @@ fn get_rtio_clock_cfg() -> RtioClock {
             Ok("ext0_bypass_125") => RtioClock::Ext0_Bypass,
             Ok("ext0_bypass_100") => RtioClock::Ext0_Bypass,
             Ok("ext0_synth0_10to125") => RtioClock::Ext0_Synth0_10to125,
+            Ok("ext0_synth0_80to125") => RtioClock::Ext0_Synth0_80to125,
             Ok("ext0_synth0_100to125") => RtioClock::Ext0_Synth0_100to125,
             Ok("ext0_synth0_125to125") => RtioClock::Ext0_Synth0_125to125,
             Ok("i") => {
@@ -44,6 +46,8 @@ fn get_rtio_clock_cfg() -> RtioClock {
             warn!("si5324_ext_ref and ext_ref_frequency compile-time options are deprecated. Please use the rtio_clock coreconfig settings instead.");
             #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "10.0"))]
             return RtioClock::Ext0_Synth0_10to125;
+            #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "80.0"))]
+            return RtioClock::Ext0_Synth0_80to125;
             #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "100.0"))]
             return RtioClock::Ext0_Synth0_100to125;
             #[cfg(all(rtio_frequency = "125.0", si5324_ext_ref, ext_ref_frequency = "125.0"))]
@@ -104,6 +108,22 @@ fn setup_si5324_pll(cfg: RtioClock) {
                     n2_ls  : 300,
                     n31    : 6,
                     n32    : 6,
+                    bwsel  : 4,
+                    crystal_as_ckin2: false
+                },
+                SI5324_EXT_INPUT
+            )
+        },
+        RtioClock::Ext0_Synth0_80to125 => { // 125 MHz output from 80 MHz CLKINx reference, 611 Hz BW
+        info!("using 80MHz reference to make 125MHz RTIO clock with PLL");
+            (
+                si5324::FrequencySettings {
+                    n1_hs  : 4,
+                    nc1_ls : 10,
+                    n2_hs  : 10,
+                    n2_ls  : 250,
+                    n31    : 40,
+                    n32    : 40,
                     bwsel  : 4,
                     crystal_as_ckin2: false
                 },

@@ -343,8 +343,9 @@ The KC705 may use either an external clock signal, or its internal clock with ex
 
 Other options include:
   - ``ext0_synth0_10to125`` - external 10MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``ext0_synth0_100to125`` - exteral 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
-  - ``ext0_synth0_125to125`` - exteral 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_80to125`` - external 80MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_100to125`` - external 100MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
+  - ``ext0_synth0_125to125`` - external 125MHz reference clock used by Si5324 to synthesize a 125MHz RTIO clock,
   - ``int_100`` - internal crystal reference is used by Si5324 to synthesize a 100MHz RTIO clock,
   - ``int_150`` - internal crystal reference is used by Si5324 to synthesize a 150MHz RTIO clock.
   - ``ext0_bypass_125`` and ``ext0_bypass_100`` - explicit aliases for ``ext0_bypass``.
