@@ -34,6 +34,7 @@ pub enum Message<'a> {
     DmaRetrieveReply {
         trace:    Option<&'a [u8]>,
         duration: u64,
+        uses_ddma: bool,
     },
 
     DmaStartRemoteRequest {
