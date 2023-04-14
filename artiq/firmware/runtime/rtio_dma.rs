@@ -17,6 +17,7 @@ pub mod remote_dma {
         Loaded,
         PlaybackEnded { error: u8, channel: u32, timestamp: u64 }
     }
+
     #[derive(Debug, Clone)]
     struct RemoteTrace {
         trace: Vec<u8>,
@@ -169,7 +170,12 @@ pub mod remote_dma {
                 }
             }
         }
+    }
 
+    pub fn has_remote_traces(io: &Io, ddma_mutex: &Mutex, id: u32) -> bool {
+        let _lock = ddma_mutex.lock(io).unwrap();
+        let trace_list = unsafe { TRACES.get(&id).unwrap() };
+        !trace_list.is_empty()
     }
 
 }
