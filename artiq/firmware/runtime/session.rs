@@ -146,9 +146,9 @@ fn host_write<W>(writer: &mut W, reply: host::Reply) -> Result<(), IoError<W::Wr
 pub fn kern_send(io: &Io, request: &kern::Message) -> Result<(), Error<SchedError>> {
     match request {
         &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
-        &kern::DmaRetrieveReply { trace, duration } => {
+        &kern::DmaRetrieveReply { trace, duration, uses_ddma } => {
             if trace.map(|data| data.len() > 100).unwrap_or(false) {
-                debug!("comm->kern DmaRetrieveReply {{ trace: ..., duration: {:?} }}", duration)
+                debug!("comm->kern DmaRetrieveReply {{ trace: ..., duration: {:?}, uses_ddma: {} }}", duration, uses_ddma)
             } else {
                 debug!("comm->kern {:?}", request)
             }
@@ -400,9 +400,17 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaRetrieveRequest { name } => {
                 session.congress.dma_manager.with_trace(name, |trace, duration| {
+                    #[cfg(has_drtio)]
+                    let uses_ddma = match trace {
+                        Some(trace) => remote_dma::has_remote_traces(io, aux_mutex, trace.as_ptr() as u32),
+                        None => false
+                    };
+                    #[cfg(not(has_drtio))]
+                    let uses_ddma = false;
                     kern_send(io, &kern::DmaRetrieveReply {
                         trace:    trace,
-                        duration: duration
+                        duration: duration,
+                        uses_ddma: uses_ddma,
                     })
                 })
             }
