@@ -125,6 +125,9 @@ def get_argparser():
         "ls", help="list a directory on the master")
     parser_ls.add_argument("directory", default="", nargs="?")
 
+    subparsers.add_parser(
+        "terminate", help="terminate the ARTIQ master")
+
     common_args.verbosity_args(parser)
     return parser
 
@@ -193,6 +196,10 @@ def _action_ls(remote, args):
     contents = remote.list_directory(args.directory)
     for name in sorted(contents, key=lambda x: (x[-1] not in "\\/", x)):
         print(name)
+
+
+def _action_terminate(remote, _args):
+    remote.terminate()
 
 
 def _show_schedule(schedule):
@@ -319,7 +326,8 @@ def main():
             "del_dataset": "master_dataset_db",
             "scan_devices": "master_device_db",
             "scan_repository": "master_experiment_db",
-            "ls": "master_experiment_db"
+            "ls": "master_experiment_db",
+            "terminate": "master_terminate",
         }[action]
         remote = Client(args.server, port, target_name)
         try:
