@@ -466,8 +466,7 @@ pub extern fn main() -> i32 {
 
     unsafe {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
-        // stack guard disabled, see https://github.com/m-labs/artiq/issues/2067
-        // pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
 
     clock::init();
