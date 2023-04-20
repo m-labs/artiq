@@ -1,5 +1,6 @@
-use board_misoc::{csr, cache::flush_l2_cache};
+use board_misoc::csr;
 use alloc::{vec::Vec, collections::btree_map::BTreeMap};
+use flush_l2_cache_satman;
 
 const ALIGNMENT: usize = 64;
 
@@ -92,7 +93,7 @@ impl Manager {
             }
             entry.complete = true;
             entry.padding_len = padding;
-            flush_l2_cache();
+            flush_l2_cache_satman();
         }
         Ok(())
     }

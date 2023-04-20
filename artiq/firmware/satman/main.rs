@@ -9,7 +9,7 @@ extern crate board_artiq;
 extern crate riscv;
 extern crate alloc;
 
-use core::convert::TryFrom;
+use core::{convert::TryFrom, ptr};
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
@@ -466,8 +466,7 @@ pub extern fn main() -> i32 {
 
     unsafe {
         ALLOC.add_range(&mut _fheap, &mut _eheap);
-        // stack guard disabled, see https://github.com/m-labs/artiq/issues/2067
-        // pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
+        pmp::init_stack_guard(&_sstack_guard as *const u8 as usize);
     }
 
     clock::init();
@@ -619,6 +618,20 @@ pub extern fn exception(_regs: *const u32) {
 pub extern fn abort() {
     println!("aborted");
     loop {}
+}
+
+pub fn flush_l2_cache_satman() {
+    // libboard_misoc flush_l2_cache would try to read from stackguard
+    // this function reads from the heap instead
+    extern {
+        static mut _fheap: u8;
+    }
+    unsafe {
+        for i in 0..2 * (csr::CONFIG_L2_SIZE as usize) / 4 {
+            let addr = &_fheap as *const u8 as usize + i * 4;
+            ptr::read_volatile(addr as *const usize);
+        }
+    }
 }
 
 #[no_mangle] // https://github.com/rust-lang/rust/issues/{38281,51647}
