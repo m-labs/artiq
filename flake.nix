@@ -144,7 +144,9 @@
         ];
 
         # FIXME: automatically propagate lld_11 llvm_11 dependencies
-        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 libartiq-support pkgs.lit outputcheck ];
+        # cacert is required in the check stage only, as certificates are to be
+        # obtained from system elsewhere
+        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
 
