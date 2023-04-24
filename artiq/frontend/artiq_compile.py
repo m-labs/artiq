@@ -24,7 +24,7 @@ def get_argparser():
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
-    parser.add_argument("--dataset-db", default="dataset_db.pyon",
+    parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
 
     parser.add_argument("-c", "--class-name", default=None,
@@ -45,29 +45,33 @@ def main():
     common_args.init_logger_from_args(args)
 
     device_mgr = DeviceManager(DeviceDB(args.device_db))
-    dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))
-
+    dataset_db = DatasetDB(args.dataset_db)
     try:
-        module = file_import(args.file, prefix="artiq_run_")
-        exp = get_experiment(module, args.class_name)
-        arguments = parse_arguments(args.arguments)
-        argument_mgr = ProcessArgumentManager(arguments)
-        exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
-        argument_mgr.check_unprocessed_arguments()
+        dataset_mgr = DatasetManager(dataset_db)
+
+        try:
+            module = file_import(args.file, prefix="artiq_run_")
+            exp = get_experiment(module, args.class_name)
+            arguments = parse_arguments(args.arguments)
+            argument_mgr = ProcessArgumentManager(arguments)
+            exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
+            argument_mgr.check_unprocessed_arguments()
 
 
-        if not hasattr(exp.run, "artiq_embedded"):
-            raise ValueError("Experiment entry point must be a kernel")
-        core_name = exp.run.artiq_embedded.core_name
-        core = getattr(exp_inst, core_name)
+            if not hasattr(exp.run, "artiq_embedded"):
+                raise ValueError("Experiment entry point must be a kernel")
+            core_name = exp.run.artiq_embedded.core_name
+            core = getattr(exp_inst, core_name)
 
-        object_map, kernel_library, _, _ = \
-            core.compile(exp.run, [exp_inst], {},
-                         attribute_writeback=False, print_as_rpc=False)
-    except CompileError as error:
-        return
+            object_map, kernel_library, _, _ = \
+                core.compile(exp.run, [exp_inst], {},
+                             attribute_writeback=False, print_as_rpc=False)
+        except CompileError as error:
+            return
+        finally:
+            device_mgr.close_devices()
     finally:
-        device_mgr.close_devices()
+        dataset_db.close_db()
 
     if object_map.has_rpc():
         raise ValueError("Experiment must not use RPC")

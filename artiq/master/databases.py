@@ -1,10 +1,12 @@
 import asyncio
 
-from artiq.tools import file_import
+import lmdb
 
-from sipyco.sync_struct import Notifier, process_mod, update_from_dict
+from sipyco.sync_struct import Notifier, process_mod, ModAction, update_from_dict
 from sipyco import pyon
 from sipyco.asyncio_tools import TaskObject
+
+from artiq.tools import file_import
 
 
 def device_db_from_file(filename):
@@ -40,15 +42,25 @@ class DatasetDB(TaskObject):
         self.persist_file = persist_file
         self.autosave_period = autosave_period
 
-        try:
-            file_data = pyon.load_file(self.persist_file)
-        except FileNotFoundError:
-            file_data = dict()
-        self.data = Notifier({k: (True, v) for k, v in file_data.items()})
+        self.lmdb = lmdb.open(persist_file, subdir=False, map_size=2**30)
+        data = dict()
+        with self.lmdb.begin() as txn:
+            for key, value in txn.cursor():
+                data[key.decode()] = (True, pyon.decode(value.decode()))
+        self.data = Notifier(data)
+        self.pending_keys = set()
+
+    def close_db(self):
+        self.lmdb.close()
 
     def save(self):
-        data = {k: v[1] for k, v in self.data.raw_view.items() if v[0]}
-        pyon.store_file(self.persist_file, data)
+        with self.lmdb.begin(write=True) as txn:
+            for key in self.pending_keys:
+                if key not in self.data.raw_view or not self.data.raw_view[key][0]:
+                    txn.delete(key.encode())
+                else:
+                    txn.put(key.encode(), pyon.encode(self.data.raw_view[key][1]).encode())
+        self.pending_keys.clear()
 
     async def _do(self):
         try:
@@ -62,6 +74,12 @@ class DatasetDB(TaskObject):
         return self.data.raw_view[key][1]
 
     def update(self, mod):
+        if mod["path"]:
+            key = mod["path"][0]
+        else:
+            assert(mod["action"] == ModAction.setitem.value or mod["action"] == ModAction.delitem.value)
+            key = mod["key"]
+        self.pending_keys.add(key)
         process_mod(self.data, mod)
 
     # convenience functions (update() can be used instead)
@@ -72,7 +90,9 @@ class DatasetDB(TaskObject):
             else:
                 persist = False
         self.data[key] = (persist, value)
+        self.pending_keys.add(key)
 
     def delete(self, key):
         del self.data[key]
+        self.pending_keys.add(key)
     #

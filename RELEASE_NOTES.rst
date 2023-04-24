@@ -25,6 +25,7 @@ Highlights:
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
+* Persistent datasets are now stored in a LMDB database for improved performance.
 
 ARTIQ-7
 -------

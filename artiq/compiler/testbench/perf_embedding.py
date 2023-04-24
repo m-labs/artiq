@@ -30,8 +30,9 @@ def main():
     device_db_path = os.path.join(os.path.dirname(sys.argv[1]), "device_db.py")
     device_mgr = DeviceManager(DeviceDB(device_db_path))
 
-    dataset_db_path = os.path.join(os.path.dirname(sys.argv[1]), "dataset_db.pyon")
-    dataset_mgr = DatasetManager(DatasetDB(dataset_db_path))
+    dataset_db_path = os.path.join(os.path.dirname(sys.argv[1]), "dataset_db.mdb")
+    dataset_db = DatasetDB(dataset_db_path)
+    dataset_mgr = DatasetManager()
 
     argument_mgr = ProcessArgumentManager({})
 
@@ -67,6 +68,8 @@ def main():
 
     benchmark(lambda: target.strip(elf_shlib),
               "Stripping debug information")
+
+    dataset_db.close_db()
 
 if __name__ == "__main__":
     main()
