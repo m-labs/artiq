@@ -127,7 +127,7 @@
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
         propagatedBuildInputs = [ pkgs.llvm_11 pkgs.lld_11 sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm ]);
+          ++ (with pkgs.python3Packages; [ llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm lmdb ]);
 
         dontWrapQtApps = true;
         postFixup = ''
