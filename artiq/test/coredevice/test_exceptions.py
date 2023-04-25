@@ -1,4 +1,3 @@
-import logging
 import re
 
 from artiq.experiment import *
@@ -54,13 +53,10 @@ class KernelRTIOUnderflow(EnvExperiment):
         except DeviceError:
             self.led = self.get_device("led0")
 
-
     @kernel
     def run(self):
         self.core.reset()
-        for _ in range(1000):
-            self.led.on()
-            self.led.off()
+        at_mu(self.core.get_rtio_counter_mu() - 1000); self.led.on()
 
 
 class TestExceptions(ExperimentCase):
@@ -68,8 +64,9 @@ class TestExceptions(ExperimentCase):
         with self.assertLogs() as captured:
             with self.assertRaisesRegex(CustomException, r"CustomException\(\d+\): \{foo\}"):
                 self.execute(KernelFmtException)
-        self.assertEqual(captured.output, [
-            "ERROR:artiq.coredevice.comm_kernel:Couldn't format exception message `{foo}`: KeyError: 'foo'"])
+        captured_lines = captured.output[0].split('\n')
+        self.assertEqual([captured_lines[0], captured_lines[-1]],
+                         ["ERROR:artiq.coredevice.comm_kernel:Couldn't format exception message", "KeyError: 'foo'"])
 
     def test_nested_formatted_kernel_exception(self):
         with self.assertLogs() as captured:
@@ -78,14 +75,13 @@ class TestExceptions(ExperimentCase):
                                             r"CustomException\(\d+\): \{foo\}.*?RTIOUnderflow\(\d+\): \{bar\}.*?RTIOOverflow\(\d+\): \{bizz\}.*?RTIOUnderflow\(\d+\): \{buzz\}",
                                             re.DOTALL)):
                 self.execute(KernelNestedFmtException)
-        self.assertEqual(captured.output, [
-            "ERROR:artiq.coredevice.comm_kernel:Couldn't format exception message `{foo}`: KeyError: 'foo'"])
+        captured_lines = captured.output[0].split('\n')
+        self.assertEqual([captured_lines[0], captured_lines[-1]],
+                         ["ERROR:artiq.coredevice.comm_kernel:Couldn't format exception message", "KeyError: 'foo'"])
 
     def test_rtio_underflow(self):
-        with self.assertLogs() as captured:
-            with self.assertRaisesRegex(RTIOUnderflow,
-                                        re.compile(
-                                            r"RTIO underflow at channel 0x\d+?:led\d*?, \d+? mu, slack -\d+? mu.*?RTIOUnderflow\(\d+\): RTIO underflow at channel 0x\d+?:led\d+?, \d+? mu, slack -\d+? mu",
-                                            re.DOTALL)):
-                self.execute(KernelRTIOUnderflow)
-        self.assertEqual(captured.output, ["WARNING:artiq.coredevice.comm_kernel:sequence error(s) reported during kernel execution"])
+        with self.assertRaisesRegex(RTIOUnderflow,
+                                    re.compile(
+                                        r"RTIO underflow at channel 0x[0-9a-fA-F]*?:led\d*?, \d+? mu, slack -\d+? mu.*?RTIOUnderflow\(\d+\): RTIO underflow at channel 0x([0-9a-fA-F]+?):led\d*?, \d+? mu, slack -\d+? mu",
+                                        re.DOTALL)):
+            self.execute(KernelRTIOUnderflow)

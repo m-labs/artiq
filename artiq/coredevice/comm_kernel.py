@@ -704,9 +704,9 @@ class CommKernel:
 
         try:
             message = nested_exceptions[0][1].format(*nested_exceptions[0][2])
-        except Exception as ex:
+        except:
             message = nested_exceptions[0][1]
-            logger.error("Couldn't format exception message `{}`: {}: {}".format(message, type(ex).__name__, str(ex)))
+            logger.error("Couldn't format exception message", exc_info=True)
 
         try:
             python_exn = python_exn_type(message)
