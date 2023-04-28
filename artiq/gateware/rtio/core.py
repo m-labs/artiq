@@ -60,17 +60,17 @@ class Core(Module, AutoCSR):
         # Outputs/Inputs
         quash_channels = [n for n, c in enumerate(channels) if isinstance(c, LogChannel)]
 
-        outputs = SED(channels, tsc.glbl_fine_ts_width,
+        outputs = ClockDomainsRenamer("rio")(SED(channels, tsc.glbl_fine_ts_width,
             quash_channels=quash_channels,
             lane_count=lane_count, fifo_depth=fifo_depth,
-            interface=self.cri)
+            interface=self.cri))
         self.submodules += outputs
         self.comb += outputs.coarse_timestamp.eq(tsc.coarse_ts)
         self.sync += outputs.minimum_coarse_timestamp.eq(tsc.coarse_ts + 12)
 
-        inputs = InputCollector(tsc, channels,
+        inputs = ClockDomainsRenamer("rio")(InputCollector(tsc, channels,
             quash_channels=quash_channels,
-            interface=self.cri)
+            interface=self.cri))
         self.submodules += inputs
 
         # Asychronous output errors
