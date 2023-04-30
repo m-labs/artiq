@@ -269,7 +269,7 @@ extern fn dma_record_start(name: &CSlice<u8>) {
 }
 
 #[unwind(allowed)]
-extern fn dma_record_stop(duration: i64) {
+extern fn dma_record_stop(duration: i64, enable_ddma: bool) {
     unsafe {
         dma_record_flush();
 
@@ -285,7 +285,8 @@ extern fn dma_record_stop(duration: i64) {
 
         DMA_RECORDER.active = false;
         send(&DmaRecordStop {
-            duration: duration as u64
+            duration: duration as u64,
+            enable_ddma: enable_ddma
         });
     }
 }
@@ -371,6 +372,7 @@ extern fn dma_erase(name: &CSlice<u8>) {
 struct DmaTrace {
     duration: i64,
     address:  i32,
+    uses_ddma: bool,
 }
 
 #[unwind(allowed)]
@@ -378,11 +380,12 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
     let name = str::from_utf8(name.as_ref()).unwrap();
 
     send(&DmaRetrieveRequest { name: name });
-    recv!(&DmaRetrieveReply { trace, duration } => {
+    recv!(&DmaRetrieveReply { trace, duration, uses_ddma } => {
         match trace {
             Some(bytes) => Ok(DmaTrace {
                 address:  bytes.as_ptr() as i32,
-                duration: duration as i64
+                duration: duration as i64,
+                uses_ddma: uses_ddma,
             }),
             None => Err(())
         }
@@ -395,7 +398,7 @@ extern fn dma_retrieve(name: &CSlice<u8>) -> DmaTrace {
 
 #[cfg(has_rtio_dma)]
 #[unwind(allowed)]
-extern fn dma_playback(timestamp: i64, ptr: i32) {
+extern fn dma_playback(timestamp: i64, ptr: i32, _uses_ddma: bool) {
     assert!(ptr % 64 == 0);
 
     unsafe {
@@ -404,6 +407,10 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
 
         csr::cri_con::selected_write(1);
         csr::rtio_dma::enable_write(1);
+        #[cfg(has_drtio)]
+        if _uses_ddma {
+            send(&DmaStartRemoteRequest { id: ptr as i32, timestamp: timestamp });
+        }
         while csr::rtio_dma::enable_read() != 0 {}
         csr::cri_con::selected_write(0);
 
@@ -424,11 +431,32 @@ extern fn dma_playback(timestamp: i64, ptr: i32) {
             }
         }
     }
+
+    #[cfg(has_drtio)]
+    if _uses_ddma {
+        send(&DmaAwaitRemoteRequest { id: ptr as i32 });
+        recv!(&DmaAwaitRemoteReply { timeout, error, channel, timestamp } => {
+            if timeout {
+                raise!("DMAError",
+                    "Error running DMA on satellite device, timed out waiting for results");
+            }
+            if error & 1 != 0 {
+                raise!("RTIOUnderflow",
+                    "RTIO underflow at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
+            }
+            if error & 2 != 0 {
+                raise!("RTIODestinationUnreachable",
+                    "RTIO destination unreachable, output, at channel {rtio_channel_info:0}, {1} mu",
+                    channel as i64, timestamp as i64, 0);
+            }
+        });
+    }
 }
 
 #[cfg(not(has_rtio_dma))]
 #[unwind(allowed)]
-extern fn dma_playback(_timestamp: i64, _ptr: i32) {
+extern fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) {
     unimplemented!("not(has_rtio_dma)")
 }
 

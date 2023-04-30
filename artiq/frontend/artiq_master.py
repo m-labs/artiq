@@ -4,6 +4,7 @@ import asyncio
 import argparse
 import atexit
 import logging
+from types import SimpleNamespace
 
 from sipyco.pc_rpc import Server as RPCServer
 from sipyco.sync_struct import Publisher
@@ -39,7 +40,7 @@ def get_argparser():
     group = parser.add_argument_group("databases")
     group.add_argument("--device-db", default="device_db.py",
                        help="device database file (default: '%(default)s')")
-    group.add_argument("--dataset-db", default="dataset_db.pyon",
+    group.add_argument("--dataset-db", default="dataset_db.mdb",
                        help="dataset file (default: '%(default)s')")
 
     group = parser.add_argument_group("repository")
@@ -100,6 +101,7 @@ def main():
 
     device_db = DeviceDB(args.device_db)
     dataset_db = DatasetDB(args.dataset_db)
+    atexit.register(dataset_db.close_db)
     dataset_db.start(loop=loop)
     atexit_register_coroutine(dataset_db.stop, loop=loop)
     worker_handlers = dict()
@@ -133,12 +135,16 @@ def main():
     })
     experiment_db.scan_repository_async(loop=loop)
 
+    signal_handler_task = loop.create_task(signal_handler.wait_terminate())
+    master_terminate = SimpleNamespace(terminate=lambda: signal_handler_task.cancel())
+
     server_control = RPCServer({
         "master_config": config,
         "master_device_db": device_db,
         "master_dataset_db": dataset_db,
         "master_schedule": scheduler,
-        "master_experiment_db": experiment_db
+        "master_experiment_db": experiment_db,
+        "master_terminate": master_terminate
     }, allow_parallel=True)
     loop.run_until_complete(server_control.start(
         bind, args.port_control))
@@ -161,7 +167,11 @@ def main():
     atexit_register_coroutine(server_logging.stop, loop=loop)
 
     print("ARTIQ master is now ready.")
-    loop.run_until_complete(signal_handler.wait_terminate())
+    try:
+        loop.run_until_complete(signal_handler_task)
+    except asyncio.CancelledError:
+        pass
+
 
 if __name__ == "__main__":
     main()

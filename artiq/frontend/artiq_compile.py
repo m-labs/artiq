@@ -24,7 +24,7 @@ def get_argparser():
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
-    parser.add_argument("--dataset-db", default="dataset_db.pyon",
+    parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
 
     parser.add_argument("-c", "--class-name", default=None,
@@ -45,27 +45,29 @@ def main():
     common_args.init_logger_from_args(args)
 
     device_mgr = DeviceManager(DeviceDB(args.device_db))
-    dataset_mgr = DatasetManager(DatasetDB(args.dataset_db))
-
-    embedding_map = EmbeddingMap()
-
-    output = args.output
-    if output is None:
-        basename, ext = os.path.splitext(args.file)
-        output = "{}.elf".format(basename)
-
     try:
-        module = file_import(args.file, prefix="artiq_run_")
-        exp = get_experiment(module, args.class_name)
-        arguments = parse_arguments(args.arguments)
-        argument_mgr = ProcessArgumentManager(arguments)
-        exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
-        argument_mgr.check_unprocessed_arguments()
+        dataset_db = DatasetDB(args.dataset_db)
+        try:
+            dataset_mgr = DatasetManager(dataset_db)
+            embedding_map = EmbeddingMap()
 
+            output = args.output
+            if output is None:
+                basename, ext = os.path.splitext(args.file)
+                output = "{}.elf".format(basename)
 
-        if not getattr(exp.run, "__artiq_kernel__", False):
-            raise ValueError("Experiment entry point must be a kernel")
-        exp_inst.core.compile(exp_inst.run, [], {}, embedding_map, file_output=output)
+            module = file_import(args.file, prefix="artiq_run_")
+            exp = get_experiment(module, args.class_name)
+            arguments = parse_arguments(args.arguments)
+            argument_mgr = ProcessArgumentManager(arguments)
+            exp_inst = exp((device_mgr, dataset_mgr, argument_mgr, {}))
+            argument_mgr.check_unprocessed_arguments()
+
+            if not getattr(exp.run, "__artiq_kernel__", False):
+                raise ValueError("Experiment entry point must be a kernel")
+            exp_inst.core.compile(exp_inst.run, [], {}, embedding_map, file_output=output)
+        finally:
+            dataset_db.close_db()
     finally:
         device_mgr.close_devices()
 

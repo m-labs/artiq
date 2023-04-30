@@ -186,10 +186,6 @@ class ExamineDatasetMgr:
     def get(key, archive=False):
         return ParentDatasetDB.get(key)
 
-    @staticmethod
-    def update(self, mod):
-        pass
-
 
 def examine(device_mgr, dataset_mgr, file):
     previous_keys = set(sys.modules.keys())

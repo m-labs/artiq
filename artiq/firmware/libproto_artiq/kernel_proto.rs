@@ -20,7 +20,8 @@ pub enum Message<'a> {
     DmaRecordStart(&'a str),
     DmaRecordAppend(&'a [u8]),
     DmaRecordStop {
-        duration:  u64
+        duration:  u64,
+        enable_ddma: bool
     },
 
     DmaEraseRequest {
@@ -32,8 +33,24 @@ pub enum Message<'a> {
     },
     DmaRetrieveReply {
         trace:    Option<&'a [u8]>,
-        duration: u64
+        duration: u64,
+        uses_ddma: bool,
     },
+
+    DmaStartRemoteRequest {
+        id: i32,
+        timestamp: i64,
+    },
+    DmaAwaitRemoteRequest {
+        id: i32
+    },
+    DmaAwaitRemoteReply {
+        timeout: bool,
+        error: u8,
+        channel: u32,
+        timestamp: u64
+    },
+
 
     RunFinished,
     RunException {

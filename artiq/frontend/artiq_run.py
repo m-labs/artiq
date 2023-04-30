@@ -89,7 +89,7 @@ def get_argparser(with_file=True):
     common_args.verbosity_args(parser)
     parser.add_argument("--device-db", default="device_db.py",
                         help="device database file (default: '%(default)s')")
-    parser.add_argument("--dataset-db", default="dataset_db.pyon",
+    parser.add_argument("--dataset-db", default="dataset_db.mdb",
                         help="dataset file (default: '%(default)s')")
 
     parser.add_argument("-c", "--class-name", default=None,
@@ -142,31 +142,33 @@ def run(with_file=False):
     args = get_argparser(with_file).parse_args()
     common_args.init_logger_from_args(args)
 
-    device_mgr = DeviceManager(DeviceDB(args.device_db),
-                               virtual_devices={"scheduler": DummyScheduler(),
-                                                "ccb": DummyCCB()})
     dataset_db = DatasetDB(args.dataset_db)
-    dataset_mgr = DatasetManager(dataset_db)
-
     try:
-        exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
-        exp_inst.prepare()
-        exp_inst.run()
-        exp_inst.analyze()
-    except Exception as exn:
-        if hasattr(exn, "artiq_core_exception"):
-            print(exn.artiq_core_exception, file=sys.stderr)
-        raise exn
-    finally:
-        device_mgr.close_devices()
+        dataset_mgr = DatasetManager(dataset_db)
+        device_mgr = DeviceManager(DeviceDB(args.device_db),
+                                  virtual_devices={"scheduler": DummyScheduler(),
+                                                   "ccb": DummyCCB()})
+        try:
+            exp_inst = _build_experiment(device_mgr, dataset_mgr, args)
+            exp_inst.prepare()
+            exp_inst.run()
+            exp_inst.analyze()
+        except Exception as exn:
+            if hasattr(exn, "artiq_core_exception"):
+                print(exn.artiq_core_exception, file=sys.stderr)
+            raise exn
+        finally:
+            device_mgr.close_devices()
 
-    if args.hdf5 is not None:
-        with h5py.File(args.hdf5, "w") as f:
-            dataset_mgr.write_hdf5(f)
-    else:
-        for k, v in sorted(dataset_mgr.local.items(), key=itemgetter(0)):
-            print("{}: {}".format(k, v))
-    dataset_db.save()
+        if args.hdf5 is not None:
+            with h5py.File(args.hdf5, "w") as f:
+                dataset_mgr.write_hdf5(f)
+        else:
+            for k, v in sorted(dataset_mgr.local.items(), key=itemgetter(0)):
+                print("{}: {}".format(k, v))
+    finally:
+        dataset_db.save()
+        dataset_db.close_db()
 
 
 def main():

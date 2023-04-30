@@ -18,7 +18,7 @@ def dma_record_start(name: str):
     raise NotImplementedError("syscall not simulated")
 
 @extern
-def dma_record_stop(duration: int64):
+def dma_record_stop(duration: int64, enable_ddma: bool):
     raise NotImplementedError("syscall not simulated")
 
 @extern
@@ -26,11 +26,11 @@ def dma_erase(name: str):
     raise NotImplementedError("syscall not simulated")
 
 @extern
-def dma_retrieve(name: str) -> tuple[int64, int32]:
+def dma_retrieve(name: str) -> tuple[int64, int32, bool]:
     raise NotImplementedError("syscall not simulated")
 
 @extern
-def dma_playback(timestamp: int64, ptr: int32):
+def dma_playback(timestamp: int64, ptr: int32, enable_ddma: bool):
     raise NotImplementedError("syscall not simulated")
 
 
@@ -52,6 +52,7 @@ class DMARecordContextManager:
     def __init__(self):
         self.name = ""
         self.saved_now_mu = int64(0)
+        self.enable_ddma = False
 
     @kernel
     def __enter__(self):
@@ -61,7 +62,7 @@ class DMARecordContextManager:
 
     @kernel
     def __exit__(self):
-        dma_record_stop(now_mu()) # see above
+        dma_record_stop(now_mu(), self.enable_ddma) # see above
         at_mu(self.saved_now_mu)
 
 
@@ -82,12 +83,20 @@ class CoreDMA:
         self.epoch    = 0
 
     @kernel
-    def record(self, name: str) -> DMARecordContextManager:
+    def record(self, name: str, enable_ddma: bool = False) -> DMARecordContextManager:
         """Returns a context manager that will record a DMA trace called ``name``.
         Any previously recorded trace with the same name is overwritten.
-        The trace will persist across kernel switches."""
+        The trace will persist across kernel switches.
+
+        In DRTIO context, distributed DMA can be toggled with ``enable_ddma``.
+        Enabling it allows running DMA on satellites, rather than sending all
+        events from the master.
+
+        Keeping it disabled it may improve performance in some scenarios, 
+        e.g. when there are many small satellite buffers."""
         self.epoch += 1
         self.recorder.name = name
+        self.recorder.enable_ddma = enable_ddma
         return self.recorder
 
     @kernel
@@ -100,24 +109,24 @@ class CoreDMA:
     def playback(self, name: str):
         """Replays a previously recorded DMA trace. This function blocks until
         the entire trace is submitted to the RTIO FIFOs."""
-        (advance_mu, ptr) = dma_retrieve(name)
-        dma_playback(now_mu(), ptr)
+        (advance_mu, ptr, uses_ddma) = dma_retrieve(name)
+        dma_playback(now_mu(), ptr, uses_ddma)
         delay_mu(advance_mu)
 
     @kernel
     def get_handle(self, name: str) -> tuple[int32, int64, int32]:
         """Returns a handle to a previously recorded DMA trace. The returned handle
         is only valid until the next call to :meth:`record` or :meth:`erase`."""
-        (advance_mu, ptr) = dma_retrieve(name)
-        return (self.epoch, advance_mu, ptr)
+        (advance_mu, ptr, uses_ddma) = dma_retrieve(name)
+        return (self.epoch, advance_mu, ptr, uses_ddma)
 
     @kernel
     def playback_handle(self, handle: tuple[int32, int64, int32]):
         """Replays a handle obtained with :meth:`get_handle`. Using this function
         is much faster than :meth:`playback` for replaying a set of traces repeatedly,
         but incurs the overhead of managing the handles onto the programmer."""
-        (epoch, advance_mu, ptr) = handle
+        (epoch, advance_mu, ptr, uses_ddma) = handle
         if self.epoch != epoch:
             raise DMAError("Invalid handle")
-        dma_playback(now_mu(), ptr)
+        dma_playback(now_mu(), ptr, uses_ddma)
         delay_mu(advance_mu)

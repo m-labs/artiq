@@ -12,6 +12,7 @@ SECTIONS
     .text :
     {
         *(.text .text.*)
+        . = ALIGN(0x40000);
     } > main_ram
 
     .eh_frame :

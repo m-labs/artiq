@@ -92,8 +92,11 @@ class AD9914:
         self.exit_x_duration_mu    = 3 * self.write_duration_mu
 
     @staticmethod
-    def get_rtio_channels(bus_channel, **kwargs):
-        return [(bus_channel, None)]
+    def get_rtio_channels(bus_channel, channel, **kwargs):
+        # return only first entry, as there are several devices with the same RTIO channel
+        if channel == 0:
+            return [(bus_channel, None)]
+        return []
 
     @kernel
     def write(self, addr: int32, data: int32):

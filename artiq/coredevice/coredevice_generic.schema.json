@@ -339,7 +339,8 @@
                             "maxItems": 2
                         },
                         "sampler_hw_rev": {
-                            "type": "string"
+                            "type": "string",
+                            "pattern": "^v[0-9]+\\.[0-9]+"
                         },
                         "urukul0_ports": {
                             "type": "array",

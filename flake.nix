@@ -89,7 +89,7 @@
 
         # keep llvm_x in sync with nac3
         propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync ]);
+          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync tqdm lmdb ]);
 
         dontWrapQtApps = true;
         postFixup = ''
@@ -106,7 +106,9 @@
         ];
 
         # FIXME: automatically propagate llvm_x dependency
-        checkInputs = [ pkgs.llvm_14 ];
+        # cacert is required in the check stage only, as certificates are to be
+        # obtained from system elsewhere
+        checkInputs = [ pkgs.llvm_14 pkgs.cacert ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
           '';

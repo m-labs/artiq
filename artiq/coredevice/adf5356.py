@@ -84,8 +84,8 @@ class ADF5356:
         self._init_registers()
 
     @staticmethod
-    def get_rtio_channels(channel, **kwargs):
-        return [(channel, None)]
+    def get_rtio_channels(**kwargs):
+        return []
 
     @kernel
     def init(self, blind: bool = False):
