@@ -29,8 +29,8 @@ def get_env():
 
 class TestClient(unittest.TestCase):
     def setUp(self):
-        self.tmp_dir = TemporaryDirectory(prefix="test")
-        self.tmp_empty_dir = TemporaryDirectory(prefix="empty_repo")
+        self.tmp_dir = TemporaryDirectory(prefix="artiq_client_test")
+        self.tmp_empty_dir = TemporaryDirectory(prefix="artiq_empty_repo")
         self.exp_name = "experiment.py"
         self.exp_path = os.path.join(self.tmp_dir.name, self.exp_name)
         self.device_db_path = os.path.join(self.tmp_dir.name, "device_db.py")

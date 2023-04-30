@@ -28,6 +28,7 @@ __pycache__/
 /repository/
 /results
 /last_rid.pyon
-/dataset_db.pyon
+/dataset_db.mdb
+/dataset_db.mdb-lock
 /device_db*.py
 /test*
