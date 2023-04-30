@@ -21,7 +21,7 @@
       artiqVersionMajor = 8;
       artiqVersionMinor = self.sourceInfo.revCount or 0;
       artiqVersionId = self.sourceInfo.shortRev or "unknown";
-      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "." + artiqVersionId + ".beta";
+      artiqVersion = (builtins.toString artiqVersionMajor) + "." + (builtins.toString artiqVersionMinor) + "+" + artiqVersionId + ".beta";
       artiqRev = self.sourceInfo.rev or "unknown";
 
       rustManifest = pkgs.fetchurl {
