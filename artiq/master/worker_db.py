@@ -119,6 +119,9 @@ class DatasetManager:
         if persist:
             broadcast = True
 
+        if not (broadcast or archive):
+            logger.warning(f"Dataset '{key}' will not be stored. Both 'broadcast' and 'archive' are set to False.")
+
         if broadcast:
             self._broadcaster[key] = persist, value
         elif key in self._broadcaster.raw_view:
