@@ -303,10 +303,8 @@
                             "type": "integer"
                         },
                         "pll_en": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 1,
-                            "default": 1
+                            "type": "boolean",
+                            "default": true
                         },
                         "pll_vco": {
                             "type": "integer"
@@ -372,10 +370,8 @@
                             "default": 32
                         },
                         "pll_en": {
-                            "type": "integer",
-                            "minimum": 0,
-                            "maximum": 1,
-                            "default": 1
+                            "type": "boolean",
+                            "default": true
                         },
                         "pll_vco": {
                             "type": "integer"
