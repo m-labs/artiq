@@ -5,6 +5,7 @@ import os
 import sys
 import unittest
 import logging
+from tempfile import TemporaryDirectory
 
 from artiq.master.databases import DeviceDB, DatasetDB
 from artiq.master.worker_db import DeviceManager, DatasetManager, DeviceError
@@ -19,9 +20,10 @@ logger = logging.getLogger(__name__)
 @unittest.skipUnless(artiq_root, "no ARTIQ_ROOT")
 class ExperimentCase(unittest.TestCase):
     def setUp(self):
+        self.tempdir = TemporaryDirectory(prefix="artiq_hw_test")
         self.device_db = DeviceDB(os.path.join(artiq_root, "device_db.py"))
         self.dataset_db = DatasetDB(
-            os.path.join(artiq_root, "dataset_db.mdb"))
+            os.path.join(self.tempdir.name, "dataset_db.mdb"))
         self.device_mgr = DeviceManager(
             self.device_db, virtual_devices={"scheduler": DummyScheduler()})
         self.dataset_mgr = DatasetManager(self.dataset_db)
@@ -29,6 +31,7 @@ class ExperimentCase(unittest.TestCase):
     def tearDown(self):
         self.device_mgr.close_devices()
         self.dataset_db.close_db()
+        self.tempdir.cleanup()
 
     def create(self, cls, *args, **kwargs):
         try:
