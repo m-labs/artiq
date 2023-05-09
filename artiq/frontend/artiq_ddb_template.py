@@ -334,7 +334,7 @@ class PeripheralManager:
                         "module": "artiq.coredevice.almazny",
                         "class": "AlmaznyChannel",
                         "arguments": {{
-                            "cpld_device": "{name}_cpld",
+                            "host_mirny": "{name}_cpld",
                             "channel": {i},
                         }},
                     }}""",
