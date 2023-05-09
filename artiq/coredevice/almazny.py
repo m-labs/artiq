@@ -134,7 +134,7 @@ class AlmaznyChannel:
 
     def __init__(self, dmgr, host_mirny, channel):
         self.channel = channel
-        self.mirny_cpld = dmgr.get(cpld_device)
+        self.mirny_cpld = dmgr.get(host_mirny)
 
     @portable
     def to_mu(self, att, enable, led):
