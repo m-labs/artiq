@@ -1,8 +1,8 @@
 {
     "target": "kasli",
-    "min_artiq_version": "8.0",
+    "min_artiq_version": "9.0",
     "variant": "nac3devices",
-    "hw_rev": "v1.1",
+    "hw_rev": "v2.0",
     "base": "standalone",
     "core_addr": "192.168.1.70",
     "peripherals": [
@@ -12,6 +12,7 @@
         },
         {
             "type": "mirny",
+            "almazny": true,
             "ports": [1],
             "clk_sel": "mmcx",
             "refclk": 125e6

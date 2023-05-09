@@ -4,6 +4,7 @@ from artiq.coredevice.cache import CoreCache
 from artiq.coredevice.kasli_i2c import KasliEEPROM
 from artiq.coredevice.zotino import Zotino
 from artiq.coredevice.mirny import Mirny as MirnyCPLD
+from artiq.coredevice.almazny import AlmaznyChannel
 from artiq.coredevice.adf5356 import ADF5356
 from artiq.coredevice.urukul import CPLD as UrukulCPLD
 from artiq.coredevice.ad9912 import AD9912
@@ -22,6 +23,7 @@ class NAC3Devices(EnvExperiment):
     zotino0: KernelInvariant[Zotino]
     mirny0_cpld: KernelInvariant[MirnyCPLD]
     mirny0_ch0: KernelInvariant[ADF5356]
+    mirny0_almazny0: KernelInvariant[AlmaznyChannel]
     urukul0_cpld: KernelInvariant[UrukulCPLD]
     eeprom_urukul0: KernelInvariant[KasliEEPROM]
     urukul0_ch0: KernelInvariant[AD9912]
@@ -39,6 +41,7 @@ class NAC3Devices(EnvExperiment):
         self.setattr_device("zotino0")
         self.setattr_device("mirny0_cpld")
         self.setattr_device("mirny0_ch0")
+        self.setattr_device("mirny0_almazny0")
         self.setattr_device("urukul0_cpld")
         self.setattr_device("eeprom_urukul0")
         self.setattr_device("urukul0_ch0")
