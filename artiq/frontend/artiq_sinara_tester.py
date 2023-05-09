@@ -98,7 +98,7 @@ class SinaraTester(EnvExperiment):
                     self.suservos[name] = self.get_device(name)
                 elif (module, cls) == ("artiq.coredevice.suservo", "Channel"):
                     self.suschannels[name] = self.get_device(name)
-                elif (module, cls) == ("artiq.coredevice.mirny", "Almazny"):
+                elif (module, cls) == ("artiq.coredevice.almazny", "AlmaznyLegacy"):
                     self.almaznys[name] = self.get_device(name)
 
         # Remove Urukul, Sampler, Zotino and Mirny control signals

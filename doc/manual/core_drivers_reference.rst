@@ -92,6 +92,12 @@ RF generation drivers
 .. automodule:: artiq.coredevice.mirny
     :members:
 
+:mod:`artiq.coredevice.almazny` module
+++++++++++++++++++++++++++++++++++++++
+
+.. automodule:: artiq.coredevice.almazny
+    :members:
+
 :mod:`artiq.coredevice.adf5356` module
 +++++++++++++++++++++++++++++++++++++++
 

@@ -15,6 +15,8 @@ Highlights:
    - Sampler: fixed ADC MU to Volt conversion factor for Sampler v2.2+.
      For earlier hardware versions, specify the hardware version in the device
      database file (e.g. ``"hw_rev": "v2.1"``) to use the correct conversion factor.
+   - Almazny v1.2. It is incompatible with the legacy versions and is the default. To use legacy
+     versions, specify ``almazny_hw_rev`` in the JSON description.
    - Metlino and Sayma support has been dropped due to complications with synchronous RTIO clocking.
 * CPU (on softcore platforms) and AXI bus (on Zynq) are now clocked synchronously with the RTIO
   clock, to facilitate implementation of local processing on DRTIO satellites, and to slightly
