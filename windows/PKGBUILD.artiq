@@ -6,6 +6,7 @@ license=("LGPL")
 depends=(
   "mingw-w64-x86_64-python"
   "mingw-w64-x86_64-python-h5py"
+  "mingw-w64-x86_64-python-lmdb"
   "mingw-w64-x86_64-python-pyqt5"
   "mingw-w64-x86_64-qt5-svg"
   "mingw-w64-x86_64-python-qasync"
