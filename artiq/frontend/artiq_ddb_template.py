@@ -287,6 +287,7 @@ class PeripheralManager:
         return next(channel)
 
     def process_mirny(self, rtio_offset, peripheral):
+        legacy_almazny = ("v1.0", "v1.1")
         mirny_name = self.get_name("mirny")
         channel = count(0)
         self.gen("""
@@ -326,6 +327,20 @@ class PeripheralManager:
                 name=mirny_name,
                 mchn=i)
 
+            if peripheral["almazny"] and peripheral["almazny_hw_rev"] not in legacy_almazny:
+                self.gen("""
+                    device_db["{name}_almazny{i}"] = {{
+                        "type": "local",
+                        "module": "artiq.coredevice.almazny",
+                        "class": "AlmaznyChannel",
+                        "arguments": {{
+                            "cpld_device": "{name}_cpld",
+                            "channel": {i},
+                        }},
+                    }}""",
+                    name=mirny_name,
+                    i=i)
+
         clk_sel = peripheral["clk_sel"]
         if isinstance(peripheral["clk_sel"], str):
             clk_sel = '"' + peripheral["clk_sel"] + '"'
@@ -343,13 +358,12 @@ class PeripheralManager:
             name=mirny_name,
             refclk=peripheral["refclk"],
             clk_sel=clk_sel)
-        almazny = peripheral.get("almazny", False)
-        if almazny:
+        if peripheral["almazny"] and peripheral["almazny_hw_rev"] in legacy_almazny:
             self.gen("""
             device_db["{name}_almazny"] = {{
                 "type": "local",
-                "module": "artiq.coredevice.mirny",
-                "class": "Almazny",
+                "module": "artiq.coredevice.almazny",
+                "class": "AlmaznyLegacy",
                 "arguments": {{
                     "host_mirny": "{name}_cpld",
                 }},

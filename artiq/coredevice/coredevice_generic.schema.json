@@ -464,6 +464,11 @@
                         "almazny": {
                             "type": "boolean",
                             "default": false
+                        },
+                        "almazny_hw_rev": {
+                            "type": "string",
+                            "pattern": "^v[0-9]+\\.[0-9]+",
+                            "default": "v1.2"
                         }
                     },
                     "required": ["ports"]
