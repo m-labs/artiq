@@ -577,7 +577,7 @@ class SatelliteBase(BaseSoC):
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
         
-        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
 
