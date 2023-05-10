@@ -18,3 +18,4 @@ board_misoc = { path = "../libboard_misoc", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }
 alloc_list = { path = "../liballoc_list" }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
+proto_artiq = { path = "../libproto_artiq", features = ["log", "alloc"] }

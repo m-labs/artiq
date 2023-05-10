@@ -8,6 +8,7 @@ extern crate board_misoc;
 extern crate board_artiq;
 extern crate riscv;
 extern crate alloc;
+extern crate proto_artiq;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
@@ -23,6 +24,7 @@ static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
 
 mod repeater;
 mod dma;
+mod analyzer;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -300,6 +302,15 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
                     &drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 })
             }
         }
+
+        drtioaux::Packet::AnalyzerRequest { destination: _destination } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            analyzer::disarm();
+            let res = analyzer::send();
+            analyzer::arm();
+            res
+        }
+
         #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
@@ -545,6 +556,9 @@ pub extern fn main() -> i32 {
         // are cleared out for a clean slate on subsequent connections,
         // without a manual intervention.
         let mut dma_manager = DmaManager::new();
+
+        // Reset the analyzer as well.
+        analyzer::arm();
 
         drtioaux::reset(0);
         drtiosat_reset(false);
