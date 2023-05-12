@@ -129,6 +129,12 @@ Set up the Conda channel and install ARTIQ into a new Conda environment: ::
 .. note::
   If you do not need to flash boards, the ``artiq`` package is sufficient. The packages named ``artiq-board-*`` contain only firmware for the FPGA board, and you should not install them unless you are reflashing an FPGA board. Controllers for third-party devices (e.g. Thorlabs TCube, Lab Brick Digital Attenuator, etc.) that are not shipped with ARTIQ can also be installed with Conda. Browse `Hydra <https://nixbld.m-labs.hk/project/artiq>`_ or see the list of NDSPs in this manual to find the names of the corresponding packages.
 
+.. note::
+  On Windows, if the last command that creates and installs the ARTIQ environment fails with an error similar to "seeking backwards is not allowed", try to re-run the command with admin rights.
+
+.. note::
+  For commercial use you might need a license for Anaconda/Miniconda or for using the Anaconda package channel. `Miniforge <https://github.com/conda-forge/miniforge>`_ might be an alternative in a commercial environment as it does not include the Anaconda package channel by default. If you want to use Anaconda/Miniconda/Miniforge in a commercial environment, please check the license and the latest terms of service.
+
 After the installation, activate the newly created environment by name. ::
 
     $ conda activate artiq
