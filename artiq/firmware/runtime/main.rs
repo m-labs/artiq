@@ -209,7 +209,13 @@ fn startup() {
         io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table) });
     }
     #[cfg(has_rtio_analyzer)]
-    io.spawn(4096, analyzer::thread);
+    {
+        let aux_mutex = aux_mutex.clone();
+        let drtio_routing_table = drtio_routing_table.clone();
+        let up_destinations = up_destinations.clone();
+        let ddma_mutex = ddma_mutex.clone();
+        io.spawn(4096, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table, &up_destinations) });
+    }
 
     #[cfg(has_grabber)]
     io.spawn(4096, grabber_thread);
