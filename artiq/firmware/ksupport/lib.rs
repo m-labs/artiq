@@ -342,7 +342,7 @@ extern fn dma_record_output(target: i32, word: i32) {
 }
 
 #[unwind(aborts)]
-extern fn dma_record_output_wide(target: i32, words: CSlice<i32>) {
+extern fn dma_record_output_wide(target: i32, words: &CSlice<i32>) {
     assert!(words.len() <= 16); // enforce the hardware limit
 
     unsafe {
