@@ -89,7 +89,7 @@ mod imp {
         }
     }
 
-    pub extern fn output_wide(target: i32, data: CSlice<i32>) {
+    pub extern fn output_wide(target: i32, data: &CSlice<i32>) {
         unsafe {
             csr::rtio::target_write(target as u32);
             // writing target clears o_data
@@ -235,7 +235,7 @@ mod imp {
         unimplemented!("not(has_rtio)")
     }
 
-    pub extern fn output_wide(_target: i32, _data: CSlice<i32>) {
+    pub extern fn output_wide(_target: i32, _data: &CSlice<i32>) {
         unimplemented!("not(has_rtio)")
     }
 
