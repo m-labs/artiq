@@ -58,8 +58,9 @@ pub enum Packet {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    AnalyzerRequest { destination: u8 },
+    AnalyzerHeaderRequest { destination: u8 },
     AnalyzerHeader { sent_bytes: u32, total_byte_count: u64, overflow_occurred: bool },
+    AnalyzerDataRequest { destination: u8 },
     AnalyzerData { last: bool, length: u16, data: [u8; ANALYZER_MAX_SIZE]},
 
     DmaAddTraceRequest { destination: u8, id: u32, last: bool, length: u16, trace: [u8; DMA_TRACE_MAX_SIZE] },
@@ -200,7 +201,7 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
 
-            0xa0 => Packet::AnalyzerRequest {
+            0xa0 => Packet::AnalyzerHeaderRequest {
                 destination: reader.read_u8()?
             },
             0xa1 => Packet::AnalyzerHeader {
@@ -208,7 +209,10 @@ impl Packet {
                 total_byte_count: reader.read_u64()?, 
                 overflow_occurred: reader.read_bool()?,
             },
-            0xa2 => {
+            0xa2 => Packet::AnalyzerDataRequest {
+                destination: reader.read_u8()?
+            },
+            0xa3 => {
                 let last = reader.read_bool()?;
                 let length = reader.read_u16()?;
                 let mut data: [u8; ANALYZER_MAX_SIZE] = [0; ANALYZER_MAX_SIZE];
@@ -420,7 +424,7 @@ impl Packet {
                 writer.write_bool(succeeded)?;
             },
 
-            Packet::AnalyzerRequest { destination } => {
+            Packet::AnalyzerHeaderRequest { destination } => {
                 writer.write_u8(0xa0)?;
                 writer.write_u8(destination)?;
             },
@@ -430,8 +434,12 @@ impl Packet {
                 writer.write_u64(total_byte_count)?;
                 writer.write_bool(overflow_occurred)?;
             },
-            Packet::AnalyzerData { last, length, data } => {
+            Packet::AnalyzerDataRequest { destination } => {
                 writer.write_u8(0xa2)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::AnalyzerData { last, length, data } => {
+                writer.write_u8(0xa3)?;
                 writer.write_bool(last)?;
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
