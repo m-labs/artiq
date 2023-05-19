@@ -411,28 +411,29 @@ pub mod drtio {
         routing_table: &drtio_routing::RoutingTable, destination: u8
     ) -> Result<RemoteBuffer, &'static str> {
         let linkno = routing_table.0[destination as usize][0] - 1;
-        let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, &drtioaux::Packet::AnalyzerRequest {
-            destination: destination });
+        let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+            &drtioaux::Packet::AnalyzerHeaderRequest { destination: destination });
         let (sent, total, overflow) = match reply {
             Ok(drtioaux::Packet::AnalyzerHeader { 
                 sent_bytes, total_byte_count, overflow_occurred }
             ) => (sent_bytes, total_byte_count, overflow_occurred),
-            Ok(_) => return Err("received unexpected aux packet during remote analyzer data request"),
-            Err(_) => return Err("aux error on remote analyzer request")
+            Ok(_) => return Err("received unexpected aux packet during remote analyzer header request"),
+            Err(e) => return Err(e)
         };
 
         let mut remote_data: Vec<u8> = Vec::new();
         if sent > 0 {
             let mut last_packet = false;
             while !last_packet {
-                let reply = recv_aux_timeout(io, linkno, 200);
+                let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+                    &drtioaux::Packet::AnalyzerDataRequest { destination: destination });
                 match reply {
                     Ok(drtioaux::Packet::AnalyzerData { last, length, data }) => { 
                         last_packet = last;
                         remote_data.extend(&data[0..length as usize]);
                     },
                     Ok(_) => return Err("received unexpected aux packet during remote analyzer data request"),
-                    Err(_) => return Err("aux error on remote analyzer request")
+                    Err(e) => return Err(e)
                 }
             }
         }
@@ -451,9 +452,9 @@ pub mod drtio {
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
     ) -> Result<Vec<RemoteBuffer>, &'static str> {
         let mut remote_buffers: Vec<RemoteBuffer> = Vec::new();
-        for i in 0..drtio_routing::DEST_COUNT as u8 {
-            if destination_up(up_destinations, i) {
-                remote_buffers.push(analyzer_get_data(io, aux_mutex, ddma_mutex, routing_table, i)?);
+        for i in 1..drtio_routing::DEST_COUNT {
+            if destination_up(up_destinations, i as u8) {
+                remote_buffers.push(analyzer_get_data(io, aux_mutex, ddma_mutex, routing_table, i as u8)?);
             }
         }
         Ok(remote_buffers)
