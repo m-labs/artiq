@@ -60,6 +60,10 @@ impl Analyzer {
         }
     }
 
+    fn drop(&mut self) {
+        disarm();
+    }
+
     pub fn get_header(&mut self) -> Header {
         disarm();
 
