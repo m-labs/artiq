@@ -2,7 +2,6 @@ use io::{Write, Error as IoError};
 use board_misoc::{csr, cache};
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use analyzer_proto::*;
-use alloc::vec::Vec;
 use urc::Urc;
 use board_artiq::drtio_routing;
 use core::cell::RefCell;
@@ -43,6 +42,7 @@ fn disarm() {
 pub mod remote_analyzer {
     use super::*;
     use rtio_mgt::drtio;
+    use alloc::vec::Vec;
     
     pub struct RemoteBuffer {
         pub total_byte_count: u64,
@@ -53,7 +53,7 @@ pub mod remote_analyzer {
 
     pub fn get_data(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
         routing_table: &drtio_routing::RoutingTable,
-        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) -> RemoteBuffer {
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) -> Result<RemoteBuffer, &'static str> {
             // gets data from satellites and returns consolidated data
             let mut remote_data: Vec<u8> = Vec::new();
             let mut remote_overflow = false;
@@ -62,7 +62,7 @@ pub mod remote_analyzer {
 
             let data_vec = match drtio::analyzer_query(io, aux_mutex, ddma_mutex, routing_table, up_destinations) {
                 Ok(data_vec) => data_vec,
-                Err(e) => { error!("error retrieving remote analyzer data: {}", e); Vec::new() }
+                Err(e) => return Err(e)
             };
             for data in data_vec {
                 remote_total_bytes += data.total_byte_count;
@@ -71,12 +71,12 @@ pub mod remote_analyzer {
                 remote_data.extend(data.data);
             }
 
-            RemoteBuffer {
+            Ok(RemoteBuffer {
                 total_byte_count: remote_total_bytes,
                 sent_bytes: remote_sent_bytes,
                 overflow_occurred: remote_overflow,
                 data: remote_data
-            }
+            })
         }
 }   
 
@@ -98,12 +98,25 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mu
     let remote = remote_analyzer::get_data(
         _io, _aux_mutex, _ddma_mutex, _routing_table, _up_destinations);
     #[cfg(has_drtio)]
-    let header = Header {
-        total_byte_count: local_total_byte_count + remote.total_byte_count,
-        sent_bytes: local_sent_bytes + remote.sent_bytes,
-        overflow_occurred: local_overflow_occurred | remote.overflow_occurred,
-        log_channel: csr::CONFIG_RTIO_LOG_CHANNEL as u8,
-        dds_onehot_sel: true 
+    let (header, remote_data) = match remote {
+        Ok(remote) => (Header {
+            total_byte_count: local_total_byte_count + remote.total_byte_count,
+            sent_bytes: local_sent_bytes + remote.sent_bytes,
+            overflow_occurred: local_overflow_occurred | remote.overflow_occurred,
+            log_channel: csr::CONFIG_RTIO_LOG_CHANNEL as u8,
+            dds_onehot_sel: true 
+        }, remote.data),
+        Err(e) => {
+            error!("Error getting remote analyzer data: {}", e);
+            (Header {
+                total_byte_count: local_total_byte_count,
+                sent_bytes: local_sent_bytes,
+                overflow_occurred: true,
+                log_channel: csr::CONFIG_RTIO_LOG_CHANNEL as u8,
+                dds_onehot_sel: true 
+            },
+            Vec::new())
+        }
     };
 
     #[cfg(not(has_drtio))]
@@ -125,7 +138,7 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mu
         stream.write_all(&local_data[..pointer])?;
     }
     #[cfg(has_drtio)]
-    stream.write_all(&remote.data)?;
+    stream.write_all(&remote_data)?;
 
     Ok(())
 }

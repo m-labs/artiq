@@ -214,7 +214,7 @@ fn startup() {
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
-        io.spawn(4096, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table, &up_destinations) });
+        io.spawn(8192, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table, &up_destinations) });
     }
 
     #[cfg(has_grabber)]
