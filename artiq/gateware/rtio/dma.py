@@ -122,7 +122,7 @@ class RawSlicer(Module):
                  for i in range(out_size)})),
             If(shift_buf, Case(self.source_consume,
                 {i: buf.eq(buf[i*g:])
-                 for i in range(out_size)})),
+                 for i in range(out_size + 1)})),
         ]
 
         fsm = FSM(reset_state="FETCH")
