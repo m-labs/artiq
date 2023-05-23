@@ -2,7 +2,7 @@
 
 import argparse
 import logging
-from distutils.version import LooseVersion
+from packaging.version import Version
 
 from misoc.integration.builder import builder_args, builder_argdict
 from misoc.targets.kasli import soc_kasli_args, soc_kasli_argdict
@@ -150,7 +150,7 @@ def main():
     description = jsondesc.load(args.description)
 
     min_artiq_version = description.get("min_artiq_version", "0")
-    if LooseVersion(artiq_version) < LooseVersion(min_artiq_version):
+    if Version(artiq_version) < Version(min_artiq_version):
         logger.warning("ARTIQ version mismatch: current %s < %s minimum",
                        artiq_version, min_artiq_version)
 
