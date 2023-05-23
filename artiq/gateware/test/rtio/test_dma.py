@@ -67,6 +67,7 @@ def do_dma(dut, address):
 test_writes1 = [
     (0x01, 0x23, 0x12, 0x33),
     (0x901, 0x902, 0x11, 0xeeeeeeeeeeeeeefffffffffffffffffffffffffffffff28888177772736646717738388488),
+    (0x82, 0x289, 0x99, int.from_bytes(b"\xf0" * 64, "little")),
     (0x81, 0x288, 0x88, 0x8888)
 ]
 
