@@ -69,12 +69,12 @@
 
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
-        version = "0.19.0";
+        version = "0.24.1";
         src = pkgs.fetchFromGitHub {
           owner = "CabbageDevelopment";
           repo = "qasync";
           rev = "v${version}";
-          sha256 = "sha256-xGAUAyOq+ELwzMGbLLmXijxLG8pv4a6tPvfAVOt1YwU=";
+          sha256 = "sha256-DAzmobw+c29Pt/URGO3bWXHBxgu9bDHhdTUBE9QJDe4=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyqt5 ];
         checkInputs = [ pkgs.python3Packages.pytest ];
