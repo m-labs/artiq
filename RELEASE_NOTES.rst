@@ -27,7 +27,22 @@ Highlights:
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
-* Persistent datasets are now stored in a LMDB database for improved performance.
+* Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
+  be converted with the script below.
+
+::
+
+  from sipyco import pyon
+  import lmdb
+
+  old = pyon.load_file("dataset_db.pyon")
+  new = lmdb.open("dataset_db.mdb", subdir=False, map_size=2**30)
+  with new.begin(write=True) as txn:
+    for key, value in old.items():
+      txn.put(key.encode(), pyon.encode(value).encode())
+  new.close()
+
+
 
 ARTIQ-7
 -------

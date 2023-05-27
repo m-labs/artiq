@@ -8,6 +8,7 @@ extern crate board_misoc;
 extern crate board_artiq;
 extern crate riscv;
 extern crate alloc;
+extern crate proto_artiq;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
@@ -15,14 +16,17 @@ use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
+use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
+use analyzer::Analyzer;
 
 #[global_allocator]
 static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
 
 mod repeater;
 mod dma;
+mod analyzer;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -73,7 +77,7 @@ macro_rules! forward {
     ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {}
 }
 
-fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Repeater],
+fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repeaters: &mut [repeater::Repeater],
         _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
         packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
@@ -300,6 +304,28 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
                     &drtioaux::Packet::SpiReadReply { succeeded: false, data: 0 })
             }
         }
+
+        drtioaux::Packet::AnalyzerHeaderRequest { destination: _destination } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let header = analyzer.get_header();
+            drtioaux::send(0, &drtioaux::Packet::AnalyzerHeader {
+                total_byte_count: header.total_byte_count,
+                sent_bytes: header.sent_bytes,
+                overflow_occurred: header.overflow,
+            })
+        }
+
+        drtioaux::Packet::AnalyzerDataRequest { destination: _destination } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let mut data_slice: [u8; ANALYZER_MAX_SIZE] = [0; ANALYZER_MAX_SIZE];
+            let meta = analyzer.get_data(&mut data_slice);
+            drtioaux::send(0, &drtioaux::Packet::AnalyzerData {
+                last: meta.last,
+                length: meta.len,
+                data: data_slice,
+            })
+        }
+
         #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
@@ -329,12 +355,13 @@ fn process_aux_packet(_manager: &mut DmaManager, _repeaters: &mut [repeater::Rep
     }
 }
 
-fn process_aux_packets(dma_manager: &mut DmaManager, repeaters: &mut [repeater::Repeater],
+fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
+        repeaters: &mut [repeater::Repeater],
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8) {
     let result =
         drtioaux::recv(0).and_then(|packet| {
             if let Some(packet) = packet {
-                process_aux_packet(dma_manager, repeaters, routing_table, rank, packet)
+                process_aux_packet(dma_manager, analyzer, repeaters, routing_table, rank, packet)
             } else {
                 Ok(())
             }
@@ -546,13 +573,16 @@ pub extern fn main() -> i32 {
         // without a manual intervention.
         let mut dma_manager = DmaManager::new();
 
+        // Reset the analyzer as well.
+        let mut analyzer = Analyzer::new();
+
         drtioaux::reset(0);
         drtiosat_reset(false);
         drtiosat_reset_phy(false);
 
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            process_aux_packets(&mut dma_manager, &mut repeaters, &mut routing_table, &mut rank);
+            process_aux_packets(&mut dma_manager, &mut analyzer, &mut repeaters, &mut routing_table, &mut rank);
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }

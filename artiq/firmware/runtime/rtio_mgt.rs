@@ -19,6 +19,8 @@ pub mod drtio {
     use drtioaux;
     use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
     use rtio_dma::remote_dma;
+    #[cfg(has_rtio_analyzer)]
+    use analyzer::remote_analyzer::RemoteBuffer;
 
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
@@ -402,6 +404,60 @@ pub mod drtio {
             Ok(_) => return Err("received unexpected aux packet during DMA playback"),
             Err(_) => return Err("aux error on DMA playback")
         }
+    }
+
+    #[cfg(has_rtio_analyzer)]
+    fn analyzer_get_data(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable, destination: u8
+    ) -> Result<RemoteBuffer, &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+            &drtioaux::Packet::AnalyzerHeaderRequest { destination: destination });
+        let (sent, total, overflow) = match reply {
+            Ok(drtioaux::Packet::AnalyzerHeader { 
+                sent_bytes, total_byte_count, overflow_occurred }
+            ) => (sent_bytes, total_byte_count, overflow_occurred),
+            Ok(_) => return Err("received unexpected aux packet during remote analyzer header request"),
+            Err(e) => return Err(e)
+        };
+
+        let mut remote_data: Vec<u8> = Vec::new();
+        if sent > 0 {
+            let mut last_packet = false;
+            while !last_packet {
+                let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+                    &drtioaux::Packet::AnalyzerDataRequest { destination: destination });
+                match reply {
+                    Ok(drtioaux::Packet::AnalyzerData { last, length, data }) => { 
+                        last_packet = last;
+                        remote_data.extend(&data[0..length as usize]);
+                    },
+                    Ok(_) => return Err("received unexpected aux packet during remote analyzer data request"),
+                    Err(e) => return Err(e)
+                }
+            }
+        }
+
+        Ok(RemoteBuffer {
+            sent_bytes: sent,
+            total_byte_count: total,
+            overflow_occurred: overflow,
+            data: remote_data
+        })
+    }
+
+    #[cfg(has_rtio_analyzer)]
+    pub fn analyzer_query(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable,
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
+    ) -> Result<Vec<RemoteBuffer>, &'static str> {
+        let mut remote_buffers: Vec<RemoteBuffer> = Vec::new();
+        for i in 1..drtio_routing::DEST_COUNT {
+            if destination_up(up_destinations, i as u8) {
+                remote_buffers.push(analyzer_get_data(io, aux_mutex, ddma_mutex, routing_table, i as u8)?);
+            }
+        }
+        Ok(remote_buffers)
     }
 
 }

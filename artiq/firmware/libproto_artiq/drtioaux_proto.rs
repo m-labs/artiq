@@ -14,8 +14,8 @@ impl<T> From<IoError<T>> for Error<T> {
     }
 }
 
-/* 512 (max size) - 4 (CRC) - 1 (packet ID) - 1 (destination) - 4 (trace ID) - 1 (last) - 2 (length) */
-pub const DMA_TRACE_MAX_SIZE: usize = 499;
+pub const DMA_TRACE_MAX_SIZE: usize = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*trace ID*/4 - /*last*/1 -/*length*/2;
+pub const ANALYZER_MAX_SIZE: usize  = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*last*/1 - /*length*/2;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
@@ -58,6 +58,11 @@ pub enum Packet {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
+    AnalyzerHeaderRequest { destination: u8 },
+    AnalyzerHeader { sent_bytes: u32, total_byte_count: u64, overflow_occurred: bool },
+    AnalyzerDataRequest { destination: u8 },
+    AnalyzerData { last: bool, length: u16, data: [u8; ANALYZER_MAX_SIZE]},
+
     DmaAddTraceRequest { destination: u8, id: u32, last: bool, length: u16, trace: [u8; DMA_TRACE_MAX_SIZE] },
     DmaAddTraceReply { succeeded: bool },
     DmaRemoveTraceRequest { destination: u8, id: u32 },
@@ -65,7 +70,6 @@ pub enum Packet {
     DmaPlaybackRequest { destination: u8, id: u32, timestamp: u64 },
     DmaPlaybackReply { succeeded: bool },
     DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 }
-
 }
 
 impl Packet {
@@ -195,6 +199,29 @@ impl Packet {
             },
             0x95 => Packet::SpiBasicReply {
                 succeeded: reader.read_bool()?
+            },
+
+            0xa0 => Packet::AnalyzerHeaderRequest {
+                destination: reader.read_u8()?
+            },
+            0xa1 => Packet::AnalyzerHeader {
+                sent_bytes: reader.read_u32()?, 
+                total_byte_count: reader.read_u64()?, 
+                overflow_occurred: reader.read_bool()?,
+            },
+            0xa2 => Packet::AnalyzerDataRequest {
+                destination: reader.read_u8()?
+            },
+            0xa3 => {
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; ANALYZER_MAX_SIZE] = [0; ANALYZER_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::AnalyzerData {
+                    last: last,
+                    length: length,
+                    data: data
+                }
             },
 
             0xb0 => { 
@@ -395,6 +422,27 @@ impl Packet {
             Packet::SpiBasicReply { succeeded } => {
                 writer.write_u8(0x95)?;
                 writer.write_bool(succeeded)?;
+            },
+
+            Packet::AnalyzerHeaderRequest { destination } => {
+                writer.write_u8(0xa0)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::AnalyzerHeader { sent_bytes, total_byte_count, overflow_occurred } => { 
+                writer.write_u8(0xa1)?;
+                writer.write_u32(sent_bytes)?;
+                writer.write_u64(total_byte_count)?;
+                writer.write_bool(overflow_occurred)?;
+            },
+            Packet::AnalyzerDataRequest { destination } => {
+                writer.write_u8(0xa2)?;
+                writer.write_u8(destination)?;
+            },
+            Packet::AnalyzerData { last, length, data } => {
+                writer.write_u8(0xa3)?;
+                writer.write_bool(last)?;
+                writer.write_u16(length)?;
+                writer.write_all(&data[0..length as usize])?;
             },
 
             Packet::DmaAddTraceRequest { destination, id, last, trace, length } => {

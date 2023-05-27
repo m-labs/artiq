@@ -308,6 +308,10 @@ class _MasterBase(MiniSoC, AMPSoC):
         self.register_kernel_cpu_csrdevice("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
+                                                self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
+        self.csr_devices.append("rtio_analyzer")
+
 
 
 class _SatelliteBase(BaseSoC):
@@ -460,6 +464,9 @@ class _SatelliteBase(BaseSoC):
         self.csr_devices.append("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
+                                                self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
+        self.csr_devices.append("rtio_analyzer")
 
 
 class _NIST_CLOCK_RTIO:

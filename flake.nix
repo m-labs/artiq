@@ -43,7 +43,7 @@
       });
 
       vivadoDeps = pkgs: with pkgs; [
-        libxcrypt
+        libxcrypt-legacy
         ncurses5
         zlib
         libuuid
@@ -60,18 +60,16 @@
 
       qasync = pkgs.python3Packages.buildPythonPackage rec {
         pname = "qasync";
-        version = "0.19.0";
+        version = "0.24.1";
         src = pkgs.fetchFromGitHub {
           owner = "CabbageDevelopment";
           repo = "qasync";
           rev = "v${version}";
-          sha256 = "sha256-xGAUAyOq+ELwzMGbLLmXijxLG8pv4a6tPvfAVOt1YwU=";
+          sha256 = "sha256-DAzmobw+c29Pt/URGO3bWXHBxgu9bDHhdTUBE9QJDe4=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyqt5 ];
-        checkInputs = [ pkgs.python3Packages.pytest ];
-        checkPhase = ''
-          pytest -k 'test_qthreadexec.py' # the others cause the test execution to be aborted, I think because of asyncio
-        '';
+        nativeCheckInputs = [ pkgs.python3Packages.pytest-runner pkgs.python3Packages.pytestCheckHook ];
+        disabledTestPaths = [ "tests/test_qeventloop.py" ];
       };
 
       artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
@@ -98,8 +96,14 @@
           wrapQtApp "$out/bin/artiq_session"
         '';
 
-        # Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
-        # Allows subprocesses using python to find all packages you have installed
+        preFixup =
+          ''
+          # Ensure that wrapProgram uses makeShellWrapper rather than makeBinaryWrapper
+          # brought in by wrapQtAppsHook. Only makeShellWrapper supports --run.
+          wrapProgram() { wrapProgramShell "$@"; }
+          '';
+        ## Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
+        ## Allows subprocesses using python to find all packages you have installed
         makeWrapperArgs = [
           ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
           "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
@@ -108,7 +112,7 @@
         # FIXME: automatically propagate llvm_x dependency
         # cacert is required in the check stage only, as certificates are to be
         # obtained from system elsewhere
-        checkInputs = [ pkgs.llvm_14 pkgs.cacert ];
+        nativeCheckInputs = [ pkgs.llvm_14 pkgs.cacert ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
           '';
@@ -155,12 +159,12 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ pyserial prettytable msgpack migen ];
       };
 
-      vivadoEnv = pkgs.buildFHSUserEnv {
+      vivadoEnv = pkgs.buildFHSEnv {
         name = "vivado-env";
         targetPkgs = vivadoDeps;
       };
 
-      vivado = pkgs.buildFHSUserEnv {
+      vivado = pkgs.buildFHSEnv {
         name = "vivado";
         targetPkgs = vivadoDeps;
         profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
@@ -179,8 +183,7 @@
           };
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
-            rustPlatform.rust.rustc
-            rustPlatform.rust.cargo
+            rust
             pkgs.cargo-xbuild
             pkgs.llvmPackages_14.clang-unwrapped
             pkgs.llvm_14
@@ -262,21 +265,6 @@
         paths = [ openocd-fixed bscan_spi_bitstreams-pkg ];
       };
 
-      # https://github.com/ashb/sphinx-argparse/issues/5
-      sphinx-argparse = pkgs.python3Packages.buildPythonPackage rec {
-        pname = "sphinx-argparse";
-        version = "0.3.1";
-        src = pkgs.python3Packages.fetchPypi {
-          inherit pname version;
-          sha256 = "82151cbd43ccec94a1530155f4ad34f251aaca6a0ffd5516d7fadf952d32dc1e";
-        };
-        checkInputs = [ pkgs.python3Packages.pytest ];
-        checkPhase =
-          ''
-          pytest -vv -k "not test_parse_nested and not test_parse_nested_with_alias and not test_parse_groups and not test_action_groups_with_subcommands"
-         '';
-        propagatedBuildInputs = [ pkgs.python3Packages.sphinx ];
-      };
       sphinxcontrib-wavedrom = pkgs.python3Packages.buildPythonPackage rec {
         pname = "sphinxcontrib-wavedrom";
         version = "3.0.2";
@@ -303,14 +291,14 @@
           target = "kc705";
           variant = "nist_clock";
         };
-        inherit sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual;
+        inherit sphinxcontrib-wavedrom latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
           version = artiqVersion;
           src = self;
           buildInputs = [
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            sphinx-argparse sphinxcontrib-wavedrom
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
           ];
           buildPhase = ''
             export VERSIONEER_OVERRIDE=${artiqVersion}
@@ -330,7 +318,7 @@
           src = self;
           buildInputs = [
             pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-            sphinx-argparse sphinxcontrib-wavedrom
+            pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom
             latex-artiq-manual
           ];
           buildPhase = ''
@@ -358,8 +346,7 @@
         name = "artiq-dev-shell";
         buildInputs = [
           (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema microscope ]))
-          rustPlatform.rust.rustc
-          rustPlatform.rust.cargo
+          rust
           pkgs.cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
@@ -369,7 +356,7 @@
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
-          sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
+          pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
         shellHook = ''
           export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
