@@ -42,11 +42,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1677493379,
-        "narHash": "sha256-A1gO8zlWLv3+tZ3cGVB1WYvvoN9pbFyv0xIJHcTsckw=",
+        "lastModified": 1684487559,
+        "narHash": "sha256-SZcJEM+NnLr8ctzeQf1BGAqBHzJ3jn+tdSeO7lszIJc=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "78e723925daf5c9e8d0a1837ec27059e61649cb6",
+        "rev": "e6ca26fe8b9df914d4567604e426fbc185d9ef3e",
         "type": "github"
       },
       "original": {
@@ -57,16 +57,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1682173319,
-        "narHash": "sha256-tPhOpJJ+wrWIusvGgIB2+x6ILfDkEgQMX0BTtM5vd/4=",
+        "lastModified": 1685004253,
+        "narHash": "sha256-AbVL1nN/TDicUQ5wXZ8xdLERxz/eJr7+o8lqkIOVuaE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "ee7ec1c71adc47d2e3c2d5eb0d6b8fbbd42a8d1c",
+        "rev": "3e01645c40b92d29f3ae76344a6d654986a91a91",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-22.11",
+        "ref": "nixos-23.05",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -89,11 +89,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1681290481,
-        "narHash": "sha256-VEZcGhbtJGonRrrWi31evNDVSerlLjEPL0MZGm9VlB8=",
+        "lastModified": 1685094262,
+        "narHash": "sha256-7DvbdTUYP7PbhZClT/tob66iMV95v7124RynMpPc5VA=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "727631ada6e59dc6ef0ad50bfcc376d2ffe805aa",
+        "rev": "f1f0fc1d3071c5a6ba6dd613b54bb4176ad1e8dc",
         "type": "github"
       },
       "original": {
@@ -121,11 +121,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1679903508,
-        "narHash": "sha256-TI0agjSSMJtH4mgAMpSO128zxcwSo/AjY1B6AW7zBQQ=",
+        "lastModified": 1685174995,
+        "narHash": "sha256-90UwWt9/TAaFAoYDpiIzHXqMWYfftlps8sodv/Gf07c=",
         "ref": "refs/heads/master",
-        "rev": "0cf0ebb7d4f56cc6d44a3dea3e386efab9d82419",
-        "revCount": 2437,
+        "rev": "d83499b318e8ef021b12e2df261707a165eb3afa",
+        "revCount": 2439,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"

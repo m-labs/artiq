@@ -1,7 +1,7 @@
 {
   description = "A leading-edge control system for quantum information experiments";
 
-  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-22.11;
+  inputs.nixpkgs.url = github:NixOS/nixpkgs/nixos-23.05;
   inputs.mozilla-overlay = { url = github:mozilla/nixpkgs-mozilla; flake = false; };
   inputs.sipyco.url = github:m-labs/sipyco;
   inputs.sipyco.inputs.nixpkgs.follows = "nixpkgs";
@@ -44,7 +44,7 @@
       });
 
       vivadoDeps = pkgs: with pkgs; [
-        libxcrypt
+        libxcrypt-legacy
         ncurses5
         zlib
         libuuid
@@ -77,10 +77,8 @@
           sha256 = "sha256-DAzmobw+c29Pt/URGO3bWXHBxgu9bDHhdTUBE9QJDe4=";
         };
         propagatedBuildInputs = [ pkgs.python3Packages.pyqt5 ];
-        checkInputs = [ pkgs.python3Packages.pytest ];
-        checkPhase = ''
-          pytest -k 'test_qthreadexec.py' # the others cause the test execution to be aborted, I think because of asyncio
-        '';
+        nativeCheckInputs = [ pkgs.python3Packages.pytest-runner pkgs.python3Packages.pytestCheckHook ];
+        disabledTestPaths = [ "tests/test_qeventloop.py" ];
       };
 
       outputcheck = pkgs.python3Packages.buildPythonApplication rec {
@@ -136,8 +134,14 @@
           wrapQtApp "$out/bin/artiq_session"
         '';
 
-        # Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
-        # Allows subprocesses using python to find all packages you have installed
+        preFixup =
+          ''
+          # Ensure that wrapProgram uses makeShellWrapper rather than makeBinaryWrapper
+          # brought in by wrapQtAppsHook. Only makeShellWrapper supports --run.
+          wrapProgram() { wrapProgramShell "$@"; }
+          '';
+        ## Modifies PATH to pass the wrapped python environment (i.e. python3.withPackages(...) to subprocesses.
+        ## Allows subprocesses using python to find all packages you have installed
         makeWrapperArgs = [
           ''--run 'if [ ! -z "$NIX_PYTHONPREFIX" ]; then export PATH=$NIX_PYTHONPREFIX/bin:$PATH;fi' ''
           "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
@@ -146,7 +150,7 @@
         # FIXME: automatically propagate lld_11 llvm_11 dependencies
         # cacert is required in the check stage only, as certificates are to be
         # obtained from system elsewhere
-        checkInputs = [ pkgs.lld_11 pkgs.llvm_11 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
+        nativeCheckInputs = [ pkgs.lld_11 pkgs.llvm_11 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
 
@@ -401,7 +405,7 @@
         ];
         shellHook = ''
           export LIBARTIQ_SUPPORT=`libartiq-support`
-	  export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
+          export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
           export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
         '';
       };

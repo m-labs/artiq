@@ -26,7 +26,7 @@ $(RUSTOUT)/libksupport.a:
 
 ksupport.elf: $(RUSTOUT)/libksupport.a glue.o
 	$(link) -T $(KSUPPORT_DIRECTORY)/ksupport.ld \
-		-lunwind-$(CPU)-elf -lprintf-float -lm
+		-lunwind-$(CPU)-libc -lprintf-float -lm
 
 %.o: $(KSUPPORT_DIRECTORY)/%.c
 	$(compile)
