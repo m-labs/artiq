@@ -96,7 +96,7 @@
       libartiq-support = pkgs.stdenv.mkDerivation {
         name = "libartiq-support";
         src = self;
-        buildInputs = [ rustPlatform.rust.rustc ];
+        buildInputs = [ rust ];
         buildPhase = ''
           rustc $src/artiq/test/libartiq_support/lib.rs -Cpanic=unwind -g
         '';
@@ -225,8 +225,7 @@
           };
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
-            rustPlatform.rust.rustc
-            rustPlatform.rust.cargo
+            rust
             pkgs.cargo-xbuild
             pkgs.llvmPackages_11.clang-unwrapped
             pkgs.llvm_11
@@ -386,8 +385,7 @@
         name = "artiq-dev-shell";
         buildInputs = [
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema microscope ]))
-          rustPlatform.rust.rustc
-          rustPlatform.rust.cargo
+          rust
           pkgs.cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_11
