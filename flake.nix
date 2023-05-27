@@ -201,12 +201,12 @@
         propagatedBuildInputs = with pkgs.python3Packages; [ pyserial prettytable msgpack migen ];
       };
 
-      vivadoEnv = pkgs.buildFHSUserEnv {
+      vivadoEnv = pkgs.buildFHSEnv {
         name = "vivado-env";
         targetPkgs = vivadoDeps;
       };
 
-      vivado = pkgs.buildFHSUserEnv {
+      vivado = pkgs.buildFHSEnv {
         name = "vivado";
         targetPkgs = vivadoDeps;
         profile = "set -e; source /opt/Xilinx/Vivado/2022.2/settings64.sh";
