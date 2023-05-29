@@ -72,6 +72,11 @@ class AppletIPCClient(AsyncioChildComm):
         self.mod_cb = mod_cb
         asyncio.ensure_future(self.listen())
 
+    def set_dataset(self, key, value, persist):
+        self.write_pyon({"action": "set_dataset",
+                         "key": key,
+                         "value": value,
+                         "persist": persist})
 
 class SimpleApplet:
     def __init__(self, main_widget_class, cmd_description=None,
@@ -222,6 +227,10 @@ class SimpleApplet:
     def unsubscribe(self):
         if self.embed is None:
             self.loop.run_until_complete(self.subscriber.close())
+
+    def set_dataset(self, key, value, persist):
+        if self.embed is not None:
+            self.ipc.set_dataset = {"key": key, "value": value, "persist": persist}
 
     def run(self):
         self.args_init()
