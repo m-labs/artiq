@@ -21,9 +21,23 @@ logger = logging.getLogger(__name__)
 
 
 class AppletIPCServer(AsyncioParentComm):
+<<<<<<< HEAD
+<<<<<<< HEAD
     def __init__(self, dataset_sub):
         AsyncioParentComm.__init__(self)
         self.dataset_sub = dataset_sub
+=======
+    def __init__(self, datasets_sub, dataset_ctl):
+        AsyncioParentComm.__init__(self)
+        self.datasets_sub = datasets_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+    def __init__(self, dataset_sub, dataset_ctl):
+        AsyncioParentComm.__init__(self)
+        self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         self.datasets = set()
         self.dataset_prefixes = []
 
@@ -78,6 +92,8 @@ class AppletIPCServer(AsyncioParentComm):
                             mod = self._synthesize_init(
                                 self.dataset_sub.model.backing_store)
                             self.write_pyon({"action": "mod", "mod": mod})
+                    elif action == "set_dataset":
+                        await self.dataset_ctl.set(obj["key"], obj["value"], obj["persist"])
                     else:
                         raise ValueError("unknown action in applet message")
                 except:
@@ -103,7 +119,15 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
+<<<<<<< HEAD
+<<<<<<< HEAD
     def __init__(self, dataset_sub, uid, name, spec, extra_substitutes):
+=======
+    def __init__(self, datasets_sub, dataset_ctl, uid, name, spec, extra_substitutes):
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+    def __init__(self, dataset_sub, dataset_ctl, uid, name, spec, extra_substitutes):
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -111,7 +135,17 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.setMinimumSize(20*qfm.averageCharWidth(), 5*qfm.lineSpacing())
         self.resize(40*qfm.averageCharWidth(), 10*qfm.lineSpacing())
 
+<<<<<<< HEAD
+<<<<<<< HEAD
         self.dataset_sub = dataset_sub
+=======
+        self.datasets_sub = datasets_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+        self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         self.applet_name = name
         self.spec = spec
         self.extra_substitutes = extra_substitutes
@@ -130,7 +164,15 @@ class _AppletDock(QDockWidgetCloseDetect):
             return
         self.starting_stopping = True
         try:
+<<<<<<< HEAD
+<<<<<<< HEAD
             self.ipc = AppletIPCServer(self.dataset_sub)
+=======
+            self.ipc = AppletIPCServer(self.datasets_sub, self.dataset_ctl)
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+            self.ipc = AppletIPCServer(self.dataset_sub, self.dataset_ctl)
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
@@ -327,7 +369,15 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
+<<<<<<< HEAD
+<<<<<<< HEAD
     def __init__(self, main_window, dataset_sub, extra_substitutes={}, *, loop=None):
+=======
+    def __init__(self, main_window, datasets_sub, dataset_ctl, extra_substitutes={}, *, loop=None):
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+    def __init__(self, main_window, dataset_sub, dataset_ctl, extra_substitutes={}, *, loop=None):
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -338,7 +388,17 @@ class AppletsDock(QtWidgets.QDockWidget):
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
         self.main_window = main_window
+<<<<<<< HEAD
+<<<<<<< HEAD
         self.dataset_sub = dataset_sub
+=======
+        self.datasets_sub = datasets_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+        self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
@@ -440,7 +500,15 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.itemChanged.connect(self.item_changed)
 
     def create(self, item, name, spec):
+<<<<<<< HEAD
+<<<<<<< HEAD
         dock = _AppletDock(self.dataset_sub, item.applet_uid, name, spec, self.extra_substitutes)
+=======
+        dock = _AppletDock(self.datasets_sub, self.dataset_ctl, item.applet_uid, name, spec, self.extra_substitutes)
+>>>>>>> 9ec77e47 (applets: add set_dataset to write datasets)
+=======
+        dock = _AppletDock(self.dataset_sub, self.dataset_ctl, item.applet_uid, name, spec, self.extra_substitutes)
+>>>>>>> 5fb914f9 (applets: add set_dataset to write datasets)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start(), loop=self._loop)
