@@ -191,6 +191,7 @@ def main():
 
     d_applets = applets_ccb.AppletsCCBDock(main_window,
                                            sub_clients["datasets"],
+                                           rpc_clients["dataset_db"],
                                            extra_substitutes={
                                                "server": args.server,
                                                "port_notify": args.port_notify,
