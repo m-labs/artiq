@@ -119,9 +119,9 @@ class _StandaloneBase(MiniSoC, AMPSoC):
                 i_CEB=0,
                 i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
                 o_O=cdr_clk,
-                p_CLKCM_CFG=1,
-                p_CLKRCV_TRST=1, 
-                p_CLKSWING_CFG="2'b11"),
+                p_CLKCM_CFG="TRUE",
+                p_CLKRCV_TRST="TRUE", 
+                p_CLKSWING_CFG=3),
             Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
         ]
 
