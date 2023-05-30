@@ -21,9 +21,9 @@ logger = logging.getLogger(__name__)
 
 
 class AppletIPCServer(AsyncioParentComm):
-    def __init__(self, datasets_sub):
+    def __init__(self, dataset_sub):
         AsyncioParentComm.__init__(self)
-        self.datasets_sub = datasets_sub
+        self.dataset_sub = dataset_sub
         self.datasets = set()
         self.dataset_prefixes = []
 
@@ -60,7 +60,7 @@ class AppletIPCServer(AsyncioParentComm):
         self.write_pyon({"action": "mod", "mod": mod})
 
     async def serve(self, embed_cb, fix_initial_size_cb):
-        self.datasets_sub.notify_cbs.append(self._on_mod)
+        self.dataset_sub.notify_cbs.append(self._on_mod)
         try:
             while True:
                 obj = await self.read_pyon()
@@ -74,9 +74,9 @@ class AppletIPCServer(AsyncioParentComm):
                     elif action == "subscribe":
                         self.datasets = obj["datasets"]
                         self.dataset_prefixes = obj["dataset_prefixes"]
-                        if self.datasets_sub.model is not None:
+                        if self.dataset_sub.model is not None:
                             mod = self._synthesize_init(
-                                self.datasets_sub.model.backing_store)
+                                self.dataset_sub.model.backing_store)
                             self.write_pyon({"action": "mod", "mod": mod})
                     else:
                         raise ValueError("unknown action in applet message")
@@ -90,7 +90,7 @@ class AppletIPCServer(AsyncioParentComm):
             logger.error("error processing data from applet, "
                          "server stopped", exc_info=True)
         finally:
-            self.datasets_sub.notify_cbs.remove(self._on_mod)
+            self.dataset_sub.notify_cbs.remove(self._on_mod)
 
     def start_server(self, embed_cb, fix_initial_size_cb, *, loop=None):
         self.server_task = asyncio.ensure_future(
@@ -103,7 +103,7 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
-    def __init__(self, datasets_sub, uid, name, spec, extra_substitutes):
+    def __init__(self, dataset_sub, uid, name, spec, extra_substitutes):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -111,7 +111,7 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.setMinimumSize(20*qfm.averageCharWidth(), 5*qfm.lineSpacing())
         self.resize(40*qfm.averageCharWidth(), 10*qfm.lineSpacing())
 
-        self.datasets_sub = datasets_sub
+        self.dataset_sub = dataset_sub
         self.applet_name = name
         self.spec = spec
         self.extra_substitutes = extra_substitutes
@@ -130,7 +130,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             return
         self.starting_stopping = True
         try:
-            self.ipc = AppletIPCServer(self.datasets_sub)
+            self.ipc = AppletIPCServer(self.dataset_sub)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
@@ -327,7 +327,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, datasets_sub, extra_substitutes={}, *, loop=None):
+    def __init__(self, main_window, dataset_sub, extra_substitutes={}, *, loop=None):
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -338,7 +338,7 @@ class AppletsDock(QtWidgets.QDockWidget):
                          QtWidgets.QDockWidget.DockWidgetFloatable)
 
         self.main_window = main_window
-        self.datasets_sub = datasets_sub
+        self.dataset_sub = dataset_sub
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
@@ -364,7 +364,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         completer_delegate = _CompleterDelegate()
         self.table.setItemDelegateForColumn(1, completer_delegate)
-        datasets_sub.add_setmodel_callback(completer_delegate.set_model)
+        dataset_sub.add_setmodel_callback(completer_delegate.set_model)
 
         self.table.setContextMenuPolicy(QtCore.Qt.ActionsContextMenu)
         new_action = QtWidgets.QAction("New applet", self.table)
@@ -440,7 +440,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.itemChanged.connect(self.item_changed)
 
     def create(self, item, name, spec):
-        dock = _AppletDock(self.datasets_sub, item.applet_uid, name, spec, self.extra_substitutes)
+        dock = _AppletDock(self.dataset_sub, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start(), loop=self._loop)

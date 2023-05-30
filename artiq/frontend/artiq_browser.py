@@ -48,7 +48,7 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, smgr, datasets_sub, browse_root,
+    def __init__(self, smgr, dataset_sub, browse_root,
                  master_host, master_port, *, loop=None):
         QtWidgets.QMainWindow.__init__(self)
         smgr.register(self)
@@ -65,7 +65,7 @@ class Browser(QtWidgets.QMainWindow):
         self.setUnifiedTitleAndToolBarOnMac(True)
 
         self.experiments = experiments.ExperimentsArea(
-            browse_root, datasets_sub)
+            browse_root, dataset_sub)
         smgr.register(self.experiments)
         self.experiments.setHorizontalScrollBarPolicy(
             QtCore.Qt.ScrollBarAsNeeded)
@@ -73,7 +73,7 @@ class Browser(QtWidgets.QMainWindow):
             QtCore.Qt.ScrollBarAsNeeded)
         self.setCentralWidget(self.experiments)
 
-        self.files = files.FilesDock(datasets_sub, browse_root)
+        self.files = files.FilesDock(dataset_sub, browse_root)
         smgr.register(self.files)
 
         self.files.dataset_activated.connect(
@@ -81,12 +81,12 @@ class Browser(QtWidgets.QMainWindow):
         self.files.dataset_changed.connect(
             self.experiments.dataset_changed)
 
-        self.applets = applets.AppletsDock(self, datasets_sub, loop=loop)
+        self.applets = applets.AppletsDock(self, dataset_sub, loop=loop)
         smgr.register(self.applets)
         atexit_register_coroutine(self.applets.stop, loop=loop)
 
         self.datasets = datasets.DatasetsDock(
-            datasets_sub, master_host, master_port)
+            dataset_sub, master_host, master_port)
         smgr.register(self.datasets)
         self.files.metadata_changed.connect(self.datasets.metadata_changed)
 
@@ -146,12 +146,12 @@ def main():
     asyncio.set_event_loop(loop)
     atexit.register(loop.close)
 
-    datasets_sub = models.LocalModelManager(datasets.Model)
-    datasets_sub.init({})
+    dataset_sub = models.LocalModelManager(datasets.Model)
+    dataset_sub.init({})
 
     smgr = state.StateManager(args.db_file)
 
-    browser = Browser(smgr, datasets_sub, args.browse_root,
+    browser = Browser(smgr, dataset_sub, args.browse_root,
                       args.server, args.port, loop=loop)
     widget_log_handler.callback = browser.log.model.append
 
