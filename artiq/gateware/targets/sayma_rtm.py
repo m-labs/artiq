@@ -50,7 +50,10 @@ class _SatelliteBase(BaseSoC):
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=disable_cdrclkc_ibuf,
             i_I=cdrclkc_clkout.p, i_IB=cdrclkc_clkout.n,
-            o_O=cdrclkc_clkout_buf)
+            o_O=cdrclkc_clkout_buf,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE",
+            p_CLKSWING_CFG=3)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
