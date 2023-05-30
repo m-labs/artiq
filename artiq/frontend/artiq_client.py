@@ -327,7 +327,7 @@ def main():
             "scan_devices": "master_device_db",
             "scan_repository": "master_experiment_db",
             "ls": "master_experiment_db",
-            "terminate": "master_terminate",
+            "terminate": "master_management",
         }[action]
         remote = Client(args.server, port, target_name)
         try:
