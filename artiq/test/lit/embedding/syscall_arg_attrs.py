@@ -18,13 +18,13 @@ def entrypoint():
     return_str()
 
 
-# CHECK: declare void @accept_str\({ i8\*, i32 }\* byval\)
+# CHECK: declare void @accept_str\({ i8\*, i32 }\* byval\({ i8\*, i32 }\)\)
 @syscall
 def accept_str(name: TStr) -> TNone:
     pass
 
 
-# CHECK: declare void @return_str\({ i8\*, i32 }\* sret\)
+# CHECK: declare void @return_str\({ i8\*, i32 }\* sret\({ i8\*, i32 }\)\)
 @syscall
 def return_str() -> TStr:
     pass
