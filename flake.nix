@@ -152,7 +152,7 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_14 pkgs.lld_14 sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools llvmlite-new ]
+        propagatedBuildInputs = [ pkgs.llvm_14 pkgs.lld_11 sipyco.packages.x86_64-linux.sipyco pythonparser artiq-comtools.packages.x86_64-linux.artiq-comtools llvmlite-new ]
           ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm lmdb jsonschema ]);
 
         dontWrapQtApps = true;
@@ -175,10 +175,10 @@
           "--set FONTCONFIG_FILE ${pkgs.fontconfig.out}/etc/fonts/fonts.conf"
         ];
 
-        # FIXME: automatically propagate lld_14 llvm_14 dependencies
+        # FIXME: automatically propagate lld_11 llvm_14 dependencies
         # cacert is required in the check stage only, as certificates are to be
         # obtained from system elsewhere
-        nativeCheckInputs = [ pkgs.lld_14 pkgs.llvm_14 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
+        nativeCheckInputs = [ pkgs.lld_11 pkgs.llvm_14 libartiq-support pkgs.lit outputcheck pkgs.cacert ];
         checkPhase = ''
           python -m unittest discover -v artiq.test
 
@@ -257,7 +257,7 @@
             pkgs.cargo-xbuild
             pkgs.llvmPackages_14.clang-unwrapped
             pkgs.llvm_14
-            pkgs.lld_14
+            pkgs.lld_11
             vivado
             rustPlatform.cargoSetupHook
           ];
@@ -420,7 +420,7 @@
           pkgs.cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
-          pkgs.lld_14
+          pkgs.lld_11
           # To manually run compiler tests:
           pkgs.lit
           outputcheck
@@ -448,7 +448,7 @@
           pkgs.cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
           pkgs.llvm_14
-          pkgs.lld_14
+          pkgs.lld_11
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
         ];
@@ -482,7 +482,7 @@
           buildInputs = [
             (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ artiq ps.paramiko ]))
             pkgs.llvm_14
-            pkgs.lld_14
+            pkgs.lld_11
             pkgs.openssh
             packages.x86_64-linux.openocd-bscanspi  # for the bscanspi bitstreams
           ];
