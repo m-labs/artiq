@@ -24,7 +24,7 @@ class Model(DictSyncTreeSepModel):
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets_sub, master_host, master_port):
+    def __init__(self, dataset_sub, master_host, master_port):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -62,7 +62,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table.addAction(upload_action)
 
         self.set_model(Model(dict()))
-        datasets_sub.add_setmodel_callback(self.set_model)
+        dataset_sub.add_setmodel_callback(self.set_model)
 
         self.master_host = master_host
         self.master_port = master_port

@@ -106,7 +106,7 @@ class Model(DictSyncTreeSepModel):
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets_sub, dataset_ctl):
+    def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -146,7 +146,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table.addAction(delete_action)
 
         self.table_model = Model(dict())
-        datasets_sub.add_setmodel_callback(self.set_model)
+        dataset_sub.add_setmodel_callback(self.set_model)
 
     def _search_datasets(self):
         if hasattr(self, "table_model_filter"):
