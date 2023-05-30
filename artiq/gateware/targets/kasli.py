@@ -447,7 +447,10 @@ class MasterBase(MiniSoC, AMPSoC):
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=self.disable_cdr_clk_ibuf,
             i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
-            o_O=cdr_clk_clean_buf)
+            o_O=cdr_clk_clean_buf,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE",
+            p_CLKSWING_CFG=3)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -499,7 +502,10 @@ class SatelliteBase(BaseSoC):
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=disable_cdr_clk_ibuf,
             i_I=cdr_clk_clean.p, i_IB=cdr_clk_clean.n,
-            o_O=cdr_clk_clean_buf)
+            o_O=cdr_clk_clean_buf,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE",
+            p_CLKSWING_CFG=3)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
