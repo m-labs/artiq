@@ -381,7 +381,10 @@
 
       defaultPackage.x86_64-linux = pkgs.python3.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
-      devShell.x86_64-linux = pkgs.mkShell {
+      # Main development shell with everything you need to develop ARTIQ on Linux.
+      # ARTIQ itself is not included in the environment, you can make Python use the current sources using e.g.
+      # export PYTHONPATH=`pwd`:$PYTHONPATH
+      devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ] ++ artiq.propagatedBuildInputs ))
@@ -406,6 +409,21 @@
           export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
           export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
         '';
+      };
+
+      # Lighter development shell optimized for building firmware and flashing boards.
+      devShells.x86_64-linux.boards = pkgs.mkShell {
+        name = "artiq-boards-shell";
+        buildInputs = [
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          rust
+          pkgs.cargo-xbuild
+          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvm_11
+          pkgs.lld_11
+          packages.x86_64-linux.vivado
+          packages.x86_64-linux.openocd-bscanspi
+        ];
       };
 
       packages.aarch64-linux = {
