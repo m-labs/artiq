@@ -51,7 +51,6 @@ Installing multiple packages and making them visible to the ARTIQ commands requi
               #ps.scipy
               #ps.numba
               #ps.matplotlib
-              #ps.jsonschema # required by artiq_ddb_template
               # or if you need Qt (will recompile):
               #(ps.matplotlib.override { enableQt = true; })
               #ps.bokeh
