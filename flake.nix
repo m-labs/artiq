@@ -446,7 +446,7 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
           rust
           pkgs.cargo-xbuild
-          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
           packages.x86_64-linux.vivado
