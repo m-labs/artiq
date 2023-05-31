@@ -23,8 +23,30 @@ class Model(DictSyncTreeSepModel):
         return short_format(v[1])
 
 
+class DatasetCtl:
+    def __init__(self, master_host, master_port):
+        self.master_host = master_host
+        self.master_port = master_port
+
+    async def set(self, key, value, persist=None):
+        logger.info("Uploading dataset '%s' to master...", key)
+        try:
+            remote = RPCClient()
+            await remote.connect_rpc(self.master_host, self.master_port,
+                                     "master_dataset_db")
+            try:
+                await remote.set(key, value, persist)
+            finally:
+                remote.close_rpc()
+        except:
+            logger.error("Failed uploading dataset '%s'",
+                         key, exc_info=True)
+        else:
+            logger.info("Finished uploading dataset '%s'", key)
+
+
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, dataset_sub, master_host, master_port):
+    def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -64,8 +86,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.set_model(Model(dict()))
         dataset_sub.add_setmodel_callback(self.set_model)
 
-        self.master_host = master_host
-        self.master_port = master_port
+        self.dataset_ctl = dataset_ctl
 
     def _search_datasets(self):
         if hasattr(self, "table_model_filter"):
@@ -82,22 +103,6 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table_model_filter.setSourceModel(self.table_model)
         self.table.setModel(self.table_model_filter)
 
-    async def _upload_dataset(self, name, value,):
-        logger.info("Uploading dataset '%s' to master...", name)
-        try:
-            remote = RPCClient()
-            await remote.connect_rpc(self.master_host, self.master_port,
-                                     "master_dataset_db")
-            try:
-                await remote.set(name, value)
-            finally:
-                remote.close_rpc()
-        except:
-            logger.error("Failed uploading dataset '%s'",
-                         name, exc_info=True)
-        else:
-            logger.info("Finished uploading dataset '%s'", name)
-
     def upload_clicked(self):
         idx = self.table.selectedIndexes()
         if idx:
@@ -105,7 +110,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
             key = self.table_model.index_to_key(idx)
             if key is not None:
                 persist, value = self.table_model.backing_store[key]
-                asyncio.ensure_future(self._upload_dataset(key, value))
+                asyncio.ensure_future(self.dataset_ctl.set(key, value))
 
     def save_state(self):
         return bytes(self.table.header().saveState())

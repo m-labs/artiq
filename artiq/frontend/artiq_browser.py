@@ -48,8 +48,8 @@ def get_argparser():
 
 
 class Browser(QtWidgets.QMainWindow):
-    def __init__(self, smgr, dataset_sub, browse_root,
-                 master_host, master_port, *, loop=None):
+    def __init__(self, smgr, dataset_sub, dataset_ctl, browse_root,
+                 *, loop=None):
         QtWidgets.QMainWindow.__init__(self)
         smgr.register(self)
 
@@ -81,12 +81,11 @@ class Browser(QtWidgets.QMainWindow):
         self.files.dataset_changed.connect(
             self.experiments.dataset_changed)
 
-        self.applets = applets.AppletsDock(self, dataset_sub, loop=loop)
+        self.applets = applets.AppletsDock(self, dataset_sub, dataset_ctl, loop=loop)
         smgr.register(self.applets)
         atexit_register_coroutine(self.applets.stop, loop=loop)
 
-        self.datasets = datasets.DatasetsDock(
-            dataset_sub, master_host, master_port)
+        self.datasets = datasets.DatasetsDock(dataset_sub, dataset_ctl)
         smgr.register(self.datasets)
         self.files.metadata_changed.connect(self.datasets.metadata_changed)
 
@@ -151,8 +150,9 @@ def main():
 
     smgr = state.StateManager(args.db_file)
 
-    browser = Browser(smgr, dataset_sub, args.browse_root,
-                      args.server, args.port, loop=loop)
+    dataset_ctl = datasets.DatasetCtl(args.server, args.port)
+    browser = Browser(smgr, dataset_sub, dataset_ctl, args.browse_root,
+                      loop=loop)
     widget_log_handler.callback = browser.log.model.append
 
     if os.name == "nt":
