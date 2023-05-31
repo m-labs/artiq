@@ -88,13 +88,13 @@ class AppletIPCClient(AsyncioChildComm):
                              exc_info=True)
                 self.close_cb()
 
-    def subscribe(self, datasets, init_cb, mod_cb, dataset_prefixes=[]):
+    def subscribe(self, datasets, init_cb, mod_cb, dataset_prefixes=[], *, loop):
         self.write_pyon({"action": "subscribe",
                          "datasets": datasets,
                          "dataset_prefixes": dataset_prefixes})
         self.init_cb = init_cb
         self.mod_cb = mod_cb
-        asyncio.ensure_future(self.listen())
+        self.listen_task = loop.create_task(self.listen())
 
     def set_dataset(self, key, value, persist=None):
         self.write_pyon({"action": "set_dataset",
@@ -250,8 +250,8 @@ class SimpleApplet:
                 self.mod_buffer.append(mod)
             else:
                 self.mod_buffer = [mod]
-                asyncio.get_event_loop().call_later(self.args.update_delay,
-                                                    self.flush_mod_buffer)
+                self.loop.call_later(self.args.update_delay,
+                                     self.flush_mod_buffer)
         else:
             self.emit_data_changed(self.data, [mod])
 
@@ -263,7 +263,8 @@ class SimpleApplet:
                 self.args.server, self.args.port_notify))
         else:
             self.ipc.subscribe(self.datasets, self.sub_init, self.sub_mod,
-                               dataset_prefixes=self.dataset_prefixes)
+                               dataset_prefixes=self.dataset_prefixes,
+                               loop=self.loop)
 
     def unsubscribe(self):
         if self.embed is None:
