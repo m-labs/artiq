@@ -21,9 +21,10 @@ logger = logging.getLogger(__name__)
 
 
 class AppletIPCServer(AsyncioParentComm):
-    def __init__(self, dataset_sub):
+    def __init__(self, dataset_sub, dataset_ctl):
         AsyncioParentComm.__init__(self)
         self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
         self.datasets = set()
         self.dataset_prefixes = []
 
@@ -78,6 +79,8 @@ class AppletIPCServer(AsyncioParentComm):
                             mod = self._synthesize_init(
                                 self.dataset_sub.model.backing_store)
                             self.write_pyon({"action": "mod", "mod": mod})
+                    elif action == "set_dataset":
+                        await self.dataset_ctl.set(obj["key"], obj["value"], obj["persist"])
                     else:
                         raise ValueError("unknown action in applet message")
                 except:
@@ -103,7 +106,7 @@ class AppletIPCServer(AsyncioParentComm):
 
 
 class _AppletDock(QDockWidgetCloseDetect):
-    def __init__(self, dataset_sub, uid, name, spec, extra_substitutes):
+    def __init__(self, dataset_sub, dataset_ctl, uid, name, spec, extra_substitutes):
         QDockWidgetCloseDetect.__init__(self, "Applet: " + name)
         self.setObjectName("applet" + str(uid))
 
@@ -112,6 +115,7 @@ class _AppletDock(QDockWidgetCloseDetect):
         self.resize(40*qfm.averageCharWidth(), 10*qfm.lineSpacing())
 
         self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
         self.applet_name = name
         self.spec = spec
         self.extra_substitutes = extra_substitutes
@@ -130,7 +134,7 @@ class _AppletDock(QDockWidgetCloseDetect):
             return
         self.starting_stopping = True
         try:
-            self.ipc = AppletIPCServer(self.dataset_sub)
+            self.ipc = AppletIPCServer(self.dataset_sub, self.dataset_ctl)
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             env["ARTIQ_APPLET_EMBED"] = self.ipc.get_address()
@@ -327,7 +331,7 @@ class _CompleterDelegate(QtWidgets.QStyledItemDelegate):
 
 
 class AppletsDock(QtWidgets.QDockWidget):
-    def __init__(self, main_window, dataset_sub, extra_substitutes={}, *, loop=None):
+    def __init__(self, main_window, dataset_sub, dataset_ctl, extra_substitutes={}, *, loop=None):
         """
         :param extra_substitutes: Map of extra ``${strings}`` to substitute in applet
             commands to their respective values.
@@ -339,6 +343,7 @@ class AppletsDock(QtWidgets.QDockWidget):
 
         self.main_window = main_window
         self.dataset_sub = dataset_sub
+        self.dataset_ctl = dataset_ctl
         self.extra_substitutes = extra_substitutes
         self.applet_uids = set()
 
@@ -440,7 +445,7 @@ class AppletsDock(QtWidgets.QDockWidget):
             self.table.itemChanged.connect(self.item_changed)
 
     def create(self, item, name, spec):
-        dock = _AppletDock(self.dataset_sub, item.applet_uid, name, spec, self.extra_substitutes)
+        dock = _AppletDock(self.dataset_sub, self.dataset_ctl, item.applet_uid, name, spec, self.extra_substitutes)
         self.main_window.addDockWidget(QtCore.Qt.RightDockWidgetArea, dock)
         dock.setFloating(True)
         asyncio.ensure_future(dock.start(), loop=self._loop)
