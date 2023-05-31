@@ -6,7 +6,7 @@ from artiq.applets.simple import SimpleApplet
 
 
 class NumberWidget(QtWidgets.QLCDNumber):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         QtWidgets.QLCDNumber.__init__(self)
         self.setDigitCount(args.digit_count)
         self.dataset_name = args.dataset

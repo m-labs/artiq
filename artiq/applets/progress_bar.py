@@ -6,7 +6,7 @@ from artiq.applets.simple import SimpleApplet
 
 
 class ProgressWidget(QtWidgets.QProgressBar):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         QtWidgets.QProgressBar.__init__(self)
         self.setMinimum(args.min)
         self.setMaximum(args.max)

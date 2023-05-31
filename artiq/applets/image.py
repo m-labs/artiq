@@ -7,7 +7,7 @@ from artiq.applets.simple import SimpleApplet
 
 
 class Image(pyqtgraph.ImageView):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         pyqtgraph.ImageView.__init__(self)
         self.args = args
 
