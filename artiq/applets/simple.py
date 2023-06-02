@@ -22,6 +22,10 @@ class AppletControlIPC:
     def set_dataset(self, key, value, persist=None):
         self.ipc.set_dataset(key, value, persist)
 
+    def append_to_dataset(self, key, value):
+        mod = {"action": "append", "path": [key, 1], "x": value}
+        self.ipc.update_dataset(mod)
+
 
 class AppletControlRPC:
     def __init__(self, loop, dataset_ctl):
@@ -36,6 +40,10 @@ class AppletControlRPC:
 
     def set_dataset(self, key, value, persist=None):
         self._background(self.dataset_ctl.set, key, value, persist)
+
+    def append_to_dataset(self, key, value):
+        mod = {"action": "append", "path": [key, 1], "x": value}
+        self._background(self.dataset_ctl.update, mod)
 
 
 class AppletIPCClient(AsyncioChildComm):
@@ -101,6 +109,10 @@ class AppletIPCClient(AsyncioChildComm):
                          "key": key,
                          "value": value,
                          "persist": persist})
+
+    def update_dataset(self, mod):
+        self.write_pyon({"action": "update_dataset",
+                         "mod": mod})
 
 
 class SimpleApplet:
