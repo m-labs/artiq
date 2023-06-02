@@ -81,6 +81,8 @@ class AppletIPCServer(AsyncioParentComm):
                             self.write_pyon({"action": "mod", "mod": mod})
                     elif action == "set_dataset":
                         await self.dataset_ctl.set(obj["key"], obj["value"], obj["persist"])
+                    elif action == "update_dataset":
+                        await self.dataset_ctl.update(obj["mod"])
                     else:
                         raise ValueError("unknown action in applet message")
                 except:
