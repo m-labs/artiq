@@ -486,7 +486,7 @@
               read LOCK_OK
 
               artiq_flash -t kc705 -H rpi-1 -d ${packages.x86_64-linux.artiq-board-kc705-nist_clock}
-              sleep 15
+              sleep 30
 
               export ARTIQ_ROOT=`python -c "import artiq; print(artiq.__path__[0])"`/examples/kc705_nist_clock
               export ARTIQ_LOW_LATENCY=1
