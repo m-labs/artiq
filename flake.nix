@@ -224,7 +224,7 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
+            (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging ]))
             rust
             pkgs.cargo-xbuild
             pkgs.llvmPackages_11.clang-unwrapped
@@ -387,7 +387,7 @@
       devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ] ++ artiq.propagatedBuildInputs ))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs ))
           rust
           pkgs.cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
@@ -401,7 +401,6 @@
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
-          pkgs.python3Packages.packaging
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
@@ -416,7 +415,7 @@
       devShells.x86_64-linux.boards = pkgs.mkShell {
         name = "artiq-boards-shell";
         buildInputs = [
-          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ]))
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
           rust
           pkgs.cargo-xbuild
           pkgs.llvmPackages_11.clang-unwrapped
@@ -424,7 +423,6 @@
           pkgs.lld_11
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
-          pkgs.python3Packages.packaging
         ];
       };
 
