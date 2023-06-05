@@ -401,6 +401,7 @@
           packages.x86_64-linux.vivadoEnv
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
+          pkgs.python3Packages.packaging
           pkgs.python3Packages.sphinx pkgs.python3Packages.sphinx_rtd_theme
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
@@ -423,6 +424,7 @@
           pkgs.lld_11
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
+          pkgs.python3Packages.packaging
         ];
       };
 
