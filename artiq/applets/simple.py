@@ -22,6 +22,10 @@ class AppletControlIPC:
     def set_dataset(self, key, value, persist=None):
         self.ipc.set_dataset(key, value, persist)
 
+    def mutate_dataset(self, key, index, value):
+        mod = {"action": "setitem", "path": [key, 1], "key": index, "value": value}
+        self.ipc.update_dataset(mod)
+
     def append_to_dataset(self, key, value):
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
@@ -40,6 +44,10 @@ class AppletControlRPC:
 
     def set_dataset(self, key, value, persist=None):
         self._background(self.dataset_ctl.set, key, value, persist)
+
+    def mutate_dataset(self, key, index, value):
+        mod = {"action": "setitem", "path": [key, 1], "key": index, "value": value}
+        self._background(self.dataset_ctl.update, mod)
 
     def append_to_dataset(self, key, value):
         mod = {"action": "append", "path": [key, 1], "x": value}
