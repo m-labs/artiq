@@ -28,21 +28,34 @@ class DatasetCtl:
         self.master_host = master_host
         self.master_port = master_port
 
-    async def set(self, key, value, persist=None):
-        logger.info("Uploading dataset '%s' to master...", key)
+    async def _execute_rpc(self, op_name, key_or_mod, value=None, persist=None):
+        logger.info("Starting %s operation on %s", op_name, key_or_mod)
         try:
             remote = RPCClient()
             await remote.connect_rpc(self.master_host, self.master_port,
                                      "master_dataset_db")
             try:
-                await remote.set(key, value, persist)
+                if op_name == "set":
+                    await remote.set(key_or_mod, value, persist)
+                elif op_name == "update":
+                    await remote.update(key_or_mod)
+                else:
+                    logger.error("Invalid operation: %s", op_name)
+                    return
             finally:
                 remote.close_rpc()
         except:
-            logger.error("Failed uploading dataset '%s'",
-                         key, exc_info=True)
+            logger.error("Failed %s operation on %s", op_name,
+                        key_or_mod, exc_info=True)
         else:
-            logger.info("Finished uploading dataset '%s'", key)
+            logger.info("Finished %s operation on %s", op_name,
+                     key_or_mod)
+
+    async def set(self, key, value, persist=None):
+        await self._execute_rpc("set", key, value, persist)
+
+    async def update(self, mod):
+        await self._execute_rpc("update", mod)
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
