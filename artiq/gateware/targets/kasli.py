@@ -406,26 +406,33 @@ class MasterBase(MiniSoC, AMPSoC):
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
-class SatelliteBase(BaseSoC):
+class SatelliteBase(MiniSoC, AMPSoC):
     mem_map = {
-        "drtioaux": 0x50000000,
+        "rtio":          0x20000000,
+        "drtioaux":      0x50000000,
+        "mailbox":       0x70000000
     }
-    mem_map.update(BaseSoC.mem_map)
+    mem_map.update(MiniSoC.mem_map)
 
     def __init__(self, rtio_clk_freq=125e6, enable_sata=False, *, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
             cpu_bus_width = 64
-        BaseSoC.__init__(self,
+
+        MiniSoC.__init__(self,
                  cpu_type="vexriscv",
                  hw_rev=hw_rev,
                  cpu_bus_width=cpu_bus_width,
                  sdram_controller_type="minicon",
                  l2_size=128*1024,
+                 integrated_sram_size=8192,
+                 ethmac_nrxslots=4,
+                 ethmac_ntxslots=4,
                  clk_freq=rtio_clk_freq,
                  rtio_sys_merge=True,
                  **kwargs)
+        AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
@@ -435,41 +442,18 @@ class SatelliteBase(BaseSoC):
                 self.platform.request("error_led")))
             self.csr_devices.append("error_led")
 
-        if self.platform.hw_rev == "v2.0":
-            cdr_clk_out = self.platform.request("cdr_clk_clean")
-        else:
-            cdr_clk_out = self.platform.request("si5324_clkout")
-        
-        cdr_clk = Signal()
-        self.platform.add_period_constraint(cdr_clk_out, 8.)
-
-        self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=0,
-            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-            o_O=cdr_clk,
-            p_CLKCM_CFG="TRUE",
-            p_CLKRCV_TRST="TRUE", 
-            p_CLKSWING_CFG=3)
-        qpll_drtio_settings = QPLLSettings(
-            refclksel=0b001,
-            fbdiv=4,
-            fbdiv_45=5,
-            refclk_div=1)
-        qpll = QPLL(cdr_clk, qpll_drtio_settings)
-        self.submodules += qpll
-
         drtio_data_pads = []
         if enable_sata:
             drtio_data_pads.append(platform.request("sata"))
-        drtio_data_pads += [platform.request("sfp", i) for i in range(3)]
+        drtio_data_pads += [platform.request("sfp", i) for i in range(1, 3)]
         if self.platform.hw_rev == "v2.0":
             drtio_data_pads.append(platform.request("sfp", 3))
 
         if self.platform.hw_rev in ("v1.0", "v1.1"):
-            sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
+            sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
             self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
         self.submodules.drtio_transceiver = gtp_7series.GTP(
-            qpll_channel=qpll.channels[0],
+            qpll_channel=self.drtio_qpll_channel,
             data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
@@ -574,12 +558,19 @@ class SatelliteBase(BaseSoC):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
+        # satellite (master-controlled) RTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+
+        # sub kernel RTIO
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
+        self.register_kernel_cpu_csrdevice("rtio")
+
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
         self.csr_devices.append("rtio_dma")
+        # remember to switch cricon to 2 when running kernels
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri, self.rtio_dma.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri, self.rtio.cri],
             [self.local_io.cri] + self.drtio_cri,
             enable_routing=True)
         self.csr_devices.append("cri_con")
@@ -589,6 +580,43 @@ class SatelliteBase(BaseSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
                                                 self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
+
+
+    def create_qpll(self):
+        if self.platform.hw_rev == "v2.0":
+            cdr_clk_out = self.platform.request("cdr_clk_clean")
+        else:
+            cdr_clk_out = self.platform.request("si5324_clkout")
+        
+        cdr_clk = Signal()
+        self.platform.add_period_constraint(cdr_clk_out, 8.)
+
+        self.specials += Instance("IBUFDS_GTE2",
+            i_CEB=0,
+            i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
+            o_O=cdr_clk,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE", 
+            p_CLKSWING_CFG=3)
+        # Note precisely the rules Xilinx made up:
+        # refclksel=0b001 GTREFCLK0 selected
+        # refclksel=0b010 GTREFCLK1 selected
+        # but if only one clock is used, then it must be 001.
+        qpll_drtio_settings = QPLLSettings(
+            refclksel=0b001,
+            fbdiv=4,
+            fbdiv_45=5,
+            refclk_div=1)
+        qpll_eth_settings = QPLLSettings(
+            refclksel=0b010,
+            fbdiv=4,
+            fbdiv_45=5,
+            refclk_div=1)
+
+        qpll = QPLL(cdr_clk, qpll_drtio_settings,
+                    self.crg.clk125_buf, qpll_eth_settings)
+        self.submodules += qpll
+        self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
 class Master(MasterBase):

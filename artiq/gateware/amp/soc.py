@@ -36,6 +36,7 @@ class AMPSoC:
             csrs = getattr(self, name).get_csrs()
         csr_bus = wishbone.Interface(data_width=32, adr_width=32-log2_int(self.csr_separation))
         bank = wishbone.CSRBank(csrs, bus=csr_bus)
+        self.config["kernel_has_"+name] = None
         self.submodules += bank
         self.kernel_cpu.add_wb_slave(self.mem_map[name], self.csr_separation*2**bank.decode_bits, bank.bus)
         self.add_csr_region(name,

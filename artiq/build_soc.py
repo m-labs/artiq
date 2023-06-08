@@ -59,7 +59,7 @@ def build_artiq_soc(soc, argdict):
     builder.software_packages = []
     builder.add_software_package("bootloader", os.path.join(firmware_dir, "bootloader"))
     is_kasli_v1 = isinstance(soc.platform, kasli.Platform) and soc.platform.hw_rev in ("v1.0", "v1.1")
-    if isinstance(soc, AMPSoC):
+    if not soc.config["GATEWARE_BASE"] == "satellite":
         kernel_cpu_type = "vexriscv" if is_kasli_v1 else "vexriscv-g"
         builder.add_software_package("libm", cpu_type=kernel_cpu_type)
         builder.add_software_package("libprintf", cpu_type=kernel_cpu_type)
