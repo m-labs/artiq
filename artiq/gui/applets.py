@@ -397,11 +397,12 @@ class AppletsDock(QtWidgets.QDockWidget):
         delete_action.setShortcutContext(QtCore.Qt.WidgetShortcut)
         delete_action.triggered.connect(self.delete)
         self.table.addAction(delete_action)
-        close_all_action = QtWidgets.QAction("Close all applets", self.table)
-        close_all_action.setShortcut("CTRL+ALT+W")
-        close_all_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
-        close_all_action.triggered.connect(self.close_all)
-        self.table.addAction(close_all_action)
+        close_nondocked_action = QtWidgets.QAction("Close non-docked applets", self.table)
+        close_nondocked_action.setShortcut("CTRL+ALT+W")
+        close_nondocked_action.setShortcutContext(QtCore.Qt.ApplicationShortcut)
+        close_nondocked_action.triggered.connect(self.close_nondocked)
+        self.table.addAction(close_nondocked_action)
+
         new_group_action = QtWidgets.QAction("New group", self.table)
         new_group_action.triggered.connect(partial(self.new_with_parent, self.new_group))
         self.table.addAction(new_group_action)
@@ -674,12 +675,15 @@ class AppletsDock(QtWidgets.QDockWidget):
     def restore_state(self, state):
         self.restore_state_item(state, None)
 
-    def close_all(self):
+    def close_nondocked(self):
         def walk(wi):
             for i in range(wi.childCount()):
                 cwi = wi.child(i)
                 if cwi.ty == "applet":
                     if cwi.checkState(0) == QtCore.Qt.Checked:
+                        if cwi.applet_dock is not None:
+                            if not cwi.applet_dock.isFloating():
+                                continue
                         cwi.setCheckState(0, QtCore.Qt.Unchecked)
                 elif cwi.ty == "group":
                     walk(cwi)

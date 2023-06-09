@@ -28,6 +28,10 @@ Highlights:
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
 * API extensions have been implemented, enabling applets to directly modify datasets.
+* Dashboard:
+   - The "Close all applets" command (shortcut: Ctrl-Alt-W) now ignores docked applets,
+     making it a convenient way to clean up after exploratory work without destroying a
+     carefully arranged default workspace.
 * Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
   be converted with the script below.
 
