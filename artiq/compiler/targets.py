@@ -256,6 +256,8 @@ class Target:
             return backtrace
 
     def demangle(self, names):
+        if not any(names):
+            return names
         with RunTool([self.tool_cxxfilt] + names) as results:
             return results["__stdout__"].read().rstrip().split("\n")
 
