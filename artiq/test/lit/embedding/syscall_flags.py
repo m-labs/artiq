@@ -15,7 +15,7 @@ def foo() -> TNone:
 
 # sret nowrite functions shouldn't be marked inaccessiblememonly.
 # CHECK-L: ; Function Attrs: nounwind
-# CHECK-NEXT-L: declare void @bar({ i32, i64 }* sret)
+# CHECK-NEXT-L: declare void @bar({ i32, i64 }* sret({ i32, i64 }))
 @syscall(flags={"nounwind", "nowrite"})
 def bar() -> TTuple([TInt32, TInt64]):
     pass
