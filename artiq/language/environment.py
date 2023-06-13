@@ -337,13 +337,18 @@ class HasEnvironment:
         self.kernel_invariants = kernel_invariants | {key}
 
     @rpc(flags={"async"})
-    def set_dataset(self, key, value,
+    def set_dataset(self, key, value, *,
+                    unit=None, scale=None, precision=None,
                     broadcast=False, persist=False, archive=True):
         """Sets the contents and handling modes of a dataset.
 
         Datasets must be scalars (``bool``, ``int``, ``float`` or NumPy scalar)
         or NumPy arrays.
 
+        :param unit: A string representing the unit of the value.
+        :param scale: A numerical scaling factor by which the displayed value is
+            multiplied when referenced in the experiment.
+        :param precision: The precision a UI should use.
         :param broadcast: the data is sent in real-time to the master, which
             dispatches it.
         :param persist: the master should store the data on-disk. Implies
@@ -351,7 +356,14 @@ class HasEnvironment:
         :param archive: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
         """
-        self.__dataset_mgr.set(key, value, broadcast, persist, archive)
+        metadata = {}
+        if unit is not None:
+            metadata["unit"] = unit
+        if scale is not None:
+            metadata["scale"] = scale
+        if precision is not None:
+            metadata["precision"] = precision
+        self.__dataset_mgr.set(key, value, metadata, broadcast, persist, archive)
 
     @rpc(flags={"async"})
     def mutate_dataset(self, key, index, value):
