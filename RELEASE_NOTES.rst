@@ -27,6 +27,7 @@ Highlights:
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
+* API extensions have been implemented, enabling applets to directly modify datasets.
 * Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
   be converted with the script below.
 
@@ -42,6 +43,11 @@ Highlights:
       txn.put(key.encode(), pyon.encode(value).encode())
   new.close()
 
+Breaking changes:
+
+* ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
+  operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
+  refer to the ``big_number.py`` applet.
 
 
 ARTIQ-7
