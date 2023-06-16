@@ -687,14 +687,10 @@ def main():
     args = parser.parse_args()
 
     primary_description = jsondesc.load(args.primary_description)
-    if primary_description["base"] != "use_drtio_role":
-        primary_description["drtio_role"] = primary_description["base"]
 
     satellites = []
     for destination, description_path in args.satellite:
         satellite_description = jsondesc.load(description_path)
-        if satellite_description["base"] != "use_drtio_role":
-            satellite_description["drtio_role"] = satellite_description["base"]
         satellites.append((int(destination, 0), satellite_description))
 
     if args.output is not None:

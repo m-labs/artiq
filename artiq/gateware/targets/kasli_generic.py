@@ -150,8 +150,6 @@ def main():
                         help="Override ROM identifier")
     args = parser.parse_args()
     description = jsondesc.load(args.description)
-    if description["base"] != "use_drtio_role":
-        description["drtio_role"] = description["base"]
 
     min_artiq_version = description.get("min_artiq_version", "0")
     if Version(artiq_version) < Version(min_artiq_version):
