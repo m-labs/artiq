@@ -151,7 +151,7 @@ def main():
     args = parser.parse_args()
     description = jsondesc.load(args.description)
 
-    min_artiq_version = description.get("min_artiq_version", "0")
+    min_artiq_version = description["min_artiq_version"]
     if Version(artiq_version) < Version(min_artiq_version):
         logger.warning("ARTIQ version mismatch: current %s < %s minimum",
                        artiq_version, min_artiq_version)

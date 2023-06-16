@@ -19,7 +19,8 @@
         },
         "min_artiq_version": {
             "type": "string",
-            "description": "Minimum required ARTIQ version"
+            "description": "Minimum required ARTIQ version",
+            "default": "0"
         },
         "hw_rev": {
             "type": "string",
@@ -211,7 +212,8 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "default": "dio_spi"
                                     },
                                     "clk": {
                                         "type": "integer",
@@ -247,7 +249,8 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "default": "ttl"
                                     },
                                     "pin": {
                                         "type": "integer",
@@ -264,7 +267,8 @@
                                     }
                                 },
                                 "required": ["pin", "direction"]
-                            }
+                            },
+                            "default": []
                         }
                     },
                     "required": ["ports", "spi"]
@@ -391,7 +395,8 @@
                         },
                         "sampler_hw_rev": {
                             "type": "string",
-                            "pattern": "^v[0-9]+\\.[0-9]+"
+                            "pattern": "^v[0-9]+\\.[0-9]+",
+                            "default": "v2.2"
                         },
                         "urukul0_ports": {
                             "type": "array",
@@ -573,6 +578,11 @@
                             },
                             "minItems": 1,
                             "maxItems": 1
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["base", "miqro"],
+                            "default": "base"
                         }
                     },
                     "required": ["ports"]

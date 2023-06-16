@@ -31,7 +31,7 @@ def peripheral_dio_spi(module, peripheral, **kwargs):
            for s in peripheral["spi"]]
     ttl = [(t["pin"], ttl_classes[t["direction"]],
             edge_counter.SimpleEdgeCounter if t.get("edge_counter") else None)
-           for t in peripheral.get("ttl", [])]
+           for t in peripheral["ttl"]]
     eem.DIO_SPI.add_std(module, peripheral["ports"][0], spi, ttl, **kwargs)
 
 
@@ -124,7 +124,7 @@ def peripheral_phaser(module, peripheral, **kwargs):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
     eem.Phaser.add_std(module, peripheral["ports"][0],
-        peripheral.get("mode", "base"), **kwargs)
+        peripheral["base"], **kwargs)
 
 
 def peripheral_hvamp(module, peripheral, **kwargs):
