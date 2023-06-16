@@ -69,15 +69,15 @@ pub enum Packet {
     DmaRemoveTraceReply { succeeded: bool },
     DmaPlaybackRequest { destination: u8, id: u32, timestamp: u64 },
     DmaPlaybackReply { succeeded: bool },
-    DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 }
+    DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 },
 
     SubkernelAddDataRequest { destination: u8, id: u32, last: bool, length: u16, data: [u8; DMA_TRACE_MAX_SIZE] },
-    SubkernelAddReply { succeeded: bool },
+    SubkernelAddDataReply { succeeded: bool },
     SubkernelRemoveRequest { destination: u8, id: u32 },
     SubkernelRemoveReply { succeeded: bool },
-    SubkernelLoadRunRequest { destination: u8, id: u32, run: bool }
-    SubkernelLoadRunReply { succeeded: bool }
-    SubkernelRunStatus { destination: u8, id: u32, status: u8 }
+    SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
+    SubkernelLoadRunReply { succeeded: bool },
+    SubkernelRunStatus { destination: u8, id: u32, status: u8 },
 }
 
 impl Packet {
@@ -303,7 +303,7 @@ impl Packet {
                 id: reader.read_u32()?,
                 run: reader.read_bool()?
             },
-            0xc5 => Packet::SubkernelLoadRunRequest {
+            0xc5 => Packet::SubkernelLoadRunReply {
                 succeeded: reader.read_bool()?
             },
             0xc6 => Packet::SubkernelRunStatus {

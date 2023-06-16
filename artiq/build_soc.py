@@ -68,10 +68,10 @@ def build_artiq_soc(soc, argdict):
     # If the kernel lacks FPU, then the runtime unwinder is already generated
     if not is_kasli_v1:
         builder.add_software_package("libunwind")
-    if not soc.config["DRTIO_ROLE"] == "satellite":
+    is_satellite = "satellite" in str(type(soc)).lower()
+    if not is_satellite:
         builder.add_software_package("runtime", os.path.join(firmware_dir, "runtime"))
     else:
-        # Assume DRTIO satellite.
         builder.add_software_package("satman", os.path.join(firmware_dir, "satman"))
     try:
         builder.build()
