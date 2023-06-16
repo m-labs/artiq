@@ -79,10 +79,10 @@ def process_header(output, description):
 
 
 class PeripheralManager:
-    def __init__(self, output, master_description):
+    def __init__(self, output, primary_description):
         self.counts = defaultdict(int)
         self.output = output
-        self.master_description = master_description
+        self.primary_description = primary_description
 
     def get_name(self, ty):
         count = self.counts[ty]
@@ -237,7 +237,7 @@ class PeripheralManager:
             }}""",
             name=urukul_name,
             sync_device="\"ttl_{name}_sync\"".format(name=urukul_name) if synchronization else "None",
-            refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
+            refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
             clk_sel=peripheral["clk_sel"])
         dds = peripheral["dds"]
         pll_vco = peripheral.get("pll_vco")
@@ -514,7 +514,7 @@ class PeripheralManager:
                 }}""",
                 urukul_name=urukul_name,
                 urukul_channel=rtio_offset+next(channel),
-                refclk=peripheral.get("refclk", self.master_description["rtio_frequency"]),
+                refclk=peripheral.get("refclk", self.primary_description["rtio_frequency"]),
                 clk_sel=peripheral["clk_sel"],
                 pll_vco=",\n        \"pll_vco\": {}".format(pll_vco) if pll_vco is not None else "",
                 pll_n=peripheral["pll_n"],  pll_en=peripheral.get("pll_en", 1))
@@ -637,30 +637,30 @@ class PeripheralManager:
         return 2
 
 
-def process(output, master_description, satellites):
-    base = master_description["base"]
-    if base not in ("standalone", "master"):
-        raise ValueError("Invalid master base")
+def process(output, primary_description, satellites):
+    drtio_role = primary_description["drtio_role"]
+    if drtio_role not in ("standalone", "master"):
+        raise ValueError("Invalid primary node DRTIO role")
 
-    if base == "standalone" and satellites:
+    if drtio_role == "standalone" and satellites:
         raise ValueError("A standalone system cannot have satellites")
 
-    process_header(output, master_description)
+    process_header(output, primary_description)
 
-    pm = PeripheralManager(output, master_description)
+    pm = PeripheralManager(output, primary_description)
 
-    print("# {} peripherals".format(base), file=output)
+    print("# {} peripherals".format(drtio_role), file=output)
     rtio_offset = 0
-    for peripheral in master_description["peripherals"]:
+    for peripheral in primary_description["peripherals"]:
         n_channels = pm.process(rtio_offset, peripheral)
         rtio_offset += n_channels
-    if base == "standalone":
+    if drtio_role == "standalone":
         n_channels = pm.add_board_leds(rtio_offset)
         rtio_offset += n_channels
 
     for destination, description in satellites:
-        if description["base"] != "satellite":
-            raise ValueError("Invalid base for satellite at destination {}".format(destination))
+        if description["drtio_role"] != "satellite":
+            raise ValueError("Invalid DRTIO role for satellite at destination {}".format(destination))
 
         print("# DEST#{} peripherals".format(destination), file=output)
         rtio_offset = destination << 16
@@ -675,8 +675,8 @@ def main():
     parser.add_argument("--version", action="version",
                         version="ARTIQ v{}".format(artiq_version),
                         help="print the ARTIQ version number")
-    parser.add_argument("master_description", metavar="MASTER_DESCRIPTION",
-                        help="JSON system description file for the standalone or master node")
+    parser.add_argument("primary_description", metavar="PRIMARY_DESCRIPTION",
+                        help="JSON system description file for the primary (standalone or master) node")
     parser.add_argument("-o", "--output",
                         help="output file, defaults to standard output if omitted")
     parser.add_argument("-s", "--satellite", nargs=2, action="append",
@@ -686,18 +686,22 @@ def main():
 
     args = parser.parse_args()
 
-    master_description = jsondesc.load(args.master_description)
+    primary_description = jsondesc.load(args.primary_description)
+    if primary_description["base"] != "use_drtio_role":
+        primary_description["drtio_role"] = primary_description["base"]
 
     satellites = []
     for destination, description_path in args.satellite:
         satellite_description = jsondesc.load(description_path)
+        if satellite_description["base"] != "use_drtio_role":
+            satellite_description["drtio_role"] = satellite_description["base"]
         satellites.append((int(destination, 0), satellite_description))
 
     if args.output is not None:
         with open(args.output, "w") as f:
-            process(f, master_description, satellites)
+            process(f, primary_description, satellites)
     else:
-        process(sys.stdout, master_description, satellites)
+        process(sys.stdout, primary_description, satellites)
 
 
 if __name__ == "__main__":
