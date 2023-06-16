@@ -98,6 +98,8 @@ class _StandaloneBase(MiniSoC, AMPSoC):
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
+        self.config["DRTIO_ROLE"] = "standalone"
+
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
                 "set_property BITSTREAM.GENERAL.COMPRESS True [current_design]",
@@ -193,6 +195,8 @@ class _MasterBase(MiniSoC, AMPSoC):
                          **kwargs)
         AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
+
+        self.config["DRTIO_ROLE"] = "master"
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
@@ -314,9 +318,11 @@ class _MasterBase(MiniSoC, AMPSoC):
 
 
 
-class _SatelliteBase(BaseSoC):
+class _SatelliteBase(BaseSoC, AMPSoC):
     mem_map = {
+        "rtio":         0x20000000,
         "drtioaux":     0x50000000,
+        "mailbox":      0x70000000
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -331,7 +337,10 @@ class _SatelliteBase(BaseSoC):
                  clk_freq=clk_freq,
                  rtio_sys_merge=True,
                  **kwargs)
+        AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
+
+        self.config["DRTIO_ROLE"] = "satellite"
 
         if isinstance(self.platform.toolchain, XilinxVivadoToolchain):
             self.platform.toolchain.bitstream_commands.extend([
@@ -453,12 +462,18 @@ class _SatelliteBase(BaseSoC):
         self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
         self.csr_devices.append("rtio_moninj")
 
+        # DRTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+
+        # subkernel RTIO
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
+        self.register_kernel_cpu_csrdevice("rtio")
+
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
         self.csr_devices.append("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri, self.rtio_dma.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri, self.rtio.cri],
             [self.local_io.cri] + self.drtio_cri,
             enable_routing=True)
         self.csr_devices.append("cri_con")
