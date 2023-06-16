@@ -70,6 +70,14 @@ pub enum Packet {
     DmaPlaybackRequest { destination: u8, id: u32, timestamp: u64 },
     DmaPlaybackReply { succeeded: bool },
     DmaPlaybackStatus { destination: u8, id: u32, error: u8, channel: u32, timestamp: u64 }
+
+    SubkernelAddDataRequest { destination: u8, id: u32, last: bool, length: u16, data: [u8; DMA_TRACE_MAX_SIZE] },
+    SubkernelAddReply { succeeded: bool },
+    SubkernelRemoveRequest { destination: u8, id: u32 },
+    SubkernelRemoveReply { succeeded: bool },
+    SubkernelLoadRunRequest { destination: u8, id: u32, run: bool }
+    SubkernelLoadRunReply { succeeded: bool }
+    SubkernelRunStatus { destination: u8, id: u32, status: u8 }
 }
 
 impl Packet {
@@ -263,6 +271,45 @@ impl Packet {
                 error: reader.read_u8()?,
                 channel: reader.read_u32()?,
                 timestamp: reader.read_u64()?
+            },
+
+            0xc0 => { 
+                let destination = reader.read_u8()?;
+                let id = reader.read_u32()?;
+                let last = reader.read_bool()?;
+                let length = reader.read_u16()?;
+                let mut data: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+                reader.read_exact(&mut data[0..length as usize])?;
+                Packet::SubkernelAddDataRequest {
+                    destination: destination,
+                    id: id,
+                    last: last,
+                    length: length as u16,
+                    data: data,
+                }
+            },
+            0xc1 => Packet::SubkernelAddDataReply {
+                succeeded: reader.read_bool()?
+            },
+            0xc2 => Packet::SubkernelRemoveRequest {
+                destination: reader.read_u8()?,
+                id: reader.read_u32()?
+            },
+            0xc3 => Packet::SubkernelRemoveReply {
+                succeeded: reader.read_bool()?
+            },
+            0xc4 => Packet::SubkernelLoadRunRequest {
+                destination: reader.read_u8()?,
+                id: reader.read_u32()?,
+                run: reader.read_bool()?
+            },
+            0xc5 => Packet::SubkernelLoadRunRequest {
+                succeeded: reader.read_bool()?
+            },
+            0xc6 => Packet::SubkernelRunStatus {
+                destination: reader.read_u8()?,
+                id: reader.read_u32()?,
+                status: reader.read_u8()?,
             },
 
             ty => return Err(Error::UnknownPacket(ty))
@@ -485,6 +532,46 @@ impl Packet {
                 writer.write_u8(error)?;
                 writer.write_u32(channel)?;
                 writer.write_u64(timestamp)?;
+            },
+
+            Packet::SubkernelAddDataRequest { destination, id, last, data, length } => {
+                writer.write_u8(0xc0)?;
+                writer.write_u8(destination)?;
+                writer.write_u32(id)?;
+                writer.write_bool(last)?;
+                // trace may be broken down to fit within drtio aux memory limit
+                // will be reconstructed by satellite
+                writer.write_u16(length)?;
+                writer.write_all(&data[0..length as usize])?;
+            },
+            Packet::SubkernelAddDataReply { succeeded } => {
+                writer.write_u8(0xc1)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::SubkernelRemoveRequest { destination, id } => {
+                writer.write_u8(0xc2)?;
+                writer.write_u8(destination)?;
+                writer.write_u32(id)?;
+            },
+            Packet::SubkernelRemoveReply { succeeded } => {
+                writer.write_u8(0xc3)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::SubkernelLoadRunRequest { destination, id, run } => {
+                writer.write_u8(0xc4)?;
+                writer.write_u8(destination)?;
+                writer.write_u32(id)?;
+                writer.write_bool(run)?;
+            },
+            Packet::SubkernelLoadRunReply { succeeded } => {
+                writer.write_u8(0xc5)?;
+                writer.write_bool(succeeded)?;
+            },
+            Packet::SubkernelRunStatus { destination, id, status } => {
+                writer.write_u8(0xc6)?;
+                writer.write_u8(destination)?;
+                writer.write_u32(id)?;
+                writer.write_u8(status)?;
             }
         }
         Ok(())
