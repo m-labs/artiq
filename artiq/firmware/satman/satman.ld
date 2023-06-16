@@ -22,6 +22,19 @@ SECTIONS
         __eh_frame_end = .;
     } > main_ram
 
+    .eh_frame_hdr :
+    {
+        KEEP(*(.eh_frame_hdr))
+    } > main_ram
+
+    __eh_frame_hdr_start = SIZEOF(.eh_frame_hdr) > 0 ? ADDR(.eh_frame_hdr) : 0;
+    __eh_frame_hdr_end = SIZEOF(.eh_frame_hdr) > 0 ? . : 0;
+
+    .gcc_except_table :
+    {
+        *(.gcc_except_table)
+    } > main_ram
+
     /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
     .got :
     {
@@ -68,11 +81,11 @@ SECTIONS
         _fstack = . - 16;
     } > main_ram
 
-    /* 64MB heap for alloc use */
+    /* remainder of 64MB for heap for alloc use */
     .heap (NOLOAD) : ALIGN(16)
     {
         _fheap = .;
-        . = . + 0x4000000;
+        . = 0x44000000; // not to overwrite RPC queue
         _eheap = .;
     } > main_ram
 }

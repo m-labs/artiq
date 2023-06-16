@@ -133,7 +133,7 @@ impl Manager {
         Ok(())
     }
 
-    pub fn check_state(&mut self) -> Option<RtioStatus> {
+    pub fn get_status(&mut self) -> Option<RtioStatus> {
         if self.state != ManagerState::Playback {
             // nothing to report
             return None;
@@ -159,6 +159,10 @@ impl Manager {
                     timestamp: timestamp });
             }
         }
+    }
+
+    pub fn running(&self) -> bool {
+        self.state == ManagerState::Playback
     }
 
 }

@@ -23,6 +23,7 @@ use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
 use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
+use kernel::Manager as KernelManager;
 use analyzer::Analyzer;
 
 #[global_allocator]
@@ -31,6 +32,7 @@ static mut ALLOC: alloc_list::ListAlloc = alloc_list::EMPTY;
 mod repeater;
 mod dma;
 mod analyzer;
+mod kernel;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -81,8 +83,8 @@ macro_rules! forward {
     ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {}
 }
 
-fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repeaters: &mut [repeater::Repeater],
-        _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
+fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernelmgr: &mut KernelManager,
+        _repeaters: &mut [repeater::Repeater], _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
         packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
     // and u16 otherwise; hence the `as _` conversion.
@@ -340,21 +342,25 @@ fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repea
         #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _manager.add(id, last, &trace, length as usize).is_ok();
+            let succeeded = _dmamgr.add(id, last, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaRemoveTraceRequest { destination: _destination, id } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _manager.erase(id).is_ok();
+            let succeeded = _dmamgr.erase(id).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaRemoveTraceReply { succeeded: succeeded })
         }
         #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaPlaybackRequest { destination: _destination, id, timestamp } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _manager.playback(id, timestamp).is_ok();
+            // no DMA with a running kernel
+            let succeeded = match _kernelmgr.is_running() {
+                true => false,
+                false => _dmamgr.playback(id, timestamp).is_ok()
+            };
             drtioaux::send(0,
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
         }
@@ -367,12 +373,12 @@ fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repea
 }
 
 fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
-        repeaters: &mut [repeater::Repeater],
+        kernel_manager: &mut KernelManager, repeaters: &mut [repeater::Repeater],
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8) {
     let result =
         drtioaux::recv(0).and_then(|packet| {
             if let Some(packet) = packet {
-                process_aux_packet(dma_manager, analyzer, repeaters, routing_table, rank, packet)
+                process_aux_packet(dma_manager, analyzer, kernel_manager, repeaters, routing_table, rank, packet)
             } else {
                 Ok(())
             }
@@ -613,13 +619,12 @@ pub extern fn main() -> i32 {
             si5324::siphaser::calibrate_skew().expect("failed to calibrate skew");
         }
 
-        // DMA manager created here, so when link is dropped, all DMA traces
-        // are cleared out for a clean slate on subsequent connections,
-        // without a manual intervention.
+        // various managers created here, so when link is dropped, DMA traces,
+        // analyzer logs, kernels are cleared and/or stopped for a clean slate
+        // on subsequent connections, without a manual intervention.
         let mut dma_manager = DmaManager::new();
-
-        // Reset the analyzer as well.
         let mut analyzer = Analyzer::new();
+        let mut kernel_manager = KernelManager::new();
 
         drtioaux::reset(0);
         drtiosat_reset(false);
@@ -627,7 +632,9 @@ pub extern fn main() -> i32 {
 
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
-            process_aux_packets(&mut dma_manager, &mut analyzer, &mut repeaters, &mut routing_table, &mut rank);
+            process_aux_packets(&mut dma_manager, &mut analyzer, 
+                &mut kernel_manager, &mut repeaters, 
+                &mut routing_table, &mut rank);
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
             }
@@ -650,6 +657,14 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
+            if let Some(status) = dma_manager.get_status() {
+                info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
+                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
+                    destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
+                    error!("error sending DMA playback status: {}", e);
+                }
+            }
+            kernel_manager.process_kern_requests();
         }
 
         drtiosat_reset_phy(true);
