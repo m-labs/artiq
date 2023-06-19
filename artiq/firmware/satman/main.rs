@@ -1,4 +1,4 @@
-#![feature(never_type, panic_info_message, llvm_asm, default_alloc_error_handler)]
+#![feature(never_type, panic_info_message, llvm_asm, default_alloc_error_handler, try_trait)]
 #![no_std]
 
 #[macro_use]
@@ -363,6 +363,29 @@ fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernel
             };
             drtioaux::send(0,
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
+        }
+
+        drtioaux::Packet::SubkernelAddDataRequest { destination: _destination, id, last, length, data } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let succeeded = _kernelmgr.add(id, last, &data, length as usize).is_ok();
+            drtioaux::send(0,
+                &drtioaux::Packet::SubkernelAddDataReply { succeeded: succeeded })
+        }
+        drtioaux::Packet::SubkernelRemoveRequest { destination: _destination, id } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let succeeded = _kernelmgr.remove(id).is_ok();
+            drtioaux::send(0,
+                &drtioaux::Packet::SubkernelRemoveReply { succeeded: succeeded })
+        }
+        drtioaux::Packet::SubkernelLoadRunRequest { destination: _destination, id, run } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let mut succeeded = _kernelmgr.load(id).is_ok();
+            // allow preloading a kernel with delayed run
+            if run {
+                succeeded |= _kernelmgr.run(id).is_ok();
+            }
+            drtioaux::send(0,
+                &drtioaux::Packet::SubkernelLoadRunReply { succeeded: succeeded })
         }
 
         _ => {

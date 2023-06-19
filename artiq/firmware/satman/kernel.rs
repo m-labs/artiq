@@ -1,4 +1,4 @@
-use core::{mem, cell::Cell};
+use core::{mem, cell::Cell, option::NoneError};
 use alloc::{string::String, format, vec::Vec, collections::btree_map::BTreeMap};
 
 use board_artiq::mailbox;
@@ -102,12 +102,16 @@ pub enum Error {
     Unexpected(String),
     NoMessage,
 }
+impl From<NoneError> for Error {
+    fn from(_: NoneError) -> Error {
+        Error::KernelNotFound
+    }
+}
 
 #[derive(Debug)]
 pub enum ManagerError {
     IdNotFound,
-    KernelRunning,
-    EntryNotComplete
+    KernelRunning
 }
 
 macro_rules! unexpected {
@@ -169,7 +173,7 @@ impl Manager {
         Ok(())
     }
 
-    pub fn erase(&mut self, id: u32) -> Result<(), ManagerError> {
+    pub fn remove(&mut self, id: u32) -> Result<(), ManagerError> {
         match self.kernels.remove(&id) {
             Some(_) => Ok(()),
             None => Err(ManagerError::IdNotFound)
@@ -180,15 +184,10 @@ impl Manager {
         self.current_session.running()
     }
 
-    pub fn stop_forcefully(&mut self) {
-        self.current_session.kernel_state = KernelState::Loaded;
-        unsafe { kernel_cpu::stop(); }
-    }
-
-    pub fn kern_run(&mut self, id: u32) -> Result<(), Error> {
+    pub fn run(&mut self, id: u32) -> Result<(), Error> {
         if self.current_session.kernel_state != KernelState::Loaded
             || self.current_id != id {
-            self.kern_load(id)?;
+            self.load(id)?;
         }
     
         self.current_session.kernel_state = KernelState::Running;
@@ -196,9 +195,15 @@ impl Manager {
         kern_acknowledge()
     }
 
-    pub fn kern_load(&mut self, id: u32) -> Result<(), Error> {
+    pub fn load(&mut self, id: u32) -> Result<(), Error> {
+        if self.current_id == id && self.current_session.kernel_state == KernelState::Loaded {
+            return Ok(())
+        }
         if self.current_session.running() {
             unexpected!("attempted to load a new kernel while a kernel was running")
+        }
+        if !self.kernels.get(&id)?.complete {
+            return Err(Error::KernelNotFound)
         }
         self.current_id = id;
         self.current_session = Session::new();
@@ -206,7 +211,7 @@ impl Manager {
         unsafe { 
             kernel_cpu::start();
 
-            kern_send(&kern::LoadRequest(&self.kernels.get(&id).unwrap().data)).unwrap();
+            kern_send(&kern::LoadRequest(&self.kernels.get(&id)?.data)).unwrap();
             kern_recv(|reply| {
                 match reply {
                     kern::LoadReply(Ok(())) => {
@@ -225,7 +230,7 @@ impl Manager {
         }
     }
 
-    pub fn process_kern_requests(&mut self) {
+    pub fn process_kern_requests(&mut self) -> {
         if !self.is_running() {
             return;
         }
