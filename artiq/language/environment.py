@@ -417,6 +417,29 @@ class HasEnvironment:
             else:
                 return default
 
+    def get_dataset_metadata(self, key, default=NoDefault):
+        """Returns the metadata of a dataset.
+         
+        Returns dictionary with items describing the dataset, including the units, 
+        scale and precision. 
+
+        This function is used to get additional information for displaying the dataset.
+
+        Returns a dictionary which may contain zero or more of the items:
+        
+        'unit' - Physical unit associated with dataset.
+        'scale' - A numerical scaling factor associated with the unit by which the displayed value is
+            multiplied when referenced in the experiment.
+        'precision' - The precision a UI should use when displaying the dataset.
+        """
+        try:
+            return self.__dataset_mgr.get_metadata(key)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default
+
     def setattr_dataset(self, key, default=NoDefault, archive=True):
         """Sets the contents of a dataset as attribute. The names of the
         dataset and of the attribute are the same."""
