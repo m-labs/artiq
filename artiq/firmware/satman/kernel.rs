@@ -324,30 +324,25 @@ fn process_kern_message(session: &mut Session) -> Result<bool, Error> {
             }
 
             &kern::DmaRecordStart(_name) => {
-                kern_acknowledge()
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaRecordAppend(_data) => {
-                kern_acknowledge()
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaRecordStop { duration: _dur, enable_ddma: _ } => {
-                kern_acknowledge()
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaEraseRequest { name: _name } => {
-                kern_acknowledge()
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaRetrieveRequest { name: _name } => {
-                kern_send(&kern::DmaRetrieveReply {
-                    trace:    None,
-                    duration: 0,
-                    uses_ddma: false,
-                })
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaStartRemoteRequest { id: _id, timestamp: _timestamp } => {
-                kern_acknowledge()
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
             &kern::DmaAwaitRemoteRequest { id: _id } => {
-                let reply = kern::DmaAwaitRemoteReply { timeout: false, error: 0, channel: 0, timestamp: 0};
-                kern_send(&reply)
+                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
             }
 
             &kern::RpcSend { async: _async, service: _service, tag: _tag, data: _data } => {
