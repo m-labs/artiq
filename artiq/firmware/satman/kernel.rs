@@ -1,15 +1,16 @@
 use core::{mem, cell::Cell, option::NoneError};
 use alloc::{string::String, format, vec::Vec, collections::btree_map::BTreeMap};
 
-use board_artiq::mailbox;
-
+use board_artiq::{mailbox, spi};
+use board_misoc::{csr, clock, i2c};
 use proto_artiq::kernel_proto as kern;
-use board_misoc::{csr, clock};
+
+use cache::Cache;
 
 mod kernel_cpu {
+    use super::*;
     use core::ptr;
-    use board_misoc::csr;
-    use board_artiq::{mailbox, rpc_queue};
+    use board_artiq::rpc_queue;
 
     use proto_artiq::kernel_proto::{KERNELCPU_EXEC_ADDRESS, KERNELCPU_LAST_ADDRESS, KSUPPORT_HEADER_SIZE};
 
@@ -61,7 +62,8 @@ enum KernelState {
 // Per-connection state
 #[derive(Debug)]
 pub struct Session {
-    // no congress - no DMA, no cache, may implement latter later
+    // no congress - no DMA
+    cache: Cache,
     kernel_state: KernelState,
     log_buffer: String,
     finished_cleanly: Cell<bool>
@@ -70,6 +72,7 @@ pub struct Session {
 impl Session {
     pub fn new() -> Session {
         Session {
+            cache: Cache::new(),
             kernel_state: KernelState::Absent,
             log_buffer: String::new(),
             finished_cleanly: Cell::new(true)
@@ -106,12 +109,6 @@ impl From<NoneError> for Error {
     fn from(_: NoneError) -> Error {
         Error::KernelNotFound
     }
-}
-
-#[derive(Debug)]
-pub enum ManagerError {
-    IdNotFound,
-    KernelRunning
 }
 
 macro_rules! unexpected {
@@ -155,7 +152,7 @@ impl Manager {
                     self.kernels.insert(id, KernelData {
                         data: Vec::new(),
                         complete: false });
-                    self.kernels.get_mut(&id).unwrap()
+                    self.kernels.get_mut(&id)?
                 } else {
                     kernel
                 }
@@ -164,7 +161,7 @@ impl Manager {
                 self.kernels.insert(id, KernelData {
                     data: Vec::new(),
                     complete: false });
-                self.kernels.get_mut(&id).unwrap()
+                self.kernels.get_mut(&id)?
             },
         };
         kernel.data.extend(&data[0..data_len]);
@@ -173,10 +170,10 @@ impl Manager {
         Ok(())
     }
 
-    pub fn remove(&mut self, id: u32) -> Result<(), ManagerError> {
+    pub fn remove(&mut self, id: u32) -> Result<(), Error> {
         match self.kernels.remove(&id) {
             Some(_) => Ok(()),
-            None => Err(ManagerError::IdNotFound)
+            None => Err(Error::KernelNotFound)
         }
     }
 
@@ -230,12 +227,12 @@ impl Manager {
         }
     }
 
-    pub fn process_kern_requests(&mut self) -> {
+    pub fn process_kern_requests(&mut self, rank: u8) {
         if !self.is_running() {
             return;
         }
         // may need to return some value or data through DRTIO to master
-        process_kern_message(&mut self.current_session).unwrap();
+        process_kern_message(&mut self.current_session, rank).unwrap();
     }
 }
 
@@ -292,7 +289,7 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn process_kern_message(session: &mut Session) -> Result<bool, Error> {
+fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> {
     kern_recv_notrace(|request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) => {
@@ -308,7 +305,7 @@ fn process_kern_message(session: &mut Session) -> Result<bool, Error> {
 
         kern_recv_dotrace(request);
 
-        if process_kern_hwreq(request)? {
+        if process_kern_hwreq(request, rank)? {
             return Ok(false)
         }
 
@@ -351,28 +348,28 @@ fn process_kern_message(session: &mut Session) -> Result<bool, Error> {
             }
 
             &kern::RpcSend { async: _async, service: _service, tag: _tag, data: _data } => {
-                kern_acknowledge()
+                unexpected!("Received: {:?} - RPC requests are not supported in subkernels: ", request)
             },
             &kern::RpcFlush => {
-                // See ksupport/lib.rs for the reason this request exists.
-                // We do not need to do anything here because of how the main loop is
-                // structured.
-                kern_acknowledge()
+                unexpected!("Received: {:?} - RPC requests are not supported in subkernels: ", request)
             },
 
-            &kern::CacheGetRequest { key: _key } => {
+            &kern::CacheGetRequest { key } => {
+                let value = session.cache.get(key);
                 kern_send(&kern::CacheGetReply {
-                    value: unsafe { mem::transmute([0]) }
+                    value: unsafe { mem::transmute(value) }
                 })
             }
 
-            &kern::CachePutRequest { key: _key, value: _value } => {
-                kern_send(&kern::CachePutReply { succeeded: false })
+            &kern::CachePutRequest { key, value } => {
+                let succeeded = session.cache.put(key, value).is_ok();
+                kern_send(&kern::CachePutReply { succeeded: succeeded })
             }
 
             &kern::RunFinished => {
                 unsafe { kernel_cpu::stop() }
                 session.kernel_state = KernelState::Absent;
+                unsafe { session.cache.unborrow() }
 
                 info!("kernel finished");
                 Ok(())
@@ -397,7 +394,7 @@ fn process_kern_message(session: &mut Session) -> Result<bool, Error> {
     })
 }
 
-pub fn process_kern_hwreq(request: &kern::Message) -> Result<bool, Error> {
+pub fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
     match request {
         &kern::RtioInitRequest => {
             info!("resetting RTIO");
@@ -409,37 +406,61 @@ pub fn process_kern_hwreq(request: &kern::Message) -> Result<bool, Error> {
             kern_acknowledge()
         }
 
-        &kern::RtioDestinationStatusRequest { destination: _destination } => {
-            kern_send(&kern::RtioDestinationStatusReply { up: true })
+        &kern::RtioDestinationStatusRequest { destination } => {
+            // only local destination is considered "up"
+            // no access to other DRTIO destinations
+            kern_send(&kern::RtioDestinationStatusReply { 
+                up: destination == rank })
         }
 
         &kern::I2cStartRequest { busno } => {
-            kern_send(&kern::I2cBasicReply { succeeded: false })
+            let succeeded = i2c::start(busno as u8).is_ok();
+            kern_send(&kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cRestartRequest { busno } => {
-            kern_send(&kern::I2cBasicReply { succeeded: false})
+            let succeeded = i2c::restart(busno as u8).is_ok();
+            kern_send(&kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cStopRequest { busno } => {
-            kern_send(&kern::I2cBasicReply { succeeded: false })
+            let succeeded = i2c::stop(busno as u8).is_ok();
+            kern_send(&kern::I2cBasicReply { succeeded: succeeded })
         }
         &kern::I2cWriteRequest { busno, data } => {
-            kern_send(&kern::I2cWriteReply { succeeded: false, ack: false })
+            match i2c::write(busno as u8, data) {
+                Ok(ack) => kern_send(
+                    &kern::I2cWriteReply { succeeded: true, ack: ack }),
+                Err(_) => kern_send(
+                    &kern::I2cWriteReply { succeeded: false, ack: false })
+            }
         }
         &kern::I2cReadRequest { busno, ack } => {
-            kern_send(&kern::I2cReadReply { succeeded: false, data: 0xff })
+            match i2c::read(busno as u8, ack) {
+                Ok(data) => kern_send(
+                    &kern::I2cReadReply { succeeded: true, data: data }),
+                Err(_) => kern_send(
+                    &kern::I2cReadReply { succeeded: false, data: 0xff })
+            }
         }
         &kern::I2cSwitchSelectRequest { busno, address, mask } => {
-            kern_send(&kern::I2cBasicReply { succeeded: false })
+            let succeeded = i2c::switch_select(busno as u8, address, mask).is_ok();
+            kern_send(&kern::I2cBasicReply { succeeded: succeeded })
         }
 
         &kern::SpiSetConfigRequest { busno, flags, length, div, cs } => {
-            kern_send(&kern::SpiBasicReply { succeeded: false })
+            let succeeded = spi::set_config(busno as u8, flags, length, div, cs).is_ok();
+            kern_send(&kern::SpiBasicReply { succeeded: succeeded })
         },
         &kern::SpiWriteRequest { busno, data } => {
-            kern_send(&kern::SpiBasicReply { succeeded: false })
+            let succeeded = spi::write(busno as u8, data).is_ok();
+            kern_send(&kern::SpiBasicReply { succeeded: succeeded })
         }
         &kern::SpiReadRequest { busno } => {
-            kern_send(&kern::SpiReadReply { succeeded: false, data: 0 })
+            match spi::read(busno as u8) {
+                Ok(data) => kern_send(
+                    &kern::SpiReadReply { succeeded: true, data: data }),
+                Err(_) => kern_send(
+                    &kern::SpiReadReply { succeeded: false, data: 0 })
+            }
         }
 
         _ => return Ok(false)

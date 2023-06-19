@@ -9,6 +9,7 @@ extern crate board_artiq;
 extern crate riscv;
 extern crate alloc;
 extern crate proto_artiq;
+extern crate cslice;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
@@ -33,6 +34,7 @@ mod repeater;
 mod dma;
 mod analyzer;
 mod kernel;
+mod cache;
 
 fn drtiosat_reset(reset: bool) {
     unsafe {
@@ -382,7 +384,12 @@ fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernel
             let mut succeeded = _kernelmgr.load(id).is_ok();
             // allow preloading a kernel with delayed run
             if run {
-                succeeded |= _kernelmgr.run(id).is_ok();
+                if _dmamgr.running() {
+                    // cannot run kernel while DDMA is running
+                    succeeded = false;
+                } else {
+                    succeeded |= _kernelmgr.run(id).is_ok();
+                }
             }
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelLoadRunReply { succeeded: succeeded })
@@ -687,7 +694,7 @@ pub extern fn main() -> i32 {
                     error!("error sending DMA playback status: {}", e);
                 }
             }
-            kernel_manager.process_kern_requests();
+            kernel_manager.process_kern_requests(rank);
         }
 
         drtiosat_reset_phy(true);
