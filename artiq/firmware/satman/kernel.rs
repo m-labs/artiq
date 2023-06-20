@@ -386,6 +386,8 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> 
                 for exception in exceptions {
                     error!("{:?}", exception.unwrap());
                 }
+                error!("stack pointers: {:?}", stack_pointers);
+                error!("backtrace: {:?}", backtrace);
                 return Ok(true)
             }
 
