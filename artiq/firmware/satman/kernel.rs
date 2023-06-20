@@ -10,7 +10,6 @@ use cache::Cache;
 mod kernel_cpu {
     use super::*;
     use core::ptr;
-    use board_artiq::rpc_queue;
 
     use proto_artiq::kernel_proto::{KERNELCPU_EXEC_ADDRESS, KERNELCPU_LAST_ADDRESS, KSUPPORT_HEADER_SIZE};
 
@@ -33,8 +32,6 @@ mod kernel_cpu {
 
         csr::cri_con::selected_write(2);
         csr::kernel_cpu::reset_write(0);
-
-        rpc_queue::init();
     }
 
     pub unsafe fn stop() {
@@ -42,7 +39,6 @@ mod kernel_cpu {
         csr::cri_con::selected_write(0);
 
         mailbox::acknowledge();
-        rpc_queue::init();
     }
 
     pub fn validate(ptr: usize) -> bool {
@@ -55,8 +51,7 @@ mod kernel_cpu {
 enum KernelState {
     Absent,
     Loaded,
-    Running,
-    RpcWait
+    Running
 }
 
 // Per-connection state
@@ -82,7 +77,7 @@ impl Session {
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running | KernelState::RpcWait => true
+            KernelState::Running => true
         }
     }
 
@@ -101,7 +96,6 @@ pub enum Error {
     Load(String),
     KernelNotFound,
     InvalidPointer(usize),
-    ClockFailure,
     Unexpected(String),
     NoMessage,
 }
