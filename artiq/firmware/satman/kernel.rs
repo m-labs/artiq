@@ -196,9 +196,6 @@ impl Manager {
         if self.current_id == id && self.current_session.kernel_state == KernelState::Loaded {
             return Ok(())
         }
-        if self.current_session.running() {
-            unexpected!("attempted to load a new kernel while a kernel was running")
-        }
         if !self.kernels.get(&id)?.complete {
             return Err(Error::KernelNotFound)
         }
