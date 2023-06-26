@@ -308,7 +308,8 @@
                         "clk_div": {
                             "type": "integer",
                             "minimum": 0,
-                            "maximum": 3
+                            "maximum": 3,
+                            "default": 0
                         },
                         "pll_n": {
                             "type": "integer"
