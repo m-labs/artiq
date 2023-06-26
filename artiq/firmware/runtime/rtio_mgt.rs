@@ -475,6 +475,61 @@ pub mod drtio {
         Ok(remote_buffers)
     }
 
+    pub fn subkernel_upload(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, data: &Vec<u8>) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let mut i = 0;
+        while i < trace.len() {
+            let mut data_slice: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
+            let len: usize = if i + DMA_TRACE_MAX_SIZE < data.len() { DMA_TRACE_MAX_SIZE } else { data.len() - i } as usize;
+            let last = i + len == trace.len();
+            data_slice[..len].clone_from_slice(&data[i..i+len]);
+            i += len;
+            let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+                &drtioaux::Packet::SubkernelAddDataRequest {
+                    id: id, destination: destination, last: last, length: len as u16, data: data_slice});
+            match reply {
+                Ok(drtioaux::Packet::SubkernelAddDataReply { succeeded: true }) => (),
+                Ok(drtioaux::Packet::SubkernelAddDataReply { succeeded: false }) => { 
+                    return Err("error adding subkernel on satellite"); },
+                Ok(_) => { return Err("adding subkernel failed, unexpected aux packet"); },
+                Err(_) => { return Err("adding subkernel failed, aux error"); }
+            }
+        }
+        Ok(())
+    }
+
+
+    pub fn subkernel_send_erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable, 
+            id: u32, destination: u8) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+            &drtioaux::Packet::SubkernelRemoveRequest { id: id, destination: destination });
+        match reply {
+            Ok(drtioaux::Packet::SubkernelRemoveReply { succeeded: true }) => Ok(()),
+            Ok(drtioaux::Packet::SubkernelRemoveReply { succeeded: false }) => Err("satellite subkernel erase error"),
+            Ok(_) => Err("erasing subkernel failed, unexpected aux packet"),
+            Err(_) => Err("erasing subkernel failed, aux error")
+        }
+    }
+
+    pub fn subkernel_load(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+            routing_table: &drtio_routing::RoutingTable,
+            id: u32, destination: u8, run: bool) -> Result<(), &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, &drtioaux::Packet::SubkernelLoadRunRequest{
+                id: id, destination: destination, run: run });
+        match reply {
+            Ok(drtioaux::Packet::SubkernelLoadRunReply { succeeded: true }) => return Ok(()),
+            Ok(drtioaux::Packet::SubkernelLoadRunReply { succeeded: false }) =>
+                    return Err("error on subkernel run request"),
+            Ok(_) => return Err("received unexpected aux packet during subkernel run"),
+            Err(_) => return Err("aux error on subkernel run")
+        }
+    }
+
 }
 
 #[cfg(not(has_drtio))]
