@@ -37,6 +37,23 @@ class AppletControlIPC:
         mod = {"action": "append", "path": [key, 1], "x": value}
         self.ipc.update_dataset(mod)
 
+    def set_argument_value(self, expurl, arg_name, arg_value, **kwargs):
+        """Sets the value of a specified argument for a given experiment.
+
+        :param expurl: Experiment URL in the format ``repo:<experiment_name>``.
+        :param arg_name: Name of argument in the experiment.
+        :param arg_value: Value according to the type. Follows the same value
+            format as with the experiment arguments except for the following types:
+            ``EnumerationValue``: A string selecting a choice from the enum.
+            ``Scannable``: A string selecting the scan type to be the default
+            (e.g., ``ExplicitScan``.)
+        :param kwargs: Additional parameters for ``Scannable`` argument type.
+            Should be written in the following format:
+            (e.g., NoScan={"value": <number>, "repetitions": <number>})
+            Omitted entry will not be modified and will use the default value.
+        """
+        self.ipc.set_argument_value(expurl, arg_name, arg_value, **kwargs)
+
 
 class AppletControlRPC:
     def __init__(self, loop, dataset_ctl):
@@ -136,6 +153,13 @@ class AppletIPCClient(AsyncioChildComm):
     def update_dataset(self, mod):
         self.write_pyon({"action": "update_dataset",
                          "mod": mod})
+
+    def set_argument_value(self, expurl, arg_name, arg_value, **kwargs):
+        self.write_pyon({"action": "set_argument_value",
+                         "expurl": expurl,
+                         "arg_name": arg_name,
+                         "arg_value": arg_value,
+                         "kwargs": kwargs})
 
 
 class SimpleApplet:
