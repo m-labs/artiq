@@ -189,7 +189,7 @@ def main():
                                        rpc_clients["dataset_db"])
     smgr.register(d_datasets)
 
-    d_applets = applets_ccb.AppletsCCBDock(main_window,
+    d_applets = applets_ccb.AppletsCCBDock(main_window, expmgr,
                                            sub_clients["datasets"],
                                            rpc_clients["dataset_db"],
                                            extra_substitutes={
