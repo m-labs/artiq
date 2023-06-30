@@ -16,6 +16,9 @@ class MockDatasetDB:
     def get(self, key):
         return self.data[key][1]
 
+    def get_metadata(self, key):
+        return self.data[key][2]
+
     def update(self, mod):
         # Copy mod before applying to avoid sharing references to objects
         # between this and the DatasetManager, which would lead to mods being
@@ -29,6 +32,9 @@ class MockDatasetDB:
 class TestExperiment(EnvExperiment):
     def get(self, key):
         return self.get_dataset(key)
+
+    def get_metadata(self, key):
+        return self.get_dataset_metadata(key)
 
     def set(self, key, value, **kwargs):
         self.set_dataset(key, value, **kwargs)
@@ -82,9 +88,9 @@ class ExperimentDatasetCase(unittest.TestCase):
     def test_append_broadcast(self):
         self.exp.set(KEY, [], broadcast=True)
         self.exp.append(KEY, 0)
-        self.assertEqual(self.dataset_db.data[KEY][1], [0])
+        self.assertEqual(self.dataset_db.get(KEY), [0])
         self.exp.append(KEY, 1)
-        self.assertEqual(self.dataset_db.data[KEY][1], [0, 1])
+        self.assertEqual(self.dataset_db.get(KEY), [0, 1])
 
     def test_append_array(self):
         for broadcast in (True, False):
@@ -102,4 +108,27 @@ class ExperimentDatasetCase(unittest.TestCase):
     def test_append_nonexistent_fails(self):
         with self.assertRaises(KeyError):
             self.exp.append(KEY, 0)
+
+    def test_set_dataset_metadata(self):
+        self.exp.set(KEY, 0, unit="kV", precision=2)
+        md = {"unit": "kV", "precision": 2}        
+        self.assertEqual(self.exp.get_metadata(KEY), md)
+    
+    def test_metadata_default(self):
+        self.exp.set(KEY, 0)
+        self.assertEqual(self.exp.get_metadata(KEY), {})
+
+    def test_metadata_scale(self):
+        self.exp.set(KEY, 0, scale=1000)
+        self.assertEqual(self.exp.get_metadata(KEY), {"scale": 1000})
+
+    def test_metadata_broadcast(self):
+        self.exp.set(KEY, 0, unit="kV", precision=2, broadcast=True)
+        md = {"unit": "kV", "precision": 2}        
+        self.assertEqual(self.dataset_db.get_metadata(KEY), md)
+
+    def test_metadata_broadcast_default(self):
+        self.exp.set(KEY, 0, broadcast=True)
+        self.assertEqual(self.dataset_db.get_metadata(KEY), {})
+
 
