@@ -288,7 +288,7 @@ class SchedulerCase(unittest.TestCase):
             self.assertEqual(
                 mod,
                 {"action": "setitem", "key": "termination_ok",
-                 "value": (False, True), "path": []})
+                 "value": (False, True, {}), "path": []})
             termination_ok = True
         handlers = {
             "update_dataset": check_termination
