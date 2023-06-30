@@ -420,10 +420,7 @@ fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
 }
 
 fn drtiosat_process_errors() {
-    let errors;
-    unsafe {
-        errors = csr::drtiosat::protocol_error_read();
-    }
+    let errors = unsafe { csr::drtiosat::protocol_error_read() };
     if errors & 1 != 0 {
         error!("received packet of an unknown type");
     }
@@ -431,26 +428,29 @@ fn drtiosat_process_errors() {
         error!("received truncated packet");
     }
     if errors & 4 != 0 {
-        let destination;
-        unsafe {
-            destination = csr::drtiosat::buffer_space_timeout_dest_read();
-        }
+        let destination = unsafe {
+            csr::drtiosat::buffer_space_timeout_dest_read()
+        };
         error!("timeout attempting to get buffer space from CRI, destination=0x{:02x}", destination)
     }
-    if errors & 8 != 0 {
-        let channel;
-        let timestamp_event;
-        let timestamp_counter;
-        unsafe {
-            channel = csr::drtiosat::underflow_channel_read();
-            timestamp_event = csr::drtiosat::underflow_timestamp_event_read() as i64;
-            timestamp_counter = csr::drtiosat::underflow_timestamp_counter_read() as i64;
+    let drtiosat_active = unsafe { csr::cri_con::selected_read() == 0 };
+    if drtiosat_active {
+        // RTIO errors are handled by ksupport and dma manager
+        if errors & 8 != 0 {
+            let channel;
+            let timestamp_event;
+            let timestamp_counter;
+            unsafe {
+                channel = csr::drtiosat::underflow_channel_read();
+                timestamp_event = csr::drtiosat::underflow_timestamp_event_read() as i64;
+                timestamp_counter = csr::drtiosat::underflow_timestamp_counter_read() as i64;
+            }
+            error!("write underflow, channel={}, timestamp={}, counter={}, slack={}",
+                channel, timestamp_event, timestamp_counter, timestamp_event-timestamp_counter);
         }
-        error!("write underflow, channel={}, timestamp={}, counter={}, slack={}",
-               channel, timestamp_event, timestamp_counter, timestamp_event-timestamp_counter);
-    }
-    if errors & 16 != 0 {
-        error!("write overflow");
+        if errors & 16 != 0 {
+            error!("write overflow");
+        }
     }
     unsafe {
         csr::drtiosat::protocol_error_write(errors);
