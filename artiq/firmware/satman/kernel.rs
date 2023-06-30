@@ -195,6 +195,7 @@ impl Manager {
         }
         self.current_id = id;
         self.current_session = Session::new();
+        self.stop();
         
         unsafe { 
             kernel_cpu::start();
@@ -223,7 +224,7 @@ impl Manager {
             return;
         }
         // may need to return some value or data through DRTIO to master
-        process_kern_message(&mut self.current_session, rank).unwrap();
+        process_kern_message(&mut self.current_session, rank);
     }
 }
 
