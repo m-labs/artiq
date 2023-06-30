@@ -87,3 +87,120 @@ unsafe fn load_image(image: &[u8]) -> Result<(), &'static str> {
 pub fn validate(ptr: usize) -> bool {
     ptr >= KERNELCPU_EXEC_ADDRESS && ptr <= KERNELCPU_LAST_ADDRESS
 }
+
+
+#[cfg(has_drtio)]
+pub mod subkernel {
+    use super::*;
+    use board_artiq::drtio_routing::RoutingTable;
+    use rtio_mgt::drtio;
+    use board_misoc::clock;
+    use sched::{Io, Mutex};
+    use alloc::{vec::Vec, collections::btree_map::BTreeMap};
+
+    #[derive(Debug, PartialEq, Clone)]
+    pub enum SubkernelState {
+        NotLoaded,
+        Uploaded,
+        Loaded,
+        Running,
+        Finished
+    }
+
+    #[derive(Debug, Clone)]
+    pub struct RemoteSubkernel {
+        data: Vec<u8>,
+        pub state: SubkernelState
+    }
+
+    impl From<Vec<u8>> for RemoteSubkernel {
+        fn from(data: Vec<u8>) -> Self {
+            RemoteSubkernel {
+                data: data,
+                state: SubkernelState::NotLoaded
+            }
+        }
+    }
+    
+    impl RemoteSubkernel {
+        pub fn get_data(&self) -> &Vec<u8> {
+            &self.data
+        }
+    }
+
+    static mut SUBKERNELS: BTreeMap<u32, BTreeMap<u8, RemoteSubkernel>> = BTreeMap::new();
+
+    pub fn add_subkernel(id: u32, subkernels: BTreeMap<u8, Vec<u8>>) {
+        let mut subkernel_map: BTreeMap<u8, RemoteSubkernel> = BTreeMap::new();
+        for (destination, subkernel) in subkernels {
+            subkernel_map.insert(destination, subkernel.into());
+        }
+        unsafe { SUBKERNELS.insert(id, subkernel_map); }
+    }
+
+
+    pub fn erase(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32) {
+        let destinations = unsafe { SUBKERNELS.get(&id).unwrap() };
+        for destination in destinations.keys() {
+            match drtio::subkernel_send_erase(io, aux_mutex, ddma_mutex, routing_table, id, *destination) {
+                Ok(_) => (),
+                Err(e) => error!("Error erasing subkernel: {}", e)
+            } 
+        }
+        unsafe { SUBKERNELS.remove(&id); }
+    }
+
+    pub fn upload(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32) {
+        let subkernels = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
+        for (destination, subkernel) in subkernels {
+            match drtio::subkernel_upload(io, aux_mutex, ddma_mutex, routing_table, id, *destination, subkernel.get_data())
+            {
+                Ok(_) => subkernel.state = SubkernelState::Uploaded,
+                Err(e) => error!("Error adding subkernel on destination {}: {}", destination, e)
+            }
+        }
+    }
+
+    pub fn load(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, id: u32, run: bool) {
+        let destinations = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
+        for (destination, subkernel) in destinations {
+            {
+                if subkernel.state != SubkernelState::Uploaded && subkernel.state != SubkernelState::Loaded {
+                    error!("Destination {} not ready for subkernel, state: {:?}", *destination, subkernel.state);
+                    continue;
+                }
+            }
+            match drtio::subkernel_load(io, aux_mutex, ddma_mutex, routing_table, id, *destination, run) {
+                Ok(_) => subkernel.state = if run { SubkernelState::Running } else { SubkernelState::Loaded },
+                Err(e) => error!("Error during subkernel run: {}", e)
+            }
+        }
+    }
+
+    pub fn playback_done(id: u32, destination: u8) {
+        // called upon receiving SubkernelRunDone
+        let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap().get_mut(&destination).unwrap() };
+        subkernel.state = SubkernelState::Finished;
+    }
+
+    pub fn destination_changed(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,
+            ddma_mutex: &Mutex, destination: u8, up: bool) {
+        let subkernels_iter = unsafe { SUBKERNELS.iter_mut() };
+        for (id, subkernels) in subkernels_iter {
+            if let Some(subkernel) = subkernels.get_mut(&destination) {
+                if up {
+                    match drtio::subkernel_upload(io, aux_mutex, ddma_mutex, routing_table, *id, destination, subkernel.get_data())
+                    {
+                        Ok(_) => subkernel.state = SubkernelState::Uploaded,
+                        Err(e) => error!("Error adding subkernel on destination {}: {}", destination, e)
+                    }
+                } else {
+                    subkernel.state = SubkernelState::NotLoaded;
+                }
+            }
+        }
+    }
+}
