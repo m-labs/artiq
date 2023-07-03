@@ -100,7 +100,7 @@ class Model(DictSyncTreeSepModel):
         if column == 1:
             return "Y" if v[0] else "N"
         elif column == 2:
-            return short_format(v[1])
+            return short_format(v[1], v[2])
         else:
             raise ValueError
 
