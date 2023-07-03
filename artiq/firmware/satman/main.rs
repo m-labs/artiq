@@ -10,6 +10,7 @@ extern crate riscv;
 extern crate alloc;
 extern crate proto_artiq;
 extern crate cslice;
+extern crate io;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
@@ -85,7 +86,7 @@ macro_rules! forward {
     ($routing_table:expr, $destination:expr, $rank:expr, $repeaters:expr, $packet:expr) => {}
 }
 
-fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernelmgr: &mut KernelManager,
+fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmgr: &mut KernelManager,
         _repeaters: &mut [repeater::Repeater], _routing_table: &mut drtio_routing::RoutingTable, _rank: &mut u8,
         packet: drtioaux::Packet) -> Result<(), drtioaux::Error<!>> {
     // In the code below, *_chan_sel_write takes an u8 if there are fewer than 256 channels,
@@ -341,27 +342,24 @@ fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernel
             })
         }
 
-        #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaAddTraceRequest { destination: _destination, id, last, length, trace } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _dmamgr.add(id, last, &trace, length as usize).is_ok();
+            let succeeded = dmamgr.add(id, last, &trace, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaAddTraceReply { succeeded: succeeded })
         }
-        #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaRemoveTraceRequest { destination: _destination, id } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _dmamgr.erase(id).is_ok();
+            let succeeded = dmamgr.erase(id).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::DmaRemoveTraceReply { succeeded: succeeded })
         }
-        #[cfg(has_rtio_dma)]
         drtioaux::Packet::DmaPlaybackRequest { destination: _destination, id, timestamp } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             // no DMA with a running kernel
-            let succeeded = match _kernelmgr.is_running() {
+            let succeeded = match kernelmgr.is_running() {
                 true => false,
-                false => _dmamgr.playback(id, timestamp).is_ok()
+                false => dmamgr.playback(id, timestamp).is_ok()
             };
             drtioaux::send(0,
                 &drtioaux::Packet::DmaPlaybackReply { succeeded: succeeded })
@@ -369,26 +367,26 @@ fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernel
 
         drtioaux::Packet::SubkernelAddDataRequest { destination: _destination, id, last, length, data } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _kernelmgr.add(id, last, &data, length as usize).is_ok();
+            let succeeded = kernelmgr.add(id, last, &data, length as usize).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelAddDataReply { succeeded: succeeded })
         }
         drtioaux::Packet::SubkernelRemoveRequest { destination: _destination, id } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = _kernelmgr.remove(id).is_ok();
+            let succeeded = kernelmgr.remove(id).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelRemoveReply { succeeded: succeeded })
         }
         drtioaux::Packet::SubkernelLoadRunRequest { destination: _destination, id, run } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let mut succeeded = _kernelmgr.load(id).is_ok();
+            let mut succeeded = kernelmgr.load(id).is_ok();
             // allow preloading a kernel with delayed run
             if run {
-                if _dmamgr.running() {
+                if dmamgr.running() {
                     // cannot run kernel while DDMA is running
                     succeeded = false;
                 } else {
-                    succeeded |= _kernelmgr.run(id).is_ok();
+                    succeeded |= kernelmgr.run(id).is_ok();
                 }
             }
             drtioaux::send(0,

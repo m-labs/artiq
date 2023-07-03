@@ -21,6 +21,7 @@ pub mod drtio {
     use rtio_dma::remote_dma;
     #[cfg(has_rtio_analyzer)]
     use analyzer::remote_analyzer::RemoteBuffer;
+    use kernel::subkernel;
 
     pub fn startup(io: &Io, aux_mutex: &Mutex,
             routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
@@ -172,6 +173,9 @@ pub mod drtio {
             Ok(Some(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp })) => {
                 remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
             }
+            Ok(Some(drtioaux::Packet::SubkernelFinished { id, destination, with_exception })) => {
+                subkernel::subkernel_finished(id, destination, with_exception);
+            }
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
             Err(_) => warn!("[LINK#{}] aux packet error", linkno)
@@ -275,7 +279,8 @@ pub mod drtio {
                         }
                     } else {
                         destination_set_up(routing_table, up_destinations, destination, false);
-                        remote_dma::destination_changed(io, aux_mutex, ddma_mutex, routing_table, destination, false);
+                        remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
+                        subkernel::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, false);
                     }
                 } else {
                     if up_links[linkno as usize] {
@@ -288,7 +293,8 @@ pub mod drtio {
                             Ok(drtioaux::Packet::DestinationOkReply) => {
                                 destination_set_up(routing_table, up_destinations, destination, true);
                                 init_buffer_space(destination as u8, linkno);
-                                remote_dma::destination_changed(io, aux_mutex, ddma_mutex, routing_table, destination, true);
+                                remote_dma::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, true);
+                                subkernel::destination_changed(io, aux_mutex, routing_table, ddma_mutex, destination, true);
                             },
                             Ok(packet) => error!("[DEST#{}] received unexpected aux packet: {:?}", destination, packet),
                             Err(e) => error!("[DEST#{}] communication failed ({})", destination, e)
@@ -528,6 +534,27 @@ pub mod drtio {
                     return Err("error on subkernel run request"),
             Ok(_) => return Err("received unexpected aux packet during subkernel run"),
             Err(_) => return Err("aux error on subkernel run")
+        }
+    }
+
+    pub fn subkernel_retrieve_exception(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+        routing_table: &drtio_routing::RoutingTable, destination: u8
+    ) -> Result<Vec<u8>, &'static str> {
+        let linkno = routing_table.0[destination as usize][0] - 1;
+        let mut remote_data: Vec<u8> = Vec::new();
+        loop {
+            let reply = aux_transact(io, aux_mutex, ddma_mutex, linkno, 
+                &drtioaux::Packet::SubkernelExceptionRequest { destination: destination });
+            match reply {
+                Ok(drtioaux::Packet::SubkernelException { last, length, data }) => { 
+                    remote_data.extend(&data[0..length as usize]);
+                    if last {
+                        return Ok(remote_data);
+                    }
+                },
+                Ok(_) => return Err("received unexpected aux packet during subkernel exception request"),
+                Err(e) => return Err(e)
+            }
         }
     }
 

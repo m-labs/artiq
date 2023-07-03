@@ -91,10 +91,8 @@ pub fn validate(ptr: usize) -> bool {
 
 #[cfg(has_drtio)]
 pub mod subkernel {
-    use super::*;
     use board_artiq::drtio_routing::RoutingTable;
     use rtio_mgt::drtio;
-    use board_misoc::clock;
     use sched::{Io, Mutex};
     use alloc::{vec::Vec, collections::btree_map::BTreeMap};
 
@@ -104,7 +102,7 @@ pub mod subkernel {
         Uploaded,
         Loaded,
         Running,
-        Finished
+        Finished { with_exception: bool }
     }
 
     #[derive(Debug, Clone)]
@@ -180,10 +178,15 @@ pub mod subkernel {
         }
     }
 
-    pub fn playback_done(id: u32, destination: u8) {
+    pub fn subkernel_finished(id: u32, destination: u8, with_exception: bool) {
         // called upon receiving SubkernelRunDone
         let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap().get_mut(&destination).unwrap() };
-        subkernel.state = SubkernelState::Finished;
+        subkernel.state = SubkernelState::Finished { with_exception: with_exception };
+    }
+
+    pub fn retrieve_exception(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+        routing_table: &RoutingTable, destination: u8) -> Result<Vec<u8>, &'static str> {
+        drtio::subkernel_retrieve_exception(io, aux_mutex, ddma_mutex, routing_table, destination)
     }
 
     pub fn destination_changed(io: &Io, aux_mutex: &Mutex, routing_table: &RoutingTable,

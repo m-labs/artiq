@@ -1,11 +1,13 @@
-use core::{mem, cell::Cell, option::NoneError};
+use core::{mem, option::NoneError, cmp::min};
 use alloc::{string::String, format, vec::Vec, collections::btree_map::BTreeMap};
 
 use board_artiq::{mailbox, spi};
 use board_misoc::{csr, clock, i2c};
-use proto_artiq::kernel_proto as kern;
+use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException};
+use io::Cursor;
 
 use cache::Cache;
+use SAT_PAYLOAD_MAX_SIZE;
 
 mod kernel_cpu {
     use super::*;
@@ -61,7 +63,8 @@ pub struct Session {
     cache: Cache,
     kernel_state: KernelState,
     log_buffer: String,
-    finished_cleanly: Cell<bool>
+    last_exception: Vec<u8>,
+    last_exception_it: usize
 }
 
 impl Session {
@@ -70,7 +73,8 @@ impl Session {
             cache: Cache::new(),
             kernel_state: KernelState::Absent,
             log_buffer: String::new(),
-            finished_cleanly: Cell::new(true)
+            last_exception: Vec::new(),
+            last_exception_it: 0
         }
     }
 
@@ -120,7 +124,12 @@ struct KernelData {
 pub struct Manager {
     kernels: BTreeMap<u32, KernelData>,
     current_id: u32,
-    current_session: Session
+    current_session: Session,
+}
+
+pub struct ExceptionSliceMeta {
+    pub len: u16,
+    pub last: bool
 }
 
 impl Manager {
@@ -133,7 +142,7 @@ impl Manager {
         Manager {
             kernels: BTreeMap::new(),
             current_id: 0,
-            current_session: Session::new()
+            current_session: Session::new(),
         }
     }
 
@@ -219,6 +228,24 @@ impl Manager {
         }
     }
 
+    pub fn get_exception_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> ExceptionSliceMeta {
+        if self.current_session.last_exception.len() == 0 {
+            return ExceptionSliceMeta { len: 0, last: true };
+        }
+        let i = self.current_session.last_exception_it;
+        let data = &self.current_session.last_exception;
+        let len = min(SAT_PAYLOAD_MAX_SIZE, data.len() - SAT_PAYLOAD_MAX_SIZE);
+        let last = i + len == data.len();
+
+        data_slice[..len].clone_from_slice(&data[i..i+len]);
+        self.current_session.last_exception_it += len;
+
+        ExceptionSliceMeta {
+            len: len as u16,
+            last: last
+        }
+    }
+
     pub fn process_kern_requests(&mut self, rank: u8) {
         if !self.is_running() {
             return;
@@ -226,6 +253,8 @@ impl Manager {
         // may need to return some value or data through DRTIO to master
         process_kern_message(&mut self.current_session, rank);
     }
+
+
 }
 
 impl Drop for Manager {
@@ -281,12 +310,14 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> {
+fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>, Error> {
+    // returns Ok(with_exception) on finish
+    // None if the kernel is still running
     kern_recv_notrace(|request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) => {
                 // We're standing by; ignore the message.
-                return Ok(false)
+                return Ok(None)
             }
             (_, KernelState::Running) => (),
             _ => {
@@ -298,7 +329,7 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> 
         kern_recv_dotrace(request);
 
         if process_kern_hwreq(request, rank)? {
-            return Ok(false)
+            return Ok(None)
         }
 
         match request {
@@ -364,7 +395,7 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> 
                 unsafe { session.cache.unborrow() }
 
                 info!("kernel finished");
-                Ok(())
+                return Ok(Some(false))
             }
             &kern::RunException {
                 exceptions,
@@ -380,11 +411,24 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<bool, Error> 
                 }
                 error!("stack pointers: {:?}", stack_pointers);
                 error!("backtrace: {:?}", backtrace);
-                return Ok(true)
+                // master will only pass the exception data back to the host:
+                let raw_exception: Vec<u8> = Vec::new();
+                let mut writer = Cursor::new(raw_exception);
+                match (HostKernelException {
+                    exceptions: exceptions,
+                    stack_pointers: stack_pointers,
+                    backtrace: backtrace,
+                    async_errors: 0
+                }).write_to(&mut writer) {
+                    // save last exception data to be received by master
+                    Ok(_) => session.last_exception = writer.into_inner(),
+                    Err(_) => error!("Error writing exception data")
+                }
+                return Ok(Some(true))
             }
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
-        }.and(Ok(false))
+        }.and(Ok(None))
     })
 }
 
