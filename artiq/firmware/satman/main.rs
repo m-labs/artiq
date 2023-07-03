@@ -19,7 +19,7 @@ use board_artiq::{spi, drtioaux};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
 use board_artiq::drtio_routing;
-use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
@@ -332,7 +332,7 @@ fn process_aux_packet(_dmamgr: &mut DmaManager, analyzer: &mut Analyzer, _kernel
 
         drtioaux::Packet::AnalyzerDataRequest { destination: _destination } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let mut data_slice: [u8; ANALYZER_MAX_SIZE] = [0; ANALYZER_MAX_SIZE];
+            let mut data_slice: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
             let meta = analyzer.get_data(&mut data_slice);
             drtioaux::send(0, &drtioaux::Packet::AnalyzerData {
                 last: meta.last,

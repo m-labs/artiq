@@ -1,6 +1,6 @@
 use core::cmp::min;
 use board_misoc::{csr, cache};
-use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
 
 const BUFFER_SIZE: usize = 512 * 1024;
 
@@ -86,10 +86,10 @@ impl Analyzer {
         }
     }
 
-    pub fn get_data(&mut self, data_slice: &mut [u8; ANALYZER_MAX_SIZE]) -> AnalyzerSliceMeta {
+    pub fn get_data(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> AnalyzerSliceMeta {
         let data = unsafe { &BUFFER.data[..] };
         let i = (self.data_pointer + self.sent_bytes) % BUFFER_SIZE;
-        let len = min(ANALYZER_MAX_SIZE, self.data_len - self.sent_bytes);
+        let len = min(SAT_PAYLOAD_MAX_SIZE, self.data_len - self.sent_bytes);
         let last = self.sent_bytes + len == self.data_len;
 
         if i + len >= BUFFER_SIZE {

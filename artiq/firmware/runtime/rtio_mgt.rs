@@ -17,7 +17,7 @@ pub mod drtio {
     use super::*;
     use alloc::vec::Vec;
     use drtioaux;
-    use proto_artiq::drtioaux_proto::DMA_TRACE_MAX_SIZE;
+    use proto_artiq::drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE;
     use rtio_dma::remote_dma;
     #[cfg(has_rtio_analyzer)]
     use analyzer::remote_analyzer::RemoteBuffer;
@@ -373,11 +373,11 @@ pub mod drtio {
     }
 
     fn partition_data<F>(data: &Vec<u8>, send_f: F) -> Result<(), &'static str>
-            where F: Fn(&[u8; DMA_TRACE_MAX_SIZE], bool, usize) -> Result<(), &'static str> {
+            where F: Fn(&[u8; MASTER_PAYLOAD_MAX_SIZE], bool, usize) -> Result<(), &'static str> {
             let mut i = 0;
             while i < data.len() {
-                let mut slice: [u8; DMA_TRACE_MAX_SIZE] = [0; DMA_TRACE_MAX_SIZE];
-                let len: usize = if i + DMA_TRACE_MAX_SIZE < data.len() { DMA_TRACE_MAX_SIZE } else { data.len() - i } as usize;
+                let mut slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                let len: usize = if i + MASTER_PAYLOAD_MAX_SIZE < data.len() { MASTER_PAYLOAD_MAX_SIZE } else { data.len() - i } as usize;
                 let last = i + len == data.len();
                 slice[..len].clone_from_slice(&data[i..i+len]);
                 i += len;
