@@ -39,10 +39,11 @@ Highlights:
   new = lmdb.open("dataset_db.mdb", subdir=False, map_size=2**30)
   with new.begin(write=True) as txn:
     for key, value in old.items():
-      txn.put(key.encode(), pyon.encode(value).encode())
+      txn.put(key.encode(), pyon.encode((value, {})).encode())
   new.close()
 
-
+* Metadata such as units and precision can now be associated with a dataset. 
+  The ``(value, {})`` is needed to enable metadata in persistent datasets.
 
 ARTIQ-7
 -------
