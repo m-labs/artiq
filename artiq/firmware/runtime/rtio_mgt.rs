@@ -173,8 +173,8 @@ pub mod drtio {
             Ok(Some(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp })) => {
                 remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
             }
-            Ok(Some(drtioaux::Packet::SubkernelFinished { id, destination, with_exception })) => {
-                subkernel::subkernel_finished(id, destination, with_exception);
+            Ok(Some(drtioaux::Packet::SubkernelFinished { id, with_exception })) => {
+                subkernel::subkernel_finished(id, with_exception);
             }
             Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),

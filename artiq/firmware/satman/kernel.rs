@@ -124,12 +124,17 @@ struct KernelData {
 pub struct Manager {
     kernels: BTreeMap<u32, KernelData>,
     current_id: u32,
-    current_session: Session,
+    session: Session,
 }
 
 pub struct ExceptionSliceMeta {
     pub len: u16,
     pub last: bool
+}
+
+pub struct SubkernelFinished {
+    pub id: u32,
+    pub with_exception: bool
 }
 
 impl Manager {
@@ -142,7 +147,7 @@ impl Manager {
         Manager {
             kernels: BTreeMap::new(),
             current_id: 0,
-            current_session: Session::new(),
+            session: Session::new(),
         }
     }
 
@@ -181,29 +186,29 @@ impl Manager {
     }
 
     pub fn is_running(&self) -> bool {
-        self.current_session.running()
+        self.session.running()
     }
 
     pub fn run(&mut self, id: u32) -> Result<(), Error> {
-        if self.current_session.kernel_state != KernelState::Loaded
+        if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
         }
     
-        self.current_session.kernel_state = KernelState::Running;
+        self.session.kernel_state = KernelState::Running;
     
         kern_acknowledge()
     }
 
     pub fn load(&mut self, id: u32) -> Result<(), Error> {
-        if self.current_id == id && self.current_session.kernel_state == KernelState::Loaded {
+        if self.current_id == id && self.session.kernel_state == KernelState::Loaded {
             return Ok(())
         }
         if !self.kernels.get(&id)?.complete {
             return Err(Error::KernelNotFound)
         }
         self.current_id = id;
-        self.current_session = Session::new();
+        self.session = Session::new();
         self.stop();
         
         unsafe { 
@@ -213,7 +218,7 @@ impl Manager {
             kern_recv(|reply| {
                 match reply {
                     kern::LoadReply(Ok(())) => {
-                        self.current_session.kernel_state = KernelState::Loaded;
+                        self.session.kernel_state = KernelState::Loaded;
                         Ok(())
                     }
                     kern::LoadReply(Err(error)) => {
@@ -229,16 +234,16 @@ impl Manager {
     }
 
     pub fn get_exception_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> ExceptionSliceMeta {
-        if self.current_session.last_exception.len() == 0 {
+        if self.session.last_exception.len() == 0 {
             return ExceptionSliceMeta { len: 0, last: true };
         }
-        let i = self.current_session.last_exception_it;
-        let data = &self.current_session.last_exception;
+        let i = self.session.last_exception_it;
+        let data = &self.session.last_exception;
         let len = min(SAT_PAYLOAD_MAX_SIZE, data.len() - SAT_PAYLOAD_MAX_SIZE);
         let last = i + len == data.len();
 
         data_slice[..len].clone_from_slice(&data[i..i+len]);
-        self.current_session.last_exception_it += len;
+        self.session.last_exception_it += len;
 
         ExceptionSliceMeta {
             len: len as u16,
@@ -246,12 +251,15 @@ impl Manager {
         }
     }
 
-    pub fn process_kern_requests(&mut self, rank: u8) {
+    pub fn process_kern_requests(&mut self, rank: u8) -> Option<bool> {
         if !self.is_running() {
-            return;
+            return None;
         }
         // may need to return some value or data through DRTIO to master
-        process_kern_message(&mut self.current_session, rank);
+        match process_kern_message(&mut self.session, rank) {
+            Ok(with_exception) => SubkernelFinished { id: self.current_id, with_exception: with_exception },
+            Err(e) => { error!("Error while running kernel: {:?}", e); None }
+        }
     }
 
 

@@ -18,7 +18,7 @@ impl<T> From<IoError<T>> for Error<T> {
 // used by satellite -> master analyzer, subkernel exceptions
 pub const SAT_PAYLOAD_MAX_SIZE: usize  = /*max size*/512 - /*CRC*/4 - /*packet ID*/1 - /*last*/1 - /*length*/2;
 // used by DDMA, subkernel program data (need to provide extra ID and destination)
-pub const MASTER_PAYLOAD_MAX_SIZE: usize = SAT_PAYLOAD_MAX_SIZE - /*destinaion*/1 - /*ID*/4;
+pub const MASTER_PAYLOAD_MAX_SIZE: usize = SAT_PAYLOAD_MAX_SIZE - /*destination*/1 - /*ID*/4;
 
 #[derive(PartialEq, Debug)]
 pub enum Packet {
@@ -80,7 +80,7 @@ pub enum Packet {
     SubkernelRemoveReply { succeeded: bool },
     SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
-    SubkernelFinished { destination: u8, id: u32, with_exception: bool },
+    SubkernelFinished { id: u32, with_exception: bool },
     SubkernelExceptionRequest { destination: u8 },
     SubkernelException { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     SubkernelMessage { destination: u8, id: u32, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] }
@@ -313,7 +313,6 @@ impl Packet {
                 succeeded: reader.read_bool()?
             },
             0xc8 => Packet::SubkernelFinished {
-                destination: reader.read_u8()?,
                 id: reader.read_u32()?,
                 with_exception: reader.read_bool()?,
             },
@@ -600,9 +599,8 @@ impl Packet {
                 writer.write_u8(0xc5)?;
                 writer.write_bool(succeeded)?;
             },
-            Packet::SubkernelFinished { destination, id, with_exception } => {
+            Packet::SubkernelFinished { id, with_exception } => {
                 writer.write_u8(0xc8)?;
-                writer.write_u8(destination)?;
                 writer.write_u32(id)?;
                 writer.write_bool(with_exception)?;
             },

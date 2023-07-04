@@ -392,6 +392,16 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelLoadRunReply { succeeded: succeeded })
         }
+        drtioaux::Packet::SubkernelExceptionRequest { destination: _destination } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let mut data_slice: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
+            let meta = kernelmgr.get_exception_slice(&mut data_slice);
+            drtioaux::send(0, &drtioaux::Packet::SubkernelException {
+                last: meta.last,
+                length: meta.len,
+                data: data_slice,
+            })
+        }
 
         _ => {
             warn!("received unexpected aux packet");
@@ -692,7 +702,14 @@ pub extern fn main() -> i32 {
                     error!("error sending DMA playback status: {}", e);
                 }
             }
-            kernel_manager.process_kern_requests(rank);
+            if let Some(subkernel_finished) = kernelmgr.process_kern_requests(rank) {
+                info!("subkernel finished, with exception: {}", with_exception);
+                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
+                    id: subkernel_finished.id, with_exception: subkernel_finished.with_exception
+                }) {
+                    error!("error sending subkernel finish status: {}", e);
+                }
+            }
         }
 
         drtiosat_reset_phy(true);
