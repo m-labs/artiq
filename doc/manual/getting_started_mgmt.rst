@@ -53,7 +53,7 @@ Experiments may have arguments whose values can be set in the dashboard and used
 
 
     def build(self):
-        self.setattr_argument("count", NumberValue(ndecimals=0, step=1))
+        self.setattr_argument("count", NumberValue(precision=0, step=1))
 
     def run(self):
         for i in range(self.count):
