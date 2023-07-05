@@ -100,7 +100,7 @@ class NumberValue(_SimpleArgProcessor):
     """An argument that can take a numerical value.
 
     If ``type=="auto"``, the result will be a ``float`` unless
-    ndecimals = 0, scale = 1 and step is an integer. Setting ``type`` to
+    precision = 0, scale = 1 and step is an integer. Setting ``type`` to
     ``int`` will also result in an error unless these conditions are met.
 
     When ``scale`` is not specified, and the unit is a common one (i.e.
@@ -123,14 +123,17 @@ class NumberValue(_SimpleArgProcessor):
         buttons in a UI. The default is the scale divided by 10.
     :param min: The minimum value of the argument.
     :param max: The maximum value of the argument.
-    :param ndecimals: The number of decimals a UI should use.
+    :param precision: The maximum number of decimals a UI should use.
     :param type: Type of this number. Accepts ``"float"``, ``"int"`` or
                  ``"auto"``. Defaults to ``"auto"``.
     """
     valid_types = ["auto", "float", "int"]
 
-    def __init__(self, default=NoDefault, unit="", scale=None,
-                 step=None, min=None, max=None, ndecimals=2, type="auto"):
+    def __init__(self, default=NoDefault, unit="", *, scale=None,
+                 step=None, min=None, max=None, precision=2, type="auto", ndecimals=None):
+        if ndecimals is not None:
+            print("DeprecationWarning: 'ndecimals' is deprecated. Please use 'precision' instead.")
+            precision = ndecimals
         if scale is None:
             if unit == "":
                 scale = 1.0
@@ -147,7 +150,7 @@ class NumberValue(_SimpleArgProcessor):
         self.step = step
         self.min = min
         self.max = max
-        self.ndecimals = ndecimals
+        self.precision = precision
         self.type = type
 
         if self.type not in NumberValue.valid_types:
@@ -155,7 +158,7 @@ class NumberValue(_SimpleArgProcessor):
 
         if self.type == "int" and not self._is_int_compatible():
             raise ValueError(("Value marked as integer but settings are "
-                              "not compatible. Please set ndecimals = 0, "
+                              "not compatible. Please set precision = 0, "
                               "scale = 1 and step to an integer"))
 
         super().__init__(default)
@@ -165,7 +168,7 @@ class NumberValue(_SimpleArgProcessor):
         Are the settings other than `type` compatible with this being
         an integer?
         '''
-        return (self.ndecimals == 0
+        return (self.precision == 0
                 and int(self.step) == self.step
                 and self.scale == 1)
 
@@ -191,7 +194,7 @@ class NumberValue(_SimpleArgProcessor):
         d["step"] = self.step
         d["min"] = self.min
         d["max"] = self.max
-        d["ndecimals"] = self.ndecimals
+        d["precision"] = self.precision
         d["type"] = self.type
         return d
 
