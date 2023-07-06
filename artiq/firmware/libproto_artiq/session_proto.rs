@@ -84,6 +84,8 @@ pub enum Request {
         column:   u32,
         function: u32,
     },
+
+    UploadSubkernel { id: u32, destination: u8, kernel: Vec<u8> },
 }
 
 #[derive(Debug)]
@@ -136,6 +138,11 @@ impl Request {
                 line:     reader.read_u32()?,
                 column:   reader.read_u32()?,
                 function: reader.read_u32()?
+            },
+            9 => Request::UploadSubkernel {
+                id: reader.read_u32()?,
+                destination: reader.read_u8()?,
+                kernel: reader.read_bytes()?
             },
 
             ty  => return Err(Error::UnknownPacket(ty))

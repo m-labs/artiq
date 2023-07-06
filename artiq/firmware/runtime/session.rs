@@ -82,7 +82,8 @@ enum KernelState {
     Absent,
     Loaded,
     Running,
-    RpcWait
+    RpcWait,
+    MsgWait
 }
 
 // Per-connection state
@@ -105,7 +106,7 @@ impl<'a> Session<'a> {
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running | KernelState::RpcWait => true
+            KernelState::Running | KernelState::RpcWait | KernelState::MsgWait => true
         }
     }
 
@@ -233,7 +234,7 @@ fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     kern_acknowledge()
 }
 
-fn process_host_message(io: &Io,
+fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
                         stream: &mut TcpStream,
                         session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
@@ -322,6 +323,23 @@ fn process_host_message(io: &Io,
             }
 
             session.kernel_state = KernelState::Running
+        }
+
+        host::Request::UploadSubkernel { id: _id, destination: _dest, kernel: _kernel } => {
+            #[cfg(has_drtio)]
+            {
+                kernel::subkernel::add_subkernel(_id, _dest, _kernel);
+                match kernel::subkernel::upload(io, aux_mutex, routing_table, ddma_mutex, _id) {
+                    Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
+                    Err(error) => {
+                        let mut description = String::new();
+                        write!(&mut description, "{}", error).unwrap();
+                        host_write(stream, host::Reply::LoadFailed(&description))?
+                    }
+                }
+            }
+            #[cfg(not(has_drtio))]
+            host_write(stream, host::Reply::LoadFailed("No DRTIO on this system, subkernels are not supported"))?
         }
     }
 
@@ -536,7 +554,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
 
     loop {
         if stream.can_recv() {
-            process_host_message(io, stream, &mut session)?
+            process_host_message(io, aux_mutex, ddma_mutex, routing_table, stream, &mut session)?
         } else if !stream.may_recv() {
             return Ok(())
         }
@@ -628,9 +646,10 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
 
     let mut kernel_thread = None;
     {
+        let routing_table = routing_table.borrow();
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
-        match flash_kernel_worker(&io, &aux_mutex, &routing_table.borrow(), &up_destinations, ddma_mutex, &mut congress, "startup_kernel") {
+        match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, ddma_mutex, &mut congress, "startup_kernel") {
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>

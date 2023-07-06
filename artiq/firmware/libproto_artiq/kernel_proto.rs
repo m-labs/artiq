@@ -94,6 +94,14 @@ pub enum Message<'a> {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
+    SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
+    SubkernelLoadRunReply { succeeded: bool },
+    SubkernelAwaitFinishRequest(Option<u32>),
+    SubkernelAwaitFinishReply,
+    SubkernelMsgSend { destination: u8, data: *const *const () },
+    SubkernelMsgRecvRequest { destination: u8, slot: *mut ()},
+    SubkernelMsgRecvReply(usize),
+
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)
 }

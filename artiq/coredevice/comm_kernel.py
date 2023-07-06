@@ -23,6 +23,8 @@ class Request(Enum):
     RPCReply = 7
     RPCException = 8
 
+    SubkernelUpload = 9
+
 
 class Reply(Enum):
     SystemInfo = 2
