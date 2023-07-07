@@ -70,7 +70,23 @@ pub mod drtio {
                 remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
                 None
             },
-            other => Some(other)
+            drtioaux::Packet::SubkernelFinished { id, with_exception } => {
+                subkernel::subkernel_finished(id, with_exception);
+                None
+            }
+            _ => Some(packet)
+        }
+    }
+
+    pub fn aux_transact(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+            linkno: u8, request: &drtioaux::Packet ) -> Result<drtioaux::Packet, &'static str> {
+        let _lock = aux_mutex.lock(io).unwrap();
+        drtioaux::send(linkno, request).unwrap();
+        loop {
+            let reply = recv_aux_timeout(io, linkno, 200);
+            if let Some(packet) = process_async_packets(io, ddma_mutex, reply?) {
+                return Ok(packet);
+            }
         }
     }
 
@@ -170,13 +186,11 @@ pub mod drtio {
     fn process_unsolicited_aux(io: &Io, aux_mutex: &Mutex, linkno: u8, ddma_mutex: &Mutex) {
         let _lock = aux_mutex.lock(io).unwrap();
         match drtioaux::recv(linkno) {
-            Ok(Some(drtioaux::Packet::DmaPlaybackStatus { id, destination, error, channel, timestamp })) => {
-                remote_dma::playback_done(io, ddma_mutex, id, destination, error, channel, timestamp);
+            Ok(Some(packet)) => {
+                if let Some(packet) = process_async_packets(io, ddma_mutex, packet) {
+                    warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet);
+                }
             }
-            Ok(Some(drtioaux::Packet::SubkernelFinished { id, with_exception })) => {
-                subkernel::subkernel_finished(id, with_exception);
-            }
-            Ok(Some(packet)) => warn!("[LINK#{}] unsolicited aux packet: {:?}", linkno, packet),
             Ok(None) => (),
             Err(_) => warn!("[LINK#{}] aux packet error", linkno)
         }
