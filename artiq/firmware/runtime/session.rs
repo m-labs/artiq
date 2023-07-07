@@ -1,9 +1,11 @@
 use core::{mem, str, cell::{Cell, RefCell}, fmt::Write as FmtWrite};
-use alloc::{vec::Vec, string::String};
+use alloc::{vec::Vec, string::{String, ToString}};
 use byteorder::{ByteOrder, NativeEndian};
 use cslice::CSlice;
 
 use io::{Read, Write, Error as IoError};
+#[cfg(has_drtio)]
+use io::Cursor;
 use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
@@ -12,6 +14,8 @@ use rtio_clocking;
 use rtio_dma::Manager as DmaManager;
 #[cfg(has_drtio)]
 use rtio_dma::remote_dma;
+#[cfg(has_drtio)]
+use kernel::subkernel;
 use rtio_mgt::get_async_errors;
 use cache::Cache;
 use kern_hwreq;
@@ -33,6 +37,8 @@ pub enum Error<T> {
     ClockFailure,
     #[fail(display = "protocol error: {}", _0)]
     Protocol(#[cause] host::Error<T>),
+    #[fail(display = "subkernel io error")]
+    SubkernelIoError,
     #[fail(display = "{}", _0)]
     Unexpected(String),
 }
@@ -52,6 +58,18 @@ impl From<SchedError> for Error<SchedError> {
 impl From<IoError<SchedError>> for Error<SchedError> {
     fn from(value: IoError<SchedError>) -> Error<SchedError> {
         Error::Protocol(host::Error::Io(value))
+    }
+}
+
+impl From<&str> for Error<SchedError> {
+    fn from(value: &str) -> Error<SchedError> {
+        Error::Unexpected(value.to_string())
+    }
+}
+
+impl From<io::Error<!>> for Error<SchedError> {
+    fn from(_value: io::Error<!>) -> Error<SchedError> {
+        Error::SubkernelIoError
     }
 }
 
@@ -82,8 +100,7 @@ enum KernelState {
     Absent,
     Loaded,
     Running,
-    RpcWait,
-    MsgWait
+    RpcWait
 }
 
 // Per-connection state
@@ -106,7 +123,7 @@ impl<'a> Session<'a> {
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running | KernelState::RpcWait | KernelState::MsgWait => true
+            KernelState::Running | KernelState::RpcWait => true
         }
     }
 
@@ -234,8 +251,8 @@ fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     kern_acknowledge()
 }
 
-fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
-                        stream: &mut TcpStream,
+fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
+                        routing_table: &drtio_routing::RoutingTable, stream: &mut TcpStream,
                         session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
         host::Request::SystemInfo => {
@@ -246,7 +263,10 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_
             session.congress.finished_cleanly.set(true)
         }
 
-        host::Request::LoadKernel(kernel) =>
+        host::Request::LoadKernel(kernel) => {
+            #[cfg(has_drtio)]
+            subkernel::message_clear_queue(io, subkernel_mutex);
+
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted)?,
                 Err(error) => {
@@ -255,7 +275,8 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_
                     host_write(stream, host::Reply::LoadFailed(&description))?;
                     kern_acknowledge()?;
                 }
-            },
+            }
+        },
         host::Request::RunKernel =>
             match kern_run(session) {
                 Ok(()) => (),
@@ -328,8 +349,8 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_
         host::Request::UploadSubkernel { id: _id, destination: _dest, kernel: _kernel } => {
             #[cfg(has_drtio)]
             {
-                kernel::subkernel::add_subkernel(_id, _dest, _kernel);
-                match kernel::subkernel::upload(io, aux_mutex, routing_table, ddma_mutex, _id) {
+                subkernel::add_subkernel(io, subkernel_mutex, _id, _dest, _kernel);
+                match subkernel::upload(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
                         let mut description = String::new();
@@ -349,7 +370,7 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, routing_
 fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                        ddma_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
+                        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -528,6 +549,64 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     }
                 }
             }
+            #[cfg(has_drtio)]
+            &kern::SubkernelLoadRunRequest { id, run } => {
+                let succeeded = match subkernel::load(
+                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run) {
+                        Ok(()) => true,
+                        Err(e) => { error!("Error loading subkernel: {}", e); false }
+                    };
+                kern_send(io, &kern::SubkernelLoadRunReply { succeeded: succeeded })
+            }
+            #[cfg(has_drtio)]
+            &kern::SubkernelAwaitFinishRequest{ optional_id, timeout } => {
+                let res = subkernel::await_finish(io, subkernel_mutex, optional_id, timeout);
+                kern_send(io, &kern::SubkernelAwaitFinishReply { timeout: res.is_err() })
+            }
+            #[cfg(has_drtio)]
+            &kern::SubkernelMsgSend { id, tag, data } => {
+                subkernel::message_send(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
+                    id, tag, data)?;
+                kern_acknowledge()
+            }
+            #[cfg(has_drtio)]
+            &kern::SubkernelMsgRecvRequest { id, timeout } => {
+                let message_received = subkernel::message_await(io, subkernel_mutex, id, timeout);
+                kern_send(io, &kern::SubkernelMsgRecvReply { timeout: message_received.is_err() })?;
+                if let Ok((tag, data)) = message_received {
+                    // receive code almost identical to RPC recv, except we are not reading from a stream
+                    let mut reader = Cursor::new(data);
+                    let slot = kern_recv(io, |reply| {
+                        match reply {
+                            &kern::RpcRecvRequest(slot) => Ok(slot),
+                            other => unexpected!(
+                                "expected root value slot from kernel CPU, not {:?}", other)
+                        }
+                    })?;
+                    let tag: [u8; 1] = [tag];
+                    let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                        if size == 0 {
+                            return Ok(0 as *mut ())
+                        }
+                        kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
+                        Ok(kern_recv(io, |reply| {
+                            match reply {
+                                &kern::RpcRecvRequest(slot) => Ok(slot),
+                                other => unexpected!(
+                                    "expected nested value slot from kernel CPU, not {:?}", other)
+                            }
+                        })?)
+                    });
+                    match res {
+                        Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0))),
+                        Err(_) => unexpected!("expected valid subkernel message data")
+                    }
+                } else {
+                    // if timed out, no data has been received, exception should be raised by kernel
+                    Ok(())
+                }
+            },
+
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(false))
     })
@@ -548,13 +627,15 @@ fn process_kern_queued_rpc(stream: &mut TcpStream,
 fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       routing_table: &drtio_routing::RoutingTable,
                       up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                      ddma_mutex: &Mutex, stream: &mut TcpStream,
+                      ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
+                      stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
     loop {
         if stream.can_recv() {
-            process_host_message(io, aux_mutex, ddma_mutex, routing_table, stream, &mut session)?
+            process_host_message(io, aux_mutex, ddma_mutex, subkernel_mutex,
+                routing_table, stream, &mut session)?
         } else if !stream.may_recv() {
             return Ok(())
         }
@@ -563,10 +644,22 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
             process_kern_queued_rpc(stream, &mut session)?
         }
 
+        #[cfg(has_drtio)]
+        while let Some(subkernel_finished) = subkernel::get_finished_with_exception(
+            io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table)? {
+            if subkernel_finished.comm_lost {
+                error!("Communication with satellite lost while kernel {} was running", subkernel_finished.id);
+            }
+            if let Some(exception) = subkernel_finished.exception {
+                stream.write_all(&exception)?;
+            }
+            
+        }
+
         if mailbox::receive() != 0 {
             process_kern_message(io, aux_mutex,
                 routing_table, up_destinations,
-                ddma_mutex,
+                ddma_mutex, subkernel_mutex,
                 Some(stream), &mut session)?;
         }
 
@@ -584,7 +677,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
 fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
                        routing_table: &drtio_routing::RoutingTable,
                        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                       ddma_mutex: &Mutex, congress: &mut Congress,
+                       ddma_mutex: &Mutex, subkernel_mutex: &Mutex, congress: &mut Congress,
                        config_key: &str) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
 
@@ -606,7 +699,7 @@ fn flash_kernel_worker(io: &Io, aux_mutex: &Mutex,
         }
 
         if mailbox::receive() != 0 {
-            if process_kern_message(io, aux_mutex, routing_table, up_destinations, ddma_mutex, None, &mut session)? {
+            if process_kern_message(io, aux_mutex, routing_table, up_destinations, ddma_mutex, subkernel_mutex, None, &mut session)? {
                 return Ok(())
             }
         }
@@ -637,7 +730,7 @@ fn respawn<F>(io: &Io, handle: &mut Option<ThreadHandle>, f: F)
 pub fn thread(io: Io, aux_mutex: &Mutex,
         routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-        ddma_mutex: &Mutex) {
+        ddma_mutex: &Mutex, subkernel_mutex: &Mutex) {
     let listener = TcpListener::new(&io, 65535);
     listener.listen(1381).expect("session: cannot listen");
     info!("accepting network sessions");
@@ -649,7 +742,8 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
         let routing_table = routing_table.borrow();
         let mut congress = congress.borrow_mut();
         info!("running startup kernel");
-        match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, ddma_mutex, &mut congress, "startup_kernel") {
+        match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+                ddma_mutex, subkernel_mutex, &mut congress, "startup_kernel") {
             Ok(()) =>
                 info!("startup kernel finished"),
             Err(Error::KernelNotFound) =>
@@ -690,12 +784,14 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
             let ddma_mutex = ddma_mutex.clone();
+            let subkernel_mutex = subkernel_mutex.clone();
             let stream = stream.into_handle();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
                 let mut stream = TcpStream::from_handle(&io, stream);
-                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &mut stream, &mut *congress) {
+                match host_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+                        &ddma_mutex, &subkernel_mutex, &mut stream, &mut *congress) {
                     Ok(()) => (),
                     Err(Error::Protocol(host::Error::Io(IoError::UnexpectedEnd))) =>
                         info!("connection closed"),
@@ -719,10 +815,12 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
             let up_destinations = up_destinations.clone();
             let congress = congress.clone();
             let ddma_mutex = ddma_mutex.clone();
+            let subkernel_mutex = subkernel_mutex.clone();
             respawn(&io, &mut kernel_thread, move |io| {
                 let routing_table = routing_table.borrow();
                 let mut congress = congress.borrow_mut();
-                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, &ddma_mutex, &mut *congress, "idle_kernel") {
+                match flash_kernel_worker(&io, &aux_mutex, &routing_table, &up_destinations, 
+                    &ddma_mutex, &subkernel_mutex, &mut *congress, "idle_kernel") {
                     Ok(()) =>
                         info!("idle kernel finished, standing by"),
                     Err(Error::Protocol(host::Error::Io(

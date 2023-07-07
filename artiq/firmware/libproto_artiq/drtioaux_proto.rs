@@ -84,7 +84,7 @@ pub enum Packet {
     SubkernelExceptionRequest { destination: u8 },
     SubkernelException { last: bool, length: u16, data: [u8; SAT_PAYLOAD_MAX_SIZE] },
     SubkernelMessage { destination: u8, id: u32, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
-    SubkernelMessageReply { destination: u8, succeeded: bool },
+    SubkernelMessageAck { destination: u8 },
 }
 
 impl Packet {
@@ -346,10 +346,9 @@ impl Packet {
                     data: data,
                 }
             },
-            0xcc => Packet::SubkernelMessageReply {
-                destination: reader.read_u8()?,
-                succeeded: reader.read_bool()?
-            }
+            0xcc => Packet::SubkernelMessageAck {
+                destination: reader.read_u8()?
+            },
 
             ty => return Err(Error::UnknownPacket(ty))
         })
@@ -627,10 +626,9 @@ impl Packet {
                 writer.write_u16(length)?;
                 writer.write_all(&data[0..length as usize])?;
             },
-            Packet::SubkernelMessageReply { destination, succeeded } => {
+            Packet::SubkernelMessageAck { destination } => {
                 writer.write_u8(0xcc)?;
                 writer.write_u8(destination)?;
-                writer.write_bool(succeeded)?;
             },
         }
         Ok(())

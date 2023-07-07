@@ -94,13 +94,13 @@ pub enum Message<'a> {
     SpiReadReply { succeeded: bool, data: u32 },
     SpiBasicReply { succeeded: bool },
 
-    SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
+    SubkernelLoadRunRequest { id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
-    SubkernelAwaitFinishRequest(Option<u32>),
-    SubkernelAwaitFinishReply,
-    SubkernelMsgSend { destination: u8, data: *const *const () },
-    SubkernelMsgRecvRequest { destination: u8, slot: *mut ()},
-    SubkernelMsgRecvReply(usize),
+    SubkernelAwaitFinishRequest { optional_id: Option<u32>, timeout: u64 },
+    SubkernelAwaitFinishReply { timeout: bool },
+    SubkernelMsgSend { id: u32, tag: &'a [u8], data: *const *const () },
+    SubkernelMsgRecvRequest { id: u32, timeout: u64 },
+    SubkernelMsgRecvReply { timeout: bool },
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

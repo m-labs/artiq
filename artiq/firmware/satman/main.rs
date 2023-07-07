@@ -20,7 +20,7 @@ use board_artiq::{spi, drtioaux};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
 use board_artiq::drtio_routing;
-use proto_artiq::drtioaux_proto::SAT_PAYLOAD_MAX_SIZE;
+use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
@@ -395,12 +395,32 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         drtioaux::Packet::SubkernelExceptionRequest { destination: _destination } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let mut data_slice: [u8; SAT_PAYLOAD_MAX_SIZE] = [0; SAT_PAYLOAD_MAX_SIZE];
-            let meta = kernelmgr.get_exception_slice(&mut data_slice);
+            let meta = kernelmgr.exception_get_slice(&mut data_slice);
             drtioaux::send(0, &drtioaux::Packet::SubkernelException {
                 last: meta.last,
                 length: meta.len,
                 data: data_slice,
             })
+        }
+        drtioaux::Packet::SubkernelMessage { destination, id: _id, last, length, data } => {
+            forward!(_routing_table, destination, *_rank, _repeaters, &packet);
+            kernelmgr.message_handle_incoming(last, length as usize, &data);
+            drtioaux::send(0, &drtioaux::Packet::SubkernelMessageAck {
+                destination: destination
+            })
+        }
+        drtioaux::Packet::SubkernelMessageAck { destination: _destination } => {
+            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
+            let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+            if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
+                drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
+                    destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
+                    last: meta.last, length: meta.len as u16, data: data_slice
+                })
+            } else {
+                warn!("received unsolicited SubkernelMessageAck");
+                Ok(())
+            }
         }
 
         _ => {
@@ -695,6 +715,7 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
+            // async messages
             if let Some(status) = dma_manager.get_status() {
                 info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
@@ -702,12 +723,25 @@ pub extern fn main() -> i32 {
                     error!("error sending DMA playback status: {}", e);
                 }
             }
-            if let Some(subkernel_finished) = kernelmgr.process_kern_requests(rank) {
-                info!("subkernel finished, with exception: {}", with_exception);
+            if let Some(subkernel_finished) = kernel_manager.process_kern_requests(rank) {
+                info!("subkernel finished, with exception: {}", subkernel_finished.with_exception);
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
                     id: subkernel_finished.id, with_exception: subkernel_finished.with_exception
                 }) {
                     error!("error sending subkernel finish status: {}", e);
+                }
+            }
+            if kernel_manager.message_is_ready() {
+                let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                if let Some(meta) = kernel_manager.message_get_slice(&mut data_slice) {
+                    if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
+                        destination: rank, id: kernel_manager.get_current_id().unwrap(),
+                        last: meta.last, length: meta.len as u16, data: data_slice
+                    }) {
+                        error!("error sending subkernel message: {}", e);
+                    }
+                } else {
+                    error!("subkernel message is ready but no message received");
                 }
             }
         }

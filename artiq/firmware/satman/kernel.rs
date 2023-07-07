@@ -1,13 +1,14 @@
 use core::{mem, option::NoneError, cmp::min};
-use alloc::{string::String, format, vec::Vec, collections::btree_map::BTreeMap};
+use alloc::{string::String, format, vec::Vec, collections::{btree_map::BTreeMap, vec_deque::VecDeque}};
 
 use board_artiq::{mailbox, spi};
 use board_misoc::{csr, clock, i2c};
-use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException};
+use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException, rpc_proto as rpc};
 use io::Cursor;
 
 use cache::Cache;
 use SAT_PAYLOAD_MAX_SIZE;
+use MASTER_PAYLOAD_MAX_SIZE;
 
 mod kernel_cpu {
     use super::*;
@@ -46,25 +47,208 @@ mod kernel_cpu {
     pub fn validate(ptr: usize) -> bool {
         ptr >= KERNELCPU_EXEC_ADDRESS && ptr <= KERNELCPU_LAST_ADDRESS
     }
-
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum KernelState {
     Absent,
     Loaded,
-    Running
+    Running,
+    MsgAwait { max_time: u64 },
+    MsgSending
 }
 
-// Per-connection state
 #[derive(Debug)]
-pub struct Session {
-    // no congress - no DMA
+pub enum Error {
+    Load(String),
+    KernelNotFound,
+    InvalidPointer(usize),
+    Unexpected(String),
+    NoMessage,
+    SubkernelIoError
+}
+
+impl From<NoneError> for Error {
+    fn from(_: NoneError) -> Error {
+        Error::KernelNotFound
+    }
+}
+
+impl From<io::Error<!>> for Error {
+    fn from(_value: io::Error<!>) -> Error {
+        Error::SubkernelIoError
+    }
+}
+
+macro_rules! unexpected {
+    ($($arg:tt)*) => (return Err(Error::Unexpected(format!($($arg)*))));
+}
+
+/* represents data that has to be sent to Master */
+struct Sliceable {
+    it: usize,
+    data: Vec<u8>
+}
+
+/* represents interkernel messages */
+struct Message {
+    tag: u8,
+    data: Vec<u8>
+}
+
+#[derive(PartialEq)]
+enum OutMessageState {
+    NoMessage,
+    MessageReady,
+    MessageBeingSent,
+    MessageSent
+}
+
+/* for dealing with incoming and outgoing interkernel messages */
+struct MessageManager {
+    out_message: Option<Sliceable>,
+    out_state: OutMessageState,
+    in_queue: VecDeque<Message>,
+    in_buffer: Option<Message>
+}
+
+// Per-run state
+struct Session {
     cache: Cache,
     kernel_state: KernelState,
     log_buffer: String,
-    last_exception: Vec<u8>,
-    last_exception_it: usize
+    last_exception: Option<Sliceable>,
+    messages: MessageManager
+}
+
+#[derive(Debug)]
+struct KernelData {
+    data: Vec<u8>,
+    complete: bool
+}
+
+pub struct Manager {
+    kernels: BTreeMap<u32, KernelData>,
+    current_id: u32,
+    session: Session,
+}
+
+pub struct SubkernelFinished {
+    pub id: u32,
+    pub with_exception: bool
+}
+
+pub struct SliceMeta {
+    pub len: u16,
+    pub last: bool
+}
+
+macro_rules! get_slice_fn {
+    ( $name:tt, $size:expr ) => {
+        pub fn $name(&mut self, data_slice: &mut [u8; $size]) -> SliceMeta {
+            if self.data.len() == 0 {
+                return SliceMeta { len: 0, last: true };
+            }
+            let len = min($size, self.data.len() - $size);
+            let last = self.it + len == self.data.len();
+    
+            data_slice[..len].clone_from_slice(&self.data[self.it..self.it+len]);
+            self.it += len;
+    
+            SliceMeta {
+                len: len as u16,
+                last: last
+            }
+        }
+    };
+}
+
+impl Sliceable {
+    pub fn new(data: Vec<u8>) -> Sliceable {
+        Sliceable {
+            it: 0,
+            data: data
+        }
+    }
+
+    get_slice_fn!(get_slice_sat, SAT_PAYLOAD_MAX_SIZE);
+    get_slice_fn!(get_slice_master, MASTER_PAYLOAD_MAX_SIZE);
+}
+
+impl MessageManager {
+    pub fn new() -> MessageManager {
+        MessageManager {
+            out_message: None,
+            out_state: OutMessageState::NoMessage,
+            in_queue: VecDeque::new(),
+            in_buffer: None
+        }
+    }
+
+    pub fn handle_incoming(&mut self, last: bool, length: usize, data: &[u8; MASTER_PAYLOAD_MAX_SIZE]) {
+        // called when receiving a message from master
+        match self.in_buffer.as_mut() {
+            Some(message) => message.data.extend(&data[..length]),
+            None => {
+                self.in_buffer = Some(Message {
+                    tag: data[0],
+                    data: data[1..length].to_vec()
+                });
+            }
+        };
+        if last {
+            // when done, remove from working queue
+            self.in_queue.push_back(self.in_buffer.take().unwrap());
+        }
+    }
+
+    pub fn is_outgoing_ready(&mut self) -> bool {
+        // called by main loop, to see if there's anything to send, will send it afterwards
+        match self.out_state {
+            OutMessageState::MessageReady => {
+                self.out_state = OutMessageState::MessageBeingSent;
+                true
+            },
+            _ => false
+        }
+    }
+
+    pub fn was_message_sent(&mut self) -> bool {
+        match self.out_state {
+            OutMessageState::MessageSent => {
+                self.out_state = OutMessageState::NoMessage;
+                true
+            },
+            _ => false
+        }
+    }
+
+    pub fn get_outgoing_slice(&mut self, data_slice: &mut [u8; MASTER_PAYLOAD_MAX_SIZE]) -> Option<SliceMeta> {
+        if self.out_state != OutMessageState::MessageBeingSent {
+            return None;
+        }
+        let meta = self.out_message.as_mut()?.get_slice_master(data_slice);
+        if meta.last {
+            // clear the message slot
+            self.out_message = None;
+            // notify kernel with a flag that message is sent
+            self.out_state = OutMessageState::MessageSent;
+        }
+        Some(meta)
+    }
+
+    pub fn accept_outgoing(&mut self, tag: &[u8], data: *const *const ()) -> Result<(), Error>  {
+        let mut writer = Cursor::new(Vec::new());
+        rpc::send_args(&mut writer, 0, tag, data)?;
+        // skip service tag
+        self.out_message = Some(Sliceable::new(writer.into_inner().split_off(4)));
+        self.out_state = OutMessageState::MessageReady;
+        Ok(())
+    }
+
+    pub fn get_incoming(&mut self) -> Option<Message> {
+        self.in_queue.pop_front()
+    }
 }
 
 impl Session {
@@ -73,15 +257,15 @@ impl Session {
             cache: Cache::new(),
             kernel_state: KernelState::Absent,
             log_buffer: String::new(),
-            last_exception: Vec::new(),
-            last_exception_it: 0
+            last_exception: None,
+            messages: MessageManager::new()
         }
     }
 
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running => true
+            KernelState::Running | KernelState::MsgAwait { .. }| KernelState::MsgSending => true
         }
     }
 
@@ -95,55 +279,8 @@ impl Session {
     }
 }
 
-#[derive(Debug)]
-pub enum Error {
-    Load(String),
-    KernelNotFound,
-    InvalidPointer(usize),
-    Unexpected(String),
-    NoMessage,
-}
-impl From<NoneError> for Error {
-    fn from(_: NoneError) -> Error {
-        Error::KernelNotFound
-    }
-}
-
-macro_rules! unexpected {
-     ($($arg:tt)*) => (return Err(Error::Unexpected(format!($($arg)*))));
-}
-
-
-#[derive(Debug)]
-struct KernelData {
-    data: Vec<u8>,
-    complete: bool
-}
-
-#[derive(Debug)]
-pub struct Manager {
-    kernels: BTreeMap<u32, KernelData>,
-    current_id: u32,
-    session: Session,
-}
-
-pub struct ExceptionSliceMeta {
-    pub len: u16,
-    pub last: bool
-}
-
-pub struct SubkernelFinished {
-    pub id: u32,
-    pub with_exception: bool
-}
-
 impl Manager {
     pub fn new() -> Manager {
-        // in case Manager is created during a DMA in progress
-        // wait for it to end
-        unsafe {
-            while csr::rtio_dma::enable_read() != 0 {} 
-        }
         Manager {
             kernels: BTreeMap::new(),
             current_id: 0,
@@ -189,15 +326,45 @@ impl Manager {
         self.session.running()
     }
 
+    pub fn get_current_id(&self) -> Option<u32> {
+        match self.is_running() {
+            true => Some(self.current_id),
+            false => None
+        }
+    }
+
+    pub fn stop(&mut self) {
+        unsafe { kernel_cpu::stop() }
+        self.session.kernel_state = KernelState::Absent;
+        unsafe { self.session.cache.unborrow() }
+    }
+
     pub fn run(&mut self, id: u32) -> Result<(), Error> {
         if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
         }
-    
         self.session.kernel_state = KernelState::Running;
     
         kern_acknowledge()
+    }
+
+    pub fn message_handle_incoming(&mut self, last: bool, length: usize, slice: &[u8; MASTER_PAYLOAD_MAX_SIZE]) {
+        if !self.is_running() {
+            return;
+        }
+        self.session.messages.handle_incoming(last, length, slice);
+    }
+    
+    pub fn message_get_slice(&mut self, slice: &mut [u8; MASTER_PAYLOAD_MAX_SIZE]) -> Option<SliceMeta> {
+        if !self.is_running() {
+            return None;
+        }
+        self.session.messages.get_outgoing_slice(slice)
+    }
+
+    pub fn message_is_ready(&mut self) -> bool {
+        self.session.messages.is_outgoing_ready()
     }
 
     pub fn load(&mut self, id: u32) -> Result<(), Error> {
@@ -233,36 +400,29 @@ impl Manager {
         }
     }
 
-    pub fn get_exception_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> ExceptionSliceMeta {
-        if self.session.last_exception.len() == 0 {
-            return ExceptionSliceMeta { len: 0, last: true };
-        }
-        let i = self.session.last_exception_it;
-        let data = &self.session.last_exception;
-        let len = min(SAT_PAYLOAD_MAX_SIZE, data.len() - SAT_PAYLOAD_MAX_SIZE);
-        let last = i + len == data.len();
-
-        data_slice[..len].clone_from_slice(&data[i..i+len]);
-        self.session.last_exception_it += len;
-
-        ExceptionSliceMeta {
-            len: len as u16,
-            last: last
+    pub fn exception_get_slice(&mut self, data_slice: &mut [u8; SAT_PAYLOAD_MAX_SIZE]) -> SliceMeta {
+        match self.session.last_exception.as_mut() {
+            Some(exception) => exception.get_slice_sat(data_slice),
+            None => SliceMeta { len: 0, last: true }
         }
     }
 
-    pub fn process_kern_requests(&mut self, rank: u8) -> Option<bool> {
+    pub fn process_kern_requests(&mut self, rank: u8) -> Option<SubkernelFinished> {
         if !self.is_running() {
             return None;
         }
-        // may need to return some value or data through DRTIO to master
+
+        match process_external_messages(&mut self.session) {
+            Ok(()) => (),
+            Err(e) => { error!("Error while running processing external messages: {:?}", e); return None }
+        }
+
         match process_kern_message(&mut self.session, rank) {
-            Ok(with_exception) => SubkernelFinished { id: self.current_id, with_exception: with_exception },
+            Ok(Some(with_exception)) => Some(SubkernelFinished { id: self.current_id, with_exception: with_exception }),
+            Ok(None) => None,
             Err(e) => { error!("Error while running kernel: {:?}", e); None }
         }
     }
-
-
 }
 
 impl Drop for Manager {
@@ -316,6 +476,53 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     unsafe { mailbox::send(request as *const _ as usize) }
     while !mailbox::acknowledged() {}
     Ok(())
+}
+
+fn process_external_messages(session: &mut Session) -> Result<(), Error> {
+    match session.kernel_state {
+        KernelState::MsgAwait { max_time } => {
+            if max_time > clock::get_ms() {
+                kern_send(&kern::SubkernelMsgRecvReply { timeout: true })
+            } else if let Some(message) = session.messages.get_incoming() {
+                let mut reader = Cursor::new(message.data);
+                let slot = kern_recv(|reply| {
+                    match reply {
+                        &kern::RpcRecvRequest(slot) => Ok(slot),
+                        other => unexpected!(
+                            "expected root value slot from kernel CPU, not {:?}", other)
+                    }
+                })?;
+                let tag: [u8; 1] = [message.tag];
+                let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
+                    if size == 0 {
+                        return Ok(0 as *mut ())
+                    }
+                    kern_send(&kern::RpcRecvReply(Ok(size)))?;
+                    Ok(kern_recv(|reply| {
+                        match reply {
+                            &kern::RpcRecvRequest(slot) => Ok(slot),
+                            other => unexpected!(
+                                "expected nested value slot from kernel CPU, not {:?}", other)
+                        }
+                    })?)
+                });
+                match res {
+                    Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0))),
+                    Err(_) => unexpected!("expected valid subkernel message data")
+                }
+            } else {
+                Ok(())
+            }
+        },
+        KernelState::MsgSending => {
+            if session.messages.was_message_sent() {
+                kern_acknowledge()
+            } else {
+                Ok(())
+            }
+        },
+        _ => Ok(())
+    }
 }
 
 fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>, Error> {
@@ -429,11 +636,24 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                     async_errors: 0
                 }).write_to(&mut writer) {
                     // save last exception data to be received by master
-                    Ok(_) => session.last_exception = writer.into_inner(),
+                    Ok(_) => session.last_exception = Some(Sliceable::new(writer.into_inner())),
                     Err(_) => error!("Error writing exception data")
                 }
                 return Ok(Some(true))
             }
+
+            &kern::SubkernelMsgSend { id: _, tag, data } => {
+                session.messages.accept_outgoing(tag, data)?;
+                // acknowledge after the message is sent
+                session.kernel_state = KernelState::MsgSending;
+                Ok(())
+            }
+
+            &kern::SubkernelMsgRecvRequest { id: _, timeout } => {
+                let max_time = clock::get_ms() + timeout as u64;
+                session.kernel_state = KernelState::MsgAwait { max_time: max_time };
+                Ok(())
+            },
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(None))
