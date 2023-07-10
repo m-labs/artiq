@@ -118,19 +118,19 @@ class GTXInit(Module):
         )
         startup_fsm.act("RELEASE_PLL_RESET",
             gtXxreset.eq(1),
-            If(cplllock, NextState("RELEASE_GTH_RESET"))
+            If(cplllock, NextState("RELEASE_GTX_RESET"))
         )
         # Release GTX reset and wait for GTX resetdone
         # (from UG476, GTX is reset on falling edge
         # of gttxreset)
         if rx:
-            startup_fsm.act("RELEASE_GTH_RESET",
+            startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
                 cdr_stable_timer.wait.eq(1),
                 If(Xxresetdone & cdr_stable_timer.done, NextState("DELAY_ALIGN"))
             )
         else:
-            startup_fsm.act("RELEASE_GTH_RESET",
+            startup_fsm.act("RELEASE_GTX_RESET",
                 Xxuserrdy.eq(1),
                 If(Xxresetdone, NextState("DELAY_ALIGN"))
             )
