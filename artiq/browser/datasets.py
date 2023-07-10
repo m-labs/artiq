@@ -20,7 +20,7 @@ class Model(DictSyncTreeSepModel):
         DictSyncTreeSepModel.__init__(self, ".", ["Dataset", "Value"], init)
 
     def convert(self, k, v, column):
-        return short_format(v[1])
+        return short_format(v[1], v[2])
 
 
 class DatasetCtl:
