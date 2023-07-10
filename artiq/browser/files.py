@@ -194,7 +194,9 @@ class FilesDock(QtWidgets.QDockWidget):
             if "archive" in f:
                 def visitor(k, v):
                     if isinstance(v, h5py.Dataset):
-                        rd[k] = (True, v[()])
+                        # v.attrs is a non-serializable h5py.AttributeManager, need to convert to dict
+                        # See https://docs.h5py.org/en/stable/high/attr.html#h5py.AttributeManager
+                        rd[k] = (True, v[()], dict(v.attrs))
 
                 f["archive"].visititems(visitor)
 
@@ -204,7 +206,9 @@ class FilesDock(QtWidgets.QDockWidget):
                         if k in rd:
                             logger.warning("dataset '%s' is both in archive "
                                            "and outputs", k)
-                        rd[k] = (True, v[()])
+                        # v.attrs is a non-serializable h5py.AttributeManager, need to convert to dict
+                        # See https://docs.h5py.org/en/stable/high/attr.html#h5py.AttributeManager
+                        rd[k] = (True, v[()], dict(v.attrs))
 
                 f["datasets"].visititems(visitor)
 
