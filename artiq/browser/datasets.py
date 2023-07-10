@@ -28,7 +28,7 @@ class DatasetCtl:
         self.master_host = master_host
         self.master_port = master_port
 
-    async def _execute_rpc(self, op_name, key_or_mod, value=None, persist=None):
+    async def _execute_rpc(self, op_name, key_or_mod, value=None, persist=None, metadata=None):
         logger.info("Starting %s operation on %s", op_name, key_or_mod)
         try:
             remote = RPCClient()
@@ -36,7 +36,7 @@ class DatasetCtl:
                                      "master_dataset_db")
             try:
                 if op_name == "set":
-                    await remote.set(key_or_mod, value, persist)
+                    await remote.set(key_or_mod, value, persist, metadata)
                 elif op_name == "update":
                     await remote.update(key_or_mod)
                 else:
@@ -51,8 +51,8 @@ class DatasetCtl:
             logger.info("Finished %s operation on %s", op_name,
                      key_or_mod)
 
-    async def set(self, key, value, persist=None):
-        await self._execute_rpc("set", key, value, persist)
+    async def set(self, key, value, persist=None, metadata=None):
+        await self._execute_rpc("set", key, value, persist, metadata)
 
     async def update(self, mod):
         await self._execute_rpc("update", mod)
@@ -122,8 +122,8 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                persist, value = self.table_model.backing_store[key]
-                asyncio.ensure_future(self.dataset_ctl.set(key, value))
+                persist, value, metadata = self.table_model.backing_store[key]
+                asyncio.ensure_future(self.dataset_ctl.set(key, value, metadata=metadata))
 
     def save_state(self):
         return bytes(self.table.header().saveState())
