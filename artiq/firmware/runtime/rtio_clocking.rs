@@ -1,9 +1,14 @@
+
+#[cfg(has_si5324)]
 use board_misoc::config;
+#[cfg(has_si5324)]
 use board_artiq::si5324;
+#[cfg(has_si5324)]
 use board_misoc::{csr, clock};
 
 #[derive(Debug, PartialEq)]
 #[allow(non_camel_case_types)]
+#[cfg(has_si5324)]
 pub enum RtioClock {
     Default,
     Int_125,
@@ -16,6 +21,7 @@ pub enum RtioClock {
 }
 
 #[allow(unreachable_code)]
+#[cfg(has_si5324)]
 fn get_rtio_clock_cfg() -> RtioClock {
     config::read_str("rtio_clock", |result| { 
         let res = match result {
@@ -96,6 +102,7 @@ const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
 #[cfg(all(soc_platform = "kc705"))]
 const SI5324_EXT_INPUT: si5324::Input = si5324::Input::Ckin2;
 
+#[cfg(has_si5324)]
 fn setup_si5324_pll(cfg: RtioClock) {
     let (si5324_settings, si5324_ref_input) = match cfg {
         RtioClock::Ext0_Synth0_10to125 => { // 125 MHz output from 10 MHz CLKINx reference, 504 Hz BW
@@ -214,6 +221,7 @@ fn setup_si5324_pll(cfg: RtioClock) {
     si5324::setup(&si5324_settings, si5324_ref_input).expect("cannot initialize Si5324");
 }
 
+#[cfg(has_si5324)]
 fn setup_si5324(clock_cfg: RtioClock) {
     let switched = unsafe {
         csr::crg::switch_done_read()
@@ -245,8 +253,10 @@ fn setup_si5324(clock_cfg: RtioClock) {
 
 
 pub fn init() {
-    let clock_cfg = get_rtio_clock_cfg();
-    setup_si5324(clock_cfg);
+    #[cfg(has_si5324)] {
+        let clock_cfg = get_rtio_clock_cfg();
+        setup_si5324(clock_cfg);
+    }
 
     #[cfg(has_drtio)]
     {
