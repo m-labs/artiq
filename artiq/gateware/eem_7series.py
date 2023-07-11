@@ -124,7 +124,7 @@ def peripheral_phaser(module, peripheral, **kwargs):
     if len(peripheral["ports"]) != 1:
         raise ValueError("wrong number of ports")
     eem.Phaser.add_std(module, peripheral["ports"][0],
-        peripheral["base"], **kwargs)
+        peripheral["mode"], **kwargs)
 
 
 def peripheral_hvamp(module, peripheral, **kwargs):
