@@ -80,7 +80,7 @@ class AppletIPCServer(AsyncioParentComm):
                                 self.dataset_sub.model.backing_store)
                             self.write_pyon({"action": "mod", "mod": mod})
                     elif action == "set_dataset":
-                        await self.dataset_ctl.set(obj["key"], obj["value"], obj["persist"])
+                        await self.dataset_ctl.set(obj["key"], obj["value"], metadata=obj["metadata"], persist=obj["persist"])
                     elif action == "update_dataset":
                         await self.dataset_ctl.update(obj["mod"])
                     else:
