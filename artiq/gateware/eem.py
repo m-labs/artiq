@@ -6,6 +6,7 @@ from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, dds, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
+from artiq.gateware.drtio.transceiver import eem_serdes
 
 
 def _eem_signal(i):
@@ -757,3 +758,49 @@ class HVAmp(_EEM):
             phy = ttl_out_cls(pads.p, pads.n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+
+class FMCCarrier(_EEM):
+    @staticmethod
+    def io(eem, eem_aux, role="master", iostandard=default_iostandard):
+        # Master: Pair 0~3 data IN, 4~7 OUT
+        # Satellite: Pair 0~3 data OUT, 4~7 IN
+        if role not in ["master", "satellite"]:
+            raise ValueError("Invalid role {}".format(role))
+
+        in_idx_offset = 4 if role == "satellite" else 0
+        out_idx_offset = 4 if role == "master" else 0
+        data_in = [
+            ("eem{}_fmc_data_in".format(eem), i,
+                Subsignal("p", Pins(_eem_pin(eem, i+in_idx_offset, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem, i+in_idx_offset, "n"))),
+                iostandard(eem),
+                Misc("DIFF_TERM=TRUE")
+            ) for i in range(4)
+        ]
+
+        data_out = [
+            ("eem{}_fmc_data_out".format(eem), i,
+                Subsignal("p", Pins(_eem_pin(eem, i+out_idx_offset, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem, i+out_idx_offset, "n"))),
+                iostandard(eem),
+            ) for i in range(4)
+        ]
+
+        def get_ext_signal_record(name, pin, output=True):
+            record = (("eem{}_fmc_"+name).format(eem_aux), 0,
+                Subsignal("p", Pins(_eem_pin(eem_aux, pin, "p"))),
+                Subsignal("n", Pins(_eem_pin(eem_aux, pin, "n"))),
+                iostandard(eem_aux),
+            )
+            
+            if not output:
+                record = record + (Misc("DIFF_TERM=TRUE"),)
+            
+            return record
+        
+        aux = [
+            get_ext_signal_record(name, pin, output=(role == src)) for name, pin, src in eem_serdes.layout
+        ]
+
+        return data_in + data_out + aux
