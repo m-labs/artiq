@@ -187,6 +187,7 @@ impl IoExpander {
     }
 
     pub fn service(&mut self) -> Result<(), &'static str> {
+        #[cfg(soc_platform = "kasli")]
         for (led, port, bit) in self.virtual_led_mapping.iter() {
             let level = unsafe { (csr::virtual_leds::status_read() >> led) & 1 };
             self.set(*port, *bit, level != 0);

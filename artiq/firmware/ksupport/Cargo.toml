@@ -17,7 +17,7 @@ cslice = { version = "0.3" }
 eh = { path = "../libeh" }
 io = { path = "../libio", features = ["byteorder"] }
 dyld = { path = "../libdyld" }
-board_misoc = { path = "../libboard_misoc" }
+board_misoc = { path = "../libboard_misoc", features = ["uart_console", "log"] }
 board_artiq = { path = "../libboard_artiq" }
 proto_artiq = { path = "../libproto_artiq" }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
