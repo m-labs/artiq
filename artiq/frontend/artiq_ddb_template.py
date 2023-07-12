@@ -620,6 +620,8 @@ class PeripheralManager:
         return 8
 
     def process(self, rtio_offset, peripheral):
+        if peripheral["type"] == "efc":
+            return 0
         processor = getattr(self, "process_"+str(peripheral["type"]))
         return processor(rtio_offset, peripheral)
 

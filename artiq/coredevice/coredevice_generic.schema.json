@@ -134,7 +134,7 @@
             "properties": {
                 "type": {
                     "type": "string",
-                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp"]
+                    "enum": ["dio", "dio_spi", "urukul", "novogorny", "sampler", "suservo", "zotino", "grabber", "mirny", "fastino", "phaser", "hvamp", "efc"]
                 },
                 "board": {
                     "type": "string"
@@ -588,6 +588,28 @@
                             },
                             "minItems": 1,
                             "maxItems": 1
+                        }
+                    },
+                    "required": ["ports"]
+                }
+            }, {
+                "title": "FMCCarrier",
+                "if": {
+                    "properties": {
+                        "type": {
+                            "const": "efc"
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "ports": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
                         }
                     },
                     "required": ["ports"]

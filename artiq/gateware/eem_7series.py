@@ -134,6 +134,11 @@ def peripheral_hvamp(module, peripheral, **kwargs):
         ttl_simple.Output, **kwargs)
 
 
+def peripheral_efc(module, peripheral, **kwargs):
+    # Skip, EFC was handled during the DRTIO phase
+    pass
+
+
 peripheral_processors = {
     "dio": peripheral_dio,
     "dio_spi": peripheral_dio_spi,
@@ -147,6 +152,7 @@ peripheral_processors = {
     "fastino": peripheral_fastino,
     "phaser": peripheral_phaser,
     "hvamp": peripheral_hvamp,
+    "efc": peripheral_efc,
 }
 
 
