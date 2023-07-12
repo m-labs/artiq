@@ -81,11 +81,55 @@ impl IoExpander {
         Ok(io_expander)
     }
 
+    #[cfg(soc_platform = "efc")]
+    pub fn new() -> Result<Self, &'static str> {
+        // TODO: Actually put VirtualLEDs in gateware
+        const VIRTUAL_LED_MAPPING: [(u8, u8, u8); 3] = [(0, 0, 5), (1, 0, 6), (2, 0, 7)];
+
+        let mut io_expander = IoExpander {
+            busno: 0,
+            port: 1,
+            address: 0x40,
+            virtual_led_mapping: &VIRTUAL_LED_MAPPING,
+            iodir: [0xff; 2],
+            out_current: [0; 2],
+            out_target: [0; 2],
+            registers: Registers {
+                iodira: 0x00,
+                iodirb: 0x01,
+                gpioa: 0x12,
+                gpiob: 0x13,
+            },
+        };
+        if !io_expander.check_ack()? {
+            #[cfg(feature = "log")]
+            log::info!("MCP23017 io expander not found. Checking for PCA9539.");
+            io_expander.address += 0xa8; // translate to PCA9539 addresses (see schematic)
+            io_expander.registers = Registers {
+                iodira: 0x06,
+                iodirb: 0x07,
+                gpioa: 0x02,
+                gpiob: 0x03,
+            };
+            if !io_expander.check_ack()? {
+                return Err("Neither MCP23017 nor PCA9539 io expander found.");
+            };
+        }
+        Ok(io_expander)
+    }
+
     #[cfg(soc_platform = "kasli")]
     fn select(&self) -> Result<(), &'static str> {
         let mask: u16 = 1 << self.port;
         i2c::switch_select(self.busno, 0x70, mask as u8)?;
         i2c::switch_select(self.busno, 0x71, (mask >> 8) as u8)?;
+        Ok(())
+    }
+
+    #[cfg(soc_platform = "efc")]
+    fn select(&self) -> Result<(), &'static str> {
+        let mask: u16 = 1 << self.port;
+        i2c::switch_select(self.busno, 0x70, mask as u8)?;
         Ok(())
     }
 
