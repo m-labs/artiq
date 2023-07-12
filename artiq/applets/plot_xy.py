@@ -19,16 +19,16 @@ class XYPlot(pyqtgraph.PlotWidget):
                          'Error bars': False,
                          'Fit values': False}
 
-    def data_changed(self, data, mods, title):
+    def data_changed(self, value, metadata, persist, mods, title):
         try:
-            y = data[self.args.y][1]
+            y = value[self.args.y]
         except KeyError:
             return
-        x = data.get(self.args.x, (False, None))[1]
+        x = value.get(self.args.x, (False, None))
         if x is None:
             x = np.arange(len(y))
-        error = data.get(self.args.error, (False, None))[1]
-        fit = data.get(self.args.fit, (False, None))[1]
+        error = value.get(self.args.error, (False, None))
+        fit = value.get(self.args.fit, (False, None))
 
         if not len(y) or len(y) != len(x):
             self.mismatch['X values'] = True
