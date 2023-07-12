@@ -48,6 +48,26 @@ Breaking changes:
 * ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
   operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
   refer to the ``big_number.py`` applet.
+* ``SimpleApplet`` and ``TitleApplet`` now call ``data_changed`` with additional parameters. Wrapped widgets
+  should refactor the function signature as seen below:
+::
+
+  # SimpleApplet
+  def data_changed(self, value, metadata, persist, mods)
+  # SimpleApplet (old version)
+  def data_changed(self, data, mods)
+  # TitleApplet
+  def data_changed(self, value, metadata, persist, mods, title)
+  # TitleApplet (old version)
+  def data_changed(self, data, mods, title)
+
+Old syntax should be replaced with the form shown on the right.
+::
+
+  data[key][0] ==> persist[key]
+  data[key][1] ==> value[key]
+  data[key][2] ==> metadata[key]
+
 
 
 ARTIQ-7
