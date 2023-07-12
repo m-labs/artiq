@@ -49,8 +49,15 @@ class AppletControlRPC:
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
 
-    def set_dataset(self, key, value, persist=None):
-        self._background(self.dataset_ctl.set, key, value, persist)
+    def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
+        metadata = {}
+        if unit is not None:
+            metadata["unit"] = unit
+        if scale is not None:
+            metadata["scale"] = scale
+        if precision is not None:
+            metadata["precision"] = precision
+        self._background(self.dataset_ctl.set, key, value, metadata=metadata, persist=persist)
 
     def mutate_dataset(self, key, index, value):
         mod = {"action": "setitem", "path": [key, 1], "key": index, "value": value}
