@@ -22,6 +22,7 @@ from artiq.gateware import eem
 from artiq.gateware.drtio.transceiver import gtp_7series
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
+from artiq.gateware.drtio.transceiver.eem_serdes import EEMSerdes, EEMAux
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
@@ -221,7 +222,7 @@ class MasterBase(MiniSoC, AMPSoC):
     }
     mem_map.update(MiniSoC.mem_map)
 
-    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", **kwargs):
+    def __init__(self, rtio_clk_freq=125e6, enable_sata=False, gateware_identifier_str=None, hw_rev="v2.0", efc_port_list=None, **kwargs):
         if hw_rev in ("v1.0", "v1.1"):
             cpu_bus_width = 32
         else:
@@ -286,13 +287,27 @@ class MasterBase(MiniSoC, AMPSoC):
             self.comb += [self.virtual_leds.get(i + 1).eq(channel.rx_ready)
                           for i, channel in enumerate(sfp_channels)]
 
+        if efc_port_list is not None:
+            for efc_ports in efc_port_list:
+                efc_data, efc_aux = efc_ports
+                self.platform.add_extension(eem.FMCCarrier.io(efc_data, efc_aux, role="master"))
+                self.submodules.eem_transceiver = EEMSerdes(
+                    self.platform, efc_data, efc_aux,
+                    role="master", start_idx=len(drtio_data_pads))
+                self.csr_devices.append("eem_transceiver")
+
+            self.config["HAS_DRTIO_EEM"] = None
+
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
         drtio_csr_group = []
         drtioaux_csr_group = []
         drtioaux_memory_group = []
         self.drtio_cri = []
-        for i in range(len(self.drtio_transceiver.channels)):
+
+        transceiver_channels = self.drtio_transceiver.channels + self.eem_transceiver.channels
+
+        for i in range(len(transceiver_channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
@@ -302,7 +317,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
             cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
-            core = cdr(DRTIOMaster(self.rtio_tsc, self.drtio_transceiver.channels[i]))
+            core = cdr(DRTIOMaster(self.rtio_tsc, transceiver_channels[i]))
             setattr(self.submodules, core_name, core)
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)

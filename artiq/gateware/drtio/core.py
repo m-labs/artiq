@@ -27,11 +27,11 @@ class ChannelInterface:
 
 
 class TransceiverInterface(AutoCSR):
-    def __init__(self, channel_interfaces):
+    def __init__(self, channel_interfaces, start_idx=0):
         self.stable_clkin = CSRStorage()
         self.txenable = CSRStorage(len(channel_interfaces))
         for i in range(len(channel_interfaces)):
-            name = "rtio_rx" + str(i)
+            name = "rtio_rx" + str(i + start_idx)
             setattr(self.clock_domains, "cd_"+name, ClockDomain(name=name))
         self.channels = channel_interfaces
 

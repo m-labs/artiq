@@ -71,10 +71,13 @@ class GenericMaster(MasterBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
+        efc_peripherals = list(filter(lambda peripheral: peripheral["type"] == "efc", description["peripherals"]))
+        efc_port_list = [ peripheral["ports"] for peripheral in efc_peripherals ]
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description["rtio_frequency"],
             enable_sata=description["enable_sata_drtio"],
+            efc_port_list=efc_port_list,
             **kwargs)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
