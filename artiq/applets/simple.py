@@ -364,4 +364,9 @@ class TitleApplet(SimpleApplet):
                 title = self.args.title
         else:
             title = None
-        self.main_widget.data_changed(data, mod_buffer, title)
+        persist = dict()
+        value = dict()
+        metadata = dict()
+        for k, d in data.items():
+            persist[k], value[k], metadata[k] = d
+        self.main_widget.data_changed(value, metadata, persist, mod_buffer, title)
