@@ -11,12 +11,13 @@ extern crate alloc;
 extern crate proto_artiq;
 
 use core::convert::TryFrom;
-use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
+use board_misoc::{csr, ident, clock, config, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use analyzer::Analyzer;
@@ -596,6 +597,50 @@ pub extern fn main() -> i32 {
     }
 
     init_rtio_crg();
+
+    unsafe {
+        csr::eem_transceiver::aux_sat_clk_rdy_out_write(1);
+        while csr::eem_transceiver::aux_phase_rdy_in_read() == 0 {
+            println!("phase aligning...");
+            clock::spin_us(1_000_000);
+        }
+        println!("phase aligned!");
+        clock::spin_us(1_000_000);
+
+        // Perform EEM aligning if not configured
+        config::read("master_delay", |r| {
+            match r {
+                Ok(record) => {
+                    println!("recorded delay: {:#?}", &*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                    drtio_eem::write_config(&*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                    csr::eem_transceiver::serdes_send_align_write(0);
+                    csr::eem_transceiver::rx_ready_write(1);
+                    println!("satellite ready");
+                },
+
+                Err(_) => {
+                    // Alignment complete, start sending comma to master
+                    csr::eem_transceiver::serdes_send_align_write(1);
+                    clock::spin_us(100);
+            
+                    let master_config = drtio_eem::align_eem();
+                    drtio_eem::write_config(&master_config);
+            
+                    csr::eem_transceiver::aux_align_mst_out_write(1);
+            
+                    // Re-enable normal traffic
+                    while csr::eem_transceiver::aux_align_sat_in_read() == 0 {
+                        println!("master aligning...");
+                        clock::spin_us(1_000_000);
+                    }
+                    csr::eem_transceiver::serdes_send_align_write(0);
+                    csr::eem_transceiver::rx_ready_write(1);
+
+                    config::write("master_delay", master_config.as_bytes());
+                }
+            }
+        })
+    }
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];
