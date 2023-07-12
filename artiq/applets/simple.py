@@ -19,8 +19,15 @@ class AppletControlIPC:
     def __init__(self, ipc):
         self.ipc = ipc
 
-    def set_dataset(self, key, value, persist=None):
-        self.ipc.set_dataset(key, value, persist)
+    def set_dataset(self, key, value, unit=None, scale=None, precision=None, persist=None):
+        metadata = {}
+        if unit is not None:
+            metadata["unit"] = unit
+        if scale is not None:
+            metadata["scale"] = scale
+        if precision is not None:
+            metadata["precision"] = precision
+        self.ipc.set_dataset(key, value, metadata, persist)
 
     def mutate_dataset(self, key, index, value):
         mod = {"action": "setitem", "path": [key, 1], "key": index, "value": value}
@@ -112,10 +119,11 @@ class AppletIPCClient(AsyncioChildComm):
         self.mod_cb = mod_cb
         self.listen_task = loop.create_task(self.listen())
 
-    def set_dataset(self, key, value, persist=None):
+    def set_dataset(self, key, value, metadata, persist=None):
         self.write_pyon({"action": "set_dataset",
                          "key": key,
                          "value": value,
+                         "metadata": metadata,
                          "persist": persist})
 
     def update_dataset(self, mod):
