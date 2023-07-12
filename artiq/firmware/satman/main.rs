@@ -582,11 +582,12 @@ pub extern fn main() -> i32 {
         // Do whatever we need the IO expander to do here
         // The CLK_SELs must be output to keep MMCX
         io_expander.set_oe(0, 1 << 2 | 1 << 3 | 1 << 5 | 1 << 6 | 1 << 7).unwrap();
-        io_expander.set_oe(1, 1 << 1).unwrap();
+        io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
 
         io_expander.set(0, 5, true);
         io_expander.set(0, 6, true);
         io_expander.set(0, 7, true);
+        io_expander.set(1, 0, true);
         io_expander.set(1, 1, true);
 
         io_expander.service().unwrap();
