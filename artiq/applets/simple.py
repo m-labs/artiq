@@ -270,7 +270,12 @@ class SimpleApplet:
             return False
 
     def emit_data_changed(self, data, mod_buffer):
-        self.main_widget.data_changed(data, mod_buffer)
+        persist = dict()
+        value = dict()
+        metadata = dict()
+        for k, d in data.items():
+            persist[k], value[k], metadata[k] = d
+        self.main_widget.data_changed(value, metadata, persist, mod_buffer)
 
     def flush_mod_buffer(self):
         self.emit_data_changed(self.data, self.mod_buffer)
