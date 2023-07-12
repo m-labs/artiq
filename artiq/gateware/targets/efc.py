@@ -18,14 +18,11 @@ from artiq.gateware import rtio, shuttler
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
-from artiq.gateware.drtio.transceiver import gtp_7series
+from artiq.gateware.drtio.transceiver import gtp_7series, eem_serdes
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
-
-from artiq.gateware.drtio.transceiver.eem_serdes import SerdesSingle, EEMSerdes, EEMAux
-from artiq.gateware.drtio.transceiver.eem_helper import generate_pads
 
 
 class SatelliteBase(BaseSoC):
@@ -51,15 +48,15 @@ class SatelliteBase(BaseSoC):
         platform = self.platform
         platform.add_extension(shuttler.fmc_adapter_io)
 
-        eem_serdes = 1
+        eem_data = 1
         eem_aux = 0
-        self.platform.add_extension(eem.FMCCarrier.io(eem_serdes, eem_aux, role="satellite"))
+        self.platform.add_extension(eem.FMCCarrier.io(eem_data, eem_aux, role="satellite"))
 
         # Disable SERVMOD, hardwire it to ground to enable EEM
         servmod = self.platform.request("servmod")
         self.comb += servmod.eq(0)
 
-        self.submodules.eem_transceiver = EEMSerdes(self.platform, eem_serdes, eem_aux, role="satellite")
+        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, eem_data, eem_aux, role="satellite")
         self.csr_devices.append("eem_transceiver")
         self.config["HAS_DRTIO_EEM"] = None
 
@@ -140,6 +137,10 @@ class SatelliteBase(BaseSoC):
         self.csr_devices.append("cri_con")
         self.submodules.routing_table = rtio.RoutingTableAccess(self.cri_con)
         self.csr_devices.append("routing_table")
+
+        self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.local_io.cri,
+                                                self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
+        self.csr_devices.append("rtio_analyzer")
 
 
 class Satellite(SatelliteBase):
