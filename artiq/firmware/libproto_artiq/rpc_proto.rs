@@ -36,8 +36,12 @@ unsafe fn recv_value<R, E>(reader: &mut R, tag: Tag, data: &mut *mut (),
         Tag::String | Tag::Bytes | Tag::ByteArray => {
             consume_value!(CMutSlice<u8>, |ptr| {
                 let length = reader.read_u32()? as usize;
-                *ptr = CMutSlice::new(alloc(length)? as *mut u8, length);
-                reader.read_exact((*ptr).as_mut())?;
+                if length > 0 {
+                    *ptr = CMutSlice::new(alloc(length)? as *mut u8, length);
+                    reader.read_exact((*ptr).as_mut())?;
+                } else {
+                    *ptr = CMutSlice::new(core::ptr::NonNull::<u8>::dangling().as_ptr(), 0);
+                }
                 Ok(())
             })
         }
