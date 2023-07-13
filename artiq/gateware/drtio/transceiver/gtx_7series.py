@@ -74,6 +74,8 @@ class GTX_20X(Module):
                 p_CPLL_REFCLK_DIV=1,
                 p_RXOUT_DIV=2,
                 p_TXOUT_DIV=2,
+                p_CPLL_INIT_CFG=0x00001E,
+                p_CPLL_LOCK_CFG=0x01C0,
                 i_CPLLRESET=cpllreset,
                 i_CPLLPD=cpllreset,
                 o_CPLLLOCK=cplllock,
@@ -290,9 +292,9 @@ class GTX(Module, TransceiverInterface):
         # # #
 
         refclk = Signal()
-        stable_clkin_n = Signal()
+        stable_clkin = Signal()
         self.specials += Instance("IBUFDS_GTE2",
-            i_CEB=stable_clkin_n,
+            i_CEB=~stable_clkin,
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk,
@@ -325,7 +327,6 @@ class GTX(Module, TransceiverInterface):
         TransceiverInterface.__init__(self, channel_interfaces)
         for n, gtx in enumerate(self.gtxs):
             self.comb += [
-                stable_clkin_n.eq(~self.stable_clkin.storage),
                 gtx.txenable.eq(self.txenable.storage[n])
             ]
 
@@ -334,6 +335,9 @@ class GTX(Module, TransceiverInterface):
             self.cd_rtio.clk.eq(self.gtxs[master].cd_rtio_tx.clk),
             self.cd_rtio.rst.eq(reduce(or_, [gtx.cd_rtio_tx.rst for gtx in self.gtxs]))
         ]
+
+        self.comb += stable_clkin.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.cplllock)
+
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
         for i in range(nchannels):
             self.comb += [
