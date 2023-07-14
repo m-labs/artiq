@@ -268,7 +268,7 @@ class _ExperimentDock(QtWidgets.QMdiSubWindow):
             datetime.setDate(QtCore.QDate.currentDate())
         else:
             datetime.setDateTime(QtCore.QDateTime.fromMSecsSinceEpoch(
-                scheduling["due_date"]*1000))
+                int(scheduling["due_date"]*1000)))
         datetime_en.setChecked(scheduling["due_date"] is not None)
 
         def update_datetime(dt):
