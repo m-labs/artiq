@@ -129,22 +129,40 @@ fn startup() {
 
     #[cfg(has_drtio_eem)]
     unsafe {
-        csr::eem_transceiver::aux_load_dly_out_write(1);
-        csr::eem_transceiver::aux_sat_phase_rst_write(1);
+        config::read("eem_drtio_delay", |r| {
+            match r {
+                Ok(record) => {
+                    println!("recorded delay: {:#?}", &*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                    csr::eem_transceiver::aux_load_dly_out_write(1);
+                    csr::eem_transceiver::aux_sat_phase_rst_write(1);
+                    drtio_eem::write_config(&*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                    csr::eem_transceiver::serdes_send_align_write(0);
+                    csr::eem_transceiver::rx_ready_write(1);
+                    println!("satellite ready");
+                },
 
-        while csr::eem_transceiver::aux_sat_align_done_in_read() == 0 {
-            println!("satellite aligning...");
-            clock::spin_us(1_000_000);
-        }
+                Err(_) => {
+                    csr::eem_transceiver::aux_load_dly_out_write(0);
+                    csr::eem_transceiver::aux_sat_phase_rst_write(1);
+            
+                    while csr::eem_transceiver::aux_sat_align_done_in_read() == 0 {
+                        println!("satellite aligning...");
+                        clock::spin_us(1_000_000);
+                    }
+            
+                    println!("satellite align symbols ready");
+                    let master_config = drtio_eem::align_eem();
+                    drtio_eem::write_config(&master_config);
+                    clock::spin_us(1_000_000);
+            
+                    csr::eem_transceiver::aux_mst_align_done_out_write(1);
+                    csr::eem_transceiver::serdes_send_align_write(0);
+                    csr::eem_transceiver::rx_ready_write(1);
 
-        println!("satellite align symbols ready");
-        let sat_config = drtio_eem::align_eem();
-        drtio_eem::write_config(&sat_config);
-        clock::spin_us(1_000_000);
-
-        csr::eem_transceiver::aux_mst_align_done_out_write(1);
-        csr::eem_transceiver::serdes_send_align_write(0);
-        csr::eem_transceiver::rx_ready_write(1);
+                    config::write("eem_drtio_delay", master_config.as_bytes());
+                }
+            }
+        })
     }
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };

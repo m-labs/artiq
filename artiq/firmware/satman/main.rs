@@ -598,22 +598,40 @@ pub extern fn main() -> i32 {
             println!("Waiting for master clock...");
             clock::spin_us(1_000_000);
         }
-        // TODO: Read load_dly to determine load from flash or align on the fly
-        csr::eem_transceiver::serdes_send_align_write(1);
 
-        // println!("satellite align symbols ready");
-        let sat_config = drtio_eem::align_eem();
-        drtio_eem::write_config(&sat_config);
-        clock::spin_us(1_000_000);
+        if csr::eem_transceiver::aux_load_dly_in_read() == 0 {
+            csr::eem_transceiver::serdes_send_align_write(1);
 
-        csr::eem_transceiver::aux_sat_align_done_out_write(1);
-        while csr::eem_transceiver::aux_mst_align_done_in_read() == 0 {
-            println!("master aligning...");
+            // println!("satellite align symbols ready");
+            let sat_config = drtio_eem::align_eem();
+            drtio_eem::write_config(&sat_config);
             clock::spin_us(1_000_000);
+    
+            csr::eem_transceiver::aux_sat_align_done_out_write(1);
+            while csr::eem_transceiver::aux_mst_align_done_in_read() == 0 {
+                println!("master aligning...");
+                clock::spin_us(1_000_000);
+            }
+            println!("master align done");
+            csr::eem_transceiver::serdes_send_align_write(0);
+            csr::eem_transceiver::rx_ready_write(1);
+
+            config::write("eem_drtio_delay", sat_config.as_bytes());
+        } else {
+            config::read("eem_drtio_delay", |r| {
+                match r {
+                    Ok(record) => {
+                        println!("recorded delay: {:#?}", &*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                        drtio_eem::write_config(&*(record.as_ptr() as *const drtio_eem::SerdesConfig));
+                        csr::eem_transceiver::serdes_send_align_write(0);
+                        csr::eem_transceiver::rx_ready_write(1);
+                        println!("satellite ready");
+                    },
+
+                    Err(_) => panic!("EEM delay not found!")
+                }
+            })
         }
-        println!("master align done");
-        csr::eem_transceiver::serdes_send_align_write(0);
-        csr::eem_transceiver::rx_ready_write(1);
     }
 
     #[cfg(has_drtio_routing)]
