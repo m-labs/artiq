@@ -48,9 +48,9 @@ pub fn align_eem() -> SerdesConfig {
 
 fn select_eem_pair(eem_pair_no: usize) {
     unsafe {
-        csr::eem_transceiver::serdes_bitslip_sel_write(1 << eem_pair_no);
-        csr::eem_transceiver::serdes_dly_cnt_in_sel_write(1 << eem_pair_no);
-        csr::eem_transceiver::serdes_dly_cnt_out_sel_write(1 << eem_pair_no);
+        csr::eem_transceiver::serdes_bitslip_sel_write(eem_pair_no as u8);
+        csr::eem_transceiver::serdes_dly_cnt_in_sel_write(eem_pair_no as u8);
+        csr::eem_transceiver::serdes_dly_cnt_out_sel_write(eem_pair_no as u8);
         csr::eem_transceiver::serdes_read_word_write(eem_pair_no as u8);
     }
 }

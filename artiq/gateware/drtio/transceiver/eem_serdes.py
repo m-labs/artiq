@@ -277,29 +277,29 @@ class SerdesSingle(Module, AutoCSR):
         self.submodules.tx_serdes = TXSerdes()
 
         # CSR for delay & bitslip
-        self.bitslip_sel = CSRStorage(4)
+        self.bitslip_sel = CSRStorage(2)
         self.bitslip = CSR()
 
         for i in range(4):
             self.specials += MultiReg(
-                self.bitslip_sel.storage[i] & self.bitslip.re,
+                (self.bitslip_sel.storage == i) & self.bitslip.re,
                 self.rx_serdes.bitslip[i], "eem_sys")
         
-        self.dly_cnt_in_sel = CSRStorage(4)
+        self.dly_cnt_in_sel = CSRStorage(2)
         self.dly_cnt_in = CSRStorage(5)
         self.dly_ld = CSR()
 
         for i in range(4):
             self.comb += [
                 self.rx_serdes.cnt_in[i].eq(self.dly_cnt_in.storage),
-                self.rx_serdes.ld[i].eq(self.dly_cnt_in_sel.storage[i] & self.dly_ld.re),
+                self.rx_serdes.ld[i].eq((self.dly_cnt_in_sel.storage == i) & self.dly_ld.re),
             ]
         
-        self.dly_cnt_out_sel = CSRStorage(4)
+        self.dly_cnt_out_sel = CSRStorage(2)
         self.dly_cnt_out = CSRStatus(5)
 
         self.comb += Case(self.dly_cnt_out_sel.storage, {
-            (1 << idx): self.dly_cnt_out.status.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
+            idx: self.dly_cnt_out.status.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
         })
         
         # CSR for global decoding phase
