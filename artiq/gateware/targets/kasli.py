@@ -42,6 +42,48 @@ class SMAClkinForward(Module):
         ]
 
 
+class SerdesCRG(Module, AutoCSR):
+    def __init__(self, platform, main_clk):
+        self.pll_reset = CSRStorage(reset=1)
+        self.pll_locked = CSRStatus()
+        self.clock_domains.cd_eem_sys = ClockDomain()
+        self.clock_domains.cd_eem_sys5x = ClockDomain(reset_less=True)
+
+        mmcm_fb_in = Signal()
+        mmcm_fb_out = Signal()
+        mmcm_eem_sys = Signal()
+        mmcm_eem_sys5x = Signal()
+        pll_locked = Signal()
+
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=8.0,
+                i_CLKIN1=main_clk,
+                i_RST=self.pll_reset.storage,
+
+                i_CLKFBIN=mmcm_fb_in,
+                o_CLKFBOUT=mmcm_fb_out,
+                o_LOCKED=pll_locked,
+
+                # VCO @ 1.25GHz with MULT=10
+                p_CLKFBOUT_MULT_F=10, p_DIVCLK_DIVIDE=1,
+
+                # 125MHz
+                p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_eem_sys,
+
+                # 625MHz
+                p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_eem_sys5x,
+            ),
+
+            Instance("BUFG", i_I=mmcm_eem_sys, o_O=self.cd_eem_sys.clk),
+            Instance("BUFG", i_I=mmcm_eem_sys5x, o_O=self.cd_eem_sys5x.clk),
+            Instance("BUFG", i_I=mmcm_fb_out, o_O=mmcm_fb_in),
+
+            AsyncResetSynchronizer(self.cd_eem_sys, ~pll_locked),
+            MultiReg(pll_locked, self.pll_locked.status)
+        ]
+
+
 class StandaloneBase(MiniSoC, AMPSoC):
     mem_map = {
         "cri_con":       0x10000000,
@@ -343,6 +385,9 @@ class MasterBase(MiniSoC, AMPSoC):
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
 
+        self.submodules.serdes_crg = SerdesCRG(self.platform, txout_buf)
+        self.csr_devices.append("serdes_crg")
+
         platform.add_period_constraint(gtp.txoutclk, rtio_clk_period)
         platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
 
@@ -353,6 +398,8 @@ class MasterBase(MiniSoC, AMPSoC):
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
+
+        platform.add_false_path_constraint(self.crg.cd_sys.clk, self.serdes_crg.cd_eem_sys.clk)
 
         fix_serdes_timing_path(platform)
 

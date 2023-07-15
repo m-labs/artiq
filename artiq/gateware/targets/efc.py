@@ -25,6 +25,44 @@ from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
 
+class SerdesCRG(Module, AutoCSR):
+    def __init__(self, platform, main_clk):
+        self.clock_domains.cd_eem_sys = ClockDomain()
+        self.clock_domains.cd_eem_sys5x = ClockDomain(reset_less=True)
+
+        eem_fb_in = Signal()
+        eem_fb_out = Signal()
+        mmcm_locked = Signal()
+
+        mmcm_eem_sys = Signal()
+        mmcm_eem_sys5x = Signal()
+
+        self.specials += [
+            Instance("MMCME2_BASE",
+                p_CLKIN1_PERIOD=16.0,
+                i_CLKIN1=main_clk,
+
+                i_CLKFBIN=eem_fb_in,
+                o_CLKFBOUT=eem_fb_out,
+                o_LOCKED=mmcm_locked,
+
+                # VCO @ 1.25 GHz with MULT=20
+                p_CLKFBOUT_MULT_F=20, p_DIVCLK_DIVIDE=1,
+
+                # 125MHz
+                p_CLKOUT0_DIVIDE_F=10, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=mmcm_eem_sys,
+
+                # 625MHz
+                p_CLKOUT1_DIVIDE=2, p_CLKOUT1_PHASE=0.0, o_CLKOUT1=mmcm_eem_sys5x,
+            ),
+            Instance("BUFG", i_I=mmcm_eem_sys, o_O=self.cd_eem_sys.clk),
+            Instance("BUFG", i_I=mmcm_eem_sys5x, o_O=self.cd_eem_sys5x.clk),
+            Instance("BUFG", i_I=eem_fb_out, o_O=eem_fb_in),
+
+            AsyncResetSynchronizer(self.cd_eem_sys, ~mmcm_locked),
+        ]
+
+
 class SatelliteBase(BaseSoC):
     mem_map = {
         "drtioaux": 0x50000000,
@@ -60,7 +98,10 @@ class SatelliteBase(BaseSoC):
         self.csr_devices.append("eem_transceiver")
         self.config["HAS_DRTIO_EEM"] = None
 
-        self.platform.add_false_path_constraints(self.crg.cd_sys.clk, self.crg.cd_eem_sys.clk)
+        self.submodules.serdes_crg = SerdesCRG(self.platform, self.crg.clk125_div2)
+        self.csr_devices.append("serdes_crg")
+
+        platform.add_false_path_constraint(self.crg.cd_sys.clk, self.serdes_crg.cd_eem_sys.clk)
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 

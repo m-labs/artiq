@@ -355,24 +355,13 @@ class SerdesSingle(Module, AutoCSR):
         self.specials += MultiReg(self.send_align.storage, self.encoder.align, "eem_sys")
 
         # Alternate phase
-        phase = Signal()
+        self.phase = Signal()
         # Assign to encoder and decoder
         self.comb += [
-            self.encoder.phase.eq(phase),
-            self.decoders[0].phase.eq(phase),
-            self.decoders[1].phase.eq(phase),
+            self.encoder.phase.eq(self.phase),
+            self.decoders[0].phase.eq(self.phase),
+            self.decoders[1].phase.eq(self.phase),
         ]
-
-        # Phase increment & reset mechanism
-        # Reset to 0 when externally triggered
-        self.phase_rst = Signal()
-        self.sync.eem_sys += If(self.phase_rst,
-            phase.eq(0),
-        ).Else(
-            phase.eq(~phase)
-        )
-        self.phase_out = Signal()
-        self.comb += self.phase_out.eq(phase)
 
         # Interleave data/ctrl update
         self.read_word = CSRStorage(2)
@@ -388,7 +377,7 @@ class SerdesSingle(Module, AutoCSR):
         self.specials += MultiReg(self.read_word.storage, read_word_cdc)
 
         self.sync.eem_sys += [
-            If(~phase ^ read_word_cdc[0],
+            If(~self.phase ^ read_word_cdc[0],
                 rx_d.eq(decoders[read_word_cdc[1]].d),
                 rx_k.eq(decoders[read_word_cdc[1]].k),
                 rx_d_prev.eq(rx_d),
@@ -405,17 +394,17 @@ class SerdesSingle(Module, AutoCSR):
 
 
 layout = [
-    ("sat_clk_rdy", 2, "satellite"),
-    ("phase_rdy",   3, "master"),
-    ("sat_rst",     4, "master"),
-    ("mst_clk_rdy", 5, "master"),
-    ("align_mst",   6, "satellite"),
-    ("align_sat",   7, "master"),
+    ("sat_rst",         5, "master"),
+    ("load_dly",        6, "master"),
+    ("sat_align_done",  7, "satellite"),
+    ("mst_align_done",  4, "master"),
 ]
+
 
 class EEMSerdes(Module, TransceiverInterface):    
     def __init__(self, platform, eem, eem_aux, role="master", start_idx=0):
         self.rx_ready = CSRStorage()
+        self.eem_sys_rst = Signal()
 
         # Request resources
         # TODO: Expand to support multiple EFCs
@@ -426,14 +415,17 @@ class EEMSerdes(Module, TransceiverInterface):
             platform.request("eem{}_fmc_data_out".format(eem), i) for i in range(4)
         ]
 
+        phase = Signal()
+        self.sync.eem_sys += phase.eq(~phase)
         self.submodules.serdes = SerdesSingle(i_pads, o_pads)
         self.submodules.aux = EEMAux(platform, eem_aux, role=role)
-        
-        # TODO: Move global phase here
+
         if role == "master":
-            self.comb += self.aux.phase_in.eq(self.serdes.phase_out)
-        elif role == "satellite":
-            self.comb += self.serdes.phase_rst.eq(self.aux.phase_rst)
+            self.comb += self.aux.phase.eq(phase)
+        else:
+            self.sync.eem_sys += If(self.aux.phase_rst, phase.eq(0))
+
+        self.comb += self.serdes.phase.eq(phase)
         
         chan_if = ChannelInterface(self.serdes.encoder, self.serdes.decoders)
         self.comb += chan_if.rx_ready.eq(self.rx_ready.storage)
@@ -450,36 +442,32 @@ class EEMSerdes(Module, TransceiverInterface):
 class EEMAux(Module, AutoCSR):
     def __init__(self, platform, eem_aux, role="master"):
         for name, _, src in layout:
-            if name != "sat_rst":
-                tmp = Signal()
-                pad = platform.request(("eem{}_fmc_"+name).format(eem_aux))
-                if src == role:
-                    self.specials += DifferentialOutput(tmp, pad.p, pad.n)
-                    setattr(self.submodules, name, gpio.GPIOOut(tmp))
+            aux_sig = Signal()
+            pad = platform.request(("eem{}_fmc_"+name).format(eem_aux))
+            if src == role:
+                self.specials += DifferentialOutput(aux_sig, pad.p, pad.n)
+            else:
+                self.specials += DifferentialInput(pad.p, pad.n, aux_sig)
+
+            if name == "sat_rst":
+                if role == "master":
+                    self.sat_phase_rst = CSR()
+                    self.phase = Signal()
+
+                    phase_rst_r = Signal()
+                    self.sync += [
+                        phase_rst_r.eq(self.sat_phase_rst.re),
+                        aux_sig.eq((phase_rst_r | self.sat_phase_rst.re) & self.phase),
+                    ]
+
                 else:
-                    self.specials += DifferentialInput(pad.p, pad.n, tmp)
-                    setattr(self.submodules, name, gpio.GPIOIn(tmp))
-
-        sat_rst_pad = platform.request("eem{}_fmc_sat_rst".format(eem_aux))
-        sat_rst_tmp = Signal()
-        if role == "master":
-            self.phase_in = Signal()
-            self.sat_phase_rst = CSR()
-            sat_phase_rst_r = Signal()
-            sat_phase_rst_rr = Signal()
-            sat_phase_rst_cdc = Signal()
-
-            self.specials += MultiReg(self.sat_phase_rst.re, sat_phase_rst_r, "eem_sys")
-            self.sync.eem_sys += sat_phase_rst_rr.eq(sat_phase_rst_r)
-            self.comb += sat_phase_rst_cdc.eq(sat_phase_rst_rr | sat_phase_rst_r)
-            gated_pulse = Signal()
-            self.sync.eem_sys += gated_pulse.eq(sat_phase_rst_cdc & self.phase_in)
-            self.specials += DifferentialOutput(gated_pulse, sat_rst_pad.p, sat_rst_pad.n)
-
-        elif role == "satellite":
-            self.phase_rst = Signal()
-            phase_in_raw = Signal()
-            self.specials += DifferentialInput(sat_rst_pad.p, sat_rst_pad.n, phase_in_raw)
-            self.specials += MultiReg(phase_in_raw, self.phase_rst, "eem_sys")
-        else:
-            ValueError("Invalid role type")
+                    self.phase_rst = Signal()
+                    self.phase_aligned = CSRStatus()
+                    self.specials += MultiReg(aux_sig, self.phase_rst, "eem_sys")
+                    self.sync.eem_sys += self.phase_aligned.status.eq(self.phase_rst | self.phase_aligned.status)
+            
+            else:
+                if src == role:
+                    setattr(self.submodules, name, gpio.GPIOOut(aux_sig))
+                else:
+                    setattr(self.submodules, name, gpio.GPIOIn(aux_sig))
