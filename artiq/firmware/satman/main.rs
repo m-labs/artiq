@@ -489,15 +489,6 @@ fn sysclk_setup() {
 fn sysclk_setup() -> board_misoc::io_expander::IoExpander {
     let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
 
-    // Avoid setting up clock before the master clock is stable
-    unsafe {
-        while csr::eem_transceiver::aux_mst_clk_rdy_in_read() == 0 {
-            clock::spin_us(1_000_000);
-            println!("Master clock not ready...");
-        }
-    }
-    println!("Master clock ready!");
-
     // Skip intialization if it had reset
     if (unsafe { csr::crg::had_clk_switch_read() } != 0) {
         io_expander.set(0, 3, false);
@@ -600,48 +591,29 @@ pub extern fn main() -> i32 {
 
     init_rtio_crg();
 
+    #[cfg(has_drtio_eem)]
     unsafe {
-        csr::eem_transceiver::aux_sat_clk_rdy_out_write(1);
-        while csr::eem_transceiver::aux_phase_rdy_in_read() == 0 {
-            println!("phase aligning...");
+        // Wait for the EEM SYS clock to lock
+        while csr::eem_transceiver::aux_phase_aligned_read() == 0 {
+            println!("Waiting for master clock...");
             clock::spin_us(1_000_000);
         }
-        println!("phase aligned!");
+        // TODO: Read load_dly to determine load from flash or align on the fly
+        csr::eem_transceiver::serdes_send_align_write(1);
+
+        // println!("satellite align symbols ready");
+        let sat_config = drtio_eem::align_eem();
+        drtio_eem::write_config(&sat_config);
         clock::spin_us(1_000_000);
 
-        // Perform EEM aligning if not configured
-        config::read("master_delay", |r| {
-            match r {
-                Ok(record) => {
-                    println!("recorded delay: {:#?}", &*(record.as_ptr() as *const drtio_eem::SerdesConfig));
-                    drtio_eem::write_config(&*(record.as_ptr() as *const drtio_eem::SerdesConfig));
-                    csr::eem_transceiver::serdes_send_align_write(0);
-                    csr::eem_transceiver::rx_ready_write(1);
-                    println!("satellite ready");
-                },
-
-                Err(_) => {
-                    // Alignment complete, start sending comma to master
-                    csr::eem_transceiver::serdes_send_align_write(1);
-                    clock::spin_us(100);
-            
-                    let master_config = drtio_eem::align_eem();
-                    drtio_eem::write_config(&master_config);
-            
-                    csr::eem_transceiver::aux_align_mst_out_write(1);
-            
-                    // Re-enable normal traffic
-                    while csr::eem_transceiver::aux_align_sat_in_read() == 0 {
-                        println!("master aligning...");
-                        clock::spin_us(1_000_000);
-                    }
-                    csr::eem_transceiver::serdes_send_align_write(0);
-                    csr::eem_transceiver::rx_ready_write(1);
-
-                    config::write("master_delay", master_config.as_bytes());
-                }
-            }
-        })
+        csr::eem_transceiver::aux_sat_align_done_out_write(1);
+        while csr::eem_transceiver::aux_mst_align_done_in_read() == 0 {
+            println!("master aligning...");
+            clock::spin_us(1_000_000);
+        }
+        println!("master align done");
+        csr::eem_transceiver::serdes_send_align_write(0);
+        csr::eem_transceiver::rx_ready_write(1);
     }
 
     #[cfg(has_drtio_routing)]

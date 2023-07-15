@@ -127,77 +127,24 @@ fn startup() {
     }
     rtio_clocking::init();
 
-    // EEM synchronization is safe to start after IO expander initialization
     #[cfg(has_drtio_eem)]
     unsafe {
-        // 1. Align satellite phase
-        // Engage encoder to the comma symbol
-        csr::eem_transceiver::serdes_send_align_write(1);
-        clock::spin_us(100);
-        csr::eem_transceiver::aux_mst_clk_rdy_out_write(1);
+        csr::eem_transceiver::aux_load_dly_out_write(1);
+        csr::eem_transceiver::aux_sat_phase_rst_write(1);
 
-        // Wait for satellite to complete clock switch
-        while csr::eem_transceiver::aux_sat_clk_rdy_in_read() == 0 {
-            println!("satellite switching clock...");
+        while csr::eem_transceiver::aux_sat_align_done_in_read() == 0 {
+            println!("satellite aligning...");
             clock::spin_us(1_000_000);
         }
-        println!("satellite completed clock switch...");
 
-        // Align phase for satellite
-        csr::eem_transceiver::aux_sat_phase_rst_write(1);
+        println!("satellite align symbols ready");
+        let sat_config = drtio_eem::align_eem();
+        drtio_eem::write_config(&sat_config);
         clock::spin_us(1_000_000);
-        csr::eem_transceiver::aux_phase_rdy_out_write(1);
 
-        config::read("sat_delay", |r| {
-            match r {
-                Ok(record) => {
-                    println!("recorded delay: {:#?}", &*(record.as_ptr() as *const drtio_eem::SerdesConfig));
-                    drtio_eem::write_config(&*(record.as_ptr() as *const drtio_eem::SerdesConfig));
-                    csr::eem_transceiver::serdes_send_align_write(0);
-                    csr::eem_transceiver::rx_ready_write(1);
-                    println!("master ready");
-                },
-
-                Err(_) => {
-                    // 1. Align satellite phase
-                    // Engage encoder to the comma symbol
-                    csr::eem_transceiver::serdes_send_align_write(1);
-                    clock::spin_us(100);
-                    csr::eem_transceiver::aux_mst_clk_rdy_out_write(1);
-
-                    // Wait for satellite to complete clock switch
-                    while csr::eem_transceiver::aux_sat_clk_rdy_in_read() == 0 {
-                        println!("satellite switching clock...");
-                        clock::spin_us(1_000_000);
-                    }
-                    println!("satellite completed clock switch...");
-
-                    // Align phase for satellite
-                    csr::eem_transceiver::aux_sat_phase_rst_write(1);
-                    clock::spin_us(1_000_000);
-                    csr::eem_transceiver::aux_phase_rdy_out_write(1);
-                    
-                    // 2. Wait for non-zero transmission
-                    // Align receiver EEM pairs afterwards
-                    while csr::eem_transceiver::aux_align_mst_in_read() == 0 {
-                        clock::spin_us(1_000_000);
-                        println!("align symbols not ready...");
-                    }
-                    clock::spin_us(1_000_000);
-                    println!("align symbols ready");
-                    let sat_config = drtio_eem::align_eem();
-                    drtio_eem::write_config(&sat_config);
-                    clock::spin_us(1_000_000);
-                    csr::eem_transceiver::aux_align_sat_out_write(1);
-
-                    // 3. Stop sending alignment symbols
-                    csr::eem_transceiver::serdes_send_align_write(0);
-                    csr::eem_transceiver::rx_ready_write(1);
-
-                    config::write("sat_delay", sat_config.as_bytes());
-                }
-            }
-        })
+        csr::eem_transceiver::aux_mst_align_done_out_write(1);
+        csr::eem_transceiver::serdes_send_align_write(0);
+        csr::eem_transceiver::rx_ready_write(1);
     }
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };

@@ -279,4 +279,13 @@ pub fn init() {
             error!("RTIO clock failed");
         }
     }
+
+    info!("Using internal RTIO clock");
+    unsafe {
+        csr::serdes_crg::pll_reset_write(0);
+    }
+    clock::spin_us(150);
+    if unsafe { csr::serdes_crg::pll_locked_read() == 0 } {
+        error!("EEM clock failed");
+    }
 }
