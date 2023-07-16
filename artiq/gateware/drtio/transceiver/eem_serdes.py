@@ -276,29 +276,29 @@ class SerdesSingle(Module, AutoCSR):
         self.submodules.rx_serdes = RXSerdes()
         self.submodules.tx_serdes = TXSerdes()
 
+        # EEM select
+        self.eem_sel = CSRStorage(2)
+
         # CSR for delay & bitslip
-        self.bitslip_sel = CSRStorage(2)
         self.bitslip = CSR()
 
         for i in range(4):
             self.specials += MultiReg(
-                (self.bitslip_sel.storage == i) & self.bitslip.re,
+                (self.eem_sel.storage == i) & self.bitslip.re,
                 self.rx_serdes.bitslip[i], "eem_sys")
         
-        self.dly_cnt_in_sel = CSRStorage(2)
         self.dly_cnt_in = CSRStorage(5)
         self.dly_ld = CSR()
 
         for i in range(4):
             self.comb += [
                 self.rx_serdes.cnt_in[i].eq(self.dly_cnt_in.storage),
-                self.rx_serdes.ld[i].eq((self.dly_cnt_in_sel.storage == i) & self.dly_ld.re),
+                self.rx_serdes.ld[i].eq((self.eem_sel.storage == i) & self.dly_ld.re),
             ]
         
-        self.dly_cnt_out_sel = CSRStorage(2)
         self.dly_cnt_out = CSRStatus(5)
 
-        self.comb += Case(self.dly_cnt_out_sel.storage, {
+        self.comb += Case(self.eem_sel.storage, {
             idx: self.dly_cnt_out.status.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
         })
         
@@ -373,13 +373,13 @@ class SerdesSingle(Module, AutoCSR):
         rx_d_prev = Signal(8)
         rx_k_prev = Signal()
 
-        read_word_cdc = Signal(2)
-        self.specials += MultiReg(self.read_word.storage, read_word_cdc)
+        eem_sel_cdc = Signal(2)
+        self.specials += MultiReg(self.eem_sel.storage, eem_sel_cdc, "eem_sys")
 
         self.sync.eem_sys += [
-            If(~self.phase ^ read_word_cdc[0],
-                rx_d.eq(decoders[read_word_cdc[1]].d),
-                rx_k.eq(decoders[read_word_cdc[1]].k),
+            If(~self.phase ^ eem_sel_cdc[0],
+                rx_d.eq(decoders[eem_sel_cdc[1]].d),
+                rx_k.eq(decoders[eem_sel_cdc[1]].k),
                 rx_d_prev.eq(rx_d),
                 rx_k_prev.eq(rx_k),
             )
