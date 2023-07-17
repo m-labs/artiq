@@ -8,20 +8,20 @@ from artiq.applets.simple import TitleApplet
 
 
 class HistogramPlot(pyqtgraph.PlotWidget):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         pyqtgraph.PlotWidget.__init__(self)
         self.args = args
         self.timer = QTimer()
         self.timer.setSingleShot(True)
         self.timer.timeout.connect(self.length_warning)
 
-    def data_changed(self, data, mods, title):
+    def data_changed(self, value, metadata, persist, mods, title):
         try:
-            y = data[self.args.y][1]
+            y = value[self.args.y]
             if self.args.x is None:
                 x = None
             else:
-                x = data[self.args.x][1]
+                x = value[self.args.x]
         except KeyError:
             return
         if x is None:

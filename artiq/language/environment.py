@@ -337,13 +337,21 @@ class HasEnvironment:
         self.kernel_invariants = kernel_invariants | {key}
 
     @rpc(flags={"async"})
-    def set_dataset(self, key, value,
+    def set_dataset(self, key, value, *,
+                    unit=None, scale=None, precision=None,
                     broadcast=False, persist=False, archive=True):
         """Sets the contents and handling modes of a dataset.
 
         Datasets must be scalars (``bool``, ``int``, ``float`` or NumPy scalar)
         or NumPy arrays.
 
+        :param unit: A string representing the unit of the value.
+        :param scale: A numerical factor that is used to adjust the value of 
+            the dataset to match the scale or units of the experiment's
+            reference frame when the value is displayed.
+        :param precision: The maximum number of digits to print after the
+            decimal point. Set ``precision=None`` to print as many digits as 
+            necessary to uniquely specify the value. Uses IEEE unbiased rounding.
         :param broadcast: the data is sent in real-time to the master, which
             dispatches it.
         :param persist: the master should store the data on-disk. Implies
@@ -351,7 +359,14 @@ class HasEnvironment:
         :param archive: the data is saved into the local storage of the current
             run (archived as a HDF5 file).
         """
-        self.__dataset_mgr.set(key, value, broadcast, persist, archive)
+        metadata = {}
+        if unit is not None:
+            metadata["unit"] = unit
+        if scale is not None:
+            metadata["scale"] = scale
+        if precision is not None:
+            metadata["precision"] = precision
+        self.__dataset_mgr.set(key, value, metadata, broadcast, persist, archive)
 
     @rpc(flags={"async"})
     def mutate_dataset(self, key, index, value):
@@ -399,6 +414,24 @@ class HasEnvironment:
         """
         try:
             return self.__dataset_mgr.get(key, archive)
+        except KeyError:
+            if default is NoDefault:
+                raise
+            else:
+                return default
+
+    def get_dataset_metadata(self, key, default=NoDefault):
+        """Returns the metadata of a dataset.
+         
+        Returns dictionary with items describing the dataset, including the units, 
+        scale and precision. 
+
+        This function is used to get additional information for displaying the dataset.
+
+        See ``set_dataset`` for documentation of metadata items.
+        """
+        try:
+            return self.__dataset_mgr.get_metadata(key)
         except KeyError:
             if default is NoDefault:
                 raise

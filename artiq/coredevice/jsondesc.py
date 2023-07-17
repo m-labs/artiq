@@ -32,4 +32,7 @@ def load(description_path):
     global validator
     validator.validate(result)
 
+    if result["base"] != "use_drtio_role":
+        result["drtio_role"] = result["base"]
+
     return result

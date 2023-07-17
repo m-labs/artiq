@@ -1,4 +1,6 @@
 use io::{Write, Error as IoError};
+#[cfg(has_drtio)]
+use alloc::vec::Vec;
 use board_misoc::{csr, cache};
 use sched::{Io, Mutex, TcpListener, TcpStream, Error as SchedError};
 use analyzer_proto::*;
@@ -42,7 +44,6 @@ fn disarm() {
 pub mod remote_analyzer {
     use super::*;
     use rtio_mgt::drtio;
-    use alloc::vec::Vec;
     
     pub struct RemoteBuffer {
         pub total_byte_count: u64,

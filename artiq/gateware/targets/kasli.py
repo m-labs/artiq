@@ -87,7 +87,10 @@ class StandaloneBase(MiniSoC, AMPSoC):
             Instance("IBUFDS_GTE2",
                 i_CEB=0,
                 i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-                o_O=cdr_clk), 
+                o_O=cdr_clk,
+                p_CLKCM_CFG="TRUE",
+                p_CLKRCV_TRST="TRUE", 
+                p_CLKSWING_CFG=3), 
             Instance("BUFG", i_I=cdr_clk, o_O=cdr_clk_buf)
         ]
 
@@ -378,7 +381,10 @@ class MasterBase(MiniSoC, AMPSoC):
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=0,
             i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-            o_O=cdr_clk)
+            o_O=cdr_clk,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE", 
+            p_CLKSWING_CFG=3)
         # Note precisely the rules Xilinx made up:
         # refclksel=0b001 GTREFCLK0 selected
         # refclksel=0b010 GTREFCLK1 selected
@@ -400,9 +406,11 @@ class MasterBase(MiniSoC, AMPSoC):
         self.drtio_qpll_channel, self.ethphy_qpll_channel = qpll.channels
 
 
-class SatelliteBase(BaseSoC):
+class SatelliteBase(BaseSoC, AMPSoC):
     mem_map = {
-        "drtioaux": 0x50000000,
+        "rtio":          0x20000000,
+        "drtioaux":      0x50000000,
+        "mailbox":       0x70000000
     }
     mem_map.update(BaseSoC.mem_map)
 
@@ -411,6 +419,7 @@ class SatelliteBase(BaseSoC):
             cpu_bus_width = 32
         else:
             cpu_bus_width = 64
+
         BaseSoC.__init__(self,
                  cpu_type="vexriscv",
                  hw_rev=hw_rev,
@@ -420,6 +429,7 @@ class SatelliteBase(BaseSoC):
                  clk_freq=rtio_clk_freq,
                  rtio_sys_merge=True,
                  **kwargs)
+        AMPSoC.__init__(self)
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
@@ -433,14 +443,17 @@ class SatelliteBase(BaseSoC):
             cdr_clk_out = self.platform.request("cdr_clk_clean")
         else:
             cdr_clk_out = self.platform.request("si5324_clkout")
-        
+
         cdr_clk = Signal()
         self.platform.add_period_constraint(cdr_clk_out, 8.)
 
         self.specials += Instance("IBUFDS_GTE2",
             i_CEB=0,
             i_I=cdr_clk_out.p, i_IB=cdr_clk_out.n,
-            o_O=cdr_clk)
+            o_O=cdr_clk,
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE", 
+            p_CLKSWING_CFG=3)
         qpll_drtio_settings = QPLLSettings(
             refclksel=0b001,
             fbdiv=4,
@@ -565,12 +578,18 @@ class SatelliteBase(BaseSoC):
             self.submodules.rtio_moninj = rtio.MonInj(rtio_channels)
             self.csr_devices.append("rtio_moninj")
 
+        # satellite (master-controlled) RTIO
         self.submodules.local_io = SyncRTIO(self.rtio_tsc, rtio_channels, lane_count=sed_lanes)
         self.comb += self.drtiosat.async_errors.eq(self.local_io.async_errors)
+
+        # subkernel RTIO
+        self.submodules.rtio = rtio.KernelInitiator(self.rtio_tsc)
+        self.register_kernel_cpu_csrdevice("rtio")
+
         self.submodules.rtio_dma = rtio.DMA(self.get_native_sdram_if(), self.cpu_dw)
         self.csr_devices.append("rtio_dma")
         self.submodules.cri_con = rtio.CRIInterconnectShared(
-            [self.drtiosat.cri, self.rtio_dma.cri],
+            [self.drtiosat.cri, self.rtio_dma.cri, self.rtio.cri],
             [self.local_io.cri] + self.drtio_cri,
             enable_routing=True)
         self.csr_devices.append("cri_con")

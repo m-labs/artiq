@@ -91,6 +91,12 @@ def get_argparser():
                                     help="name of the dataset")
     parser_set_dataset.add_argument("value", metavar="VALUE",
                                     help="value in PYON format")
+    parser_set_dataset.add_argument("--unit", default=None, type=str,
+                                    help="physical unit of the dataset")
+    parser_set_dataset.add_argument("--scale", default=None, type=float,
+                                    help="factor to multiply value of dataset in displays")
+    parser_set_dataset.add_argument("--precision", default=None, type=int,
+                                    help="maximum number of decimals to print in displays")
 
     persist_group = parser_set_dataset.add_mutually_exclusive_group()
     persist_group.add_argument("-p", "--persist", action="store_true",
@@ -174,7 +180,14 @@ def _action_set_dataset(remote, args):
         persist = True
     if args.no_persist:
         persist = False
-    remote.set(args.name, pyon.decode(args.value), persist)
+    metadata = {}
+    if args.unit is not None:
+        metadata["unit"] = args.unit
+    if args.scale is not None:
+        metadata["scale"] = args.scale
+    if args.precision is not None:
+        metadata["precision"] = args.precision
+    remote.set(args.name, pyon.decode(args.value), persist, metadata)
 
 
 def _action_del_dataset(remote, args):
@@ -246,8 +259,8 @@ def _show_devices(devices):
 def _show_datasets(datasets):
     clear_screen()
     table = PrettyTable(["Dataset", "Persistent", "Value"])
-    for k, (persist, value) in sorted(datasets.items(), key=itemgetter(0)):
-        table.add_row([k, "Y" if persist else "N", short_format(value)])
+    for k, (persist, value, metadata) in sorted(datasets.items(), key=itemgetter(0)):
+        table.add_row([k, "Y" if persist else "N", short_format(value, metadata)])
     print(table)
 
 
@@ -327,7 +340,7 @@ def main():
             "scan_devices": "master_device_db",
             "scan_repository": "master_experiment_db",
             "ls": "master_experiment_db",
-            "terminate": "master_terminate",
+            "terminate": "master_management",
         }[action]
         remote = Client(args.server, port, target_name)
         try:

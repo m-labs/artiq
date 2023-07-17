@@ -27,6 +27,7 @@ Highlights:
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
+* API extensions have been implemented, enabling applets to directly modify datasets.
 * Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
   be converted with the script below.
 
@@ -39,8 +40,33 @@ Highlights:
   new = lmdb.open("dataset_db.mdb", subdir=False, map_size=2**30)
   with new.begin(write=True) as txn:
     for key, value in old.items():
-      txn.put(key.encode(), pyon.encode(value).encode())
+      txn.put(key.encode(), pyon.encode((value, {})).encode())
   new.close()
+
+Breaking changes:
+
+* ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
+  operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
+  refer to the ``big_number.py`` applet.
+* ``SimpleApplet`` and ``TitleApplet`` now call ``data_changed`` with additional parameters. Wrapped widgets
+  should refactor the function signature as seen below:
+::
+
+  # SimpleApplet
+  def data_changed(self, value, metadata, persist, mods)
+  # SimpleApplet (old version)
+  def data_changed(self, data, mods)
+  # TitleApplet
+  def data_changed(self, value, metadata, persist, mods, title)
+  # TitleApplet (old version)
+  def data_changed(self, data, mods, title)
+
+Old syntax should be replaced with the form shown on the right.
+::
+
+  data[key][0] ==> persist[key]
+  data[key][1] ==> value[key]
+  data[key][2] ==> metadata[key]
 
 
 

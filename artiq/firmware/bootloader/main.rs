@@ -18,7 +18,9 @@ use board_misoc::slave_fpga;
 use board_misoc::{clock, ethmac, net_settings};
 use board_misoc::uart_console::Console;
 use riscv::register::{mcause, mepc, mtval};
+#[cfg(has_ethmac)]
 use smoltcp::iface::{Routes, SocketStorage};
+#[cfg(has_ethmac)]
 use smoltcp::wire::{HardwareAddress, IpAddress, Ipv4Address, Ipv6Address};
 
 fn check_integrity() -> bool {

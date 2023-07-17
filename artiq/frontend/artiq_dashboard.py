@@ -125,11 +125,11 @@ def main():
         atexit.register(client.close_rpc)
         rpc_clients[target] = client
 
-    config = Client(args.server, args.port_control, "master_config")
+    master_management = Client(args.server, args.port_control, "master_management")
     try:
-        server_name = config.get_name()
+        server_name = master_management.get_name()
     finally:
-        config.close_rpc()
+        master_management.close_rpc()
 
     disconnect_reported = False
     def report_disconnect():
@@ -191,6 +191,7 @@ def main():
 
     d_applets = applets_ccb.AppletsCCBDock(main_window,
                                            sub_clients["datasets"],
+                                           rpc_clients["dataset_db"],
                                            extra_substitutes={
                                                "server": args.server,
                                                "port_notify": args.port_notify,

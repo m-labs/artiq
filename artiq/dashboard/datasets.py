@@ -14,14 +14,14 @@ from artiq.gui.scientific_spinbox import ScientificSpinBox
 logger = logging.getLogger(__name__)
 
 
-async def rename(key, new_key, value, persist, dataset_ctl):
+async def rename(key, new_key, value, metadata, persist, dataset_ctl):
     if key != new_key:
         await dataset_ctl.delete(key)
-    await dataset_ctl.set(new_key, value, persist)
+    await dataset_ctl.set(new_key, value, metadata=metadata, persist=persist)
 
 
 class CreateEditDialog(QtWidgets.QDialog):
-    def __init__(self, parent, dataset_ctl, key=None, value=None, persist=False):
+    def __init__(self, parent, dataset_ctl, key=None, value=None, metadata=None, persist=False):
         QtWidgets.QDialog.__init__(self, parent=parent)
         self.dataset_ctl = dataset_ctl
 
@@ -43,9 +43,21 @@ class CreateEditDialog(QtWidgets.QDialog):
         grid.addWidget(self.data_type, 1, 2)
         self.value_widget.textChanged.connect(self.dtype)
 
-        grid.addWidget(QtWidgets.QLabel("Persist:"), 2, 0)
+        grid.addWidget(QtWidgets.QLabel("Unit:"), 2, 0)
+        self.unit_widget = QtWidgets.QLineEdit()
+        grid.addWidget(self.unit_widget, 2, 1)
+
+        grid.addWidget(QtWidgets.QLabel("Scale:"), 3, 0)
+        self.scale_widget = QtWidgets.QLineEdit()
+        grid.addWidget(self.scale_widget, 3, 1)
+
+        grid.addWidget(QtWidgets.QLabel("Precision:"), 4, 0)
+        self.precision_widget = QtWidgets.QLineEdit()
+        grid.addWidget(self.precision_widget, 4, 1)
+
+        grid.addWidget(QtWidgets.QLabel("Persist:"), 5, 0)
         self.box_widget = QtWidgets.QCheckBox()
-        grid.addWidget(self.box_widget, 2, 1)
+        grid.addWidget(self.box_widget, 5, 1)
 
         self.ok = QtWidgets.QPushButton('&Ok')
         self.ok.setEnabled(False)
@@ -55,24 +67,40 @@ class CreateEditDialog(QtWidgets.QDialog):
             self.ok, QtWidgets.QDialogButtonBox.AcceptRole)
         self.buttons.addButton(
             self.cancel, QtWidgets.QDialogButtonBox.RejectRole)
-        grid.setRowStretch(3, 1)
-        grid.addWidget(self.buttons, 4, 0, 1, 3, alignment=QtCore.Qt.AlignHCenter)
+        grid.setRowStretch(6, 1)
+        grid.addWidget(self.buttons, 7, 0, 1, 3, alignment=QtCore.Qt.AlignHCenter)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
 
         self.key = key
         self.name_widget.setText(key)
         self.value_widget.setText(value)
+
+        if metadata is not None:
+            self.unit_widget.setText(metadata.get('unit', ''))
+            self.scale_widget.setText(str(metadata.get('scale', '')))
+            self.precision_widget.setText(str(metadata.get('precision', '')))
+
         self.box_widget.setChecked(persist)
 
     def accept(self):
         key = self.name_widget.text()
         value = self.value_widget.text()
         persist = self.box_widget.isChecked()
+        unit = self.unit_widget.text()
+        scale = self.scale_widget.text()
+        precision = self.precision_widget.text()
+        metadata = {}
+        if unit != "":
+            metadata['unit'] = unit
+        if scale != "":
+            metadata['scale'] = float(scale)
+        if precision != "":
+            metadata['precision'] = int(precision)
         if self.key and self.key != key:
-            asyncio.ensure_future(exc_to_warning(rename(self.key, key, pyon.decode(value), persist, self.dataset_ctl)))
+            asyncio.ensure_future(exc_to_warning(rename(self.key, key, pyon.decode(value), metadata, persist, self.dataset_ctl)))
         else:
-            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, pyon.decode(value), persist)))
+            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, pyon.decode(value), metadata=metadata, persist=persist)))
         self.key = key
         QtWidgets.QDialog.accept(self)
 
@@ -100,13 +128,13 @@ class Model(DictSyncTreeSepModel):
         if column == 1:
             return "Y" if v[0] else "N"
         elif column == 2:
-            return short_format(v[1])
+            return short_format(v[1], v[2])
         else:
             raise ValueError
 
 
 class DatasetsDock(QtWidgets.QDockWidget):
-    def __init__(self, datasets_sub, dataset_ctl):
+    def __init__(self, dataset_sub, dataset_ctl):
         QtWidgets.QDockWidget.__init__(self, "Datasets")
         self.setObjectName("Datasets")
         self.setFeatures(QtWidgets.QDockWidget.DockWidgetMovable |
@@ -146,7 +174,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
         self.table.addAction(delete_action)
 
         self.table_model = Model(dict())
-        datasets_sub.add_setmodel_callback(self.set_model)
+        dataset_sub.add_setmodel_callback(self.set_model)
 
     def _search_datasets(self):
         if hasattr(self, "table_model_filter"):
@@ -168,7 +196,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
             idx = self.table_model_filter.mapToSource(idx[0])
             key = self.table_model.index_to_key(idx)
             if key is not None:
-                persist, value = self.table_model.backing_store[key]
+                persist, value, metadata = self.table_model.backing_store[key]
                 t = type(value)
                 if np.issubdtype(t, np.number) or np.issubdtype(t, np.bool_):
                     value = str(value)
@@ -176,7 +204,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
                     value = '"{}"'.format(str(value))
                 else:
                     value = pyon.encode(value)
-                CreateEditDialog(self, self.dataset_ctl, key, value, persist).open()
+                CreateEditDialog(self, self.dataset_ctl, key, value, metadata, persist).open()
 
     def delete_clicked(self):
         idx = self.table.selectedIndexes()

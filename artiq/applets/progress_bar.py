@@ -6,18 +6,18 @@ from artiq.applets.simple import SimpleApplet
 
 
 class ProgressWidget(QtWidgets.QProgressBar):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         QtWidgets.QProgressBar.__init__(self)
         self.setMinimum(args.min)
         self.setMaximum(args.max)
         self.dataset_value = args.value
 
-    def data_changed(self, data, mods):
+    def data_changed(self, value, metadata, persist, mods):
         try:
-            value = round(data[self.dataset_value][1])
+            val = round(value[self.dataset_value])
         except (KeyError, ValueError, TypeError):
-            value = 0
-        self.setValue(value)
+            val = 0
+        self.setValue(val)
 
 
 

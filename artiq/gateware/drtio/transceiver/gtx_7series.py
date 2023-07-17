@@ -74,6 +74,8 @@ class GTX_20X(Module):
                 p_CPLL_REFCLK_DIV=1,
                 p_RXOUT_DIV=2,
                 p_TXOUT_DIV=2,
+                p_CPLL_INIT_CFG=0x00001E,
+                p_CPLL_LOCK_CFG=0x01C0,
                 i_CPLLRESET=cpllreset,
                 i_CPLLPD=cpllreset,
                 o_CPLLLOCK=cplllock,
@@ -288,9 +290,9 @@ class GTX(Module, TransceiverInterface):
             i_I=clock_pads.p,
             i_IB=clock_pads.n,
             o_O=refclk,
-            p_CLKCM_CFG="0b1",
-            p_CLKRCV_TRST="0b1",
-            p_CLKSWING_CFG="0b11"
+            p_CLKCM_CFG="TRUE",
+            p_CLKRCV_TRST="TRUE",
+            p_CLKSWING_CFG=3
         )
 
         channel_interfaces = []
@@ -320,7 +322,7 @@ class GTX(Module, TransceiverInterface):
 
         # stable_clkin resets after reboot since it's in SYS domain
         # still need to keep clk_enable high after this
-        self.sync.bootstrap += clk_enable.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.done)
+        self.sync.bootstrap += clk_enable.eq(self.stable_clkin.storage | self.gtxs[0].tx_init.cplllock)
 
         # Connect slave i's `rtio_rx` clock to `rtio_rxi` clock
         for i in range(nchannels):

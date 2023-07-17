@@ -7,13 +7,13 @@ from artiq.applets.simple import SimpleApplet
 
 
 class Image(pyqtgraph.ImageView):
-    def __init__(self, args):
+    def __init__(self, args, ctl):
         pyqtgraph.ImageView.__init__(self)
         self.args = args
 
-    def data_changed(self, data, mods):
+    def data_changed(self, value, metadata, persist, mods):
         try:
-            img = data[self.args.img][1]
+            img = value[self.args.img]
         except KeyError:
             return
         self.setImage(img)

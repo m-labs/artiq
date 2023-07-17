@@ -45,8 +45,9 @@ class DatasetDB(TaskObject):
         self.lmdb = lmdb.open(persist_file, subdir=False, map_size=2**30)
         data = dict()
         with self.lmdb.begin() as txn:
-            for key, value in txn.cursor():
-                data[key.decode()] = (True, pyon.decode(value.decode()))
+            for key, value_and_metadata in txn.cursor():
+                value, metadata = pyon.decode(value_and_metadata.decode())
+                data[key.decode()] = (True, value, metadata)
         self.data = Notifier(data)
         self.pending_keys = set()
 
@@ -59,7 +60,10 @@ class DatasetDB(TaskObject):
                 if key not in self.data.raw_view or not self.data.raw_view[key][0]:
                     txn.delete(key.encode())
                 else:
-                    txn.put(key.encode(), pyon.encode(self.data.raw_view[key][1]).encode())
+                    value_and_metadata = (self.data.raw_view[key][1],
+                                          self.data.raw_view[key][2])
+                    txn.put(key.encode(), 
+                            pyon.encode(value_and_metadata).encode())
         self.pending_keys.clear()
 
     async def _do(self):
@@ -73,6 +77,9 @@ class DatasetDB(TaskObject):
     def get(self, key):
         return self.data.raw_view[key][1]
 
+    def get_metadata(self, key):
+        return self.data.raw_view[key][2]
+
     def update(self, mod):
         if mod["path"]:
             key = mod["path"][0]
@@ -83,13 +90,18 @@ class DatasetDB(TaskObject):
         process_mod(self.data, mod)
 
     # convenience functions (update() can be used instead)
-    def set(self, key, value, persist=None):
+    def set(self, key, value, persist=None, metadata=None):
         if persist is None:
             if key in self.data.raw_view:
                 persist = self.data.raw_view[key][0]
             else:
                 persist = False
-        self.data[key] = (persist, value)
+        if metadata is None:
+            if key in self.data.raw_view:
+                metadata = self.data.raw_view[key][2]
+            else:
+                metadata = {}
+        self.data[key] = (persist, value, metadata)
         self.pending_keys.add(key)
 
     def delete(self, key):

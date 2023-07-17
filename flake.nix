@@ -86,8 +86,8 @@
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
 
         # keep llvm_x in sync with nac3
-        propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync tqdm lmdb ]);
+        propagatedBuildInputs = [ pkgs.llvm_14 nac3.packages.x86_64-linux.nac3artiq-pgo sipyco.packages.x86_64-linux.sipyco pkgs.qt5.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial h5py pyqt5 qasync tqdm lmdb jsonschema ]);
 
         dontWrapQtApps = true;
         postFixup = ''
@@ -182,7 +182,7 @@
             };
           };
           nativeBuildInputs = [
-            (pkgs.python3.withPackages(ps: [ ps.jsonschema migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ]))
+            (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging ]))
             rust
             pkgs.cargo-xbuild
             pkgs.llvmPackages_14.clang-unwrapped
@@ -342,10 +342,13 @@
 
       defaultPackage.x86_64-linux = packages.x86_64-linux.python3-mimalloc.withPackages(ps: [ packages.x86_64-linux.artiq ]);
 
-      devShell.x86_64-linux = pkgs.mkShell {
+      # Main development shell with everything you need to develop ARTIQ on Linux.
+      # ARTIQ itself is not included in the environment, you can make Python use the current sources using e.g.
+      # export PYTHONPATH=`pwd`:$PYTHONPATH
+      devShells.x86_64-linux.default = pkgs.mkShell {
         name = "artiq-dev-shell";
         buildInputs = [
-          (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.paramiko ps.jsonschema microscope ]))
+          (packages.x86_64-linux.python3-mimalloc.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs))
           rust
           pkgs.cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
@@ -359,9 +362,24 @@
           pkgs.python3Packages.sphinx-argparse sphinxcontrib-wavedrom latex-artiq-manual
         ];
         shellHook = ''
-          export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
+          export QT_PLUGIN_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}:${pkgs.qt5.qtsvg.bin}/${pkgs.qt5.qtbase.dev.qtPluginPrefix}
           export QML2_IMPORT_PATH=${pkgs.qt5.qtbase}/${pkgs.qt5.qtbase.dev.qtQmlPrefix}
         '';
+      };
+
+      # Lighter development shell optimized for building firmware and flashing boards.
+      devShells.x86_64-linux.boards = pkgs.mkShell {
+        name = "artiq-boards-shell";
+        buildInputs = [
+          (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
+          rust
+          pkgs.cargo-xbuild
+          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvm_11
+          pkgs.lld_11
+          packages.x86_64-linux.vivado
+          packages.x86_64-linux.openocd-bscanspi
+        ];
       };
 
       packages.aarch64-linux = {

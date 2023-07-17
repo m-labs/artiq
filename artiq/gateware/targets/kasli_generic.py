@@ -22,7 +22,7 @@ class GenericStandalone(StandaloneBase):
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
         StandaloneBase.__init__(self, hw_rev=hw_rev, **kwargs)
-
+        self.config["DRTIO_ROLE"] = description["drtio_role"]
         self.config["RTIO_FREQUENCY"] = "{:.1f}".format(description["rtio_frequency"]/1e6)
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
@@ -76,6 +76,7 @@ class GenericMaster(MasterBase):
             rtio_clk_freq=description["rtio_frequency"],
             enable_sata=description["enable_sata_drtio"],
             **kwargs)
+        self.config["DRTIO_ROLE"] = description["drtio_role"]
         if "ext_ref_frequency" in description:
             self.config["SI5324_EXT_REF"] = None
             self.config["EXT_REF_FREQUENCY"] = "{:.1f}".format(
@@ -113,6 +114,7 @@ class GenericSatellite(SatelliteBase):
                                rtio_clk_freq=description["rtio_frequency"],
                                enable_sata=description["enable_sata_drtio"],
                                **kwargs)
+        self.config["DRTIO_ROLE"] = description["drtio_role"]
         if hw_rev == "v1.0":
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
@@ -149,7 +151,7 @@ def main():
     args = parser.parse_args()
     description = jsondesc.load(args.description)
 
-    min_artiq_version = description.get("min_artiq_version", "0")
+    min_artiq_version = description["min_artiq_version"]
     if Version(artiq_version) < Version(min_artiq_version):
         logger.warning("ARTIQ version mismatch: current %s < %s minimum",
                        artiq_version, min_artiq_version)
@@ -157,14 +159,14 @@ def main():
     if description["target"] != "kasli":
         raise ValueError("Description is for a different target")
 
-    if description["base"] == "standalone":
+    if description["drtio_role"] == "standalone":
         cls = GenericStandalone
-    elif description["base"] == "master":
+    elif description["drtio_role"] == "master":
         cls = GenericMaster
-    elif description["base"] == "satellite":
+    elif description["drtio_role"] == "satellite":
         cls = GenericSatellite
     else:
-        raise ValueError("Invalid base")
+        raise ValueError("Invalid DRTIO role")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]

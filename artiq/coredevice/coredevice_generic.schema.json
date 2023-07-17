@@ -19,7 +19,8 @@
         },
         "min_artiq_version": {
             "type": "string",
-            "description": "Minimum required ARTIQ version"
+            "description": "Minimum required ARTIQ version",
+            "default": "0"
         },
         "hw_rev": {
             "type": "string",
@@ -27,8 +28,15 @@
         },
         "base": {
             "type": "string",
+            "enum": ["use_drtio_role", "standalone", "master", "satellite"],
+            "description": "Deprecated, use drtio_role instead",
+            "default": "use_drtio_role"
+        },
+        "drtio_role": {
+            "type": "string",
             "enum": ["standalone", "master", "satellite"],
-            "description": "SoC base; value depends on intended system topology"
+            "description": "Role that this device takes in a DRTIO network; 'standalone' means no DRTIO",
+            "default": "standalone"
         },
         "ext_ref_frequency": {
             "type": "number",
@@ -204,7 +212,8 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "default": "dio_spi"
                                     },
                                     "clk": {
                                         "type": "integer",
@@ -240,7 +249,8 @@
                                 "type": "object",
                                 "properties": {
                                     "name": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "default": "ttl"
                                     },
                                     "pin": {
                                         "type": "integer",
@@ -257,7 +267,8 @@
                                     }
                                 },
                                 "required": ["pin", "direction"]
-                            }
+                            },
+                            "default": []
                         }
                     },
                     "required": ["ports", "spi"]
@@ -297,7 +308,8 @@
                         "clk_div": {
                             "type": "integer",
                             "minimum": 0,
-                            "maximum": 3
+                            "maximum": 3,
+                            "default": 0
                         },
                         "pll_n": {
                             "type": "integer"
@@ -338,7 +350,8 @@
                         },
                         "sampler_hw_rev": {
                             "type": "string",
-                            "pattern": "^v[0-9]+\\.[0-9]+"
+                            "pattern": "^v[0-9]+\\.[0-9]+",
+                            "default": "v2.2"
                         },
                         "urukul0_ports": {
                             "type": "array",
@@ -518,6 +531,11 @@
                             },
                             "minItems": 1,
                             "maxItems": 1
+                        },
+                        "mode": {
+                            "type": "string",
+                            "enum": ["base", "miqro"],
+                            "default": "base"
                         }
                     },
                     "required": ["ports"]
