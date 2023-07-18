@@ -120,7 +120,7 @@ class NumberEntryFloat(ScientificSpinBox):
         disable_scroll_wheel(self)
         procdesc = argument["desc"]
         scale = procdesc["scale"]
-        self.setDecimals(procdesc["ndecimals"])
+        self.setDecimals(procdesc["precision"])
         self.setPrecision()
         self.setSingleStep(procdesc["step"]/scale)
         self.setRelativeStep()
@@ -159,7 +159,7 @@ class _NoScan(LayoutWidget):
         scale = procdesc["scale"]
         self.value = ScientificSpinBox()
         disable_scroll_wheel(self.value)
-        self.value.setDecimals(procdesc["ndecimals"])
+        self.value.setDecimals(procdesc["precision"])
         self.value.setPrecision()
         if procdesc["global_min"] is not None:
             self.value.setMinimum(procdesc["global_min"]/scale)
@@ -202,7 +202,7 @@ class _RangeScan(LayoutWidget):
         scale = procdesc["scale"]
 
         def apply_properties(widget):
-            widget.setDecimals(procdesc["ndecimals"])
+            widget.setDecimals(procdesc["precision"])
             if procdesc["global_min"] is not None:
                 widget.setMinimum(procdesc["global_min"]/scale)
             else:
@@ -293,7 +293,7 @@ class _CenterScan(LayoutWidget):
         scale = procdesc["scale"]
 
         def apply_properties(widget):
-            widget.setDecimals(procdesc["ndecimals"])
+            widget.setDecimals(procdesc["precision"])
             if procdesc["global_min"] is not None:
                 widget.setMinimum(procdesc["global_min"]/scale)
             else:
@@ -469,7 +469,7 @@ class ScanEntry(LayoutWidget):
 def procdesc_to_entry(procdesc):
     ty = procdesc["ty"]
     if ty == "NumberValue":
-        is_int = (procdesc["ndecimals"] == 0
+        is_int = (procdesc["precision"] == 0
                   and int(procdesc["step"]) == procdesc["step"]
                   and procdesc["scale"] == 1)
         if is_int:
