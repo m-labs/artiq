@@ -45,13 +45,13 @@ class ArgumentsDemo(EnvExperiment):
             PYONValue(self.get_dataset("foo", default=42)))
         self.setattr_argument("number", NumberValue(42e-6,
                                                     unit="us",
-                                                    ndecimals=4))
+                                                    precision=4))
         self.setattr_argument("integer", NumberValue(42,
-                                                     step=1, ndecimals=0))
+                                                     step=1, precision=0))
         self.setattr_argument("string", StringValue("Hello World"))
         self.setattr_argument("scan", Scannable(global_max=400,
                                                 default=NoScan(325),
-                                                ndecimals=6))
+                                                precision=6))
         self.setattr_argument("boolean", BooleanValue(True), "Group")
         self.setattr_argument("enum", EnumerationValue(
             ["foo", "bar", "quux"], "foo"), "Group")

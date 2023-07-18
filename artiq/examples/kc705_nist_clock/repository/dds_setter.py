@@ -20,7 +20,7 @@ class DDSSetter(EnvExperiment):
                     "driver": self.get_device(k),
                     "frequency": self.get_argument(
                         "{}_frequency".format(k),
-                        NumberValue(100e6, scale=1e6, unit="MHz", ndecimals=6))
+                        NumberValue(100e6, scale=1e6, unit="MHz", precision=6))
                 }
 
     @kernel

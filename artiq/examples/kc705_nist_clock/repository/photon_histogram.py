@@ -12,8 +12,8 @@ class PhotonHistogram(EnvExperiment):
         self.setattr_device("bdd_sw")
         self.setattr_device("pmt")
 
-        self.setattr_argument("nbins", NumberValue(100, ndecimals=0, step=1))
-        self.setattr_argument("repeats", NumberValue(100, ndecimals=0, step=1))
+        self.setattr_argument("nbins", NumberValue(100, precision=0, step=1))
+        self.setattr_argument("repeats", NumberValue(100, precision=0, step=1))
 
         self.setattr_dataset("cool_f", 230*MHz)
         self.setattr_dataset("detect_f", 220*MHz)
