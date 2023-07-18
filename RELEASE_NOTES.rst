@@ -68,6 +68,9 @@ Old syntax should be replaced with the form shown on the right.
   data[key][1] ==> value[key]
   data[key][2] ==> metadata[key]
 
+* The ``ndecimals`` parameter in ``NumberValue`` and ``Scannable`` has been renamed to ``precision``. 
+  Parameters after and including ``scale`` in both constructors are now keyword-only.
+  Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
 
 
 ARTIQ-7
