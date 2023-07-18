@@ -264,8 +264,9 @@ pub mod subkernel {
                 let subkernels_iter = unsafe { SUBKERNELS.iter_mut() };
                 for (_, subkernel) in subkernels_iter {
                     match subkernel.state {
-                        SubkernelState::Finished { .. } => (),
-                        _ => return false
+                        // count any non-running kernels as finished
+                        SubkernelState::Running => return false,
+                        _ => (),
                     }
                 }
                 true

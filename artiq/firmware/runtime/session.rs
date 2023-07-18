@@ -251,8 +251,8 @@ fn kern_run(session: &mut Session) -> Result<(), Error<SchedError>> {
     kern_acknowledge()
 }
 
-fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-                        routing_table: &drtio_routing::RoutingTable, stream: &mut TcpStream,
+fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subkernel_mutex: &Mutex,
+                        _routing_table: &drtio_routing::RoutingTable, stream: &mut TcpStream,
                         session: &mut Session) -> Result<(), Error<SchedError>> {
     match host_read(stream)? {
         host::Request::SystemInfo => {
@@ -265,7 +265,7 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkerne
 
         host::Request::LoadKernel(kernel) => {
             #[cfg(has_drtio)]
-            subkernel::message_clear_queue(io, subkernel_mutex);
+            subkernel::message_clear_queue(io, _subkernel_mutex);
 
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted)?,
@@ -349,8 +349,8 @@ fn process_host_message(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkerne
         host::Request::UploadSubkernel { id: _id, destination: _dest, kernel: _kernel } => {
             #[cfg(has_drtio)]
             {
-                subkernel::add_subkernel(io, subkernel_mutex, _id, _dest, _kernel);
-                match subkernel::upload(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, _id) {
+                subkernel::add_subkernel(io, _subkernel_mutex, _id, _dest, _kernel);
+                match subkernel::upload(io, _aux_mutex, _ddma_mutex, _subkernel_mutex, _routing_table, _id) {
                     Ok(_) => host_write(stream, host::Reply::LoadCompleted)?,
                     Err(error) => {
                         let mut description = String::new();

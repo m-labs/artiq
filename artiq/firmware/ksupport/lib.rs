@@ -459,6 +459,50 @@ extern fn dma_playback(_timestamp: i64, _ptr: i32, _uses_ddma: bool) {
     unimplemented!("not(kernel_has_rtio_dma)")
 }
 
+#[unwind(allowed)]
+extern fn subkernel_load_run(id: u32, run: bool) {
+    send(&SubkernelLoadRunRequest { id: id, run: run });
+    recv!(&SubkernelLoadRunReply { succeeded } => {
+        if !succeeded {
+            raise!("SubkernelError",
+                "Error loading or running the subkernel");
+        }
+    });
+}
+
+#[unwind(allowed)]
+extern fn subkernel_await_finish(wait_for_all: bool, id: u32, timeout: u64) {
+    let optional_id = if wait_for_all { None } else { Some(id) };
+    send(&SubkernelAwaitFinishRequest { optional_id: optional_id, timeout: timeout });
+    recv!(&SubkernelAwaitFinishReply { timeout } => {
+        if timeout {
+            raise!("SubkernelError",
+                "Timed out awaiting for subkernel to finish");
+        }
+    })
+}
+
+#[unwind(allowed)]
+extern fn subkernel_send_message(id: u32, tag: &CSlice<u8>, data: *const *const ()) {
+    send(&SubkernelMsgSend { 
+        id: id,
+        tag: tag.as_ref(),
+        data: data 
+    });
+}
+
+#[unwind(allowed)]
+extern fn subkernel_await_message(id: u32, timeout: u64) {
+    send(&SubkernelMsgRecvRequest { id: id, timeout: timeout });
+    recv!(&SubkernelMsgRecvReply { timeout } => {
+        if timeout {
+            raise!("SubkernelError",
+                "Timed out awaiting for subkernel's message");
+        }
+    })
+    // RpcRecvRequest should be called after this to receive message data
+}
+
 unsafe fn attribute_writeback(typeinfo: *const ()) {
     struct Attr {
         offset: usize,
