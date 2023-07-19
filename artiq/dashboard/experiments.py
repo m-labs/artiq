@@ -145,6 +145,11 @@ class _ArgumentEditor(QtWidgets.QTreeWidget):
         buttons.layout.setColumnStretch(3, 1)
         self.setItemWidget(widget_item, 1, buttons)
 
+    def update_argument_state(self, arg_name):
+        widgets = self._arg_to_widgets[arg_name]
+        entry = widgets["entry"]
+        entry.update_state()
+
     def _get_group(self, name):
         if name in self._groups:
             return self._groups[name]
@@ -610,6 +615,30 @@ class ExperimentManager:
             return file, class_name, False
         else:
             raise ValueError("Malformed experiment URL")
+
+    def set_argument_value(self, expurl, arg_name, arg_value, **kwargs):
+        argument = self.submission_arguments.get(expurl, {}).get(arg_name)
+        if expurl in self.submission_arguments:
+            if argument is not None:
+                self.update_argument_state(argument, arg_value, **kwargs)
+                dock = self.open_experiments.get(expurl)
+                if dock is not None:
+                    dock.argeditor.update_argument_state(arg_name)
+            else:
+                logger.warning("No argument '%s' found", arg_name)
+        else:
+            logger.error("No experiment '%s' found", expurl)
+
+    def update_argument_state(self, argument, arg_value, **kwargs):
+        state = argument["state"]
+        if argument["desc"]["ty"] == "Scannable":
+            valid_keys = set(state.keys()) - {"selected"}
+            updates = {k: v for k, v in kwargs.items() if k in valid_keys}
+            state.update({"selected": arg_value, **updates})
+            for invalid_key in set(kwargs.keys()) - valid_keys:
+                logger.warning("Invalid scan type: '%s'", invalid_key)
+        else:
+            argument["state"] = arg_value
 
     def get_argument_editor_class(self, expurl):
         ui_name = self.argument_ui_names.get(expurl, None)
