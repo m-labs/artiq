@@ -37,6 +37,7 @@ def globals():
 
         # ARTIQ decorators
         "kernel":               builtins.fn_kernel(),
+        "subkernel":            builtins.fn_kernel(),
         "portable":             builtins.fn_kernel(),
         "rpc":                  builtins.fn_kernel(),
 

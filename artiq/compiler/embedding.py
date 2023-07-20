@@ -74,7 +74,8 @@ class EmbeddingMap:
                                                   "CacheError",
                                                   "SPIError",
                                                   "0:ZeroDivisionError",
-                                                  "0:IndexError"])
+                                                  "0:IndexError",
+                                                  "SubkernelError"])
 
     def preallocate_runtime_exception_names(self, names):
         for i, name in enumerate(names):
@@ -919,6 +920,10 @@ class Stitcher:
                 return [diagnostic.Diagnostic("note",
                     "in kernel function here", {},
                     call_loc)]
+            elif fn_kind == 'subkernel':
+                return [diagnostic.Diagnostic("note",
+                    "in subkernel function here", {},
+                    call_loc)]
             else:
                 assert False
         else:
@@ -930,11 +935,11 @@ class Stitcher:
             return self._extract_annot(function, param.annotation,
                                        "argument '{}'".format(param.name), loc,
                                        fn_kind)
-        elif fn_kind == 'syscall':
-            # Syscalls must be entirely annotated.
+        elif fn_kind == 'syscall' or fn_kind == 'subkernel':
+            # Syscalls and subkernels must be entirely annotated.
             diag = diagnostic.Diagnostic("error",
-                "system call argument '{argument}' must have a type annotation",
-                {"argument": param.name},
+                "{fn_kind} argument '{argument}' must have a type annotation",
+                {"fn_kind": fn_kind, "argument": param.name},
                 self._function_loc(function),
                 notes=self._call_site_note(loc, fn_kind))
             self.engine.process(diag)
@@ -1212,6 +1217,41 @@ class Stitcher:
         self.functions[function] = function_type
         return function_type
 
+    def _quote_subkernel(self, function, loc):
+        ret_type = builtins.TNone()
+        signature = inspect.signature(host_function)
+            
+        if signature.return_annotation is not inspect.Signature.empty:
+            ret_type = self._extract_annot(host_function, signature.return_annotation,
+                                            "return type", loc, fn_kind='subkernel')
+        arg_types = OrderedDict()
+        optarg_types = OrderedDict()
+        for param in signature.parameters.values():
+            if param.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD:
+                diag = diagnostic.Diagnostic("error",
+                    "subkernels must only use positional arguments; '{argument}' isn't",
+                    {"argument": param.name},
+                    self._function_loc(function),
+                    notes=self._call_site_note(loc, fn_kind='subkernel'))
+                self.engine.process(diag)
+
+            arg_type = self._type_of_param(function, loc, param, fn_kind='subkernel')
+            if param.default is inspect.Parameter.empty:
+                arg_types[param.name] = arg_type
+            else:
+                diag = diagnostic.Diagnostic("error",
+                    "subkernel argument '{argument}' must not have a default value",
+                    {"argument": param.name},
+                    self._function_loc(function),
+                    notes=self._call_site_note(loc, fn_kind='subkernel'))
+                self.engine.process(diag)
+
+        function_type = types.TSubkernel(arg_types, ret_type,
+                                   sid=self.embedding_map.store_object(function),
+                                   destination=function.artiq_embedded.subkernel)
+        self.functions[function] = function_type
+        return function_type
+
     def _quote_rpc(self, function, loc):
         if isinstance(function, SpecializedFunction):
             host_function = function.host_function
@@ -1271,8 +1311,11 @@ class Stitcher:
                 (host_function.artiq_embedded.core_name is None and
                  host_function.artiq_embedded.portable is False and
                  host_function.artiq_embedded.syscall is None and
+                 host_function.artiq_embedded.subkernel is None and
                  host_function.artiq_embedded.forbidden is False):
             self._quote_rpc(function, loc)
+        elif host_function.artiq_embedded.subkernel is not None:
+            self._quote_subkernel(function, loc)
         elif host_function.artiq_embedded.function is not None:
             if host_function.__name__ == "<lambda>":
                 note = diagnostic.Diagnostic("note",
