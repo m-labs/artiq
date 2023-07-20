@@ -46,6 +46,8 @@ Datasets are values (possibly arrays) that are read and written by experiments a
 
 A dataset may be broadcasted, that is, distributed to all clients connected to the master. For example, the ARTIQ GUI may plot it while the experiment is in progress to give rapid feedback to the user. Broadcasted datasets live in a global key-value store; experiments should use distinctive real-time result names in order to avoid conflicts. Broadcasted datasets may be used to communicate values across experiments; for example, a periodic calibration experiment may update a dataset read by payload experiments. Broadcasted datasets are replaced when a new dataset with the same key (name) is produced.
 
+Datasets can attach metadata for numerical formatting with the ``unit``, ``scale`` and ``precision`` parameters. In experiment code, values are assumed to be in the SI unit. In code, setting a dataset with a value of `1000` and the unit `kV` represents the quantity `1 kV`. It is recommended to use the globals defined by `artiq.language.units` and write `1*kV` instead of `1000` for the value. In dashboards and clients these globals are not available. There, setting a dataset with a value of `1` and the unit `kV` simply represents the quantity `1 kV`. ``precision`` refers to the max number of decimal places to display. This parameter does not affect the underlying value, and is only used for display purposes.
+
 Broadcasted datasets may be persistent: the master stores them in a file typically called ``dataset_db.pyon`` so they are saved across master restarts.
 
 Datasets produced by an experiment run may be archived in the HDF5 output for that run.
