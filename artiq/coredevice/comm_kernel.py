@@ -210,6 +210,7 @@ class CommKernel:
         self.unpack_float64 = struct.Struct(self.endian + "d").unpack
 
         self.pack_header = struct.Struct(self.endian + "lB").pack
+        self.pack_int8 = struct.Struct(self.endian + "B").pack
         self.pack_int32 = struct.Struct(self.endian + "l").pack
         self.pack_int64 = struct.Struct(self.endian + "q").pack
         self.pack_float64 = struct.Struct(self.endian + "d").pack
@@ -324,7 +325,7 @@ class CommKernel:
         self._write(chunk)
 
     def _write_int8(self, value):
-        self._write(value)
+        self._write(self.pack_int8(value))
 
     def _write_int32(self, value):
         self._write(self.pack_int32(value))
@@ -375,6 +376,19 @@ class CommKernel:
 
     def load(self, kernel_library):
         self._write_header(Request.LoadKernel)
+        self._write_bytes(kernel_library)
+        self._flush()
+
+        self._read_header()
+        if self._read_type == Reply.LoadFailed:
+            raise LoadError(self._read_string())
+        else:
+            self._read_expect(Reply.LoadCompleted)
+
+    def upload_subkernel(self, kernel_library, id, destination):
+        self._write_header(Request.SubkernelUpload)
+        self._write_int32(id)
+        self._write_int8(destination)
         self._write_bytes(kernel_library)
         self._flush()
 
