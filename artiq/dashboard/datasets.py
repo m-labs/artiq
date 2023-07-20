@@ -5,7 +5,7 @@ import numpy as np
 from PyQt5 import QtCore, QtWidgets
 from sipyco import pyon
 
-from artiq.tools import short_format, exc_to_warning
+from artiq.tools import scale_from_metadata, short_format, exc_to_warning
 from artiq.gui.tools import LayoutWidget, QRecursiveFilterProxyModel
 from artiq.gui.models import DictSyncTreeSepModel
 from artiq.gui.scientific_spinbox import ScientificSpinBox
@@ -77,6 +77,11 @@ class CreateEditDialog(QtWidgets.QDialog):
         self.value_widget.setText(value)
 
         if metadata is not None:
+            scale = scale_from_metadata(metadata)
+            value = pyon.decode(value)
+            t = type(value)
+            if np.issubdtype(t, np.number) or t is np.ndarray:
+                self.value_widget.setText(pyon.encode(value / scale))
             self.unit_widget.setText(metadata.get('unit', ''))
             self.scale_widget.setText(str(metadata.get('scale', '')))
             self.precision_widget.setText(str(metadata.get('precision', '')))
@@ -97,10 +102,15 @@ class CreateEditDialog(QtWidgets.QDialog):
             metadata['scale'] = float(scale)
         if precision != "":
             metadata['precision'] = int(precision)
+        scale = scale_from_metadata(metadata)
+        value = pyon.decode(value)
+        t = type(value)
+        if np.issubdtype(t, np.number) or t is np.ndarray:
+            value = value * scale
         if self.key and self.key != key:
-            asyncio.ensure_future(exc_to_warning(rename(self.key, key, pyon.decode(value), metadata, persist, self.dataset_ctl)))
+            asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist, self.dataset_ctl)))
         else:
-            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, pyon.decode(value), metadata=metadata, persist=persist)))
+            asyncio.ensure_future(exc_to_warning(self.dataset_ctl.set(key, value, metadata=metadata, persist=persist)))
         self.key = key
         QtWidgets.QDialog.accept(self)
 
@@ -197,13 +207,7 @@ class DatasetsDock(QtWidgets.QDockWidget):
             key = self.table_model.index_to_key(idx)
             if key is not None:
                 persist, value, metadata = self.table_model.backing_store[key]
-                t = type(value)
-                if np.issubdtype(t, np.number) or np.issubdtype(t, np.bool_):
-                    value = str(value)
-                elif np.issubdtype(t, np.unicode_):
-                    value = '"{}"'.format(str(value))
-                else:
-                    value = pyon.encode(value)
+                value = pyon.encode(value)
                 CreateEditDialog(self, self.dataset_ctl, key, value, metadata, persist).open()
 
     def delete_clicked(self):
