@@ -21,7 +21,7 @@ __all__.extend(kernel_globals)
 
 
 _ARTIQEmbeddedInfo = namedtuple("_ARTIQEmbeddedInfo",
-                                "core_name portable function syscall forbidden subkernel destination flags")
+                                "core_name portable function syscall forbidden subkernel flags")
 
 def kernel(arg=None, flags={}):
     """

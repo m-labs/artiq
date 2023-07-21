@@ -398,6 +398,13 @@ class LLVMIRGenerator:
         elif name == "rpc_recv":
             llty = ll.FunctionType(lli32, [llptr])
 
+        elif name == "subkernel_send_message":
+            llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
+        elif name == "subkernel_load_run":
+            llty = ll.FunctionType(llvoid, [lli32, lli1])
+        elif name == "subkernel_await":
+            llty = ll.FunctionType(llvoid, [lli32, lli64])
+
         # with now-pinning
         elif name == "now":
             llty = lli64
@@ -1552,6 +1559,59 @@ class LLVMIRGenerator:
             self.llbuilder.branch(llnormalblock)
         return llret
 
+    def _build_subkernel_invokation(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
+        llsid = ll.Constant(lli32, fun_type.sid)
+        tag = b""
+
+        for arg in args:
+            def arg_error_handler(typ):
+                printer = types.TypePrinter()
+                note = diagnostic.Diagnostic("note",
+                    "value of type {type}",
+                    {"type": printer.name(typ)},
+                    arg.loc)
+                diag = diagnostic.Diagnostic("error",
+                    "type {type} is not supported in subkernel calls",
+                    {"type": printer.name(arg.type)},
+                    arg.loc, notes=[note])
+                self.engine.process(diag)
+            tag += ir.rpc_tag(arg.type, arg_error_handler)
+        tag += b":"
+
+        # run the kernel first
+        self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 1)])
+
+        # arg sent in the same vein as RPC
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.stack")
+
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+        lltagptr = self.llbuilder.alloca(lltag.type)
+        self.llbuilder.store(lltag, lltagptr)
+
+        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                       name="subkernel.args")
+        for index, arg in enumerate(args):
+            if builtins.is_none(arg.type):
+                llargslot = self.llbuilder.alloca(llunit,
+                                                  name="subkernel.arg{}".format(index))
+            else:
+                llarg = self.map(arg)
+                llargslot = self.llbuilder.alloca(llarg.type,
+                                                  name="subkernel.arg{}".format(index))
+                self.llbuilder.store(llarg, llargslot)
+            llargslot = self.llbuilder.bitcast(llargslot, llptr)
+
+            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+            self.llbuilder.store(llargslot, llargptr)
+
+        self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                            [llsid, lltagptr, llargs])
+        self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+
+        # return handle - subkernelid - for awaiting the subkernel
+        return llsid
+
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
         if types.is_rpc(functiontyp):
@@ -1595,6 +1655,11 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
+        if types.is_subkernel(functiontyp):
+            return self._build_subkernel_invokation(insn.target_function().loc,
+                                                    functiontyp,
+                                                    insn.arguments(),
+                                                    llnormalblock, llunwindblock)
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:

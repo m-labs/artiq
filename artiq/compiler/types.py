@@ -695,6 +695,9 @@ def is_function(typ):
 def is_rpc(typ):
     return isinstance(typ.find(), TRPC)
 
+def is_subkernel(typ):
+    return isinstance(typ.find(), TSubkernel)
+
 def is_external_function(typ, name=None):
     typ = typ.find()
     if name is None:
