@@ -72,6 +72,7 @@ def short_format(v, metadata={}):
         v_t = np.divide(v, scale)
         v_str = np.format_float_positional(v_t, 
                                            precision=precision,
+                                           trim='-',
                                            unique=True)
         v_str += " " + unit if unit else ""
         return v_str
@@ -84,6 +85,7 @@ def short_format(v, metadata={}):
         v_str = np.array2string(v_t,
                                 max_line_width=1000,
                                 precision=precision,
+                                trim='-',
                                 suppress_small=True,
                                 separator=', ',
                                 threshold=4,
