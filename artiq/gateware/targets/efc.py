@@ -14,7 +14,8 @@ from misoc.targets.efc import BaseSoC
 from misoc.integration.builder import builder_args, builder_argdict
 
 from artiq.gateware.amp import AMPSoC
-from artiq.gateware import rtio, shuttler
+from artiq.gateware import rtio
+from artiq.gateware.shuttler.core import Shuttler
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
@@ -24,6 +25,7 @@ from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
+from pprint import pp
 
 class SerdesCRG(Module, AutoCSR):
     def __init__(self, platform, main_clk):
@@ -84,7 +86,8 @@ class SatelliteBase(BaseSoC):
         add_identifier(self, gateware_identifier_str=gateware_identifier_str)
 
         platform = self.platform
-        platform.add_extension(shuttler.fmc_adapter_io)
+        #platform.add_extension(Shuttler.io)
+        self.platform.add_extension(Shuttler.io())
 
         eem_data = 1
         eem_aux = 0

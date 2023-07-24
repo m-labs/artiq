@@ -488,14 +488,14 @@ fn sysclk_setup() {
 #[cfg(soc_platform = "efc")]
 fn sysclk_setup() -> board_misoc::io_expander::IoExpander {
     let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
-
+    /* 
     // Skip intialization if it had reset
     if (unsafe { csr::crg::had_clk_switch_read() } != 0) {
         io_expander.set(0, 3, false);
         io_expander.set(0, 2, true);
         return io_expander;
     }
-
+    */
     io_expander.init().expect("I2C I/O expander #0 initialization failed");
 
     // Latch in the logic signal before enabling
@@ -503,18 +503,23 @@ fn sysclk_setup() -> board_misoc::io_expander::IoExpander {
     io_expander.set(0, 2, true);
     io_expander.service().unwrap();
     println!("Serviced I/O expander.");
-
+    /* 
     // Changing output direction of the I/O expander
     // will immediately update clock source, which may trigger reboot
     // So, notify the gateware a clock switch request in advance
     unsafe {
         csr::crg::switched_clk_write(1);
     }
-    io_expander.set_oe(0, 1 << 2 | 1 << 3);
+    */
+    println!("Enable clock switch now");
+    //io_expander.set_oe(0, 1 << 2 | 1 << 3);
+    println!("Finish enabling");
 
-    loop {}
+    return io_expander;
+//temp disable infinite loop
+    //loop {}
 
-    unreachable!()
+    //unreachable!()
 }
 
 
@@ -570,9 +575,11 @@ pub extern fn main() -> i32 {
 
     #[cfg(soc_platform = "efc")]
     {
+        println!("Enabling power for fmc card");
         // Do whatever we need the IO expander to do here
         // The CLK_SELs must be output to keep MMCX
-        io_expander.set_oe(0, 1 << 2 | 1 << 3 | 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+        //io_expander.set_oe(0, 1 << 2 | 1 << 3 | 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+        io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
         io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
 
         io_expander.set(0, 5, true);
@@ -582,6 +589,10 @@ pub extern fn main() -> i32 {
         io_expander.set(1, 1, true);
 
         io_expander.service().unwrap();
+        println!("Finishing enabling power for fmc card");
+        loop {}
+        unreachable!()
+
     }
 
     #[cfg(not(soc_platform = "efc"))]

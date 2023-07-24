@@ -7,7 +7,9 @@ from artiq.gateware.rtio.phy import spi2, ad53xx_monitor, dds, grabber
 from artiq.gateware.suservo import servo, pads as servo_pads
 from artiq.gateware.rtio.phy import servo as rtservo, fastino, phaser
 from artiq.gateware.drtio.transceiver import eem_serdes
+from artiq.gateware.shuttler.io_map import shuttler_fmc_ios
 
+from pprint import pp
 
 def _fmc_signal(i):
     n = "d{}".format(i)
@@ -20,7 +22,7 @@ def _fmc_pin(fmc, i, pol):
     return "fmc{}:{}_{}".format(fmc, _fmc_signal(i), pol)
 
 
-def default_iostandard(fmc):
+def default_iostandard():
     return IOStandard("LVDS_25")
 
 
@@ -130,84 +132,41 @@ class DIO_SPI(_FMC):
 
 class Shuttler(_FMC):
     @staticmethod
-    def io(fmc, fmc_aux, iostandard):
-        ios = [
-            ("sampler{}_adc_spi_p".format(fmc), 0,
-                Subsignal("clk", Pins(_fmc_pin(fmc, 0, "p"))),
-                Subsignal("miso", Pins(_fmc_pin(fmc, 1, "p")), Misc("DIFF_TERM=TRUE")),
-                iostandard(fmc),
-            ),
-            ("sampler{}_adc_spi_n".format(fmc), 0,
-                Subsignal("clk", Pins(_fmc_pin(fmc, 0, "n"))),
-                Subsignal("miso", Pins(_fmc_pin(fmc, 1, "n")), Misc("DIFF_TERM=TRUE")),
-                iostandard(fmc),
-            ),
-            ("sampler{}_pgia_spi_p".format(fmc), 0,
-                Subsignal("clk", Pins(_fmc_pin(fmc, 4, "p"))),
-                Subsignal("mosi", Pins(_fmc_pin(fmc, 5, "p"))),
-                Subsignal("miso", Pins(_fmc_pin(fmc, 6, "p")), Misc("DIFF_TERM=TRUE")),
-                Subsignal("cs_n", Pins(_fmc_pin(fmc, 7, "p"))),
-                iostandard(fmc),
-            ),
-            ("sampler{}_pgia_spi_n".format(fmc), 0,
-                Subsignal("clk", Pins(_fmc_pin(fmc, 4, "n"))),
-                Subsignal("mosi", Pins(_fmc_pin(fmc, 5, "n"))),
-                Subsignal("miso", Pins(_fmc_pin(fmc, 6, "n")), Misc("DIFF_TERM=TRUE")),
-                Subsignal("cs_n", Pins(_fmc_pin(fmc, 7, "n"))),
-                iostandard(fmc),
-            ),
-        ] + [
-            ("sampler{}_{}".format(fmc, sig), 0,
-                Subsignal("p", Pins(_fmc_pin(j, i, "p"))),
-                Subsignal("n", Pins(_fmc_pin(j, i, "n"))),
-                iostandard(j)
-            ) for i, j, sig in [
-                (2, fmc, "sdr"),
-                (3, fmc, "cnv")
-            ]
-        ]
-        if fmc_aux is not None:
-            ios += [
-                ("sampler{}_adc_data_p".format(fmc), 0,
-                    Subsignal("clkout", Pins(_fmc_pin(fmc_aux, 0, "p"))),
-                    Subsignal("sdoa", Pins(_fmc_pin(fmc_aux, 1, "p"))),
-                    Subsignal("sdob", Pins(_fmc_pin(fmc_aux, 2, "p"))),
-                    Subsignal("sdoc", Pins(_fmc_pin(fmc_aux, 3, "p"))),
-                    Subsignal("sdod", Pins(_fmc_pin(fmc_aux, 4, "p"))),
-                    Misc("DIFF_TERM=TRUE"),
-                    iostandard(fmc_aux),
-                ),
-                ("sampler{}_adc_data_n".format(fmc), 0,
-                    Subsignal("clkout", Pins(_fmc_pin(fmc_aux, 0, "n"))),
-                    Subsignal("sdoa", Pins(_fmc_pin(fmc_aux, 1, "n"))),
-                    Subsignal("sdob", Pins(_fmc_pin(fmc_aux, 2, "n"))),
-                    Subsignal("sdoc", Pins(_fmc_pin(fmc_aux, 3, "n"))),
-                    Subsignal("sdod", Pins(_fmc_pin(fmc_aux, 4, "n"))),
-                    Misc("DIFF_TERM=TRUE"),
-                    iostandard(fmc_aux),
-                ),
-            ]
+    def io(fmc=0, iostandard=default_iostandard):
+        ios = shuttler_fmc_ios.fmc_io_map(fmc, iostandard)
+
+        pp(ios)
+
         return ios
 
+    # to be modified
+    
     @classmethod
-    def add_std(cls, target, fmc, fmc_aux, ttl_out_cls, iostandard=default_iostandard):
+    def add_std(cls, target, fmc, ttl_out_cls, iostandard=default_iostandard):
         cls.add_extension(target, fmc, fmc_aux, iostandard=iostandard)
 
+        # The following things should be instantiated
+        # 1. I2C+GPIO for Clock Startup
+        # 2. SPI for DAC Config
+        # 3. Serdes for DAC
+
+        # DAC SPI
         phy = spi2.SPIMaster(
-                target.platform.request("sampler{}_adc_spi_p".format(fmc)),
-                target.platform.request("sampler{}_adc_spi_n".format(fmc)))
+                target.platform.request("shuttler{}_adc_spi_p".format(fmc))
+                )
         target.submodules += phy
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
         phy = spi2.SPIMaster(
-                target.platform.request("sampler{}_pgia_spi_p".format(fmc)),
-                target.platform.request("sampler{}_pgia_spi_n".format(fmc)))
+                target.platform.request("shuttler{}_pgia_spi_p".format(fmc)),
+                target.platform.request("shuttler{}_pgia_spi_n".format(fmc)))
         target.submodules += phy
 
         target.rtio_channels.append(rtio.Channel.from_phy(phy, ififo_depth=4))
-        pads = target.platform.request("sampler{}_cnv".format(fmc))
+        pads = target.platform.request("shuttler{}_cnv".format(fmc))
         phy = ttl_out_cls(pads.p, pads.n)
         target.submodules += phy
 
         target.rtio_channels.append(rtio.Channel.from_phy(phy))
-        sdr = target.platform.request("sampler{}_sdr".format(fmc))
+        sdr = target.platform.request("shuttler{}_sdr".format(fmc))
         target.specials += DifferentialOutput(1, sdr.p, sdr.n)
+    
