@@ -76,8 +76,6 @@ pub enum Packet {
 
     SubkernelAddDataRequest { destination: u8, id: u32, last: bool, length: u16, data: [u8; MASTER_PAYLOAD_MAX_SIZE] },
     SubkernelAddDataReply { succeeded: bool },
-    SubkernelRemoveRequest { destination: u8, id: u32 },
-    SubkernelRemoveReply { succeeded: bool },
     SubkernelLoadRunRequest { destination: u8, id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelFinished { id: u32, with_exception: bool },
@@ -296,13 +294,6 @@ impl Packet {
                 }
             },
             0xc1 => Packet::SubkernelAddDataReply {
-                succeeded: reader.read_bool()?
-            },
-            0xc2 => Packet::SubkernelRemoveRequest {
-                destination: reader.read_u8()?,
-                id: reader.read_u32()?
-            },
-            0xc3 => Packet::SubkernelRemoveReply {
                 succeeded: reader.read_bool()?
             },
             0xc4 => Packet::SubkernelLoadRunRequest {
@@ -582,15 +573,6 @@ impl Packet {
             },
             Packet::SubkernelAddDataReply { succeeded } => {
                 writer.write_u8(0xc1)?;
-                writer.write_bool(succeeded)?;
-            },
-            Packet::SubkernelRemoveRequest { destination, id } => {
-                writer.write_u8(0xc2)?;
-                writer.write_u8(destination)?;
-                writer.write_u32(id)?;
-            },
-            Packet::SubkernelRemoveReply { succeeded } => {
-                writer.write_u8(0xc3)?;
                 writer.write_bool(succeeded)?;
             },
             Packet::SubkernelLoadRunRequest { destination, id, run } => {

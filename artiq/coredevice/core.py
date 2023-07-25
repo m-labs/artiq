@@ -108,6 +108,7 @@ class Core:
 
         self.subkernels = {}
         self.compiled_subkernel_id = 10000
+        self.embedding_map = None
 
     def close(self):
         self.comm.close()
@@ -119,7 +120,8 @@ class Core:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
-                                print_as_rpc=print_as_rpc)
+                                print_as_rpc=print_as_rpc, 
+                                embedding_map=self.embedding_map)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
@@ -131,21 +133,24 @@ class Core:
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
 
-            self.subkernels.update(stitcher.embedding_map.retrieve_subkernels)
+            # embedding map state needs to be preserved between kernel/subkernel
+            # compilations, so we need to update that
+            self.embedding_map = stitcher.embedding_map
+            self.subkernels = self.embedding_map.retrieve_subkernels()
 
-            return stitcher.embedding_map, stripped_library, \
+            return stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
                    lambda symbols: target.demangle(symbols)
         except diagnostic.Error as error:
             raise CompileError(error.diagnostic) from error
 
-    def _run_compiled(self, kernel_library, embedding_map, symbolizer, demangler):
+    def _run_compiled(self, kernel_library, symbolizer, demangler):
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(embedding_map, symbolizer, demangler)
+        self.comm.serve(self.embedding_map, symbolizer, demangler)
 
     def run(self, function, args, kwargs):
         result = None
@@ -153,15 +158,21 @@ class Core:
         def set_result(new_result):
             nonlocal result
             result = new_result
-        embedding_map, kernel_library, symbolizer, demangler = \
+        kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
-        self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
+        self._run_compiled(kernel_library, symbolizer, demangler)
         return result
 
     def upload_subkernel(self, function, destination, args, kwargs):
-        _, kernel_library, _, _ = \
+        kernel_library, _, _ = \
             self.compile(function, args, kwargs, target=self.dmgr.ddb.get_satellite_target(destination))
-        self.comm.upload_subkernel(kernel_library, destination, self.subkernels[id(function.artiq_embedded.function)])
+        sid = self.subkernels[id(function.artiq_embedded.function)]
+        self.comm.upload_subkernel(kernel_library, destination, sid)
+
+    @kernel
+    def run_subkernel(self, function):
+        sid = self.subkernels[id(function.artiq_embedded.function)]
+        subkernel_load_run(sid, True)
 
     def precompile(self, function, *args, **kwargs):
         """Precompile a kernel and return a callable that executes it on the core device
@@ -196,13 +207,13 @@ class Core:
             nonlocal result
             result = new_result
 
-        embedding_map, kernel_library, symbolizer, demangler = \
+        kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result, attribute_writeback=False)
 
         @wraps(function)
         def run_precompiled():
             nonlocal result
-            self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
+            self._run_compiled(kernel_library, symbolizer, demangler)
             return result
 
         return run_precompiled
@@ -219,8 +230,9 @@ class Core:
         if not hasattr(function, "artiq_embedded"):
             raise ValueError("Argument is not a kernel")
 
-        _, kernel_library, _, _ = \
-            self.compile(function, args, kwargs, target=self.dmgr.ddb.get_satellite_target(destination))
+        kernel_library, _, _ = \
+            self.compile(function, args, kwargs, 
+                         target=self.dmgr.ddb.get_satellite_target(destination))
 
         sid = self.compiled_subkernel_id
         self.compiled_subkernel_id += 1

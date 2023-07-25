@@ -184,7 +184,16 @@ class EmbeddingMap:
                 obj_typ, _ = self.type_map[type(obj_ref)]
             yield obj_id, obj_ref, obj_typ
 
+    def retrieve_subkernels(self):
+        subkernels = {}
+        for k, v in self.object_forward_map.items():
+            if hasattr(v, "artiq_embedded"):
+                if v.artiq_embedded.subkernel:
+                    subkernels[id(v)] = k
+        return subkernels
+
     def has_rpc(self):
+        # will also return true if there are any subkernels
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.object_forward_map.values()))
 
@@ -778,7 +787,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, embedding_map=None):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -800,7 +809,7 @@ class Stitcher:
 
         self.functions = {}
 
-        self.embedding_map = EmbeddingMap()
+        self.embedding_map = embedding_map or EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
 

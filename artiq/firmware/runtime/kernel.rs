@@ -139,17 +139,6 @@ pub mod subkernel {
         unsafe { SUBKERNELS.insert(id, Subkernel::new(destination, kernel)); }
     }
 
-    pub fn erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-             routing_table: &RoutingTable, id: u32) {
-        let _lock = subkernel_mutex.lock(io).unwrap();
-        let subkernel = unsafe { SUBKERNELS.get(&id).unwrap() };
-        match drtio::subkernel_send_erase(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, subkernel.destination) {
-            Ok(_) => (),
-            Err(e) => error!("Error erasing subkernel: {}", e)
-        }
-        unsafe { SUBKERNELS.remove(&id); }
-    }
-
     pub fn upload(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
              routing_table: &RoutingTable, id: u32) -> Result<(), &'static str> {
         let _lock = subkernel_mutex.lock(io).unwrap();

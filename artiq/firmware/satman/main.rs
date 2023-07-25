@@ -371,12 +371,6 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
             drtioaux::send(0,
                 &drtioaux::Packet::SubkernelAddDataReply { succeeded: succeeded })
         }
-        drtioaux::Packet::SubkernelRemoveRequest { destination: _destination, id } => {
-            forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = kernelmgr.remove(id).is_ok();
-            drtioaux::send(0,
-                &drtioaux::Packet::SubkernelRemoveReply { succeeded: succeeded })
-        }
         drtioaux::Packet::SubkernelLoadRunRequest { destination: _destination, id, run } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
             let mut succeeded = kernelmgr.load(id).is_ok();

@@ -73,19 +73,25 @@ def subkernel(arg=None, destination=0, flags={}):
     if isinstance(arg, str):
         def inner_decorator(function):
             @wraps(function)
-            def upload(self, *k_args, **k_kwargs):
-                return getattr(self, arg).upload_subkernel(upload, destination, ((self,) + k_args), k_kwargs)
-            upload.artiq_embedded = _ARTIQEmbeddedInfo(
+            @kernel
+            def run_subkernel(self, *k_args, **k_kwargs):
+                # rpc, compile and upload
+                getattr(self, arg).upload_subkernel(upload, destination, ((self,) + k_args), k_kwargs)
+                # back to kernel, load and run
+                getattr(self, arg).run_subkernel(upload)
+            # temporarily, treat subkernels as full fledged kernels
+            run_subkernel.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, portable=False, function=function, syscall=None,
-                forbidden=False, subkernel=destination, flags=set(flags))
-            return upload
+                # subkernel=destination
+                forbidden=False, subkernel=None, flags=set(flags))
+            return run_subkernel
         return inner_decorator
     elif arg is None:
         def inner_decorator(function):
-            return subkernel(function, flags)
+            return subkernel(function, destination, flags)
         return inner_decorator
     else:
-        return subkernel("core", flags)(arg)
+        return subkernel("core", destination, flags)(arg)
 
 def portable(arg=None, flags={}):
     """

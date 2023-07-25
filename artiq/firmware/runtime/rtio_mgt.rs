@@ -518,20 +518,6 @@ pub mod drtio {
         })
     }
 
-    pub fn subkernel_send_erase(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-            routing_table: &drtio_routing::RoutingTable, 
-            id: u32, destination: u8) -> Result<(), &'static str> {
-        let linkno = routing_table.0[destination as usize][0] - 1;
-        let reply = aux_transact(io, aux_mutex, ddma_mutex, subkernel_mutex, linkno, 
-            &drtioaux::Packet::SubkernelRemoveRequest { id: id, destination: destination });
-        match reply {
-            Ok(drtioaux::Packet::SubkernelRemoveReply { succeeded: true }) => Ok(()),
-            Ok(drtioaux::Packet::SubkernelRemoveReply { succeeded: false }) => Err("satellite subkernel erase error"),
-            Ok(_) => Err("erasing subkernel failed, unexpected aux packet"),
-            Err(_) => Err("erasing subkernel failed, aux error")
-        }
-    }
-
     pub fn subkernel_load(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
             routing_table: &drtio_routing::RoutingTable,
             id: u32, destination: u8, run: bool) -> Result<(), &'static str> {

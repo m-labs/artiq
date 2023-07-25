@@ -315,13 +315,6 @@ impl Manager {
         Ok(())
     }
 
-    pub fn remove(&mut self, id: u32) -> Result<(), Error> {
-        match self.kernels.remove(&id) {
-            Some(_) => Ok(()),
-            None => Err(Error::KernelNotFound)
-        }
-    }
-
     pub fn is_running(&self) -> bool {
         self.session.running()
     }
