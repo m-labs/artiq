@@ -529,6 +529,19 @@ pub extern fn main() -> i32 {
 
     sysclk_setup();
 
+    #[cfg(soc_platform = "efc")]
+    {
+        let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+        // Enable VADJ and P3V3_FMC
+        io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+
+        io_expander.set(1, 0, true);
+        io_expander.set(1, 1, true);
+
+        io_expander.service().unwrap();
+    }
+
+    #[cfg(not(soc_platform = "efc"))]
     unsafe {
         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
     }
