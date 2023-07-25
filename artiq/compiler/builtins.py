@@ -342,5 +342,5 @@ def is_allocated(typ):
                   is_float(typ) or is_range(typ) or
                   types._is_pointer(typ) or types.is_function(typ) or
                   types.is_external_function(typ) or types.is_rpc(typ) or
-                  types.is_method(typ) or types.is_tuple(typ) or
-                  types.is_value(typ))
+                  types.is_subkernel(typ) or types.is_method(typ) or
+                  types.is_tuple(typ) or types.is_value(typ))

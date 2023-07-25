@@ -69,15 +69,23 @@ def subkernel(arg=None, destination=0, flags={}):
     This decorator marks an object's method for execution on a
     satellite device.
     """
-    if arg is None:
+    assert 0 < destination <= 255
+    if isinstance(arg, str):
+        def inner_decorator(function):
+            @wraps(function)
+            def upload(self, *k_args, **k_kwargs):
+                return getattr(self, arg).upload_subkernel(upload, destination, ((self,) + k_args), k_kwargs)
+            upload.artiq_embedded = _ARTIQEmbeddedInfo(
+                core_name=arg, portable=False, function=function, syscall=None,
+                forbidden=False, subkernel=destination, flags=set(flags))
+            return upload
+        return inner_decorator
+    elif arg is None:
         def inner_decorator(function):
             return subkernel(function, flags)
         return inner_decorator
     else:
-        arg.artiq_embedded = \
-            _ARTIQEmbeddedInfo(core_name=None, portable=None, function=arg, syscall=None,
-                               forbidden=False, subkernel=destination, flags=set(flags))
-        return arg
+        return subkernel("core", flags)(arg)
 
 def portable(arg=None, flags={}):
     """

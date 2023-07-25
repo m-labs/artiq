@@ -52,6 +52,14 @@ def rtio_get_destination_status(linkno: TInt32) -> TBool:
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
+@syscall
+def subkernel_load_run(sid: TInt32, run: TBool) -> TList(TInt32):
+    raise NotImplementedError("syscall not simulated")
+
+@syscall
+def subkernel_await_finish(wait_for_all: TBool, sid: TStr, timeout: TInt64) -> TNone:
+    raise NotImplementedError("syscall not simulated")
+
 
 def get_target_cls(target):
     if target == "rv32g":
@@ -98,6 +106,9 @@ class Core:
         self.core = self
         self.comm.core = self
 
+        self.subkernels = {}
+        self.compiled_subkernel_id = 10000
+
     def close(self):
         self.comm.close()
 
@@ -119,6 +130,8 @@ class Core:
 
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
+
+            self.subkernels.update(stitcher.embedding_map.retrieve_subkernels)
 
             return stitcher.embedding_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
@@ -144,6 +157,11 @@ class Core:
             self.compile(function, args, kwargs, set_result)
         self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
         return result
+
+    def upload_subkernel(self, function, destination, args, kwargs):
+        _, kernel_library, _, _ = \
+            self.compile(function, args, kwargs, target=self.dmgr.ddb.get_satellite_target(destination))
+        self.comm.upload_subkernel(kernel_library, destination, self.subkernels[id(function.artiq_embedded.function)])
 
     def precompile(self, function, *args, **kwargs):
         """Precompile a kernel and return a callable that executes it on the core device
@@ -188,6 +206,33 @@ class Core:
             return result
 
         return run_precompiled
+
+    def prepare_subkernel(self, destination, function, *args, **kwargs):
+        """Similarly to `precompile` - this function compiles a kernel that should 
+        run on the specified satellite, uploads it onto remote device,
+        and returns a callable kernel.
+        However, returning values is not (yet) supported, and subkernels cannot use
+        RPCs to communicate. See the warnings in `precompile`.
+
+        :param destination: Destination (satellite number) for the subkernel to run on
+        """
+        if not hasattr(function, "artiq_embedded"):
+            raise ValueError("Argument is not a kernel")
+
+        _, kernel_library, _, _ = \
+            self.compile(function, args, kwargs, target=self.dmgr.ddb.get_satellite_target(destination))
+
+        sid = self.compiled_subkernel_id
+        self.compiled_subkernel_id += 1
+
+        self.comm.upload_subkernel(kernel_library, destination, sid)
+
+        @wraps(function)
+        @kernel
+        def run_subkernel():
+            subkernel_load_run(sid, True)
+
+        return run_subkernel
 
     @portable
     def seconds_to_mu(self, seconds):
