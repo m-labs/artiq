@@ -1559,7 +1559,7 @@ class LLVMIRGenerator:
             self.llbuilder.branch(llnormalblock)
         return llret
 
-    def _build_subkernel_invokation(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
+    def _build_subkernel(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
         llsid = ll.Constant(lli32, fun_type.sid)
         tag = b""
 
@@ -1619,6 +1619,11 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock=None, llunwindblock=None)
+        elif types.is_subkernel(functiontyp):
+            return self._build_subkernel(insn.target_function().loc,
+                                                    functiontyp,
+                                                    insn.arguments(),
+                                                    llnormalblock=None, llunwindblock=None)
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:
@@ -1655,11 +1660,11 @@ class LLVMIRGenerator:
                                    functiontyp,
                                    insn.arguments(),
                                    llnormalblock, llunwindblock)
-        if types.is_subkernel(functiontyp):
-            return self._build_subkernel_invokation(insn.target_function().loc,
-                                                    functiontyp,
-                                                    insn.arguments(),
-                                                    llnormalblock, llunwindblock)
+        elif types.is_subkernel(functiontyp):
+            return self._build_subkernel(insn.target_function().loc,
+                                         functiontyp,
+                                         insn.arguments(),
+                                         llnormalblock, llunwindblock)
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:

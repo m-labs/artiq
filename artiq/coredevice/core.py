@@ -174,6 +174,17 @@ class Core:
         sid = self.subkernels[id(function.artiq_embedded.function)]
         subkernel_load_run(sid, True)
 
+    @kernel
+    def await_subkernel(self, function=None, timeout=1000):
+        """Awaits finishing of execution of a subkernel.
+        Gives a maximum timeout.
+        """
+        if function:
+            sid = self.subkernels[id(function.artiq_embedded.function)]
+            subkernel_await_finish(False, sid, timeout)
+        else:
+            subkernel_await_finsih(True, 0, timeout)
+
     def precompile(self, function, *args, **kwargs):
         """Precompile a kernel and return a callable that executes it on the core device
         at a later time.
@@ -236,6 +247,8 @@ class Core:
 
         sid = self.compiled_subkernel_id
         self.compiled_subkernel_id += 1
+
+        self.subkernels[id(function)] = sid
 
         self.comm.upload_subkernel(kernel_library, destination, sid)
 
