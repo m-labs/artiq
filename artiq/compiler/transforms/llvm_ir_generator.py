@@ -404,6 +404,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [lli32, lli1])
         elif name == "subkernel_await":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
+        elif name == "subkernel_await_message":
+            llty = ll.FunctionType(llvoid, [lli32, lli64])
 
         # with now-pinning
         elif name == "now":
@@ -1611,6 +1613,41 @@ class LLVMIRGenerator:
 
         # return handle - subkernelid - for awaiting the subkernel
         return llsid
+
+    def _build_subkernel_return(self, insn):
+        # unlike args, return only returns one thing - can be None.
+        def ret_error_handler(typ):
+            printer = types.TypePrinter()
+            note = diagnostic.Diagnostic("note",
+                "value of type {type}",
+                {"type": printer.name(typ)},
+                fun_loc)
+            diag = diagnostic.Diagnostic("error",
+                "return type {type} is not supported in subkernel returns",
+                {"type": printer.name(fun_type.ret)},
+                fun_loc, notes=[note])
+            self.engine.process(diag)
+        tag = ir.rpc_tag(insn.value().type, ret_error_handler)
+        lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
+        lltagptr = self.llbuilder.alloca(lltag.type)
+        self.llbuilder.store(lltag, lltagptr)
+
+        llrets = self.llbuilder.alloca(llptr, ll.Constant(lli32, 1),
+                                    name="subkernel.return")
+        if builtins.is_none(insn.value()):
+            llretslot = self.llbuilder.alloca(llunit, name="subkernel.retval")
+        else:
+            llret = self.map(insn.value())
+            llretslot = self.llbuilder.alloca(llret.type, name="subkernel.retval")
+            self.llbuilder.store(llret, llretslot)
+
+        self.llbuilder.store(llretslot, llrets)
+
+        llsid = ll.Constant(lli32, 0)  # return goes back to master, sid is ignored
+        self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                            [llsid, lltagptr, llrets])
+        
+        return self.llbuilder.ret_void()
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
