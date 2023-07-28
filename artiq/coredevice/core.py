@@ -164,24 +164,23 @@ class Core:
         return result
 
     def upload_subkernel(self, function, destination, args, kwargs):
+        target = get_target_cls(self.dmgr.ddb.get_satellite_target(destination))()
         kernel_library, _, _ = \
-            self.compile(function, args, kwargs, target=self.dmgr.ddb.get_satellite_target(destination))
+            self.compile(function, args, kwargs, target=target)
         sid = self.subkernels[id(function.artiq_embedded.function)]
-        self.comm.upload_subkernel(kernel_library, destination, sid)
+        self.comm.upload_subkernel(kernel_library, sid, destination)
 
     @kernel
-    def run_subkernel(self, function):
-        sid = self.subkernels[id(function.artiq_embedded.function)]
-        subkernel_load_run(sid, True)
+    def run_subkernel(self, handle):
+        subkernel_load_run(handle, True)
 
     @kernel
-    def await_subkernel(self, function=None, timeout=1000):
+    def await_subkernel(self, handle=None, timeout=1000):
         """Awaits finishing of execution of a subkernel.
         Gives a maximum timeout.
         """
-        if function:
-            sid = self.subkernels[id(function.artiq_embedded.function)]
-            subkernel_await_finish(False, sid, timeout)
+        if handle:
+            subkernel_await_finish(False, handle, timeout)
         else:
             subkernel_await_finsih(True, 0, timeout)
 
@@ -232,7 +231,7 @@ class Core:
     def prepare_subkernel(self, destination, function, *args, **kwargs):
         """Similarly to `precompile` - this function compiles a kernel that should 
         run on the specified satellite, uploads it onto remote device,
-        and returns a callable kernel.
+        and returns a handle to the subkernel, callable with `run_subkernel`.
         However, returning values is not (yet) supported, and subkernels cannot use
         RPCs to communicate. See the warnings in `precompile`.
 
@@ -241,23 +240,17 @@ class Core:
         if not hasattr(function, "artiq_embedded"):
             raise ValueError("Argument is not a kernel")
 
+        target = get_target_cls(self.dmgr.ddb.get_satellite_target(destination))()
         kernel_library, _, _ = \
-            self.compile(function, args, kwargs, 
-                         target=self.dmgr.ddb.get_satellite_target(destination))
+            self.compile(function, args, kwargs, target=target, attribute_writeback=False)
 
         sid = self.compiled_subkernel_id
         self.compiled_subkernel_id += 1
 
         self.subkernels[id(function)] = sid
+        self.comm.upload_subkernel(kernel_library, sid, destination)
 
-        self.comm.upload_subkernel(kernel_library, destination, sid)
-
-        @wraps(function)
-        @kernel
-        def run_subkernel():
-            subkernel_load_run(sid, True)
-
-        return run_subkernel
+        return sid
 
     @portable
     def seconds_to_mu(self, seconds):
