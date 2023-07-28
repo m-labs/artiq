@@ -149,6 +149,8 @@ fn host_read<R>(reader: &mut R) -> Result<host::Request, Error<R::ReadError>>
     let request = host::Request::read_from(reader)?;
     match &request {
         &host::Request::LoadKernel(_) => debug!("comm<-host LoadLibrary(...)"),
+        &host::Request::UploadSubkernel { id, destination, kernel: _} => debug!(
+            "comm<-host UploadSubkernel(id: {}, destination: {}, ...)", id, destination),
         _ => debug!("comm<-host {:?}", request)
     }
     Ok(request)
