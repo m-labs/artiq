@@ -144,32 +144,39 @@ mod remote_spi {
     use drtioaux;
     use rtio_mgt::drtio;
     use sched::{Io, Mutex};
+    use board_artiq::spi;
 
-    pub fn set_config(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
+    pub fn set_config(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, flags: spi::Flags, length: u8) -> Result<(), &'static str> {
+        let flags_u8 = (flags.spi_offline as u8) |
+            (flags.spi_end as u8) << 1 |
+            (flags.spi_cs_polarity as u8) << 3 |
+            (flags.spi_clk_polarity as u8) << 4 |
+            (flags.spi_clk_phase as u8) << 5 |
+            (flags.spi_lsb_first as u8) << 6 |
+            (flags.spi_half_duplex as u8) << 7;
+        
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, linkno, &drtioaux::Packet::SpiSetConfigRequest {
             destination: destination,
             busno: busno,
-            flags: flags,
+            flags: flags_u8,
             length: length,
-            div: div,
-            cs: cs
         });
         match reply {
             Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("spi basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn write(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u32) -> Result<(), ()> {
+    pub fn write(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8, data: u32) -> Result<(), &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, linkno, &drtioaux::Packet::SpiWriteRequest {
             destination: destination,
             busno: busno,
@@ -177,35 +184,35 @@ mod remote_spi {
         });
         match reply {
             Ok(drtioaux::Packet::SpiBasicReply { succeeded }) => {
-                if succeeded { Ok(()) } else { Err(()) }
+                if succeeded { Ok(()) } else { Err("spi basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
 
-    pub fn read(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<u32, ()> {
+    pub fn read(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, linkno: u8, destination: u8, busno: u8) -> Result<u32, &'static str> {
         let reply = drtio::aux_transact(io, aux_mutex, ddma_mutex, linkno, &drtioaux::Packet::SpiReadRequest {
             destination: destination,
             busno: busno
         });
         match reply {
             Ok(drtioaux::Packet::SpiReadReply { succeeded, data }) => {
-                if succeeded { Ok(data) } else { Err(()) }
+                if succeeded { Ok(data) } else { Err("spi basic reply error") }
             }
             Ok(packet) => {
                 error!("received unexpected aux packet: {:?}", packet);
-                Err(())
+                Err("received unexpected aux packet")
             }
             Err(e) => {
                 error!("aux packet error ({})", e);
-                Err(())
+                Err(e)
             }
         }
     }
@@ -288,9 +295,18 @@ pub fn process_kern_hwreq(io: &Io, aux_mutex: &Mutex,
             kern_send(io, &kern::I2cBasicReply { succeeded: succeeded })
         }
 
-        &kern::SpiSetConfigRequest { busno, flags, length, div, cs } => {
+        &kern::SpiSetConfigRequest { busno, flags, length } => {
+            let spi_flags = local_spi::Flags {
+                spi_offline: flags & 1 << 0 != 0,
+                spi_end: flags & 1 << 1 != 0,
+                spi_cs_polarity: flags & 1 << 3 != 0,
+                spi_clk_polarity: flags & 1 << 4 != 0,
+                spi_clk_phase: flags & 1 << 5 != 0,
+                spi_lsb_first: flags & 1 << 6 != 0,
+                spi_half_duplex: flags & 1 << 7 != 0,
+            };
             let succeeded = dispatch!(io, aux_mutex, ddma_mutex, local_spi, remote_spi, _routing_table, busno,
-                set_config, flags, length, div, cs).is_ok();
+                set_config, spi_flags, length).is_ok();
             kern_send(io, &kern::SpiBasicReply { succeeded: succeeded })
         },
         &kern::SpiWriteRequest { busno, data } => {

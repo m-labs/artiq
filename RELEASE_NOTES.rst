@@ -72,6 +72,14 @@ Old syntax should be replaced with the form shown on the right.
   Parameters after and including ``scale`` in both constructors are now keyword-only.
   Refer to the updated ``no_hardware/arguments_demo.py`` example for current usage.
 
+* ``NRTSPIMaster`` now calls a SPI Bitbanging core with a fixed SPI SCLK frequency and ``cs`` handling removed. 
+  ``set_config_mu`` parameters ``div`` and ``cs`` are removed.
+::
+  
+  # NRTSPIMaster
+  def set_config_mu(self, flags=0, length=8)
+  # NRTSPIMaster (old version)
+  def set_config_mu(self, flags=0, length=8, div=6, cs=1):
 
 ARTIQ-7
 -------

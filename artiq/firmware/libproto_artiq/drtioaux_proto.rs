@@ -52,7 +52,7 @@ pub enum Packet {
     I2cBasicReply { succeeded: bool },
     I2cSwitchSelectRequest { destination: u8, busno: u8, address: u8, mask: u8 },
 
-    SpiSetConfigRequest { destination: u8, busno: u8, flags: u8, length: u8, div: u8, cs: u8 },
+    SpiSetConfigRequest { destination: u8, busno: u8, flags: u8, length: u8 },
     SpiWriteRequest { destination: u8, busno: u8, data: u32 },
     SpiReadRequest { destination: u8, busno: u8 },
     SpiReadReply { succeeded: bool, data: u32 },
@@ -179,9 +179,7 @@ impl Packet {
                 destination: reader.read_u8()?,
                 busno: reader.read_u8()?,
                 flags: reader.read_u8()?,
-                length: reader.read_u8()?,
-                div: reader.read_u8()?,
-                cs: reader.read_u8()?
+                length: reader.read_u8()?
             },
             /* 0x91: was Packet::SpiSetXferRequest */
             0x92 => Packet::SpiWriteRequest {
@@ -394,14 +392,12 @@ impl Packet {
                 writer.write_u8(mask)?;
             },
 
-            Packet::SpiSetConfigRequest { destination, busno, flags, length, div, cs } => {
+            Packet::SpiSetConfigRequest { destination, busno, flags, length } => {
                 writer.write_u8(0x90)?;
                 writer.write_u8(destination)?;
                 writer.write_u8(busno)?;
                 writer.write_u8(flags)?;
                 writer.write_u8(length)?;
-                writer.write_u8(div)?;
-                writer.write_u8(cs)?;
             },
             Packet::SpiWriteRequest { destination, busno, data } => {
                 writer.write_u8(0x92)?;

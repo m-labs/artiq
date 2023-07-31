@@ -283,9 +283,18 @@ fn process_aux_packet(_manager: &mut DmaManager, analyzer: &mut Analyzer, _repea
             drtioaux::send(0, &drtioaux::Packet::I2cBasicReply { succeeded: succeeded })
         }
 
-        drtioaux::Packet::SpiSetConfigRequest { destination: _destination, busno, flags, length, div, cs } => {
+        drtioaux::Packet::SpiSetConfigRequest { destination: _destination, busno, flags, length } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let succeeded = spi::set_config(busno, flags, length, div, cs).is_ok();
+            let spi_flags = spi::Flags {
+                spi_offline: flags & 1 << 0 != 0,
+                spi_end: flags & 1 << 1 != 0,
+                spi_cs_polarity: flags & 1 << 3 != 0,
+                spi_clk_polarity: flags & 1 << 4 != 0,
+                spi_clk_phase: flags & 1 << 5 != 0,
+                spi_lsb_first: flags & 1 << 6 != 0,
+                spi_half_duplex: flags & 1 << 7 != 0,
+            };
+            let succeeded = spi::set_config(busno, spi_flags, length).is_ok();
             drtioaux::send(0,
                 &drtioaux::Packet::SpiBasicReply { succeeded: succeeded })
         },

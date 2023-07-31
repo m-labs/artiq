@@ -274,14 +274,14 @@ class NRTSPIMaster:
         self.busno = busno
 
     @kernel
-    def set_config_mu(self, flags=0, length=8, div=6, cs=1):
+    def set_config_mu(self, flags=0, length=8):
         """Set the ``config`` register.
 
         Note that the non-realtime SPI cores are usually clocked by the system
         clock and not the RTIO clock. In many cases, the SPI configuration is
         already set by the firmware and you do not need to call this method.
         """
-        spi_set_config(self.busno, flags, length, div, cs)
+        spi_set_config(self.busno, flags, length)
 
     @kernel
     def write(self, data=0):

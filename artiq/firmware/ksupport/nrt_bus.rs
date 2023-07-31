@@ -61,9 +61,9 @@ pub mod spi {
     use ::recv;
     use kernel_proto::*;
 
-    pub extern fn set_config(busno: i32, flags: i32, length: i32, div: i32, cs: i32) {
+    pub extern fn set_config(busno: i32, flags: i32, length: i32) {
         send(&SpiSetConfigRequest { busno: busno as u32, flags: flags as u8,
-                                    length: length as u8, div: div as u8, cs: cs as u8 });
+                                    length: length as u8 });
         recv!(&SpiBasicReply { succeeded } => if !succeeded {
             raise!("SPIError", "SPI bus could not be accessed");
         });
