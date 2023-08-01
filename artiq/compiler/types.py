@@ -389,6 +389,8 @@ class TSubkernel(Type):
     """
     A kernel to be run on a satellite.
 
+    :ivar args: (:class:`collections.OrderedDict` of string to :class:`Type`)
+        function arguments
     :ivar ret: (:class:`Type`)
         return type
     :ivar sid: (int) subkernel ID number

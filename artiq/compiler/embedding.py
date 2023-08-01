@@ -1234,7 +1234,6 @@ class Stitcher:
             ret_type = self._extract_annot(host_function, signature.return_annotation,
                                             "return type", loc, fn_kind='subkernel')
         arg_types = OrderedDict()
-        optarg_types = OrderedDict()
         for param in signature.parameters.values():
             if param.kind != inspect.Parameter.POSITIONAL_OR_KEYWORD:
                 diag = diagnostic.Diagnostic("error",
@@ -1257,7 +1256,8 @@ class Stitcher:
 
         function_type = types.TSubkernel(arg_types, ret_type,
                                    sid=self.embedding_map.store_object(function),
-                                   destination=function.artiq_embedded.subkernel)
+                                   destination=function.artiq_embedded.subkernel,
+                                   flags=function.artiq_embedded.flags)
         self.functions[function] = function_type
         return function_type
 

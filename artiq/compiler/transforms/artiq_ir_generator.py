@@ -311,14 +311,25 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
-            for index, arg_name in enumerate(typ.args):
-                self.append(ir.SetLocal(env, arg_name, args[index]))
-            for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
-                default = codegen_default()
-                value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
-                                               typ.optargs[arg_name],
-                                               name="DEF.{}".format(arg_name)))
-                self.append(ir.SetLocal(env, arg_name, value))
+            if types.is_subkernel(typ):
+                # args are received through DRTIO
+                target = ir.Constant(0, builtins.TInt(width=8))
+                # could be user-adjustable
+                timeout = ir.Constant(3000, builtins.TInt64)
+                self.append(ir.Builtin("subkernel_await_message", [0, timeout], builtins.TNone()))
+                for arg_name in typ.args.keys():
+                    value = self.append(ir.GetArgFromRemote(env, arg_name, 
+                                        name="DEF.{}".format(arg_name)))
+                    self.append(ir.SetLocal(env, arg_name, value))
+            else:
+                for index, arg_name in enumerate(typ.args):
+                    self.append(ir.SetLocal(env, arg_name, args[index]))
+                for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
+                    default = codegen_default()
+                    value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
+                                                typ.optargs[arg_name],
+                                                name="DEF.{}".format(arg_name)))
+                    self.append(ir.SetLocal(env, arg_name, value))
 
             result = self.visit(node.body)
 

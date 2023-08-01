@@ -706,6 +706,39 @@ class SetLocal(Instruction):
     def value(self):
         return self.operands[1]
 
+class GetArgFromRemote(Instruction):
+    """
+    An intruction that receives function arguments from remote 
+    (ie. subkernel in DRTIO context)
+
+    :ivar arg_name: (string) argument name
+    """
+
+    """
+    :param env: (:class:`Value`) local environment
+    :param arg_name: (string) argument name
+    """
+    def __init__(self, env, arg_name, arg_type, name=""):
+        assert isinstance(env, Value)
+        assert isinstance(env.type, TEnvironment)
+        assert isinstance(arg_name, str)
+        super().__init__([env], builtins.TNone(), name)
+        self.arg_name = arg_name
+
+    def copy(self, mapper):
+        self_copy = super().copy(mapper)
+        self_copy.arg_name = self.arg_name
+        return self_copy
+
+    def opcode(self):
+        return "getargfromremote({})".format(repr(self.arg_name))
+
+    def environment(self):
+        return self.operands[0]
+
+    def arg_type(self):
+        return self.environment().type_of(self.arg_name)
+
 class GetAttr(Instruction):
     """
     An intruction that loads an attribute from an object,
