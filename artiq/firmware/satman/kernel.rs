@@ -478,30 +478,37 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
                 kern_send(&kern::SubkernelMsgRecvReply { timeout: true })
             } else if let Some(message) = session.messages.get_incoming() {
                 let mut reader = Cursor::new(message.data);
-                let slot = kern_recv(|reply| {
-                    match reply {
-                        &kern::RpcRecvRequest(slot) => Ok(slot),
-                        other => unexpected!(
-                            "expected root value slot from kernel CPU, not {:?}", other)
-                    }
-                })?;
                 let tag: [u8; 1] = [message.tag];
-                let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
-                    if size == 0 {
-                        return Ok(0 as *mut ())
-                    }
-                    kern_send(&kern::RpcRecvReply(Ok(size)))?;
-                    Ok(kern_recv(|reply| {
+                loop {
+                    let slot = kern_recv(|reply| {
                         match reply {
                             &kern::RpcRecvRequest(slot) => Ok(slot),
                             other => unexpected!(
-                                "expected nested value slot from kernel CPU, not {:?}", other)
+                                "expected root value slot from kernel CPU, not {:?}", other)
                         }
-                    })?)
-                });
-                match res {
-                    Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0))),
-                    Err(_) => unexpected!("expected valid subkernel message data")
+                    })?;
+
+                    let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
+                        if size == 0 {
+                            return Ok(0 as *mut ())
+                        }
+                        kern_send(&kern::RpcRecvReply(Ok(size)))?;
+                        Ok(kern_recv(|reply| {
+                            match reply {
+                                &kern::RpcRecvRequest(slot) => Ok(slot),
+                                other => unexpected!(
+                                    "expected nested value slot from kernel CPU, not {:?}", other)
+                            }
+                        })?)
+                    });
+                    match res {
+                        Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0))),
+                        Err(_) => unexpected!("expected valid subkernel message data")
+                    }
+                    match reader.read_u8() {
+                        Ok(t) => tag[0] = t; // update the tag for next read
+                        Err(_) => break; // reached the end of data, we're done
+                    }
                 }
             } else {
                 Ok(())

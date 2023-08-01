@@ -578,30 +578,37 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 if let Ok((tag, data)) = message_received {
                     // receive code almost identical to RPC recv, except we are not reading from a stream
                     let mut reader = Cursor::new(data);
-                    let slot = kern_recv(io, |reply| {
-                        match reply {
-                            &kern::RpcRecvRequest(slot) => Ok(slot),
-                            other => unexpected!(
-                                "expected root value slot from kernel CPU, not {:?}", other)
-                        }
-                    })?;
-                    let tag: [u8; 1] = [tag];
-                    let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
-                        if size == 0 {
-                            return Ok(0 as *mut ())
-                        }
-                        kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
-                        Ok(kern_recv(io, |reply| {
+                    let mut tag: [u8; 1] = [tag];
+                    loop {
+                        // kernel has to consume all arguments in the whole message
+                        let slot = kern_recv(io, |reply| {
                             match reply {
                                 &kern::RpcRecvRequest(slot) => Ok(slot),
                                 other => unexpected!(
-                                    "expected nested value slot from kernel CPU, not {:?}", other)
+                                    "expected root value slot from kernel CPU, not {:?}", other)
                             }
-                        })?)
-                    });
-                    match res {
-                        Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0))),
-                        Err(_) => unexpected!("expected valid subkernel message data")
+                        })?;
+                        let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error<SchedError>> {
+                            if size == 0 {
+                                return Ok(0 as *mut ())
+                            }
+                            kern_send(io, &kern::RpcRecvReply(Ok(size)))?;
+                            Ok(kern_recv(io, |reply| {
+                                match reply {
+                                    &kern::RpcRecvRequest(slot) => Ok(slot),
+                                    other => unexpected!(
+                                        "expected nested value slot from kernel CPU, not {:?}", other)
+                                }
+                            })?)
+                        });
+                        match res {
+                            Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0))),
+                            Err(_) => unexpected!("expected valid subkernel message data")
+                        }
+                        match reader.read_u8() {
+                            Ok(t) => tag[0] = t; // update the tag for next read
+                            Err(_) => break; // reached the end of data, we're done
+                        }
                     }
                 } else {
                     // if timed out, no data has been received, exception should be raised by kernel

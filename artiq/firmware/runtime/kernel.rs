@@ -275,7 +275,7 @@ pub mod subkernel {
         pub data: Vec<u8>
     }
 
-    // FIFO queue of messages, lazy implementation
+    // FIFO queue of messages
     static mut MESSAGE_QUEUE: Vec<Message> = Vec::new();
     // currently under construction message(s) (can be from multiple sources)
     static mut CURRENT_MESSAGES: BTreeMap<u32, Message> = BTreeMap::new();
