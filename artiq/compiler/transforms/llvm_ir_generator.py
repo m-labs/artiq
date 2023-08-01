@@ -883,6 +883,14 @@ class LLVMIRGenerator:
             llvalue = self.llbuilder.bitcast(llvalue, llptr.type.pointee)
         return self.llbuilder.store(llvalue, llptr)
 
+    def process_GetArgFromRemote(self, insn):
+        llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                                         name="subkernel.arg.stack")
+        llptr = self.llptr_to_var(self.map(env), env.type, insn.arg_name)
+        llptr.name = "ptr.{}.{}".format(env.name, insn.arg_name)
+        llval = self._build_rpc_recv(insn.arg_type(), None, None)
+        return llval
+
     def attr_index(self, typ, attr):
         return list(typ.attributes.keys()).index(attr)
 
@@ -1351,6 +1359,11 @@ class LLVMIRGenerator:
                 return llstore_lo
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
+        elif insn.op == "subkernel_await_message":
+            lltarget = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            self.llbuilder.call("subkernel_await_message", [lltarget, lltimeout],
+                                name="subkernel.await.args")
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         else:
@@ -1435,6 +1448,58 @@ class LLVMIRGenerator:
 
         return llfun, list(llargs), llarg_attrs, llcallstackptr
 
+    def _build_rpc_recv(self, ret, llstackptr, llnormalblock, llunwindblock):
+        # T result = {
+        #   void *ret_ptr = alloca(sizeof(T));
+        #   void *ptr = ret_ptr;
+        #   loop: int size = rpc_recv(ptr);
+        #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
+        #   if(size) { ptr = alloca(size); goto loop; }
+        #   else *(T*)ret_ptr
+        # }
+        llprehead   = self.llbuilder.basic_block
+        llhead      = self.llbuilder.append_basic_block(name="rpc.head")
+        if llunwindblock:
+            llheadu = self.llbuilder.append_basic_block(name="rpc.head.unwind")
+        llalloc     = self.llbuilder.append_basic_block(name="rpc.continue")
+        lltail      = self.llbuilder.append_basic_block(name="rpc.tail")
+
+        llretty = self.llty_of_type(ret)
+        llslot = self.llbuilder.alloca(llretty, name="rpc.ret.alloc")
+        llslotgen = self.llbuilder.bitcast(llslot, llptr, name="rpc.ret.ptr")
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(llhead)
+        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
+        llphi.add_incoming(llslotgen, llprehead)
+        if llunwindblock:
+            llsize = self.llbuilder.invoke(self.llbuiltin("rpc_recv"), [llphi],
+                                           llheadu, llunwindblock,
+                                           name="rpc.size.next")
+            self.llbuilder.position_at_end(llheadu)
+        else:
+            llsize = self.llbuilder.call(self.llbuiltin("rpc_recv"), [llphi],
+                                         name="rpc.size.next")
+        lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0),
+                                              name="rpc.done")
+        self.llbuilder.cbranch(lldone, lltail, llalloc)
+
+        self.llbuilder.position_at_end(llalloc)
+        llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
+        llalloca.align = self.max_target_alignment
+        llphi.add_incoming(llalloca, llalloc)
+        self.llbuilder.branch(llhead)
+
+        self.llbuilder.position_at_end(lltail)
+        llret = self.llbuilder.load(llslot, name="rpc.ret")
+        if not ret.fold(False, lambda r, t: r or builtins.is_allocated(t)):
+            # We didn't allocate anything except the slot for the value itself.
+            # Don't waste stack space.
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+        if llnormalblock:
+            self.llbuilder.branch(llnormalblock)
+        return llret
+
     def _build_rpc(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
         llservice = ll.Constant(lli32, fun_type.service)
 
@@ -1510,58 +1575,11 @@ class LLVMIRGenerator:
 
             return ll.Undefined
 
-        # T result = {
-        #   void *ret_ptr = alloca(sizeof(T));
-        #   void *ptr = ret_ptr;
-        #   loop: int size = rpc_recv(ptr);
-        #   // Non-zero: Provide `size` bytes of extra storage for variable-length data.
-        #   if(size) { ptr = alloca(size); goto loop; }
-        #   else *(T*)ret_ptr
-        # }
-        llprehead   = self.llbuilder.basic_block
-        llhead      = self.llbuilder.append_basic_block(name="rpc.head")
-        if llunwindblock:
-            llheadu = self.llbuilder.append_basic_block(name="rpc.head.unwind")
-        llalloc     = self.llbuilder.append_basic_block(name="rpc.continue")
-        lltail      = self.llbuilder.append_basic_block(name="rpc.tail")
+        llret = self._build_rpc_recv(fun_type.ret, llstackptr, llnormalblock, llunwindblock)
 
-        llretty = self.llty_of_type(fun_type.ret)
-        llslot = self.llbuilder.alloca(llretty, name="rpc.ret.alloc")
-        llslotgen = self.llbuilder.bitcast(llslot, llptr, name="rpc.ret.ptr")
-        self.llbuilder.branch(llhead)
-
-        self.llbuilder.position_at_end(llhead)
-        llphi = self.llbuilder.phi(llslotgen.type, name="rpc.ptr")
-        llphi.add_incoming(llslotgen, llprehead)
-        if llunwindblock:
-            llsize = self.llbuilder.invoke(self.llbuiltin("rpc_recv"), [llphi],
-                                           llheadu, llunwindblock,
-                                           name="rpc.size.next")
-            self.llbuilder.position_at_end(llheadu)
-        else:
-            llsize = self.llbuilder.call(self.llbuiltin("rpc_recv"), [llphi],
-                                         name="rpc.size.next")
-        lldone = self.llbuilder.icmp_unsigned('==', llsize, ll.Constant(llsize.type, 0),
-                                              name="rpc.done")
-        self.llbuilder.cbranch(lldone, lltail, llalloc)
-
-        self.llbuilder.position_at_end(llalloc)
-        llalloca = self.llbuilder.alloca(lli8, llsize, name="rpc.alloc")
-        llalloca.align = self.max_target_alignment
-        llphi.add_incoming(llalloca, llalloc)
-        self.llbuilder.branch(llhead)
-
-        self.llbuilder.position_at_end(lltail)
-        llret = self.llbuilder.load(llslot, name="rpc.ret")
-        if not fun_type.ret.fold(False, lambda r, t: r or builtins.is_allocated(t)):
-            # We didn't allocate anything except the slot for the value itself.
-            # Don't waste stack space.
-            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
-        if llnormalblock:
-            self.llbuilder.branch(llnormalblock)
         return llret
 
-    def _build_subkernel(self, fun_loc, fun_type, args, llnormalblock, llunwindblock):
+    def _build_subkernel(self, fun_loc, fun_type, args):
         llsid = ll.Constant(lli32, fun_type.sid)
         tag = b""
 
@@ -1658,9 +1676,8 @@ class LLVMIRGenerator:
                                    llnormalblock=None, llunwindblock=None)
         elif types.is_subkernel(functiontyp):
             return self._build_subkernel(insn.target_function().loc,
-                                                    functiontyp,
-                                                    insn.arguments(),
-                                                    llnormalblock=None, llunwindblock=None)
+                                         functiontyp,
+                                         insn.arguments())
         elif types.is_external_function(functiontyp):
             llfun, llargs, llarg_attrs, llcallstackptr = self._prepare_ffi_call(insn)
         else:
