@@ -108,6 +108,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_args = None
         self.current_assign = None
         self.current_exception = None
+        self.current_is_subkernel = False
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -211,7 +212,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.generic_visit(node)
-            self.terminate(ir.Return(ir.Constant(None, builtins.TNone())))
+            self.terminate(ir.Return(ir.Constant(None, builtins.TNone()),
+                           is_subkernel=self.current_is_subkernel))
 
             return self.functions
         finally:
@@ -311,16 +313,18 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
-            if types.is_subkernel(typ):
+
+            old_is_subkernel = self.current_is_subkernel
+            self.current_is_subkernel = types.is_subkernel(typ)
+
+            if self.current_is_subkernel:
                 # args are received through DRTIO
-                target = ir.Constant(0, builtins.TInt(width=8))
-                # could be user-adjustable
-                timeout = ir.Constant(3000, builtins.TInt64)
-                self.append(ir.Builtin("subkernel_await_message", [0, timeout], builtins.TNone()))
-                for arg_name in typ.args.keys():
-                    value = self.append(ir.GetArgFromRemote(env, arg_name, 
-                                        name="DEF.{}".format(arg_name)))
-                    self.append(ir.SetLocal(env, arg_name, value))
+                if len(typ.args) > 0:
+                    self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
+                    for arg_name in typ.args.keys():
+                        value = self.append(ir.GetArgFromRemote(env, arg_name, 
+                                            name="DEF.{}".format(arg_name)))
+                        self.append(ir.SetLocal(env, arg_name, value))
             else:
                 for index, arg_name in enumerate(typ.args):
                     self.append(ir.SetLocal(env, arg_name, args[index]))
@@ -337,7 +341,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.terminate(ir.Return(result))
             elif builtins.is_none(typ.ret):
                 if not self.current_block.is_terminated():
-                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone())))
+                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone(), 
+                                                        is_subkernel=self.current_is_subkernel)))
             else:
                 if not self.current_block.is_terminated():
                     if len(self.current_block.predecessors()) != 0:
@@ -356,6 +361,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = old_block
             self.current_globals = old_globals
             self.current_env = old_env
+            self.current_is_subkernel = old_is_subkernel
             if not is_lambda:
                 self.current_private_env = old_priv_env
 
@@ -378,7 +384,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             return_value = self.visit(node.value)
 
         if self.return_target is None:
-            self.append(ir.Return(return_value))
+            self.append(ir.Return(return_value, 
+                                  is_subkernel=self.current_is_subkernel))
         else:
             self.append(ir.SetLocal(self.current_private_env, "$return", return_value))
             self.append(ir.Branch(self.return_target))

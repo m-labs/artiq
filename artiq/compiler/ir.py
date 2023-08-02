@@ -1227,16 +1227,20 @@ class Return(Terminator):
 
     """
     :param value: (:class:`Value`) return value
+    :param is_subkernel: (bool) whether return is in subkernel context
     """
-    def __init__(self, value, name=""):
+    def __init__(self, value, is_subkernel=False, name=""):
         assert isinstance(value, Value)
-        super().__init__([value], builtins.TNone(), name)
+        super().__init__([value, is_subkernel], builtins.TNone(), name)
 
     def opcode(self):
         return "return"
 
     def value(self):
         return self.operands[0]
+
+    def is_subkernel(self):
+        return self.operands[1]
 
 class Unreachable(Terminator):
     """
