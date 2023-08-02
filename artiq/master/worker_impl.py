@@ -192,7 +192,6 @@ class ExamineDatasetMgr:
 
 
 def examine(device_mgr, dataset_mgr, file):
-    previous_keys = set(sys.modules.keys())
     try:
         module = tools.file_import(file)
         for class_name, exp_class in inspect.getmembers(module, is_public_experiment):
@@ -216,9 +215,10 @@ def examine(device_mgr, dataset_mgr, file):
                 argument_ui = exp_class.argument_ui
             register_experiment(class_name, name, arginfo, argument_ui, scheduler_defaults)
     finally:
-        new_keys = set(sys.modules.keys())
-        for key in new_keys - previous_keys:
-            del sys.modules[key]
+        # New imports from the file were removed at this point,
+        # but this is not necessary in our case.
+        # See https://github.com/m-labs/artiq/issues/976
+        pass
 
 
 def setup_diagnostics(experiment_file, repository_path):

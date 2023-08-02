@@ -63,6 +63,21 @@ async def get_open_file_name(parent, caption, dir, filter):
     return await fut
 
 
+async def get_save_file_name(parent, caption, dir, filter):
+    """like QtWidgets.QFileDialog.getOpenFileName(), but a coroutine"""
+    dialog = QtWidgets.QFileDialog(parent, caption, dir, filter)
+    dialog.setFileMode(dialog.AnyFile)
+    dialog.setAcceptMode(dialog.AcceptSave)
+    fut = asyncio.Future()
+
+    def on_accept():
+        fut.set_result(dialog.selectedFiles()[0])
+    dialog.accepted.connect(on_accept)
+    dialog.rejected.connect(fut.cancel)
+    dialog.open()
+    return await fut
+
+
 # Based on:
 # http://stackoverflow.com/questions/250890/using-qsortfilterproxymodel-with-a-tree-model
 class QRecursiveFilterProxyModel(QtCore.QSortFilterProxyModel):
