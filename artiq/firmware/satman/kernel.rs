@@ -4,7 +4,7 @@ use alloc::{string::String, format, vec::Vec, collections::{btree_map::BTreeMap,
 use board_artiq::{mailbox, spi};
 use board_misoc::{csr, clock, i2c};
 use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException, rpc_proto as rpc};
-use io::Cursor;
+use io::{Cursor, ProtoRead};
 
 use cache::Cache;
 use SAT_PAYLOAD_MAX_SIZE;
@@ -55,7 +55,8 @@ enum KernelState {
     Loaded,
     Running,
     MsgAwait { max_time: u64 },
-    MsgSending
+    MsgSending,
+    ArgAwait
 }
 
 #[derive(Debug)]
@@ -265,7 +266,8 @@ impl Session {
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running | KernelState::MsgAwait { .. }| KernelState::MsgSending => true
+            KernelState::Running | KernelState::ArgAwait |
+            KernelState::MsgAwait { .. } | KernelState::MsgSending => true
         }
     }
 
@@ -471,49 +473,67 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn pass_message_to_kernel(session: &mut Session) -> Result<(), Error> {
+    let message = session.messages.get_incoming();
+    if message.is_none() {
+        return Err(Error::NoMessage);
+    }
+    let message = message.unwrap();
+    let mut reader = Cursor::new(message.data);
+    let mut tag: [u8; 1] = [message.tag];
+    loop {
+        let slot = kern_recv(|reply| {
+            match reply {
+                &kern::RpcRecvRequest(slot) => Ok(slot),
+                other => unexpected!(
+                    "expected root value slot from kernel CPU, not {:?}", other)
+            }
+        })?;
+
+        let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
+            if size == 0 {
+                return Ok(0 as *mut ())
+            }
+            kern_send(&kern::RpcRecvReply(Ok(size)))?;
+            Ok(kern_recv(|reply| {
+                match reply {
+                    &kern::RpcRecvRequest(slot) => Ok(slot),
+                    other => unexpected!(
+                        "expected nested value slot from kernel CPU, not {:?}", other)
+                }
+            })?)
+        });
+        match res {
+            Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0)))?,
+            Err(_) => unexpected!("expected valid subkernel message data")
+        };
+        match reader.read_u8() {
+            Ok(t) => { tag[0] = t; }, // update the tag for next read
+            Err(_) => return Ok(()) // reached the end of data, we're done
+        }
+    }
+}
+
 fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     match session.kernel_state {
         KernelState::MsgAwait { max_time } => {
             if max_time > clock::get_ms() {
                 kern_send(&kern::SubkernelMsgRecvReply { timeout: true })
-            } else if let Some(message) = session.messages.get_incoming() {
-                let mut reader = Cursor::new(message.data);
-                let tag: [u8; 1] = [message.tag];
-                loop {
-                    let slot = kern_recv(|reply| {
-                        match reply {
-                            &kern::RpcRecvRequest(slot) => Ok(slot),
-                            other => unexpected!(
-                                "expected root value slot from kernel CPU, not {:?}", other)
-                        }
-                    })?;
-
-                    let res = rpc::recv_return(&mut reader, &tag, slot, &|size| -> Result<_, Error> {
-                        if size == 0 {
-                            return Ok(0 as *mut ())
-                        }
-                        kern_send(&kern::RpcRecvReply(Ok(size)))?;
-                        Ok(kern_recv(|reply| {
-                            match reply {
-                                &kern::RpcRecvRequest(slot) => Ok(slot),
-                                other => unexpected!(
-                                    "expected nested value slot from kernel CPU, not {:?}", other)
-                            }
-                        })?)
-                    });
-                    match res {
-                        Ok(_) => kern_send(&kern::RpcRecvReply(Ok(0))),
-                        Err(_) => unexpected!("expected valid subkernel message data")
-                    }
-                    match reader.read_u8() {
-                        Ok(t) => tag[0] = t; // update the tag for next read
-                        Err(_) => break; // reached the end of data, we're done
-                    }
-                }
             } else {
-                Ok(())
+                match pass_message_to_kernel(session) {
+                    Ok(()) => { session.kernel_state = KernelState::Running; Ok(()) },
+                    Err(Error::NoMessage) => Ok(()),
+                    Err(e) => Err(e)
+                }
             }
         },
+        KernelState::ArgAwait => {
+            match pass_message_to_kernel(session) {
+                Ok(()) => { session.kernel_state = KernelState::Running; Ok(()) },
+                Err(Error::NoMessage) => Ok(()),
+                Err(e) => Err(e)
+            }
+        }
         KernelState::MsgSending => {
             if session.messages.was_message_sent() {
                 kern_acknowledge()
@@ -654,6 +674,11 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                 session.kernel_state = KernelState::MsgAwait { max_time: max_time };
                 Ok(())
             },
+
+            &kern::SubkernelArgRecvRequest => {
+                session.kernel_state = KernelState::ArgAwait;
+                Ok(())
+            }
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(None))

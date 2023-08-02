@@ -5,7 +5,7 @@ use cslice::CSlice;
 
 use io::{Read, Write, Error as IoError};
 #[cfg(has_drtio)]
-use io::Cursor;
+use io::{Cursor, ProtoRead};
 use board_misoc::{ident, cache, config};
 use {mailbox, rpc_queue, kernel};
 use urc::Urc;
@@ -602,14 +602,15 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             })?)
                         });
                         match res {
-                            Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0))),
+                            Ok(_) => kern_send(io, &kern::RpcRecvReply(Ok(0)))?,
                             Err(_) => unexpected!("expected valid subkernel message data")
-                        }
+                        };
                         match reader.read_u8() {
-                            Ok(t) => tag[0] = t; // update the tag for next read
-                            Err(_) => break; // reached the end of data, we're done
+                            Ok(t) => { tag[0] = t }, // update the tag for next read
+                            Err(_) => break // reached the end of data, we're done
                         }
                     }
+                    Ok(())
                 } else {
                     // if timed out, no data has been received, exception should be raised by kernel
                     Ok(())

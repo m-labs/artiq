@@ -482,7 +482,7 @@ extern fn subkernel_await_finish(wait_for_all: bool, id: u32, timeout: u64) {
     })
 }
 
-#[unwind(allowed)]
+#[unwind(aborts)]
 extern fn subkernel_send_message(id: u32, tag: &CSlice<u8>, data: *const *const ()) {
     send(&SubkernelMsgSend { 
         id: id,
@@ -501,6 +501,13 @@ extern fn subkernel_await_message(id: u32, timeout: u64) {
         }
     })
     // RpcRecvRequest should be called after this to receive message data
+}
+
+#[unwind(aborts)]
+extern fn subkernel_await_args() {
+    // a variant of await_message that does not raise an exception
+    // only used in subkernels for receiving arguments 
+    send(&SubkernelArgRecvRequest);
 }
 
 unsafe fn attribute_writeback(typeinfo: *const ()) {
