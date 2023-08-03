@@ -1227,6 +1227,10 @@ class Stitcher:
         return function_type
 
     def _quote_subkernel(self, function, loc):
+        if isinstance(function, SpecializedFunction):
+            host_function = function.host_function
+        else:
+            host_function = function
         ret_type = builtins.TNone()
         signature = inspect.signature(host_function)
             
@@ -1255,7 +1259,7 @@ class Stitcher:
                 self.engine.process(diag)
 
         function_type = types.TSubkernel(arg_types, ret_type,
-                                   sid=self.embedding_map.store_object(function),
+                                   sid=self.embedding_map.store_object(host_function),
                                    destination=function.artiq_embedded.subkernel,
                                    flags=function.artiq_embedded.flags)
         self.functions[function] = function_type

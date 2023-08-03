@@ -1882,7 +1882,8 @@ class LLVMIRGenerator:
             llelts = [self._quote(v, t, lambda: path() + [str(i)])
                 for i, (v, t) in enumerate(zip(value, typ.elts))]
             return ll.Constant(llty, llelts)
-        elif types.is_rpc(typ) or types.is_external_function(typ) or types.is_builtin_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ) or 
+                types.is_builtin_function(typ) or types.is_subkernel(typ):
             # RPC, C and builtin functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
         elif types.is_function(typ):
@@ -1938,8 +1939,7 @@ class LLVMIRGenerator:
 
     def process_Return(self, insn):
         if insn.is_subkernel():
-            self._build_subkernel_return(insn)
-            self.llbuilder.ret_void()
+            return self._build_subkernel_return(insn)
         elif builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:

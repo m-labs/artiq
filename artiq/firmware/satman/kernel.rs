@@ -521,7 +521,10 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
                 kern_send(&kern::SubkernelMsgRecvReply { timeout: true })
             } else {
                 match pass_message_to_kernel(session) {
-                    Ok(()) => { session.kernel_state = KernelState::Running; Ok(()) },
+                    Ok(()) => { 
+                        session.kernel_state = KernelState::Running; 
+                        kern_send(&kern::SubkernelMsgRecvReply { timeout: false } 
+                    },
                     Err(Error::NoMessage) => Ok(()),
                     Err(e) => Err(e)
                 }
@@ -529,7 +532,10 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
         },
         KernelState::ArgAwait => {
             match pass_message_to_kernel(session) {
-                Ok(()) => { session.kernel_state = KernelState::Running; Ok(()) },
+                Ok(()) => { 
+                    session.kernel_state = KernelState::Running; 
+                    kern_acknowledge()
+                },
                 Err(Error::NoMessage) => Ok(()),
                 Err(e) => Err(e)
             }
