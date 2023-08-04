@@ -106,7 +106,7 @@ class Core:
         self.core = self
         self.comm.core = self
 
-        self.subkernels = {}
+        self.subkernel_cache = {}
         self.compiled_subkernel_id = 10000
         self.embedding_map = None
 
@@ -136,7 +136,6 @@ class Core:
             # embedding map state needs to be preserved between kernel/subkernel
             # compilations, so we need to update that
             self.embedding_map = stitcher.embedding_map
-            self.subkernels = self.embedding_map.retrieve_subkernels()
 
             return stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
@@ -160,24 +159,32 @@ class Core:
             result = new_result
         kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
+        self.compile_subkernels()
         self._run_compiled(kernel_library, symbolizer, demangler)
         return result
 
-    def upload_subkernel(self, function, destination, args, kwargs):
-        target = get_target_cls(self.dmgr.ddb.get_satellite_target(destination))()
-        kernel_library, _, _ = \
-            self.compile(function, args, kwargs, target=target)
-        sid = self.subkernels[id(function.artiq_embedded.function)]
-        self.comm.upload_subkernel(kernel_library, sid, destination)
+    def compile_subkernels(self):
+        for sid, subkernel_fn in self.embedding_map.subkernels().items():
+            if sid in self.subkernel_cache.keys():
+                # subkernel has been compiled and uploaded already
+                continue
+            destination = subkernel_fn.artiq_embedded.subkernel
+            destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
+            target = get_target_cls(destination_tgt)()
+            kernel_library, _, _ = \
+                self.compile(subkernel_fn, [], {}, target=target)
+            self.comm.upload_subkernel(kernel_library, sid, destination)
 
     @kernel
     def run_subkernel(self, handle):
+        """Runs a subkernel on remote device, given a handle.
+        """
         subkernel_load_run(handle, True)
 
     @kernel
     def await_subkernel(self, handle=None, timeout=1000):
         """Awaits finishing of execution of a subkernel.
-        Gives a maximum timeout.
+        Maximum timeout is taken in ms. 
         """
         if handle:
             subkernel_await_finish(False, handle, timeout)
@@ -232,10 +239,11 @@ class Core:
         """Similarly to `precompile` - this function compiles a kernel that should 
         run on the specified satellite, uploads it onto remote device,
         and returns a handle to the subkernel, callable with `run_subkernel`.
-        However, returning values is not (yet) supported, and subkernels cannot use
-        RPCs to communicate. See the warnings in `precompile`.
 
-        :param destination: Destination (satellite number) for the subkernel to run on
+        However, subkernels cannot use RPCs to communicate.
+        See the warnings in `precompile`.
+
+        :param destination: destination (satellite number) for the subkernel to run on.
         """
         if not hasattr(function, "artiq_embedded"):
             raise ValueError("Argument is not a kernel")
@@ -244,10 +252,7 @@ class Core:
         kernel_library, _, _ = \
             self.compile(function, args, kwargs, target=target, attribute_writeback=False)
 
-        sid = self.compiled_subkernel_id
-        self.compiled_subkernel_id += 1
-
-        self.subkernels[id(function)] = sid
+        sid = self.embedding_map.store_object(function)
         self.comm.upload_subkernel(kernel_library, sid, destination)
 
         return sid

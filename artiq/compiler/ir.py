@@ -1223,24 +1223,22 @@ class IndirectBranch(Terminator):
 class Return(Terminator):
     """
     A return instruction.
+    :param is_subkernel: (bool) whether return is in subkernel context
     """
 
     """
     :param value: (:class:`Value`) return value
-    :param is_subkernel: (bool) whether return is in subkernel context
     """
     def __init__(self, value, is_subkernel=False, name=""):
         assert isinstance(value, Value)
-        super().__init__([value, is_subkernel], builtins.TNone(), name)
+        super().__init__([value], builtins.TNone(), name)
+        self.is_subkernel = is_subkernel
 
     def opcode(self):
         return "return"
 
     def value(self):
         return self.operands[0]
-
-    def is_subkernel(self):
-        return self.operands[1]
 
 class Unreachable(Terminator):
     """

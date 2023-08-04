@@ -66,24 +66,24 @@ def kernel(arg=None, flags={}):
 
 def subkernel(arg=None, destination=0, flags={}):
     """
-    This decorator marks an object's method for execution on a
-    satellite device.
+    This decorator marks an object's method for execution on a satellite device.
+    Destination must be given, and it must be between 1 and 255 (inclusive).
+
+    Subkernels behave similarly to kernels, with few key differences:
+        - they are started from main kernels,
+        - they do not support RPCs, or running subsequent subkernels,
+        - but they can call other kernels within themselves.
     """
     assert 0 < destination <= 255
     if isinstance(arg, str):
         def inner_decorator(function):
             @wraps(function)
-            @kernel
             def run_subkernel(self, *k_args, **k_kwargs):
-                # rpc, compile and upload
-                getattr(self, arg).upload_subkernel(upload, destination, ((self,) + k_args), k_kwargs)
-                # back to kernel, load and run
-                getattr(self, arg).run_subkernel(upload)
-            # temporarily, treat subkernels as full fledged kernels
+                sid = getattr(self, arg).prepare_subkernel(destination, run_subkernel, ((self,) + k_args), k_kwargs)
+                getattr(self, arg).run_subkernel(sid)
             run_subkernel.artiq_embedded = _ARTIQEmbeddedInfo(
                 core_name=arg, portable=False, function=function, syscall=None,
-                # subkernel=destination
-                forbidden=False, subkernel=None, flags=set(flags))
+                forbidden=False, subkernel=destination, flags=set(flags))
             return run_subkernel
         return inner_decorator
     elif arg is None:

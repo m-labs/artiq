@@ -178,7 +178,7 @@ class Inferencer(algorithm.Visitor):
                     # Convert to a method.
                     attr_type = types.TMethod(object_type, attr_type)
                     self._unify_method_self(attr_type, attr_name, attr_loc, loc, value_node.loc)
-                elif types.is_rpc(attr_type):
+                elif types.is_rpc(attr_type) or types.is_subkernel(attr_type):
                     # Convert to a method. We don't have to bother typechecking
                     # the self argument, since for RPCs anything goes.
                     attr_type = types.TMethod(object_type, attr_type)
@@ -1318,6 +1318,10 @@ class Inferencer(algorithm.Visitor):
             self._unify(node.type, typ.ret,
                         node.loc, None)
             return
+        elif types.is_subkernel(typ):
+            self._unify(node.type, typ.ret,
+                        node.loc, None)
+            return
         elif not (types.is_function(typ) or types.is_method(typ)):
             diag = diagnostic.Diagnostic("error",
                 "cannot call this expression of type {type}",
@@ -1339,6 +1343,10 @@ class Inferencer(algorithm.Visitor):
             elif types.is_rpc(typ_func):
                 self._unify(node.type, typ_func.ret,
                             node.loc, None)
+                return
+            elif types.is_subkernel(typ_func):
+                self._unify(node.type, typ_func.ret,
+                        node.loc, None)
                 return
             elif typ_func.arity() == 0:
                 return # error elsewhere

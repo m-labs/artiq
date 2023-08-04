@@ -244,6 +244,9 @@ def fn_at_mu():
 def fn_rtio_log():
     return types.TBuiltinFunction("rtio_log")
 
+def fn_subkernel_await():
+    return types.TBuiltinFunction("subkernel_await")
+
 # Accessors
 
 def is_none(typ):

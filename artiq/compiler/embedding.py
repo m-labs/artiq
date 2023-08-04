@@ -184,13 +184,18 @@ class EmbeddingMap:
                 obj_typ, _ = self.type_map[type(obj_ref)]
             yield obj_id, obj_ref, obj_typ
 
-    def retrieve_subkernels(self):
+    def subkernels(self):
         subkernels = {}
         for k, v in self.object_forward_map.items():
             if hasattr(v, "artiq_embedded"):
-                if v.artiq_embedded.subkernel:
-                    subkernels[id(v)] = k
+                if v.artiq_embedded.subkernel is not None:
+                    subkernels[k] = v
         return subkernels
+
+    def retrieve_subkernel_id(self, function):
+        assert hasattr(function, "artiq_embedded")
+        assert function.artiq_embedded.subkernel is not None
+        return self.object_reverse_map(id(function))
 
     def has_rpc(self):
         # will also return true if there are any subkernels
@@ -1260,8 +1265,7 @@ class Stitcher:
 
         function_type = types.TSubkernel(arg_types, ret_type,
                                    sid=self.embedding_map.store_object(host_function),
-                                   destination=function.artiq_embedded.subkernel,
-                                   flags=function.artiq_embedded.flags)
+                                   destination=host_function.artiq_embedded.subkernel)
         self.functions[function] = function_type
         return function_type
 

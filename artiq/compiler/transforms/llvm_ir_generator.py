@@ -215,7 +215,7 @@ class LLVMIRGenerator:
         typ = typ.find()
         if types.is_tuple(typ):
             return ll.LiteralStructType([self.llty_of_type(eltty) for eltty in typ.elts])
-        elif types.is_rpc(typ) or types.is_external_function(typ):
+        elif types.is_rpc(typ) or types.is_external_function(typ) or types.is_subkernel(typ):
             if for_return:
                 return llvoid
             else:
@@ -1362,8 +1362,23 @@ class LLVMIRGenerator:
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
         elif insn.op == "subkernel_await_args":
-            self.llbuilder.call("subkernel_await_args", [],
-                                name="subkernel.await.args")
+            return self.llbuilder.call("subkernel_await_args", [],
+                                       name="subkernel.await.args")
+        elif insn.op == "subkernel_await_return":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            return self.llbuilder.call("subkernel_await_return", [llconst(lli1, 0), llsid, lltimeout],
+                                       name="subkernel.await.return")
+        elif insn.op == "subkernel_retrieve_return":
+            llsid = self.map(insn.operands[0])
+            lltimeout = self.map(insn.operands[1])
+            retty = insn.operands[2]
+            self.llbuilder.call("subkernel_await_message", [llsid, lltimeout],
+                                name="subkernel.await.message")
+            llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
+                            name="rpc.stack")
+            return self._build_rpc_recv(retty, llstackptr, None, None)
+
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         else:
@@ -1882,7 +1897,7 @@ class LLVMIRGenerator:
             llelts = [self._quote(v, t, lambda: path() + [str(i)])
                 for i, (v, t) in enumerate(zip(value, typ.elts))]
             return ll.Constant(llty, llelts)
-        elif types.is_rpc(typ) or types.is_external_function(typ) or 
+        elif types.is_rpc(typ) or types.is_external_function(typ) or \
                 types.is_builtin_function(typ) or types.is_subkernel(typ):
             # RPC, C and builtin functions have no runtime representation.
             return ll.Constant(llty, ll.Undefined)
@@ -1938,7 +1953,7 @@ class LLVMIRGenerator:
         return llinsn
 
     def process_Return(self, insn):
-        if insn.is_subkernel():
+        if insn.is_subkernel:
             return self._build_subkernel_return(insn)
         elif builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()

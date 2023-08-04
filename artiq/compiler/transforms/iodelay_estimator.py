@@ -280,7 +280,7 @@ class IODelayEstimator(algorithm.Visitor):
                                   context="as an argument for delay_mu()")
             call_delay = value
         elif not types.is_builtin(typ):
-            if types.is_function(typ) or types.is_rpc(typ):
+            if types.is_function(typ) or types.is_rpc(typ) or types.is_subkernel(typ):
                 offset = 0
             elif types.is_method(typ):
                 offset = 1
@@ -288,7 +288,7 @@ class IODelayEstimator(algorithm.Visitor):
             else:
                 assert False
 
-            if types.is_rpc(typ):
+            if types.is_rpc(typ) or types.is_subkernel(typ):
                 call_delay = iodelay.Const(0)
             else:
                 delay = typ.find().delay.find()

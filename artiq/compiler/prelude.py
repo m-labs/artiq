@@ -55,4 +55,7 @@ def globals():
         # ARTIQ utility functions
         "rtio_log":             builtins.fn_rtio_log(),
         "core_log":             builtins.fn_print(),
+
+        # ARTIQ subkernel utility functions
+        "subkernel_await_finish":     builtins.fn_subkernel_await()
     }

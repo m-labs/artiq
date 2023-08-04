@@ -341,8 +341,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 self.terminate(ir.Return(result))
             elif builtins.is_none(typ.ret):
                 if not self.current_block.is_terminated():
-                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone(), 
-                                                        is_subkernel=self.current_is_subkernel)))
+                    self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone()), 
+                                                        is_subkernel=self.current_is_subkernel))
             else:
                 if not self.current_block.is_terminated():
                     if len(self.current_block.predecessors()) != 0:
@@ -2542,6 +2542,19 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
+        elif types.is_builtin(typ, "subkernel_await_finish"):
+            if len(node.args) == 2 and len(node.keywords) == 0:
+                fn = node.args[0]
+                timeout = self.visit(node.args[1])
+            elif len(node.args) == 1 and len(node.keywords) == 0:
+                fn = node.args[0]
+                timeout = ir.Constant(10_000, builtins.TInt64())
+            else:
+                assert False
+            sid = ir.Constant(self.embedding_map.retrieve_subkernel_id(fn), builtins.TInt32())
+            self.append(ir.Builtin("subkernel_await_finish"), [sid, timeout], builtins.TNone())
+            return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout, fn.ret], fn.ret))
+
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
         elif types.is_constructor(typ):
@@ -2554,7 +2567,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.engine.process(diag)
 
     def _user_call(self, callee, positional, keywords, arg_exprs={}):
-        if types.is_function(callee.type) or types.is_rpc(callee.type):
+        if types.is_function(callee.type) or types.is_rpc(callee.type) or types.is_subkernel(callee.type):
             func     = callee
             self_arg = None
             fn_typ   = callee.type
@@ -2569,7 +2582,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
-        if types.is_rpc(fn_typ):
+        if types.is_rpc(fn_typ) or types.is_subkernel(fn_typ):
             if self_arg is None:
                 args = positional
             else:
