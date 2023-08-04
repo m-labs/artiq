@@ -44,8 +44,8 @@ class AppletControlRPC:
         self.dataset_ctl = dataset_ctl
         self.background_tasks = set()
 
-    def _background(self, coro, *args):
-        task = self.loop.create_task(coro(*args))
+    def _background(self, coro, *args, **kwargs):
+        task = self.loop.create_task(coro(*args, **kwargs))
         self.background_tasks.add(task)
         task.add_done_callback(self.background_tasks.discard)
 
