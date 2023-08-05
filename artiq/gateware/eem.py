@@ -757,3 +757,31 @@ class HVAmp(_EEM):
             phy = ttl_out_cls(pads.p, pads.n)
             target.submodules += phy
             target.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+
+class EFC(_EEM):
+    @staticmethod
+    def io(eem, iostandard=default_iostandard):
+        # Master: Pair 0~3 data IN, 4~7 OUT
+        data_in = ("efc{}_drtio_rx".format(eem), 0,
+            Subsignal("p", Pins("{} {} {} {}".format(*[
+                _eem_pin(eem, i, "p") for i in range(4)
+            ]))),
+            Subsignal("n", Pins("{} {} {} {}".format(*[
+                _eem_pin(eem, i, "n") for i in range(4)
+            ]))),
+            iostandard(eem),
+            Misc("DIFF_TERM=TRUE"),
+        )
+
+        data_out = ("efc{}_drtio_tx".format(eem), 0,
+            Subsignal("p", Pins("{} {} {} {}".format(*[
+                _eem_pin(eem, i, "p") for i in range(4, 8)
+            ]))),
+            Subsignal("n", Pins("{} {} {} {}".format(*[
+                _eem_pin(eem, i, "n") for i in range(4, 8)
+            ]))),
+            iostandard(eem),
+        )
+
+        return [data_in, data_out]
