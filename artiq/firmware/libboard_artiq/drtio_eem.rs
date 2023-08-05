@@ -52,15 +52,6 @@ fn apply_config(config: &SerdesConfig) {
     }
 }
 
-fn get_deviation(low_rate: f32) -> f32 {
-    // abs() from f32 is not available in core library
-    if low_rate < 0.5 {
-        0.5 - low_rate
-    } else {
-        low_rate - 0.5
-    }
-}
-
 unsafe fn assign_delay() -> SerdesConfig {
     // Select an appropriate delay for EEM lane 0
     select_eem_pair(0);
@@ -134,7 +125,12 @@ unsafe fn assign_delay() -> SerdesConfig {
         for dly_delta in -3..=3 {
             let index = (best_dly as i8 + dly_delta) as u8;
             if let Some(low_rate) = read_align(index) {
-                let deviation = get_deviation(low_rate);
+                // abs() from f32 is not available in core library
+                let deviation = if low_rate < 0.5 {
+                    0.5 - low_rate
+                } else {
+                    low_rate - 0.5
+                }
 
                 if deviation < min_deviation {
                     min_deviation = deviation;
