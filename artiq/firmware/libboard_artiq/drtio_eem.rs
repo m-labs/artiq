@@ -23,6 +23,10 @@ fn select_eem_pair(eem_pair_no: usize) {
 }
 
 fn update_invert(invert: bool) {
+    // The decoder decodes EEM 0/2 data on odd sysclk cycles, buffer on even
+    // cycles, and vice versa for EEM 1/3. Data/Clock latency could change
+    // timing. The invert bit flips the decoding timing, so EEM 0/2 data are
+    // decoded on even cycles, and EEM 1/3 data are decoded on odd cycles.
     unsafe {
         csr::eem_transceiver::serdes_decoder_dly_write(invert as u8);
     }
