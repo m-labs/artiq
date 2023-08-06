@@ -2,7 +2,7 @@ use board_misoc::{csr, clock, config};
 
 
 struct SerdesConfig {
-    pub delay: [u8; 4],
+    pub delay: [usize; 4],
 }
 
 impl SerdesConfig {
@@ -39,13 +39,12 @@ fn apply_bitslip() {
     }
 }
 
-fn apply_delay(tap: u8) {
+fn apply_delay(tap: usize) {
     unsafe {
-        csr::eem_transceiver::serdes_dly_cnt_in_write(tap);
-        clock::spin_us(150);
+        csr::eem_transceiver::serdes_dly_cnt_in_write(tap as u8);
         csr::eem_transceiver::serdes_dly_ld_write(1);
-        clock::spin_us(150);
-        assert!(tap == csr::eem_transceiver::serdes_dly_cnt_out_read());
+        clock::spin_us(1);
+        assert!(tap as u8 == csr::eem_transceiver::serdes_dly_cnt_out_read());
     }
 }
 
@@ -60,7 +59,7 @@ unsafe fn assign_delay() -> SerdesConfig {
     // Select an appropriate delay for EEM lane 0
     select_eem_pair(0);
 
-    let read_align = |dly: u8| -> Option<f32> {
+    let read_align = |dly: usize| -> Option<f32> {
         apply_delay(dly);
         csr::eem_transceiver::serdes_counter_reset_write(1);
 
@@ -117,8 +116,8 @@ unsafe fn assign_delay() -> SerdesConfig {
 
     let best_dly = best_dly.expect("No suitable delay tap alignment!");
 
-    apply_delay(best_dly as u8);
-    let mut delay_list = [best_dly as u8; 4];
+    apply_delay(best_dly);
+    let mut delay_list = [best_dly; 4];
 
     // Assign delay for other lanes
     for lane_no in 1..=3 {
@@ -127,14 +126,14 @@ unsafe fn assign_delay() -> SerdesConfig {
         let mut min_deviation = 0.5;
         let mut min_idx = 0;
         for dly_delta in -3..=3 {
-            let index = (best_dly as i8 + dly_delta) as u8;
+            let index = (best_dly as isize + dly_delta) as usize;
             if let Some(low_rate) = read_align(index) {
                 // abs() from f32 is not available in core library
                 let deviation = if low_rate < 0.5 {
                     0.5 - low_rate
                 } else {
                     low_rate - 0.5
-                }
+                };
 
                 if deviation < min_deviation {
                     min_deviation = deviation;
