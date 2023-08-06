@@ -320,6 +320,7 @@ dependencies = [
  "build_misoc",
  "byteorder",
  "cslice",
+ "dyld",
  "eh",
  "failure",
  "failure_derive",

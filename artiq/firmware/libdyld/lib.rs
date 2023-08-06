@@ -5,7 +5,7 @@ use elf::*;
 
 pub mod elf;
 
-fn read_unaligned<T: Copy>(data: &[u8], offset: usize) -> Result<T, ()> {
+pub fn read_unaligned<T: Copy>(data: &[u8], offset: usize) -> Result<T, ()> {
     if data.len() < offset + mem::size_of::<T>() {
         Err(())
     } else {
@@ -73,6 +73,25 @@ impl<'a> fmt::Display for Error<'a> {
                 }
         }
     }
+}
+
+pub fn is_elf_for_current_arch(ehdr: &Elf32_Ehdr, e_type: u16) -> bool {
+    const IDENT: [u8; EI_NIDENT] = [
+        ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
+        ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
+        /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
+    ];
+    if ehdr.e_ident != IDENT { return false; }
+
+    if ehdr.e_type != e_type { return false; }
+
+    #[cfg(target_arch = "riscv32")]
+    const ARCH: u16 = EM_RISCV;
+    #[cfg(not(target_arch = "riscv32"))]
+    const ARCH: u16 = EM_NONE;
+    if ehdr.e_machine != ARCH { return false; }
+
+    true
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -268,25 +287,16 @@ impl<'a> Library<'a> {
         let ehdr = read_unaligned::<Elf32_Ehdr>(data, 0)
                                   .map_err(|()| "cannot read ELF header")?;
 
-        const IDENT: [u8; EI_NIDENT] = [
-            ELFMAG0,    ELFMAG1,     ELFMAG2,    ELFMAG3,
-            ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE,
-            /* ABI version */ 0, /* padding */ 0, 0, 0, 0, 0, 0, 0
-        ];
-
-        #[cfg(target_arch = "riscv32")]
-        const ARCH: u16 = EM_RISCV;
-        #[cfg(not(target_arch = "riscv32"))]
-        const ARCH: u16 = EM_NONE;
+        if !is_elf_for_current_arch(&ehdr, ET_DYN) {
+            return Err("not a shared library for current architecture")?
+        }
 
         #[cfg(all(target_feature = "f", target_feature = "d"))]
         const FLAGS: u32 = EF_RISCV_FLOAT_ABI_DOUBLE;
-
         #[cfg(not(all(target_feature = "f", target_feature = "d")))]
         const FLAGS: u32 = EF_RISCV_FLOAT_ABI_SOFT;
-
-        if ehdr.e_ident != IDENT || ehdr.e_type != ET_DYN || ehdr.e_machine != ARCH || ehdr.e_flags != FLAGS {
-            return Err("not a shared library for current architecture")?
+        if ehdr.e_flags != FLAGS {
+            return Err("unexpected flags for shared library (wrong floating point ABI?)")?
         }
 
         let mut dyn_off = None;
