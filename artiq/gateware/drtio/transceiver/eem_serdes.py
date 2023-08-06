@@ -142,38 +142,44 @@ class TXSerdes(Module):
 
 class MultiEncoder(Module):
     def __init__(self):
-        WORDS = 2
         # Keep the link layer interface identical to standard encoders
-        self.d = [Signal(8) for _ in range(WORDS)]
-        self.k = [Signal() for _ in range(WORDS)]
+        self.d = [ Signal(8) for _ in range(2) ]
+        self.k = [ Signal() for _ in range(2) ]
 
-        # Output interface is simplified because we have custom physical layer
-        self.output = [Signal(10) for _ in range(WORDS)]
+        # Output interface
+        self.output = [ [ Signal(5) for _ in range(2) ] for _ in range(2) ]
 
-        # Phase of the encoder
-        # Alternate crossbar between encoder and SERDES every cycle
-        self.phase = Signal()
+        # Divided down clock
+        # Alternate between sending encoded character to EEM 0/2 and EEM 1/3
+        # every cycle
+        self.clk_div2 = Signal()
 
         # Intermediate registers for output and disparity
         # More significant bits are buffered due to channel geometry
         # Disparity bit is delayed. The same encoder is shared by 2 SERDES
-        output_bufs = [Signal(5) for _ in range(WORDS)]
-        disp_bufs = [Signal() for _ in range(WORDS)]
+        output_bufs = [Signal(5) for _ in range(2)]
+        disp_bufs = [Signal() for _ in range(2)]
 
-        encoders = [SingleEncoder() for _ in range(WORDS)]
+        encoders = [SingleEncoder() for _ in range(2)]
         self.submodules += encoders
 
+        # Encoded characters are routed to the EEM pairs:
+        # The first character goes through EEM 0/2
+        # The second character goes through EEM 1/3, and repeat...
+        # Lower order bits go first, so higher order bits are buffered and
+        # transmitted in the next cycle.
         for d, k, output, output_buf, disp_buf, encoder in \
                 zip(self.d, self.k, self.output, output_bufs, disp_bufs, encoders):
             self.comb += [
                 encoder.d.eq(d),
                 encoder.k.eq(k),
 
-                # Implementing switching crossbar
-                If(self.phase,
-                    output.eq(Cat(encoder.output[0:5], output_buf))
+                If(self.clk_div2,
+                    output[0].eq(encoder.output[0:5]),
+                    output[1].eq(output_buf),
                 ).Else(
-                    output.eq(Cat(output_buf, encoder.output[0:5]))
+                    output[0].eq(output_buf),
+                    output[1].eq(encoder.output[0:5]),
                 ),
             ]
             # Handle intermediate registers
@@ -191,17 +197,33 @@ class CrossbarDecoder(Module):
         self.d = Signal(8)
         self.k = Signal()
 
-        # Signals to decide which raw input should be decoded
-        self.delay = Signal()
-        self.phase = Signal()
+        # Divided down clock
+        # Alternate between decoding encoded character from EEM 0/2 and
+        # EEM 1/3 every cycle
+        self.clk_div2 = Signal()
+
+        # Extended bitslip mechanism. ISERDESE2 bitslip can only adjust bit
+        # position by 5 bits (1 cycle). However, an encoded character takes 2
+        # cycles to transmit/receive. Asserting wordslip effectively injects
+        # an additional 5 bit position worth of bitslips.
+        self.wordslip = Signal()
 
         # Intermediate register for input
         buffer = Signal(5)
 
         self.submodules.decoder = Decoder()
 
+        # The decoder does the following actions:
+        # - Process received characters from EEM 0/2
+        # - Same, but from EEM 1/3
+        #
+        # Wordslipping is equivalent to swapping task between clock cycles.
+        # (i.e. Swap processing target. Instead of processing EEM 0/2, process
+        # EEM 1/3, and vice versa on the next cycle.) This effectively shifts
+        # the processing time of any encoded character by 1 clock cycle (5
+        # bitslip equivalent without considering oversampling, 10 otherwise).
         self.sync += [
-            If(self.phase ^ self.delay,
+            If(self.clk_div2 ^ self.wordslip,
                 buffer.eq(self.raw_input[1])
             ).Else(
                 buffer.eq(self.raw_input[0])
@@ -209,7 +231,7 @@ class CrossbarDecoder(Module):
         ]
 
         self.comb += [
-            If(self.phase ^ self.delay,
+            If(self.clk_div2 ^ self.wordslip,
                 self.decoder.input.eq(Cat(buffer, self.raw_input[0]))
             ).Else(
                 self.decoder.input.eq(Cat(buffer, self.raw_input[1]))
@@ -319,7 +341,7 @@ class SerdesSingle(Module, AutoCSR):
         
         # CSR for global decoding phase
         # This is to determine if this cycle should decode SERDES 0 or 1
-        self.decoder_dly = CSRStorage()
+        self.wordslip = CSRStorage()
 
         # Encoder/Decoder interfaces
         self.submodules.encoder = MultiEncoder()
@@ -327,28 +349,22 @@ class SerdesSingle(Module, AutoCSR):
 
         # Control decoders phase
         self.comb += [
-            decoders[0].delay.eq(self.decoder_dly.storage),
-            decoders[1].delay.eq(self.decoder_dly.storage),
+            decoders[0].wordslip.eq(self.wordslip.storage),
+            decoders[1].wordslip.eq(self.wordslip.storage),
         ]
         
-        # Route encoded symbols to TXSerdes
-        self.comb += [
-            self.tx_serdes.txdata[0].eq(self.encoder.output[0][:5]),
-            self.tx_serdes.txdata[1].eq(self.encoder.output[0][5:]),
-            self.tx_serdes.txdata[2].eq(self.encoder.output[1][:5]),
-            self.tx_serdes.txdata[3].eq(self.encoder.output[1][5:]),
-        ]
+        # Route encoded symbols to TXSerdes, decoded symbols from RXSerdes
+        for i in range(4):
+            self.comb += [
+                self.tx_serdes.txdata[i].eq(self.encoder.output[i//2][i%2]),
+                decoders[i//2].raw_input[i%2].eq(self.rx_serdes.rxdata[i][0::2]),
+            ]
 
-        # Route RXSerdes to decoder
+        self.clk_div2 = Signal()
         self.comb += [
-            decoders[i//2].raw_input[i%2].eq(self.rx_serdes.rxdata[i][0::2]) for i in range(4)
-        ]
-
-        self.phase = Signal()
-        self.comb += [
-            self.encoder.phase.eq(self.phase),
-            self.decoders[0].phase.eq(self.phase),
-            self.decoders[1].phase.eq(self.phase),
+            self.encoder.clk_div2.eq(self.clk_div2),
+            self.decoders[0].clk_div2.eq(self.clk_div2),
+            self.decoders[1].clk_div2.eq(self.clk_div2),
         ]
 
         # Monitor lane 0 decoder output for bitslip alignment
@@ -368,11 +384,11 @@ class EEMSerdes(Module, TransceiverInterface):
     def __init__(self, platform, data_pads):
         self.rx_ready = CSRStorage()
 
-        phase = Signal()
-        self.sync += phase.eq(~phase)
+        clk_div2 = Signal()
+        self.sync += clk_div2.eq(~clk_div2)
 
         self.submodules.serdes = SerdesSingle(*data_pads[0])
-        self.comb += self.serdes.phase.eq(phase)
+        self.comb += self.serdes.clk_div2.eq(clk_div2)
 
         chan_if = ChannelInterface(self.serdes.encoder, self.serdes.decoders)
         self.comb += chan_if.rx_ready.eq(self.rx_ready.storage)

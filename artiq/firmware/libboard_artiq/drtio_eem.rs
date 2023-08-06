@@ -22,18 +22,21 @@ fn select_eem_pair(eem_pair_no: usize) {
     }
 }
 
-fn update_invert(invert: bool) {
+fn apply_bitslip(extend: bool) {
     // The decoder decodes EEM 0/2 data on odd sysclk cycles, buffer on even
     // cycles, and vice versa for EEM 1/3. Data/Clock latency could change
     // timing. The invert bit flips the decoding timing, so EEM 0/2 data are
     // decoded on even cycles, and EEM 1/3 data are decoded on odd cycles.
+    //
+    // This is needed because transmitting/receiving a 8b10b character takes
+    // 2 sysclk cycles. Adjusting bitslip only via ISERDES limits the range
+    // to 1 cycle. The wordslip bit extends the range to 2 sysclk cycles.
     unsafe {
-        csr::eem_transceiver::serdes_decoder_dly_write(invert as u8);
-    }
-}
+        csr::eem_transceiver::serdes_wordslip_write(extend as u8);
 
-fn apply_bitslip() {
-    unsafe {
+        // Apply a double bitslip since the ISERDES is 2x oversampled.
+        // Bitslip is used for comma alignment purposes once setup/hold timing
+        // is met.
         csr::eem_transceiver::serdes_bitslip_write(1);
         csr::eem_transceiver::serdes_bitslip_write(1);
     }
@@ -154,25 +157,20 @@ unsafe fn assign_delay() -> SerdesConfig {
 }
 
 unsafe fn assign_bitslip() {
-    let mut bitslip = 0;
-    for slip in 0..=9 {
-        update_invert(slip >= 5);
+    for slip in 1..=10 {
+        apply_bitslip(slip > 5);
         clock::spin_us(100);
 
         csr::eem_transceiver::serdes_reader_reset_write(1);
         clock::spin_us(100);
 
         if csr::eem_transceiver::serdes_reader_comma_read() == 1 {
-            bitslip = slip;
+            debug!("Apply {} double bitslips", slip);
             break;
-        } else if slip == 9 {
+        } else if slip == 10 {
             panic!("No suitable bitslip found!")
         }
-
-        apply_bitslip();
     }
-
-    debug!("Apply {} double bitslips", bitslip);
 }
 
 pub fn configure() {
