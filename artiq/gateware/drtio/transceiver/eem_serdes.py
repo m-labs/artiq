@@ -4,44 +4,15 @@ from misoc.cores.code_8b10b import SingleEncoder, Decoder
 from artiq.gateware.drtio.core import TransceiverInterface, ChannelInterface
 
 
-class RXPhy(Module):
-    def __init__(self, i_pads):
-        self.o = [Signal() for _ in range(4)]
-
-        for i in range(4):
-            self.specials += Instance("IBUFDS",
-                p_DIFF_TERM="TRUE",
-                i_I=i_pads.p[i],
-                i_IB=i_pads.n[i],
-                o_O=self.o[i],
-            )
-
-
-class TXPhy(Module):
-    def __init__(self, o_pads):
-        self.i = [Signal() for _ in range(4)]
-        self.t = [Signal() for _ in range(4)]
-
-        for i in range(4):
-            self.specials += Instance("OBUFTDS",
-                i_I=self.i[i],
-                o_O=o_pads.p[i],
-                o_OB=o_pads.n[i],
-                # Always chain the 3-states input to serializer
-                # Vivado will complain otherwise
-                i_T=self.t[i],
-            )
-
-
 class RXSerdes(Module):
-    def __init__(self):
+    def __init__(self, i_pads):
         self.rxdata = [ Signal(10) for _ in range(4) ]
-        self.ser_in_no_dly = [ Signal() for _ in range(4) ]
         self.ld = [ Signal() for _ in range(4) ]
         self.cnt_in = [ Signal(5) for _ in range(4) ]
         self.cnt_out = [ Signal(5) for _ in range(4) ]
         self.bitslip = [ Signal() for _ in range(4) ]
 
+        ser_in_no_dly = [ Signal() for _ in range(4) ]
         ser_in = [ Signal() for _ in range(4) ]
         shifts = [ Signal(2) for _ in range(4) ]
 
@@ -93,6 +64,7 @@ class RXSerdes(Module):
                     i_SHIFTIN2=shifts[i][1]),
 
                 # Tunable delay
+                # IDELAYCTRL is with the clocking
                 Instance("IDELAYE2",
                     p_DELAY_SRC="IDATAIN",
                     p_SIGNAL_PATTERN="DATA",
@@ -115,38 +87,57 @@ class RXSerdes(Module):
                     # Allow the aligner to check the tap value
                     o_CNTVALUEOUT=self.cnt_out[i],
 
-                    i_IDATAIN=self.ser_in_no_dly[i],
+                    i_IDATAIN=ser_in_no_dly[i],
                     o_DATAOUT=ser_in[i]
                 ),
 
-                # IDELAYCTRL is with the clocking
+                # IOB
+                Instance("IBUFDS",
+                    p_DIFF_TERM="TRUE",
+                    i_I=i_pads.p[i],
+                    i_IB=i_pads.n[i],
+                    o_O=ser_in_no_dly[i],
+                )
             ]
 
 
 class TXSerdes(Module):
-    def __init__(self):
+    def __init__(self, o_pads):
         self.txdata = [ Signal(5) for _ in range(4) ]
-        self.ser_out = [ Signal() for _ in range(4) ]
-        self.t_out = [ Signal() for _ in range(4) ]
+        ser_out = [ Signal() for _ in range(4) ]
+        t_out = [ Signal() for _ in range(4) ]
 
-        # TX SERDES
         for i in range(4):
-            self.specials += Instance("OSERDESE2",
-                p_DATA_RATE_OQ="SDR", p_DATA_RATE_TQ="BUF",
-                p_DATA_WIDTH=5, p_TRISTATE_WIDTH=1,
-                p_INIT_OQ=0b00000,
-                o_OQ=self.ser_out[i],
-                o_TQ=self.t_out[i],
-                i_RST=ResetSignal(),
-                i_CLK=ClockSignal("sys5x"),
-                i_CLKDIV=ClockSignal(),
-                i_D1=self.txdata[i][0],
-                i_D2=self.txdata[i][1],
-                i_D3=self.txdata[i][2],
-                i_D4=self.txdata[i][3],
-                i_D5=self.txdata[i][4],
-                i_TCE=1, i_OCE=1,
-                i_T1=0)
+            self.specials += [
+                # Serializer
+                Instance("OSERDESE2",
+                    p_DATA_RATE_OQ="SDR", p_DATA_RATE_TQ="BUF",
+                    p_DATA_WIDTH=5, p_TRISTATE_WIDTH=1,
+                    p_INIT_OQ=0b00000,
+                    o_OQ=ser_out[i],
+                    o_TQ=t_out[i],
+                    i_RST=ResetSignal(),
+                    i_CLK=ClockSignal("sys5x"),
+                    i_CLKDIV=ClockSignal(),
+                    i_D1=self.txdata[i][0],
+                    i_D2=self.txdata[i][1],
+                    i_D3=self.txdata[i][2],
+                    i_D4=self.txdata[i][3],
+                    i_D5=self.txdata[i][4],
+                    i_TCE=1, i_OCE=1,
+                    i_T1=0
+                ),
+
+                # IOB
+                Instance("OBUFTDS",
+                    i_I=ser_out[i],
+                    o_O=o_pads.p[i],
+                    o_OB=o_pads.n[i],
+                    # Always chain the 3-states input to serializer
+                    # Vivado will complain otherwise
+                    i_T=t_out[i],
+                )
+            ]
 
 
 class MultiEncoder(Module):
@@ -298,13 +289,9 @@ class CommaReader(Module, AutoCSR):
 
 class SerdesSingle(Module, AutoCSR):
     def __init__(self, i_pads, o_pads, debug=False):
-        # Modules for the IOB
-        self.submodules.rx_phy = RXPhy(i_pads)
-        self.submodules.tx_phy = TXPhy(o_pads)
-
         # Serdes Module
-        self.submodules.rx_serdes = RXSerdes()
-        self.submodules.tx_serdes = TXSerdes()
+        self.submodules.rx_serdes = RXSerdes(i_pads)
+        self.submodules.tx_serdes = TXSerdes(o_pads)
 
         # EEM lane select
         self.eem_sel = CSRStorage(2)
@@ -334,19 +321,10 @@ class SerdesSingle(Module, AutoCSR):
         # This is to determine if this cycle should decode SERDES 0 or 1
         self.decoder_dly = CSRStorage()
 
-        # Encoder/Decodfer interfaces
+        # Encoder/Decoder interfaces
         self.submodules.encoder = MultiEncoder()
         self.submodules.decoders = decoders = Array(CrossbarDecoder() for _ in range(2))
 
-        # Wire up the IOB to serdes modules
-        for i in range(4):
-            self.comb += [
-                self.tx_phy.i[i].eq(self.tx_serdes.ser_out[i]),
-                self.tx_phy.t[i].eq(self.tx_serdes.t_out[i]),
-
-                self.rx_serdes.ser_in_no_dly[i].eq(self.rx_phy.o[i]),
-            ]
-        
         # Control decoders phase
         self.comb += [
             decoders[0].delay.eq(self.decoder_dly.storage),
