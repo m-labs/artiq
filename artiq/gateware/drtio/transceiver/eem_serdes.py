@@ -397,6 +397,6 @@ class EEMSerdes(Module, TransceiverInterface):
         TransceiverInterface.__init__(self, channel_interfaces)
 
         self.comb += [
-            getattr(self, "cd_rtio_rx").clk.eq(ClockSignal()),
-            getattr(self, "cd_rtio_rx").rst.eq(ResetSignal())
+            getattr(self, "cd_rtio_rx0").clk.eq(ClockSignal()),
+            getattr(self, "cd_rtio_rx0").rst.eq(ResetSignal())
         ]
