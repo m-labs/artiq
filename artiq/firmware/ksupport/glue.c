@@ -17,7 +17,7 @@ void send_to_rtio_log(struct slice data);
 #define KERNELCPU_EXEC_ADDRESS    0x45000000
 #define KERNELCPU_PAYLOAD_ADDRESS 0x45060000
 #define KERNELCPU_LAST_ADDRESS    0x4fffffff
-#define KSUPPORT_HEADER_SIZE      0x80
+#define KSUPPORT_HEADER_SIZE      0x74
 
 FILE *stderr;
 
