@@ -19,6 +19,7 @@ byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false }
 managed = { version = "^0.7.1", default-features = false, features = ["alloc", "map"] }
+dyld = { path = "../libdyld" }
 eh = { path = "../libeh" }
 unwind_backtrace = { path = "../libunwind_backtrace" }
 io = { path = "../libio", features = ["byteorder"] }
