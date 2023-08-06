@@ -222,7 +222,7 @@ class CrossbarDecoder(Module):
         ]
 
 
-class RisingEdgeDetector(Module):
+class BangBangPhaseDetector(Module):
     def __init__(self):
         self.s = Signal(3)
 
@@ -247,7 +247,7 @@ class RisingEdgeCounter(Module, AutoCSR):
         self.rxdata = Signal(10)
 
         # Detect rising edges & measure
-        self.submodules.detector = RisingEdgeDetector()
+        self.submodules.detector = BangBangPhaseDetector()
         self.comb += self.detector.s.eq(self.rxdata[:3])
 
         self.reset = CSR()
