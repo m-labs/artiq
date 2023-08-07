@@ -138,6 +138,15 @@ class TXSerdes(Module):
             ]
 
 
+# This module owns 2 8b10b encoders, each encoder route codewords to 2 lanes,
+# through time multiplexing. The scheduler releases 2 bytes every clock cycle,
+# and the encoders each encode 1 byte.
+#
+# Since each lane only transmits 5 bits per sysclk cycle, the encoder selects
+# a lane to first transmit the least significant word (LSW, 5 bits), and send
+# the rest in the next cycle using the same lane. It takes advantage of the
+# arrival sequence of bytes from the scrambler to achieve the transmission
+# pattern shown in the MultiDecoder module.
 class MultiEncoder(Module):
     def __init__(self):
         # Keep the link layer interface identical to standard encoders
@@ -147,7 +156,7 @@ class MultiEncoder(Module):
         # Output interface
         self.output = [ [ Signal(5) for _ in range(2) ] for _ in range(2) ]
 
-        # Divided down clock
+        # Clock enable signal
         # Alternate between sending encoded character to EEM 0/2 and EEM 1/3
         # every cycle
         self.clk_div2 = Signal()
@@ -188,22 +197,45 @@ class MultiEncoder(Module):
             ]
 
 
-# Unlike the usual 8b10b decoder, it needs to know which SERDES to decode
+# Owns 2 8b10b decoders, each decodes data from lane 0/1 and lane 2/3class
+# respectively. The decoders are time multiplexed among the 2 lanes, and
+# each decoder decodes exactly 1 lane per sysclk cycle.
+#
+# The transmitter could send the following data pattern over the 4 lanes.
+# Capital letters denote the most significant word (MSW); The lowercase denote
+# the least significant word (LSW) of the same 8b10b character.
+#
+# Cycle \ Lane  0   1   2   3
+#       0       a   X   b   Y
+#       1       A   c   B   d
+#       2       a'  C   b'  D
+#       3       A'  c'  B'  d'
+#
+# Lane 0/2 and lane 1/3 transmit word of different significance by design (see
+# MultiEncoder).
+#
+# This module buffers the LSW, and immediately send the whole 8b10b character
+# to the coresponding decoder once the MSW is also received.
 class MultiDecoder(Module):
     def __init__(self):
         self.raw_input = [ Signal(5) for _ in range(2) ]
         self.d = Signal(8)
         self.k = Signal()
 
-        # Divided down clock
+        # Clock enable signal
         # Alternate between decoding encoded character from EEM 0/2 and
         # EEM 1/3 every cycle
         self.clk_div2 = Signal()
 
         # Extended bitslip mechanism. ISERDESE2 bitslip can only adjust bit
         # position by 5 bits (1 cycle). However, an encoded character takes 2
-        # cycles to transmit/receive. Asserting wordslip effectively injects
-        # an additional 5 bit position worth of bitslips.
+        # cycles to transmit/receive. The module needs to correctly reassemble
+        # the 8b10b character. This is useful received waveform is the 1-cycle
+        # delayed version of the above waveform. The same scheme would
+        # incorrectly buffer words and create wrong symbols.
+        #
+        # Hence, wordslip put LSW as MSW and vice versa, effectively injects
+        # an additional 5 bit positions worth of bitslips.
         self.wordslip = Signal()
 
         # Intermediate register for input
