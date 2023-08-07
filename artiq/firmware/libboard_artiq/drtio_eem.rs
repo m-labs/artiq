@@ -62,41 +62,48 @@ unsafe fn assign_delay() -> SerdesConfig {
     };
 
     let mut best_dly = None;
-    let mut prev = None;
-    for curr_dly in 0..32 {
-        let curr_low_rate = read_align(curr_dly);
 
-        if let Some(prev_low_rate) = prev {
-            // This is potentially a crossover position
-            if prev_low_rate <= curr_low_rate && curr_low_rate >= 0.5 {
-                let prev_dev = 0.5 - prev_low_rate;
-                let curr_dev = curr_low_rate - 0.5;
-                let selected_idx = if prev_dev < curr_dev {
-                    curr_dly - 1
-                } else {
-                    curr_dly
-                };
+    while best_dly.is_none() {
+        let mut prev = None;
+        for curr_dly in 0..32 {
+            let curr_low_rate = read_align(curr_dly);
 
-                // The same edge may not appear in other lanes due to skew
-                // 5 taps is very conservative, generally it is 1 or 2
-                if selected_idx < 5 {
-                    prev = None;
-                    continue;
-                } else {
-                    best_dly = Some(selected_idx);
-                    break;
+            if let Some(prev_low_rate) = prev {
+                // This is potentially a crossover position
+                if prev_low_rate <= curr_low_rate && curr_low_rate >= 0.5 {
+                    let prev_dev = 0.5 - prev_low_rate;
+                    let curr_dev = curr_low_rate - 0.5;
+                    let selected_idx = if prev_dev < curr_dev {
+                        curr_dly - 1
+                    } else {
+                        curr_dly
+                    };
+
+                    // The setup setup/hold calibration timing (even with
+                    // tolerance) might be invalid in other lanes due to skew.
+                    // 5 taps is very conservative, generally it is 1 or 2
+                    if selected_idx < 5 {
+                        prev = None;
+                        continue;
+                    } else {
+                        best_dly = Some(selected_idx);
+                        break;
+                    }
                 }
+            }
+
+            // Only rising slope from <= 0.5 can result in a rising low rate
+            // crossover at 50%.
+            if curr_low_rate <= 0.5 {
+                prev = Some(curr_low_rate);
             }
         }
 
-        // Only rising slope from <= 0.5 can result in a rising low rate
-        // crossover at 50%.
-        if curr_low_rate <= 0.5 {
-            prev = Some(curr_low_rate);
-        }
+        error!("setup/hold timing calibration failed, retry in 1s...");
+        clock::spin_us(1_000_000);
     }
 
-    let best_dly = best_dly.expect("No suitable delay tap alignment!");
+    let best_dly = best_dly.unwrap();
 
     apply_delay(best_dly);
     let mut delay_list = [best_dly; 4];
@@ -134,20 +141,43 @@ unsafe fn assign_delay() -> SerdesConfig {
     }
 }
 
-unsafe fn assign_bitslip() {
-    for slip in 1..=10 {
-        apply_bitslip(slip > 5);
-        clock::spin_us(100);
+unsafe fn align_comma() {
+    loop {
+        for slip in 1..=10 {
+            // The soft transceiver has 2 8b10b decoders, which receives lane
+            // 0/1 and lane 2/3 respectively. The decoder are time-multiplexed
+            // to decode exactly 1 lane each sysclk cycle.
+            //
+            // The decoder decodes lane 0/2 data on odd sysclk cycles, buffer
+            // on even cycles, and vice versa for lane 1/3. Data/Clock latency
+            // could change timing. The extend bit flips the decoding timing,
+            // so lane 0/2 data are decoded on even cycles, and lane 1/3 data
+            // are decoded on odd cycles.
+            //
+            // This is needed because transmitting/receiving a 8b10b character
+            // takes 2 sysclk cycles. Adjusting bitslip only via ISERDES
+            // limits the range to 1 cycle. The wordslip bit extends the range
+            // to 2 sysclk cycles.
+            csr::eem_transceiver::serdes_wordslip_write((slip > 5) as u8);
 
-        csr::eem_transceiver::serdes_reader_reset_write(1);
-        clock::spin_us(100);
+            // Apply a double bitslip since the ISERDES is 2x oversampled.
+            // Bitslip is used for comma alignment purposes once setup/hold
+            // timing is met.
+            csr::eem_transceiver::serdes_bitslip_write(1);
+            csr::eem_transceiver::serdes_bitslip_write(1);
+            clock::spin_us(1);
 
-        if csr::eem_transceiver::serdes_reader_comma_read() == 1 {
-            debug!("Apply {} double bitslips", slip);
-            break;
-        } else if slip == 10 {
-            panic!("No suitable bitslip found!")
+            csr::eem_transceiver::serdes_comma_align_reset_write(1);
+            clock::spin_us(100);
+
+            if csr::eem_transceiver::serdes_comma_read() == 1 {
+                debug!("comma alignment completed after {} bitslips", slip);
+                return;
+            }
         }
+
+        error!("comma alignment failed, retrying in 1s...");
+        clock::spin_us(1_000_000);
     }
 }
 
