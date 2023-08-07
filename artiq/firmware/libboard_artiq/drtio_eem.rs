@@ -134,7 +134,7 @@ unsafe fn assign_delay() -> SerdesConfig {
         delay_list[lane_no] = min_idx;
     }
 
-    debug!("DRTIO-over-EEM calibration: {:?}", delay_list);
+    debug!("setup/hold timing calibration: {:?}", delay_list);
 
     SerdesConfig {
         delay: delay_list,
