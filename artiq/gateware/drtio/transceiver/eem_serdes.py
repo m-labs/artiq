@@ -164,10 +164,10 @@ class MultiEncoder(Module):
         # Intermediate registers for output and disparity
         # More significant bits are buffered due to channel geometry
         # Disparity bit is delayed. The same encoder is shared by 2 SERDES
-        output_bufs = [Signal(5) for _ in range(2)]
-        disp_bufs = [Signal() for _ in range(2)]
+        output_bufs = [ Signal(5) for _ in range(2) ]
+        disp_bufs = [ Signal() for _ in range(2) ]
 
-        encoders = [SingleEncoder() for _ in range(2)]
+        encoders = [ SingleEncoder() for _ in range(2) ]
         self.submodules += encoders
 
         # Encoded characters are routed to the EEM pairs:
@@ -328,12 +328,12 @@ class RisingEdgeCounter(Module, AutoCSR):
 
 class SerdesSingle(Module, AutoCSR):
     def __init__(self, i_pads, o_pads, debug=False):
-        # Serdes Module
+        # Serdes modules
         self.submodules.rx_serdes = RXSerdes(i_pads)
         self.submodules.tx_serdes = TXSerdes(o_pads)
 
-        # EEM lane select
-        self.eem_sel = CSRStorage(2)
+        # Lane select
+        self.lane_sel = CSRStorage(2)
 
         # CSR for bitslip
         self.bitslip = CSR()
@@ -347,17 +347,17 @@ class SerdesSingle(Module, AutoCSR):
         for i in range(4):
             self.comb += [
                 self.rx_serdes.cnt_in[i].eq(self.dly_cnt_in.storage),
-                self.rx_serdes.ld[i].eq((self.eem_sel.storage == i) & self.dly_ld.re),
+                self.rx_serdes.ld[i].eq((self.lane_sel.storage == i) & self.dly_ld.re),
             ]
         
         self.dly_cnt_out = CSRStatus(5)
 
-        self.comb += Case(self.eem_sel.storage, {
+        self.comb += Case(self.lane_sel.storage, {
             idx: self.dly_cnt_out.status.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
         })
         
         # CSR for global decoding phase
-        # This is to determine if this cycle should decode SERDES 0 or 1
+        # This is to determine if this cycle should decode lane 0/2 or land 1/3
         self.wordslip = CSRStorage()
 
         # Encoder/Decoder interfaces
@@ -398,7 +398,7 @@ class SerdesSingle(Module, AutoCSR):
         # Read rxdata for setup/hold timing calibration
         self.submodules.counter = PhaseErrorCounter()
 
-        self.comb += Case(self.eem_sel.storage, {
+        self.comb += Case(self.lane_sel.storage, {
             lane_idx: self.counter.rxdata.eq(self.rx_serdes.rxdata[lane_idx]) for lane_idx in range(4)
         })
 
