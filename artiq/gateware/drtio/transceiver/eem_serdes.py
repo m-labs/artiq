@@ -133,8 +133,6 @@ class TXSerdes(Module):
                     i_I=ser_out[i],
                     o_O=o_pads.p[i],
                     o_OB=o_pads.n[i],
-                    # Always chain the 3-states input to serializer
-                    # Vivado will complain otherwise
                     i_T=t_out[i],
                 )
             ]
