@@ -327,7 +327,7 @@ class PhaseErrorCounter(Module, AutoCSR):
 
 
 class SerdesSingle(Module, AutoCSR):
-    def __init__(self, i_pads, o_pads, debug=False):
+    def __init__(self, i_pads, o_pads):
         # Serdes modules
         self.submodules.rx_serdes = RXSerdes(i_pads)
         self.submodules.tx_serdes = TXSerdes(o_pads)
