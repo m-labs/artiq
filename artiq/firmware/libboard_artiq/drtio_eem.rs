@@ -62,58 +62,57 @@ unsafe fn assign_delay() -> SerdesConfig {
     // Select an appropriate delay for EEM lane 0
     select_eem_pair(0);
 
-    let read_align = |dly: usize| -> Option<f32> {
+    let read_align = |dly: usize| -> f32 {
         apply_delay(dly);
         csr::eem_transceiver::serdes_counter_reset_write(1);
 
         csr::eem_transceiver::serdes_counter_enable_write(1);
-        clock::spin_us(5000);
+        clock::spin_us(2000);
         csr::eem_transceiver::serdes_counter_enable_write(0);
 
         let (high, low) = (
             csr::eem_transceiver::serdes_counter_high_count_read(),
             csr::eem_transceiver::serdes_counter_low_count_read(),
         );
-        let overflow = csr::eem_transceiver::serdes_counter_overflow_read();
-
-        if overflow == 1 {
-            None
-        } else {
-            Some(low as f32 / (low + high) as f32)
+        if csr::eem_transceiver::serdes_counter_overflow_read() == 1 {
+            panic!("Unexpected phase detector counter overflow");
         }
+
+        low as f32 / (low + high) as f32
     };
 
     let mut best_dly = None;
     let mut prev = None;
     for curr_dly in 0..32 {
-        if let Some(curr_low_rate) = read_align(curr_dly) {
-            if let Some(prev_low_rate) = prev {
-                if prev_low_rate <= curr_low_rate && curr_low_rate >= 0.5 {
-                    let prev_dev = 0.5 - prev_low_rate;
-                    let curr_dev = curr_low_rate - 0.5;
-                    let selected_idx = if prev_dev < curr_dev {
-                        curr_dly - 1
-                    } else {
-                        curr_dly
-                    };
+        let curr_low_rate = read_align(curr_dly);
 
-                    // The same edge may not appear in other lanes due to skew
-                    // 5 taps is very conservative, generally it is 1 or 2
-                    if selected_idx < 5 {
-                        prev = None;
-                        continue;
-                    } else {
-                        best_dly = Some(selected_idx);
-                        break;
-                    }
+        if let Some(prev_low_rate) = prev {
+            // This is potentially a crossover position
+            if prev_low_rate <= curr_low_rate && curr_low_rate >= 0.5 {
+                let prev_dev = 0.5 - prev_low_rate;
+                let curr_dev = curr_low_rate - 0.5;
+                let selected_idx = if prev_dev < curr_dev {
+                    curr_dly - 1
+                } else {
+                    curr_dly
+                };
+
+                // The same edge may not appear in other lanes due to skew
+                // 5 taps is very conservative, generally it is 1 or 2
+                if selected_idx < 5 {
+                    prev = None;
+                    continue;
+                } else {
+                    best_dly = Some(selected_idx);
+                    break;
                 }
             }
+        }
 
-            if curr_low_rate <= 0.5 {
-                prev = Some(curr_low_rate);
-            }
-        } else {
-            prev = None;
+        // Only rising slope from <= 0.5 can result in a rising low rate
+        // crossover at 50%.
+        if curr_low_rate <= 0.5 {
+            prev = Some(curr_low_rate);
         }
     }
 
@@ -130,18 +129,17 @@ unsafe fn assign_delay() -> SerdesConfig {
         let mut min_idx = 0;
         for dly_delta in -3..=3 {
             let index = (best_dly as isize + dly_delta) as usize;
-            if let Some(low_rate) = read_align(index) {
-                // abs() from f32 is not available in core library
-                let deviation = if low_rate < 0.5 {
-                    0.5 - low_rate
-                } else {
-                    low_rate - 0.5
-                };
+            let low_rate = read_align(index);
+            // abs() from f32 is not available in core library
+            let deviation = if low_rate < 0.5 {
+                0.5 - low_rate
+            } else {
+                low_rate - 0.5
+            };
 
-                if deviation < min_deviation {
-                    min_deviation = deviation;
-                    min_idx = index;
-                }
+            if deviation < min_deviation {
+                min_deviation = deviation;
+                min_idx = index;
             }
         }
 
