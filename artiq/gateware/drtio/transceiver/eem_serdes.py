@@ -402,8 +402,8 @@ class SerdesSingle(Module, AutoCSR):
         self.comb += self.reader.decoder_comma.eq(
             ((decoders[0].d == 0x3C) | (decoders[0].d == 0xBC)) & decoders[0].k)
 
-        # Read rxdata for rising edge alignment
-        self.submodules.counter = RisingEdgeCounter()
+        # Read rxdata for setup/hold timing calibration
+        self.submodules.counter = PhaseErrorCounter()
 
         self.comb += Case(self.eem_sel.storage, {
             lane_idx: self.counter.rxdata.eq(self.rx_serdes.rxdata[lane_idx]) for lane_idx in range(4)
