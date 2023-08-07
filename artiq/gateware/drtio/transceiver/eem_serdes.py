@@ -290,7 +290,7 @@ class BangBangPhaseDetector(Module):
         )
 
 
-class RisingEdgeCounter(Module, AutoCSR):
+class PhaseErrorCounter(Module, AutoCSR):
     def __init__(self):
         self.high_count = CSRStatus(18)
         self.low_count = CSRStatus(18)
@@ -298,7 +298,7 @@ class RisingEdgeCounter(Module, AutoCSR):
         # Odd indices are always oversampled bits
         self.rxdata = Signal(10)
 
-        # Detect rising edges & measure
+        # Measure setup/hold timing, count phase error in the following
         self.submodules.detector = BangBangPhaseDetector()
         self.comb += self.detector.s.eq(self.rxdata[:3])
 
