@@ -550,7 +550,7 @@ pub extern fn main() -> i32 {
     init_rtio_crg();
 
     #[cfg(has_drtio_eem)]
-    drtio_eem::configure();
+    drtio_eem::init();
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];

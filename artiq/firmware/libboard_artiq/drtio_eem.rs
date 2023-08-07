@@ -181,29 +181,30 @@ unsafe fn align_comma() {
     }
 }
 
-pub fn configure() {
+pub fn init() {
     config::read("eem_drtio_delay", |r| {
         match r {
             Ok(record) => {
-                info!("Loading DRTIO-over-EEM configuration from flash.");
+                info!("loading calibrated timing values from flash");
                 unsafe {
                     apply_config(&*(record.as_ptr() as *const SerdesConfig));
-                    assign_bitslip();
-                    csr::eem_transceiver::rx_ready_write(1);
                 }
             },
 
             Err(_) => {
-                info!("Calibrate DRTIO-over-EEM...");
+                info!("calibrating...");
                 let config;
                 unsafe {
                     config = assign_delay();
-                    assign_bitslip();
-                    csr::eem_transceiver::rx_ready_write(1);
                 }
 
                 config::write("eem_drtio_delay", config.as_bytes()).unwrap();
             }
         }
-    })
+    });
+
+    unsafe {
+        align_comma();
+        csr::eem_transceiver::rx_ready_write(1);
+    }
 }

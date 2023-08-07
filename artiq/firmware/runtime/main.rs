@@ -128,7 +128,7 @@ fn startup() {
     rtio_clocking::init();
 
     #[cfg(has_drtio_eem)]
-    drtio_eem::configure();
+    drtio_eem::init();
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
