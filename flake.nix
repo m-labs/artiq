@@ -111,6 +111,28 @@
         '';
       };
 
+      llvmlite-new = pkgs.python3Packages.buildPythonPackage rec {
+        pname = "llvmlite";
+        version = "0.40.1";
+        src = pkgs.fetchFromGitHub {
+            owner = "numba";
+            repo = "llvmlite";
+            rev = "v${version}";
+            sha256 = "sha256-gPEda9cMEsruvBt8I2VFfsTKZaPsNDgqx2Y9n0MSc4Y=";
+          };
+        nativeBuildInputs = [ pkgs.llvm_14 ];
+        # Disable static linking
+        # https://github.com/numba/llvmlite/issues/93
+        postPatch = ''
+          substituteInPlace ffi/Makefile.linux --replace "-static-libstdc++" ""
+          substituteInPlace llvmlite/tests/test_binding.py --replace "test_linux" "nope"
+        '';
+        # Set directory containing llvm-config binary
+        preConfigure = ''
+          export LLVM_CONFIG=${pkgs.llvm_14.dev}/bin/llvm-config
+        '';
+      };
+
       artiq-upstream = pkgs.python3Packages.buildPythonPackage rec {
         pname = "artiq";
         version = artiqVersion;
@@ -124,8 +146,8 @@
 
         nativeBuildInputs = [ pkgs.qt5.wrapQtAppsHook ];
         # keep llvm_x and lld_x in sync with llvmlite
-        propagatedBuildInputs = [ pkgs.llvm_14 pkgs.lld_14 sipyco.packages.x86_64-linux.sipyco pythonparser pkgs.qt5.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools ]
-          ++ (with pkgs.python3Packages; [ llvmlite pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm lmdb jsonschema ]);
+        propagatedBuildInputs = [ pkgs.llvm_14 pkgs.lld_14 sipyco.packages.x86_64-linux.sipyco pythonparser llvmlite-new pkgs.qt5.qtsvg artiq-comtools.packages.x86_64-linux.artiq-comtools ]
+          ++ (with pkgs.python3Packages; [ pyqtgraph pygit2 numpy dateutil scipy prettytable pyserial levenshtein h5py pyqt5 qasync tqdm lmdb jsonschema ]);
 
         dontWrapQtApps = true;
         postFixup = ''
