@@ -326,19 +326,6 @@ class RisingEdgeCounter(Module, AutoCSR):
         ]
 
 
-class CommaReader(Module, AutoCSR):
-    def __init__(self):
-        self.decoder_comma = Signal()
-        self.reset = CSR()
-        self.comma = CSRStatus()
-
-        self.sync += If(self.reset.re,
-            self.comma.status.eq(0),
-        ).Else(
-            self.comma.status.eq(self.comma.status | self.decoder_comma),
-        )
-
-
 class SerdesSingle(Module, AutoCSR):
     def __init__(self, i_pads, o_pads, debug=False):
         # Serdes Module
@@ -398,9 +385,15 @@ class SerdesSingle(Module, AutoCSR):
         ]
 
         # Monitor lane 0 decoder output for bitslip alignment
-        self.submodules.reader = CommaReader()
-        self.comb += self.reader.decoder_comma.eq(
-            ((decoders[0].d == 0x3C) | (decoders[0].d == 0xBC)) & decoders[0].k)
+        self.comma_align_reset = CSR()
+        self.comma = CSRStatus()
+
+        self.sync += If(self.comma_align_reset.re,
+            self.comma.status.eq(0),
+        ).Elif(~self.comma.status,
+            self.comma.status.eq(
+                ((decoders[0].d == 0x3C) | (decoders[0].d == 0xBC))
+                & decoders[0].k))
 
         # Read rxdata for setup/hold timing calibration
         self.submodules.counter = PhaseErrorCounter()
