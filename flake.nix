@@ -227,7 +227,7 @@
             (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging ]))
             rust
             pkgs.cargo-xbuild
-            pkgs.llvmPackages_11.clang-unwrapped
+            pkgs.llvmPackages_14.clang-unwrapped
             pkgs.llvm_14
             pkgs.lld_14
             vivado
@@ -390,7 +390,7 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs ))
           rust
           pkgs.cargo-xbuild
-          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
           # To manually run compiler tests:
@@ -418,7 +418,7 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
           rust
           pkgs.cargo-xbuild
-          pkgs.llvmPackages_11.clang-unwrapped
+          pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
           packages.x86_64-linux.vivado
