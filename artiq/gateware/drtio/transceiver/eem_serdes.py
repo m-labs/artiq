@@ -191,7 +191,7 @@ class MultiEncoder(Module):
 
 
 # Unlike the usual 8b10b decoder, it needs to know which SERDES to decode
-class CrossbarDecoder(Module):
+class MultiDecoder(Module):
     def __init__(self):
         self.raw_input = [ Signal(5) for _ in range(2) ]
         self.d = Signal(8)
@@ -345,7 +345,7 @@ class SerdesSingle(Module, AutoCSR):
 
         # Encoder/Decoder interfaces
         self.submodules.encoder = MultiEncoder()
-        self.submodules.decoders = decoders = Array(CrossbarDecoder() for _ in range(2))
+        self.submodules.decoders = decoders = Array(MultiDecoder() for _ in range(2))
 
         # Control decoders phase
         self.comb += [
