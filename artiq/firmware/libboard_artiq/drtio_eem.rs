@@ -16,29 +16,9 @@ impl SerdesConfig {
     }
 }
 
-fn select_eem_pair(eem_pair_no: usize) {
+fn select_lane(lane_no: usize) {
     unsafe {
-        csr::eem_transceiver::serdes_eem_sel_write(eem_pair_no as u8);
-    }
-}
-
-fn apply_bitslip(extend: bool) {
-    // The decoder decodes EEM 0/2 data on odd sysclk cycles, buffer on even
-    // cycles, and vice versa for EEM 1/3. Data/Clock latency could change
-    // timing. The invert bit flips the decoding timing, so EEM 0/2 data are
-    // decoded on even cycles, and EEM 1/3 data are decoded on odd cycles.
-    //
-    // This is needed because transmitting/receiving a 8b10b character takes
-    // 2 sysclk cycles. Adjusting bitslip only via ISERDES limits the range
-    // to 1 cycle. The wordslip bit extends the range to 2 sysclk cycles.
-    unsafe {
-        csr::eem_transceiver::serdes_wordslip_write(extend as u8);
-
-        // Apply a double bitslip since the ISERDES is 2x oversampled.
-        // Bitslip is used for comma alignment purposes once setup/hold timing
-        // is met.
-        csr::eem_transceiver::serdes_bitslip_write(1);
-        csr::eem_transceiver::serdes_bitslip_write(1);
+        csr::eem_transceiver::serdes_lane_sel_write(lane_no as u8);
     }
 }
 
@@ -52,15 +32,15 @@ fn apply_delay(tap: usize) {
 }
 
 fn apply_config(config: &SerdesConfig) {
-    for eem_pair_no in 0..4 {
-        select_eem_pair(eem_pair_no);
-        apply_delay(config.delay[eem_pair_no]);
+    for lane_no in 0..4 {
+        select_lane(lane_no);
+        apply_delay(config.delay[lane_no]);
     }
 }
 
 unsafe fn assign_delay() -> SerdesConfig {
-    // Select an appropriate delay for EEM lane 0
-    select_eem_pair(0);
+    // Select an appropriate delay for lane 0
+    select_lane(0);
 
     let read_align = |dly: usize| -> f32 {
         apply_delay(dly);
@@ -123,7 +103,7 @@ unsafe fn assign_delay() -> SerdesConfig {
 
     // Assign delay for other lanes
     for lane_no in 1..=3 {
-        select_eem_pair(lane_no);
+        select_lane(lane_no);
 
         let mut min_deviation = 0.5;
         let mut min_idx = 0;
