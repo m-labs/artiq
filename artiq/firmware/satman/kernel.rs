@@ -409,13 +409,13 @@ impl Manager {
 
         match process_external_messages(&mut self.session) {
             Ok(()) => (),
-            Err(e) => { error!("Error while running processing external messages: {:?}", e); return None }
+            Err(e) => { error!("Error while running processing external messages: {:?}", e); self.stop(); return None }
         }
 
         match process_kern_message(&mut self.session, rank) {
             Ok(Some(with_exception)) => Some(SubkernelFinished { id: self.current_id, with_exception: with_exception }),
             Ok(None) => None,
-            Err(e) => { error!("Error while running kernel: {:?}", e); None }
+            Err(e) => { error!("Error while running kernel: {:?}", e); self.stop(); None }
         }
     }
 }
@@ -523,7 +523,7 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
                 match pass_message_to_kernel(session) {
                     Ok(()) => { 
                         session.kernel_state = KernelState::Running; 
-                        kern_send(&kern::SubkernelMsgRecvReply { timeout: false } 
+                        kern_send(&kern::SubkernelMsgRecvReply { timeout: false })
                     },
                     Err(Error::NoMessage) => Ok(()),
                     Err(e) => Err(e)
