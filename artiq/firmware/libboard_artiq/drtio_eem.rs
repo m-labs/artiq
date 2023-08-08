@@ -63,7 +63,7 @@ unsafe fn assign_delay() -> SerdesConfig {
 
     let mut best_dly = None;
 
-    while best_dly.is_none() {
+    loop {
         let mut prev = None;
         for curr_dly in 0..32 {
             let curr_low_rate = read_align(curr_dly);
@@ -99,8 +99,12 @@ unsafe fn assign_delay() -> SerdesConfig {
             }
         }
 
-        error!("setup/hold timing calibration failed, retry in 1s...");
-        clock::spin_us(1_000_000);
+        if best_dly.is_none() {
+            error!("setup/hold timing calibration failed, retry in 1s...");
+            clock::spin_us(1_000_000);
+        } else {
+            break;
+        }
     }
 
     let best_dly = best_dly.unwrap();
