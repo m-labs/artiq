@@ -12,6 +12,8 @@ extern crate log;
 extern crate io;
 extern crate board_misoc;
 extern crate proto_artiq;
+#[cfg(feature = "alloc")]
+extern crate alloc;
 
 pub mod spi;
 
@@ -30,5 +32,5 @@ pub mod grabber;
 pub mod drtioaux;
 pub mod drtio_routing;
 
-#[cfg(has_drtio_eem)]
+#[cfg(all(has_drtio_eem, feature = "alloc"))]
 pub mod drtio_eem;

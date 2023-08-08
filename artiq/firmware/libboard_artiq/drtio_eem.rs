@@ -1,8 +1,10 @@
 use board_misoc::{csr, clock, config};
+#[cfg(feature = "alloc")]
+use alloc::format;
 
 
 struct SerdesConfig {
-    pub delay: [usize; 4],
+    pub delay: [u8; 4],
 }
 
 impl SerdesConfig {
@@ -16,24 +18,24 @@ impl SerdesConfig {
     }
 }
 
-fn select_lane(lane_no: usize) {
+fn select_lane(lane_no: u8) {
     unsafe {
-        csr::eem_transceiver::serdes_lane_sel_write(lane_no as u8);
+        csr::eem_transceiver::lane_sel_write(lane_no);
     }
 }
 
-fn apply_delay(tap: usize) {
+fn apply_delay(tap: u8) {
     unsafe {
-        csr::eem_transceiver::serdes_dly_cnt_in_write(tap as u8);
-        csr::eem_transceiver::serdes_dly_ld_write(1);
+        csr::eem_transceiver::dly_cnt_in_write(tap);
+        csr::eem_transceiver::dly_ld_write(1);
         clock::spin_us(1);
-        assert!(tap as u8 == csr::eem_transceiver::serdes_dly_cnt_out_read());
+        assert!(tap as u8 == csr::eem_transceiver::dly_cnt_out_read());
     }
 }
 
 fn apply_config(config: &SerdesConfig) {
     for lane_no in 0..4 {
-        select_lane(lane_no);
+        select_lane(lane_no as u8);
         apply_delay(config.delay[lane_no]);
     }
 }
@@ -42,19 +44,19 @@ unsafe fn assign_delay() -> SerdesConfig {
     // Select an appropriate delay for lane 0
     select_lane(0);
 
-    let read_align = |dly: usize| -> f32 {
+    let read_align = |dly: u8| -> f32 {
         apply_delay(dly);
-        csr::eem_transceiver::serdes_counter_reset_write(1);
+        csr::eem_transceiver::counter_reset_write(1);
 
-        csr::eem_transceiver::serdes_counter_enable_write(1);
+        csr::eem_transceiver::counter_enable_write(1);
         clock::spin_us(2000);
-        csr::eem_transceiver::serdes_counter_enable_write(0);
+        csr::eem_transceiver::counter_enable_write(0);
 
         let (high, low) = (
-            csr::eem_transceiver::serdes_counter_high_count_read(),
-            csr::eem_transceiver::serdes_counter_low_count_read(),
+            csr::eem_transceiver::counter_high_count_read(),
+            csr::eem_transceiver::counter_low_count_read(),
         );
-        if csr::eem_transceiver::serdes_counter_overflow_read() == 1 {
+        if csr::eem_transceiver::counter_overflow_read() == 1 {
             panic!("Unexpected phase detector counter overflow");
         }
 
@@ -114,12 +116,12 @@ unsafe fn assign_delay() -> SerdesConfig {
 
     // Assign delay for other lanes
     for lane_no in 1..=3 {
-        select_lane(lane_no);
+        select_lane(lane_no as u8);
 
         let mut min_deviation = 0.5;
         let mut min_idx = 0;
         for dly_delta in -3..=3 {
-            let index = (best_dly as isize + dly_delta) as usize;
+            let index = (best_dly as isize + dly_delta) as u8;
             let low_rate = read_align(index);
             // abs() from f32 is not available in core library
             let deviation = if low_rate < 0.5 {
@@ -162,19 +164,19 @@ unsafe fn align_comma() {
             // takes 2 sysclk cycles. Adjusting bitslip only via ISERDES
             // limits the range to 1 cycle. The wordslip bit extends the range
             // to 2 sysclk cycles.
-            csr::eem_transceiver::serdes_wordslip_write((slip > 5) as u8);
+            csr::eem_transceiver::wordslip_write((slip > 5) as u8);
 
             // Apply a double bitslip since the ISERDES is 2x oversampled.
             // Bitslip is used for comma alignment purposes once setup/hold
             // timing is met.
-            csr::eem_transceiver::serdes_bitslip_write(1);
-            csr::eem_transceiver::serdes_bitslip_write(1);
+            csr::eem_transceiver::bitslip_write(1);
+            csr::eem_transceiver::bitslip_write(1);
             clock::spin_us(1);
 
-            csr::eem_transceiver::serdes_comma_align_reset_write(1);
+            csr::eem_transceiver::comma_align_reset_write(1);
             clock::spin_us(100);
 
-            if csr::eem_transceiver::serdes_comma_read() == 1 {
+            if csr::eem_transceiver::comma_read() == 1 {
                 debug!("comma alignment completed after {} bitslips", slip);
                 return;
             }
@@ -186,29 +188,32 @@ unsafe fn align_comma() {
 }
 
 pub fn init() {
-    config::read("eem_drtio_delay", |r| {
-        match r {
-            Ok(record) => {
-                info!("loading calibrated timing values from flash");
-                unsafe {
-                    apply_config(&*(record.as_ptr() as *const SerdesConfig));
-                }
-            },
-
-            Err(_) => {
-                info!("calibrating...");
-                let config;
-                unsafe {
-                    config = assign_delay();
-                }
-
-                config::write("eem_drtio_delay", config.as_bytes()).unwrap();
-            }
+    for trx_no in 0..csr::CONFIG_EEM_TRANSCEIVERS {
+        unsafe {
+            csr::eem_transceiver::transceiver_sel_write(trx_no as u8);
         }
-    });
 
-    unsafe {
-        align_comma();
-        csr::eem_transceiver::rx_ready_write(1);
+        let key = format!("eem_drtio_delay{}", trx_no);
+        config::read(&key, |r| {
+            match r {
+                Ok(record) => {
+                    info!("loading calibrated timing values from flash");
+                    unsafe {
+                        apply_config(&*(record.as_ptr() as *const SerdesConfig));
+                    }
+                },
+
+                Err(_) => {
+                    info!("calibrating...");
+                    let config = unsafe { assign_delay() };
+                    config::write(&key, config.as_bytes()).unwrap();
+                }
+            }
+        });
+
+        unsafe {
+            align_comma();
+            csr::eem_transceiver::rx_ready_write(1);
+        }
     }
 }
