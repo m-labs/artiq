@@ -431,7 +431,6 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         self.comb += Case(self.transceiver_sel.storage, {
             trx_no: [
                 serdes.bitslip.eq(self.bitslip.re),
-                serdes.dly_cnt_in.eq(self.dly_cnt_in.storage),
                 serdes.dly_ld.eq(self.dly_ld.re),
 
                 self.dly_cnt_out.status.eq(serdes.dly_cnt_out),
