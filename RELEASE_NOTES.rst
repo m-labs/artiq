@@ -27,7 +27,8 @@ Highlights:
 * Full Python 3.10 support.
 * Distributed DMA is now supported, allowing DMA to be run directly on satellites for corresponding
   RTIO events, increasing bandwidth in scenarios with heavy satellite usage.
-* API extensions have been implemented, enabling applets to directly modify datasets.
+* API extensions have been implemented, enabling applets to directly modify datasets and
+  experiment arguments/entry widget values.
 * Persistent datasets are now stored in a LMDB database for improved performance. PYON databases can
   be converted with the script below.
 
@@ -48,6 +49,8 @@ Breaking changes:
 * ``SimpleApplet`` now calls widget constructors with an additional ``ctl`` parameter for control
   operations, which includes dataset operations. It can be ignored if not needed. For an example usage,
   refer to the ``big_number.py`` applet.
+* The new ``ctl`` parameter in ``SimpleApplet`` now allows modification of current experiment arguments
+  or entry widget values.
 * ``SimpleApplet`` and ``TitleApplet`` now call ``data_changed`` with additional parameters. Wrapped widgets
   should refactor the function signature as seen below:
 ::
