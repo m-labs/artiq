@@ -326,48 +326,43 @@ class PhaseErrorCounter(Module, AutoCSR):
         ]
 
 
-class SerdesSingle(Module, AutoCSR):
+class SerdesSingle(Module):
     def __init__(self, i_pads, o_pads):
         # Serdes modules
         self.submodules.rx_serdes = RXSerdes(i_pads)
         self.submodules.tx_serdes = TXSerdes(o_pads)
 
-        # Lane select
-        self.lane_sel = CSRStorage(2)
+        self.lane_sel = Signal(2)
 
-        # CSR for bitslip
-        self.bitslip = CSR()
+        self.bitslip = Signal()
 
         for i in range(4):
-            self.comb += self.rx_serdes.bitslip[i].eq(self.bitslip.re)
+            self.comb += self.rx_serdes.bitslip[i].eq(self.bitslip)
         
-        self.dly_cnt_in = CSRStorage(5)
-        self.dly_ld = CSR()
+        self.dly_cnt_in = Signal(5)
+        self.dly_ld = Signal()
 
         for i in range(4):
             self.comb += [
-                self.rx_serdes.cnt_in[i].eq(self.dly_cnt_in.storage),
-                self.rx_serdes.ld[i].eq((self.lane_sel.storage == i) & self.dly_ld.re),
+                self.rx_serdes.cnt_in[i].eq(self.dly_cnt_in),
+                self.rx_serdes.ld[i].eq((self.lane_sel == i) & self.dly_ld),
             ]
         
-        self.dly_cnt_out = CSRStatus(5)
+        self.dly_cnt_out = Signal(5)
 
-        self.comb += Case(self.lane_sel.storage, {
-            idx: self.dly_cnt_out.status.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
+        self.comb += Case(self.lane_sel, {
+            idx: self.dly_cnt_out.eq(self.rx_serdes.cnt_out[idx]) for idx in range(4)
         })
         
-        # CSR for global decoding phase
-        # This is to determine if this cycle should decode lane 0/2 or land 1/3
-        self.wordslip = CSRStorage()
+        self.wordslip = Signal()
 
         # Encoder/Decoder interfaces
         self.submodules.encoder = MultiEncoder()
         self.submodules.decoders = decoders = Array(MultiDecoder() for _ in range(2))
 
-        # Control decoders phase
         self.comb += [
-            decoders[0].wordslip.eq(self.wordslip.storage),
-            decoders[1].wordslip.eq(self.wordslip.storage),
+            decoders[0].wordslip.eq(self.wordslip),
+            decoders[1].wordslip.eq(self.wordslip),
         ]
         
         # Route encoded symbols to TXSerdes, decoded symbols from RXSerdes
@@ -385,41 +380,101 @@ class SerdesSingle(Module, AutoCSR):
         ]
 
         # Monitor lane 0 decoder output for bitslip alignment
-        self.comma_align_reset = CSR()
-        self.comma = CSRStatus()
+        self.comma_align_reset = Signal()
+        self.comma = Signal()
 
-        self.sync += If(self.comma_align_reset.re,
-            self.comma.status.eq(0),
-        ).Elif(~self.comma.status,
-            self.comma.status.eq(
+        self.sync += If(self.comma_align_reset,
+            self.comma.eq(0),
+        ).Elif(~self.comma,
+            self.comma.eq(
                 ((decoders[0].d == 0x3C) | (decoders[0].d == 0xBC))
                 & decoders[0].k))
 
-        # Read rxdata for setup/hold timing calibration
-        self.submodules.counter = PhaseErrorCounter()
 
-        self.comb += Case(self.lane_sel.storage, {
-            lane_idx: self.counter.rxdata.eq(self.rx_serdes.rxdata[lane_idx]) for lane_idx in range(4)
-        })
-
-
-class EEMSerdes(Module, TransceiverInterface):
-    def __init__(self, platform, data_pads):
+class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         self.rx_ready = CSRStorage()
+
+        self.transceiver_sel = CSRStorage(max(1, log2_int(len(data_pads))))
+        self.lane_sel = CSRStorage(2)
+
+        self.bitslip = CSR()
+
+        self.dly_cnt_in = CSRStorage(5)
+        self.dly_ld = CSR()
+        self.dly_cnt_out = CSRStatus(5)
+
+        # Slide a word back/forward by 1 cycle, shared by all lanes of the
+        # same transceiver. This is to determine if this cycle should decode
+        # lane 0/2 or lane 1/3. See MultiEncoder/MultiDecoder for the full
+        # scheme & timing.
+        self.wordslip = CSRStorage()
+
+        # Monitor lane 0 decoder output for bitslip alignment
+        self.comma_align_reset = CSR()
+        self.comma = CSRStatus()
 
         clk_div2 = Signal()
         self.sync += clk_div2.eq(~clk_div2)
 
-        self.submodules.serdes = SerdesSingle(*data_pads[0])
-        self.comb += self.serdes.clk_div2.eq(clk_div2)
+        channel_interfaces = []
+        serdes_list = []
+        for i_pads, o_pads in data_pads:
+            serdes = SerdesSingle(i_pads, o_pads)
+            self.comb += serdes.clk_div2.eq(clk_div2)
+            serdes_list.append(serdes)
 
-        chan_if = ChannelInterface(self.serdes.encoder, self.serdes.decoders)
-        self.comb += chan_if.rx_ready.eq(self.rx_ready.storage)
-        channel_interfaces = [chan_if]
+            chan_if = ChannelInterface(serdes.encoder, serdes.decoders)
+            self.comb += chan_if.rx_ready.eq(self.rx_ready.storage)
+            channel_interfaces.append(chan_if)
 
-        TransceiverInterface.__init__(self, channel_interfaces)
+        # Route CSR signals using transceiver_sel
+        self.comb += Case(self.transceiver_sel.storage, {
+            trx_no: [
+                serdes.bitslip.eq(self.bitslip.re),
+                serdes.dly_cnt_in.eq(self.dly_cnt_in.storage),
+                serdes.dly_ld.eq(self.dly_ld.re),
 
-        self.comb += [
-            getattr(self, "cd_rtio_rx0").clk.eq(ClockSignal()),
-            getattr(self, "cd_rtio_rx0").rst.eq(ResetSignal())
-        ]
+                self.dly_cnt_out.status.eq(serdes.dly_cnt_out),
+                self.comma.status.eq(serdes.comma),
+            ] for trx_no, serdes in enumerate(serdes_list)
+        })
+
+        # Wordslip needs to be latched. It needs to hold when calibrating
+        # other transceivers and/or after calibration.
+        self.sync += If(self.wordslip.re,
+            Case(self.transceiver_sel.storage, {
+                trx_no: [
+                    serdes.wordslip.eq(self.wordslip.storage)
+                ] for trx_no, serdes in enumerate(serdes_list)
+            })
+        )
+
+        for serdes in serdes_list:
+            self.comb += [
+                # Delay counter write only comes into effect after dly_ld
+                # So, just MUX dly_ld instead.
+                serdes.dly_cnt_in.eq(self.dly_cnt_in.storage),
+
+                # Comma align reset & lane selection can be broadcasted
+                # without MUXing. Transceivers are aligned one-by-one
+                serdes.lane_sel.eq(self.lane_sel.storage),
+                serdes.comma_align_reset.eq(self.comma_align_reset.re),
+            ]
+        
+        # Setup/hold timing calibration module
+        self.submodules.counter = PhaseErrorCounter()
+        self.comb += Case(self.transceiver_sel.storage, {
+            trx_no: Case(self.lane_sel.storage, {
+                lane_idx: self.counter.rxdata.eq(serdes.rx_serdes.rxdata[lane_idx]) 
+                    for lane_idx in range(4)
+            }) for trx_no, serdes in enumerate(serdes_list)
+        })
+
+        self.submodules += serdes_list
+
+
+        for i in range(len(serdes_list)):
+            self.comb += [
+                getattr(self, "cd_rtio_rx" + str(i)).clk.eq(ClockSignal()),
+                getattr(self, "cd_rtio_rx" + str(i)).rst.eq(ResetSignal())
+            ]
