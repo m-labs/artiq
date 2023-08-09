@@ -392,6 +392,7 @@ class SerdesSingle(Module):
 
 
 class EEMSerdes(Module, TransceiverInterface, AutoCSR):
+    def __init__(self, platform, data_pads):
         self.rx_ready = CSRStorage()
 
         self.transceiver_sel = CSRStorage(max(1, log2_int(len(data_pads))))
@@ -471,6 +472,7 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         self.submodules += serdes_list
 
+        TransceiverInterface.__init__(self, channel_interfaces)
 
         for i in range(len(serdes_list)):
             self.comb += [
