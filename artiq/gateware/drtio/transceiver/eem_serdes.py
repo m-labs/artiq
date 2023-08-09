@@ -206,7 +206,7 @@ class MultiEncoder(Module):
 # the least significant word (LSW) of the same 8b10b character.
 #
 # Cycle \ Lane  0   1   2   3
-#       0       a   X   b   Y
+#       0       a   Y   b   Z
 #       1       A   c   B   d
 #       2       a'  C   b'  D
 #       3       A'  c'  B'  d'
