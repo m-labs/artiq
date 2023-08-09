@@ -170,7 +170,7 @@ class Core:
                 continue
             destination = subkernel_fn.artiq_embedded.subkernel
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
-            target = get_target_cls(destination_tgt)()
+            target = get_target_cls(destination_tgt)(subkernel_id=sid)
             kernel_library, _, _ = \
                 self.compile(subkernel_fn, [], {}, target=target)
             self.comm.upload_subkernel(kernel_library, sid, destination)
@@ -248,11 +248,12 @@ class Core:
         if not hasattr(function, "artiq_embedded"):
             raise ValueError("Argument is not a kernel")
 
-        target = get_target_cls(self.dmgr.ddb.get_satellite_target(destination))()
+        sid = self.embedding_map.store_object(function)
+        destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
+        target = get_target_cls(destination_tgt)(subkernel_id=sid)
         kernel_library, _, _ = \
             self.compile(function, args, kwargs, target=target, attribute_writeback=False)
-
-        sid = self.embedding_map.store_object(function)
+        
         self.comm.upload_subkernel(kernel_library, sid, destination)
 
         return sid
