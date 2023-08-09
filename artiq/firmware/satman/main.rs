@@ -17,6 +17,7 @@ use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use analyzer::Analyzer;
@@ -541,12 +542,15 @@ pub extern fn main() -> i32 {
         io_expander.service().unwrap();
     }
 
-    #[cfg(not(soc_platform = "efc"))]
+    #[cfg(not(has_drtio_eem))]
     unsafe {
         csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
     }
 
     init_rtio_crg();
+
+    #[cfg(has_drtio_eem)]
+    drtio_eem::init();
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];

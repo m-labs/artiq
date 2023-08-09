@@ -40,6 +40,8 @@ use board_artiq::drtioaux;
 use board_artiq::drtio_routing;
 use board_artiq::{mailbox, rpc_queue};
 use proto_artiq::{mgmt_proto, moninj_proto, rpc_proto, session_proto, kernel_proto};
+#[cfg(has_drtio_eem)]
+use board_artiq::drtio_eem;
 #[cfg(has_rtio_analyzer)]
 use proto_artiq::analyzer_proto;
 
@@ -125,6 +127,9 @@ fn startup() {
         io_expander1.service().unwrap();
     }
     rtio_clocking::init();
+
+    #[cfg(has_drtio_eem)]
+    drtio_eem::init();
 
     let mut net_device = unsafe { ethmac::EthernetDevice::new() };
     net_device.reset_phy_if_any();
