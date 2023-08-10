@@ -761,7 +761,7 @@ class GetAttr(Instruction):
             typ = obj.type.attributes[attr]
         else:
             typ = obj.type.constructor.attributes[attr]
-            if types.is_function(typ) or types.is_rpc(typ):
+            if types.is_function(typ) or types.is_rpc(typ) or types.is_subkernel(typ):
                 typ = types.TMethod(obj.type, typ)
         super().__init__([obj], typ, name)
         self.attr = attr

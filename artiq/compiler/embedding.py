@@ -188,13 +188,13 @@ class EmbeddingMap:
         subkernels = {}
         for k, v in self.object_forward_map.items():
             if hasattr(v, "artiq_embedded"):
-                if v.artiq_embedded.subkernel is not None:
+                if v.artiq_embedded.destination is not None:
                     subkernels[k] = v
         return subkernels
 
     def retrieve_subkernel_id(self, function):
         assert hasattr(function, "artiq_embedded")
-        assert function.artiq_embedded.subkernel is not None
+        assert function.artiq_embedded.destination is not None
         return self.object_reverse_map(id(function))
 
     def has_rpc(self):
@@ -792,7 +792,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, embedding_map=None):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, embedding_map=None, destination=0):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -817,6 +817,8 @@ class Stitcher:
         self.embedding_map = embedding_map or EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
+
+        self.destination = destination
 
     def stitch_call(self, function, args, kwargs, callback=None):
         # We synthesize source code for the initial call so that
@@ -1265,7 +1267,7 @@ class Stitcher:
 
         function_type = types.TSubkernel(arg_types, ret_type,
                                    sid=self.embedding_map.store_object(host_function),
-                                   destination=host_function.artiq_embedded.subkernel)
+                                   destination=host_function.artiq_embedded.destination)
         self.functions[function] = function_type
         return function_type
 
@@ -1328,10 +1330,12 @@ class Stitcher:
                 (host_function.artiq_embedded.core_name is None and
                  host_function.artiq_embedded.portable is False and
                  host_function.artiq_embedded.syscall is None and
-                 host_function.artiq_embedded.subkernel is None and
+                 host_function.artiq_embedded.destination is None and
                  host_function.artiq_embedded.forbidden is False):
             self._quote_rpc(function, loc)
-        elif host_function.artiq_embedded.subkernel is not None:
+        elif host_function.artiq_embedded.destination is not None and \
+             host_function.artiq_embedded.destination != self.destination:
+            # treat subkernels as kernels if running on the same device
             self._quote_subkernel(function, loc)
         elif host_function.artiq_embedded.function is not None:
             if host_function.__name__ == "<lambda>":

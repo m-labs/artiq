@@ -115,13 +115,14 @@ class Core:
 
     def compile(self, function, args, kwargs, set_result=None,
                 attribute_writeback=True, print_as_rpc=True,
-                target=None):
+                target=None, destination=0):
         try:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
                                 print_as_rpc=print_as_rpc, 
-                                embedding_map=self.embedding_map)
+                                embedding_map=self.embedding_map,
+                                destination=destination)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
 
@@ -168,11 +169,12 @@ class Core:
             if sid in self.subkernel_cache.keys():
                 # subkernel has been compiled and uploaded already
                 continue
-            destination = subkernel_fn.artiq_embedded.subkernel
+            destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
             kernel_library, _, _ = \
-                self.compile(subkernel_fn, [], {}, target=target)
+                self.compile(subkernel_fn, [], {}, attribute_writeback=False,
+                             target=target, destination=destination)
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
     @kernel
@@ -252,7 +254,8 @@ class Core:
         destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
         target = get_target_cls(destination_tgt)(subkernel_id=sid)
         kernel_library, _, _ = \
-            self.compile(function, args, kwargs, target=target, attribute_writeback=False)
+            self.compile(function, args, kwargs, attribute_writeback=False,
+                         target=target, destination=destination)
         
         self.comm.upload_subkernel(kernel_library, sid, destination)
 
