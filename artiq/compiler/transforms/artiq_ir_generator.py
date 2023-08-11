@@ -108,7 +108,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_args = None
         self.current_assign = None
         self.current_exception = None
-        self.current_is_subkernel = False
+        self.current_remote_args = False
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -213,7 +213,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             self.generic_visit(node)
             self.terminate(ir.Return(ir.Constant(None, builtins.TNone()),
-                           is_subkernel=self.current_is_subkernel))
+                           remote_return=self.current_remote_args))
 
             return self.functions
         finally:
@@ -235,8 +235,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_class = old_class
 
-    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False,
-                       flags={}):
+    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False, flags={}):
         if is_lambda:
             name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
@@ -296,6 +295,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_block, self.current_block = self.current_block, entry
 
             old_globals, self.current_globals = self.current_globals, node.globals_in_scope
+            old_remote_args = self.current_remote_args
+
+            if not is_lambda:
+                 self.current_remote_args = node.remote_args
 
             env_without_globals = \
                 {var: node.typing_env[var]
@@ -314,11 +317,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
 
-            old_is_subkernel = self.current_is_subkernel
-            self.current_is_subkernel = types.is_subkernel(typ)
-
-            if self.current_is_subkernel:
-                # args are received through DRTIO
+            if not is_lambda and node.remote_args:
+                # args are received through DRTIO (subkernel entry point)
                 if len(typ.args) > 0:
                     self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
                     for arg_name in typ.args.keys():
@@ -342,7 +342,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             elif builtins.is_none(typ.ret):
                 if not self.current_block.is_terminated():
                     self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone()), 
-                                                        is_subkernel=self.current_is_subkernel))
+                                                        remote_return=self.current_remote_args))
             else:
                 if not self.current_block.is_terminated():
                     if len(self.current_block.predecessors()) != 0:
@@ -361,7 +361,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = old_block
             self.current_globals = old_globals
             self.current_env = old_env
-            self.current_is_subkernel = old_is_subkernel
+            self.current_remote_args = old_remote_args
             if not is_lambda:
                 self.current_private_env = old_priv_env
 
@@ -385,7 +385,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if self.return_target is None:
             self.append(ir.Return(return_value, 
-                                  is_subkernel=self.current_is_subkernel))
+                                  remote_return=self.current_remote_args))
         else:
             self.append(ir.SetLocal(self.current_private_env, "$return", return_value))
             self.append(ir.Branch(self.return_target))

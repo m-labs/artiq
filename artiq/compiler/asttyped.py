@@ -21,13 +21,18 @@ class scoped(object):
         set of variables resolved as globals
     """
 
+class remote(object):
+    """
+    :ivar remote_args: (bool) whether arguments should be received from remote
+    """
+
 # Typed versions of untyped nodes
 class argT(ast.arg, commontyped):
     pass
 
 class ClassDefT(ast.ClassDef):
     _types = ("constructor_type",)
-class FunctionDefT(ast.FunctionDef, scoped):
+class FunctionDefT(ast.FunctionDef, scoped, remote):
     _types = ("signature_type",)
 class QuotedFunctionDefT(FunctionDefT):
     """
@@ -62,6 +67,7 @@ class CallT(ast.Call, commontyped):
     """
     :ivar iodelay: (:class:`iodelay.Expr`)
     :ivar arg_exprs: (dict of str to :class:`iodelay.Expr`)
+    :ivar remote_args: (bool)
     """
 class CompareT(ast.Compare, commontyped):
     pass

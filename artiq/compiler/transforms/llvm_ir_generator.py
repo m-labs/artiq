@@ -917,8 +917,8 @@ class LLVMIRGenerator:
     def get_global_closure_ptr(self, typ, attr):
         closure_type = typ.attributes[attr]
         assert types.is_constructor(typ)
-        assert types.is_function(closure_type) or types.is_rpc(closure_type)
-        if types.is_external_function(closure_type) or types.is_rpc(closure_type):
+        assert types.is_function(closure_type) or types.is_rpc(closure_type) or types.is_subkernel(closure_type)
+        if types.is_external_function(closure_type) or types.is_rpc(closure_type) or types.is_subkernel(closure_type):
             return None
 
         llty = self.llty_of_type(typ.attributes[attr])
@@ -1649,6 +1649,7 @@ class LLVMIRGenerator:
 
     def _build_subkernel_return(self, insn):
         # unlike args, return only returns one thing - can be None.
+        # builds a remote return.
         def ret_error_handler(typ):
             printer = types.TypePrinter()
             note = diagnostic.Diagnostic("note",
@@ -1667,20 +1668,19 @@ class LLVMIRGenerator:
 
         llrets = self.llbuilder.alloca(llptr, ll.Constant(lli32, 1),
                                     name="subkernel.return")
-        if builtins.is_none(insn.value()):
+                                    
+        if builtins.is_none(insn.value().type):
             llretslot = self.llbuilder.alloca(llunit, name="subkernel.retval")
         else:
             llret = self.map(insn.value())
             llretslot = self.llbuilder.alloca(llret.type, name="subkernel.retval")
             self.llbuilder.store(llret, llretslot)
-
+        llretslot = self.llbuilder.bitcast(llretslot, llptr)
         self.llbuilder.store(llretslot, llrets)
 
         llsid = ll.Constant(lli32, 0)  # return goes back to master, sid is ignored
         self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
                             [llsid, lltagptr, llrets])
-        
-        return self.llbuilder.ret_void()
 
     def process_Call(self, insn):
         functiontyp = insn.target_function().type
@@ -1953,9 +1953,9 @@ class LLVMIRGenerator:
         return llinsn
 
     def process_Return(self, insn):
-        if insn.is_subkernel:
-            return self._build_subkernel_return(insn)
-        elif builtins.is_none(insn.value().type):
+        if insn.remote_return:
+            self._build_subkernel_return(insn)
+        if builtins.is_none(insn.value().type):
             return self.llbuilder.ret_void()
         else:
             llvalue = self.map(insn.value())

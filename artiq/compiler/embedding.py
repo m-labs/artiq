@@ -484,7 +484,7 @@ class ASTSynthesizer:
                 return asttyped.QuoteT(value=value, type=instance_type,
                                        loc=loc)
 
-    def call(self, callee, args, kwargs, callback=None):
+    def call(self, callee, args, kwargs, callback=None, remote_args=False):
         """
         Construct an AST fragment calling a function specified by
         an AST node `function_node`, with given arguments.
@@ -528,7 +528,7 @@ class ASTSynthesizer:
             starargs=None, kwargs=None,
             type=types.TVar(), iodelay=None, arg_exprs={},
             begin_loc=begin_loc, end_loc=end_loc, star_loc=None, dstar_loc=None,
-            loc=callee_node.loc.join(end_loc))
+            loc=callee_node.loc.join(end_loc), remote_args=remote_args)
 
         if callback is not None:
             node = asttyped.CallT(
@@ -563,7 +563,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
                              arg=node.arg, annotation=None,
                              arg_loc=node.arg_loc, colon_loc=node.colon_loc, loc=node.loc)
 
-    def visit_quoted_function(self, node, function):
+    def visit_quoted_function(self, node, function, remote_args):
         extractor = LocalExtractor(env_stack=self.env_stack, engine=self.engine)
         extractor.visit(node)
 
@@ -584,7 +584,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
             body=node.body, decorator_list=node.decorator_list,
             keyword_loc=node.keyword_loc, name_loc=node.name_loc,
             arrow_loc=node.arrow_loc, colon_loc=node.colon_loc, at_locs=node.at_locs,
-            loc=node.loc)
+            loc=node.loc, remote_args=remote_args)
 
         try:
             self.env_stack.append(node.typing_env)
@@ -824,7 +824,9 @@ class Stitcher:
         # We synthesize source code for the initial call so that
         # diagnostics would have something meaningful to display to the user.
         synthesizer = self._synthesizer(self._function_loc(function.artiq_embedded.function))
-        call_node = synthesizer.call(function, args, kwargs, callback)
+        # first call of a subkernel will get its arguments from remote (DRTIO)
+        remote_args = self.destination != 0
+        call_node = synthesizer.call(function, args, kwargs, callback, remote_args=remote_args)
         synthesizer.finalize()
         self.typedtree.append(call_node)
 
@@ -982,7 +984,7 @@ class Stitcher:
             # Let the rest of the program decide.
             return types.TVar()
 
-    def _quote_embedded_function(self, function, flags):
+    def _quote_embedded_function(self, function, flags, remote_args=False):
         # we are now parsing new functions... definitely changed the type
         self.definitely_changed = True
 
@@ -1081,7 +1083,7 @@ class Stitcher:
             engine=self.engine, prelude=self.prelude,
             globals=self.globals, host_environment=host_environment,
             quote=self._quote)
-        function_node = asttyped_rewriter.visit_quoted_function(function_node, embedded_function)
+        function_node = asttyped_rewriter.visit_quoted_function(function_node, embedded_function, remote_args)
         function_node.flags = flags
 
         # Add it into our typedtree so that it gets inferenced and codegen'd.
@@ -1361,7 +1363,8 @@ class Stitcher:
                 self.engine.process(diag)
 
             self._quote_embedded_function(function,
-                                          flags=host_function.artiq_embedded.flags)
+                                          flags=host_function.artiq_embedded.flags,
+                                          remote_args=host_function.artiq_embedded.destination is not None)
         elif host_function.artiq_embedded.syscall is not None:
             # Insert a storage-less global whose type instructs the compiler
             # to perform a system call instead of a regular call.

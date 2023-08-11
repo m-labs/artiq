@@ -1314,11 +1314,7 @@ class Inferencer(algorithm.Visitor):
             return # not enough info yet
         elif types.is_builtin(typ):
             return self.visit_builtin_call(node)
-        elif types.is_rpc(typ):
-            self._unify(node.type, typ.ret,
-                        node.loc, None)
-            return
-        elif types.is_subkernel(typ):
+        elif types.is_rpc(typ) or types.is_subkernel(typ):
             self._unify(node.type, typ.ret,
                         node.loc, None)
             return
@@ -1340,13 +1336,9 @@ class Inferencer(algorithm.Visitor):
             typ_func    = types.get_method_function(typ)
             if types.is_var(typ_func):
                 return # not enough info yet
-            elif types.is_rpc(typ_func):
+            elif types.is_rpc(typ_func) or types.is_subkernel(typ_func): 
                 self._unify(node.type, typ_func.ret,
                             node.loc, None)
-                return
-            elif types.is_subkernel(typ_func):
-                self._unify(node.type, typ_func.ret,
-                        node.loc, None)
                 return
             elif typ_func.arity() == 0:
                 return # error elsewhere
@@ -1363,6 +1355,19 @@ class Inferencer(algorithm.Visitor):
             typ_ret     = typ_func.ret
 
         passed_args = dict()
+
+        if node.remote_args:
+            # arguments not passed to the call, but received from remote.
+            # the argument list should be empty.
+            if len(node.args) > 0:
+                diag = diagnostic.Diagnostic("error",
+                    "local arguments were given when only remote were expected", {},
+                    node.func.loc, [], [])
+                self.engine.process(diag)
+                return
+            self._unify(node.type, typ_ret,
+                        node.loc, None)
+            return
 
         if len(node.args) > typ_arity:
             note = diagnostic.Diagnostic("note",

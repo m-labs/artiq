@@ -1223,16 +1223,17 @@ class IndirectBranch(Terminator):
 class Return(Terminator):
     """
     A return instruction.
-    :param is_subkernel: (bool) whether return is in subkernel context
+    :param is_subkernel: (bool) 
+        marking if return is in subkernel context, return value sent back through DRTIO
     """
 
     """
     :param value: (:class:`Value`) return value
     """
-    def __init__(self, value, is_subkernel=False, name=""):
+    def __init__(self, value, remote_return=False, name=""):
         assert isinstance(value, Value)
         super().__init__([value], builtins.TNone(), name)
-        self.is_subkernel = is_subkernel
+        self.remote_return = remote_return
 
     def opcode(self):
         return "return"
