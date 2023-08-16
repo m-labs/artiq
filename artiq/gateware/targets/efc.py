@@ -16,6 +16,7 @@ from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
+from artiq.gateware.pdq.core import Pdq
 from artiq.build_soc import *
 
 
@@ -158,6 +159,9 @@ class Satellite(BaseSoC, AMPSoC):
             phy = ttl_simple.Output(self.virtual_leds.get(i))
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
+
+        self.submodules.pdq = ClockDomainsRenamer("rio")(Pdq())
+        self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.pdq.phys)
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
