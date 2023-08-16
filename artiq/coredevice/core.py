@@ -158,22 +158,26 @@ class Core:
         def set_result(new_result):
             nonlocal result
             result = new_result
+        print(args)
         kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
-        self.compile_subkernels()
+        self.compile_subkernels(args)
         self._run_compiled(kernel_library, symbolizer, demangler)
         return result
 
-    def compile_subkernels(self):
+    def compile_subkernels(self, args):
         for sid, subkernel_fn in self.embedding_map.subkernels().items():
             if sid in self.subkernel_cache.keys():
                 # subkernel has been compiled and uploaded already
                 continue
+            # pass self to subkernels (if applicable)
+            # assuming the first argument is self
+            self_arg = args[:1]
             destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
             kernel_library, _, _ = \
-                self.compile(subkernel_fn, [], {}, attribute_writeback=False,
+                self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                              target=target, destination=destination)
             self.comm.upload_subkernel(kernel_library, sid, destination)
 

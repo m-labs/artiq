@@ -955,6 +955,9 @@ class Stitcher:
                                        fn_kind)
         elif fn_kind == 'syscall' or fn_kind == 'subkernel':
             # Syscalls and subkernels must be entirely annotated.
+            if fn_kind == 'subkernel' and param.name == 'self':
+                # with self in subkernels being a self-explanatory exception.
+                return types.TVar()
             diag = diagnostic.Diagnostic("error",
                 "{fn_kind} argument '{argument}' must have a type annotation",
                 {"fn_kind": fn_kind, "argument": param.name},
