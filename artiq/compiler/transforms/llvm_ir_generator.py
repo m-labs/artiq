@@ -888,9 +888,7 @@ class LLVMIRGenerator:
     def process_GetArgFromRemote(self, insn):
         llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                                          name="subkernel.arg.stack")
-        llptr = self.llptr_to_var(self.map(env), env.type, insn.arg_name)
-        llptr.name = "ptr.{}.{}".format(env.name, insn.arg_name)
-        llval = self._build_rpc_recv(insn.arg_type(), None, None)
+        llval = self._build_rpc_recv(insn.arg_type, llstackptr)
         return llval
 
     def attr_index(self, typ, attr):
@@ -1362,7 +1360,7 @@ class LLVMIRGenerator:
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
         elif insn.op == "subkernel_await_args":
-            return self.llbuilder.call("subkernel_await_args", [],
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_args"), [],
                                        name="subkernel.await.args")
         elif insn.op == "subkernel_await_return":
             llsid = self.map(insn.operands[0])
@@ -1373,11 +1371,11 @@ class LLVMIRGenerator:
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
             retty = insn.operands[2]
-            self.llbuilder.call("subkernel_await_message", [llsid, lltimeout],
+            self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout],
                                 name="subkernel.await.message")
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                             name="rpc.stack")
-            return self._build_rpc_recv(retty, llstackptr, None, None)
+            return self._build_rpc_recv(retty, llstackptr)
 
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
@@ -1463,7 +1461,7 @@ class LLVMIRGenerator:
 
         return llfun, list(llargs), llarg_attrs, llcallstackptr
 
-    def _build_rpc_recv(self, ret, llstackptr, llnormalblock, llunwindblock):
+    def _build_rpc_recv(self, ret, llstackptr, llnormalblock=None, llunwindblock=None):
         # T result = {
         #   void *ret_ptr = alloca(sizeof(T));
         #   void *ptr = ret_ptr;

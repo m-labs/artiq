@@ -317,23 +317,14 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
 
-            if not is_lambda and node.remote_args:
-                # args are received through DRTIO (subkernel entry point)
-                if len(typ.args) > 0:
-                    self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
-                    for arg_name in typ.args.keys():
-                        value = self.append(ir.GetArgFromRemote(env, arg_name, 
+            for index, arg_name in enumerate(typ.args):
+                self.append(ir.SetLocal(env, arg_name, args[index]))
+            for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
+                default = codegen_default()
+                value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
+                                            typ.optargs[arg_name],
                                             name="DEF.{}".format(arg_name)))
-                        self.append(ir.SetLocal(env, arg_name, value))
-            else:
-                for index, arg_name in enumerate(typ.args):
-                    self.append(ir.SetLocal(env, arg_name, args[index]))
-                for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
-                    default = codegen_default()
-                    value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
-                                                typ.optargs[arg_name],
-                                                name="DEF.{}".format(arg_name)))
-                    self.append(ir.SetLocal(env, arg_name, value))
+                self.append(ir.SetLocal(env, arg_name, value))
 
             result = self.visit(node.body)
 
@@ -2566,7 +2557,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 node.loc)
             self.engine.process(diag)
 
-    def _user_call(self, callee, positional, keywords, arg_exprs={}):
+    def _user_call(self, callee, positional, keywords, arg_exprs={}, remote_args=False):
         if types.is_function(callee.type) or types.is_rpc(callee.type) or types.is_subkernel(callee.type):
             func     = callee
             self_arg = None
@@ -2582,6 +2573,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
+        # print(callee.__dict__)
+
         if types.is_rpc(fn_typ) or types.is_subkernel(fn_typ):
             if self_arg is None:
                 args = positional
@@ -2592,6 +2585,20 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 arg = keywords[keyword]
                 args.append(self.append(ir.Alloc([ir.Constant(keyword, builtins.TStr()), arg],
                                                  ir.TKeyword(arg.type))))
+        elif remote_args:
+            args = [None] * len(fn_typ.args) # no keyword support
+
+            # args are received through DRTIO (subkernel entry point)
+            if len(args) - offset > 0:
+                self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
+                for index, arg in enumerate(fn_typ.args.items()):
+                    arg_name, arg_type = arg
+                    args[index] = self.append(ir.GetArgFromRemote(arg_name, arg_type,
+                                            name="DEF.{}".format(arg_name)))
+
+            if self_arg is not None:
+                assert args[0] is None
+                args[0] = self_arg
         else:
             args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 
@@ -2625,8 +2632,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if self_arg is not None:
                 assert args[0] is None
                 args[0] = self_arg
-
-            assert None not in args
 
         if self.unwind_target is None or \
                 types.is_external_function(callee.type) and "nounwind" in callee.type.flags:
@@ -2677,7 +2682,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
-            insn = self._user_call(callee, args, keywords, node.arg_exprs)
+            remote_args = getattr(node, "remote_args", False)
+            insn = self._user_call(callee, args, keywords, node.arg_exprs, remote_args)
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
                 self.method_map[(attr_node.value.type.find(),

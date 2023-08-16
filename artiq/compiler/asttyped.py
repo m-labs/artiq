@@ -63,11 +63,10 @@ class BinOpT(ast.BinOp, commontyped):
     pass
 class BoolOpT(ast.BoolOp, commontyped):
     pass
-class CallT(ast.Call, commontyped):
+class CallT(ast.Call, commontyped, remote):
     """
     :ivar iodelay: (:class:`iodelay.Expr`)
     :ivar arg_exprs: (dict of str to :class:`iodelay.Expr`)
-    :ivar remote_args: (bool)
     """
 class CompareT(ast.Compare, commontyped):
     pass
