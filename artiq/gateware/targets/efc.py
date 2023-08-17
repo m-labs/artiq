@@ -12,6 +12,7 @@ from misoc.integration.builder import builder_args, builder_argdict
 from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
+from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
@@ -103,6 +104,11 @@ class Satellite(BaseSoC, AMPSoC):
         self.config["RTIO_FREQUENCY"] = "125.0"
 
         self.rtio_channels = []
+
+        for i in range(2):
+            phy = ttl_simple.Output(self.virtual_leds.get(i))
+            self.submodules += phy
+            self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)

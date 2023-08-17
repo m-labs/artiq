@@ -531,8 +531,14 @@ pub extern fn main() -> i32 {
     sysclk_setup();
 
     #[cfg(soc_platform = "efc")]
+    let mut io_expander;
+    #[cfg(soc_platform = "efc")]
     {
-        let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+        io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+        
+        // Enable LEDs
+        io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+        
         // Enable VADJ and P3V3_FMC
         io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
 
@@ -575,6 +581,8 @@ pub extern fn main() -> i32 {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
             }
+            #[cfg(soc_platform = "efc")]
+            io_expander.service().expect("I2C I/O expander service failed");
             hardware_tick(&mut hardware_tick_ts);
         }
 
@@ -608,6 +616,8 @@ pub extern fn main() -> i32 {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
             }
+            #[cfg(soc_platform = "efc")]
+            io_expander.service().expect("I2C I/O expander service failed");
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
