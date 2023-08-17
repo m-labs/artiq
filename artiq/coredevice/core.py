@@ -158,7 +158,6 @@ class Core:
         def set_result(new_result):
             nonlocal result
             result = new_result
-        print(args)
         kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
         self.compile_subkernels(args)

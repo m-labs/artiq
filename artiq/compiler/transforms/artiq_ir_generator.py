@@ -296,9 +296,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             old_globals, self.current_globals = self.current_globals, node.globals_in_scope
             old_remote_args = self.current_remote_args
-
-            if not is_lambda:
-                 self.current_remote_args = node.remote_args
+            self.current_remote_args = getattr(node, "remote_args", False)
 
             env_without_globals = \
                 {var: node.typing_env[var]
@@ -2533,18 +2531,20 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 or types.is_builtin(typ, "at_mu"):
             return self.append(ir.Builtin(typ.name,
                                           [self.visit(arg) for arg in node.args], node.type))
-        elif types.is_builtin(typ, "subkernel_await_finish"):
+        elif types.is_builtin(typ, "subkernel_await"):
             if len(node.args) == 2 and len(node.keywords) == 0:
-                fn = node.args[0]
+                fn = node.args[0].type
                 timeout = self.visit(node.args[1])
             elif len(node.args) == 1 and len(node.keywords) == 0:
-                fn = node.args[0]
+                fn = node.args[0].type
                 timeout = ir.Constant(10_000, builtins.TInt64())
             else:
                 assert False
-            sid = ir.Constant(self.embedding_map.retrieve_subkernel_id(fn), builtins.TInt32())
-            self.append(ir.Builtin("subkernel_await_finish"), [sid, timeout], builtins.TNone())
-            return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout, fn.ret], fn.ret))
+            if types.is_method(fn):
+                fn = types.get_method_function(fn)
+            sid = ir.Constant(fn.sid, builtins.TInt32())
+            self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
+            return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
 
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])
@@ -2573,12 +2573,11 @@ class ARTIQIRGenerator(algorithm.Visitor):
         else:
             assert False
 
-        # print(callee.__dict__)
-
         if types.is_rpc(fn_typ) or types.is_subkernel(fn_typ):
-            if self_arg is None:
+            if self_arg is None or types.is_subkernel(fn_typ):
+                # self is not passed to subkernels by remote
                 args = positional
-            else:
+            elif self_arg is not None:
                 args = [self_arg] + positional
 
             for keyword in keywords:
@@ -2586,19 +2585,24 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 args.append(self.append(ir.Alloc([ir.Constant(keyword, builtins.TStr()), arg],
                                                  ir.TKeyword(arg.type))))
         elif remote_args:
-            args = [None] * len(fn_typ.args) # no keyword support
+            assert self_arg is None
+            assert len(fn_typ.args) >= len(positional)
+            assert len(keywords) == 0  # no keyword support
+            args = [None] * len(fn_typ.args) 
+            index = 0
+            # fill in first available args
+            for arg in positional:
+                args[index] = arg
+                index += 1
 
-            # args are received through DRTIO (subkernel entry point)
-            if len(args) - offset > 0:
+            # remaining args are received through DRTIO
+            if index < len(args):
                 self.append(ir.Builtin("subkernel_await_args", [], builtins.TNone()))
-                for index, arg in enumerate(fn_typ.args.items()):
-                    arg_name, arg_type = arg
+                arg_types = list(fn_typ.args.items())[index:]
+                for arg_name, arg_type in arg_types:
                     args[index] = self.append(ir.GetArgFromRemote(arg_name, arg_type,
-                                            name="DEF.{}".format(arg_name)))
-
-            if self_arg is not None:
-                assert args[0] is None
-                args[0] = self_arg
+                                            name="ARG.{}".format(arg_name)))
+                    index += 1
         else:
             args = [None] * (len(fn_typ.args) + len(fn_typ.optargs))
 

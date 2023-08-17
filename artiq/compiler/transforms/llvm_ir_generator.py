@@ -402,8 +402,8 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [lli32, llsliceptr, llptrptr])
         elif name == "subkernel_load_run":
             llty = ll.FunctionType(llvoid, [lli32, lli1])
-        elif name == "subkernel_await":
-            llty = ll.FunctionType(llvoid, [lli32, lli64])
+        elif name == "subkernel_await_finish":
+            llty = ll.FunctionType(llvoid, [lli1, lli32, lli64])
         elif name == "subkernel_await_message":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_args":
@@ -1362,20 +1362,19 @@ class LLVMIRGenerator:
         elif insn.op == "subkernel_await_args":
             return self.llbuilder.call(self.llbuiltin("subkernel_await_args"), [],
                                        name="subkernel.await.args")
-        elif insn.op == "subkernel_await_return":
+        elif insn.op == "subkernel_await_finish":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
-            return self.llbuilder.call("subkernel_await_return", [llconst(lli1, 0), llsid, lltimeout],
-                                       name="subkernel.await.return")
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_finish"), [ll.Constant(lli1, 0), llsid, lltimeout],
+                                       name="subkernel.await.finish")
         elif insn.op == "subkernel_retrieve_return":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
-            retty = insn.operands[2]
             self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout],
                                 name="subkernel.await.message")
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
                             name="rpc.stack")
-            return self._build_rpc_recv(retty, llstackptr)
+            return self._build_rpc_recv(insn.type, llstackptr)
 
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])

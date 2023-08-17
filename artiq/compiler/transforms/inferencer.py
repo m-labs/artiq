@@ -1293,6 +1293,26 @@ class Inferencer(algorithm.Visitor):
             # Ignored.
             self._unify(node.type, builtins.TNone(),
                         node.loc, None)
+        elif types.is_builtin(typ, "subkernel_await"):
+            valid_forms = lambda: [
+                valid_form("subkernel_await(f: subkernel) -> f return type"),
+                valid_form("subkernel_await(f: subkernel, timeout: numpy.int64) -> f return type")
+            ]
+            if len(node.args) == 1 or len(node.args) == 2:
+                arg0 = node.args[0].type
+                if types.is_var(arg0):
+                    pass  # undetermined yet
+                else:
+                    if types.is_method(arg0):
+                        fn = types.get_method_function(arg0)
+                    elif types.is_function(arg0):
+                        fn = arg0
+                    else:
+                        diagnose(valid_forms())
+                    self._unify(node.type, fn.ret,
+                                node.loc, None)
+            else:
+                diagnose(valid_forms())
         else:
             assert False
 
@@ -1355,19 +1375,6 @@ class Inferencer(algorithm.Visitor):
             typ_ret     = typ_func.ret
 
         passed_args = dict()
-
-        if node.remote_args:
-            # arguments not passed to the call, but received from remote.
-            # the argument list should be empty.
-            if len(node.args) > 0:
-                diag = diagnostic.Diagnostic("error",
-                    "local arguments were given when only remote were expected", {},
-                    node.func.loc, [], [])
-                self.engine.process(diag)
-                return
-            self._unify(node.type, typ_ret,
-                        node.loc, None)
-            return
 
         if len(node.args) > typ_arity:
             note = diagnostic.Diagnostic("note",
