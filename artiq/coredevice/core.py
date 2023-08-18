@@ -1,5 +1,6 @@
 import os, sys
 import numpy
+from inspect import getfullargspec
 from functools import wraps
 
 from pythonparser import diagnostic
@@ -171,7 +172,11 @@ class Core:
                 continue
             # pass self to subkernels (if applicable)
             # assuming the first argument is self
-            self_arg = args[:1]
+            subkernel_args = getfullargspec(subkernel_fn.artiq_embedded.function)
+            self_arg = []
+            if len(subkernel_args[0]) > 0:
+                if subkernel_args[0][0] == 'self':
+                    self_arg = args[:1]
             destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)

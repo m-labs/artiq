@@ -66,15 +66,19 @@ def kernel(arg=None, flags={}):
 
 def subkernel(arg=None, destination=0, flags={}):
     """
-    This decorator marks an object's method for execution on a satellite device.
+    This decorator marks an object's method or function for execution on a satellite device.
     Destination must be given, and it must be between 1 and 255 (inclusive).
 
     Subkernels behave similarly to kernels, with few key differences:
+
         - they are started from main kernels,
         - they do not support RPCs, or running subsequent subkernels on other devices,
-        - but they can call other kernels within themselves.
+        - but they can call other kernels or subkernels with the same destination.
+
+    Subkernels can accept arguments and return values. However, they must be fully 
+    annotated with ARTIQ types.
     """
-    assert 0 < destination <= 255
+    assert 0 < destination <= 255, "invalid destination"
     if isinstance(arg, str):
         def inner_decorator(function):
             @wraps(function)
