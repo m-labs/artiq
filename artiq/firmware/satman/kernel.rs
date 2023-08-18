@@ -593,34 +593,11 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                 kern_acknowledge()
             }
 
-            &kern::DmaRecordStart(_name) => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaRecordAppend(_data) => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaRecordStop { duration: _dur, enable_ddma: _ } => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaEraseRequest { name: _name } => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaRetrieveRequest { name: _name } => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaStartRemoteRequest { id: _id, timestamp: _timestamp } => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-            &kern::DmaAwaitRemoteRequest { id: _id } => {
-                unexpected!("unsupported in subkernels request {:?} (use DDMA instead)", request)
-            }
-
-            &kern::RpcSend { async: _async, service: _service, tag: _tag, data: _data } => {
-                unexpected!("Received: {:?} - RPC requests are not supported in subkernels: ", request)
-            },
             &kern::RpcFlush => {
-                unexpected!("Received: {:?} - RPC requests are not supported in subkernels: ", request)
-            },
+                // we do not have to do anything about this request,
+                // it is sent by the kernel firmware regardless of RPC being used
+                kern_acknowledge()
+            }
 
             &kern::CacheGetRequest { key } => {
                 let value = session.cache.get(key);

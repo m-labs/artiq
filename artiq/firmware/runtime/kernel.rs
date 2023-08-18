@@ -168,7 +168,6 @@ pub mod subkernel {
     pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool) {
         // called upon receiving DRTIO SubkernelRunDone
         let _lock = subkernel_mutex.lock(io).unwrap();
-        info!("subkernel {} has finished with exception: {}", id, with_exception);
         let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         subkernel.state = match with_exception {
             true => SubkernelState::FinishedAbnormally { comm_lost: false, with_exception: with_exception },
@@ -323,7 +322,6 @@ pub mod subkernel {
             if clock::get_ms() > max_time {
                 return Ok(None);
             }
-            info!("message_await lock test");
             if subkernel_mutex.test_lock() {
                 return Err(());
             }
@@ -343,7 +341,6 @@ pub mod subkernel {
     }
 
     pub fn message_clear_queue(io: &Io, subkernel_mutex: &Mutex) {
-        info!("message_clear_queue lock");
         let _lock = subkernel_mutex.lock(io).unwrap();
         unsafe {
             MESSAGE_QUEUE = Vec::new();
@@ -356,7 +353,6 @@ pub mod subkernel {
         // todo: make a writer that will call back and send smaller slices
         let mut writer = Cursor::new(Vec::new());
         let destination = unsafe {
-            info!("message_send lock");
             let _lock = subkernel_mutex.lock(io).unwrap();
             SUBKERNELS.get(&id).unwrap().destination
         };
