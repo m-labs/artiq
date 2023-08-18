@@ -1298,7 +1298,7 @@ class Inferencer(algorithm.Visitor):
                 valid_form("subkernel_await(f: subkernel) -> f return type"),
                 valid_form("subkernel_await(f: subkernel, timeout: numpy.int64) -> f return type")
             ]
-            if len(node.args) == 1 or len(node.args) == 2:
+            if 1 <= len(node.args) <= 2:
                 arg0 = node.args[0].type
                 if types.is_var(arg0):
                     pass  # undetermined yet
@@ -1311,6 +1311,16 @@ class Inferencer(algorithm.Visitor):
                         diagnose(valid_forms())
                     self._unify(node.type, fn.ret,
                                 node.loc, None)
+                if len(node.args) == 2:
+                    arg1 = node.args[1]
+                    if types.is_var(arg1.type):
+                        pass
+                    elif builtins.is_int(arg1.type):
+                        # promote to TInt64
+                        self._unify(arg1.type, builtins.TInt64(),
+                                    arg1.loc, None)
+                    else:
+                        diagnose(valid_forms())
             else:
                 diagnose(valid_forms())
         else:

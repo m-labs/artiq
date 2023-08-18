@@ -663,7 +663,6 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
             if let Some(exception) = subkernel_finished.exception {
                 stream.write_all(&exception)?;
             }
-            
         }
 
         if mailbox::receive() != 0 {
