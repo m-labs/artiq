@@ -3,11 +3,20 @@ source_filename = "<string>"
 target datalayout = "e-m:e-p:32:32-i64:64-n32-S128"
 target triple = "riscv32-unknown-linux"
 
+<<<<<<< HEAD
 @S.i = private unnamed_addr constant [2 x i8] c"i:"
+=======
+<<<<<<< HEAD
+@S.i = private unnamed_addr constant [2 x i8] c"i:"
+=======
+@now = external local_unnamed_addr global i64
+>>>>>>> 76594e85a (don't waste time and bandwidth with returning Nones)
+>>>>>>> ff18ac7b5 (don't waste time and bandwidth with returning Nones)
 
 ; Function Attrs: uwtable
 define void @__modinit__(i8* nocapture readnone %.1) local_unnamed_addr #0 personality i32 (...)* @__artiq_personality !dbg !5 {
 entry:
+<<<<<<< HEAD
   %.15.i = alloca { i8*, i32 }, align 8, !dbg !9
   %subkernel.return.i = alloca i8*, align 4, !dbg !9
   %subkernel.retval.i = alloca i32, align 4, !dbg !9
@@ -90,14 +99,55 @@ optarg.tail.c:                                    ; preds = %rpc.tail.c, %rpc.ta
   %3 = bitcast i8** %subkernel.return.i to i32**, !dbg !9
   store i32* %subkernel.retval.i, i32** %3, align 4, !dbg !9
   call void @subkernel_send_message(i32 0, i8 1, { i8*, i32 }* nonnull %.15.i, i8** nonnull %subkernel.return.i), !dbg !9
+=======
+<<<<<<< HEAD
+  %.12.i = alloca { i8*, i32 }, align 8, !dbg !9
+  %subkernel.return.i = alloca i8*, align 4, !dbg !9
+  %subkernel.retval.i = alloca i32, align 4, !dbg !9
+  %0 = bitcast { i8*, i32 }* %.12.i to i8*, !dbg !9
+  call void @llvm.lifetime.start.p0i8(i64 8, i8* nonnull %0), !dbg !9
+  %1 = bitcast i8** %subkernel.return.i to i8*, !dbg !9
+  call void @llvm.lifetime.start.p0i8(i64 4, i8* nonnull %1), !dbg !9
+  %2 = bitcast i32* %subkernel.retval.i to i8*, !dbg !9
+  call void @llvm.lifetime.start.p0i8(i64 4, i8* nonnull %2), !dbg !9
+  %.12.repack.i = getelementptr inbounds { i8*, i32 }, { i8*, i32 }* %.12.i, i32 0, i32 0, !dbg !9
+  store i8* getelementptr inbounds ([2 x i8], [2 x i8]* @S.i, i32 0, i32 0), i8** %.12.repack.i, align 8, !dbg !9
+  %.12.repack1.i = getelementptr inbounds { i8*, i32 }, { i8*, i32 }* %.12.i, i32 0, i32 1, !dbg !9
+  store i32 2, i32* %.12.repack1.i, align 4, !dbg !9
+  store i32 -559037225, i32* %subkernel.retval.i, align 4, !dbg !9
+  %3 = bitcast i8** %subkernel.return.i to i32**, !dbg !9
+  store i32* %subkernel.retval.i, i32** %3, align 4, !dbg !9
+  call void @subkernel_send_message(i32 0, { i8*, i32 }* nonnull %.12.i, i8** nonnull %subkernel.return.i), !dbg !9
+>>>>>>> ff18ac7b5 (don't waste time and bandwidth with returning Nones)
   call void @llvm.lifetime.end.p0i8(i64 8, i8* nonnull %0), !dbg !9
   call void @llvm.lifetime.end.p0i8(i64 4, i8* nonnull %1), !dbg !9
   call void @llvm.lifetime.end.p0i8(i64 4, i8* nonnull %2), !dbg !9
   ret void, !dbg !13
+<<<<<<< HEAD
+=======
+=======
+  call void @rtio_output(i32 16779264, i32 1), !dbg !9
+  %now.hi.i.i = load i32, i32* bitcast (i64* @now to i32*), align 8, !dbg !20
+  %now.lo.i.i = load i32, i32* bitcast (i64* getelementptr inbounds (i64, i64* @now, i32 1) to i32*), align 8, !dbg !20
+  %.25.i.i = zext i32 %now.hi.i.i to i64, !dbg !20
+  %.26.i.i = shl nuw i64 %.25.i.i, 32, !dbg !20
+  %.27.i.i = zext i32 %now.lo.i.i to i64, !dbg !20
+  %.28.i.i = or i64 %.26.i.i, %.27.i.i, !dbg !20
+  %now.new.i.i = add i64 %.28.i.i, 1000000000, !dbg !20
+  %.29.i.i = lshr i64 %now.new.i.i, 32, !dbg !20
+  %.30.i.i = trunc i64 %.29.i.i to i32, !dbg !20
+  %.31.i.i = trunc i64 %now.new.i.i to i32, !dbg !20
+  store atomic i32 %.30.i.i, i32* bitcast (i64* @now to i32*) seq_cst, align 8, !dbg !20
+  store atomic i32 %.31.i.i, i32* bitcast (i64* getelementptr inbounds (i64, i64* @now, i32 1) to i32*) seq_cst, align 8, !dbg !20
+  call void @rtio_output(i32 16779264, i32 0), !dbg !21
+  ret void, !dbg !25
+>>>>>>> 76594e85a (don't waste time and bandwidth with returning Nones)
+>>>>>>> ff18ac7b5 (don't waste time and bandwidth with returning Nones)
 }
 
 declare i32 @__artiq_personality(...)
 
+<<<<<<< HEAD
 declare i8 @subkernel_await_message(i32, i64, i8, i8) local_unnamed_addr
 
 ; Function Attrs: mustprogress nofree nosync nounwind willreturn
@@ -119,6 +169,26 @@ declare void @llvm.lifetime.end.p0i8(i64 immarg, i8* nocapture) #2
 attributes #0 = { uwtable }
 attributes #1 = { mustprogress nofree nosync nounwind willreturn }
 attributes #2 = { argmemonly nofree nosync nounwind willreturn }
+=======
+<<<<<<< HEAD
+declare void @subkernel_send_message(i32, { i8*, i32 }*, i8**) local_unnamed_addr
+
+; Function Attrs: argmemonly nounwind willreturn
+declare void @llvm.lifetime.start.p0i8(i64 immarg, i8* nocapture) #1
+
+; Function Attrs: argmemonly nounwind willreturn
+declare void @llvm.lifetime.end.p0i8(i64 immarg, i8* nocapture) #1
+
+attributes #0 = { uwtable }
+attributes #1 = { argmemonly nounwind willreturn }
+=======
+; Function Attrs: inaccessiblememonly
+declare void @rtio_output(i32, i32) local_unnamed_addr #1
+
+attributes #0 = { uwtable }
+attributes #1 = { inaccessiblememonly }
+>>>>>>> 76594e85a (don't waste time and bandwidth with returning Nones)
+>>>>>>> ff18ac7b5 (don't waste time and bandwidth with returning Nones)
 
 !llvm.ident = !{!0}
 !llvm.module.flags = !{!1, !2}
@@ -133,6 +203,7 @@ attributes #2 = { argmemonly nofree nosync nounwind willreturn }
 !6 = !DISubroutineType(types: !7)
 !7 = !{null}
 !8 = !{}
+<<<<<<< HEAD
 !9 = !DILocation(line: 6, column: 4, scope: !10, inlinedAt: !12)
 !10 = distinct !DISubprogram(name: "_Z45artiq_run_test_subkernel_opt_fn.non_self_argszz", linkageName: "_Z45artiq_run_test_subkernel_opt_fn.non_self_argszz", scope: !11, file: !11, line: 5, type: !6, scopeLine: 5, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
 !11 = !DIFile(filename: "test_subkernel_opt_fn.py", directory: "")
@@ -140,3 +211,30 @@ attributes #2 = { argmemonly nofree nosync nounwind willreturn }
 !13 = !DILocation(line: 1, scope: !5)
 !14 = !DILocation(line: 5, scope: !10, inlinedAt: !12)
 !15 = !DILocation(line: 6, column: 11, scope: !10, inlinedAt: !12)
+=======
+<<<<<<< HEAD
+!9 = !DILocation(line: 17, column: 8, scope: !10, inlinedAt: !12)
+!10 = distinct !DISubprogram(name: "_Z48artiq_run_test_subkernel.DMAPulses.simple_returnzz", linkageName: "_Z48artiq_run_test_subkernel.DMAPulses.simple_returnzz", scope: !11, file: !11, line: 13, type: !6, scopeLine: 13, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!11 = !DIFile(filename: "test_subkernel.py", directory: "")
+!12 = distinct !DILocation(line: 1, scope: !5)
+!13 = !DILocation(line: 1, scope: !5)
+=======
+!9 = !DILocation(line: 49, column: 8, scope: !10, inlinedAt: !12)
+!10 = distinct !DISubprogram(name: "_Z33artiq.coredevice.ttl.TTLOut.set_oI27artiq.coredevice.ttl.TTLOutEzz", linkageName: "_Z33artiq.coredevice.ttl.TTLOut.set_oI27artiq.coredevice.ttl.TTLOutEzz", scope: !11, file: !11, line: 48, type: !6, scopeLine: 48, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!11 = !DIFile(filename: "ttl.py", directory: "/home/spaqin/m-labs/artiq/artiq/coredevice")
+!12 = distinct !DILocation(line: 57, column: 8, scope: !13, inlinedAt: !14)
+!13 = distinct !DISubprogram(name: "_Z30artiq.coredevice.ttl.TTLOut.onI27artiq.coredevice.ttl.TTLOutEzz", linkageName: "_Z30artiq.coredevice.ttl.TTLOut.onI27artiq.coredevice.ttl.TTLOutEzz", scope: !11, file: !11, line: 52, type: !6, scopeLine: 52, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!14 = distinct !DILocation(line: 83, column: 8, scope: !15, inlinedAt: !16)
+!15 = distinct !DISubprogram(name: "_Z33artiq.coredevice.ttl.TTLOut.pulseI27artiq.coredevice.ttl.TTLOutEzz", linkageName: "_Z33artiq.coredevice.ttl.TTLOut.pulseI27artiq.coredevice.ttl.TTLOutEzz", scope: !11, file: !11, line: 78, type: !6, scopeLine: 78, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!16 = distinct !DILocation(line: 25, column: 8, scope: !17, inlinedAt: !19)
+!17 = distinct !DISubprogram(name: "_Z46artiq_run_test_subkernel.DMAPulses.simple_selfzz", linkageName: "_Z46artiq_run_test_subkernel.DMAPulses.simple_selfzz", scope: !18, file: !18, line: 24, type: !6, scopeLine: 24, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!18 = !DIFile(filename: "test_subkernel.py", directory: "")
+!19 = distinct !DILocation(line: 1, scope: !5)
+!20 = !DILocation(line: 84, column: 8, scope: !15, inlinedAt: !16)
+!21 = !DILocation(line: 49, column: 8, scope: !10, inlinedAt: !22)
+!22 = distinct !DILocation(line: 65, column: 8, scope: !23, inlinedAt: !24)
+!23 = distinct !DISubprogram(name: "_Z31artiq.coredevice.ttl.TTLOut.offI27artiq.coredevice.ttl.TTLOutEzz", linkageName: "_Z31artiq.coredevice.ttl.TTLOut.offI27artiq.coredevice.ttl.TTLOutEzz", scope: !11, file: !11, line: 60, type: !6, scopeLine: 60, spFlags: DISPFlagLocalToUnit | DISPFlagDefinition, unit: !3, retainedNodes: !8)
+!24 = distinct !DILocation(line: 85, column: 8, scope: !15, inlinedAt: !16)
+!25 = !DILocation(line: 1, scope: !5)
+>>>>>>> 76594e85a (don't waste time and bandwidth with returning Nones)
+>>>>>>> ff18ac7b5 (don't waste time and bandwidth with returning Nones)

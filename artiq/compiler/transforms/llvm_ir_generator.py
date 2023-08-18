@@ -1645,8 +1645,12 @@ class LLVMIRGenerator:
         return llsid
 
     def _build_subkernel_return(self, insn):
-        # unlike args, return only returns one thing - can be None.
         # builds a remote return.
+        # unlike args, return only returns one thing.
+        if builtins.is_none(insn.value().type):
+            # do not waste time and bandwidth on Nones
+            return
+
         def ret_error_handler(typ):
             printer = types.TypePrinter()
             note = diagnostic.Diagnostic("note",
@@ -1664,14 +1668,10 @@ class LLVMIRGenerator:
         self.llbuilder.store(lltag, lltagptr)
 
         llrets = self.llbuilder.alloca(llptr, ll.Constant(lli32, 1),
-                                    name="subkernel.return")
-                                    
-        if builtins.is_none(insn.value().type):
-            llretslot = self.llbuilder.alloca(llunit, name="subkernel.retval")
-        else:
-            llret = self.map(insn.value())
-            llretslot = self.llbuilder.alloca(llret.type, name="subkernel.retval")
-            self.llbuilder.store(llret, llretslot)
+                                    name="subkernel.return")    
+        llret = self.map(insn.value())
+        llretslot = self.llbuilder.alloca(llret.type, name="subkernel.retval")
+        self.llbuilder.store(llret, llretslot)
         llretslot = self.llbuilder.bitcast(llretslot, llptr)
         self.llbuilder.store(llretslot, llrets)
 

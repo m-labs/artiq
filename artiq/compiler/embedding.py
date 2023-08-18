@@ -75,6 +75,7 @@ class EmbeddingMap:
                                                   "SPIError",
                                                   "0:ZeroDivisionError",
                                                   "0:IndexError",
+                                                  "UnwrapNoneError",
                                                   "SubkernelError"])
 
     def preallocate_runtime_exception_names(self, names):

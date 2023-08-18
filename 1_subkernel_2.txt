@@ -1,0 +1,176 @@
+NoneType __modinit__() { ; type: ()->NoneType delay('a)
+entry: ; predecessors: 
+<<<<<<< HEAD
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_return at 0x7fb37dd52cb0>`[0m()
+  %UNN.2 = ()->numpy.int32 quote(<function DMAPulses.simple_return at 0x7fb37dd52cb0>)
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_return at 0x7fb37dd52cb0>`()[0m
+  %UNN.3 = numpy.int32 call ()->numpy.int32 %UNN.2
+; <synthesized>
+  return NoneType None
+}
+numpy.int32 _Z48artiq_run_test_subkernel.DMAPulses.simple_returnzz(environment(...) %ARG.ENV) { ; type: ()->numpy.int32
+entry: ; predecessors: 
+; test_subkernel.py:13     [1;32mdef[0m simple_return() -> TInt32:
+  %ENV = environment($outer=environment, a=numpy.int64, b=numpy.int32, c=numpy.int32) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+; test_subkernel.py:14         [1;32ma[0m = 0xdeadbeef
+  setlocal('a') %ENV, numpy.int64 3735928559
+; test_subkernel.py:15         [1;32mb[0m = 1512
+  setlocal('b') %ENV, numpy.int32 1512
+; test_subkernel.py:16         c = [1;32ma[0m + b
+  %LOC.a.int = numpy.int32 coerce numpy.int64 3735928559
+; test_subkernel.py:16         c = [1;32ma + b[0m
+  %UNN.4 = numpy.int32 arith(Add) numpy.int32 %LOC.a.int, numpy.int32 1512
+; test_subkernel.py:16         [1;32mc[0m = a + b
+  setlocal('c') %ENV, numpy.int32 %UNN.4
+; test_subkernel.py:17         [1;32mreturn[0m c
+  return numpy.int32 %UNN.4
+=======
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_self at 0x7f5e8b41edd0>`[0m(`<artiq_run_test_subkernel.DMAPulses object at 0x7f5e8b7fd330>`)
+  %UNN.6 = (self:<instance artiq_run_test_subkernel.DMAPulses>)->NoneType delay(999999999 mu) quote(<function DMAPulses.simple_self at 0x7f5e8b41edd0>)
+; <synthesized>:1 `<function DMAPulses.simple_self at 0x7f5e8b41edd0>`([1;32m`<artiq_run_test_subkernel.DMAPulses object at 0x7f5e8b7fd330>`[0m)
+  %UNN.7 = <instance artiq_run_test_subkernel.DMAPulses {
+		__objectid__: numpy.int32,
+		core: <instance artiq.coredevice.core.Core>,
+		led1: <instance artiq.coredevice.ttl.TTLOut>,
+		led2: <instance artiq.coredevice.ttl.TTLOut>
+	}> quote(<artiq_run_test_subkernel.DMAPulses object at 0x7f5e8b7fd330>)
+; <synthesized>
+  branch label %delay.head
+delay.head: ; predecessors: entry
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_self at 0x7f5e8b41edd0>`(`<artiq_run_test_subkernel.DMAPulses object at 0x7f5e8b7fd330>`)[0m
+  %UNN.9 = NoneType call (self:<instance artiq_run_test_subkernel.DMAPulses>)->NoneType delay(999999999 mu) %UNN.6, <instance artiq_run_test_subkernel.DMAPulses> %UNN.7
+  delay(999999999) decomp NoneType %UNN.9, to label %delay.tail
+delay.tail: ; predecessors: delay.head
+  return NoneType None
+}
+NoneType _Z46artiq_run_test_subkernel.DMAPulses.simple_selfzz(environment(...) %ARG.ENV, <instance artiq_run_test_subkernel.DMAPulses> %ARG.self) { ; type: (self:<instance artiq_run_test_subkernel.DMAPulses>)->NoneType delay(999999999 mu)
+entry: ; predecessors: 
+; test_subkernel.py:25         [1;32mself.led2[0m.pulse(1000*ms)
+  %LOC.self.FLD.led2 = <instance artiq.coredevice.ttl.TTLOut {
+		__objectid__: numpy.int32,
+		target_o: numpy.int32
+	}> getattr('led2') <instance artiq_run_test_subkernel.DMAPulses> %ARG.self
+; test_subkernel.py:24     [1;32mdef[0m simple_self(self) -> TNone:
+  %ENV = environment($outer=environment, self=<instance artiq_run_test_subkernel.DMAPulses>) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('self') %ENV, <instance artiq_run_test_subkernel.DMAPulses> %ARG.self
+; test_subkernel.py:25         [1;32mself.led2.pulse[0m(1000*ms)
+  %LOC.self.FLD.led2.FLD.pulse = method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu), self=<instance artiq.coredevice.ttl.TTLOut>) getattr('pulse') <instance artiq.coredevice.ttl.TTLOut> %LOC.self.FLD.led2
+; test_subkernel.py:25         self.led2.pulse([1;32m1000[0m*ms)
+  %1000.float = float coerce numpy.int32 1000
+; test_subkernel.py:25         self.led2.pulse([1;32m1000*ms[0m)
+  %UNN.3 = float arith(Mult) float %1000.float, float 0.001
+; <synthesized>
+  branch label %delay.head
+delay.head: ; predecessors: entry
+; test_subkernel.py:25         [1;32mself.led2.pulse(1000*ms)[0m
+  %LOC.self.FLD.led2.FLD.pulse.ENV = (self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu) getattr('__func__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu), self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.FLD.led2.FLD.pulse
+  %LOC.self.FLD.led2.FLD.pulse.SLF = <instance artiq.coredevice.ttl.TTLOut> getattr('__self__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu), self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.FLD.led2.FLD.pulse
+  %UNN.5 = NoneType call (self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu) %LOC.self.FLD.led2.FLD.pulse.ENV, <instance artiq.coredevice.ttl.TTLOut> %LOC.self.FLD.led2.FLD.pulse.SLF, float %UNN.3
+  delay(s->mu(1000 * 0.001)) decomp NoneType %UNN.5, to label %delay.tail
+delay.tail: ; predecessors: delay.head
+  return NoneType None
+}
+NoneType _Z33artiq.coredevice.ttl.TTLOut.pulseI27artiq.coredevice.ttl.TTLOutEzz(environment(...) %ARG.ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self, float %ARG.duration) { ; type: (self:<instance artiq.coredevice.ttl.TTLOut>, duration:float)->NoneType delay(s->mu(duration) mu)
+entry: ; predecessors: 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:78     [1;32mdef[0m pulse(self, duration):
+  %ENV = environment($outer=environment, duration=float, self=<instance artiq.coredevice.ttl.TTLOut>) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('self') %ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+  setlocal('duration') %ENV, float %ARG.duration
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:79         [1;32m"""Pulse the output high for the specified duration
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:79         (in seconds).
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:79 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:79         The time cursor is advanced by the specified duration."""[0m
+  builtin(nop)
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:83         [1;32mself.on[0m()
+  %LOC.self.FLD.on = method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) getattr('on') <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:83         [1;32mself.on()[0m
+  %LOC.self.FLD.on.ENV = (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType getattr('__func__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.FLD.on
+  %LOC.self.FLD.on.SLF = <instance artiq.coredevice.ttl.TTLOut> getattr('__self__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.FLD.on
+  call (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType %LOC.self.FLD.on.ENV, <instance artiq.coredevice.ttl.TTLOut> %LOC.self.FLD.on.SLF
+; <synthesized>
+  branch label %delay.head
+delay.head: ; predecessors: entry
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:84         [1;32mdelay(duration)[0m
+  %UNN.6 = float arith(Div) float %ARG.duration, float 1e-09
+  %BLT.round = numpy.int64 builtin(round) float %UNN.6
+  %"BLT.delay_mu" = NoneType builtin(delay_mu) numpy.int64 %BLT.round
+  delay(s->mu(duration)) decomp NoneType %"BLT.delay_mu", to label %delay.tail
+delay.tail: ; predecessors: delay.head
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:85         [1;32mself.off[0m()
+  %LOC.self.8.FLD.off = method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) getattr('off') <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:85         [1;32mself.off()[0m
+  %LOC.self.8.FLD.off.ENV = (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType getattr('__func__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.8.FLD.off
+  %LOC.self.8.FLD.off.SLF = <instance artiq.coredevice.ttl.TTLOut> getattr('__self__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %LOC.self.8.FLD.off
+  call (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType %LOC.self.8.FLD.off.ENV, <instance artiq.coredevice.ttl.TTLOut> %LOC.self.8.FLD.off.SLF
+; <synthesized>
+  return NoneType None
+}
+NoneType _Z30artiq.coredevice.ttl.TTLOut.onI27artiq.coredevice.ttl.TTLOutEzz(environment(...) %ARG.ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self) { ; type: (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType
+entry: ; predecessors: 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:52     [1;32mdef[0m on(self):
+  %ENV = environment($outer=environment, self=<instance artiq.coredevice.ttl.TTLOut>) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('self') %ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:53         [1;32m"""Set the output to a logic high state at the current position
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:53         of the time cursor.
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:53 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:53         The time cursor is not modified by this function."""[0m
+  builtin(nop)
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:57         [1;32mself.set_o[0m(True)
+  %"LOC.self.FLD.set_o" = method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) getattr('set_o') <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:57         [1;32mself.set_o(True)[0m
+  %"LOC.self.FLD.set_o.ENV" = (self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType getattr('__func__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %"LOC.self.FLD.set_o"
+  %"LOC.self.FLD.set_o.SLF" = <instance artiq.coredevice.ttl.TTLOut> getattr('__self__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %"LOC.self.FLD.set_o"
+  call (self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType %"LOC.self.FLD.set_o.ENV", <instance artiq.coredevice.ttl.TTLOut> %"LOC.self.FLD.set_o.SLF", bool True
+; <synthesized>
+  return NoneType None
+}
+NoneType _Z31artiq.coredevice.ttl.TTLOut.offI27artiq.coredevice.ttl.TTLOutEzz(environment(...) %ARG.ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self) { ; type: (self:<instance artiq.coredevice.ttl.TTLOut>)->NoneType
+entry: ; predecessors: 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:60     [1;32mdef[0m off(self):
+  %ENV = environment($outer=environment, self=<instance artiq.coredevice.ttl.TTLOut>) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('self') %ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:61         [1;32m"""Set the output to a logic low state at the current position
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:61         of the time cursor.
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:61 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:61         The time cursor is not modified by this function."""[0m
+  builtin(nop)
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:65         [1;32mself.set_o[0m(False)
+  %"LOC.self.FLD.set_o" = method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) getattr('set_o') <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:65         [1;32mself.set_o(False)[0m
+  %"LOC.self.FLD.set_o.ENV" = (self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType getattr('__func__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %"LOC.self.FLD.set_o"
+  %"LOC.self.FLD.set_o.SLF" = <instance artiq.coredevice.ttl.TTLOut> getattr('__self__') method(fn=(self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType, self=<instance artiq.coredevice.ttl.TTLOut>) %"LOC.self.FLD.set_o"
+  call (self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType %"LOC.self.FLD.set_o.ENV", <instance artiq.coredevice.ttl.TTLOut> %"LOC.self.FLD.set_o.SLF", bool False
+; <synthesized>
+  return NoneType None
+}
+NoneType _Z33artiq.coredevice.ttl.TTLOut.set_oI27artiq.coredevice.ttl.TTLOutEzz(environment(...) %ARG.ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self, bool %ARG.o) { ; type: (self:<instance artiq.coredevice.ttl.TTLOut>, o:bool)->NoneType
+entry: ; predecessors: 
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:49         rtio_output([1;32mself.target_o[0m, 1 if o else 0)
+  %"LOC.self.FLD.target_o" = numpy.int32 getattr('target_o') <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:48     [1;32mdef[0m set_o(self, o):
+  %ENV = environment($outer=environment, o=bool, self=<instance artiq.coredevice.ttl.TTLOut>) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('self') %ENV, <instance artiq.coredevice.ttl.TTLOut> %ARG.self
+  setlocal('o') %ENV, bool %ARG.o
+; <synthesized>:1 [1;32m`<function rtio_output at 0x7f5e8b41f490>`[0m
+  %UNN.4 = [ffi 'rtio_output'](target:numpy.int32, data:numpy.int32)->NoneType quote(<function rtio_output at 0x7f5e8b41f490>)
+; <synthesized>
+  branchif bool %ARG.o, label %ifexp.body, label %ifexp.else
+ifexp.else: ; predecessors: entry
+  branch label %ifexp.tail
+ifexp.body: ; predecessors: entry
+  branch label %ifexp.tail
+ifexp.tail: ; predecessors: ifexp.body, ifexp.else
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:49         rtio_output(self.target_o, [1;32m1 if o else 0[0m)
+  %UNN.8 = numpy.int32 phi [%ifexp.body => numpy.int32 1, %ifexp.else => numpy.int32 0]
+; /home/spaqin/m-labs/artiq/artiq/coredevice/ttl.py:49         [1;32mrtio_output(self.target_o, 1 if o else 0)[0m
+  call [ffi 'rtio_output'](target:numpy.int32, data:numpy.int32)->NoneType %UNN.4, numpy.int32 %"LOC.self.FLD.target_o", numpy.int32 %UNN.8
+; <synthesized>
+  return NoneType None
+>>>>>>> 76594e85a (don't waste time and bandwidth with returning Nones)
+}

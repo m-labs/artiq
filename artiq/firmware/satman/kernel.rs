@@ -150,7 +150,7 @@ macro_rules! get_slice_fn {
             if self.data.len() == 0 {
                 return SliceMeta { len: 0, last: true };
             }
-            let len = min($size, self.data.len() - $size);
+            let len = min($size, self.data.len() - self.it);
             let last = self.it + len == self.data.len();
     
             data_slice[..len].clone_from_slice(&self.data[self.it..self.it+len]);
@@ -414,8 +414,12 @@ impl Manager {
 
         match process_kern_message(&mut self.session, rank) {
             Ok(Some(with_exception)) => Some(SubkernelFinished { id: self.current_id, with_exception: with_exception }),
-            Ok(None) => None,
-            Err(e) => { error!("Error while running kernel: {:?}", e); self.stop(); None }
+            Ok(None) | Err(Error::NoMessage) => None,
+            Err(e) => { 
+                error!("Error while running kernel: {:?}", e); 
+                self.stop(); 
+                Some(SubkernelFinished { id: self.current_id, with_exception: false })
+            }
         }
     }
 }

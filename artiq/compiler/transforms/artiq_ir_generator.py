@@ -2544,7 +2544,10 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 fn = types.get_method_function(fn)
             sid = ir.Constant(fn.sid, builtins.TInt32())
             self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
-            return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+            if not builtins.is_none(fn.ret):
+                return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+            else:
+                return ir.Constant(None, builtins.TNone())
 
         elif types.is_exn_constructor(typ):
             return self.alloc_exn(node.type, *[self.visit(arg_node) for arg_node in node.args])

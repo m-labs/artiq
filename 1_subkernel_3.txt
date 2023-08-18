@@ -1,0 +1,26 @@
+NoneType __modinit__() { ; type: ()->NoneType delay('a)
+entry: ; predecessors: 
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_args at 0x7f5e62752b90>`[0m()
+  %UNN.2 = (a:numpy.int32, b:numpy.int32)->numpy.int32 quote(<function DMAPulses.simple_args at 0x7f5e62752b90>)
+; <synthesized>:1 [1;32m`<function DMAPulses.simple_args at 0x7f5e62752b90>`()[0m
+  builtin(subkernel_await_args)
+  %ARG.a = numpy.int32 getargfromremote('a')
+  %ARG.b = numpy.int32 getargfromremote('b')
+  %UNN.3 = numpy.int32 call (a:numpy.int32, b:numpy.int32)->numpy.int32 %UNN.2, numpy.int32 %ARG.a, numpy.int32 %ARG.b
+; <synthesized>
+  return NoneType None
+}
+numpy.int32 _Z46artiq_run_test_subkernel.DMAPulses.simple_argszz(environment(...) %ARG.ENV, numpy.int32 %ARG.a, numpy.int32 %ARG.b) { ; type: (a:numpy.int32, b:numpy.int32)->numpy.int32
+entry: ; predecessors: 
+; test_subkernel.py:20     [1;32mdef[0m simple_args(a: TInt32, b: TInt32) -> TInt32:
+  %ENV = environment($outer=environment, a=numpy.int32, b=numpy.int32, c=numpy.int32) alloc
+  setlocal('$outer') %ENV, environment(...) %ARG.ENV
+  setlocal('a') %ENV, numpy.int32 %ARG.a
+  setlocal('b') %ENV, numpy.int32 %ARG.b
+; test_subkernel.py:21         c = [1;32ma + b[0m
+  %UNN.4 = numpy.int32 arith(Add) numpy.int32 %ARG.a, numpy.int32 %ARG.b
+; test_subkernel.py:21         [1;32mc[0m = a + b
+  setlocal('c') %ENV, numpy.int32 %UNN.4
+; test_subkernel.py:22         [1;32mreturn[0m c
+  return numpy.int32 %UNN.4
+}

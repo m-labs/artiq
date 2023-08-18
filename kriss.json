@@ -1,0 +1,50 @@
+ {
+    "target": "kasli",
+    "min_artiq_version": "6.0",
+    "variant": "kriss",
+    "hw_rev": "v2.0",
+    "base": "standalone",
+    "core_addr": "192.168.1.75",
+    "peripherals": [
+        {
+            "type": "dio",
+            "ports": [1],
+            "board": "DIO_MCX",
+            "bank_direction_low": "input",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "ports": [2],
+            "board": "DIO_MCX",
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [3],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "zotino",
+            "ports": [4]
+        },
+        {
+            "type": "sampler",
+            "hw_rev": "v2.3",
+            "ports": [5, 6]
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "ports": [7, 10],
+            "clk_sel": 2
+        },
+        {
+            "type": "fastino",
+            "ports": [8]
+        }
+   ]
+}

@@ -1,0 +1,61 @@
+{
+    "target": "kasli",
+    "min_artiq_version": "7.0",
+    "variant": "ustc9master",
+    "hw_rev": "v2.0",
+    "base": "master",
+    "core_addr": "192.168.1.75",
+    "peripherals": [
+        {
+            "type": "grabber",
+            "ports": [0, 1]
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [3],
+            "bank_direction_low": "input",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [4],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [5],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "dio",
+            "board": "DIO_SMA",
+            "ports": [6],
+            "bank_direction_low": "output",
+            "bank_direction_high": "output"
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "ports": [7, 8],
+            "refclk": 1000e6,
+            "clk_sel": 2
+        },
+        {
+            "type": "urukul",
+            "dds": "ad9910",
+            "ports": [9, 10],
+            "refclk": 1000e6,
+            "clk_sel": 2
+        },
+        {
+            "type": "zotino",
+            "ports": [11]
+        }
+
+    ]
+}
