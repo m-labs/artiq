@@ -165,6 +165,15 @@ pub mod subkernel {
         Ok(())
     }
 
+    pub fn clear_subkernels(io: &Io, subkernel_mutex: &Mutex) {
+        let _lock = subkernel_mutex.lock(io).unwrap();
+        unsafe {
+            SUBKERNELS = BTreeMap::new();
+            MESSAGE_QUEUE = Vec::new();
+            CURRENT_MESSAGES = BTreeMap::new();
+        }
+    }
+
     pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool) {
         // called upon receiving DRTIO SubkernelRunDone
         let _lock = subkernel_mutex.lock(io).unwrap();

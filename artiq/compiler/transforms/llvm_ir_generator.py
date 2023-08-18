@@ -1621,27 +1621,28 @@ class LLVMIRGenerator:
         lltagptr = self.llbuilder.alloca(lltag.type)
         self.llbuilder.store(lltag, lltagptr)
 
-        llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
-                                       name="subkernel.args")
-        for index, arg in enumerate(args):
-            if builtins.is_none(arg.type):
-                llargslot = self.llbuilder.alloca(llunit,
-                                                  name="subkernel.arg{}".format(index))
-            else:
-                llarg = self.map(arg)
-                llargslot = self.llbuilder.alloca(llarg.type,
-                                                  name="subkernel.arg{}".format(index))
-                self.llbuilder.store(llarg, llargslot)
-            llargslot = self.llbuilder.bitcast(llargslot, llptr)
+        if args:
+            # only send args if there's anything to send, 'self' is excluded
+            llargs = self.llbuilder.alloca(llptr, ll.Constant(lli32, len(args)),
+                                        name="subkernel.args")
+            for index, arg in enumerate(args):
+                if builtins.is_none(arg.type):
+                    llargslot = self.llbuilder.alloca(llunit,
+                                                    name="subkernel.arg{}".format(index))
+                else:
+                    llarg = self.map(arg)
+                    llargslot = self.llbuilder.alloca(llarg.type,
+                                                    name="subkernel.arg{}".format(index))
+                    self.llbuilder.store(llarg, llargslot)
+                llargslot = self.llbuilder.bitcast(llargslot, llptr)
 
-            llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
-            self.llbuilder.store(llargslot, llargptr)
+                llargptr = self.llbuilder.gep(llargs, [ll.Constant(lli32, index)])
+                self.llbuilder.store(llargslot, llargptr)
 
-        self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
-                            [llsid, lltagptr, llargs])
-        self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
+            self.llbuilder.call(self.llbuiltin("subkernel_send_message"),
+                                [llsid, lltagptr, llargs])
+            self.llbuilder.call(self.llbuiltin("llvm.stackrestore"), [llstackptr])
 
-        # return handle - subkernelid - for awaiting the subkernel
         return llsid
 
     def _build_subkernel_return(self, insn):
@@ -1663,6 +1664,7 @@ class LLVMIRGenerator:
                 fun_loc, notes=[note])
             self.engine.process(diag)
         tag = ir.rpc_tag(insn.value().type, ret_error_handler)
+        tag += b":"
         lltag = self.llconst_of_const(ir.Constant(tag, builtins.TStr()))
         lltagptr = self.llbuilder.alloca(lltag.type)
         self.llbuilder.store(lltag, lltagptr)
