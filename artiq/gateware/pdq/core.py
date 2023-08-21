@@ -168,41 +168,6 @@ class Config(Module):
         self.sync.rio += If(self.i.stb, self.clr.eq(self.i.data))
 
 
-# TODO: REMOVE
-class ShuttlerMonitor(Module):
-    def __init__(self, dacs):
-        # Logger interface:
-        # Select channel by address
-        # Create input event by pulsing OInterface stb
-        adr_width = bits_for(len(dacs))
-        self.rtlink = rtlink.Interface(
-            rtlink.OInterface(data_width=0, address_width=adr_width),
-            rtlink.IInterface(data_width=16),
-        )
-
-        addr_r = Signal(adr_width)
-        data = Array(dac.data for dac in dacs)
-
-        stb_r = [ Signal() for _ in range(48) ]
-        self.sync.rio += [
-            stb_r[0].eq(self.rtlink.o.stb),
-            If(self.rtlink.o.stb,
-                addr_r.eq(self.rtlink.o.address),
-            ),
-        ]
-
-        for i in range(47):
-            self.sync.rio += stb_r[i+1].eq(stb_r[i])
-        
-        i_stb = Signal()
-        self.comb += i_stb.eq(reduce(or_, stb_r))
-
-        self.comb += [
-            self.rtlink.i.stb.eq(i_stb),
-            self.rtlink.i.data.eq(data[addr_r]),
-        ]
-
-
 _Phy = namedtuple("Phy", "rtlink probes overrides")
 
 
@@ -260,7 +225,3 @@ class Pdq(Module):
             dacs.append(dac)
 
         self.submodules += dacs
-
-        # TODO: REMOVE
-        self.submodules.logger = ShuttlerMonitor(dacs)
-        self.phys.append(_Phy(self.logger.rtlink, [], []))

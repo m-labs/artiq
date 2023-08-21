@@ -89,22 +89,3 @@ class Trigger:
     @kernel
     def trigger(self, trig_out):
         rtio_output(self.target_o, trig_out)
-
-
-# TODO: Remove
-class ShuttlerMonitor:
-    kernel_invariants = {"core", "channel", "target_o"}
-
-    def __init__(self, dmgr, channel, core_device="core"):
-        self.core = dmgr.get(core_device)
-        self.channel = channel
-        self.target_o = channel << 8
-
-    @kernel
-    def sample(self, ch):
-        # The monitor has no output bits, use 0 as a dummy
-        rtio_output(self.target_o | ch, 0)
-
-    @kernel
-    def sample_get(self):
-        return rtio_input_data(self.channel)
