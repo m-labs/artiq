@@ -5,7 +5,7 @@ import argparse
 from migen import *
 from migen.build.generic_platform import *
 
-from misoc.cores import gpio
+from misoc.cores import gpio, spi2
 from misoc.targets.efc import BaseSoC
 from misoc.integration.builder import builder_args, builder_argdict
 
@@ -101,6 +101,24 @@ class Satellite(BaseSoC, AMPSoC):
 
         self.config["DRTIO_ROLE"] = "satellite"
         self.config["RTIO_FREQUENCY"] = "125.0"
+
+        shuttler_io = [            
+            ('dac_spi', 0,
+                Subsignal('clk', Pins('fmc0:HB16_N')),
+                Subsignal('mosi', Pins('fmc0:HB06_CC_N')),
+                Subsignal('cs_n', Pins('fmc0:LA31_N fmc0:LA31_P fmc0:HB19_P fmc0:LA30_P')),
+                IOStandard("LVCMOS18")),
+            ('dac_rst', 0, Pins('fmc0:HB16_P'), IOStandard("LVCMOS18")),
+        ]
+
+        platform.add_extension(shuttler_io)
+
+        self.submodules.converter_spi = spi2.SPIMaster(spi2.SPIInterface(self.platform.request("dac_spi", 0)))
+        self.csr_devices.append("converter_spi")
+        self.config["HAS_CONVERTER_SPI"] = None
+
+        dac_rst = self.platform.request('dac_rst')
+        self.comb += dac_rst.eq(0)
 
         self.rtio_channels = []
 
