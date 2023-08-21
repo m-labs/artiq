@@ -1323,6 +1323,25 @@ class Inferencer(algorithm.Visitor):
                         diagnose(valid_forms())
             else:
                 diagnose(valid_forms())
+        elif types.is_builtin(typ, "subkernel_preload"):
+            valid_forms = lambda: [
+                valid_form("subkernel_preload(f: subkernel) -> None")
+            ]
+            if len(node.args) == 1:
+                arg0 = node.args[0].type
+                if types.is_var(arg0):
+                    pass  # undetermined yet
+                else:
+                    if types.is_method(arg0):
+                        fn = types.get_method_function(arg0)
+                    elif types.is_function(arg0):
+                        fn = arg0
+                    else:
+                        diagnose(valid_forms())
+                    self._unify(node.type, fn.ret,
+                                node.loc, None)
+            else:
+                diagnose(valid_forms())
         else:
             assert False
 

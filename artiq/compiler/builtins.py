@@ -247,6 +247,9 @@ def fn_rtio_log():
 def fn_subkernel_await():
     return types.TBuiltinFunction("subkernel_await")
 
+def fn_subkernel_preload():
+    return types.TBuiltinFunction("subkernel_preload")
+
 # Accessors
 
 def is_none(typ):

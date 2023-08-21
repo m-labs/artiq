@@ -1359,6 +1359,8 @@ class LLVMIRGenerator:
                 return llstore_lo
             else:
                 return self.llbuilder.call(self.llbuiltin("delay_mu"), [llinterval])
+        elif insn.op == "end_catch":
+            return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         elif insn.op == "subkernel_await_args":
             return self.llbuilder.call(self.llbuiltin("subkernel_await_args"), [],
                                        name="subkernel.await.args")
@@ -1373,11 +1375,12 @@ class LLVMIRGenerator:
             self.llbuilder.call(self.llbuiltin("subkernel_await_message"), [llsid, lltimeout],
                                 name="subkernel.await.message")
             llstackptr = self.llbuilder.call(self.llbuiltin("llvm.stacksave"), [],
-                            name="rpc.stack")
+                                             name="subkernel.arg.stack")
             return self._build_rpc_recv(insn.type, llstackptr)
-
-        elif insn.op == "end_catch":
-            return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
+        elif insn.op == "subkernel_preload":
+            llsid = self.map(insn.operands[0])
+            return self.llbuilder.call(self.llbuiltin("subkernel_load_run"), [llsid, ll.Constant(lli1, 0)], 
+                                name="subkernel.preload")
         else:
             assert False
 

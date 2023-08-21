@@ -57,5 +57,6 @@ def globals():
         "core_log":             builtins.fn_print(),
 
         # ARTIQ subkernel utility functions
-        "subkernel_await":     builtins.fn_subkernel_await()
+        "subkernel_await":     builtins.fn_subkernel_await(),
+        "subkernel_preload":   builtins.fn_subkernel_preload(),
     }
