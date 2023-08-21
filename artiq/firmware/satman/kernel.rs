@@ -66,6 +66,7 @@ pub enum Error {
     InvalidPointer(usize),
     Unexpected(String),
     NoMessage,
+    AwaitingMessage,
     SubkernelIoError
 }
 
@@ -102,7 +103,8 @@ enum OutMessageState {
     NoMessage,
     MessageReady,
     MessageBeingSent,
-    MessageSent
+    MessageSent,
+    MessageAcknowledged
 }
 
 /* for dealing with incoming and outgoing interkernel messages */
@@ -110,7 +112,7 @@ struct MessageManager {
     out_message: Option<Sliceable>,
     out_state: OutMessageState,
     in_queue: VecDeque<Message>,
-    in_buffer: Option<Message>
+    in_buffer: Option<Message>,
 }
 
 // Per-run state
@@ -214,9 +216,9 @@ impl MessageManager {
         }
     }
 
-    pub fn was_message_sent(&mut self) -> bool {
+    pub fn was_message_acknowledged(&mut self) -> bool {
         match self.out_state {
-            OutMessageState::MessageSent => {
+            OutMessageState::MessageAcknowledged => {
                 self.out_state = OutMessageState::NoMessage;
                 true
             },
@@ -236,6 +238,21 @@ impl MessageManager {
             self.out_state = OutMessageState::MessageSent;
         }
         Some(meta)
+    }
+
+    pub fn ack_slice(&mut self) -> bool {
+        // returns whether or not there's more to be sent
+        match self.out_state {
+            OutMessageState::MessageBeingSent => true,
+            OutMessageState::MessageSent => {
+                self.out_state = OutMessageState::MessageAcknowledged;
+                false
+            },
+            _ => { 
+                warn!("received unsolicited SubkernelMessageAck"); 
+                false 
+            }
+        }
     }
 
     pub fn accept_outgoing(&mut self, tag: &[u8], data: *const *const ()) -> Result<(), Error>  {
@@ -335,6 +352,7 @@ impl Manager {
     }
 
     pub fn run(&mut self, id: u32) -> Result<(), Error> {
+        debug!("running subkernel #{}", id);
         if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
@@ -356,6 +374,14 @@ impl Manager {
             return None;
         }
         self.session.messages.get_outgoing_slice(slice)
+    }
+
+    pub fn message_ack_slice(&mut self) -> bool {
+        if !self.is_running() {
+            warn!("received unsolicited SubkernelMessageAck");
+            return false;
+        }
+        self.session.messages.ack_slice()
     }
 
     pub fn message_is_ready(&mut self) -> bool {
@@ -409,6 +435,7 @@ impl Manager {
 
         match process_external_messages(&mut self.session) {
             Ok(()) => (),
+            Err(Error::AwaitingMessage) => return None, // kernel still waiting, do not process kernel messages
             Err(e) => { error!("Error while running processing external messages: {:?}", e); self.stop(); return None }
         }
 
@@ -477,13 +504,8 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
-fn pass_message_to_kernel(session: &mut Session) -> Result<(), Error> {
-    let message = session.messages.get_incoming();
-    if message.is_none() {
-        return Err(Error::NoMessage);
-    }
-    let message = message.unwrap();
-    let mut reader = Cursor::new(message.data);
+fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
+    let mut reader = Cursor::new(&message.data);
     let mut tag: [u8; 1] = [message.tag];
     loop {
         let slot = kern_recv(|reply| {
@@ -512,43 +534,44 @@ fn pass_message_to_kernel(session: &mut Session) -> Result<(), Error> {
             Err(_) => unexpected!("expected valid subkernel message data")
         };
         match reader.read_u8() {
-            Ok(t) => { tag[0] = t; }, // update the tag for next read
-            Err(_) => return Ok(()) // reached the end of data, we're done
+            Ok(0) | Err(_) => break, // reached the end of data, we're done
+            Ok(t) => { tag[0] = t; } // update the tag for next read
         }
     }
+    Ok(())
 }
 
 fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     match session.kernel_state {
         KernelState::MsgAwait { max_time } => {
             if max_time > clock::get_ms() {
-                kern_send(&kern::SubkernelMsgRecvReply { timeout: true })
+                kern_send(&kern::SubkernelMsgRecvReply { timeout: true })?;
+                session.kernel_state = KernelState::Running;
+                return Ok(())
+            }
+            if let Some(message) = session.messages.get_incoming() {
+                kern_send(&kern::SubkernelMsgRecvReply { timeout: false })?;
+                session.kernel_state = KernelState::Running;
+                pass_message_to_kernel(&message)
             } else {
-                match pass_message_to_kernel(session) {
-                    Ok(()) => { 
-                        session.kernel_state = KernelState::Running; 
-                        kern_send(&kern::SubkernelMsgRecvReply { timeout: false })
-                    },
-                    Err(Error::NoMessage) => Ok(()),
-                    Err(e) => Err(e)
-                }
+                Err(Error::AwaitingMessage)
             }
         },
         KernelState::ArgAwait => {
-            match pass_message_to_kernel(session) {
-                Ok(()) => { 
-                    session.kernel_state = KernelState::Running; 
-                    kern_acknowledge()
-                },
-                Err(Error::NoMessage) => Ok(()),
-                Err(e) => Err(e)
+            if let Some(message) = session.messages.get_incoming() {
+                kern_acknowledge()?;
+                session.kernel_state = KernelState::Running;
+                pass_message_to_kernel(&message)
+            } else {
+                Err(Error::AwaitingMessage)
             }
         }
         KernelState::MsgSending => {
-            if session.messages.was_message_sent() {
+            if session.messages.was_message_acknowledged() {
+                session.kernel_state = KernelState::Running;
                 kern_acknowledge()
             } else {
-                Ok(())
+                Err(Error::AwaitingMessage)
             }
         },
         _ => Ok(())

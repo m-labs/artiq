@@ -405,16 +405,18 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
         }
         drtioaux::Packet::SubkernelMessageAck { destination: _destination } => {
             forward!(_routing_table, _destination, *_rank, _repeaters, &packet);
-            let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
-            if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
-                drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
-                    destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
-                    last: meta.last, length: meta.len as u16, data: data_slice
-                })
-            } else {
-                warn!("received unsolicited SubkernelMessageAck");
-                Ok(())
+            if kernelmgr.message_ack_slice() {
+                let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
+                    drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
+                        destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
+                        last: meta.last, length: meta.len as u16, data: data_slice
+                    })?
+                } else {
+                    error!("Error receiving message slice");
+                }
             }
+            Ok(())
         }
 
         _ => {
