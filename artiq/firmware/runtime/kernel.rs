@@ -98,7 +98,7 @@ pub mod subkernel {
     use proto_artiq::{drtioaux_proto::MASTER_PAYLOAD_MAX_SIZE, rpc_proto as rpc};
     use io::Cursor;
     use rtio_mgt::drtio;
-    use sched::{Io, Mutex};
+    use sched::{Io, Mutex, Error as SchedError};
 
 
     #[derive(Debug, PartialEq, Clone)]
@@ -253,7 +253,7 @@ pub mod subkernel {
 
     pub fn await_finish(io: &Io, subkernel_mutex: &Mutex, id: Option<u32>, timeout: u64) -> Result<(), &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
-        io.until(|| {
+        let res = io.until(|| {
             if clock::get_ms() > max_time {
                 return true;
             }
@@ -283,7 +283,12 @@ pub mod subkernel {
                 }
                 true
             }
-        }).unwrap();
+        });
+        match res {
+            // interrupted means session was killed, no big deal
+            Ok(_) | Err(SchedError::Interrupted) => (),  
+            Err(_) => return Err("Error awaiting for subkernel")
+        }
         if clock::get_ms() > max_time {
             error!("Remote subkernel finish await timed out");
             return Err("Timed out waiting for subkernels.");
@@ -342,10 +347,12 @@ pub mod subkernel {
                 }
             }
             Err(())
-        }).unwrap();
+        });
         match message {
-            Some(message) => Ok((message.tag, message.data)),
-            None => Err("Timed out waiting for subkernel message.")
+            Ok(Some(message)) => Ok((message.tag, message.data)),
+            Ok(None) => Err("Timed out waiting for subkernel message."),
+            Err(SchedError::Interrupted) => Err("Session killed before message was received."),
+            Err(_) => Err("Error while waiting for a message.")
         }
     }
 
