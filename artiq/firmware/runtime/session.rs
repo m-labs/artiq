@@ -606,9 +606,9 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                             Err(_) => unexpected!("expected valid subkernel message data")
                         };
                         match reader.read_u8() {
-                            Ok(t) => { tag[0] = t }, // update the tag for next read
-                            Err(_) => break // reached the end of data, we're done
-                        }
+                            Ok(0) | Err(_) => break, // reached the end of data, we're done
+                            Ok(t) => { tag[0] = t } // update the tag for next read
+                        };
                     }
                     Ok(())
                 } else {

@@ -207,7 +207,7 @@ fn startup() {
         let up_destinations = up_destinations.clone();
         let ddma_mutex = ddma_mutex.clone();
         let subkernel_mutex = subkernel_mutex.clone();
-        io.spawn(16384, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex) });
+        io.spawn(32768, move |io| { session::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations, &ddma_mutex, &subkernel_mutex) });
     }
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
