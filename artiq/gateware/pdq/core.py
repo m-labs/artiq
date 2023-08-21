@@ -46,7 +46,7 @@ class Dac(Module):
             Dds(self.clear),
         ]
 
-        self.sync += [
+        self.sync.rio += [
             self.data.eq(reduce(add, [sub.data for sub in subs])),
         ]
 
@@ -77,20 +77,25 @@ class Volt(Module):
 
         v = [Signal(48) for i in range(4)] # amp, damp, ddamp, dddamp
 
-        self.sync += [
+        # Increase latency of stb by 17 cycles to compensate CORDIC latency
+        stb_r = [ Signal() for _ in range(17) ]
+        self.sync.rio += [
+            stb_r[0].eq(self.i.stb),
+        ]
+        for idx in range(16):
+            self.sync.rio += stb_r[idx+1].eq(stb_r[idx])
+
+        self.sync.rio += [
             v[0].eq(v[0] + v[1]),
             v[1].eq(v[1] + v[2]),
             v[2].eq(v[2] + v[3]),
-            If(self.i.stb,
+            If(stb_r[16],
                 v[0].eq(0),
                 v[1].eq(0),
-                Cat(v[0][32:], v[1][16:], v[2], v[3]).eq(self.i.data),
+                Cat(v[0][32:], v[1][16:], v[2], v[3]).eq(self.i.payload.raw_bits()),
             )
         ]
         self.comb += self.data.eq(v[0][32:])
-
-        # Compensate for Cordic & control registers
-        self.i.latency = 18
 
 
 class Dds(Module):
@@ -134,7 +139,8 @@ class Dds(Module):
             self.cordic.zi.eq(za[16:] + z[0][16:]),
             self.data.eq(self.cordic.xo),
         ]
-        self.sync += [
+
+        self.sync.rio += [
             za.eq(za + z[1]),
             x[0].eq(x[0] + x[1]),
             x[1].eq(x[1] + x[2]),
@@ -144,15 +150,12 @@ class Dds(Module):
                 x[0].eq(0),
                 x[1].eq(0),
                 Cat(x[0][32:], x[1][16:], x[2], x[3], z[0][16:], z[1], z[2]
-                    ).eq(self.i.data),
+                    ).eq(self.i.payload.raw_bits()),
                 If(clear,
                     za.eq(0),
                 )
             )
         ]
-
-        # Compensate for control registers
-        self.i.latency = 1
 
 
 class Config(Module):
@@ -162,31 +165,41 @@ class Config(Module):
 
         # This introduces 1 extra latency to everything in config
         # See the latency/delay attributes in Volt & DDS Endpoints/rtlinks
-        self.sync += If(self.i.stb, self.clr.eq(self.i.data))
+        self.sync.rio += If(self.i.stb, self.clr.eq(self.i.data))
 
 
 # TODO: REMOVE
 class ShuttlerMonitor(Module):
-    def __init__(self, dac):
+    def __init__(self, dacs):
         # Logger interface:
         # Select channel by address
         # Create input event by pulsing OInterface stb
+        adr_width = bits_for(len(dacs))
         self.rtlink = rtlink.Interface(
-            rtlink.OInterface(data_width=0),
+            rtlink.OInterface(data_width=0, address_width=adr_width),
             rtlink.IInterface(data_width=16),
         )
 
+        addr_r = Signal(adr_width)
+        data = Array(dac.data for dac in dacs)
+
         stb_r = [ Signal() for _ in range(48) ]
-        self.sync += stb_r[0].eq(self.rtlink.o.stb)
+        self.sync.rio += [
+            stb_r[0].eq(self.rtlink.o.stb),
+            If(self.rtlink.o.stb,
+                addr_r.eq(self.rtlink.o.address),
+            ),
+        ]
+
         for i in range(47):
-            self.sync += stb_r[i+1].eq(stb_r[i])
+            self.sync.rio += stb_r[i+1].eq(stb_r[i])
         
         i_stb = Signal()
         self.comb += i_stb.eq(reduce(or_, stb_r))
 
         self.comb += [
             self.rtlink.i.stb.eq(i_stb),
-            self.rtlink.i.data.eq(dac.data),
+            self.rtlink.i.data.eq(data[addr_r]),
         ]
 
 
@@ -205,6 +218,8 @@ class Pdq(Module):
         phys (list): List of Endpoints.
     """
     def __init__(self):
+        NUM_OF_DACS = 16
+
         self.phys = []
 
         self.submodules.cfg = Config()
@@ -218,23 +233,34 @@ class Pdq(Module):
         ]
         self.phys.append(_Phy(cfg_rtl_iface, [], []))
 
-        for idx in range(16):
+        trigger_iface = rtlink.Interface(rtlink.OInterface(
+            data_width=NUM_OF_DACS,
+            enable_replace=False))
+        self.phys.append(_Phy(trigger_iface, [], []))
+
+        dacs = []
+        for idx in range(NUM_OF_DACS):
             dac = Dac()
             self.comb += dac.clear.eq(self.cfg.clr[idx]),
 
             for i in dac.i:
-                rtl_iface = rtlink.Interface(
-                    rtlink.OInterface(len(i.payload), delay=i.latency))
+                rtl_iface = rtlink.Interface(rtlink.OInterface(
+                    data_width=16, address_width=4))
+                array = Array(i.data[wi: wi+16] for wi in range(0, len(i.data), 16))
 
-                self.comb += [
-                    i.stb.eq(rtl_iface.o.stb),
-                    i.payload.raw_bits().eq(rtl_iface.o.data),
+                self.sync += [
+                    i.stb.eq(trigger_iface.o.data[idx] & trigger_iface.o.stb),
+                    If(rtl_iface.o.stb,
+                        array[rtl_iface.o.address].eq(rtl_iface.o.data),
+                    ),
                 ]
 
                 self.phys.append(_Phy(rtl_iface, [], []))
 
-            setattr(self.submodules, "dac{}".format(idx), dac)
+            dacs.append(dac)
+
+        self.submodules += dacs
 
         # TODO: REMOVE
-        self.submodules.logger = ShuttlerMonitor(self.dac0)
+        self.submodules.logger = ShuttlerMonitor(dacs)
         self.phys.append(_Phy(self.logger.rtlink, [], []))
