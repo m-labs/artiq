@@ -546,7 +546,7 @@ class StitchingASTTypedRewriter(ASTTypedRewriter):
         node = asttyped.QuotedFunctionDefT(
             typing_env=extractor.typing_env, globals_in_scope=extractor.global_,
             signature_type=types.TVar(), return_type=types.TVar(),
-            name=node.name, args=node.args, returns=node.returns,
+            name=node.name, args=node.args, returns=None,
             body=node.body, decorator_list=node.decorator_list,
             keyword_loc=node.keyword_loc, name_loc=node.name_loc,
             arrow_loc=node.arrow_loc, colon_loc=node.colon_loc, at_locs=node.at_locs,
