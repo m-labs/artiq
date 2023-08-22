@@ -23,6 +23,7 @@ use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
+use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use kernel::Manager as KernelManager;
@@ -720,7 +721,7 @@ pub extern fn main() -> i32 {
                 }
             }
             if let Some(subkernel_finished) = kernel_manager.process_kern_requests(rank) {
-                info!("subkernel finished, with exception: {}", subkernel_finished.with_exception);
+                info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
                 if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
                     id: subkernel_finished.id, with_exception: subkernel_finished.with_exception
                 }) {

@@ -352,7 +352,7 @@ impl Manager {
     }
 
     pub fn run(&mut self, id: u32) -> Result<(), Error> {
-        debug!("running subkernel #{}", id);
+        info!("starting subkernel #{}", id);
         if self.session.kernel_state != KernelState::Loaded
             || self.current_id != id {
             self.load(id)?;
@@ -457,7 +457,7 @@ impl Drop for Manager {
     }
 }
 
-fn kern_recv_notrace<R, F>(f: F) -> Result<R, Error>
+fn kern_recv<R, F>(f: F) -> Result<R, Error>
         where F: FnOnce(&kern::Message) -> Result<R, Error> {
     if mailbox::receive() == 0 {
         return Err(Error::NoMessage);
@@ -468,37 +468,12 @@ fn kern_recv_notrace<R, F>(f: F) -> Result<R, Error>
     f(unsafe { &*(mailbox::receive() as *const kern::Message) })
 }
 
-fn kern_recv_dotrace(reply: &kern::Message) {
-    match reply {
-        &kern::Log(_) => debug!("comm<-kern Log(...)"),
-        &kern::LogSlice(_) => debug!("comm<-kern LogSlice(...)"),
-        &kern::DmaRecordAppend(_) => debug!("comm<-kern DmaRecordAppend(...) - ignored"),
-        _ => debug!("comm<-kern {:?}", reply),
-    }
-}
-
-#[inline(always)]
-fn kern_recv<R, F>(f: F) -> Result<R, Error>
-        where F: FnOnce(&kern::Message) -> Result<R, Error> {
-    kern_recv_notrace(|reply| {
-        kern_recv_dotrace(reply);
-        f(reply)
-    })
-}
-
 fn kern_acknowledge() -> Result<(), Error> {
     mailbox::acknowledge();
     Ok(())
 }
 
 fn kern_send(request: &kern::Message) -> Result<(), Error> {
-    match request {
-        &kern::LoadRequest(_) => debug!("comm->kern LoadRequest(...)"),
-        &kern::DmaRetrieveReply { .. } => {
-            debug!("this should not have been sent");
-        }
-        _ => debug!("comm->kern {:?}", request)
-    }
     unsafe { mailbox::send(request as *const _ as usize) }
     while !mailbox::acknowledged() {}
     Ok(())
@@ -581,7 +556,7 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
 fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>, Error> {
     // returns Ok(with_exception) on finish
     // None if the kernel is still running
-    kern_recv_notrace(|request| {
+    kern_recv(|request| {
         match (request, session.kernel_state) {
             (&kern::LoadReply(_), KernelState::Loaded) => {
                 // We're standing by; ignore the message.
@@ -593,8 +568,6 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                             request, session.kernel_state)
             },
         }
-
-        kern_recv_dotrace(request);
 
         if process_kern_hwreq(request, rank)? {
             return Ok(None)
@@ -639,7 +612,6 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                 session.kernel_state = KernelState::Absent;
                 unsafe { session.cache.unborrow() }
 
-                info!("kernel finished");
                 return Ok(Some(false))
             }
             &kern::RunException {
@@ -698,7 +670,6 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
 pub fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
     match request {
         &kern::RtioInitRequest => {
-            info!("resetting RTIO");
             unsafe {
                 csr::drtiosat::reset_write(1);
                 clock::spin_us(100);
