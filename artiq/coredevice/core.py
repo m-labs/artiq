@@ -53,14 +53,6 @@ def rtio_get_destination_status(linkno: TInt32) -> TBool:
 def rtio_get_counter() -> TInt64:
     raise NotImplementedError("syscall not simulated")
 
-@syscall
-def subkernel_load_run(sid: TInt32, run: TBool) -> TList(TInt32):
-    raise NotImplementedError("syscall not simulated")
-
-@syscall
-def subkernel_await_finish(wait_for_all: TBool, sid: TStr, timeout: TInt64) -> TNone:
-    raise NotImplementedError("syscall not simulated")
-
 
 def get_target_cls(target):
     if target == "rv32g":
@@ -109,7 +101,6 @@ class Core:
 
         self.subkernel_cache = {}
         self.compiled_subkernel_id = 10000
-        self.embedding_map = None
 
     def close(self):
         self.comm.close()
@@ -121,8 +112,7 @@ class Core:
             engine = _DiagnosticEngine(all_errors_are_fatal=True)
 
             stitcher = Stitcher(engine=engine, core=self, dmgr=self.dmgr,
-                                print_as_rpc=print_as_rpc, 
-                                embedding_map=self.embedding_map,
+                                print_as_rpc=print_as_rpc,
                                 destination=destination)
             stitcher.stitch_call(function, args, kwargs, set_result)
             stitcher.finalize()
@@ -135,23 +125,19 @@ class Core:
             library = target.compile_and_link([module])
             stripped_library = target.strip(library)
 
-            # embedding map state needs to be preserved between kernel/subkernel
-            # compilations, so we need to update that
-            self.embedding_map = stitcher.embedding_map
-
-            return stripped_library, \
+            return stitcher.embedding_map, stripped_library, \
                    lambda addresses: target.symbolize(library, addresses), \
                    lambda symbols: target.demangle(symbols)
         except diagnostic.Error as error:
             raise CompileError(error.diagnostic) from error
 
-    def _run_compiled(self, kernel_library, symbolizer, demangler):
+    def _run_compiled(self, kernel_library, embedding_map, symbolizer, demangler):
         if self.first_run:
             self.comm.check_system_info()
             self.first_run = False
         self.comm.load(kernel_library)
         self.comm.run()
-        self.comm.serve(self.embedding_map, symbolizer, demangler)
+        self.comm.serve(embedding_map, symbolizer, demangler)
 
     def run(self, function, args, kwargs):
         result = None
@@ -159,14 +145,14 @@ class Core:
         def set_result(new_result):
             nonlocal result
             result = new_result
-        kernel_library, symbolizer, demangler = \
+        embedding_map, kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result)
-        self.compile_subkernels(args)
-        self._run_compiled(kernel_library, symbolizer, demangler)
+        self.compile_subkernels(embedding_map, args)
+        self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
         return result
 
-    def compile_subkernels(self, args):
-        for sid, subkernel_fn in self.embedding_map.subkernels().items():
+    def compile_subkernels(self, embedding_map, args):
+        for sid, subkernel_fn in embedding_map.subkernels().items():
             if sid in self.subkernel_cache.keys():
                 # subkernel has been compiled and uploaded already
                 continue
@@ -180,26 +166,10 @@ class Core:
             destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
-            kernel_library, _, _ = \
+            _, kernel_library, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                              target=target, destination=destination)
             self.comm.upload_subkernel(kernel_library, sid, destination)
-
-    @kernel
-    def run_subkernel(self, handle):
-        """Runs a subkernel on remote device, given a handle.
-        """
-        subkernel_load_run(handle, True)
-
-    @kernel
-    def await_subkernel(self, handle=None, timeout=1000):
-        """Awaits finishing of execution of a subkernel.
-        Maximum timeout is taken in ms. 
-        """
-        if handle:
-            subkernel_await_finish(False, handle, timeout)
-        else:
-            subkernel_await_finsih(True, 0, timeout)
 
     def precompile(self, function, *args, **kwargs):
         """Precompile a kernel and return a callable that executes it on the core device
@@ -244,30 +214,6 @@ class Core:
             return result
 
         return run_precompiled
-
-    def prepare_subkernel(self, destination, function, *args, **kwargs):
-        """Similarly to `precompile` - this function compiles a kernel that should 
-        run on the specified satellite, uploads it onto remote device,
-        and returns a handle to the subkernel, callable with `run_subkernel`.
-
-        However, subkernels cannot use RPCs to communicate.
-        See the warnings in `precompile`.
-
-        :param destination: destination (satellite number) for the subkernel to run on.
-        """
-        if not hasattr(function, "artiq_embedded"):
-            raise ValueError("Argument is not a kernel")
-
-        sid = self.embedding_map.store_object(function)
-        destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
-        target = get_target_cls(destination_tgt)(subkernel_id=sid)
-        kernel_library, _, _ = \
-            self.compile(function, args, kwargs, attribute_writeback=False,
-                         target=target, destination=destination)
-        
-        self.comm.upload_subkernel(kernel_library, sid, destination)
-
-        return sid
 
     @portable
     def seconds_to_mu(self, seconds):

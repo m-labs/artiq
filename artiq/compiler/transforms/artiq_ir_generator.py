@@ -235,7 +235,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_class = old_class
 
-    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False, flags={}):
+    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False, 
+                       flags={}):
         if is_lambda:
             name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
             typ = node.type.find()
@@ -320,8 +321,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
                 default = codegen_default()
                 value = self.append(ir.Builtin("unwrap_or", [optargs[index], default],
-                                            typ.optargs[arg_name],
-                                            name="DEF.{}".format(arg_name)))
+                                               typ.optargs[arg_name],
+                                               name="DEF.{}".format(arg_name)))
                 self.append(ir.SetLocal(env, arg_name, value))
 
             result = self.visit(node.body)

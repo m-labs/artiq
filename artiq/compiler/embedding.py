@@ -793,7 +793,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, embedding_map=None, destination=0):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -815,7 +815,7 @@ class Stitcher:
 
         self.functions = {}
 
-        self.embedding_map = embedding_map or EmbeddingMap()
+        self.embedding_map = EmbeddingMap()
         self.value_map = defaultdict(lambda: [])
         self.definitely_changed = False
 

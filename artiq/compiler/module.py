@@ -28,7 +28,6 @@ class Source:
         self.parsetree, self.comments = parse_buffer(source_buffer, engine=engine)
         self.typedtree = asttyped_rewriter.visit(self.parsetree)
         self.globals = asttyped_rewriter.globals
-        self.destination = 0
         inferencer.visit(self.typedtree)
 
     @classmethod
@@ -47,7 +46,6 @@ class Module:
         self.embedding_map = src.embedding_map
         self.name = src.name
         self.globals = src.globals
-        self.is_subkernel = src.destination != 0
 
         int_monomorphizer = transforms.IntMonomorphizer(engine=self.engine)
         cast_monomorphizer = transforms.CastMonomorphizer(engine=self.engine)
