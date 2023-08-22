@@ -17,6 +17,7 @@ use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+#[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
