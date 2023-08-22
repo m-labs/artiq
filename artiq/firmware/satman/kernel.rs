@@ -1,9 +1,11 @@
 use core::{mem, option::NoneError, cmp::min};
 use alloc::{string::String, format, vec::Vec, collections::{btree_map::BTreeMap, vec_deque::VecDeque}};
+use cslice::AsCSlice;
 
 use board_artiq::{mailbox, spi};
 use board_misoc::{csr, clock, i2c};
 use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException, rpc_proto as rpc};
+use eh::eh_artiq;
 use io::{Cursor, ProtoRead};
 
 use cache::Cache;
@@ -428,6 +430,30 @@ impl Manager {
         }
     }
 
+    fn runtime_exception(&mut self, cause: Error) {
+        let raw_exception: Vec<u8> = Vec::new();
+        let mut writer = Cursor::new(raw_exception);
+        match (HostKernelException {
+            exceptions: &[Some(eh_artiq::Exception {
+                id:       11,  // SubkernelError, defined in ksupport
+                message:  format!("{:?}", cause).as_c_slice(),
+                param:    [0, 0, 0],
+                file:     file!().as_c_slice(),
+                line:     line!(),
+                column:   column!(),
+                function: format!("in subkernel id {}", self.current_id).as_c_slice(),
+            })],
+            stack_pointers: &[],
+            backtrace: &[],
+            async_errors: 0
+        }).write_to(&mut writer) {
+            
+            Ok(_) => self.session.last_exception = Some(Sliceable::new(writer.into_inner())),
+            Err(_) => error!("Error writing exception data")
+        }
+    }
+    
+
     pub fn process_kern_requests(&mut self, rank: u8) -> Option<SubkernelFinished> {
         if !self.is_running() {
             return None;
@@ -436,7 +462,12 @@ impl Manager {
         match process_external_messages(&mut self.session) {
             Ok(()) => (),
             Err(Error::AwaitingMessage) => return None, // kernel still waiting, do not process kernel messages
-            Err(e) => { error!("Error while running processing external messages: {:?}", e); self.stop(); return None }
+            Err(e) => { 
+                error!("Error while running processing external messages: {:?}", e);
+                self.stop();
+                self.runtime_exception(e);
+                return Some(SubkernelFinished { id: self.current_id, with_exception: true })
+             }
         }
 
         match process_kern_message(&mut self.session, rank) {
@@ -445,7 +476,8 @@ impl Manager {
             Err(e) => { 
                 error!("Error while running kernel: {:?}", e); 
                 self.stop(); 
-                Some(SubkernelFinished { id: self.current_id, with_exception: false })
+                self.runtime_exception(e);
+                Some(SubkernelFinished { id: self.current_id, with_exception: true })
             }
         }
     }

@@ -11,6 +11,7 @@ extern crate alloc;
 extern crate proto_artiq;
 extern crate cslice;
 extern crate io;
+extern crate eh;
 
 use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
