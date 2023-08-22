@@ -1305,7 +1305,7 @@ class Inferencer(algorithm.Visitor):
                 else:
                     if types.is_method(arg0):
                         fn = types.get_method_function(arg0)
-                    elif types.is_function(arg0):
+                    elif types.is_function(arg0) or types.is_subkernel(arg0):
                         fn = arg0
                     else:
                         diagnose(valid_forms())
@@ -1334,7 +1334,7 @@ class Inferencer(algorithm.Visitor):
                 else:
                     if types.is_method(arg0):
                         fn = types.get_method_function(arg0)
-                    elif types.is_function(arg0):
+                    elif types.is_function(arg0) or types.is_subkernel(arg0):
                         fn = arg0
                     else:
                         diagnose(valid_forms())
