@@ -941,7 +941,7 @@ class Stitcher:
                     call_loc)]
             elif fn_kind == 'subkernel':
                 return [diagnostic.Diagnostic("note",
-                    "in subkernel function here", {},
+                    "in subkernel call here", {},
                     call_loc)]
             else:
                 assert False
