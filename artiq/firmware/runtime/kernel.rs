@@ -101,7 +101,7 @@ pub mod subkernel {
     use sched::{Io, Mutex, Error as SchedError};
 
 
-    #[derive(Debug, PartialEq, Clone)]
+    #[derive(Debug, PartialEq, Clone, Copy)]
     pub enum SubkernelState {
         NotLoaded,
         Uploaded,
@@ -253,6 +253,7 @@ pub mod subkernel {
 
     pub fn await_finish(io: &Io, subkernel_mutex: &Mutex, id: Option<u32>, timeout: u64) -> Result<(), &'static str> {
         let max_time = clock::get_ms() + timeout as u64;
+        let mut state: SubkernelState = SubkernelState::Running;
         let res = io.until(|| {
             if clock::get_ms() > max_time {
                 return true;
@@ -266,10 +267,10 @@ pub mod subkernel {
                 // kernel can wait for all subkernels to finish (None)
                 // or a particular one (Some(id))
                 let subkernel = unsafe { SUBKERNELS.get(&id).unwrap() };
-                match subkernel.state {
-                    // a kernel that finished with an exception or comm lost
-                    // still needs handling, so it doesn't count as truly finished
-                    SubkernelState::Finished => true,
+                state = subkernel.state;
+                // abnormal finish means the subkernel will not finish on time either
+                match state {
+                    SubkernelState::Finished | SubkernelState::FinishedAbnormally { .. } => true,
                     _ => false
                 }
             } else {
@@ -293,8 +294,18 @@ pub mod subkernel {
             error!("Remote subkernel finish await timed out");
             return Err("Timed out waiting for subkernels.");
         }
-        // finished state will be dealt with by session
-        Ok(())
+        if id.is_none() {
+            Ok(())
+        } else { 
+            match state {
+                SubkernelState::FinishedAbnormally { .. } => {
+                    error!("Remote subkernel finished abnormally");
+                    Err("Finished abnormally")
+                },
+                SubkernelState::Finished => Ok(()),
+                _ => Err("Incorrect state")
+            }
+        }
     }
 
     struct Message {
