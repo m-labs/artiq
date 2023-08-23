@@ -7,6 +7,7 @@ use board_misoc::{csr, clock, i2c};
 use proto_artiq::{kernel_proto as kern, session_proto::Reply::KernelException as HostKernelException, rpc_proto as rpc};
 use eh::eh_artiq;
 use io::{Cursor, ProtoRead};
+use kernel::eh_artiq::StackPointerBacktrace;
 
 use cache::Cache;
 use SAT_PAYLOAD_MAX_SIZE;
@@ -436,12 +437,12 @@ impl Manager {
         match (HostKernelException {
             exceptions: &[Some(eh_artiq::Exception {
                 id:       11,  // SubkernelError, defined in ksupport
-                message:  format!("{:?}", cause).as_c_slice(),
+                message:  format!("in subkernel id {}: {:?}", self.current_id, cause).as_c_slice(),
                 param:    [0, 0, 0],
                 file:     file!().as_c_slice(),
                 line:     line!(),
                 column:   column!(),
-                function: format!("in subkernel id {}", self.current_id).as_c_slice(),
+                function: format!("subkernel id {}", self.current_id).as_c_slice(),
             })],
             stack_pointers: &[StackPointerBacktrace {
                 stack_pointer: 0,
@@ -451,7 +452,6 @@ impl Manager {
             backtrace: &[],
             async_errors: 0
         }).write_to(&mut writer) {
-            
             Ok(_) => self.session.last_exception = Some(Sliceable::new(writer.into_inner())),
             Err(_) => error!("Error writing exception data")
         }
@@ -504,6 +504,22 @@ fn kern_recv<R, F>(f: F) -> Result<R, Error>
     f(unsafe { &*(mailbox::receive() as *const kern::Message) })
 }
 
+fn kern_recv_w_timeout<R, F>(timeout: u64, f: F) -> Result<R, Error>
+        where F: FnOnce(&kern::Message) -> Result<R, Error> + Copy {
+    // sometimes kernel may be too slow to respond immediately
+    // (e.g. when receiving external messages)
+    // we cannot wait indefinitely to keep the satellite responsive
+    // so a timeout is used instead
+    let max_time = clock::get_ms() + timeout;
+    while clock::get_ms() < max_time {
+        match kern_recv(f) {
+            Err(Error::NoMessage) => continue,
+            anything_else => return anything_else
+        }
+    }
+    Err(Error::NoMessage)
+}
+
 fn kern_acknowledge() -> Result<(), Error> {
     mailbox::acknowledge();
     Ok(())
@@ -519,7 +535,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
     let mut reader = Cursor::new(&message.data);
     let mut tag: [u8; 1] = [message.tag];
     loop {
-        let slot = kern_recv(|reply| {
+        let slot = kern_recv_w_timeout(100, |reply| {
             match reply {
                 &kern::RpcRecvRequest(slot) => Ok(slot),
                 other => unexpected!(
@@ -532,7 +548,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
                 return Ok(0 as *mut ())
             }
             kern_send(&kern::RpcRecvReply(Ok(size)))?;
-            Ok(kern_recv(|reply| {
+            Ok(kern_recv_w_timeout(100, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(slot) => Ok(slot),
                     other => unexpected!(
