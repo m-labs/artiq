@@ -259,14 +259,14 @@ pub fn init() {
             unsafe {
                 // clock switch and reboot will begin after TX is initialized
                 // and TX will be initialized after this
-                csr::drtio_transceiver::stable_clkin_write(1);
+                csr::gt_drtio::stable_clkin_write(1);
             }
             loop {}
         }
         else {
             // enable TX after the reboot, with stable clock
             unsafe {
-                csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+                csr::gt_drtio::txenable_write(0xffffffffu32 as _);
             }
         }
     }

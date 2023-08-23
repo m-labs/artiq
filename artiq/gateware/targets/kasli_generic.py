@@ -108,7 +108,7 @@ class GenericMaster(MasterBase):
             self.add_csr_group("grabber", self.grabber_csr_group)
             for grabber in self.grabber_csr_group:
                 self.platform.add_false_path_constraints(
-                    self.drtio_transceiver.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
+                    self.gt_drtio.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
 class GenericSatellite(SatelliteBase):
@@ -142,7 +142,7 @@ class GenericSatellite(SatelliteBase):
             self.add_csr_group("grabber", self.grabber_csr_group)
             for grabber in self.grabber_csr_group:
                 self.platform.add_false_path_constraints(
-                    self.drtio_transceiver.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
+                    self.gt_drtio.gtps[0].txoutclk, getattr(self, grabber).deserializer.cd_cl.clk)
 
 
 def main():

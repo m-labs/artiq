@@ -30,7 +30,7 @@ class _EEM:
         target.platform.add_extension(cls.io(eem, *args, **kwargs))
         if is_drtio_over_eem:
             print("{} (EEM{}) starting at DRTIO channel 0x{:06x}"
-                .format(name, eem, (len(target.drtio_transceiver.channels) + len(target.eem_drtio_channels) + 1) << 16))
+                .format(name, eem, (len(target.gt_drtio.channels) + len(target.eem_drtio_channels) + 1) << 16))
         else:
             print("{} (EEM{}) starting at RTIO channel 0x{:06x}"
                 .format(name, eem, len(target.rtio_channels)))

@@ -479,7 +479,7 @@ fn sysclk_setup() {
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(1300);
         unsafe {
-            csr::drtio_transceiver::stable_clkin_write(1);
+            csr::gt_drtio::stable_clkin_write(1);
         }
         loop {}
     }
@@ -553,7 +553,7 @@ pub extern fn main() -> i32 {
 
     #[cfg(not(has_drtio_eem))]
     unsafe {
-        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+        csr::gt_drtio::txenable_write(0xffffffffu32 as _);
     }
 
     init_rtio_crg();

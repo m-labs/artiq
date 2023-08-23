@@ -268,17 +268,17 @@ class MasterBase(MiniSoC, AMPSoC):
             sfp_ctls = [platform.request("sfp_ctl", i) for i in range(1, 3)]
             self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
 
-        self.submodules.drtio_transceiver = gtp_7series.GTP(
+        self.submodules.gt_drtio = gtp_7series.GTP(
             qpll_channel=self.drtio_qpll_channel,
             data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
-        self.csr_devices.append("drtio_transceiver")
+        self.csr_devices.append("gt_drtio")
 
         if enable_sata:
-            sfp_channels = self.drtio_transceiver.channels[1:]
+            sfp_channels = self.gt_drtio.channels[1:]
         else:
-            sfp_channels = self.drtio_transceiver.channels
+            sfp_channels = self.gt_drtio.channels
         if self.platform.hw_rev in ("v1.0", "v1.1"):
             self.comb += [sfp_ctl.led.eq(channel.rx_ready)
                 for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
@@ -292,7 +292,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.drtioaux_csr_group = []
         self.drtioaux_memory_group = []
         self.drtio_cri = []
-        for i in range(len(self.drtio_transceiver.channels)):
+        for i in range(len(self.gt_drtio.channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
@@ -302,7 +302,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
             cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
-            core = cdr(DRTIOMaster(self.rtio_tsc, self.drtio_transceiver.channels[i]))
+            core = cdr(DRTIOMaster(self.rtio_tsc, self.gt_drtio.channels[i]))
             setattr(self.submodules, core_name, core)
             self.drtio_cri.append(core.cri)
             self.csr_devices.append(core_name)
@@ -319,7 +319,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.config["HAS_DRTIO_ROUTING"] = None
 
         rtio_clk_period = 1e9/rtio_clk_freq
-        gtp = self.drtio_transceiver.gtps[0]
+        gtp = self.gt_drtio.gtps[0]
 
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
@@ -331,7 +331,7 @@ class MasterBase(MiniSoC, AMPSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
-        for gtp in self.drtio_transceiver.gtps[1:]:
+        for gtp in self.gt_drtio.gtps[1:]:
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
@@ -372,7 +372,7 @@ class MasterBase(MiniSoC, AMPSoC):
 
         cdr = ClockDomainsRenamer({"rtio_rx": "sys"})
         for i in range(len(self.eem_transceiver.channels)):
-            channel = i + len(self.drtio_transceiver.channels)
+            channel = i + len(self.gt_drtio.channels)
             core_name = "drtio" + str(channel)
             coreaux_name = "drtioaux" + str(channel)
             memory_name = "drtioaux" + str(channel) + "_mem"
@@ -504,17 +504,17 @@ class SatelliteBase(BaseSoC, AMPSoC):
         if self.platform.hw_rev in ("v1.0", "v1.1"):
             sfp_ctls = [platform.request("sfp_ctl", i) for i in range(3)]
             self.comb += [sc.tx_disable.eq(0) for sc in sfp_ctls]
-        self.submodules.drtio_transceiver = gtp_7series.GTP(
+        self.submodules.gt_drtio = gtp_7series.GTP(
             qpll_channel=qpll.channels[0],
             data_pads=drtio_data_pads,
             sys_clk_freq=self.clk_freq,
             rtio_clk_freq=rtio_clk_freq)
-        self.csr_devices.append("drtio_transceiver")
+        self.csr_devices.append("gt_drtio")
 
         if enable_sata:
-            sfp_channels = self.drtio_transceiver.channels[1:]
+            sfp_channels = self.gt_drtio.channels[1:]
         else:
-            sfp_channels = self.drtio_transceiver.channels
+            sfp_channels = self.gt_drtio.channels
         if self.platform.hw_rev in ("v1.0", "v1.1"):
             self.comb += [sfp_ctl.led.eq(channel.rx_ready)
                 for sfp_ctl, channel in zip(sfp_ctls, sfp_channels)]
@@ -528,7 +528,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
         drtioaux_memory_group = []
         drtiorep_csr_group = []
         self.drtio_cri = []
-        for i in range(len(self.drtio_transceiver.channels)):
+        for i in range(len(self.gt_drtio.channels)):
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
             drtioaux_csr_group.append(coreaux_name)
@@ -539,7 +539,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
             if i == 0:
                 self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
                 core = cdr(DRTIOSatellite(
-                    self.rtio_tsc, self.drtio_transceiver.channels[i],
+                    self.rtio_tsc, self.gt_drtio.channels[i],
                     self.rx_synchronizer))
                 self.submodules.drtiosat = core
                 self.csr_devices.append("drtiosat")
@@ -548,7 +548,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
                 drtiorep_csr_group.append(corerep_name)
 
                 core = cdr(DRTIORepeater(
-                    self.rtio_tsc, self.drtio_transceiver.channels[i]))
+                    self.rtio_tsc, self.gt_drtio.channels[i]))
                 setattr(self.submodules, corerep_name, core)
                 self.drtio_cri.append(core.cri)
                 self.csr_devices.append(corerep_name)
@@ -587,7 +587,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
         self.config["HAS_SI5324"] = None
         self.config["SI5324_SOFT_RESET"] = None
 
-        gtp = self.drtio_transceiver.gtps[0]
+        gtp = self.gt_drtio.gtps[0]
         txout_buf = Signal()
         self.specials += Instance("BUFG", i_I=gtp.txoutclk, o_O=txout_buf)
         self.crg.configure(txout_buf, clk_sw=gtp.tx_init.done)
@@ -597,7 +597,7 @@ class SatelliteBase(BaseSoC, AMPSoC):
         platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
             gtp.txoutclk, gtp.rxoutclk)
-        for gtp in self.drtio_transceiver.gtps[1:]:
+        for gtp in self.gt_drtio.gtps[1:]:
             platform.add_period_constraint(gtp.rxoutclk, rtio_clk_period)
             platform.add_false_path_constraints(
                 self.crg.cd_sys.clk, gtp.rxoutclk)
