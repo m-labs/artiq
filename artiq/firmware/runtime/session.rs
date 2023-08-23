@@ -665,8 +665,6 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
                       stream: &mut TcpStream,
                       congress: &mut Congress) -> Result<(), Error<SchedError>> {
     let mut session = Session::new(congress);
-    #[cfg(has_drtio)]
-    subkernel::clear_subkernels(io, subkernel_mutex);
 
     loop {
         if stream.can_recv() {
@@ -839,6 +837,8 @@ pub fn thread(io: Io, aux_mutex: &Mutex,
                     }
                 }
                 stream.close().expect("session: close socket");
+                #[cfg(has_drtio)]
+                subkernel::clear_subkernels(&io, &subkernel_mutex);
             });
         }
 

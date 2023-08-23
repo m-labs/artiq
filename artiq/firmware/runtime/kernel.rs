@@ -222,10 +222,13 @@ pub mod subkernel {
     pub fn subkernel_finished(io: &Io, subkernel_mutex: &Mutex, id: u32, with_exception: bool) {
         // called upon receiving DRTIO SubkernelRunDone
         let _lock = subkernel_mutex.lock(io).unwrap();
-        let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
-        subkernel.state = match with_exception {
-            true => SubkernelState::FinishedAbnormally { reason: AbnormalReason::Exception },
-            false => SubkernelState::Finished
+        let subkernel = unsafe { SUBKERNELS.get_mut(&id) };
+        // may be None if session ends and is cleared
+        if let Some(subkernel) = subkernel {
+            subkernel.state = match with_exception {
+                true => SubkernelState::FinishedAbnormally { reason: AbnormalReason::Exception },
+                false => SubkernelState::Finished
+            }
         }
     }
 

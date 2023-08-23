@@ -17,14 +17,13 @@ use core::convert::TryFrom;
 use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
-use board_artiq::{spi, drtioaux};
+use board_artiq::{spi, drtioaux, drtio_routing};
 #[cfg(soc_platform = "efc")]
 use board_artiq::ad9117;
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 #[cfg(has_drtio_eem)]
 use board_artiq::drtio_eem;
-use proto_artiq::drtioaux_proto::{SAT_PAYLOAD_MAX_SIZE, MASTER_PAYLOAD_MAX_SIZE};
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use kernel::Manager as KernelManager;
