@@ -471,9 +471,8 @@ extern fn subkernel_load_run(id: u32, run: bool) {
 }
 
 #[unwind(allowed)]
-extern fn subkernel_await_finish(wait_for_all: bool, id: u32, timeout: u64) {
-    let optional_id = if wait_for_all { None } else { Some(id) };
-    send(&SubkernelAwaitFinishRequest { optional_id: optional_id, timeout: timeout });
+extern fn subkernel_await_finish(id: u32, timeout: u64) {
+    send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
     recv!(&SubkernelAwaitFinishReply { timeout } => {
         if timeout {
             raise!("SubkernelError",

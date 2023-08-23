@@ -561,8 +561,22 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 kern_send(io, &kern::SubkernelLoadRunReply { succeeded: succeeded })
             }
             #[cfg(has_drtio)]
-            &kern::SubkernelAwaitFinishRequest{ optional_id, timeout } => {
-                let res = subkernel::await_finish(io, subkernel_mutex, optional_id, timeout);
+            &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
+                let res = subkernel::await_finish(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
+                    id, timeout);
+                if let Ok(ref res) = res {
+                    if res.comm_lost {
+                        error!("Communcation lost with the satellite while subkernel {} was running", res.id);
+                    } else if let Some(exception) = &res.exception {
+                        error!("Exception in subkernel");
+                        match stream {
+                            None => return Ok(true),
+                            Some(ref mut stream) => { 
+                                stream.write_all(exception)?;
+                            }
+                        }
+                    }
+                }
                 kern_send(io, &kern::SubkernelAwaitFinishReply { timeout: res.is_err() })
             }
             #[cfg(has_drtio)]
@@ -660,7 +674,7 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
         while let Some(subkernel_finished) = subkernel::get_finished_with_exception(
             io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table)? {
             if subkernel_finished.comm_lost {
-                error!("Communication with satellite lost while kernel {} was running", subkernel_finished.id);
+                error!("Communication with satellite lost while subkernel {} was running", subkernel_finished.id);
             }
             if let Some(exception) = subkernel_finished.exception {
                 stream.write_all(&exception)?;

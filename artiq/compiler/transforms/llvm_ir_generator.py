@@ -403,7 +403,7 @@ class LLVMIRGenerator:
         elif name == "subkernel_load_run":
             llty = ll.FunctionType(llvoid, [lli32, lli1])
         elif name == "subkernel_await_finish":
-            llty = ll.FunctionType(llvoid, [lli1, lli32, lli64])
+            llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_message":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_args":
@@ -1367,7 +1367,7 @@ class LLVMIRGenerator:
         elif insn.op == "subkernel_await_finish":
             llsid = self.map(insn.operands[0])
             lltimeout = self.map(insn.operands[1])
-            return self.llbuilder.call(self.llbuiltin("subkernel_await_finish"), [ll.Constant(lli1, 0), llsid, lltimeout],
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_finish"), [llsid, lltimeout],
                                        name="subkernel.await.finish")
         elif insn.op == "subkernel_retrieve_return":
             llsid = self.map(insn.operands[0])

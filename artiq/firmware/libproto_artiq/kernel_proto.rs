@@ -96,7 +96,7 @@ pub enum Message<'a> {
 
     SubkernelLoadRunRequest { id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
-    SubkernelAwaitFinishRequest { optional_id: Option<u32>, timeout: u64 },
+    SubkernelAwaitFinishRequest { id: u32, timeout: u64 },
     SubkernelAwaitFinishReply { timeout: bool },
     SubkernelMsgSend { id: u32, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: u32, timeout: u64 },

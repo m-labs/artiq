@@ -168,7 +168,7 @@ class Core:
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
             _, kernel_library, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
-                             target=target, destination=destination)
+                             print_as_rpc=False, target=target, destination=destination)
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
     def precompile(self, function, *args, **kwargs):

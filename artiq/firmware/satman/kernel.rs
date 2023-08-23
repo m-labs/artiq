@@ -443,7 +443,11 @@ impl Manager {
                 column:   column!(),
                 function: format!("in subkernel id {}", self.current_id).as_c_slice(),
             })],
-            stack_pointers: &[],
+            stack_pointers: &[StackPointerBacktrace {
+                stack_pointer: 0,
+                initial_backtrace_size: 0,
+                current_backtrace_size: 0
+            }],
             backtrace: &[],
             async_errors: 0
         }).write_to(&mut writer) {
