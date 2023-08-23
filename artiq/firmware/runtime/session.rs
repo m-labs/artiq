@@ -39,6 +39,9 @@ pub enum Error<T> {
     Protocol(#[cause] host::Error<T>),
     #[fail(display = "subkernel io error")]
     SubkernelIoError,
+    #[cfg(has_drtio)]
+    #[fail(display = "subkernel error: {}", _0)]
+    Subkernel(#[cause] subkernel::SubkernelError),
     #[fail(display = "{}", _0)]
     Unexpected(String),
 }
@@ -70,6 +73,13 @@ impl From<&str> for Error<SchedError> {
 impl From<io::Error<!>> for Error<SchedError> {
     fn from(_value: io::Error<!>) -> Error<SchedError> {
         Error::SubkernelIoError
+    }
+}
+
+#[cfg(has_drtio)]
+impl From<subkernel::SubkernelError> for Error<SchedError> {
+    fn from(value: subkernel::SubkernelError) -> Error<SchedError> {
+        Error::Subkernel(value)
     }
 }
 
