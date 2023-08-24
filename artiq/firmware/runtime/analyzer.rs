@@ -52,16 +52,18 @@ pub mod remote_analyzer {
         pub data: Vec<u8>
     }
 
-    pub fn get_data(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
-        routing_table: &drtio_routing::RoutingTable,
-        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) -> Result<RemoteBuffer, &'static str> {
+    pub fn get_data(io: &Io, aux_mutex: &Mutex, routing_table: &drtio_routing::RoutingTable,
+        up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
+    ) -> Result<RemoteBuffer, &'static str> {
             // gets data from satellites and returns consolidated data
             let mut remote_data: Vec<u8> = Vec::new();
             let mut remote_overflow = false;
             let mut remote_sent_bytes = 0;
             let mut remote_total_bytes = 0;
 
-            let data_vec = match drtio::analyzer_query(io, aux_mutex, ddma_mutex, routing_table, up_destinations) {
+            let data_vec = match drtio::analyzer_query(
+                io, aux_mutex, routing_table, up_destinations
+            ) {
                 Ok(data_vec) => data_vec,
                 Err(e) => return Err(e)
             };
@@ -83,7 +85,7 @@ pub mod remote_analyzer {
 
 
 
-fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex,
+fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, 
     _routing_table: &drtio_routing::RoutingTable,
     _up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>
 ) -> Result<(), IoError<SchedError>> {
@@ -97,7 +99,7 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mu
 
     #[cfg(has_drtio)]
     let remote = remote_analyzer::get_data(
-        _io, _aux_mutex, _ddma_mutex, _routing_table, _up_destinations);
+        _io, _aux_mutex, _routing_table, _up_destinations);
     #[cfg(has_drtio)]
     let (header, remote_data) = match remote {
         Ok(remote) => (Header {
@@ -144,7 +146,7 @@ fn worker(stream: &mut TcpStream, _io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mu
     Ok(())
 }
 
-pub fn thread(io: Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
+pub fn thread(io: Io, aux_mutex: &Mutex,
     routing_table: &Urc<RefCell<drtio_routing::RoutingTable>>,
     up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>) {
     let listener = TcpListener::new(&io, 65535);
@@ -159,7 +161,7 @@ pub fn thread(io: Io, aux_mutex: &Mutex, ddma_mutex: &Mutex,
         disarm();
 
         let routing_table = routing_table.borrow();
-        match worker(&mut stream, &io, aux_mutex, ddma_mutex, &routing_table, up_destinations) {
+        match worker(&mut stream, &io, aux_mutex, &routing_table, up_destinations) {
             Ok(())   => (),
             Err(err) => error!("analyzer aborted: {}", err)
         }
