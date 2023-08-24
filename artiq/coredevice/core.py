@@ -166,9 +166,11 @@ class Core:
             destination = subkernel_fn.artiq_embedded.destination
             destination_tgt = self.dmgr.ddb.get_satellite_target(destination)
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
-            _, kernel_library, _, _ = \
+            object_map, kernel_library, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                              print_as_rpc=False, target=target, destination=destination)
+            if object_map.has_rpc():
+                raise ValueError("Experiment must not use RPC or other subkernels")
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
     def precompile(self, function, *args, **kwargs):
