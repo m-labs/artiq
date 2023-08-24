@@ -210,17 +210,15 @@ fn startup() {
     #[cfg(any(has_rtio_moninj, has_drtio))]
     {
         let aux_mutex = aux_mutex.clone();
-        let ddma_mutex = ddma_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
-        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table) });
+        io.spawn(4096, move |io| { moninj::thread(io, &aux_mutex, &drtio_routing_table) });
     }
     #[cfg(has_rtio_analyzer)]
     {
         let aux_mutex = aux_mutex.clone();
         let drtio_routing_table = drtio_routing_table.clone();
         let up_destinations = up_destinations.clone();
-        let ddma_mutex = ddma_mutex.clone();
-        io.spawn(8192, move |io| { analyzer::thread(io, &aux_mutex, &ddma_mutex, &drtio_routing_table, &up_destinations) });
+        io.spawn(8192, move |io| { analyzer::thread(io, &aux_mutex, &drtio_routing_table, &up_destinations) });
     }
 
     #[cfg(has_grabber)]

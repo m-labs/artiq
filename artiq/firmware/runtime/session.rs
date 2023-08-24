@@ -349,7 +349,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
 
         kern_recv_dotrace(request);
 
-        if kern_hwreq::process_kern_hwreq(io, aux_mutex, ddma_mutex, routing_table, up_destinations, request)? {
+        if kern_hwreq::process_kern_hwreq(io, aux_mutex, routing_table, up_destinations, request)? {
             return Ok(false)
         }
 
@@ -373,7 +373,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 if let Some(_id) = session.congress.dma_manager.record_start(name) {
                     // replace the record
                     #[cfg(has_drtio)]
-                    remote_dma::erase(io, aux_mutex, routing_table, ddma_mutex, _id);
+                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, _id);
                 }
                 kern_acknowledge()
             }
@@ -385,7 +385,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                 let _id = session.congress.dma_manager.record_stop(duration, enable_ddma, io, ddma_mutex);
                 #[cfg(has_drtio)]
                 if enable_ddma {
-                    remote_dma::upload_traces(io, aux_mutex, routing_table, ddma_mutex, _id);
+                    remote_dma::upload_traces(io, aux_mutex, ddma_mutex, routing_table, _id);
                 }
                 cache::flush_l2_cache();
                 kern_acknowledge()
@@ -393,7 +393,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             &kern::DmaEraseRequest { name } => {
                 #[cfg(has_drtio)]
                 if let Some(id) = session.congress.dma_manager.get_id(name) {
-                    remote_dma::erase(io, aux_mutex, routing_table, ddma_mutex, *id);
+                    remote_dma::erase(io, aux_mutex, ddma_mutex, routing_table, *id);
                 }
                 session.congress.dma_manager.erase(name);
                 kern_acknowledge()
@@ -416,7 +416,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             &kern::DmaStartRemoteRequest { id: _id, timestamp: _timestamp } => {
                 #[cfg(has_drtio)]
-                remote_dma::playback(io, aux_mutex, routing_table, ddma_mutex, _id as u32, _timestamp as u64);
+                remote_dma::playback(io, aux_mutex, ddma_mutex, routing_table, _id as u32, _timestamp as u64);
                 kern_acknowledge()
             }
             &kern::DmaAwaitRemoteRequest { id: _id } => {
@@ -510,7 +510,6 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                     }
                 }
             }
-
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(false))
     })
