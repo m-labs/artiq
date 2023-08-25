@@ -85,7 +85,7 @@ impl IoExpander {
     pub fn new() -> Result<Self, &'static str> {
         const VIRTUAL_LED_MAPPING: [(u8, u8, u8); 2] = [(0, 0, 5), (1, 0, 6)];
 
-        let mut io_expander = IoExpander {
+        let io_expander = IoExpander {
             busno: 0,
             port: 1,
             address: 0x40,
