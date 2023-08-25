@@ -77,6 +77,18 @@ def subkernel(arg=None, destination=0, flags={}):
 
     Subkernels can accept arguments and return values. However, they must be fully 
     annotated with ARTIQ types.
+
+    To call a subkernel, call it like a normal function. 
+    
+    To await its finishing execution, call ``subkernel_await(subkernel, [timeout])``.
+    The timeout parameter is optional, and by default is equal to 10000 (miliseconds).
+    This time can be adjusted for subkernels that take a long time to execute.
+
+    The compiled subkernel is copied to satellites, but not yet to the kernel core
+    until it's called. For bigger subkernels it may take some time before they
+    actually start running. To help with that, subkernels can be preloaded, with
+    ``subkernel_preload(subkernel)`` function. A call to a preloaded subkernel 
+    will take less time, but only one subkernel can be preloaded at a time.
     """
     if isinstance(arg, str):
         def inner_decorator(function):

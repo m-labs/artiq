@@ -170,7 +170,7 @@ class Core:
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                              print_as_rpc=False, target=target, destination=destination)
             if object_map.has_rpc():
-                raise ValueError("Experiment must not use RPC or other subkernels")
+                raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
     def precompile(self, function, *args, **kwargs):
