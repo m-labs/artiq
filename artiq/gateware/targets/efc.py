@@ -14,7 +14,7 @@ from artiq.gateware import rtio
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware.rtio.phy import ttl_simple
 from artiq.gateware.drtio.transceiver import eem_serdes
-from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
+from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
 from artiq.build_soc import *
 
@@ -69,11 +69,10 @@ class Satellite(BaseSoC, AMPSoC):
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
-        cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx0"})
-        self.submodules.rx_synchronizer = cdr(XilinxRXSynchronizer())
+        cdr = ClockDomainsRenamer({"rtio_rx": "sys"})
         core = cdr(DRTIOSatellite(
             self.rtio_tsc, self.eem_transceiver.channels[0],
-            self.rx_synchronizer))
+            NoRXSynchronizer()))
         self.submodules.drtiosat = core
         self.csr_devices.append("drtiosat")
 

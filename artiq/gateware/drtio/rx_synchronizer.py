@@ -2,6 +2,12 @@ from migen import *
 from migen.genlib.cdc import ElasticBuffer
 
 
+class NoRXSynchronizer:
+    """To be used when RX is already synchronous (e.g. IOSERDES based PHY)."""
+    def resync(self, signal):
+        return signal
+
+
 class GenericRXSynchronizer(Module):
     """Simple RX synchronizer based on the portable Migen elastic buffer.
 

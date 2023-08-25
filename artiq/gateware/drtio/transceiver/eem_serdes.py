@@ -472,10 +472,4 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         self.submodules += serdes_list
 
-        TransceiverInterface.__init__(self, channel_interfaces)
-
-        for i in range(len(serdes_list)):
-            self.comb += [
-                getattr(self, "cd_rtio_rx" + str(i)).clk.eq(ClockSignal()),
-                getattr(self, "cd_rtio_rx" + str(i)).rst.eq(ResetSignal())
-            ]
+        TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
