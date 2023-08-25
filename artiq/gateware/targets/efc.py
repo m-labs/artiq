@@ -65,7 +65,7 @@ class Satellite(BaseSoC, AMPSoC):
         self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, data_pads)
         self.csr_devices.append("eem_transceiver")
         self.config["HAS_DRTIO_EEM"] = None
-        self.config["EEM_TRANSCEIVERS"] = 1
+        self.config["EEM_DRTIO_COUNT"] = 1
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 

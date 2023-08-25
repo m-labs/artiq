@@ -188,7 +188,7 @@ unsafe fn align_comma() {
 }
 
 pub fn init() {
-    for trx_no in 0..csr::CONFIG_EEM_TRANSCEIVERS {
+    for trx_no in 0..csr::CONFIG_EEM_DRTIO_COUNT {
         unsafe {
             csr::eem_transceiver::transceiver_sel_write(trx_no as u8);
         }
