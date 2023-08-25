@@ -11,6 +11,7 @@ class RXSerdes(Module):
         self.cnt_in = [ Signal(5) for _ in range(4) ]
         self.cnt_out = [ Signal(5) for _ in range(4) ]
         self.bitslip = [ Signal() for _ in range(4) ]
+        self.o = [ Signal() for _ in range(4) ]
 
         ser_in_no_dly = [ Signal() for _ in range(4) ]
         ser_in = [ Signal() for _ in range(4) ]
@@ -34,6 +35,7 @@ class RXSerdes(Module):
                     o_Q6=self.rxdata[i][4],
                     o_Q7=self.rxdata[i][3],
                     o_Q8=self.rxdata[i][2],
+                    o_O=self.o[i],
                     o_SHIFTOUT1=shifts[i][0],
                     o_SHIFTOUT2=shifts[i][1],
                     i_DDLY=ser_in[i],
@@ -471,5 +473,6 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         })
 
         self.submodules += serdes_list
+        self.iserdes_o = serdes_list[0].rx_serdes.o
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
