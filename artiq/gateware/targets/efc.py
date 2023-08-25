@@ -167,6 +167,7 @@ def main():
         description="ARTIQ device binary builder for EEM FMC Carrier systems")
     builder_args(parser)
     parser.set_defaults(output_dir="artiq_efc")
+    parser.add_argument("-V", "--variant", default="shuttler")
     parser.add_argument("--gateware-identifier-str", default=None,
                         help="Override ROM identifier")
     args = parser.parse_args()
