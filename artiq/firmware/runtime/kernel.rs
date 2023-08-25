@@ -361,10 +361,18 @@ pub mod subkernel {
     pub fn message_handle_incoming(io: &Io, subkernel_mutex: &Mutex, 
         id: u32, last: bool, length: usize, data: &[u8; MASTER_PAYLOAD_MAX_SIZE]) {
         // called when receiving a message from satellite
-        let _lock = subkernel_mutex.lock(io).unwrap();
+        let _lock = match subkernel_mutex.lock(io) {
+            Ok(lock) => lock,
+            // may get interrupted, when session is cancelled or main kernel finishes without await
+            Err(_) => return,
+        };
+        if unsafe { SUBKERNELS.get(&id).is_none() } {
+            // do not add messages for non-existing or deleted subkernels
+            return
+        }
         match unsafe { CURRENT_MESSAGES.get_mut(&id) } {
             Some(message) => message.data.extend(&data[..length]),
-            None => unsafe { 
+            None => unsafe {
                 CURRENT_MESSAGES.insert(id, Message {
                     from_id: id,
                     tag: data[0],
@@ -416,10 +424,8 @@ pub mod subkernel {
     pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
         routing_table: &RoutingTable, id: u32, tag: &'a [u8], message: *const *const ()) -> Result<(), SubkernelError> {
         let mut writer = Cursor::new(Vec::new());
-        let destination = unsafe {
-            let _lock = subkernel_mutex.lock(io).unwrap();
-            SUBKERNELS.get(&id).unwrap().destination
-        };
+        let _lock = subkernel_mutex.lock(io).unwrap();
+        let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };
         
         // reuse rpc code for sending arbitrary data
         rpc::send_args(&mut writer, 0, tag, message)?;
