@@ -463,6 +463,7 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_as_ckin2: true
 };
 
+#[cfg(not(soc_platform = "efc"))]
 fn sysclk_setup() {
     let switched = unsafe {
         csr::crg::switch_done_read()
@@ -529,6 +530,7 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
+    #[cfg(not(soc_platform = "efc"))]
     sysclk_setup();
 
     #[cfg(soc_platform = "efc")]
