@@ -358,6 +358,11 @@
           target = "kc705";
           variant = "nist_clock";
         };
+        artiq-board-efc = makeArtiqBoardPackage {
+          target = "efc";
+          variant = "shuttler";
+          buildCommand = "python -m artiq.gateware.targets.efc";
+        };
         inherit sphinxcontrib-wavedrom latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
           name = "artiq-manual-html-${version}";
@@ -457,7 +462,7 @@
       };
 
       hydraJobs = {
-        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
+        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock artiq-board-efc openocd-bscanspi;
         gateware-sim = pkgs.stdenvNoCC.mkDerivation {
           name = "gateware-sim";
           buildInputs = [
