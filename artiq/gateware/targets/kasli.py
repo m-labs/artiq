@@ -19,7 +19,7 @@ from artiq.gateware import rtio
 from artiq.gateware.rtio.phy import ttl_simple, ttl_serdes_7series, edge_counter
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware import eem
-from artiq.gateware.drtio.transceiver import gtp_7series
+from artiq.gateware.drtio.transceiver import gtp_7series, eem_serdes
 from artiq.gateware.drtio.siphaser import SiPhaser7Series
 from artiq.gateware.drtio.rx_synchronizer import XilinxRXSynchronizer
 from artiq.gateware.drtio import *
@@ -288,17 +288,17 @@ class MasterBase(MiniSoC, AMPSoC):
 
         self.submodules.rtio_tsc = rtio.TSC(glbl_fine_ts_width=3)
 
-        drtio_csr_group = []
-        drtioaux_csr_group = []
-        drtioaux_memory_group = []
+        self.drtio_csr_group = []
+        self.drtioaux_csr_group = []
+        self.drtioaux_memory_group = []
         self.drtio_cri = []
         for i in range(len(self.drtio_transceiver.channels)):
             core_name = "drtio" + str(i)
             coreaux_name = "drtioaux" + str(i)
             memory_name = "drtioaux" + str(i) + "_mem"
-            drtio_csr_group.append(core_name)
-            drtioaux_csr_group.append(coreaux_name)
-            drtioaux_memory_group.append(memory_name)
+            self.drtio_csr_group.append(core_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
 
             cdr = ClockDomainsRenamer({"rtio_rx": "rtio_rx" + str(i)})
 
@@ -317,9 +317,6 @@ class MasterBase(MiniSoC, AMPSoC):
             self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
         self.config["HAS_DRTIO"] = None
         self.config["HAS_DRTIO_ROUTING"] = None
-        self.add_csr_group("drtio", drtio_csr_group)
-        self.add_csr_group("drtioaux", drtioaux_csr_group)
-        self.add_memory_group("drtioaux_mem", drtioaux_memory_group)
 
         rtio_clk_period = 1e9/rtio_clk_freq
         gtp = self.drtio_transceiver.gtps[0]
@@ -366,6 +363,41 @@ class MasterBase(MiniSoC, AMPSoC):
         self.submodules.rtio_analyzer = rtio.Analyzer(self.rtio_tsc, self.rtio_core.cri,
                                                       self.get_native_sdram_if(), cpu_dw=self.cpu_dw)
         self.csr_devices.append("rtio_analyzer")
+
+    def add_eem_drtio(self, eem_drtio_channels):
+        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, eem_drtio_channels)
+        self.csr_devices.append("eem_transceiver")
+        self.config["HAS_DRTIO_EEM"] = None
+        self.config["EEM_DRTIO_COUNT"] = len(eem_drtio_channels)
+
+        cdr = ClockDomainsRenamer({"rtio_rx": "sys"})
+        for i in range(len(self.eem_transceiver.channels)):
+            channel = i + len(self.drtio_transceiver.channels)
+            core_name = "drtio" + str(channel)
+            coreaux_name = "drtioaux" + str(channel)
+            memory_name = "drtioaux" + str(channel) + "_mem"
+            self.drtio_csr_group.append(core_name)
+            self.drtioaux_csr_group.append(coreaux_name)
+            self.drtioaux_memory_group.append(memory_name)
+
+            core = cdr(DRTIOMaster(self.rtio_tsc, self.eem_transceiver.channels[i]))
+            setattr(self.submodules, core_name, core)
+            self.drtio_cri.append(core.cri)
+            self.csr_devices.append(core_name)
+
+            coreaux = cdr(DRTIOAuxController(core.link_layer, self.cpu_dw))
+            setattr(self.submodules, coreaux_name, coreaux)
+            self.csr_devices.append(coreaux_name)
+
+            memory_address = self.mem_map["drtioaux"] + 0x800*channel
+            self.add_wb_slave(memory_address, 0x800,
+                            coreaux.bus)
+            self.add_memory_region(memory_name, memory_address | self.shadow_base, 0x800)
+
+    def add_drtio_cpuif_groups(self):
+        self.add_csr_group("drtio", self.drtio_csr_group)
+        self.add_csr_group("drtioaux", self.drtioaux_csr_group)
+        self.add_memory_group("drtioaux_mem", self.drtioaux_memory_group)
 
     # Never running out of stupid features, GTs on A7 make you pack
     # unrelated transceiver PLLs into one GTPE2_COMMON yourself.

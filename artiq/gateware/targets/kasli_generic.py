@@ -71,10 +71,12 @@ class GenericMaster(MasterBase):
         if hw_rev is None:
             hw_rev = description["hw_rev"]
         self.class_name_override = description["variant"]
+        has_drtio_over_eem = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
         MasterBase.__init__(self,
             hw_rev=hw_rev,
             rtio_clk_freq=description["rtio_frequency"],
             enable_sata=description["enable_sata_drtio"],
+            enable_sys5x=has_drtio_over_eem,
             **kwargs)
         self.config["DRTIO_ROLE"] = description["drtio_role"]
         if "ext_ref_frequency" in description:
@@ -85,6 +87,8 @@ class GenericMaster(MasterBase):
             # EEM clock fan-out from Si5324, not MMCX
             self.comb += self.platform.request("clk_sel").eq(1)
 
+        if has_drtio_over_eem:
+            self.eem_drtio_channels = []
         has_grabber = any(peripheral["type"] == "grabber" for peripheral in description["peripherals"])
         if has_grabber:
             self.grabber_csr_group = []
@@ -96,6 +100,9 @@ class GenericMaster(MasterBase):
         self.rtio_channels.append(rtio.LogChannel())
 
         self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+        if has_drtio_over_eem:
+            self.add_eem_drtio(self.eem_drtio_channels)
+        self.add_drtio_cpuif_groups()
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
@@ -167,6 +174,10 @@ def main():
         cls = GenericSatellite
     else:
         raise ValueError("Invalid DRTIO role")
+
+    has_efc = any(peripheral["type"] == "efc" for peripheral in description["peripherals"])
+    if has_efc and (description["drtio_role"] == "standalone"):
+        raise ValueError("EFC requires DRTIO, please switch role to master")
 
     soc = cls(description, gateware_identifier_str=args.gateware_identifier_str, **soc_kasli_argdict(args))
     args.variant = description["variant"]
