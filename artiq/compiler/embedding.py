@@ -820,6 +820,7 @@ class Stitcher:
         self.definitely_changed = False
 
         self.destination = destination
+        self.first_call = True
 
     def stitch_call(self, function, args, kwargs, callback=None):
         # We synthesize source code for the initial call so that
@@ -1340,7 +1341,12 @@ class Stitcher:
                  host_function.artiq_embedded.forbidden is False):
             self._quote_rpc(function, loc)
         elif host_function.artiq_embedded.destination is not None and \
-             host_function.artiq_embedded.destination != self.destination:
+            host_function.artiq_embedded.destination != self.destination:
+            if not 0 < host_function.artiq_embedded.destination <= 255:
+                diag = diagnostic.Diagnostic("error",
+                    "subkernel destination must be between 1 and 255 (inclusive)", {},
+                    self._function_loc(host_function))
+                self.engine.process(diag)
             # treat subkernels as kernels if running on the same device
             self._quote_subkernel(function, loc)
         elif host_function.artiq_embedded.function is not None:
@@ -1366,9 +1372,13 @@ class Stitcher:
                     notes=[note])
                 self.engine.process(diag)
 
+            destination = host_function.artiq_embedded.destination
+            # remote_args only for first call in subkernels
+            remote_args = destination is not None and self.first_call
             self._quote_embedded_function(function,
                                           flags=host_function.artiq_embedded.flags,
-                                          remote_args=host_function.artiq_embedded.destination is not None)
+                                          remote_args=remote_args)
+            self.first_call = False
         elif host_function.artiq_embedded.syscall is not None:
             # Insert a storage-less global whose type instructs the compiler
             # to perform a system call instead of a regular call.

@@ -78,7 +78,6 @@ def subkernel(arg=None, destination=0, flags={}):
     Subkernels can accept arguments and return values. However, they must be fully 
     annotated with ARTIQ types.
     """
-    assert 0 < destination <= 255, "invalid destination"
     if isinstance(arg, str):
         def inner_decorator(function):
             @wraps(function)
