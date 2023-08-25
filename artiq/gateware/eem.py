@@ -25,11 +25,15 @@ def default_iostandard(eem):
 
 class _EEM:
     @classmethod
-    def add_extension(cls, target, eem, *args, **kwargs):
+    def add_extension(cls, target, eem, *args, is_drtio_over_eem=False, **kwargs):
         name = cls.__name__
         target.platform.add_extension(cls.io(eem, *args, **kwargs))
-        print("{} (EEM{}) starting at RTIO channel 0x{:06x}"
-              .format(name, eem, len(target.rtio_channels)))
+        if is_drtio_over_eem:
+            print("{} (EEM{}) starting at DRTIO channel 0x{:06x}"
+                .format(name, eem, (len(target.drtio_transceiver.channels) + len(target.eem_drtio_channels) + 1) << 16))
+        else:
+            print("{} (EEM{}) starting at RTIO channel 0x{:06x}"
+                .format(name, eem, len(target.rtio_channels)))
 
 
 class DIO(_EEM):
@@ -785,3 +789,8 @@ class EFC(_EEM):
         )
 
         return [data_in, data_out]
+
+    @classmethod
+    def add_std(cls, target, eem, eem_aux, iostandard=default_iostandard):
+        cls.add_extension(target, eem, is_drtio_over_eem=True, iostandard=iostandard)
+        target.eem_drtio_channels.append((target.platform.request("efc{}_drtio_rx".format(eem), 0), target.platform.request("efc{}_drtio_tx".format(eem), 0)))
