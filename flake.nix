@@ -275,16 +275,20 @@
             '';
           installPhase =
             ''
-            TARGET_DIR=$out
-            mkdir -p $TARGET_DIR
-            cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
+            mkdir $out
+            cp artiq_${target}/${variant}/gateware/top.bit $out
             if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
-            then cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $TARGET_DIR
+            then cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $out
             fi
             if [ -e artiq_${target}/${variant}/software/runtime ]
-            then cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $TARGET_DIR
-            else cp artiq_${target}/${variant}/software/satman/satman.{elf,fbi} $TARGET_DIR
+            then cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $out
+            else cp artiq_${target}/${variant}/software/satman/satman.{elf,fbi} $out
             fi
+
+            mkdir $out/nix-support
+            for i in $out/*.*; do
+            echo file binary-dist $i >> $out/nix-support/hydra-build-products
+            done
             '';
           # don't mangle ELF files as they are not for NixOS
           dontFixup = true;
