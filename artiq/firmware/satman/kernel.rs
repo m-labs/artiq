@@ -58,8 +58,7 @@ enum KernelState {
     Loaded,
     Running,
     MsgAwait { max_time: u64 },
-    MsgSending,
-    ArgAwait
+    MsgSending
 }
 
 #[derive(Debug)]
@@ -286,8 +285,8 @@ impl Session {
     fn running(&self) -> bool {
         match self.kernel_state {
             KernelState::Absent  | KernelState::Loaded  => false,
-            KernelState::Running | KernelState::ArgAwait |
-            KernelState::MsgAwait { .. } | KernelState::MsgSending => true
+            KernelState::Running | KernelState::MsgAwait { .. } |
+                KernelState::MsgSending => true
         }
     }
 
@@ -571,7 +570,7 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
 fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     match session.kernel_state {
         KernelState::MsgAwait { max_time } => {
-            if max_time > clock::get_ms() {
+            if clock::get_ms() > max_time {
                 kern_send(&kern::SubkernelMsgRecvReply { timeout: true })?;
                 session.kernel_state = KernelState::Running;
                 return Ok(())
@@ -584,15 +583,6 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
                 Err(Error::AwaitingMessage)
             }
         },
-        KernelState::ArgAwait => {
-            if let Some(message) = session.messages.get_incoming() {
-                kern_acknowledge()?;
-                session.kernel_state = KernelState::Running;
-                pass_message_to_kernel(&message)
-            } else {
-                Err(Error::AwaitingMessage)
-            }
-        }
         KernelState::MsgSending => {
             if session.messages.was_message_acknowledged() {
                 session.kernel_state = KernelState::Running;
@@ -708,11 +698,6 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
                 session.kernel_state = KernelState::MsgAwait { max_time: max_time };
                 Ok(())
             },
-
-            &kern::SubkernelArgRecvRequest => {
-                session.kernel_state = KernelState::ArgAwait;
-                Ok(())
-            }
 
             request => unexpected!("unexpected request {:?} from kernel CPU", request)
         }.and(Ok(None))

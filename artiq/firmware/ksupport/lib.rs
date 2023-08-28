@@ -502,13 +502,6 @@ extern fn subkernel_await_message(id: u32, timeout: u64) {
     // RpcRecvRequest should be called after this to receive message data
 }
 
-#[unwind(aborts)]
-extern fn subkernel_await_args() {
-    // a variant of await_message that does not raise an exception
-    // only used in subkernels for receiving arguments 
-    send(&SubkernelArgRecvRequest);
-}
-
 unsafe fn attribute_writeback(typeinfo: *const ()) {
     struct Attr {
         offset: usize,

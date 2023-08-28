@@ -161,7 +161,6 @@ static mut API: &'static [(&'static str, *const ())] = &[
     api!(subkernel_send_message = ::subkernel_send_message),
     api!(subkernel_await_message = ::subkernel_await_message),
     api!(subkernel_await_finish = ::subkernel_await_finish),
-    api!(subkernel_await_args = ::subkernel_await_args),
 
     api!(i2c_start = ::nrt_bus::i2c::start),
     api!(i2c_restart = ::nrt_bus::i2c::restart),

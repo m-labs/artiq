@@ -101,7 +101,6 @@ pub enum Message<'a> {
     SubkernelMsgSend { id: u32, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: u32, timeout: u64 },
     SubkernelMsgRecvReply { timeout: bool },
-    SubkernelArgRecvRequest,
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

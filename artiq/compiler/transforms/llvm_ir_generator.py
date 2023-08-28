@@ -406,8 +406,6 @@ class LLVMIRGenerator:
             llty = ll.FunctionType(llvoid, [lli32, lli64])
         elif name == "subkernel_await_message":
             llty = ll.FunctionType(llvoid, [lli32, lli64])
-        elif name == "subkernel_await_args":
-            llty = ll.FunctionType(llvoid, [])
 
         # with now-pinning
         elif name == "now":
@@ -1362,7 +1360,8 @@ class LLVMIRGenerator:
         elif insn.op == "end_catch":
             return self.llbuilder.call(self.llbuiltin("__artiq_end_catch"), [])
         elif insn.op == "subkernel_await_args":
-            return self.llbuilder.call(self.llbuiltin("subkernel_await_args"), [],
+            return self.llbuilder.call(self.llbuiltin("subkernel_await_message"), 
+                                       [ll.Constant(lli32, 0), ll.Constant(lli64, 10_000)],
                                        name="subkernel.await.args")
         elif insn.op == "subkernel_await_finish":
             llsid = self.map(insn.operands[0])
