@@ -1385,7 +1385,7 @@ class Inferencer(algorithm.Visitor):
             typ_func    = types.get_method_function(typ)
             if types.is_var(typ_func):
                 return # not enough info yet
-            elif types.is_rpc(typ_func) or types.is_subkernel(typ_func): 
+            elif types.is_rpc(typ_func) or types.is_subkernel(typ_func):
                 self._unify(node.type, typ_func.ret,
                             node.loc, None)
                 return

@@ -198,7 +198,7 @@ class EmbeddingMap:
         assert function.artiq_embedded.destination is not None
         return self.object_reverse_map(id(function))
 
-    def has_rpc(self):
+    def has_rpc_or_subkernel(self):
         # will also return true if there are any subkernels
         return any(filter(lambda x: inspect.isfunction(x) or inspect.ismethod(x),
                           self.object_forward_map.values()))

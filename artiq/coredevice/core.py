@@ -100,7 +100,6 @@ class Core:
         self.comm.core = self
 
         self.subkernel_cache = {}
-        self.compiled_subkernel_id = 10000
 
     def close(self):
         self.comm.close()
@@ -169,7 +168,7 @@ class Core:
             object_map, kernel_library, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
                              print_as_rpc=False, target=target, destination=destination)
-            if object_map.has_rpc():
+            if object_map.has_rpc_or_subkernel():
                 raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
             self.comm.upload_subkernel(kernel_library, sid, destination)
 
@@ -206,13 +205,13 @@ class Core:
             nonlocal result
             result = new_result
 
-        kernel_library, symbolizer, demangler = \
+        embedding_map, kernel_library, symbolizer, demangler = \
             self.compile(function, args, kwargs, set_result, attribute_writeback=False)
 
         @wraps(function)
         def run_precompiled():
             nonlocal result
-            self._run_compiled(kernel_library, symbolizer, demangler)
+            self._run_compiled(kernel_library, embedding_map, symbolizer, demangler)
             return result
 
         return run_precompiled

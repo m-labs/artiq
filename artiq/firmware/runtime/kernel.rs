@@ -116,13 +116,15 @@ pub mod subkernel {
     }
 
     #[derive(Fail, Debug)]
-    pub enum SubkernelError {
+    pub enum Error {
         #[fail(display = "Timed out waiting for subkernel")]
         Timeout,
         #[fail(display = "Session killed while waiting for subkernel")]
         SessionKilled,
         #[fail(display = "Subkernel is in incorrect state for the given operation")]
         IncorrectState,
+        #[fail(display = "Connection with satellite has been lost")]
+        CommLost,
         #[fail(display = "DRTIO error: {}", _0)]
         DrtioError(String),
         #[fail(display = "scheduler error")]
@@ -131,24 +133,24 @@ pub mod subkernel {
         RpcIoError
     }
 
-    impl From<&str> for SubkernelError {
-        fn from(value: &str) -> SubkernelError {
-            SubkernelError::DrtioError(value.to_string())
+    impl From<&str> for Error {
+        fn from(value: &str) -> Error {
+            Error::DrtioError(value.to_string())
         }
     }
 
-    impl From<SchedError> for SubkernelError {
-        fn from(value: SchedError) -> SubkernelError {
+    impl From<SchedError> for Error {
+        fn from(value: SchedError) -> Error {
             match value {
-                SchedError::Interrupted => SubkernelError::SessionKilled,
-                x => SubkernelError::SchedError(x)
+                SchedError::Interrupted => Error::SessionKilled,
+                x => Error::SchedError(x)
             }
         }
     }
 
-    impl From<io::Error<!>> for SubkernelError {
-        fn from(_value: io::Error<!>) -> SubkernelError  {
-            SubkernelError::RpcIoError
+    impl From<io::Error<!>> for Error {
+        fn from(_value: io::Error<!>) -> Error  {
+            Error::RpcIoError
         }
     }
 
@@ -181,8 +183,8 @@ pub mod subkernel {
         unsafe { SUBKERNELS.insert(id, Subkernel::new(destination, kernel)); }
     }
 
-    pub fn upload(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, 
-             routing_table: &RoutingTable, id: u32) -> Result<(), SubkernelError> {
+    pub fn upload(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex, 
+             routing_table: &RoutingTable, id: u32) -> Result<(), Error> {
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         drtio::subkernel_upload(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, 
@@ -191,12 +193,12 @@ pub mod subkernel {
         Ok(()) 
     }
 
-    pub fn load(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &RoutingTable,
-            id: u32, run: bool) -> Result<(), SubkernelError> {
+    pub fn load(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex, routing_table: &RoutingTable,
+            id: u32, run: bool) -> Result<(), Error> {
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         if subkernel.state != SubkernelState::Uploaded {
-            return Err(SubkernelError::IncorrectState);
+            return Err(Error::IncorrectState);
         }
         drtio::subkernel_load(io, aux_mutex, routing_table, id, subkernel.destination, run)?;
         if run {
@@ -269,8 +271,8 @@ pub mod subkernel {
         None
     }
 
-    pub fn get_finished_with_exception(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable) -> Result<Option<SubkernelFinished>, SubkernelError> {
+    pub fn get_finished_with_exception(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
+        routing_table: &RoutingTable) -> Result<Option<SubkernelFinished>, Error> {
         let finished = get_finished_abnormally(io, subkernel_mutex);
         // broken into get_finished function to prevent deadlocks if something comes during exception retrieval
         if let Some((id, mut subkernel)) = finished {
@@ -287,20 +289,20 @@ pub mod subkernel {
                     } else { None }
                 }))
             } else {
-                Err(SubkernelError::IncorrectState)
+                Err(Error::IncorrectState)
             }
         } else {
             Ok(None)
         }
     }
 
-    pub fn await_finish(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable, id: u32, timeout: u64) -> Result<SubkernelFinished, SubkernelError> {
+    pub fn await_finish(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
+        routing_table: &RoutingTable, id: u32, timeout: u64) -> Result<SubkernelFinished, Error> {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
                 SubkernelState::Running | SubkernelState::Finished { .. } => (),
-                _ => return Err(SubkernelError::IncorrectState)
+                _ => return Err(Error::IncorrectState)
             }
         }
         let max_time = clock::get_ms() + timeout as u64;
@@ -314,7 +316,6 @@ pub mod subkernel {
                 return false;
             }
             let subkernel = unsafe { SUBKERNELS.get(&id).unwrap() };
-            // abnormal finish means the subkernel will not finish on time either
             match subkernel.state {
                 SubkernelState::Finished { .. } => true,
                 _ => false
@@ -322,7 +323,7 @@ pub mod subkernel {
         })?;
         if clock::get_ms() > max_time {
             error!("Remote subkernel finish await timed out");
-            return Err(SubkernelError::Timeout);
+            return Err(Error::Timeout);
         }
         let _lock = subkernel_mutex.lock(io)?;
         let mut subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
@@ -338,9 +339,8 @@ pub mod subkernel {
                     } else { None }
                 })
             },
-            _ => Err(SubkernelError::IncorrectState)
-        }
-        
+            _ => Err(Error::IncorrectState)
+        }   
     }
 
     struct Message {
@@ -385,12 +385,13 @@ pub mod subkernel {
     }
 
     pub fn message_await(io: &Io, subkernel_mutex: &Mutex, id: u32, timeout: u64
-    ) -> Result<(u8, Vec<u8>), SubkernelError> {
+    ) -> Result<(u8, Vec<u8>), Error> {
         {
             let _lock = subkernel_mutex.lock(io)?;
             match unsafe { SUBKERNELS.get(&id).unwrap().state } {
+                SubkernelState::Finished { status: FinishStatus::CommLost } => return Err(Error::CommLost),
                 SubkernelState::Running | SubkernelState::Finished { .. } => (),
-                _ => return Err(SubkernelError::IncorrectState)
+                _ => return Err(Error::IncorrectState)
             }
         }
         let max_time = clock::get_ms() + timeout as u64;
@@ -412,8 +413,8 @@ pub mod subkernel {
         });
         match message {
             Ok(Some(message)) => Ok((message.tag, message.data)),
-            Ok(None) => Err(SubkernelError::Timeout),
-            Err(e) => Err(SubkernelError::SchedError(e)),
+            Ok(None) => Err(Error::Timeout),
+            Err(e) => Err(Error::SchedError(e)),
         }
     }
 
@@ -425,8 +426,9 @@ pub mod subkernel {
         }
     }
 
-    pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, ddma_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable, id: u32, tag: &'a [u8], message: *const *const ()) -> Result<(), SubkernelError> {
+    pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
+        routing_table: &RoutingTable, id: u32, tag: &'a [u8], message: *const *const ()
+    ) -> Result<(), Error> {
         let mut writer = Cursor::new(Vec::new());
         let _lock = subkernel_mutex.lock(io).unwrap();
         let destination = unsafe { SUBKERNELS.get(&id).unwrap().destination };

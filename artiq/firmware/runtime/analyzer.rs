@@ -61,9 +61,7 @@ pub mod remote_analyzer {
             let mut remote_sent_bytes = 0;
             let mut remote_total_bytes = 0;
 
-            let data_vec = match drtio::analyzer_query(
-                io, aux_mutex, routing_table, up_destinations
-            ) {
+            let data_vec = match drtio::analyzer_query(io, aux_mutex, routing_table, up_destinations) {
                 Ok(data_vec) => data_vec,
                 Err(e) => return Err(e)
             };

@@ -571,12 +571,12 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     match session.kernel_state {
         KernelState::MsgAwait { max_time } => {
             if clock::get_ms() > max_time {
-                kern_send(&kern::SubkernelMsgRecvReply { timeout: true })?;
+                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
                 session.kernel_state = KernelState::Running;
                 return Ok(())
             }
             if let Some(message) = session.messages.get_incoming() {
-                kern_send(&kern::SubkernelMsgRecvReply { timeout: false })?;
+                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
                 session.kernel_state = KernelState::Running;
                 pass_message_to_kernel(&message)
             } else {

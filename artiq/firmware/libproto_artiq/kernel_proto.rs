@@ -11,6 +11,15 @@ pub const KERNELCPU_LAST_ADDRESS:    usize = 0x4fffffff;
 pub const KSUPPORT_HEADER_SIZE: usize = 0x74;
 
 #[derive(Debug)]
+pub enum SubkernelStatus {
+    NoError,
+    Timeout,
+    IncorrectState,
+    CommLost,
+    OtherError
+}
+
+#[derive(Debug)]
 pub enum Message<'a> {
     LoadRequest(&'a [u8]),
     LoadReply(Result<(), dyld::Error<'a>>),
@@ -97,10 +106,10 @@ pub enum Message<'a> {
     SubkernelLoadRunRequest { id: u32, run: bool },
     SubkernelLoadRunReply { succeeded: bool },
     SubkernelAwaitFinishRequest { id: u32, timeout: u64 },
-    SubkernelAwaitFinishReply { timeout: bool },
+    SubkernelAwaitFinishReply { status: SubkernelStatus },
     SubkernelMsgSend { id: u32, tag: &'a [u8], data: *const *const () },
     SubkernelMsgRecvRequest { id: u32, timeout: u64 },
-    SubkernelMsgRecvReply { timeout: bool },
+    SubkernelMsgRecvReply { status: SubkernelStatus },
 
     Log(fmt::Arguments<'a>),
     LogSlice(&'a str)

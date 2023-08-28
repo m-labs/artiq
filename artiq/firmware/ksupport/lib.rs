@@ -473,10 +473,17 @@ extern fn subkernel_load_run(id: u32, run: bool) {
 #[unwind(allowed)]
 extern fn subkernel_await_finish(id: u32, timeout: u64) {
     send(&SubkernelAwaitFinishRequest { id: id, timeout: timeout });
-    recv!(&SubkernelAwaitFinishReply { timeout } => {
-        if timeout {
-            raise!("SubkernelError",
-                "Timed out awaiting for subkernel to finish");
+    recv!(SubkernelAwaitFinishReply { status } => {
+        match status {
+            SubkernelStatus::NoError => (),
+            SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                "Subkernel not running"),
+            SubkernelStatus::Timeout => raise!("SubkernelError",
+                "Subkernel timed out"),
+            SubkernelStatus::CommLost => raise!("SubkernelError",
+                "Lost communication with satellite"),
+            SubkernelStatus::OtherError => raise!("SubkernelError",
+                "An error occurred during subkernel operation")
         }
     })
 }
@@ -493,10 +500,17 @@ extern fn subkernel_send_message(id: u32, tag: &CSlice<u8>, data: *const *const 
 #[unwind(allowed)]
 extern fn subkernel_await_message(id: u32, timeout: u64) {
     send(&SubkernelMsgRecvRequest { id: id, timeout: timeout });
-    recv!(&SubkernelMsgRecvReply { timeout } => {
-        if timeout {
-            raise!("SubkernelError",
-                "Timed out awaiting for subkernel's message");
+    recv!(SubkernelMsgRecvReply { status } => {
+        match status {
+            SubkernelStatus::NoError => (),
+            SubkernelStatus::IncorrectState => raise!("SubkernelError",
+                "Subkernel not running"),
+            SubkernelStatus::Timeout => raise!("SubkernelError",
+                "Subkernel timed out"),
+            SubkernelStatus::CommLost => raise!("SubkernelError",
+                "Lost communication with satellite"),
+            SubkernelStatus::OtherError => raise!("SubkernelError",
+                "An error occurred during subkernel operation")
         }
     })
     // RpcRecvRequest should be called after this to receive message data

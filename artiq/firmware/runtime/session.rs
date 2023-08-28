@@ -15,7 +15,7 @@ use rtio_dma::Manager as DmaManager;
 #[cfg(has_drtio)]
 use rtio_dma::remote_dma;
 #[cfg(has_drtio)]
-use kernel::subkernel;
+use kernel::{subkernel, subkernel::Error as SubkernelError};
 use rtio_mgt::get_async_errors;
 use cache::Cache;
 use kern_hwreq;
@@ -41,7 +41,7 @@ pub enum Error<T> {
     SubkernelIoError,
     #[cfg(has_drtio)]
     #[fail(display = "subkernel error: {}", _0)]
-    Subkernel(#[cause] subkernel::SubkernelError),
+    Subkernel(#[cause] SubkernelError),
     #[fail(display = "{}", _0)]
     Unexpected(String),
 }
@@ -77,8 +77,8 @@ impl From<io::Error<!>> for Error<SchedError> {
 }
 
 #[cfg(has_drtio)]
-impl From<subkernel::SubkernelError> for Error<SchedError> {
-    fn from(value: subkernel::SubkernelError) -> Error<SchedError> {
+impl From<SubkernelError> for Error<SchedError> {
+    fn from(value: SubkernelError) -> Error<SchedError> {
         Error::Subkernel(value)
     }
 }
@@ -382,7 +382,7 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
 fn process_kern_message(io: &Io, aux_mutex: &Mutex,
                         routing_table: &drtio_routing::RoutingTable,
                         up_destinations: &Urc<RefCell<[bool; drtio_routing::DEST_COUNT]>>,
-                        ddma_mutex: &Mutex, subkernel_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
+                        ddma_mutex: &Mutex, _subkernel_mutex: &Mutex, mut stream: Option<&mut TcpStream>,
                         session: &mut Session) -> Result<bool, Error<SchedError>> {
     kern_recv_notrace(io, |request| {
         match (request, session.kernel_state) {
@@ -564,7 +564,7 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             #[cfg(has_drtio)]
             &kern::SubkernelLoadRunRequest { id, run } => {
                 let succeeded = match subkernel::load(
-                    io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table, id, run) {
+                    io, aux_mutex, _subkernel_mutex, routing_table, id, run) {
                         Ok(()) => true,
                         Err(e) => { error!("Error loading subkernel: {}", e); false }
                     };
@@ -572,33 +572,48 @@ fn process_kern_message(io: &Io, aux_mutex: &Mutex,
             }
             #[cfg(has_drtio)]
             &kern::SubkernelAwaitFinishRequest{ id, timeout } => {
-                let res = subkernel::await_finish(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
+                let res = subkernel::await_finish(io, aux_mutex, _subkernel_mutex, routing_table,
                     id, timeout);
-                if let Ok(ref res) = res {
-                    if res.comm_lost {
-                        error!("Communcation lost with the satellite while subkernel {} was running", res.id);
-                    } else if let Some(exception) = &res.exception {
-                        error!("Exception in subkernel");
-                        match stream {
-                            None => return Ok(true),
-                            Some(ref mut stream) => { 
-                                stream.write_all(exception)?;
+                let status = match res {
+                    Ok(ref res) => {
+                            if res.comm_lost {
+                                kern::SubkernelStatus::CommLost
+                            } else if let Some(exception) = &res.exception {
+                                error!("Exception in subkernel");
+                                match stream {
+                                    None => return Ok(true),
+                                    Some(ref mut stream) => { 
+                                        stream.write_all(exception)?;
+                                    }
+                                }
+                                // will not be called after exception is served
+                                kern::SubkernelStatus::OtherError
+                            } else {
+                                kern::SubkernelStatus::NoError
                             }
-                        }
-                    }
-                }
-                kern_send(io, &kern::SubkernelAwaitFinishReply { timeout: res.is_err() })
+                        },
+                    Err(SubkernelError::Timeout) => kern::SubkernelStatus::Timeout,
+                    Err(SubkernelError::IncorrectState) => kern::SubkernelStatus::IncorrectState,
+                    Err(_) => kern::SubkernelStatus::OtherError
+                };
+                kern_send(io, &kern::SubkernelAwaitFinishReply { status: status })
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgSend { id, tag, data } => {
-                subkernel::message_send(io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table,
-                    id, tag, data)?;
+                subkernel::message_send(io, aux_mutex, _subkernel_mutex, routing_table, id, tag, data)?;
                 kern_acknowledge()
             }
             #[cfg(has_drtio)]
             &kern::SubkernelMsgRecvRequest { id, timeout } => {
-                let message_received = subkernel::message_await(io, subkernel_mutex, id, timeout);
-                kern_send(io, &kern::SubkernelMsgRecvReply { timeout: message_received.is_err() })?;
+                let message_received = subkernel::message_await(io, _subkernel_mutex, id, timeout);
+                let status = match message_received {
+                    Ok(_) => kern::SubkernelStatus::NoError,
+                    Err(SubkernelError::Timeout) => kern::SubkernelStatus::Timeout,
+                    Err(SubkernelError::IncorrectState) => kern::SubkernelStatus::IncorrectState,
+                    Err(SubkernelError::CommLost) => kern::SubkernelStatus::CommLost,
+                    Err(_) => kern::SubkernelStatus::OtherError
+                };
+                kern_send(io, &kern::SubkernelMsgRecvReply { status: status })?;
                 if let Ok((tag, data)) = message_received {
                     // receive code almost identical to RPC recv, except we are not reading from a stream
                     let mut reader = Cursor::new(data);

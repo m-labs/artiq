@@ -235,7 +235,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_class = old_class
 
-    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False, 
+    def visit_function(self, node, is_lambda=False, is_internal=False, is_quoted=False,
                        flags={}):
         if is_lambda:
             name = "lambda@{}:{}".format(node.loc.line(), node.loc.column())
@@ -315,7 +315,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 old_priv_env, self.current_private_env = self.current_private_env, priv_env
 
             self.append(ir.SetLocal(env, "$outer", env_arg))
-
             for index, arg_name in enumerate(typ.args):
                 self.append(ir.SetLocal(env, arg_name, args[index]))
             for index, (arg_name, codegen_default) in enumerate(zip(typ.optargs, defaults)):
@@ -2649,6 +2648,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if self_arg is not None:
                 assert args[0] is None
                 args[0] = self_arg
+
+        assert None not in args
 
         if self.unwind_target is None or \
                 types.is_external_function(callee.type) and "nounwind" in callee.type.flags:
