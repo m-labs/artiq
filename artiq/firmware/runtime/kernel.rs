@@ -119,10 +119,6 @@ pub mod subkernel {
     pub enum SubkernelError {
         #[fail(display = "Timed out waiting for subkernel")]
         Timeout,
-        #[fail(display = "Subkernel not in Finished state")]
-        NotFinished,
-        #[fail(display = "Subkernel not uploaded")]
-        NotUploaded,
         #[fail(display = "Session killed while waiting for subkernel")]
         SessionKilled,
         #[fail(display = "Subkernel is in incorrect state for the given operation")]
@@ -200,7 +196,7 @@ pub mod subkernel {
         let _lock = subkernel_mutex.lock(io).unwrap();
         let subkernel = unsafe { SUBKERNELS.get_mut(&id).unwrap() };
         if subkernel.state != SubkernelState::Uploaded {
-            return Err(SubkernelError::NotUploaded);
+            return Err(SubkernelError::IncorrectState);
         }
         drtio::subkernel_load(io, aux_mutex, routing_table, id, subkernel.destination, run)?;
         if run {
@@ -342,7 +338,7 @@ pub mod subkernel {
                     } else { None }
                 })
             },
-            _ => Err(SubkernelError::NotFinished)
+            _ => Err(SubkernelError::IncorrectState)
         }
         
     }
