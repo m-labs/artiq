@@ -2544,11 +2544,12 @@ class ARTIQIRGenerator(algorithm.Visitor):
             if types.is_method(fn):
                 fn = types.get_method_function(fn)
             sid = ir.Constant(fn.sid, builtins.TInt32())
-            self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
             if not builtins.is_none(fn.ret):
-                return self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
+                ret = self.append(ir.Builtin("subkernel_retrieve_return", [sid, timeout], fn.ret))
             else:
-                return ir.Constant(None, builtins.TNone())
+                ret = ir.Constant(None, builtins.TNone())
+            self.append(ir.Builtin("subkernel_await_finish", [sid, timeout], builtins.TNone()))
+            return ret
         elif types.is_builtin(typ, "subkernel_preload"):
             if len(node.args) == 1 and len(node.keywords) == 0:
                 fn = node.args[0].type

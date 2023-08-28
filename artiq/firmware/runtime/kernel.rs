@@ -156,7 +156,6 @@ pub mod subkernel {
         }
     }
 
-
     pub struct SubkernelFinished {
         pub id: u32,
         pub comm_lost: bool,
@@ -281,7 +280,7 @@ pub mod subkernel {
         if let Some((id, mut subkernel)) = finished {
             let _lock = subkernel_mutex.lock(io)?;
             if let SubkernelState::Finished { status } = subkernel.state {
-                // update the status so it doesn't get handled again
+                // update the status so any exception doesn't get handled again
                 subkernel.state = SubkernelState::Finished { status: FinishStatus::Ok };
                 Ok(Some(SubkernelFinished {
                     id: id,
