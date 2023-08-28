@@ -393,6 +393,53 @@ class SerdesSingle(Module):
                 & decoders[0].k))
 
 
+class AsyncIdleReset(Module):
+    def __init__(self, iserdes_o):
+        ce_counter = Signal(13)
+        activity_ce = Signal()
+        transition_ce = Signal()
+
+        self.sync.clk200 += Cat(ce_counter, activity_ce).eq(ce_counter + 1)
+        self.comb += transition_ce.eq(ce_counter[0])
+
+        idle_low_meta = Signal()
+        idle_high_meta = Signal()
+        idle_low = Signal()
+        idle_high = Signal()
+
+        idle = Signal()
+        self.rst = Signal(reset=1)
+
+        # Detect the lack of transitions (idle) within 2 sysclk cycles
+        self.specials += [
+            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low_meta,
+                attr={"async_reg", "ars_ff1"}),
+            Instance("FDCE", p_INIT=1, i_D=idle_low_meta, i_CLR=iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low,
+                attr={"async_reg", "ars_ff2"}),
+
+            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=~iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high_meta,
+                attr={"async_reg", "ars_ff1"}),
+            Instance("FDCE", p_INIT=1, i_D=idle_high_meta, i_CLR=~iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high,
+                attr={"async_reg", "ars_ff2"}),
+        ]
+
+        # Detect activity for the last 2**13 iterations
+        self.sync.clk200 += [
+            If(activity_ce,
+                idle.eq(0),
+                self.rst.eq(idle),
+            ),
+            If(idle_low | idle_high,
+                idle.eq(1),
+                self.rst.eq(1),
+            ),
+        ]
+
+
 class EEMSerdes(Module, TransceiverInterface, AutoCSR):
     def __init__(self, platform, data_pads):
         self.rx_ready = CSRStorage()
@@ -473,6 +520,9 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         })
 
         self.submodules += serdes_list
-        self.iserdes_o = serdes_list[0].rx_serdes.o
+
+        # Idle reset module
+        self.submodules.idle_reset = AsyncIdleReset(serdes_list[0].rx_serdes.o[0])
+        self.rst = self.idle_reset.rst
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
