@@ -108,7 +108,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
         self.current_args = None
         self.current_assign = None
         self.current_exception = None
-        self.current_remote_args = False
+        self.current_remote_fn = False
         self.break_target = None
         self.continue_target = None
         self.return_target = None
@@ -213,7 +213,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
             self.generic_visit(node)
             self.terminate(ir.Return(ir.Constant(None, builtins.TNone()),
-                           remote_return=self.current_remote_args))
+                           remote_return=self.current_remote_fn))
 
             return self.functions
         finally:
@@ -296,8 +296,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             old_block, self.current_block = self.current_block, entry
 
             old_globals, self.current_globals = self.current_globals, node.globals_in_scope
-            old_remote_args = self.current_remote_args
-            self.current_remote_args = getattr(node, "remote_args", False)
+            old_remote_fn = self.current_remote_fn
+            self.current_remote_fn = getattr(node, "remote_fn", False)
 
             env_without_globals = \
                 {var: node.typing_env[var]
@@ -332,7 +332,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             elif builtins.is_none(typ.ret):
                 if not self.current_block.is_terminated():
                     self.current_block.append(ir.Return(ir.Constant(None, builtins.TNone()), 
-                                                        remote_return=self.current_remote_args))
+                                                        remote_return=self.current_remote_fn))
             else:
                 if not self.current_block.is_terminated():
                     if len(self.current_block.predecessors()) != 0:
@@ -351,7 +351,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
             self.current_block = old_block
             self.current_globals = old_globals
             self.current_env = old_env
-            self.current_remote_args = old_remote_args
+            self.current_remote_fn = old_remote_fn
             if not is_lambda:
                 self.current_private_env = old_priv_env
 
@@ -375,7 +375,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
 
         if self.return_target is None:
             self.append(ir.Return(return_value, 
-                                  remote_return=self.current_remote_args))
+                                  remote_return=self.current_remote_fn))
         else:
             self.append(ir.SetLocal(self.current_private_env, "$return", return_value))
             self.append(ir.Branch(self.return_target))
@@ -2569,7 +2569,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 node.loc)
             self.engine.process(diag)
 
-    def _user_call(self, callee, positional, keywords, arg_exprs={}, remote_args=False):
+    def _user_call(self, callee, positional, keywords, arg_exprs={}, remote_fn=False):
         if types.is_function(callee.type) or types.is_rpc(callee.type) or types.is_subkernel(callee.type):
             func     = callee
             self_arg = None
@@ -2596,7 +2596,7 @@ class ARTIQIRGenerator(algorithm.Visitor):
                 arg = keywords[keyword]
                 args.append(self.append(ir.Alloc([ir.Constant(keyword, builtins.TStr()), arg],
                                                  ir.TKeyword(arg.type))))
-        elif remote_args:
+        elif remote_fn:
             assert self_arg is None
             assert len(fn_typ.args) >= len(positional)
             assert len(keywords) == 0  # no keyword support
@@ -2698,8 +2698,8 @@ class ARTIQIRGenerator(algorithm.Visitor):
             else:
                 assert False, "Broadcasting for {} arguments not implemented".format(len)
         else:
-            remote_args = getattr(node, "remote_args", False)
-            insn = self._user_call(callee, args, keywords, node.arg_exprs, remote_args)
+            remote_fn = getattr(node, "remote_fn", False)
+            insn = self._user_call(callee, args, keywords, node.arg_exprs, remote_fn)
             if isinstance(node.func, asttyped.AttributeT):
                 attr_node = node.func
                 self.method_map[(attr_node.value.type.find(),

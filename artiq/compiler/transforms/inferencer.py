@@ -1473,7 +1473,7 @@ class Inferencer(algorithm.Visitor):
             passed_args[keyword.arg] = keyword.arg_loc
 
         for formalname in typ_args:
-            if formalname not in passed_args and not node.remote_args:
+            if formalname not in passed_args and not node.remote_fn:
                 note = diagnostic.Diagnostic("note",
                     "the called function is of type {type}",
                     {"type": types.TypePrinter().name(node.func.type)},

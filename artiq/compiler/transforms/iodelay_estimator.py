@@ -320,7 +320,7 @@ class IODelayEstimator(algorithm.Visitor):
                         }
                         call_delay = delay.duration.fold(node.arg_exprs)
                     except KeyError as e:
-                        if getattr(node, "remote_args", False):
+                        if getattr(node, "remote_fn", False):
                             note = diagnostic.Diagnostic("note",
                                 "function called here", {},
                                 node.loc)

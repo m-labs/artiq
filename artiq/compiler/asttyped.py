@@ -23,7 +23,8 @@ class scoped(object):
 
 class remote(object):
     """
-    :ivar remote_args: (bool) whether arguments should be received from remote
+    :ivar remote_fn: (bool) whether function is ran on a remote device,
+        meaning arguments are received remotely and return is sent remotely
     """
 
 # Typed versions of untyped nodes
