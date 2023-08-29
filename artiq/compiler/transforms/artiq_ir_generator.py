@@ -1198,7 +1198,28 @@ class ARTIQIRGenerator(algorithm.Visitor):
         finally:
             self.current_assign = old_assign
 
-        if isinstance(node.slice, ast.Index):
+        if types.is_tuple(node.value.type):
+            assert isinstance(node.slice, ast.Index), \
+                "Internal compiler error: tuple index should be an Index"
+            assert isinstance(node.slice.value, ast.Num), \
+                "Internal compiler error: tuple index should be a constant"
+
+            if self.current_assign is not None:
+                diag = diagnostic.Diagnostic("error",
+                    "cannot assign to a tuple element",
+                    {}, node.loc)
+                self.engine.process(diag)
+                return
+
+            index = node.slice.value.n
+            indexed = self.append(
+                ir.GetAttr(value, index, name="{}.e{}".format(value.name, index)),
+                loc=node.loc
+            )
+
+            return indexed
+
+        elif isinstance(node.slice, ast.Index):
             try:
                 old_assign, self.current_assign = self.current_assign, None
                 index = self.visit(node.slice.value)
