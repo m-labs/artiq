@@ -418,14 +418,6 @@ pub mod subkernel {
         }
     }
 
-    pub fn message_clear_queue(io: &Io, subkernel_mutex: &Mutex) {
-        let _lock = subkernel_mutex.lock(io).unwrap();
-        unsafe {
-            MESSAGE_QUEUE = Vec::new();
-            CURRENT_MESSAGES = BTreeMap::new();
-        }
-    }
-
     pub fn message_send<'a>(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
         routing_table: &RoutingTable, id: u32, tag: &'a [u8], message: *const *const ()
     ) -> Result<(), Error> {

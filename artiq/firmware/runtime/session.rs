@@ -276,9 +276,6 @@ fn process_host_message(io: &Io, _aux_mutex: &Mutex, _ddma_mutex: &Mutex, _subke
         }
 
         host::Request::LoadKernel(kernel) => {
-            #[cfg(has_drtio)]
-            subkernel::message_clear_queue(io, _subkernel_mutex);
-
             match unsafe { kern_load(io, session, &kernel) } {
                 Ok(()) => host_write(stream, host::Reply::LoadCompleted)?,
                 Err(error) => {
