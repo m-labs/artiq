@@ -89,7 +89,7 @@ class Satellite(BaseSoC, AMPSoC):
         self.add_memory_group("drtioaux_mem", ["drtioaux0_mem"])
 
         # Async reset gateware if data lane is idle
-        self.crg.configure_reset(self.eem_transceiver.rst)
+        self.comb += self.crg.reset.eq(self.eem_transceiver.rst)
 
         i2c = self.platform.request("fpga_i2c")
         self.submodules.i2c = gpio.GPIOTristate([i2c.scl, i2c.sda])
