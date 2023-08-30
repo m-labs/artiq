@@ -14,7 +14,7 @@
 # along with pdq.  If not, see <http://www.gnu.org/licenses/>.
 
 from collections import namedtuple
-from operator import add, or_
+from operator import add
 
 from migen import *
 from misoc.interconnect.stream import Endpoint
