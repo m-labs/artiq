@@ -275,7 +275,7 @@ class Inferencer(algorithm.Visitor):
             if index < 0 or index >= len(tuple_type.elts):
                 diag = diagnostic.Diagnostic(
                     "error",
-                    "index {index} cannot be used to index tuple of size {size}",
+                    "index {index} is out of range for tuple of size {size}",
                     {"index": index, "size": len(tuple_type.elts)},
                     node.slice.loc, []
                 )

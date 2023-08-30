@@ -1209,7 +1209,6 @@ class ARTIQIRGenerator(algorithm.Visitor):
                     "cannot assign to a tuple element",
                     {}, node.loc)
                 self.engine.process(diag)
-                return
 
             index = node.slice.value.n
             indexed = self.append(

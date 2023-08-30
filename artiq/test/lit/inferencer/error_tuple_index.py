@@ -9,3 +9,6 @@ x[i]
 
 # CHECK-L: ${LINE:+1}: error: tuples can only be indexed by a constant
 x[0:2]
+
+# CHECK-L: ${LINE:+1}: error: index 3 is out of range for tuple of size 3
+x[3]
