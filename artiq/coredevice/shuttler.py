@@ -42,7 +42,7 @@ class Volt:
 
         for i in range(len(pdq_words)):
             rtio_output(self.target_o | i, pdq_words[i])
-            delay_mu(8)
+            delay_mu(int64(self.core.ref_multiplier))
 
 
 class Dds:
@@ -75,7 +75,7 @@ class Dds:
 
         for i in range(len(pdq_words)):
             rtio_output(self.target_o | i, pdq_words[i])
-            delay_mu(8)
+            delay_mu(int64(self.core.ref_multiplier))
 
 
 class Trigger:
