@@ -1,7 +1,5 @@
 # Copyright 2013-2017 Robert Jordens <jordens@gmail.com>
 #
-# This file is part of pdq.
-#
 # pdq is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
@@ -72,6 +70,7 @@ class Volt(Module):
     def __init__(self):
         self.data = Signal(16)
         self.i = Endpoint([("data", 144)])
+        self.i.latency = 17
 
         ###
 
@@ -168,16 +167,16 @@ class Config(Module):
         self.sync.rio += If(self.i.stb, self.clr.eq(self.i.data))
 
 
-_Phy = namedtuple("Phy", "rtlink probes overrides")
+Phy = namedtuple("Phy", "rtlink probes overrides")
 
 
-class Pdq(Module):
-    """PDQ module.
+class Shuttler(Module):
+    """Shuttler module.
 
     Used both in functional simulation and final gateware.
 
-    Holds the :mod:`gateware.dac.Dac`s and the configuration register. The
-    DAC and Config are collected and to be adapted into RTIO interface.
+    Holds the DACs and the configuration register. The DAC and Config are
+    collected and adapted into RTIO interface.
 
     Attributes:
         phys (list): List of Endpoints.
@@ -196,32 +195,30 @@ class Pdq(Module):
             self.cfg.i.stb.eq(cfg_rtl_iface.o.stb),
             self.cfg.i.data.eq(cfg_rtl_iface.o.data),
         ]
-        self.phys.append(_Phy(cfg_rtl_iface, [], []))
+        self.phys.append(Phy(cfg_rtl_iface, [], []))
 
         trigger_iface = rtlink.Interface(rtlink.OInterface(
             data_width=NUM_OF_DACS,
             enable_replace=False))
-        self.phys.append(_Phy(trigger_iface, [], []))
+        self.phys.append(Phy(trigger_iface, [], []))
 
-        dacs = []
         for idx in range(NUM_OF_DACS):
             dac = Dac()
             self.comb += dac.clear.eq(self.cfg.clr[idx]),
 
             for i in dac.i:
+                delay = getattr(i, "latency", 0)
                 rtl_iface = rtlink.Interface(rtlink.OInterface(
-                    data_width=16, address_width=4))
+                    data_width=16, address_width=4, delay=delay))
                 array = Array(i.data[wi: wi+16] for wi in range(0, len(i.data), 16))
 
-                self.sync += [
+                self.sync.rio += [
                     i.stb.eq(trigger_iface.o.data[idx] & trigger_iface.o.stb),
                     If(rtl_iface.o.stb,
                         array[rtl_iface.o.address].eq(rtl_iface.o.data),
                     ),
                 ]
 
-                self.phys.append(_Phy(rtl_iface, [], []))
+                self.phys.append(Phy(rtl_iface, [], []))
 
-            dacs.append(dac)
-
-        self.submodules += dacs
+            self.submodules += dac
