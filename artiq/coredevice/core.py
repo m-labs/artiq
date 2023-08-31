@@ -99,8 +99,6 @@ class Core:
         self.core = self
         self.comm.core = self
 
-        self.subkernel_cache = {}
-
     def close(self):
         self.comm.close()
 
@@ -152,9 +150,6 @@ class Core:
 
     def compile_subkernels(self, embedding_map, args):
         for sid, subkernel_fn in embedding_map.subkernels().items():
-            if sid in self.subkernel_cache.keys():
-                # subkernel has been compiled and uploaded already
-                continue
             # pass self to subkernels (if applicable)
             # assuming the first argument is self
             subkernel_args = getfullargspec(subkernel_fn.artiq_embedded.function)
@@ -167,7 +162,7 @@ class Core:
             target = get_target_cls(destination_tgt)(subkernel_id=sid)
             object_map, kernel_library, _, _ = \
                 self.compile(subkernel_fn, self_arg, {}, attribute_writeback=False,
-                             print_as_rpc=False, target=target, destination=destination)
+                            print_as_rpc=False, target=target, destination=destination)
             if object_map.has_rpc_or_subkernel():
                 raise ValueError("Subkernel must not use RPC or subkernels in other destinations")
             self.comm.upload_subkernel(kernel_library, sid, destination)
