@@ -69,7 +69,8 @@ pub enum Error {
     Unexpected(String),
     NoMessage,
     AwaitingMessage,
-    SubkernelIoError
+    SubkernelIoError,
+    KernelException(Sliceable)
 }
 
 impl From<NoneError> for Error {
@@ -89,7 +90,8 @@ macro_rules! unexpected {
 }
 
 /* represents data that has to be sent to Master */
-struct Sliceable {
+#[derive(Debug)]
+pub struct Sliceable {
     it: usize,
     data: Vec<u8>
 }
@@ -465,6 +467,13 @@ impl Manager {
         match process_external_messages(&mut self.session) {
             Ok(()) => (),
             Err(Error::AwaitingMessage) => return None, // kernel still waiting, do not process kernel messages
+            Err(Error::KernelException(exception)) => {
+                unsafe { kernel_cpu::stop() }
+                self.session.kernel_state = KernelState::Absent;
+                unsafe { self.session.cache.unborrow() }
+                self.session.last_exception = Some(exception);
+                return Some(SubkernelFinished { id: self.current_id, with_exception: true })
+            },
             Err(e) => { 
                 error!("Error while running processing external messages: {:?}", e);
                 self.stop();
@@ -530,6 +539,32 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
     Ok(())
 }
 
+fn handle_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
+    stack_pointers: &[eh_artiq::StackPointerBacktrace],
+    backtrace: &[(usize, usize)]
+) -> Option<Sliceable> {
+    error!("exception in kernel");
+    for exception in exceptions {
+        error!("{:?}", exception.unwrap());
+    }
+    error!("stack pointers: {:?}", stack_pointers);
+    error!("backtrace: {:?}", backtrace);
+    // master will only pass the exception data back to the host:
+    let raw_exception: Vec<u8> = Vec::new();
+    let mut writer = Cursor::new(raw_exception);
+    match (HostKernelException {
+        exceptions: exceptions,
+        stack_pointers: stack_pointers,
+        backtrace: backtrace,
+        async_errors: 0
+    }).write_to(&mut writer) {
+        // save last exception data to be received by master
+        Ok(_) => return Some(Sliceable::new(writer.into_inner())),
+        Err(_) => error!("Error writing exception data")
+    }
+    None
+}
+
 fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
     let mut reader = Cursor::new(&message.data);
     let mut tag: [u8; 1] = [message.tag];
@@ -537,6 +572,10 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
         let slot = kern_recv_w_timeout(100, |reply| {
             match reply {
                 &kern::RpcRecvRequest(slot) => Ok(slot),
+                &kern::RunException { exceptions, stack_pointers, backtrace } => {
+                    let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                    Err(Error::KernelException(exception))
+                },
                 other => unexpected!(
                     "expected root value slot from kernel CPU, not {:?}", other)
             }
@@ -550,6 +589,14 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
             Ok(kern_recv_w_timeout(100, |reply| {
                 match reply {
                     &kern::RpcRecvRequest(slot) => Ok(slot),
+                    &kern::RunException { 
+                        exceptions,
+                        stack_pointers,
+                        backtrace 
+                    }=> {
+                        let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                        Err(Error::KernelException(exception))
+                    },
                     other => unexpected!(
                         "expected nested value slot from kernel CPU, not {:?}", other)
                 }
@@ -571,12 +618,12 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     match session.kernel_state {
         KernelState::MsgAwait { max_time } => {
             if clock::get_ms() > max_time {
-                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
+                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
                 session.kernel_state = KernelState::Running;
                 return Ok(())
             }
             if let Some(message) = session.messages.get_incoming() {
-                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
+                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
                 session.kernel_state = KernelState::Running;
                 pass_message_to_kernel(&message)
             } else {
@@ -656,33 +703,12 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
 
                 return Ok(Some(false))
             }
-            &kern::RunException {
-                exceptions,
-                stack_pointers,
-                backtrace
-            } => {
+            &kern::RunException { exceptions, stack_pointers, backtrace } => {
                 unsafe { kernel_cpu::stop() }
                 session.kernel_state = KernelState::Absent;
-
-                error!("exception in flash kernel");
-                for exception in exceptions {
-                    error!("{:?}", exception.unwrap());
-                }
-                error!("stack pointers: {:?}", stack_pointers);
-                error!("backtrace: {:?}", backtrace);
-                // master will only pass the exception data back to the host:
-                let raw_exception: Vec<u8> = Vec::new();
-                let mut writer = Cursor::new(raw_exception);
-                match (HostKernelException {
-                    exceptions: exceptions,
-                    stack_pointers: stack_pointers,
-                    backtrace: backtrace,
-                    async_errors: 0
-                }).write_to(&mut writer) {
-                    // save last exception data to be received by master
-                    Ok(_) => session.last_exception = Some(Sliceable::new(writer.into_inner())),
-                    Err(_) => error!("Error writing exception data")
-                }
+                unsafe { session.cache.unborrow() }    
+                let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                session.last_exception = Some(exception);
                 return Ok(Some(true))
             }
 
