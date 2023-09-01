@@ -78,10 +78,11 @@ class CreateEditDialog(QtWidgets.QDialog):
 
         if metadata is not None:
             scale = scale_from_metadata(metadata)
-            value = pyon.decode(value)
-            t = type(value)
-            if np.issubdtype(t, np.number) or t is np.ndarray:
-                self.value_widget.setText(pyon.encode(value / scale))
+            decoded_value = pyon.decode(value)
+            if scale == 1:
+                self.value_widget.setText(value)
+            else: 
+                self.value_widget.setText(pyon.encode(decoded_value / scale))
             self.unit_widget.setText(metadata.get('unit', ''))
             self.scale_widget.setText(str(metadata.get('scale', '')))
             self.precision_widget.setText(str(metadata.get('precision', '')))
@@ -104,8 +105,9 @@ class CreateEditDialog(QtWidgets.QDialog):
             metadata['precision'] = int(precision)
         scale = scale_from_metadata(metadata)
         value = pyon.decode(value)
-        t = type(value)
-        if np.issubdtype(t, np.number) or t is np.ndarray:
+        t = value.dtype if value is np.ndarray else type(value)
+        is_floating = scale != 1 or np.issubdtype(t, np.floating)
+        if is_floating:
             value = value * scale
         if self.key and self.key != key:
             asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist, self.dataset_ctl)))
