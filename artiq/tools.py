@@ -85,7 +85,6 @@ def short_format(v, metadata={}):
         v_str = np.array2string(v_t,
                                 max_line_width=1000,
                                 precision=precision,
-                                trim='-',
                                 suppress_small=True,
                                 separator=', ',
                                 threshold=4,
