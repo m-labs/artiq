@@ -393,7 +393,7 @@ class SerdesSingle(Module):
                 & decoders[0].k))
 
 
-class AsyncIdleReset(Module):
+class OOBReset(Module):
     def __init__(self, iserdes_o):
         ce_counter = Signal(13)
         activity_ce = Signal()
@@ -410,7 +410,7 @@ class AsyncIdleReset(Module):
         idle = Signal()
         self.rst = Signal(reset=1)
 
-        # Detect the lack of transitions (idle) within 2 sysclk cycles
+        # Detect the lack of transitions (idle) within 2 clk200 cycles
         self.specials += [
             Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
                 i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low_meta,
@@ -427,7 +427,10 @@ class AsyncIdleReset(Module):
                 attr={"async_reg", "ars_ff2"}),
         ]
 
-        # Detect activity for the last 2**13 iterations
+        # Detect activity for the last 2**13 clk200 cycles
+        # The 2**13 cycles are fully partitioned into 2**12 time segments of 2
+        # cycles in duration. If there exists 2-cycle time segment without
+        # signal level transition, rst is asserted.
         self.sync.clk200 += [
             If(activity_ce,
                 idle.eq(0),
@@ -521,8 +524,7 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         self.submodules += serdes_list
 
-        # Idle reset module
-        self.submodules.idle_reset = AsyncIdleReset(serdes_list[0].rx_serdes.o[0])
-        self.rst = self.idle_reset.rst
+        self.submodules.oob_reset = OOBReset(serdes_list[0].rx_serdes.o[0])
+        self.rst = self.oob_reset.rst
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
