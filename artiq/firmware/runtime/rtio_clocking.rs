@@ -267,6 +267,9 @@ pub fn init() {
             // enable TX after the reboot, with stable clock
             unsafe {
                 csr::gt_drtio::txenable_write(0xffffffffu32 as _);
+
+                #[cfg(has_drtio_eem)]
+                csr::eem_transceiver::txenable_write(0xffffffffu32 as _);
             }
         }
     }
