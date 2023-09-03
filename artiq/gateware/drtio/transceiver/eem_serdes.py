@@ -415,14 +415,14 @@ class OOBReset(Module):
             Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
                 i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low_meta,
                 attr={"async_reg", "ars_ff1"}),
-            Instance("FDCE", p_INIT=1, i_D=idle_low_meta, i_CLR=iserdes_o,
+            Instance("FDCE", p_INIT=1, i_D=idle_low_meta, i_CLR=0,
                 i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low,
                 attr={"async_reg", "ars_ff2"}),
 
             Instance("FDCE", p_INIT=1, i_D=1, i_CLR=~iserdes_o,
                 i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high_meta,
                 attr={"async_reg", "ars_ff1"}),
-            Instance("FDCE", p_INIT=1, i_D=idle_high_meta, i_CLR=~iserdes_o,
+            Instance("FDCE", p_INIT=1, i_D=idle_high_meta, i_CLR=0,
                 i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high,
                 attr={"async_reg", "ars_ff2"}),
         ]
