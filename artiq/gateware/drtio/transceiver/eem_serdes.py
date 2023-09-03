@@ -526,5 +526,6 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         self.submodules.oob_reset = OOBReset(serdes_list[0].rx_serdes.o[0])
         self.rst = self.oob_reset.rst
+        self.rst.attr.add("no_retiming")
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
