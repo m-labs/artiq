@@ -11,6 +11,7 @@ class RXSerdes(Module):
         self.cnt_in = [ Signal(5) for _ in range(4) ]
         self.cnt_out = [ Signal(5) for _ in range(4) ]
         self.bitslip = [ Signal() for _ in range(4) ]
+        self.o = [ Signal() for _ in range(4) ]
 
         ser_in_no_dly = [ Signal() for _ in range(4) ]
         ser_in = [ Signal() for _ in range(4) ]
@@ -34,6 +35,7 @@ class RXSerdes(Module):
                     o_Q6=self.rxdata[i][4],
                     o_Q7=self.rxdata[i][3],
                     o_Q8=self.rxdata[i][2],
+                    o_O=self.o[i],
                     o_SHIFTOUT1=shifts[i][0],
                     o_SHIFTOUT2=shifts[i][1],
                     i_DDLY=ser_in[i],
@@ -391,6 +393,56 @@ class SerdesSingle(Module):
                 & decoders[0].k))
 
 
+class OOBReset(Module):
+    def __init__(self, iserdes_o):
+        ce_counter = Signal(13)
+        activity_ce = Signal()
+        transition_ce = Signal()
+
+        self.sync.clk200 += Cat(ce_counter, activity_ce).eq(ce_counter + 1)
+        self.comb += transition_ce.eq(ce_counter[0])
+
+        idle_low_meta = Signal()
+        idle_high_meta = Signal()
+        idle_low = Signal()
+        idle_high = Signal()
+
+        idle = Signal()
+        self.rst = Signal(reset=1)
+
+        # Detect the lack of transitions (idle) within 2 clk200 cycles
+        self.specials += [
+            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low_meta,
+                attr={"async_reg", "ars_ff1"}),
+            Instance("FDCE", p_INIT=1, i_D=idle_low_meta, i_CLR=0,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_low,
+                attr={"async_reg", "ars_ff2"}),
+
+            Instance("FDCE", p_INIT=1, i_D=1, i_CLR=~iserdes_o,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high_meta,
+                attr={"async_reg", "ars_ff1"}),
+            Instance("FDCE", p_INIT=1, i_D=idle_high_meta, i_CLR=0,
+                i_CE=transition_ce, i_C=ClockSignal("clk200"), o_Q=idle_high,
+                attr={"async_reg", "ars_ff2"}),
+        ]
+
+        # Detect activity for the last 2**13 clk200 cycles
+        # The 2**13 cycles are fully partitioned into 2**12 time segments of 2
+        # cycles in duration. If there exists 2-cycle time segment without
+        # signal level transition, rst is asserted.
+        self.sync.clk200 += [
+            If(activity_ce,
+                idle.eq(0),
+                self.rst.eq(idle),
+            ),
+            If(idle_low | idle_high,
+                idle.eq(1),
+                self.rst.eq(1),
+            ),
+        ]
+
+
 class EEMSerdes(Module, TransceiverInterface, AutoCSR):
     def __init__(self, platform, data_pads):
         self.rx_ready = CSRStorage()
@@ -471,5 +523,9 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         })
 
         self.submodules += serdes_list
+
+        self.submodules.oob_reset = OOBReset(serdes_list[0].rx_serdes.o[0])
+        self.rst = self.oob_reset.rst
+        self.rst.attr.add("no_retiming")
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
