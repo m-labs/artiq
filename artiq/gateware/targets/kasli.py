@@ -365,8 +365,7 @@ class MasterBase(MiniSoC, AMPSoC):
         self.csr_devices.append("rtio_analyzer")
 
     def add_eem_drtio(self, eem_drtio_channels):
-        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(
-            self.platform, eem_drtio_channels, gate_tx=True)
+        self.submodules.eem_transceiver = eem_serdes.EEMSerdes(self.platform, eem_drtio_channels)
         self.csr_devices.append("eem_transceiver")
         self.config["HAS_DRTIO_EEM"] = None
         self.config["EEM_DRTIO_COUNT"] = len(eem_drtio_channels)

@@ -446,7 +446,7 @@ class OOBReset(Module):
 
 
 class EEMSerdes(Module, TransceiverInterface, AutoCSR):
-    def __init__(self, platform, data_pads, gate_tx=False):
+    def __init__(self, platform, data_pads):
         self.rx_ready = CSRStorage()
 
         self.transceiver_sel = CSRStorage(max(1, log2_int(len(data_pads))))
@@ -532,6 +532,5 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
 
-        if gate_tx:
-            for tx_en, serdes in zip(self.txenable.storage, serdes_list):
-                self.comb += serdes.tx_serdes.ext_rst.eq(~tx_en)
+        for tx_en, serdes in zip(self.txenable.storage, serdes_list):
+            self.comb += serdes.tx_serdes.ext_rst.eq(~tx_en)
