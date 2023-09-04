@@ -18,9 +18,78 @@ from operator import add
 
 from migen import *
 from misoc.interconnect.stream import Endpoint
+from misoc.interconnect.csr import *
 from misoc.cores.cordic import Cordic
 from artiq.gateware.rtio import rtlink
 
+class DacInterface(Module, AutoCSR):
+    def __init__(self, pads):
+        bit_width = len(pads[0].data)
+
+        self.data = [[Signal(bit_width) for _ in range(2)] for _ in range(8)]
+
+        self.ddr_clk_phase_shift = CSR()
+        self.ddr_clk_phase_shift_done = CSRStatus(reset=1)
+
+        mmcm_ps_fb = Signal()
+        mmcm_ps_output = Signal()
+        mmcm_ps_psdone = Signal()
+        ddr_clk = Signal()
+
+        # Generate DAC DDR CLK
+        # 125MHz to 125MHz with controllable phase shift,
+        # VCO @ 1000MHz.
+        # Phase is shifted by 45 degree by default
+        self.specials += \
+            Instance("MMCME2_ADV",
+                p_CLKIN1_PERIOD=8.0,
+                i_CLKIN1=ClockSignal(),
+                i_RST=ResetSignal(),
+                i_CLKINSEL=1, 
+
+                p_CLKFBOUT_MULT_F=8.0,
+                p_CLKOUT0_DIVIDE_F=8.0,
+                p_DIVCLK_DIVIDE=1,
+                p_CLKOUT0_PHASE=45.0,
+
+                o_CLKFBOUT=mmcm_ps_fb, i_CLKFBIN=mmcm_ps_fb,
+
+                p_CLKOUT0_USE_FINE_PS="TRUE",
+                o_CLKOUT0=mmcm_ps_output,
+
+                i_PSCLK=ClockSignal(),
+                i_PSEN=self.ddr_clk_phase_shift.re,
+                i_PSINCDEC=self.ddr_clk_phase_shift.r,
+                o_PSDONE=mmcm_ps_psdone,
+            )
+
+        self.sync += [
+            If(self.ddr_clk_phase_shift.re, self.ddr_clk_phase_shift_done.status.eq(0)),
+            If(mmcm_ps_psdone, self.ddr_clk_phase_shift_done.status.eq(1))
+        ]
+
+        # din.clk pads locate at multiple clock regions/IO banks
+        self.specials += [
+            Instance("BUFG", i_I=mmcm_ps_output, o_O=ddr_clk),
+        ]
+
+        for i, din in enumerate(pads):
+            self.specials += Instance("ODDR", 
+                    i_C=ddr_clk, 
+                    i_CE=1, 
+                    i_D1=1, 
+                    i_D2=0, 
+                    o_Q=din.clk,
+                    p_DDR_CLK_EDGE="SAME_EDGE")
+            self.specials += [
+                Instance("ODDR", 
+                    i_C=ClockSignal(), 
+                    i_CE=1, 
+                    i_D1=self.data[i][0][bit], # DDR CLK Rising Edge
+                    i_D2=self.data[i][1][bit], # DDR CLK Falling Edge
+                    o_Q=din.data[bit],
+                    p_DDR_CLK_EDGE="SAME_EDGE") 
+                for bit in range(bit_width)]
 
 class Dac(Module):
     """Output module.
@@ -170,7 +239,7 @@ class Config(Module):
 Phy = namedtuple("Phy", "rtlink probes overrides")
 
 
-class Shuttler(Module):
+class Shuttler(Module, AutoCSR):
     """Shuttler module.
 
     Used both in functional simulation and final gateware.
@@ -181,8 +250,10 @@ class Shuttler(Module):
     Attributes:
         phys (list): List of Endpoints.
     """
-    def __init__(self):
+    def __init__(self, pads):
         NUM_OF_DACS = 16
+
+        self.submodules.dac_interface = DacInterface(pads)
 
         self.phys = []
 
@@ -204,7 +275,10 @@ class Shuttler(Module):
 
         for idx in range(NUM_OF_DACS):
             dac = Dac()
-            self.comb += dac.clear.eq(self.cfg.clr[idx]),
+            self.comb += [
+                dac.clear.eq(self.cfg.clr[idx]),
+                self.dac_interface.data[idx // 2][idx % 2].eq(dac.data)
+            ]
 
             for i in dac.i:
                 delay = getattr(i, "latency", 0)

@@ -153,8 +153,8 @@ class Satellite(BaseSoC, AMPSoC):
         self.csr_devices.append("converter_spi")
         self.config["HAS_CONVERTER_SPI"] = None
 
-        dac_rst = self.platform.request('dac_rst')
-        self.comb += dac_rst.eq(0)
+        self.submodules.dac_rst = gpio.GPIOOut(self.platform.request("dac_rst"))
+        self.csr_devices.append("dac_rst")
 
         self.rtio_channels = []
 
@@ -163,7 +163,8 @@ class Satellite(BaseSoC, AMPSoC):
             self.submodules += phy
             self.rtio_channels.append(rtio.Channel.from_phy(phy))
 
-        self.submodules.shuttler = Shuttler()
+        self.submodules.shuttler = Shuttler([platform.request("dac_din", i) for i in range(8)])
+        self.csr_devices.append("shuttler")
         self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.shuttler.phys)
 
         self.config["HAS_RTIO_LOG"] = None
