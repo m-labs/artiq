@@ -15,6 +15,8 @@ use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
+#[cfg(soc_platform = "efc")]
+use board_artiq::ad9117;
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
 #[cfg(has_drtio_eem)]
@@ -573,6 +575,9 @@ pub extern fn main() -> i32 {
 
     let mut hardware_tick_ts = 0;
 
+    #[cfg(soc_platform = "efc")]
+    ad9117::init().expect("AD9117 initialization failed");
+    
     loop {
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
