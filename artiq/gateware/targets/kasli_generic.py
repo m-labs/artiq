@@ -99,10 +99,12 @@ class GenericMaster(MasterBase):
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
         self.rtio_channels.append(rtio.LogChannel())
 
-        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
         if has_drtio_over_eem:
             self.add_eem_drtio(self.eem_drtio_channels)
         self.add_drtio_cpuif_groups()
+
+        self.add_rtio(self.rtio_channels, sed_lanes=description["sed_lanes"])
+
         if has_grabber:
             self.config["HAS_GRABBER"] = None
             self.add_csr_group("grabber", self.grabber_csr_group)
