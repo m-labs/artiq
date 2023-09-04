@@ -2,9 +2,11 @@
 mod imp {
     use board_misoc::csr;
 
-    pub fn set_config(busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), ()> {
+    const INVALID_BUS: &'static str = "Invalid SPI bus"; 
+
+    pub fn set_config(busno: u8, flags: u8, length: u8, div: u8, cs: u8) -> Result<(), &'static str> {
         if busno != 0 {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
@@ -31,9 +33,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn write(busno: u8, data: u32) -> Result<(), ()> {
+    pub fn write(busno: u8, data: u32) -> Result<(), &'static str> {
         if busno != 0 {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         unsafe {
             while csr::converter_spi::writable_read() == 0 {}
@@ -42,9 +44,9 @@ mod imp {
         Ok(())
     }
 
-    pub fn read(busno: u8) -> Result<u32, ()> {
+    pub fn read(busno: u8) -> Result<u32, &'static str> {
         if busno != 0 {
-            return Err(())
+            return Err(INVALID_BUS)
         }
         Ok(unsafe {
             while csr::converter_spi::writable_read() == 0 {}
