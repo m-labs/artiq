@@ -109,6 +109,8 @@ class TXSerdes(Module):
         ser_out = [ Signal() for _ in range(4) ]
         t_out = [ Signal() for _ in range(4) ]
 
+        self.ext_rst = Signal()
+
         for i in range(4):
             self.specials += [
                 # Serializer
@@ -118,7 +120,7 @@ class TXSerdes(Module):
                     p_INIT_OQ=0b00000,
                     o_OQ=ser_out[i],
                     o_TQ=t_out[i],
-                    i_RST=ResetSignal(),
+                    i_RST=ResetSignal() | self.ext_rst,
                     i_CLK=ClockSignal("sys5x"),
                     i_CLKDIV=ClockSignal(),
                     i_D1=self.txdata[i][0],
@@ -529,3 +531,6 @@ class EEMSerdes(Module, TransceiverInterface, AutoCSR):
         self.rst.attr.add("no_retiming")
 
         TransceiverInterface.__init__(self, channel_interfaces, async_rx=False)
+
+        for tx_en, serdes in zip(self.txenable.storage, serdes_list):
+            self.comb += serdes.tx_serdes.ext_rst.eq(~tx_en)
