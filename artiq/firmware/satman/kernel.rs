@@ -128,13 +128,13 @@ struct Session {
 }
 
 #[derive(Debug)]
-struct KernelData {
-    data: Vec<u8>,
+struct KernelLibrary {
+    library: Vec<u8>,
     complete: bool
 }
 
 pub struct Manager {
-    kernels: BTreeMap<u32, KernelData>,
+    kernels: BTreeMap<u32, KernelLibrary>,
     current_id: u32,
     session: Session,
     cache: Cache
@@ -317,8 +317,8 @@ impl Manager {
                 if kernel.complete {
                     // replace entry
                     self.kernels.remove(&id);
-                    self.kernels.insert(id, KernelData {
-                        data: Vec::new(),
+                    self.kernels.insert(id, KernelLibrary {
+                        library: Vec::new(),
                         complete: false });
                     self.kernels.get_mut(&id)?
                 } else {
@@ -326,13 +326,13 @@ impl Manager {
                 }
             },
             None => {
-                self.kernels.insert(id, KernelData {
-                    data: Vec::new(),
+                self.kernels.insert(id, KernelLibrary {
+                    library: Vec::new(),
                     complete: false });
                 self.kernels.get_mut(&id)?
             },
         };
-        kernel.data.extend(&data[0..data_len]);
+        kernel.library.extend(&data[0..data_len]);
 
         kernel.complete = last;
         Ok(())
@@ -406,7 +406,7 @@ impl Manager {
         unsafe { 
             kernel_cpu::start();
 
-            kern_send(&kern::LoadRequest(&self.kernels.get(&id)?.data)).unwrap();
+            kern_send(&kern::LoadRequest(&self.kernels.get(&id)?.library)).unwrap();
             kern_recv(|reply| {
                 match reply {
                     kern::LoadReply(Ok(())) => {
@@ -730,7 +730,7 @@ fn process_kern_message(session: &mut Session, cache: &mut Cache, rank: u8) -> R
     })
 }
 
-pub fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
+fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
     match request {
         &kern::RtioInitRequest => {
             unsafe {
