@@ -253,49 +253,6 @@ pub mod subkernel {
         }
     }
 
-    fn get_finished_abnormally<'a>(io: &Io, subkernel_mutex: &Mutex) -> Option<(u32, &'a mut Subkernel)> {
-        // return kernels that have an exception which require handling
-        let _lock = match subkernel_mutex.lock(io) {
-            Ok(lock) => lock,
-            // this may get interrupted, when session is cancelled - can ignore, it will be cleared out soon anyway
-            Err(_) => return None,
-        };
-        let subkernels_iter = unsafe { SUBKERNELS.iter_mut() };
-        for (id, subkernel) in subkernels_iter {
-            match subkernel.state {
-                SubkernelState::Finished { status: FinishStatus::Ok } => (),
-                SubkernelState::Finished { .. } => return Some((*id, subkernel)),
-                _ => ()
-            }
-        }
-        None
-    }
-
-    pub fn get_finished_with_exception(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
-        routing_table: &RoutingTable) -> Result<Option<SubkernelFinished>, Error> {
-        let finished = get_finished_abnormally(io, subkernel_mutex);
-        // broken into get_finished function to prevent deadlocks if something comes during exception retrieval
-        if let Some((id, mut subkernel)) = finished {
-            let _lock = subkernel_mutex.lock(io)?;
-            if let SubkernelState::Finished { status } = subkernel.state {
-                // update the status so any exception doesn't get handled again
-                subkernel.state = SubkernelState::Finished { status: FinishStatus::Ok };
-                Ok(Some(SubkernelFinished {
-                    id: id,
-                    comm_lost: status == FinishStatus::CommLost,
-                    exception: if status == FinishStatus::Exception { 
-                        Some(drtio::subkernel_retrieve_exception(
-                            io, aux_mutex, routing_table, subkernel.destination)?) 
-                    } else { None }
-                }))
-            } else {
-                Err(Error::IncorrectState)
-            }
-        } else {
-            Ok(None)
-        }
-    }
-
     pub fn await_finish(io: &Io, aux_mutex: &Mutex, subkernel_mutex: &Mutex,
         routing_table: &RoutingTable, id: u32, timeout: u64) -> Result<SubkernelFinished, Error> {
         {

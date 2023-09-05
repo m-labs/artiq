@@ -690,17 +690,6 @@ fn host_kernel_worker(io: &Io, aux_mutex: &Mutex,
             process_kern_queued_rpc(stream, &mut session)?
         }
 
-        #[cfg(has_drtio)]
-        while let Some(subkernel_finished) = subkernel::get_finished_with_exception(
-            io, aux_mutex, ddma_mutex, subkernel_mutex, routing_table)? {
-            if subkernel_finished.comm_lost {
-                error!("Communication with satellite lost while subkernel {} was running", subkernel_finished.id);
-            }
-            if let Some(exception) = subkernel_finished.exception {
-                stream.write_all(&exception)?;
-            }
-        }
-
         if mailbox::receive() != 0 {
             process_kern_message(io, aux_mutex,
                 routing_table, up_destinations,
