@@ -656,6 +656,24 @@ pub extern fn main() -> i32 {
     }
 }
 
+#[cfg(soc_platform = "efc")]
+fn enable_error_led() {
+    let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+
+    // Keep LEDs enabled
+    io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+    // Enable Error LED
+    io_expander.set(0, 7, true);
+
+    // Keep VADJ and P3V3_FMC enabled
+    io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+
+    io_expander.set(1, 0, true);
+    io_expander.set(1, 1, true);
+
+    io_expander.service().unwrap();
+}
+
 #[no_mangle]
 pub extern fn exception(_regs: *const u32) {
     let pc = mepc::read();
@@ -695,8 +713,16 @@ pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
 
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+        #[cfg(soc_platform = "efc")]
+        {
+            if location.file() != "libboard_misoc/io_expander.rs" {
+                enable_error_led();
+            }
+        }
     } else {
         print!("panic at unknown location");
+        #[cfg(soc_platform = "efc")]
+        enable_error_led();
     }
     if let Some(message) = info.message() {
         println!(": {}", message);
