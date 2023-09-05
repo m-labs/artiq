@@ -121,7 +121,6 @@ struct MessageManager {
 
 // Per-run state
 struct Session {
-    cache: Cache,
     kernel_state: KernelState,
     log_buffer: String,
     last_exception: Option<Sliceable>,
@@ -138,6 +137,7 @@ pub struct Manager {
     kernels: BTreeMap<u32, KernelData>,
     current_id: u32,
     session: Session,
+    cache: Cache
 }
 
 pub struct SubkernelFinished {
@@ -276,7 +276,6 @@ impl MessageManager {
 impl Session {
     pub fn new() -> Session {
         Session {
-            cache: Cache::new(),
             kernel_state: KernelState::Absent,
             log_buffer: String::new(),
             last_exception: None,
@@ -308,6 +307,7 @@ impl Manager {
             kernels: BTreeMap::new(),
             current_id: 0,
             session: Session::new(),
+            cache: Cache::new(),
         }
     }
 
@@ -352,7 +352,7 @@ impl Manager {
     pub fn stop(&mut self) {
         unsafe { kernel_cpu::stop() }
         self.session.kernel_state = KernelState::Absent;
-        unsafe { self.session.cache.unborrow() }
+        unsafe { self.cache.unborrow() }
     }
 
     pub fn run(&mut self, id: u32) -> Result<(), Error> {
@@ -470,7 +470,7 @@ impl Manager {
             Err(Error::KernelException(exception)) => {
                 unsafe { kernel_cpu::stop() }
                 self.session.kernel_state = KernelState::Absent;
-                unsafe { self.session.cache.unborrow() }
+                unsafe { self.cache.unborrow() }
                 self.session.last_exception = Some(exception);
                 return Some(SubkernelFinished { id: self.current_id, with_exception: true })
             },
@@ -482,7 +482,7 @@ impl Manager {
              }
         }
 
-        match process_kern_message(&mut self.session, rank) {
+        match process_kern_message(&mut self.session, &mut self.cache, rank) {
             Ok(Some(with_exception)) => Some(SubkernelFinished { id: self.current_id, with_exception: with_exception }),
             Ok(None) | Err(Error::NoMessage) => None,
             Err(e) => { 
@@ -642,7 +642,7 @@ fn process_external_messages(session: &mut Session) -> Result<(), Error> {
     }
 }
 
-fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>, Error> {
+fn process_kern_message(session: &mut Session, cache: &mut Cache, rank: u8) -> Result<Option<bool>, Error> {
     // returns Ok(with_exception) on finish
     // None if the kernel is still running
     kern_recv(|request| {
@@ -685,28 +685,28 @@ fn process_kern_message(session: &mut Session, rank: u8) -> Result<Option<bool>,
             }
 
             &kern::CacheGetRequest { key } => {
-                let value = session.cache.get(key);
+                let value = cache.get(key);
                 kern_send(&kern::CacheGetReply {
                     value: unsafe { mem::transmute(value) }
                 })
             }
 
             &kern::CachePutRequest { key, value } => {
-                let succeeded = session.cache.put(key, value).is_ok();
+                let succeeded = cache.put(key, value).is_ok();
                 kern_send(&kern::CachePutReply { succeeded: succeeded })
             }
 
             &kern::RunFinished => {
                 unsafe { kernel_cpu::stop() }
                 session.kernel_state = KernelState::Absent;
-                unsafe { session.cache.unborrow() }
+                unsafe { cache.unborrow() }
 
                 return Ok(Some(false))
             }
             &kern::RunException { exceptions, stack_pointers, backtrace } => {
                 unsafe { kernel_cpu::stop() }
                 session.kernel_state = KernelState::Absent;
-                unsafe { session.cache.unborrow() }    
+                unsafe { cache.unborrow() }    
                 let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
                 session.last_exception = Some(exception);
                 return Ok(Some(true))
