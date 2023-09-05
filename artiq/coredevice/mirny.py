@@ -183,7 +183,7 @@ class Almazny:
     """
     Almazny (High frequency mezzanine board for Mirny)
 
-    :param host_mirny - Mirny device Almazny is connected to
+    :param host_mirny: Mirny device Almazny is connected to
     """
 
     def __init__(self, dmgr, host_mirny):
@@ -223,8 +223,9 @@ class Almazny:
     def set_att(self, channel, att, rf_switch=True):
         """
         Sets attenuators on chosen shift register (channel).
+
         :param channel - index of the register [0-3]
-        :param att_mu - attenuation setting in dBm [0-31.5]
+        :param att - attenuation setting in dBm [0-31.5]
         :param rf_switch - rf switch (bool)
         """
         self.set_att_mu(channel, self.att_to_mu(att), rf_switch)
@@ -233,6 +234,7 @@ class Almazny:
     def set_att_mu(self, channel, att_mu, rf_switch=True):
         """
         Sets attenuators on chosen shift register (channel).
+
         :param channel - index of the register [0-3]
         :param att_mu - attenuation setting in machine units [0-63]
         :param rf_switch - rf switch (bool)
@@ -245,6 +247,7 @@ class Almazny:
     def output_toggle(self, oe):
         """
         Toggles output on all shift registers on or off.
+
         :param oe - toggle output enable (bool)
         """
         self.output_enable = oe
