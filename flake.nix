@@ -91,6 +91,10 @@
           sha256 = "1y27vz6jq6sywas07kz3v01sqjd0sga9yv9w2cksqac3v7wmf2a0";
         };
         prePatch = "echo ${version} > RELEASE-VERSION";
+        postPatch = ''
+          substituteInPlace OutputCheck/Driver.py \
+            --replace "argparse.FileType('rU')" "argparse.FileType('r')"
+        '';
       };
 
       libartiq-support = pkgs.stdenv.mkDerivation {
