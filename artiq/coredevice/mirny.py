@@ -224,9 +224,9 @@ class Almazny:
         """
         Sets attenuators on chosen shift register (channel).
 
-        :param channel - index of the register [0-3]
-        :param att - attenuation setting in dBm [0-31.5]
-        :param rf_switch - rf switch (bool)
+        :param channel: index of the register [0-3]
+        :param att: attenuation setting in dBm [0-31.5]
+        :param rf_switch: rf switch (bool)
         """
         self.set_att_mu(channel, self.att_to_mu(att), rf_switch)
 
@@ -235,9 +235,9 @@ class Almazny:
         """
         Sets attenuators on chosen shift register (channel).
 
-        :param channel - index of the register [0-3]
-        :param att_mu - attenuation setting in machine units [0-63]
-        :param rf_switch - rf switch (bool)
+        :param channel: index of the register [0-3]
+        :param att_mu: attenuation setting in machine units [0-63]
+        :param rf_switch: rf switch (bool)
         """
         self.channel_sw[channel] = 1 if rf_switch else 0
         self.att_mu[channel] = att_mu
@@ -248,7 +248,7 @@ class Almazny:
         """
         Toggles output on all shift registers on or off.
 
-        :param oe - toggle output enable (bool)
+        :param oe: toggle output enable (bool)
         """
         self.output_enable = oe
         cfg_reg = self.mirny_cpld.read_reg(1)
