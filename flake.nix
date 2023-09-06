@@ -190,6 +190,8 @@
       migen = pkgs.python3Packages.buildPythonPackage rec {
         name = "migen";
         src = src-migen;
+        format = "pyproject";
+        nativeBuildInputs = [ pkgs.python3Packages.setuptools ];
         propagatedBuildInputs = [ pkgs.python3Packages.colorama ];
       };
 
