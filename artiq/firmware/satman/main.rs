@@ -119,7 +119,22 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
                 if let Some(status) = _manager.check_state() {
                     info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
                     drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                        destination: _destination, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
+                        destination: *_rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp })?;
+                } else if let Some(subkernel_finished) = kernelmgr.get_last_finished() {
+                    info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
+                    drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
+                        id: subkernel_finished.id, with_exception: subkernel_finished.with_exception
+                    })?;
+                } else if kernelmgr.message_is_ready() {
+                    let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
+                    if let Some(meta) = kernelmgr.message_get_slice(&mut data_slice) {
+                        drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
+                            destination: *_rank, id: kernelmgr.get_current_id().unwrap(),
+                            last: meta.last, length: meta.len as u16, data: data_slice
+                        })?;
+                    } else {
+                        error!("subkernel message is ready but no message is present");
+                    }
                 } else {
                     let errors;
                     unsafe {
@@ -428,12 +443,12 @@ fn process_aux_packet(dmamgr: &mut DmaManager, analyzer: &mut Analyzer, kernelmg
 }
 
 fn process_aux_packets(dma_manager: &mut DmaManager, analyzer: &mut Analyzer,
-        kernel_manager: &mut KernelManager, repeaters: &mut [repeater::Repeater],
+        kernelmgr: &mut KernelManager, repeaters: &mut [repeater::Repeater],
         routing_table: &mut drtio_routing::RoutingTable, rank: &mut u8) {
     let result =
         drtioaux::recv(0).and_then(|packet| {
             if let Some(packet) = packet {
-                process_aux_packet(dma_manager, analyzer, kernel_manager, repeaters, routing_table, rank, packet)
+                process_aux_packet(dma_manager, analyzer, kernelmgr, repeaters, routing_table, rank, packet)
             } else {
                 Ok(())
             }
@@ -679,7 +694,7 @@ pub extern fn main() -> i32 {
         // on subsequent connections, without a manual intervention.
         let mut dma_manager = DmaManager::new();
         let mut analyzer = Analyzer::new();
-        let mut kernel_manager = KernelManager::new();
+        let mut kernelmgr = KernelManager::new();
 
         drtioaux::reset(0);
         drtiosat_reset(false);
@@ -688,7 +703,7 @@ pub extern fn main() -> i32 {
         while drtiosat_link_rx_up() {
             drtiosat_process_errors();
             process_aux_packets(&mut dma_manager, &mut analyzer, 
-                &mut kernel_manager, &mut repeaters, 
+                &mut kernelmgr, &mut repeaters, 
                 &mut routing_table, &mut rank);
             for rep in repeaters.iter_mut() {
                 rep.service(&routing_table, rank);
@@ -712,35 +727,7 @@ pub extern fn main() -> i32 {
                     error!("aux packet error: {}", e);
                 }
             }
-            // async messages
-            if let Some(status) = dma_manager.get_status() {
-                info!("playback done, error: {}, channel: {}, timestamp: {}", status.error, status.channel, status.timestamp);
-                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::DmaPlaybackStatus { 
-                    destination: rank, id: status.id, error: status.error, channel: status.channel, timestamp: status.timestamp }) {
-                    error!("error sending DMA playback status: {}", e);
-                }
-            }
-            if let Some(subkernel_finished) = kernel_manager.process_kern_requests(rank) {
-                info!("subkernel {} finished, with exception: {}", subkernel_finished.id, subkernel_finished.with_exception);
-                if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelFinished {
-                    id: subkernel_finished.id, with_exception: subkernel_finished.with_exception
-                }) {
-                    error!("error sending subkernel finish status: {}", e);
-                }
-            }
-            if kernel_manager.message_is_ready() {
-                let mut data_slice: [u8; MASTER_PAYLOAD_MAX_SIZE] = [0; MASTER_PAYLOAD_MAX_SIZE];
-                if let Some(meta) = kernel_manager.message_get_slice(&mut data_slice) {
-                    if let Err(e) = drtioaux::send(0, &drtioaux::Packet::SubkernelMessage {
-                        destination: rank, id: kernel_manager.get_current_id().unwrap(),
-                        last: meta.last, length: meta.len as u16, data: data_slice
-                    }) {
-                        error!("error sending subkernel message: {}", e);
-                    }
-                } else {
-                    error!("subkernel message is ready but no message received");
-                }
-            }
+            kernelmgr.process_kern_requests(rank);
         }
 
         drtiosat_reset_phy(true);

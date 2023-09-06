@@ -137,7 +137,8 @@ pub struct Manager {
     kernels: BTreeMap<u32, KernelLibrary>,
     current_id: u32,
     session: Session,
-    cache: Cache
+    cache: Cache,
+    last_finished: Option<SubkernelFinished>
 }
 
 pub struct SubkernelFinished {
@@ -308,6 +309,7 @@ impl Manager {
             current_id: 0,
             session: Session::new(),
             cache: Cache::new(),
+            last_finished: None,
         }
     }
 
@@ -392,6 +394,10 @@ impl Manager {
         self.session.messages.is_outgoing_ready()
     }
 
+    pub fn get_last_finished(&mut self) -> Option<SubkernelFinished> {
+        self.last_finished.take()
+    }
+
     pub fn load(&mut self, id: u32) -> Result<(), Error> {
         if self.current_id == id && self.session.kernel_state == KernelState::Loaded {
             return Ok(())
@@ -457,41 +463,158 @@ impl Manager {
             Err(_) => error!("Error writing exception data")
         }
     }
-    
 
-    pub fn process_kern_requests(&mut self, rank: u8) -> Option<SubkernelFinished> {
+    pub fn process_kern_requests(&mut self, rank: u8) {
         if !self.is_running() {
-            return None;
+            return;
         }
 
-        match process_external_messages(&mut self.session) {
+        match self.process_external_messages() {
             Ok(()) => (),
-            Err(Error::AwaitingMessage) => return None, // kernel still waiting, do not process kernel messages
+            Err(Error::AwaitingMessage) => return, // kernel still waiting, do not process kernel messages
             Err(Error::KernelException(exception)) => {
                 unsafe { kernel_cpu::stop() }
                 self.session.kernel_state = KernelState::Absent;
                 unsafe { self.cache.unborrow() }
                 self.session.last_exception = Some(exception);
-                return Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
             },
             Err(e) => { 
                 error!("Error while running processing external messages: {:?}", e);
                 self.stop();
                 self.runtime_exception(e);
-                return Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
              }
         }
 
-        match process_kern_message(&mut self.session, &mut self.cache, rank) {
-            Ok(Some(with_exception)) => Some(SubkernelFinished { id: self.current_id, with_exception: with_exception }),
-            Ok(None) | Err(Error::NoMessage) => None,
+        match self.process_kern_message(rank) {
+            Ok(Some(with_exception)) => {
+                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: with_exception })
+            },
+            Ok(None) | Err(Error::NoMessage) => (),
             Err(e) => { 
                 error!("Error while running kernel: {:?}", e); 
                 self.stop(); 
                 self.runtime_exception(e);
-                Some(SubkernelFinished { id: self.current_id, with_exception: true })
+                self.last_finished = Some(SubkernelFinished { id: self.current_id, with_exception: true })
             }
         }
+    }
+
+    fn process_external_messages(&mut self) -> Result<(), Error> {
+        match self.session.kernel_state {
+            KernelState::MsgAwait { max_time } => {
+                if clock::get_ms() > max_time {
+                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
+                    self.session.kernel_state = KernelState::Running;
+                    return Ok(())
+                }
+                if let Some(message) = self.session.messages.get_incoming() {
+                    kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
+                    self.session.kernel_state = KernelState::Running;
+                    pass_message_to_kernel(&message)
+                } else {
+                    Err(Error::AwaitingMessage)
+                }
+            },
+            KernelState::MsgSending => {
+                if self.session.messages.was_message_acknowledged() {
+                    self.session.kernel_state = KernelState::Running;
+                    kern_acknowledge()
+                } else {
+                    Err(Error::AwaitingMessage)
+                }
+            },
+            _ => Ok(())
+        }
+    }
+
+    fn process_kern_message(&mut self, rank: u8) -> Result<Option<bool>, Error> {
+        // returns Ok(with_exception) on finish
+        // None if the kernel is still running
+        kern_recv(|request| {
+            match (request, self.session.kernel_state) {
+                (&kern::LoadReply(_), KernelState::Loaded) => {
+                    // We're standing by; ignore the message.
+                    return Ok(None)
+                }
+                (_, KernelState::Running) => (),
+                _ => {
+                    unexpected!("unexpected request {:?} from kernel CPU in {:?} state",
+                                request, self.session.kernel_state)
+                },
+            }
+
+            if process_kern_hwreq(request, rank)? {
+                return Ok(None)
+            }
+
+            match request {
+                &kern::Log(args) => {
+                    use core::fmt::Write;
+                    self.session.log_buffer
+                        .write_fmt(args)
+                        .unwrap_or_else(|_| warn!("cannot append to session log buffer"));
+                    self.session.flush_log_buffer();
+                    kern_acknowledge()
+                }
+
+                &kern::LogSlice(arg) => {
+                    self.session.log_buffer += arg;
+                    self.session.flush_log_buffer();
+                    kern_acknowledge()
+                }
+
+                &kern::RpcFlush => {
+                    // we do not have to do anything about this request,
+                    // it is sent by the kernel firmware regardless of RPC being used
+                    kern_acknowledge()
+                }
+
+                &kern::CacheGetRequest { key } => {
+                    let value = self.cache.get(key);
+                    kern_send(&kern::CacheGetReply {
+                        value: unsafe { mem::transmute(value) }
+                    })
+                }
+
+                &kern::CachePutRequest { key, value } => {
+                    let succeeded = self.cache.put(key, value).is_ok();
+                    kern_send(&kern::CachePutReply { succeeded: succeeded })
+                }
+
+                &kern::RunFinished => {
+                    unsafe { kernel_cpu::stop() }
+                    self.session.kernel_state = KernelState::Absent;
+                    unsafe { self.cache.unborrow() }
+
+                    return Ok(Some(false))
+                }
+                &kern::RunException { exceptions, stack_pointers, backtrace } => {
+                    unsafe { kernel_cpu::stop() }
+                    self.session.kernel_state = KernelState::Absent;
+                    unsafe { self.cache.unborrow() }    
+                    let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
+                    self.session.last_exception = Some(exception);
+                    return Ok(Some(true))
+                }
+
+                &kern::SubkernelMsgSend { id: _, tag, data } => {
+                    self.session.messages.accept_outgoing(tag, data)?;
+                    // acknowledge after the message is sent
+                    self.session.kernel_state = KernelState::MsgSending;
+                    Ok(())
+                }
+
+                &kern::SubkernelMsgRecvRequest { id: _, timeout } => {
+                    let max_time = clock::get_ms() + timeout as u64;
+                    self.session.kernel_state = KernelState::MsgAwait { max_time: max_time };
+                    Ok(())
+                },
+
+                request => unexpected!("unexpected request {:?} from kernel CPU", request)
+            }.and(Ok(None))
+        })
     }
 }
 
@@ -612,122 +735,6 @@ fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
         }
     }
     Ok(())
-}
-
-fn process_external_messages(session: &mut Session) -> Result<(), Error> {
-    match session.kernel_state {
-        KernelState::MsgAwait { max_time } => {
-            if clock::get_ms() > max_time {
-                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::Timeout })?;
-                session.kernel_state = KernelState::Running;
-                return Ok(())
-            }
-            if let Some(message) = session.messages.get_incoming() {
-                kern_send(&kern::SubkernelMsgRecvReply { status: kern::SubkernelStatus::NoError })?;
-                session.kernel_state = KernelState::Running;
-                pass_message_to_kernel(&message)
-            } else {
-                Err(Error::AwaitingMessage)
-            }
-        },
-        KernelState::MsgSending => {
-            if session.messages.was_message_acknowledged() {
-                session.kernel_state = KernelState::Running;
-                kern_acknowledge()
-            } else {
-                Err(Error::AwaitingMessage)
-            }
-        },
-        _ => Ok(())
-    }
-}
-
-fn process_kern_message(session: &mut Session, cache: &mut Cache, rank: u8) -> Result<Option<bool>, Error> {
-    // returns Ok(with_exception) on finish
-    // None if the kernel is still running
-    kern_recv(|request| {
-        match (request, session.kernel_state) {
-            (&kern::LoadReply(_), KernelState::Loaded) => {
-                // We're standing by; ignore the message.
-                return Ok(None)
-            }
-            (_, KernelState::Running) => (),
-            _ => {
-                unexpected!("unexpected request {:?} from kernel CPU in {:?} state",
-                            request, session.kernel_state)
-            },
-        }
-
-        if process_kern_hwreq(request, rank)? {
-            return Ok(None)
-        }
-
-        match request {
-            &kern::Log(args) => {
-                use core::fmt::Write;
-                session.log_buffer
-                       .write_fmt(args)
-                       .unwrap_or_else(|_| warn!("cannot append to session log buffer"));
-                session.flush_log_buffer();
-                kern_acknowledge()
-            }
-
-            &kern::LogSlice(arg) => {
-                session.log_buffer += arg;
-                session.flush_log_buffer();
-                kern_acknowledge()
-            }
-
-            &kern::RpcFlush => {
-                // we do not have to do anything about this request,
-                // it is sent by the kernel firmware regardless of RPC being used
-                kern_acknowledge()
-            }
-
-            &kern::CacheGetRequest { key } => {
-                let value = cache.get(key);
-                kern_send(&kern::CacheGetReply {
-                    value: unsafe { mem::transmute(value) }
-                })
-            }
-
-            &kern::CachePutRequest { key, value } => {
-                let succeeded = cache.put(key, value).is_ok();
-                kern_send(&kern::CachePutReply { succeeded: succeeded })
-            }
-
-            &kern::RunFinished => {
-                unsafe { kernel_cpu::stop() }
-                session.kernel_state = KernelState::Absent;
-                unsafe { cache.unborrow() }
-
-                return Ok(Some(false))
-            }
-            &kern::RunException { exceptions, stack_pointers, backtrace } => {
-                unsafe { kernel_cpu::stop() }
-                session.kernel_state = KernelState::Absent;
-                unsafe { cache.unborrow() }    
-                let exception = handle_kernel_exception(&exceptions, &stack_pointers, &backtrace)?;
-                session.last_exception = Some(exception);
-                return Ok(Some(true))
-            }
-
-            &kern::SubkernelMsgSend { id: _, tag, data } => {
-                session.messages.accept_outgoing(tag, data)?;
-                // acknowledge after the message is sent
-                session.kernel_state = KernelState::MsgSending;
-                Ok(())
-            }
-
-            &kern::SubkernelMsgRecvRequest { id: _, timeout } => {
-                let max_time = clock::get_ms() + timeout as u64;
-                session.kernel_state = KernelState::MsgAwait { max_time: max_time };
-                Ok(())
-            },
-
-            request => unexpected!("unexpected request {:?} from kernel CPU", request)
-        }.and(Ok(None))
-    })
 }
 
 fn process_kern_hwreq(request: &kern::Message, rank: u8) -> Result<bool, Error> {
