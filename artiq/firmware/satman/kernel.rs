@@ -665,7 +665,7 @@ fn kern_send(request: &kern::Message) -> Result<(), Error> {
 fn handle_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
     stack_pointers: &[eh_artiq::StackPointerBacktrace],
     backtrace: &[(usize, usize)]
-) -> Option<Sliceable> {
+) -> Result<Sliceable, Error> {
     error!("exception in kernel");
     for exception in exceptions {
         error!("{:?}", exception.unwrap());
@@ -682,10 +682,9 @@ fn handle_kernel_exception(exceptions: &[Option<eh_artiq::Exception>],
         async_errors: 0
     }).write_to(&mut writer) {
         // save last exception data to be received by master
-        Ok(_) => return Some(Sliceable::new(writer.into_inner())),
-        Err(_) => error!("Error writing exception data")
+        Ok(_) => Ok(Sliceable::new(writer.into_inner())),
+        Err(_) => Err(Error::SubkernelIoError)
     }
-    None
 }
 
 fn pass_message_to_kernel(message: &Message) -> Result<(), Error> {
