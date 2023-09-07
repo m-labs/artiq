@@ -303,11 +303,11 @@ For example, a subkernel performing integer addition: ::
             result = subkernel_await(subkernel_add)
             assert result == 4
 
-Sometimes the subkernel execution may take more time - and the await has a default timeout of 10000 milliseconds (10 seconds). It can be adjusted, as ``subkernel_await()`` accepts an extra argument.
+Sometimes the subkernel execution may take more time - and the await has a default timeout of 10000 milliseconds (10 seconds). It can be adjusted, as ``subkernel_await()`` can accept an extra argument.
 
-Subkernels are compiled after the main kernel, and they are immediately uploaded to satellites. When called, master instructs satellites to load the subkernel data into their kernel cores and to run it. If the subkernel is complex, and its binary relatively big, the delay between the call and actually running the subkernel may be substantial; if that delay has to be minimized, ``subkernel_preload(function)`` can be used before the call.
+Subkernels are compiled after the main kernel, and then immediately uploaded to satellites. When called, master instructs the appropriate satellite to load the subkernel into their kernel core and to run it. If the subkernel is complex, and its binary relatively big, the delay between the call and actually running the subkernel may be substantial; if that delay has to be minimized, ``subkernel_preload(function)`` should be used before the call.
 
-While ``self`` is accepted as an argument for subkernels, it is embedded into the compiled data. Any changes made by the main kernel or other subkernels, will not be available for the subkernel.
+While ``self`` is accepted as an argument for subkernels, it is embedded into the compiled data. Any changes made by the main kernel or other subkernels, will not be available.
 
 Subkernels can call other kernels and subkernels, if they're within the same destination. For a more complex example: ::
 
@@ -340,7 +340,9 @@ Subkernels can call other kernels and subkernels, if they're within the same des
             assert result == 4
             self.pulse_ttl(20)
 
-Without the preload, the delay after the core reset would need to be longer. It's still an operation that can take some time, depending on the connection. Notice that the method ``pulse_ttl()`` can be also called both within a subkernel, and on its own. In general, subkernels do not have to be awaited, but an await operation can help synchronize the main kernel, and allows receiving returned values.
+Without the preload, the delay after the core reset would need to be longer. It's still an operation that can take some time, depending on the connection. Notice that the method ``pulse_ttl()`` can be also called both within a subkernel, and on its own. 
+
+In general, subkernels do not have to be awaited, but it is required to retrieve returned values and exceptions.
 
 .. note::
     When a subkernel is running, regardless of devices used by it, RTIO devices on that satellite are not available to the master. Control is returned to master after the subkernel finishes - to be sure that you can use the device, the subkernel should be awaited before any operations on affected remote RTIO devices are done.
