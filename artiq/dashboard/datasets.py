@@ -74,19 +74,20 @@ class CreateEditDialog(QtWidgets.QDialog):
 
         self.key = key
         self.name_widget.setText(key)
-        self.value_widget.setText(value)
 
+        value_edit_string = self.value_to_edit_string(value)
         if metadata is not None:
             scale = scale_from_metadata(metadata)
-            decoded_value = pyon.decode(value)
-            if scale == 1:
-                self.value_widget.setText(value)
-            else: 
-                self.value_widget.setText(pyon.encode(decoded_value / scale))
+            t = value.dtype if value is np.ndarray else type(value)
+            if scale != 1 and np.issubdtype(t, np.number):
+                # degenerates to float type
+                value_edit_string = self.value_to_edit_string(
+                        np.float64(value / scale))
             self.unit_widget.setText(metadata.get('unit', ''))
             self.scale_widget.setText(str(metadata.get('scale', '')))
             self.precision_widget.setText(str(metadata.get('precision', '')))
 
+        self.value_widget.setText(value_edit_string)
         self.box_widget.setChecked(persist)
 
     def accept(self):
@@ -104,11 +105,11 @@ class CreateEditDialog(QtWidgets.QDialog):
         if precision != "":
             metadata['precision'] = int(precision)
         scale = scale_from_metadata(metadata)
-        value = pyon.decode(value)
+        value = self.parse_edit_string(value)
         t = value.dtype if value is np.ndarray else type(value)
-        is_floating = scale != 1 or np.issubdtype(t, np.floating)
-        if is_floating:
-            value = value * scale
+        if scale != 1 and np.issubdtype(t, np.number):
+            # degenerates to float type
+            value = np.float64(value * scale)
         if self.key and self.key != key:
             asyncio.ensure_future(exc_to_warning(rename(self.key, key, value, metadata, persist, self.dataset_ctl)))
         else:
@@ -119,7 +120,9 @@ class CreateEditDialog(QtWidgets.QDialog):
     def dtype(self):
         txt = self.value_widget.text()
         try:
-            result = pyon.decode(txt)
+            result = self.parse_edit_string(txt)
+            # ensure only pyon compatible types are permissable
+            pyon.encode(result)
         except:
             pixmap = self.style().standardPixmap(
                 QtWidgets.QStyle.SP_MessageBoxWarning)
@@ -128,6 +131,35 @@ class CreateEditDialog(QtWidgets.QDialog):
         else:
             self.data_type.setText(type(result).__name__)
             self.ok.setEnabled(True)
+
+    @staticmethod
+    def parse_edit_string(s):
+        if s == "":
+            raise TypeError
+        _eval_dict = {
+            "__builtins__": {},
+            "array": np.array,
+            "null": np.nan,
+            "inf": np.inf
+        }
+        for t_ in pyon._numpy_scalar:
+            _eval_dict[t_] = eval("np.{}".format(t_), {"np": np})
+        return eval(s, _eval_dict, {})
+
+    @staticmethod
+    def value_to_edit_string(v):
+        t = type(v)
+        r = ""
+        if isinstance(v, np.generic):
+            r += t.__name__
+            r += "("
+            r += repr(v)
+            r += ")"
+        elif v is None:
+            return r
+        else:
+            r += repr(v)
+        return r
 
 
 class Model(DictSyncTreeSepModel):
@@ -209,7 +241,6 @@ class DatasetsDock(QtWidgets.QDockWidget):
             key = self.table_model.index_to_key(idx)
             if key is not None:
                 persist, value, metadata = self.table_model.backing_store[key]
-                value = pyon.encode(value)
                 CreateEditDialog(self, self.dataset_ctl, key, value, metadata, persist).open()
 
     def delete_clicked(self):
