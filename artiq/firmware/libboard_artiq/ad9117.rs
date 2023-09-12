@@ -7,6 +7,8 @@ const QRCML_REG : u8 = 0x08;
 const CLKMODE_REG : u8 = 0x14;
 const VERSION_REG : u8 = 0x1F;
 
+const RETIMER_CLK_PHASE : u8 = 0b11;
+
 fn hard_reset() {
     unsafe {
         // Min Pulse Width: 50ns
@@ -56,6 +58,10 @@ pub fn init() -> Result<(), &'static str> {
             debug!("DAC AD9117 Channel {} retiming fails. CLKMODE reg: {:02x}", channel, reg);
             return Err("DAC AD9117 retiming failure");
         }
+
+        // Force RETIMER-CLK to be Phase 1 as DCLKIO and CLKIN is known to be safe at Phase 1
+        // See Issue #2200
+        write(channel, CLKMODE_REG, RETIMER_CLK_PHASE << 6 | 1 << 2 | RETIMER_CLK_PHASE)?;
 
         // Set the DACs input data format to be twos complement
         // Set IFIRST and IRISING to True
