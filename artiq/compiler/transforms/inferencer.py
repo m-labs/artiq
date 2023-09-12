@@ -259,7 +259,31 @@ class Inferencer(algorithm.Visitor):
 
     def visit_SubscriptT(self, node):
         self.generic_visit(node)
-        if isinstance(node.slice, ast.Index):
+
+        if types.is_tuple(node.value.type):
+            if (not isinstance(node.slice, ast.Index) or
+                not isinstance(node.slice.value, ast.Num)):
+                diag = diagnostic.Diagnostic(
+                    "error", "tuples can only be indexed by a constant", {},
+                    node.slice.loc, []
+                )
+                self.engine.process(diag)
+                return
+
+            tuple_type = node.value.type.find()
+            index = node.slice.value.n
+            if index < 0 or index >= len(tuple_type.elts):
+                diag = diagnostic.Diagnostic(
+                    "error",
+                    "index {index} is out of range for tuple of size {size}",
+                    {"index": index, "size": len(tuple_type.elts)},
+                    node.slice.loc, []
+                )
+                self.engine.process(diag)
+                return
+
+            self._unify(node.type, tuple_type.elts[index], node.loc, node.value.loc)
+        elif isinstance(node.slice, ast.Index):
             if types.is_tuple(node.slice.value.type):
                 if types.is_var(node.value.type):
                     return
