@@ -277,7 +277,8 @@ Subkernels behave in most part as regular kernels, they accept arguments and can
 
    - they do not support RPCs or calling subsequent subkernels on other devices,
    - they do not support DRTIO,
-   - their arguments and return values must be fully annotated with ARTIQ types (with ``self`` being an exception),
+   - their return value must be fully annotated with an ARTIQ type,
+   - their arguments should be annotated, and only basic ARTIQ types are supported,
    - while ``self`` is allowed, there is no attribute writeback - any changes to it will be discarded when the subkernel is done,
    - they can raise exceptions, but they cannot be caught by the master,
    - they begin execution as soon as possible when called, and they can be awaited.
