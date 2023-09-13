@@ -12,11 +12,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1664405593,
-        "narHash": "sha256-yP441NerlLGig7n+9xHsx8yCtZ+Ggd0VqfBSzc20E04=",
+        "lastModified": 1693473687,
+        "narHash": "sha256-BdLddCWbvoEyakcGwhph9b5dIU1iA0hCQV7KYgU8nos=",
         "owner": "m-labs",
         "repo": "artiq-comtools",
-        "rev": "15ddac62813ef623a076ccf982b3bc63d314e651",
+        "rev": "f522ef3dbc65961f17b2d3d41e927409d970fd79",
         "type": "github"
       },
       "original": {
@@ -26,12 +26,15 @@
       }
     },
     "flake-utils": {
+      "inputs": {
+        "systems": "systems"
+      },
       "locked": {
-        "lastModified": 1659877975,
-        "narHash": "sha256-zllb8aq3YO3h8B/U0/J1WBgAL8EX5yWf5pMj3G0NAmc=",
+        "lastModified": 1692799911,
+        "narHash": "sha256-3eihraek4qL744EvQXsK1Ha6C3CR7nnT8X2qWap4RNk=",
         "owner": "numtide",
         "repo": "flake-utils",
-        "rev": "c0e246b9b83f637f4681389ecabcb2681b4f3af0",
+        "rev": "f9e7cf818399d17d347f847525c5a5a8032e4e44",
         "type": "github"
       },
       "original": {
@@ -43,11 +46,11 @@
     "mozilla-overlay": {
       "flake": false,
       "locked": {
-        "lastModified": 1687771476,
-        "narHash": "sha256-TSpqz6qYVRoqkEdOCawEQ4/cWt/4pracmvw17HK1tgE=",
+        "lastModified": 1690536331,
+        "narHash": "sha256-aRIf2FB2GTdfF7gl13WyETmiV/J7EhBGkSWXfZvlxcA=",
         "owner": "mozilla",
         "repo": "nixpkgs-mozilla",
-        "rev": "3a44b8783514e7d6db4b63df96071b6c2b014b07",
+        "rev": "db89c8707edcffefcd8e738459d511543a339ff5",
         "type": "github"
       },
       "original": {
@@ -61,11 +64,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1689303441,
-        "narHash": "sha256-LwlF+MOXrLsgA04164Q5EiBCGLFVOwkQAkSOGPuBLCs=",
+        "lastModified": 1694603747,
+        "narHash": "sha256-syvFioLXiJZFnBl+W49gnc8MQzAd0/DiNzdZPZBa80Q=",
         "ref": "refs/heads/master",
-        "rev": "283bd7c69ab5a6655437555f72eb8743f9741065",
-        "revCount": 812,
+        "rev": "ff27e22ee6596760331a4dcc8aa412b6887109f4",
+        "revCount": 833,
         "type": "git",
         "url": "https://git.m-labs.hk/m-labs/nac3.git"
       },
@@ -76,16 +79,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1688868408,
-        "narHash": "sha256-RR9N5XTAxSBhK8MCvLq9uxfdkd7etC//seVXldy0k48=",
+        "lastModified": 1694562957,
+        "narHash": "sha256-ZvDt5bxX6Ga+TQ6kvK5WEn7OQN87KAsMaRrFSdReIm8=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "510d721ce097150ae3b80f84b04b13b039186571",
+        "rev": "f4a33546bdb5f81bd6cceb1b3cb19667145fed83",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-23.05",
+        "ref": "nixpkgs-unstable",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -108,11 +111,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1685540542,
-        "narHash": "sha256-wQJwL3xc6QVQbiJrt71/Z9tp4Eq1yqdGddcEiv7sPCw=",
+        "lastModified": 1693473454,
+        "narHash": "sha256-kr8Ur6JNW/xVRHdPn3ou980IAxg/n+f3ZQBHuJ1uaC4=",
         "owner": "m-labs",
         "repo": "sipyco",
-        "rev": "f5bf2ba875340a31a135aea14ad184575ca800ac",
+        "rev": "5467dcf9738673ab9a49e6f2377bda7c551b5f90",
         "type": "github"
       },
       "original": {
@@ -124,11 +127,11 @@
     "src-migen": {
       "flake": false,
       "locked": {
-        "lastModified": 1674045327,
-        "narHash": "sha256-oYdeY0MbTReKbAwmSznnqw0wNawdInJoFJVWW3tesFA=",
+        "lastModified": 1693990700,
+        "narHash": "sha256-qJLA03QcZ5S9DrqrseuzIQBTWS7rjAbYJxLYZEQ8rxA=",
         "owner": "m-labs",
         "repo": "migen",
-        "rev": "ccaee68e14d3636e1d8fb2e0864dd89b1b1f7384",
+        "rev": "2cfee3e0db6fdca9b5918686ea77c93252e7cebd",
         "type": "github"
       },
       "original": {
@@ -140,11 +143,11 @@
     "src-misoc": {
       "flake": false,
       "locked": {
-        "lastModified": 1685415268,
-        "narHash": "sha256-g4+yeSV+HtWjcllM5wk4vNBUVCXtDOzUSKhxXPT7Fyc=",
+        "lastModified": 1693709836,
+        "narHash": "sha256-YiCk05RYLzZu1CYkQ2r7XtjwVEqkUGTQn388uOls9tI=",
         "ref": "refs/heads/master",
-        "rev": "6d48ce77b6746d3226a682790fbc95b90340986e",
-        "revCount": 2440,
+        "rev": "58dc4ee60d165ce9145cf3d904241fc154b6407f",
+        "revCount": 2448,
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
@@ -153,6 +156,21 @@
         "submodules": true,
         "type": "git",
         "url": "https://github.com/m-labs/misoc.git"
+      }
+    },
+    "systems": {
+      "locked": {
+        "lastModified": 1681028828,
+        "narHash": "sha256-Vy1rq5AaRuLzOxct8nz4T6wlgyUR7zLU309k9mBC768=",
+        "owner": "nix-systems",
+        "repo": "default",
+        "rev": "da67096a3b9bf56a91d16901293e51ba5b49a27e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-systems",
+        "repo": "default",
+        "type": "github"
       }
     }
   },
