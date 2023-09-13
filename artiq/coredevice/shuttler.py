@@ -2,20 +2,47 @@ import numpy
 
 from artiq.language.core import *
 from artiq.language.types import *
-from artiq.coredevice.rtio import rtio_output
+from artiq.coredevice.rtio import rtio_output, rtio_input_data
 
 
 class Config:
-    kernel_invariants = {"core", "channel", "target_o"}
+    kernel_invariants = {
+        "core", "channel", "target_base", "target_read",
+        "target_gain", "target_offset", "target_clr"
+    }
 
     def __init__(self, dmgr, channel, core_device="core"):
         self.core = dmgr.get(core_device)
         self.channel = channel
-        self.target_o = channel << 8
+        self.target_base   = channel << 8
+        self.target_read   = 1 << 6
+        self.target_gain   = 0 * (1 << 4)
+        self.target_offset = 1 * (1 << 4)
+        self.target_clr    = 1 * (1 << 5)
 
     @kernel
-    def set_config(self, config):
-        rtio_output(self.target_o, config)
+    def set_clr(self, clr):
+        rtio_output(self.target_base | self.target_clr, clr)
+    
+    @kernel
+    def set_gain(self, channel, gain):
+        rtio_output(self.target_base | self.target_gain | channel, gain)
+    
+    @kernel
+    def get_gain(self, channel):
+        rtio_output(self.target_base | self.target_gain |
+            self.target_read | channel, 0)
+        return rtio_input_data(self.channel)
+    
+    @kernel
+    def set_offset(self, channel, offset):
+        rtio_output(self.target_base | self.target_offset | channel, offset)
+
+    @kernel
+    def get_offset(self, channel):
+        rtio_output(self.target_base | self.target_offset |
+            self.target_read | channel, 0)
+        return rtio_input_data(self.channel)
 
 
 class Volt:
