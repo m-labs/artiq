@@ -385,7 +385,7 @@ class TRPC(Type):
     def __hash__(self):
         return hash(self.service)
 
-class TSubkernel(Type):
+class TSubkernel(TFunction):
     """
     A kernel to be run on a satellite.
 
@@ -401,10 +401,9 @@ class TSubkernel(Type):
 
     def __init__(self, args, ret, sid, destination):
         assert isinstance(ret, Type)
-        self.args, self.ret, self.sid, self.destination = args, ret, sid, destination
-
-    def find(self):
-        return self
+        super().__init__(args, OrderedDict(), ret)
+        self.sid, self.destination = sid, destination
+        self.delay = TFixedDelay(iodelay.Const(0))
 
     def unify(self, other):
         if other is self:
@@ -417,10 +416,6 @@ class TSubkernel(Type):
             other.unify(self)
         else:
             raise UnificationError(self, other)
-
-    def fold(self, accum, fn):
-        accum = self.ret.fold(accum, fn)
-        return fn(accum, self)
 
     def __repr__(self):
         if getattr(builtins, "__in_sphinx__", False):

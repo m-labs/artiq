@@ -1813,7 +1813,8 @@ class LLVMIRGenerator:
                 attrvalue = getattr(value, attr)
                 is_class_function = (types.is_constructor(typ) and
                                      types.is_function(typ.attributes[attr]) and
-                                     not types.is_external_function(typ.attributes[attr]))
+                                     not types.is_external_function(typ.attributes[attr]) and
+                                     not types.is_subkernel(typ.attributes[attr]))
                 if is_class_function:
                     attrvalue = self.embedding_map.specialize_function(typ.instance, attrvalue)
                 if not (types.is_instance(typ) and attr in typ.constant_attributes):
