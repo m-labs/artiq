@@ -84,6 +84,8 @@ class Module:
         constant_hoister.process(self.artiq_ir)
         if remarks:
             invariant_detection.process(self.artiq_ir)
+        # for subkernels: main kernel inferencer output, to be passed to further compilations
+        self.subkernel_arg_types = inferencer.subkernel_arg_types
 
     def build_llvm_ir(self, target):
         """Compile the module to LLVM IR for the specified target."""

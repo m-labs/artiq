@@ -311,13 +311,20 @@ class IODelayEstimator(algorithm.Visitor):
                         args[arg_name] = arg_node
 
                     free_vars = delay.duration.free_vars()
-                    node.arg_exprs = {
-                        arg: self.evaluate(args[arg], abort=abort,
-                                        context="in the expression for argument '{}' "
-                                                "that affects I/O delay".format(arg))
-                        for arg in free_vars
-                    }
-                    call_delay = delay.duration.fold(node.arg_exprs)
+                    try:
+                        node.arg_exprs = {
+                            arg: self.evaluate(args[arg], abort=abort,
+                                            context="in the expression for argument '{}' "
+                                                    "that affects I/O delay".format(arg))
+                            for arg in free_vars
+                        }
+                        call_delay = delay.duration.fold(node.arg_exprs)
+                    except KeyError as e:
+                        if getattr(node, "remote_fn", False):
+                            note = diagnostic.Diagnostic("note",
+                                "function called here", {},
+                                node.loc)
+                            self.abort("due to arguments passed remotely", node.loc, note)
                 else:
                     assert False
         else:

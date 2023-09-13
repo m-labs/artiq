@@ -4,7 +4,7 @@
 from artiq.language.core import *
 from artiq.language.types import *
 
-# CHECK-L: ${LINE:+2}: error: syscall argument 'x' must have a type annotation
+# CHECK-L: ${LINE:+2}: error: system call argument 'x' must have a type annotation
 @syscall
 def foo(x) -> TNone:
     pass

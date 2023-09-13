@@ -793,7 +793,7 @@ class TypedtreeHasher(algorithm.Visitor):
         return hash(tuple(freeze(getattr(node, field_name)) for field_name in fields))
 
 class Stitcher:
-    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0):
+    def __init__(self, core, dmgr, engine=None, print_as_rpc=True, destination=0, subkernel_arg_types=[]):
         self.core = core
         self.dmgr = dmgr
         if engine is None:
@@ -821,6 +821,9 @@ class Stitcher:
 
         self.destination = destination
         self.first_call = True
+        # for non-annotated subkernels: 
+        # main kernel inferencer output with types of arguments
+        self.subkernel_arg_types = subkernel_arg_types
 
     def stitch_call(self, function, args, kwargs, callback=None):
         # We synthesize source code for the initial call so that
@@ -955,18 +958,15 @@ class Stitcher:
             return self._extract_annot(function, param.annotation,
                                        "argument '{}'".format(param.name), loc,
                                        fn_kind)
-        elif fn_kind == 'syscall' or fn_kind == 'subkernel':
-            # Syscalls and subkernels must be entirely annotated.
-            if fn_kind == 'subkernel' and param.name == 'self':
-                # with self in subkernels being a self-explanatory exception.
-                return types.TVar()
+        elif fn_kind == 'syscall':
+            # Syscalls must be entirely annotated.
             diag = diagnostic.Diagnostic("error",
-                "{fn_kind} argument '{argument}' must have a type annotation",
+                "system call argument '{argument}' must have a type annotation",
                 {"fn_kind": fn_kind, "argument": param.name},
                 self._function_loc(function),
                 notes=self._call_site_note(loc, fn_kind))
             self.engine.process(diag)
-        elif fn_kind == 'rpc' and param.default is not inspect.Parameter.empty:
+        elif fn_kind == 'rpc' or fn_kind == 'subkernel' and param.default is not inspect.Parameter.empty:
             notes = []
             notes.append(diagnostic.Diagnostic("note",
                 "expanded from here while trying to infer a type for an"
@@ -985,8 +985,25 @@ class Stitcher:
                 Inferencer(engine=self.engine).visit(ast)
                 IntMonomorphizer(engine=self.engine).visit(ast)
                 return ast.type
+        elif fn_kind == 'kernel' and self.first_call and self.destination != 0:
+            # subkernels do not have access to the main kernel code to infer
+            # arg types - so these are cached and passed onto subkernel
+            # compilation, to avoid having to annotate them fully
+            for name, typ in self.subkernel_arg_types:
+                if param.name == name and name != 'self':
+                    # check the params before returning them
+                    # instances are not supported (rpc code doesn't handle them)
+                    # self is an exception as it's not passed dynamically
+                    if types.is_instance(typ):
+                        diag = diagnostic.Diagnostic("error",
+                            "argument '{argument}' of type {typ} is not supported in subkernels",
+                            {"argument": param.name, "typ": typ},
+                            self._function_loc(function),
+                            notes=self._call_site_note(loc, 'subkernel'))
+                        self.engine.process(diag)
+                    return typ
+            return types.TVar()
         else:
-            # Let the rest of the program decide.
             return types.TVar()
 
     def _quote_embedded_function(self, function, flags, remote_fn=False):
