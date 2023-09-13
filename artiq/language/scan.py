@@ -83,8 +83,7 @@ class RangeScan(ScanObject):
             self.sequence = [i*dx + start for i in range(npoints)]
 
         if randomize:
-            rng = random.Random(seed)
-            random.shuffle(self.sequence, rng.random)
+            random.Random(seed).shuffle(self.sequence)
 
     def __iter__(self):
         return iter(self.sequence)
@@ -120,8 +119,7 @@ class CenterScan(ScanObject):
                              for i in range(n) for sign in [-1, 1]][1:]
 
         if randomize:
-            rng = random.Random(seed)
-            random.shuffle(self.sequence, rng.random)
+            random.Random(seed).shuffle(self.sequence)
 
     def __iter__(self):
         return iter(self.sequence)
