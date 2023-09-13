@@ -20,21 +20,21 @@ class ScientificSpinBox(QtWidgets.QDoubleSpinBox):
         self.setCorrectionMode(self.CorrectToPreviousValue)
         # singleStep: resolution for step, buttons, accelerators
         # decimals: absolute rounding granularity
-        # precision: number of significant digits shown, %g precision
-        self.setPrecision()
+        # sigFigs: number of significant digits shown
+        self.setSigFigs()
         self.setRelativeStep()
         self.setRange(-inf, inf)
         self.setValue(0)
         # self.setKeyboardTracking(False)
 
-    def setPrecision(self, d=None):
+    def setSigFigs(self, d=None):
         if d is None:
             d = self.decimals() + 3
-        self._precision = max(1, int(d))
-        self._fmt = "{{:.{}g}}".format(self._precision)
+        self._sig_figs = max(1, int(d))
+        self._fmt = "{{:.{}g}}".format(self._sig_figs)
 
-    def precision(self):
-        return self._precision
+    def sigFigs(self):
+        return self._sig_figs
 
     def setRelativeStep(self, s=None):
         if s is None:

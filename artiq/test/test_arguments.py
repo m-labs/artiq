@@ -9,7 +9,7 @@ from artiq.language.environment import BooleanValue, EnumerationValue, \
 class NumberValueCase(unittest.TestCase):
     def setUp(self):
         self.default_value = NumberValue()
-        self.int_value = NumberValue(42, step=1, ndecimals=0)
+        self.int_value = NumberValue(42, step=1, precision=0)
         self.float_value = NumberValue(42)
 
     def test_invalid_default(self):

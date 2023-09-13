@@ -14,6 +14,7 @@ import sys
 import os
 from operator import itemgetter
 from dateutil.parser import parse as parse_date
+import numpy as np
 
 from prettytable import PrettyTable
 
@@ -22,7 +23,7 @@ from sipyco.sync_struct import Subscriber
 from sipyco.broadcast import Receiver
 from sipyco import common_args, pyon
 
-from artiq.tools import short_format, parse_arguments
+from artiq.tools import scale_from_metadata, short_format, parse_arguments
 from artiq import __version__ as artiq_version
 
 
@@ -187,7 +188,12 @@ def _action_set_dataset(remote, args):
         metadata["scale"] = args.scale
     if args.precision is not None:
         metadata["precision"] = args.precision
-    remote.set(args.name, pyon.decode(args.value), persist, metadata)
+    scale = scale_from_metadata(metadata)
+    value = pyon.decode(args.value)
+    t = type(value)
+    if np.issubdtype(t, np.number) or t is np.ndarray:
+        value = value * scale
+    remote.set(args.name, value, persist, metadata)
 
 
 def _action_del_dataset(remote, args):

@@ -83,8 +83,7 @@ class RangeScan(ScanObject):
             self.sequence = [i*dx + start for i in range(npoints)]
 
         if randomize:
-            rng = random.Random(seed)
-            random.shuffle(self.sequence, rng.random)
+            random.Random(seed).shuffle(self.sequence)
 
     def __iter__(self):
         return iter(self.sequence)
@@ -120,8 +119,7 @@ class CenterScan(ScanObject):
                              for i in range(n) for sign in [-1, 1]][1:]
 
         if randomize:
-            rng = random.Random(seed)
-            random.shuffle(self.sequence, rng.random)
+            random.Random(seed).shuffle(self.sequence)
 
     def __iter__(self):
         return iter(self.sequence)
@@ -191,11 +189,14 @@ class Scannable:
     :param unit: A string representing the unit of the scanned variable.
     :param scale: A numerical scaling factor by which the displayed values
         are multiplied when referenced in the experiment.
-    :param ndecimals: The number of decimals a UI should use.
+    :param precision: The maximum number of decimals a UI should use.
     """
-    def __init__(self, default=NoDefault, unit="", scale=None,
+    def __init__(self, default=NoDefault, unit="", *, scale=None,
                  global_step=None, global_min=None, global_max=None,
-                 ndecimals=2):
+                 precision=2, ndecimals=None):
+        if ndecimals is not None:
+            print("DeprecationWarning: 'ndecimals' is deprecated. Please use 'precision' instead.")
+            precision = ndecimals
         if scale is None:
             if unit == "":
                 scale = 1.0
@@ -216,7 +217,7 @@ class Scannable:
         self.global_step = global_step
         self.global_min = global_min
         self.global_max = global_max
-        self.ndecimals = ndecimals
+        self.precision = precision
 
     def default(self):
         if not hasattr(self, "default_values"):
@@ -240,7 +241,7 @@ class Scannable:
         d["global_step"] = self.global_step
         d["global_min"] = self.global_min
         d["global_max"] = self.global_max
-        d["ndecimals"] = self.ndecimals
+        d["precision"] = self.precision
         return d
 
 

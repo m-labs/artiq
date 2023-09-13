@@ -15,8 +15,12 @@ use board_misoc::{csr, ident, clock, uart_logger, i2c, pmp};
 #[cfg(has_si5324)]
 use board_artiq::si5324;
 use board_artiq::{spi, drtioaux};
+#[cfg(soc_platform = "efc")]
+use board_artiq::ad9117;
 use board_artiq::drtio_routing;
 use proto_artiq::drtioaux_proto::ANALYZER_MAX_SIZE;
+#[cfg(has_drtio_eem)]
+use board_artiq::drtio_eem;
 use riscv::register::{mcause, mepc, mtval};
 use dma::Manager as DmaManager;
 use analyzer::Analyzer;
@@ -461,6 +465,7 @@ const SI5324_SETTINGS: si5324::FrequencySettings
     crystal_as_ckin2: true
 };
 
+#[cfg(not(soc_platform = "efc"))]
 fn sysclk_setup() {
     let switched = unsafe {
         csr::crg::switch_done_read()
@@ -476,7 +481,7 @@ fn sysclk_setup() {
         // delay for clean UART log, wait until UART FIFO is empty
         clock::spin_us(1300);
         unsafe {
-            csr::drtio_transceiver::stable_clkin_write(1);
+            csr::gt_drtio::stable_clkin_write(1);
         }
         loop {}
     }
@@ -527,13 +532,41 @@ pub extern fn main() -> i32 {
         io_expander1.service().unwrap();
     }
 
+    #[cfg(not(soc_platform = "efc"))]
     sysclk_setup();
 
+    #[cfg(soc_platform = "efc")]
+    let mut io_expander;
+    #[cfg(soc_platform = "efc")]
+    {
+        io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+        
+        // Enable LEDs
+        io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+        
+        // Enable VADJ and P3V3_FMC
+        io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+
+        io_expander.set(1, 0, true);
+        io_expander.set(1, 1, true);
+
+        io_expander.service().unwrap();
+    }
+
+    #[cfg(not(has_drtio_eem))]
     unsafe {
-        csr::drtio_transceiver::txenable_write(0xffffffffu32 as _);
+        csr::gt_drtio::txenable_write(0xffffffffu32 as _);
+    }
+
+    #[cfg(has_drtio_eem)]
+    unsafe {
+        csr::eem_transceiver::txenable_write(0xffffffffu32 as _);
     }
 
     init_rtio_crg();
+
+    #[cfg(has_drtio_eem)]
+    drtio_eem::init();
 
     #[cfg(has_drtio_routing)]
     let mut repeaters = [repeater::Repeater::default(); csr::DRTIOREP.len()];
@@ -547,6 +580,9 @@ pub extern fn main() -> i32 {
 
     let mut hardware_tick_ts = 0;
 
+    #[cfg(soc_platform = "efc")]
+    ad9117::init().expect("AD9117 initialization failed");
+    
     loop {
         while !drtiosat_link_rx_up() {
             drtiosat_process_errors();
@@ -558,6 +594,8 @@ pub extern fn main() -> i32 {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
             }
+            #[cfg(soc_platform = "efc")]
+            io_expander.service().expect("I2C I/O expander service failed");
             hardware_tick(&mut hardware_tick_ts);
         }
 
@@ -591,6 +629,8 @@ pub extern fn main() -> i32 {
                 io_expander0.service().expect("I2C I/O expander #0 service failed");
                 io_expander1.service().expect("I2C I/O expander #1 service failed");
             }
+            #[cfg(soc_platform = "efc")]
+            io_expander.service().expect("I2C I/O expander service failed");
             hardware_tick(&mut hardware_tick_ts);
             if drtiosat_tsc_loaded() {
                 info!("TSC loaded from uplink");
@@ -619,6 +659,24 @@ pub extern fn main() -> i32 {
         #[cfg(has_si5324)]
         si5324::siphaser::select_recovered_clock(false).expect("failed to switch clocks");
     }
+}
+
+#[cfg(soc_platform = "efc")]
+fn enable_error_led() {
+    let mut io_expander = board_misoc::io_expander::IoExpander::new().unwrap();
+
+    // Keep LEDs enabled
+    io_expander.set_oe(0, 1 << 5 | 1 << 6 | 1 << 7).unwrap();
+    // Enable Error LED
+    io_expander.set(0, 7, true);
+
+    // Keep VADJ and P3V3_FMC enabled
+    io_expander.set_oe(1, 1 << 0 | 1 << 1).unwrap();
+
+    io_expander.set(1, 0, true);
+    io_expander.set(1, 1, true);
+
+    io_expander.service().unwrap();
 }
 
 #[no_mangle]
@@ -660,8 +718,16 @@ pub fn panic_fmt(info: &core::panic::PanicInfo) -> ! {
 
     if let Some(location) = info.location() {
         print!("panic at {}:{}:{}", location.file(), location.line(), location.column());
+        #[cfg(soc_platform = "efc")]
+        {
+            if location.file() != "libboard_misoc/io_expander.rs" {
+                enable_error_led();
+            }
+        }
     } else {
         print!("panic at unknown location");
+        #[cfg(soc_platform = "efc")]
+        enable_error_led();
     }
     if let Some(message) = info.message() {
         println!(": {}", message);

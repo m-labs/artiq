@@ -35,16 +35,6 @@ SECTIONS
         *(.text .text.*)
     } :text
 
-    /* https://sourceware.org/bugzilla/show_bug.cgi?id=20475 */
-    .got : {
-        PROVIDE(_GLOBAL_OFFSET_TABLE_ = .);
-        *(.got)
-    } :text
-
-    .got.plt : {
-        *(.got.plt)
-    } :text
-
     .rodata :
     {
         *(.rodata .rodata.*)

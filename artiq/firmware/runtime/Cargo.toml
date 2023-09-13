@@ -19,13 +19,14 @@ byteorder = { version = "1.0", default-features = false }
 cslice = { version = "0.3" }
 log = { version = "0.4", default-features = false }
 managed = { version = "^0.7.1", default-features = false, features = ["alloc", "map"] }
+dyld = { path = "../libdyld" }
 eh = { path = "../libeh" }
 unwind_backtrace = { path = "../libunwind_backtrace" }
 io = { path = "../libio", features = ["byteorder"] }
 alloc_list = { path = "../liballoc_list" }
 board_misoc = { path = "../libboard_misoc", features = ["uart_console", "smoltcp"] }
 logger_artiq = { path = "../liblogger_artiq" }
-board_artiq = { path = "../libboard_artiq" }
+board_artiq = { path = "../libboard_artiq", features = ["alloc"] }
 proto_artiq = { path = "../libproto_artiq", features = ["log", "alloc"] }
 riscv = { version = "0.6.0", features = ["inline-asm"] }
 

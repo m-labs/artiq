@@ -18,7 +18,8 @@ from artiq.language.environment import is_public_experiment
 from artiq.language import units
 
 
-__all__ = ["parse_arguments", "elide", "short_format", "file_import",
+__all__ = ["parse_arguments", "elide", "scale_from_metadata", 
+           "short_format", "file_import",
            "get_experiment",
            "exc_to_warning", "asyncio_wait_or_cancel",
            "get_windows_drives", "get_user_config_dir"]
@@ -54,12 +55,15 @@ def elide(s, maxlen):
         s += "..."
     return s
 
+def scale_from_metadata(metadata):
+    unit = metadata.get("unit", "")
+    default_scale = getattr(units, unit, 1)
+    return metadata.get("scale", default_scale)  
 
 def short_format(v, metadata={}):
     m = metadata
     unit = m.get("unit", "")
-    default_scale = getattr(units, unit, 1)
-    scale = m.get("scale", default_scale)  
+    scale = scale_from_metadata(m)
     precision = m.get("precision", None)
     if v is None:
         return "None"
@@ -68,6 +72,7 @@ def short_format(v, metadata={}):
         v_t = np.divide(v, scale)
         v_str = np.format_float_positional(v_t, 
                                            precision=precision,
+                                           trim='-',
                                            unique=True)
         v_str += " " + unit if unit else ""
         return v_str

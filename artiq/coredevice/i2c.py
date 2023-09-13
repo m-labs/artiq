@@ -168,6 +168,7 @@ class I2CSwitch:
     @kernel
     def set(self, channel: int32):
         """Enable one channel.
+
         :param channel: channel number (0-7)
         """
         i2c_switch_select(self.busno, self.address >> 1, 1 << channel)

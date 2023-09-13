@@ -59,7 +59,7 @@ Prerequisites:
                         help="SSH host to jump through")
     parser.add_argument("-t", "--target", default="kasli",
                         help="target board, default: %(default)s, one of: "
-                             "kasli kc705")
+                             "kasli efc kc705")
     parser.add_argument("-I", "--preinit-command", default=[], action="append",
                         help="add a pre-initialization OpenOCD command. "
                              "Useful for selecting a board when several are connected.")
@@ -215,9 +215,28 @@ class ProgrammerXC7(Programmer):
         Programmer.__init__(self, client, preinit_script)
         self._proxy = proxy
 
-        add_commands(self._board_script,
-            "source {boardfile}",
-            boardfile=self._transfer_script("board/{}.cfg".format(board)))
+        if board != "efc":
+            add_commands(self._board_script,
+                "source {boardfile}",
+                boardfile=self._transfer_script("board/{}.cfg".format(board)))
+        else:
+            add_commands(self._board_script,
+                # OpenOCD does not have the efc board file so custom script is included.
+                # To be used with Digilent-HS2 Programming Cable but the config in digilent-hs2.cfg is wrong
+                # See digilent_jtag_smt2_nc.cfg for details
+                "source [find interface/ftdi/digilent_jtag_smt2_nc.cfg]",
+
+                "ftdi tdo_sample_edge falling",
+
+                "reset_config none",
+                "transport select jtag",
+                "adapter speed 25000",
+
+                "source [find cpld/xilinx-xc7.cfg]",
+                "source [find cpld/jtagspi.cfg]",
+                "source [find fpga/xilinx-xadc.cfg]",
+                "source [find fpga/xilinx-dna.cfg]"
+            )
         self.add_flash_bank("spi0", "xc7", index=0)
 
         add_commands(self._script, "xadc_report xc7.tap")
@@ -237,6 +256,13 @@ def main():
     config = {
         "kasli": {
             "programmer":   partial(ProgrammerXC7, board="kasli", proxy="bscan_spi_xc7a100t.bit"),
+            "gateware":     ("spi0", 0x000000),
+            "bootloader":   ("spi0", 0x400000),
+            "storage":      ("spi0", 0x440000),
+            "firmware":     ("spi0", 0x450000),
+        },
+        "efc": {
+            "programmer":   partial(ProgrammerXC7, board="efc", proxy="bscan_spi_xc7a100t.bit"),
             "gateware":     ("spi0", 0x000000),
             "bootloader":   ("spi0", 0x400000),
             "storage":      ("spi0", 0x440000),

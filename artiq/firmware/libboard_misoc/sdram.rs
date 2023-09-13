@@ -8,9 +8,6 @@ mod ddr {
                     DFII_COMMAND_WRDATA, DFII_COMMAND_RDDATA};
     use sdram_phy::{DFII_NPHASES, DFII_PIX_DATA_SIZE, DFII_PIX_WRDATA_ADDR, DFII_PIX_RDDATA_ADDR};
 
-    #[cfg(kusddrphy)]
-    const DDRPHY_MAX_DELAY: u16 = 512;
-    #[cfg(not(kusddrphy))]
     const DDRPHY_MAX_DELAY: u16 = 32;
 
     const DQS_SIGNAL_COUNT: usize = DFII_PIX_DATA_SIZE / 2;
@@ -35,17 +32,12 @@ mod ddr {
 
     #[cfg(ddrphy_wlevel)]
     unsafe fn write_level_scan(logger: &mut Option<&mut dyn fmt::Write>) {
-        #[cfg(kusddrphy)]
-        log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
         log!(logger, "Write leveling scan:\n");
 
         enable_write_leveling(true);
         spin_cycles(100);
 
-        #[cfg(not(kusddrphy))]
         let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
-        #[cfg(kusddrphy)]
-        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY - ddrphy::wdly_dqs_taps_read();
 
         for n in 0..DQS_SIGNAL_COUNT {
             let dq_addr = dfii::PI0_RDDATA_ADDR
@@ -57,10 +49,6 @@ mod ddr {
 
             ddrphy::wdly_dq_rst_write(1);
             ddrphy::wdly_dqs_rst_write(1);
-            #[cfg(kusddrphy)]
-            for _ in 0..ddrphy::wdly_dqs_taps_read() {
-                ddrphy::wdly_dqs_inc_write(1);
-            }
 
             let mut dq;
             for _ in 0..ddrphy_max_delay {
@@ -88,17 +76,12 @@ mod ddr {
     unsafe fn write_level(logger: &mut Option<&mut dyn fmt::Write>,
                           delay: &mut [u16; DQS_SIGNAL_COUNT],
                           high_skew: &mut [bool; DQS_SIGNAL_COUNT]) -> bool {
-        #[cfg(kusddrphy)]
-        log!(logger, "DQS initial delay: {} taps\n", ddrphy::wdly_dqs_taps_read());
         log!(logger, "Write leveling: ");
 
         enable_write_leveling(true);
         spin_cycles(100);
 
-        #[cfg(not(kusddrphy))]
         let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY;
-        #[cfg(kusddrphy)]
-        let ddrphy_max_delay : u16 = DDRPHY_MAX_DELAY - ddrphy::wdly_dqs_taps_read();
 
         let mut failed = false;
         for n in 0..DQS_SIGNAL_COUNT {
@@ -112,10 +95,6 @@ mod ddr {
 
             ddrphy::wdly_dq_rst_write(1);
             ddrphy::wdly_dqs_rst_write(1);
-            #[cfg(kusddrphy)]
-            for _ in 0..ddrphy::wdly_dqs_taps_read() {
-                ddrphy::wdly_dqs_inc_write(1);
-            }
             ddrphy::wlevel_strobe_write(1);
             spin_cycles(10);
 
@@ -146,11 +125,6 @@ mod ddr {
                     dq = ptr::read_volatile(dq_addr);
                 }
 
-                // Get a bit further into the 0 zone
-                #[cfg(kusddrphy)]
-                for _ in 0..32 {
-                    incr_delay();
-                }
             }
 
             while dq == 0 {
@@ -191,9 +165,6 @@ mod ddr {
                 if delay[n] > threshold {
                     ddrphy::dly_sel_write(1 << n);
 
-                    #[cfg(kusddrphy)]
-                    ddrphy::rdly_dq_bitslip_write(1);
-                    #[cfg(not(kusddrphy))]
                     for _ in 0..3 {
                         ddrphy::rdly_dq_bitslip_write(1);
                     }
@@ -246,7 +217,7 @@ mod ddr {
             ddrphy::dly_sel_write(1 << (DQS_SIGNAL_COUNT - n - 1));
 
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(soc_platform = "kasli")]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);
@@ -337,7 +308,7 @@ mod ddr {
             let mut max_seen_valid = 0;
 
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(soc_platform = "kasli")]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);
@@ -400,7 +371,7 @@ mod ddr {
 
             // Set delay to the middle
             ddrphy::rdly_dq_rst_write(1);
-            #[cfg(soc_platform = "kasli")]
+            #[cfg(any(soc_platform = "kasli", soc_platform = "efc"))]
             {
                 for _ in 0..3 {
                     ddrphy::rdly_dq_bitslip_write(1);
@@ -451,13 +422,9 @@ pub unsafe fn init(mut _logger: Option<&mut dyn fmt::Write>) -> bool {
 
     #[cfg(has_ddrphy)]
     {
-        #[cfg(kusddrphy)]
-        csr::ddrphy::en_vtc_write(0);
         if !ddr::level(&mut _logger) {
             return false
         }
-        #[cfg(kusddrphy)]
-        csr::ddrphy::en_vtc_write(1);
     }
 
     csr::dfii::control_write(sdram_phy::DFII_CONTROL_SEL);

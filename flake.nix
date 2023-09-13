@@ -126,6 +126,8 @@
       migen = pkgs.python3Packages.buildPythonPackage rec {
         name = "migen";
         src = src-migen;
+        format = "pyproject";
+        nativeBuildInputs = [ pkgs.python3Packages.setuptools ];
         propagatedBuildInputs = [ pkgs.python3Packages.colorama ];
       };
 
@@ -211,16 +213,20 @@
             '';
           installPhase =
             ''
-            TARGET_DIR=$out
-            mkdir -p $TARGET_DIR
-            cp artiq_${target}/${variant}/gateware/top.bit $TARGET_DIR
+            mkdir $out
+            cp artiq_${target}/${variant}/gateware/top.bit $out
             if [ -e artiq_${target}/${variant}/software/bootloader/bootloader.bin ]
-            then cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $TARGET_DIR
+            then cp artiq_${target}/${variant}/software/bootloader/bootloader.bin $out
             fi
             if [ -e artiq_${target}/${variant}/software/runtime ]
-            then cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $TARGET_DIR
-            else cp artiq_${target}/${variant}/software/satman/satman.{elf,fbi} $TARGET_DIR
+            then cp artiq_${target}/${variant}/software/runtime/runtime.{elf,fbi} $out
+            else cp artiq_${target}/${variant}/software/satman/satman.{elf,fbi} $out
             fi
+
+            mkdir $out/nix-support
+            for i in $out/*.*; do
+            echo file binary-dist $i >> $out/nix-support/hydra-build-products
+            done
             '';
           # don't mangle ELF files as they are not for NixOS
           dontFixup = true;
@@ -290,6 +296,10 @@
         artiq-board-kc705-nist_clock = makeArtiqBoardPackage {
           target = "kc705";
           variant = "nist_clock";
+        };
+        artiq-board-efc-shuttler = makeArtiqBoardPackage {
+          target = "efc";
+          variant = "shuttler";
         };
         inherit sphinxcontrib-wavedrom latex-artiq-manual;
         artiq-manual-html = pkgs.stdenvNoCC.mkDerivation rec {
@@ -374,9 +384,9 @@
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
           rust
           pkgs.cargo-xbuild
-          pkgs.llvmPackages_11.clang-unwrapped
-          pkgs.llvm_11
-          pkgs.lld_11
+          pkgs.llvmPackages_14.clang-unwrapped
+          pkgs.llvm_14
+          pkgs.lld_14
           packages.x86_64-linux.vivado
           packages.x86_64-linux.openocd-bscanspi
         ];
@@ -387,7 +397,7 @@
       };
 
       hydraJobs = {
-        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock openocd-bscanspi;
+        inherit (packages.x86_64-linux) artiq artiq-board-kc705-nist_clock artiq-board-efc-shuttler openocd-bscanspi;
         sipyco-msys2-pkg = packages.x86_64-w64-mingw32.sipyco-pkg;
         artiq-comtools-msys2-pkg = packages.x86_64-w64-mingw32.artiq-comtools-pkg;
         artiq-msys2-pkg = packages.x86_64-w64-mingw32.artiq-pkg;

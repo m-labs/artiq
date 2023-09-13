@@ -286,9 +286,8 @@ class NRTSPIMaster:
     def set_config_mu(self, flags: int32 = 0, length: int32 = 8, div: int32 = 6, cs: int32 = 1):
         """Set the ``config`` register.
 
-        Note that the non-realtime SPI cores are usually clocked by the system
-        clock and not the RTIO clock. In many cases, the SPI configuration is
-        already set by the firmware and you do not need to call this method.
+        In many cases, the SPI configuration is already set by the firmware
+        and you do not need to call this method.
         """
         spi_set_config(self.busno, flags, length, div, cs)
 
