@@ -13,6 +13,7 @@ from artiq.gateware.amp import AMPSoC
 from artiq.gateware import rtio
 from artiq.gateware.rtio.xilinx_clocking import fix_serdes_timing_path
 from artiq.gateware.rtio.phy import ttl_simple
+from artiq.gateware.rtio.phy import spi2 as rtio_spi
 from artiq.gateware.drtio.transceiver import eem_serdes
 from artiq.gateware.drtio.rx_synchronizer import NoRXSynchronizer
 from artiq.gateware.drtio import *
@@ -145,6 +146,20 @@ class Satellite(BaseSoC, AMPSoC):
                 Subsignal('data', Pins('fmc0:HB13_N fmc0:HB12_N fmc0:HB13_P fmc0:HB12_P fmc0:HB15_N fmc0:HB15_P fmc0:HB11_N fmc0:HB09_N fmc0:HB09_P fmc0:HB14_N fmc0:HB14_P fmc0:HB10_N fmc0:HB10_P fmc0:HB11_P')),
                 Subsignal('clk', Pins('fmc0:HB06_CC_P')),
                 IOStandard('LVCMOS18')),
+            ('afe_ctrl_dir', 0, Pins('fmc0:LA26_N fmc0:HB00_CC_N fmc0:HB17_CC_P'), IOStandard("LVCMOS18")),
+            ('afe_ctrl_oe_n', 0, Pins('fmc0:HB19_N'), IOStandard("LVCMOS18")),
+            ('afe_relay', 0,
+                Subsignal('clk', Pins('fmc0:LA02_N')),
+                Subsignal('mosi', Pins('fmc0:LA00_CC_N')),
+                Subsignal('cs_n', Pins('fmc0:LA02_P fmc0:LA01_CC_N')),
+                IOStandard("LVCMOS18")),
+            ('afe_adc_spi', 0,
+                Subsignal('clk', Pins('fmc0:LA29_P')),
+                Subsignal('mosi', Pins('fmc0:LA29_N')),
+                Subsignal('miso', Pins('fmc0:LA30_N')),
+                Subsignal('cs_n', Pins('fmc0:LA28_P')),
+                IOStandard("LVCMOS18")),
+            ('afe_adc_error_n', 0, Pins('fmc0:LA28_N'), IOStandard("LVCMOS18")),
         ]
 
         platform.add_extension(shuttler_io)
@@ -166,6 +181,25 @@ class Satellite(BaseSoC, AMPSoC):
         self.submodules.shuttler = Shuttler([platform.request("dac_din", i) for i in range(8)])
         self.csr_devices.append("shuttler")
         self.rtio_channels.extend(rtio.Channel.from_phy(phy) for phy in self.shuttler.phys)
+
+        afe_dir = platform.request("afe_ctrl_dir")
+        self.comb += afe_dir.eq(0b011)
+
+        afe_oe = platform.request("afe_ctrl_oe_n")
+        self.comb += afe_oe.eq(0)
+
+        relay_led_phy = rtio_spi.SPIMaster(self.platform.request("afe_relay"))
+        self.submodules += relay_led_phy
+        print("SHUTTLER RELAY at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.append(rtio.Channel.from_phy(relay_led_phy))
+
+        adc_error_n = platform.request("afe_adc_error_n")
+        self.comb += adc_error_n.eq(1)
+
+        adc_spi = rtio_spi.SPIMaster(self.platform.request("afe_adc_spi"))
+        self.submodules += adc_spi
+        print("SHUTTLER ADC at RTIO channel 0x{:06x}".format(len(self.rtio_channels)))
+        self.rtio_channels.append(rtio.Channel.from_phy(adc_spi))
 
         self.config["HAS_RTIO_LOG"] = None
         self.config["RTIO_LOG_CHANNEL"] = len(self.rtio_channels)
