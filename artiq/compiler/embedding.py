@@ -990,17 +990,7 @@ class Stitcher:
             # arg types - so these are cached and passed onto subkernel
             # compilation, to avoid having to annotate them fully
             for name, typ in self.subkernel_arg_types:
-                if param.name == name and name != 'self':
-                    # check the params before returning them
-                    # instances are not supported (rpc code doesn't handle them)
-                    # self is an exception as it's not passed dynamically
-                    if types.is_instance(typ):
-                        diag = diagnostic.Diagnostic("error",
-                            "argument '{argument}' of type {typ} is not supported in subkernels",
-                            {"argument": param.name, "typ": typ},
-                            self._function_loc(function),
-                            notes=self._call_site_note(loc, 'subkernel'))
-                        self.engine.process(diag)
+                if param.name == name:
                     return typ
             return types.TVar()
         else:

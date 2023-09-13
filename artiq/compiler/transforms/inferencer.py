@@ -1445,12 +1445,17 @@ class Inferencer(algorithm.Visitor):
             self._unify(actualarg.type, formaltyp,
                         actualarg.loc, None)
             passed_args[formalname] = actualarg.loc
-
-        if types.is_subkernel(typ_func):
-            if types.is_method(typ):
-                self.subkernel_arg_types[typ_func.sid] = method_args
-            else:
-                self.subkernel_arg_types[typ_func.sid] = list(typ_args.items())
+            if types.is_subkernel(typ_func):
+                if types.is_instance(actualarg.type):
+                    # objects cannot be passed to subkernels, as rpc code doesn't support them
+                    diag = diagnostic.Diagnostic("error",
+                        "argument '{name}' of type: {typ} is not supported in subkernels",
+                        {"name": formalname, "typ": actualarg.type},
+                        actualarg.loc, [])
+                    self.engine.process(diag)
+                if typ_func.sid not in self.subkernel_arg_types:
+                    self.subkernel_arg_types[typ_func.sid] = []
+                self.subkernel_arg_types[typ_func.sid].append((formalname, formaltyp))
 
         for keyword in node.keywords:
             if keyword.arg in passed_args:
