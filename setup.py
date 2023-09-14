@@ -13,7 +13,7 @@ if sys.version_info[:2] < (3, 7):
 # Depends on PyQt5, but setuptools cannot check for it.
 requirements = [
     "numpy", "scipy",
-    "python-dateutil", "prettytable", "h5py",
+    "python-dateutil", "prettytable", "h5py", "lmdb",
     "qasync", "pyqtgraph", "pygit2",
     "llvmlite", "pythonparser", "levenshtein",
 ]
