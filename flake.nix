@@ -43,15 +43,18 @@
         cargo = rust;
       });
 
+      cargo-xbuild = pkgs.cargo-xbuild.overrideAttrs(oa: {
+        postPatch = "substituteInPlace src/sysroot.rs --replace 2021 2018";
+      });
+
       vivadoDeps = pkgs: with pkgs; let
-      # Apply patch from https://github.com/nix-community/nix-environments/pull/54
-      # to fix ncurses libtinfo.so's soname issue
+        # Apply patch from https://github.com/nix-community/nix-environments/pull/54
+        # to fix ncurses libtinfo.so's soname issue
         ncurses' = ncurses5.overrideAttrs (old: {
           configureFlags = old.configureFlags ++ [ "--with-termlib" ];
           postFixup = "";
         });
-      in
-      [
+      in [
         libxcrypt-legacy
         (ncurses'.override { unicodeSupport = false; })
         zlib
@@ -263,7 +266,7 @@
           nativeBuildInputs = [
             (pkgs.python3.withPackages(ps: [ migen misoc (artiq.withExperimentalFeatures experimentalFeatures) ps.packaging ]))
             rust
-            pkgs.cargo-xbuild
+            cargo-xbuild
             pkgs.llvmPackages_14.clang-unwrapped
             pkgs.llvm_14
             pkgs.lld_14
@@ -435,7 +438,7 @@
         buildInputs = [
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc ps.paramiko microscope ps.packaging ] ++ artiq.propagatedBuildInputs ))
           rust
-          pkgs.cargo-xbuild
+          cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
@@ -463,7 +466,7 @@
         buildInputs = [
           (pkgs.python3.withPackages(ps: with packages.x86_64-linux; [ migen misoc artiq ps.packaging ]))
           rust
-          pkgs.cargo-xbuild
+          cargo-xbuild
           pkgs.llvmPackages_14.clang-unwrapped
           pkgs.llvm_14
           pkgs.lld_14
